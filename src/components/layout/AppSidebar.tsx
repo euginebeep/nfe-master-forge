@@ -79,6 +79,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Estoque",
     items: [
+      { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert },
       { title: "Lotes", url: "/estoque/lotes", icon: Boxes },
       { title: "Movimentacoes", url: "/estoque/movimentacoes", icon: ClipboardList },
     ],

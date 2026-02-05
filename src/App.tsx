@@ -18,6 +18,7 @@ import ProdutosListPage from "./pages/cadastros/ProdutosListPage";
 import ProdutoDetailPage from "./pages/cadastros/ProdutoDetailPage";
 import FormulasListPage from "./pages/producao/FormulasListPage";
 import OrdensProducaoPage from "./pages/producao/OrdensProducaoPage";
+import QuarentenaPage from "./pages/estoque/QuarentenaPage";
 import LotesListPage from "./pages/estoque/LotesListPage";
 import MovimentacoesPage from "./pages/estoque/MovimentacoesPage";
 import NFeImportPage from "./pages/compras/NFeImportPage";
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/producao/formulas" element={<FormulasListPage />} />
             <Route path="/producao/ordens" element={<OrdensProducaoPage />} />
             {/* Estoque */}
+            <Route path="/estoque/quarentena" element={<QuarentenaPage />} />
             <Route path="/estoque/lotes" element={<LotesListPage />} />
             <Route path="/estoque/movimentacoes" element={<MovimentacoesPage />} />
             {/* Compras */}
