@@ -433,45 +433,74 @@ export function criarLoteEstoque(
 // ============================================
 // CALCULAR FATOR DE CONVERSÃO
 // ============================================
+// 
+// IMPORTANTE: No XML da NF-e:
+// - qCom = Quantidade Comercial (ex: 25.000)
+// - uCom = Unidade Comercial (ex: KG, G, UN, PCT, CX)
+// 
+// A quantidade no XML JÁ ESTÁ na unidade especificada.
+// Exemplo: qCom=25.000 + uCom=KG significa 25 quilos (não 25 sacos)
+// Exemplo: qCom=1000 + uCom=UN significa 1000 unidades
+// Exemplo: qCom=5 + uCom=CX pode significar 5 caixas (precisa converter para unidade interna)
+//
 function calcularFatorConversao(unidadeOrigem: string, unidadeDestino: string): number {
   const origem = unidadeOrigem.toUpperCase().trim();
   const destino = unidadeDestino.toLowerCase().trim();
   
+  // Se origem e destino são iguais (case-insensitive)
+  if (origem.toLowerCase() === destino) {
+    return 1;
+  }
+  
   // Tabela de conversão para GRAMAS (g) como unidade base de massa
   const paraGramas: Record<string, number> = {
-    'KG': 1000,
-    'G': 1,
-    'MG': 0.001,
-    'TON': 1000000,
+    'KG': 1000,      // 1 kg = 1000 g
+    'G': 1,          // 1 g = 1 g
+    'MG': 0.001,     // 1 mg = 0.001 g
+    'TON': 1000000,  // 1 ton = 1.000.000 g
     'T': 1000000,
   };
   
   // Tabela de conversão para MILILITROS (ml) como unidade base de volume
   const paraMl: Record<string, number> = {
-    'L': 1000,
+    'L': 1000,       // 1 L = 1000 ml
     'LT': 1000,
-    'ML': 1,
+    'ML': 1,         // 1 ml = 1 ml
   };
   
-  // Se for unidade, não converte
-  if (origem === 'UN' || origem === 'UND' || origem === 'UNID' || origem === 'PCT' || origem === 'CX') {
+  // Unidades que não fazem conversão de massa/volume
+  // Estas unidades representam embalagens ou contagens
+  const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'CAP', 'CAPS', 'ENV', 'ENVL'];
+  
+  // Se a origem é unidade discreta (embalagem), não converte
+  if (unidadesDiscretas.includes(origem)) {
     return 1;
   }
   
-  // Conversão de massa
+  // Conversão de massa para grama
   if (paraGramas[origem] !== undefined) {
     if (destino === 'g') return paraGramas[origem];
     if (destino === 'mg') return paraGramas[origem] * 1000;
     if (destino === 'kg') return paraGramas[origem] / 1000;
+    // Se destino é outro tipo de massa, converter via grama
+    if (paraGramas[destino.toUpperCase()] !== undefined) {
+      return paraGramas[origem] / paraGramas[destino.toUpperCase()];
+    }
   }
   
-  // Conversão de volume
+  // Conversão de volume para ml
   if (paraMl[origem] !== undefined) {
     if (destino === 'ml') return paraMl[origem];
-    if (destino === 'l') return paraMl[origem] / 1000;
+    if (destino === 'l' || destino === 'lt') return paraMl[origem] / 1000;
+    // Se destino é outro tipo de volume, converter via ml
+    if (paraMl[destino.toUpperCase()] !== undefined) {
+      return paraMl[origem] / paraMl[destino.toUpperCase()];
+    }
   }
   
   // Se não conseguiu determinar, retorna 1 (sem conversão)
+  // Isso evita erros quando a unidade não é reconhecida
+  console.warn(`[NFe] Conversão de unidade não mapeada: ${origem} → ${destino}, usando fator 1`);
   return 1;
 }
 
