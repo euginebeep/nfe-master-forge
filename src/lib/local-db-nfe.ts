@@ -246,13 +246,31 @@ export function findOrCreateProduto(
   const tipoItem = mapClassificacaoToTipoItem(classificacao);
   const isCritico = tipoItem === 'MP' || classificacao === 'MATERIA_PRIMA';
   
+  // Determinar unidade interna baseado no tipo de item
+  // REGRA: Embalagens e itens discretos mantêm unidade da nota fiscal (UN)
+  //        Matérias-primas convertem para grama
+  const uCom = item.unidade_comercial.toUpperCase();
+  const isEmbalagem = ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA'].includes(tipoItem);
+  const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'CAP', 'CAPS', 'ENV', 'ENVL', 'PC', 'PÇ', 'ROLO', 'MT', 'M'];
+  const isUnidadeDiscreta = unidadesDiscretas.includes(uCom);
+  
+  // Para embalagens: sempre usar 'un' (unidade)
+  // Para itens com unidade discreta na nota: usar 'un'
+  // Para matérias-primas com unidade de massa: usar 'g' (grama)
+  let unidadeInterna: 'g' | 'mg' | 'un' | 'ml' = 'g';
+  if (isEmbalagem || isUnidadeDiscreta) {
+    unidadeInterna = 'un';
+  } else if (uCom === 'ML' || uCom === 'L' || uCom === 'LT') {
+    unidadeInterna = 'ml';
+  }
+  
   const novoItem = LocalDb.insert<LocalItem>('itens', {
     sku_interno: LocalDb.generateSKU(tipoItem),
     descricao_interna: descricao,
     tipo_item: tipoItem,
     ncm: ncm,
     ean: ean || undefined,
-    unidade_interna: 'g',
+    unidade_interna: unidadeInterna,
     controla_lote: true,
     controla_validade: true,
     criticidade: isCritico ? 'CRITICO' : 'NORMAL',
@@ -263,12 +281,16 @@ export function findOrCreateProduto(
   });
   
   // Calcular fator de conversão
-  const uCom = item.unidade_comercial.toUpperCase();
+  // Para embalagens e unidades discretas: fator = 1 (sem conversão)
   let fatorConversao = 1;
-  if (uCom === 'KG') fatorConversao = 1000;
-  else if (uCom === 'G') fatorConversao = 1;
-  else if (uCom === 'MG') fatorConversao = 0.001;
-  else if (uCom === 'TON' || uCom === 'T') fatorConversao = 1000000;
+  if (!isEmbalagem && !isUnidadeDiscreta) {
+    if (uCom === 'KG') fatorConversao = 1000;
+    else if (uCom === 'G') fatorConversao = 1;
+    else if (uCom === 'MG') fatorConversao = 0.001;
+    else if (uCom === 'TON' || uCom === 'T') fatorConversao = 1000000;
+    else if (uCom === 'L' || uCom === 'LT') fatorConversao = 1000; // L para ml
+    else if (uCom === 'ML') fatorConversao = 1;
+  }
   
   // Criar link com fornecedor
   LocalDb.insert<LocalItemFornecedor>('item_fornecedores', {
@@ -276,7 +298,7 @@ export function findOrCreateProduto(
     fornecedor_id: fornecedorId,
     codigo_fornecedor: codigoFornecedor,
     descricao_fornecedor: descricao,
-    unidade_compra_padrao: uCom.toLowerCase(),
+    unidade_compra_padrao: isEmbalagem || isUnidadeDiscreta ? 'un' : uCom.toLowerCase(),
     fator_para_unidade_interna: fatorConversao,
     fornecedor_preferencial: true,
     preco_referencia: item.valor_unitario_comercial,
@@ -296,17 +318,29 @@ function ensureItemFornecedor(
   
   if (!existing) {
     const uCom = item.unidade_comercial.toUpperCase();
+    const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'CAP', 'CAPS', 'ENV', 'ENVL', 'PC', 'PÇ', 'ROLO', 'MT', 'M'];
+    const isUnidadeDiscreta = unidadesDiscretas.includes(uCom);
+    
+    // Verificar se o item é embalagem
+    const produto = LocalDb.getById<LocalItem>('itens', itemId);
+    const isEmbalagem = produto && ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA'].includes(produto.tipo_item);
+    
+    // Para embalagens e unidades discretas: não converter
     let fatorConversao = 1;
-    if (uCom === 'KG') fatorConversao = 1000;
-    else if (uCom === 'G') fatorConversao = 1;
-    else if (uCom === 'MG') fatorConversao = 0.001;
+    if (!isEmbalagem && !isUnidadeDiscreta) {
+      if (uCom === 'KG') fatorConversao = 1000;
+      else if (uCom === 'G') fatorConversao = 1;
+      else if (uCom === 'MG') fatorConversao = 0.001;
+      else if (uCom === 'L' || uCom === 'LT') fatorConversao = 1000;
+      else if (uCom === 'ML') fatorConversao = 1;
+    }
     
     LocalDb.insert<LocalItemFornecedor>('item_fornecedores', {
       item_id: itemId,
       fornecedor_id: fornecedorId,
       codigo_fornecedor: codigoFornecedor,
       descricao_fornecedor: item.descricao,
-      unidade_compra_padrao: uCom.toLowerCase(),
+      unidade_compra_padrao: isEmbalagem || isUnidadeDiscreta ? 'un' : uCom.toLowerCase(),
       fator_para_unidade_interna: fatorConversao,
       fornecedor_preferencial: false,
       preco_referencia: item.valor_unitario_comercial,
@@ -348,24 +382,42 @@ export function criarLoteEstoque(
                     produto?.criticidade === 'CRITICO' || 
                     produto?.criticidade === 'ULTRA';
   
+  // REGRA: Embalagens e itens discretos NÃO convertem unidade
+  const isEmbalagem = produto && ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA'].includes(produto.tipo_item);
+  const unidadeOriginal = item.unidade_comercial.toUpperCase();
+  const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'CAP', 'CAPS', 'ENV', 'ENVL', 'PC', 'PÇ', 'ROLO', 'MT', 'M'];
+  const isUnidadeDiscreta = unidadesDiscretas.includes(unidadeOriginal);
+  
   // IMPORTANTE: A quantidade original é a quantidade comercial do item na nota
   // Se tiver rastro, usar a quantidade do rastro (pode ser fracionada)
-  // A unidade original é SEMPRE a unidade comercial da nota
   const quantidadeOriginal = rastro?.quantidade || item.quantidade_comercial;
-  const unidadeOriginal = item.unidade_comercial.toUpperCase();
-  const unidadeInterna = produto?.unidade_interna || 'g';
   
-  // Calcular fator de conversão baseado na unidade comercial
-  // O fator converte da unidade original para a unidade interna
-  const fatorCalculado = calcularFatorConversao(unidadeOriginal, unidadeInterna);
+  // Para embalagens e unidades discretas: manter unidade original sem conversão
+  let unidadeInterna: string;
+  let fatorFinal: number;
+  let quantidadeInterna: number;
+  let custoUnitarioInterno: number;
   
-  // Usar o fator calculado (mais preciso) ou o fator passado (se já existir link com fornecedor)
-  const fatorFinal = fatorCalculado > 0 ? fatorCalculado : fatorConversao;
+  if (isEmbalagem || isUnidadeDiscreta) {
+    // NÃO CONVERTER - manter tudo na unidade original
+    unidadeInterna = 'un'; // Padronizar como 'un' para embalagens
+    fatorFinal = 1;
+    quantidadeInterna = quantidadeOriginal;
+    custoUnitarioInterno = item.valor_unitario_comercial;
+  } else {
+    // Matéria-prima: converter para unidade interna (g, ml, etc)
+    unidadeInterna = produto?.unidade_interna || 'g';
+    
+    // Calcular fator de conversão baseado na unidade comercial
+    const fatorCalculado = calcularFatorConversao(unidadeOriginal, unidadeInterna);
+    fatorFinal = fatorCalculado > 0 ? fatorCalculado : fatorConversao;
+    
+    // Converter quantidade e custo para unidade interna
+    quantidadeInterna = quantidadeOriginal * fatorFinal;
+    custoUnitarioInterno = fatorFinal > 0 ? item.valor_unitario_comercial / fatorFinal : item.valor_unitario_comercial;
+  }
   
-  // Converter quantidade e custo para unidade interna
-  const quantidadeInterna = quantidadeOriginal * fatorFinal;
   const custoUnitarioOriginal = item.valor_unitario_comercial;
-  const custoUnitarioInterno = fatorFinal > 0 ? custoUnitarioOriginal / fatorFinal : custoUnitarioOriginal;
   
   // Calcular valor total proporcional ao lote (se tiver rastro)
   const valorTotalItem = rastro ? 
@@ -381,10 +433,10 @@ export function criarLoteEstoque(
     data_val: rastro?.data_validade,
     // Quantidades originais (EXATAMENTE como veio na nota)
     quantidade_original: quantidadeOriginal,
-    unidade_original: unidadeOriginal,
+    unidade_original: isEmbalagem || isUnidadeDiscreta ? 'un' : unidadeOriginal,
     custo_unitario_original: custoUnitarioOriginal,
     valor_total_item: valorTotalItem,
-    // Quantidades internas (convertidas)
+    // Quantidades internas (para embalagens = igual ao original)
     quantidade_interna: quantidadeInterna,
     unidade_interna: unidadeInterna,
     custo_unitario_interno: custoUnitarioInterno,
