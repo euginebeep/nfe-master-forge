@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Building2, Save, Upload } from "lucide-react";
+import { Building2, Save, Upload, Search, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useLocalCompany, useUpsertLocalCompany, LocalCompany } from "@/hooks/use-local-company";
+import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
+import { CertificateTestButton } from "@/components/company/CertificateTestButton";
 
 const UFS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
@@ -37,6 +39,43 @@ export default function EmpresaSettingsPage() {
   const handleSave = () => {
     upsert(formData);
     refresh();
+  };
+
+  // Handle CNPJ lookup data
+  const handleCNPJDataFound = (data: {
+    razao_social: string;
+    nome_fantasia: string;
+    cnae: string;
+    crt: string;
+    regime_tributario: string;
+    endereco_logradouro: string;
+    endereco_nro: string;
+    endereco_compl: string;
+    endereco_bairro: string;
+    endereco_cep: string;
+    endereco_uf: string;
+    endereco_cidade: string;
+    endereco_cmun: string;
+    telefone: string;
+    email_fiscal: string;
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      razao_social: data.razao_social,
+      nome_fantasia: data.nome_fantasia,
+      cnae: data.cnae,
+      crt: data.crt,
+      regime_tributario: data.regime_tributario,
+      endereco_logradouro: data.endereco_logradouro,
+      endereco_nro: data.endereco_nro,
+      endereco_compl: data.endereco_compl,
+      endereco_bairro: data.endereco_bairro,
+      endereco_cep: data.endereco_cep,
+      endereco_uf: data.endereco_uf,
+      endereco_cidade: data.endereco_cidade,
+      telefone: data.telefone || prev?.telefone,
+      email_fiscal: data.email_fiscal || prev?.email_fiscal,
+    }));
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,12 +154,11 @@ export default function EmpresaSettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cnpj">CNPJ *</Label>
-                <Input
-                  id="cnpj"
+                <Label htmlFor="cnpj">CNPJ * <span className="text-xs text-muted-foreground">(busca automática)</span></Label>
+                <CNPJLookupInput
                   value={formData.cnpj || ""}
-                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                  placeholder="00.000.000/0000-00"
+                  onChange={(value) => setFormData({ ...formData, cnpj: value })}
+                  onDataFound={handleCNPJDataFound}
                 />
               </div>
               <div className="space-y-2">
@@ -357,7 +395,7 @@ export default function EmpresaSettingsPage() {
                   <input
                     id="cert-upload"
                     type="file"
-                    accept=".pfx,.p12,.pdf"
+                    accept=".pfx,.p12"
                     className="hidden"
                     onChange={handleCertificadoUpload}
                   />
@@ -372,6 +410,14 @@ export default function EmpresaSettingsPage() {
                   placeholder="********"
                 />
               </div>
+            </div>
+
+            {/* Certificate Test Button */}
+            <div className="max-w-sm">
+              <CertificateTestButton
+                certificateFileId={certificadoNome ? "local-cert" : undefined}
+                certificatePassword={formData.certificado_senha}
+              />
             </div>
           </CardContent>
         </Card>

@@ -1,5 +1,6 @@
 // Extended Entidades Types
 
+export type TipoPessoa = 'PJ' | 'PF' | 'ESTRANGEIRO';
 export type ContribuinteICMS = 'SIM' | 'NAO' | 'ISENTO' | 'NAO_INFORMADO';
 export type Departamento = 'COMPRAS' | 'FINANCEIRO' | 'FISCAL' | 'COMERCIAL' | 'RECEBIMENTO' | 'LOGISTICA' | 'DIRETORIA' | 'OUTRO';
 export type PreferenciaContato = 'WHATSAPP' | 'EMAIL' | 'LIGACAO' | 'INDIFERENTE';
@@ -11,6 +12,18 @@ export type CanalPreferido = 'WHATSAPP' | 'TELEFONE' | 'EMAIL' | 'VISITA' | 'OUT
 export type FretePadrao = 'CIF' | 'FOB' | 'INDEFINIDO';
 export type TipoDocumentoEntidade = 'CONTRATO' | 'CERTIDAO' | 'LICENCA' | 'QUALIFICACAO' | 'COMPROVANTE' | 'OUTRO';
 export type PapelEntidadeExtended = 'CLIENTE' | 'FORNECEDOR' | 'TRANSPORTADORA' | 'TERCEIRIZADO' | 'VENDEDOR' | 'AFILIADO' | 'REPRESENTANTE' | 'OUTRO';
+
+// Helper para verificar se é estrangeiro
+export function isEstrangeiro(tipoPessoa: string): boolean {
+  return tipoPessoa === 'ESTRANGEIRO';
+}
+
+// Labels para tipos de pessoa
+export const TIPO_PESSOA_LABELS: Record<TipoPessoa, string> = {
+  PJ: 'Pessoa Jurídica',
+  PF: 'Pessoa Física',
+  ESTRANGEIRO: 'Estrangeiro',
+};
 
 export interface EntidadeFiscalConfig {
   entidade_id: string;
@@ -121,8 +134,9 @@ export interface EntidadeEnderecoExtended {
 export interface EntidadeCompleta {
   id: string;
   codigo_interno?: string;
-  tipo_pessoa: 'PJ' | 'PF';
+  tipo_pessoa: TipoPessoa;
   documento: string;
+  pais?: string; // Required for ESTRANGEIRO
   razao_social: string;
   nome_fantasia?: string;
   ie?: string;

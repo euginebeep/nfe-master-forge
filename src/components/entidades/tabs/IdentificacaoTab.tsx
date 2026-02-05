@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { useState } from "react";
-import { PAPEL_LABELS, type PapelEntidadeExtended } from "@/types/entidades";
+import { PAPEL_LABELS, TIPO_PESSOA_LABELS, isEstrangeiro, type PapelEntidadeExtended, type TipoPessoa } from "@/types/entidades";
 
 interface IdentificacaoTabProps {
   data: {
@@ -21,6 +21,7 @@ interface IdentificacaoTabProps {
     observacoes: string;
     tags: string[];
     papeis: string[];
+    pais?: string; // Country for foreign entities
   };
   onChange: (field: string, value: any) => void;
   errors?: Record<string, string>;
@@ -28,8 +29,30 @@ interface IdentificacaoTabProps {
 
 const PAPEIS: PapelEntidadeExtended[] = ['CLIENTE', 'FORNECEDOR', 'TRANSPORTADORA', 'TERCEIRIZADO', 'VENDEDOR', 'AFILIADO', 'REPRESENTANTE', 'OUTRO'];
 
+const PAISES_COMUNS = [
+  { codigo: 'BR', nome: 'Brasil' },
+  { codigo: 'US', nome: 'Estados Unidos' },
+  { codigo: 'CN', nome: 'China' },
+  { codigo: 'DE', nome: 'Alemanha' },
+  { codigo: 'AR', nome: 'Argentina' },
+  { codigo: 'PY', nome: 'Paraguai' },
+  { codigo: 'UY', nome: 'Uruguai' },
+  { codigo: 'CL', nome: 'Chile' },
+  { codigo: 'MX', nome: 'México' },
+  { codigo: 'IT', nome: 'Itália' },
+  { codigo: 'FR', nome: 'França' },
+  { codigo: 'ES', nome: 'Espanha' },
+  { codigo: 'PT', nome: 'Portugal' },
+  { codigo: 'GB', nome: 'Reino Unido' },
+  { codigo: 'JP', nome: 'Japão' },
+  { codigo: 'KR', nome: 'Coreia do Sul' },
+  { codigo: 'IN', nome: 'Índia' },
+];
+
 export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabProps) {
   const [newTag, setNewTag] = useState("");
+  
+  const isForeign = isEstrangeiro(data.tipo_pessoa);
 
   const togglePapel = (papel: string) => {
     const current = data.papeis || [];
@@ -54,31 +77,68 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
   return (
     <div className="space-y-6">
       {/* Tipo Pessoa e Documento */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>Tipo Pessoa *</Label>
-          <Select value={data.tipo_pessoa} onValueChange={(v) => onChange("tipo_pessoa", v)}>
+          <Select value={data.tipo_pessoa} onValueChange={(v) => {
+            onChange("tipo_pessoa", v);
+            // Clear fields that don't apply to foreign entities
+            if (v === 'ESTRANGEIRO') {
+              onChange("contribuinte_icms", "NAO");
+            }
+          }}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
               <SelectItem value="PF">Pessoa Física</SelectItem>
+              <SelectItem value="ESTRANGEIRO">Estrangeiro</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        
+        {/* Document field - changes based on type */}
         <div className="space-y-2">
           <Label htmlFor="documento">
-            {data.tipo_pessoa === "PJ" ? "CNPJ" : "CPF"} *
+            {isForeign ? "Documento (Tax ID / Passport)" : data.tipo_pessoa === "PJ" ? "CNPJ" : "CPF"} 
+            {!isForeign && " *"}
           </Label>
           <Input
             id="documento"
             value={data.documento}
             onChange={(e) => onChange("documento", e.target.value)}
-            placeholder={data.tipo_pessoa === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"}
+            placeholder={isForeign ? "Número do documento estrangeiro" : data.tipo_pessoa === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"}
+            disabled={false}
           />
           {errors?.documento && (
             <p className="text-sm text-destructive">{errors.documento}</p>
+          )}
+        </div>
+
+        {/* Country field - required for foreign entities */}
+        <div className="space-y-2">
+          <Label htmlFor="pais">
+            País {isForeign && <span className="text-destructive">*</span>}
+          </Label>
+          <Select 
+            value={data.pais || (isForeign ? "" : "BR")} 
+            onValueChange={(v) => onChange("pais", v)}
+            disabled={!isForeign}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o país" />
+            </SelectTrigger>
+            <SelectContent>
+              {PAISES_COMUNS.map((pais) => (
+                <SelectItem key={pais.codigo} value={pais.codigo}>
+                  {pais.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {isForeign && errors?.pais && (
+            <p className="text-sm text-destructive">{errors.pais}</p>
           )}
         </div>
       </div>
@@ -86,7 +146,9 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
       {/* Razao Social e Nome Fantasia */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="razao_social">Razão Social / Nome *</Label>
+          <Label htmlFor="razao_social">
+            {isForeign ? "Nome / Razão Social" : "Razão Social / Nome"} *
+          </Label>
           <Input
             id="razao_social"
             value={data.razao_social}
@@ -137,7 +199,11 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
         </div>
         <div className="space-y-2">
           <Label>Contribuinte ICMS</Label>
-          <Select value={data.contribuinte_icms} onValueChange={(v) => onChange("contribuinte_icms", v)}>
+          <Select 
+            value={isForeign ? "NAO" : data.contribuinte_icms} 
+            onValueChange={(v) => onChange("contribuinte_icms", v)}
+            disabled={isForeign}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -148,6 +214,9 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
               <SelectItem value="NAO_INFORMADO">Não Informado</SelectItem>
             </SelectContent>
           </Select>
+          {isForeign && (
+            <p className="text-xs text-muted-foreground">Estrangeiros não são contribuintes ICMS</p>
+          )}
         </div>
       </div>
 
