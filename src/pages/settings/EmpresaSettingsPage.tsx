@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useLocalCompany, useUpsertLocalCompany, LocalCompany } from "@/hooks/use-local-company";
 import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
 import { CertificateTestButton } from "@/components/company/CertificateTestButton";
+import { MaskedInput } from "@/components/ui/masked-input";
 
 const UFS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
@@ -292,10 +293,10 @@ export default function EmpresaSettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
-                <Input
+                <MaskedInput
+                  mask="cep"
                   value={formData.endereco_cep || ""}
-                  onChange={(e) => setFormData({ ...formData, endereco_cep: e.target.value })}
-                  placeholder="00000-000"
+                  onChange={(value) => setFormData({ ...formData, endereco_cep: value })}
                 />
               </div>
             </div>
@@ -337,9 +338,10 @@ export default function EmpresaSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input
+                <MaskedInput
+                  mask="phone"
                   value={formData.telefone || ""}
-                  onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, telefone: value })}
                 />
               </div>
               <div className="space-y-2">

@@ -1,87 +1,225 @@
 import { motion } from "framer-motion";
-import { Building2, Users, Package, FileText, Boxes, ArrowRight } from "lucide-react";
+import { 
+  Building2, Users, Package, FileText, Boxes, ArrowRight, 
+  Settings, ShoppingCart, Factory, BarChart3, Wallet,
+  Lock
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserWelcomeCard } from "@/components/dashboard/UserWelcomeCard";
+import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
+import { useAuth } from "@/hooks/use-auth";
 
-const modules = [
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
+
+interface Module {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  href: string;
+  minRole: AppRole;
+}
+
+const modules: Module[] = [
   {
     title: "Empresa",
-    description: "Configuracoes fiscais e NF-e",
+    description: "Configurações fiscais e NF-e",
     icon: Building2,
     href: "/settings/company",
-    color: "text-blue-500",
+    minRole: "admin",
   },
   {
     title: "Entidades",
     description: "Fornecedores, clientes e parceiros",
     icon: Users,
     href: "/cadastros/entidades",
-    color: "text-green-500",
+    minRole: "visualizador",
   },
   {
     title: "Itens",
-    description: "Materias primas e produtos",
+    description: "Matérias primas e produtos",
     icon: Package,
     href: "/cadastros/itens",
-    color: "text-purple-500",
+    minRole: "visualizador",
   },
   {
     title: "Importar NF-e",
     description: "Upload de XML de notas fiscais",
     icon: FileText,
     href: "/compras/nfe-import",
-    color: "text-orange-500",
+    minRole: "operador",
   },
   {
     title: "Lotes",
     description: "Controle de estoque por lote",
     icon: Boxes,
     href: "/estoque/lotes",
-    color: "text-teal-500",
+    minRole: "visualizador",
+  },
+  {
+    title: "Compras",
+    description: "Gestão de pedidos e notas",
+    icon: ShoppingCart,
+    href: "/compras/notas-entrada",
+    minRole: "operador",
+  },
+  {
+    title: "Produção",
+    description: "Fórmulas e ordens de produção",
+    icon: Factory,
+    href: "/producao/formulas",
+    minRole: "supervisor",
+  },
+  {
+    title: "Financeiro",
+    description: "Contas a pagar e receber",
+    icon: Wallet,
+    href: "/financeiro/contas-pagar",
+    minRole: "gerente",
+  },
+  {
+    title: "Relatórios",
+    description: "Análises e indicadores",
+    icon: BarChart3,
+    href: "/relatorios",
+    minRole: "supervisor",
+  },
+  {
+    title: "Configurações",
+    description: "Administração do sistema",
+    icon: Settings,
+    href: "/settings/empresa",
+    minRole: "admin",
   },
 ];
 
-const Index = () => {
-  return (
-    <div className="space-y-8">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-2"
-      >
-        <h1 className="text-3xl font-bold tracking-tight">LEGACY ERP</h1>
-        <p className="text-muted-foreground">
-          Sistema de gestao empresarial - Modulo 01: Cadastros Base
-        </p>
-      </motion.div>
+// Role hierarchy for permission check
+const roleHierarchy: AppRole[] = ['admin', 'gerente', 'supervisor', 'operador', 'visualizador'];
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {modules.map((module, index) => (
-          <motion.div
-            key={module.href}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Link to={module.href}>
-              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer group">
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <div className={`p-3 rounded-lg bg-muted ${module.color}`}>
-                    <module.icon className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{module.title}</CardTitle>
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{module.description}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-        ))}
+const Index = () => {
+  const { profile, role, isLoading, isAuthenticated } = useAuth();
+
+  // Check if user has access to a module
+  const hasAccess = (minRole: AppRole): boolean => {
+    if (!role) return false;
+    const userRoleIndex = roleHierarchy.indexOf(role);
+    const requiredRoleIndex = roleHierarchy.indexOf(minRole);
+    return userRoleIndex <= requiredRoleIndex;
+  };
+
+  // Filter modules based on user role
+  const accessibleModules = modules.filter(m => hasAccess(m.minRole));
+  const lockedModules = modules.filter(m => !hasAccess(m.minRole));
+
+  return (
+    <div className="space-y-6">
+      {/* User Welcome Section */}
+      {isAuthenticated && (
+        <UserWelcomeCard
+          name={profile?.nome_completo || null}
+          role={role}
+          cargo={profile?.cargo || null}
+          avatarUrl={profile?.avatar_url || null}
+          isLoading={isLoading}
+        />
+      )}
+
+      {/* Quick Stats Row */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <ExchangeRateCard />
+        
+        <Card className="md:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Sistema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <p className="text-2xl font-bold">LEGACY ERP</p>
+                <p className="text-sm text-muted-foreground">
+                  Módulo 01: Cadastros Base
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Acesso Rápido</p>
+                <p className="text-lg font-semibold text-primary">
+                  {accessibleModules.length} módulos
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Modules Grid */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Módulos Disponíveis</h3>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {accessibleModules.map((module, index) => (
+            <motion.div
+              key={module.href}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Link to={module.href}>
+                <Card className="h-full hover:shadow-md transition-all cursor-pointer group hover:border-primary/50">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <module.icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base">{module.title}</CardTitle>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground">{module.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Locked Modules */}
+      {lockedModules.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 text-muted-foreground flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            Módulos Restritos
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {lockedModules.map((module, index) => (
+              <motion.div
+                key={module.href}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                transition={{ delay: 0.3 + index * 0.05 }}
+              >
+                <Card className="h-full opacity-50 cursor-not-allowed">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <div className="p-2.5 rounded-lg bg-muted text-muted-foreground">
+                      <module.icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base text-muted-foreground">{module.title}</CardTitle>
+                    </div>
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground">{module.description}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Requer: {module.minRole}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

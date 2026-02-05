@@ -5,6 +5,8 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { isEstrangeiro } from "@/types/entidades";
+import { MaskedInput } from "@/components/ui/masked-input";
+import { getIEPlaceholder } from "@/lib/ie-validation";
 
 interface FiscalTabProps {
   data: {
@@ -25,11 +27,12 @@ interface FiscalTabProps {
     bloquear_sem_cpf_cnpj_valido: boolean;
     bloquear_sem_ie_quando_exigido: boolean;
   };
+  uf?: string; // UF for IE validation
   onChange: (field: string, value: any) => void;
   onFiscalConfigChange: (field: string, value: any) => void;
 }
 
-export function FiscalTab({ data, fiscalConfig, onChange, onFiscalConfigChange }: FiscalTabProps) {
+export function FiscalTab({ data, fiscalConfig, uf, onChange, onFiscalConfigChange }: FiscalTabProps) {
   const isForeign = isEstrangeiro(data.tipo_pessoa || 'PJ');
   return (
     <div className="space-y-6">
@@ -49,23 +52,32 @@ export function FiscalTab({ data, fiscalConfig, onChange, onFiscalConfigChange }
         <h3 className="text-sm font-medium mb-4">Dados Fiscais</h3>
         <div className="grid grid-cols-4 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="ie">Inscrição Estadual</Label>
-            <Input
-              id="ie"
+            <Label htmlFor="ie">
+              Inscrição Estadual
+              {uf && !isForeign && (
+                <span className="text-xs text-muted-foreground ml-1">({uf})</span>
+              )}
+            </Label>
+            <MaskedInput
+              mask="ie"
+              uf={uf || ''}
               value={isForeign ? "" : data.ie}
-              onChange={(e) => onChange("ie", e.target.value)}
-              placeholder={isForeign ? "N/A" : "ISENTO ou número"}
+              onChange={(value) => onChange("ie", value)}
               disabled={isForeign}
+              showValidation={!isForeign}
             />
+            {!uf && !isForeign && (
+              <p className="text-xs text-muted-foreground">Cadastre um endereço fiscal para validar IE</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="im">Inscrição Municipal</Label>
-            <Input
-              id="im"
+            <MaskedInput
+              mask="im"
               value={isForeign ? "" : data.im}
-              onChange={(e) => onChange("im", e.target.value)}
+              onChange={(value) => onChange("im", value)}
               disabled={isForeign}
-              placeholder={isForeign ? "N/A" : ""}
+              showValidation={!isForeign}
             />
           </div>
           <div className="space-y-2">

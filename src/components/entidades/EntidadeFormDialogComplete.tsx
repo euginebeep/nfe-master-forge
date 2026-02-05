@@ -413,8 +413,9 @@ export function EntidadeFormDialogComplete({ open, onOpenChange, entidade, initi
 
             <TabsContent value="fiscal" className="mt-0">
               <FiscalTab
-                data={{ ie: formData.ie, im: formData.im, cnae: formData.cnae, crt: formData.crt }}
+                data={{ ie: formData.ie, im: formData.im, cnae: formData.cnae, crt: formData.crt, tipo_pessoa: formData.tipo_pessoa }}
                 fiscalConfig={fiscalConfig}
+                uf={(entidade?.entidade_enderecos || enderecos).find(e => e.tipo === 'FISCAL' || e.principal)?.uf || ''}
                 onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
                 onFiscalConfigChange={(field, value) => setFiscalConfig(prev => ({ ...prev, [field]: value }))}
               />
