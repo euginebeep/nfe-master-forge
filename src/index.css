@@ -2,124 +2,121 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LEGACY ERP Design System - Professional SaaS */
+/* LEGACY ERP Industrial - Design System */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    /* Base colors - Professional blue/slate palette */
+    /* Industrial ERP Color Scheme */
     --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
-
+    --foreground: 210 40% 11%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-
+    --card-foreground: 210 40% 11%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-
-    /* Primary - Deep blue */
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-
-    /* Secondary - Slate */
-    --secondary: 215 20% 95%;
-    --secondary-foreground: 222 47% 11%;
-
-    /* Muted */
-    --muted: 215 20% 95%;
-    --muted-foreground: 215 16% 47%;
-
-    /* Accent */
-    --accent: 215 20% 95%;
-    --accent-foreground: 222 47% 11%;
-
-    /* Destructive */
-    --destructive: 0 84% 60%;
+    --popover-foreground: 210 40% 11%;
+    
+    /* Primary: Petrol Blue #0F2A44 */
+    --primary: 210 65% 16%;
+    --primary-foreground: 210 20% 98%;
+    
+    /* Secondary: Corporate Green #1F8F5F */
+    --secondary: 153 64% 34%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 210 20% 96%;
+    --muted-foreground: 210 20% 45%;
+    
+    --accent: 210 20% 94%;
+    --accent-foreground: 210 40% 11%;
+    
+    /* Destructive: Technical Red */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-
-    /* Success */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-
-    /* Warning */
+    
+    /* Warning: Amber */
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    /* Info */
-    --info: 199 89% 48%;
+    --warning-foreground: 38 92% 10%;
+    
+    /* Success: Green */
+    --success: 153 64% 34%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Info: Blue */
+    --info: 210 65% 45%;
     --info-foreground: 0 0% 100%;
-
-    /* Borders */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-
+    
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 210 65% 16%;
+    
     --radius: 0.5rem;
-
-    /* Sidebar */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 221 83% 53%;
+    
+    /* Sidebar - Dark Petrol Blue */
+    --sidebar-background: 210 65% 16%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 153 64% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 210 50% 22%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 210 50% 22%;
+    --sidebar-ring: 153 64% 34%;
 
     /* Chart colors */
-    --chart-1: 221 83% 53%;
-    --chart-2: 142 76% 36%;
+    --chart-1: 210 65% 45%;
+    --chart-2: 153 64% 34%;
     --chart-3: 38 92% 50%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 199 89% 48%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 280 65% 60%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 217 33% 17%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 221 83% 53%;
+    --background: 210 40% 8%;
+    --foreground: 210 20% 95%;
+    
+    --card: 210 40% 10%;
+    --card-foreground: 210 20% 95%;
+    
+    --popover: 210 40% 10%;
+    --popover-foreground: 210 20% 95%;
+    
+    --primary: 153 64% 40%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-
+    
+    --secondary: 210 50% 25%;
+    --secondary-foreground: 210 20% 95%;
+    
+    --muted: 210 40% 15%;
+    --muted-foreground: 210 20% 60%;
+    
+    --accent: 210 40% 18%;
+    --accent-foreground: 210 20% 95%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --info: 199 89% 48%;
+    --warning-foreground: 38 92% 10%;
+    
+    --success: 153 64% 40%;
+    --success-foreground: 0 0% 100%;
+    
+    --info: 210 65% 55%;
     --info-foreground: 0 0% 100%;
-
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 221 83% 53%;
-
-    --sidebar-background: 222 47% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 221 83% 53%;
+    
+    --border: 210 40% 18%;
+    --input: 210 40% 18%;
+    --ring: 153 64% 40%;
+    
+    --sidebar-background: 210 40% 6%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 153 64% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 12%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 210 40% 12%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 210 40% 15%;
+    --sidebar-ring: 153 64% 40%;
   }
 }
 
@@ -127,16 +124,20 @@
   * {
     @apply border-border;
   }
-
+  
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
-
+  
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
-
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+  
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     @apply w-2 h-2;
@@ -162,7 +163,7 @@
   }
 
   .data-table th {
-    @apply text-left font-medium text-muted-foreground px-4 py-3 border-b bg-muted/30;
+    @apply text-left font-semibold text-muted-foreground px-4 py-3 border-b bg-muted/30 uppercase text-xs tracking-wider;
   }
 
   .data-table td {
@@ -170,7 +171,24 @@
   }
 
   .data-table tbody tr {
-    @apply hover:bg-muted/50 transition-colors;
+    @apply hover:bg-muted/50 transition-colors cursor-pointer;
+  }
+
+  /* Industrial ERP utilities */
+  .erp-card {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+  }
+  
+  .erp-header {
+    @apply text-lg font-semibold text-foreground;
+  }
+  
+  .erp-label {
+    @apply text-xs font-semibold text-muted-foreground uppercase tracking-wider;
+  }
+  
+  .erp-value {
+    @apply text-base font-medium text-foreground;
   }
 
   /* Status badges */
@@ -179,19 +197,19 @@
   }
 
   .status-badge-success {
-    @apply bg-success/10 text-success;
+    @apply bg-success/10 text-success border border-success/20;
   }
 
   .status-badge-warning {
-    @apply bg-warning/10 text-warning;
+    @apply bg-warning/10 text-warning border border-warning/20;
   }
 
   .status-badge-error {
-    @apply bg-destructive/10 text-destructive;
+    @apply bg-destructive/10 text-destructive border border-destructive/20;
   }
 
   .status-badge-info {
-    @apply bg-info/10 text-info;
+    @apply bg-info/10 text-info border border-info/20;
   }
 
   .status-badge-muted {
@@ -219,6 +237,11 @@
   .card-section-title {
     @apply text-lg font-semibold mb-4 flex items-center gap-2;
   }
+
+  /* Module badges */
+  .module-badge {
+    @apply text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/20 text-secondary;
+  }
 }
 
 @layer utilities {
@@ -238,8 +261,18 @@
     }
   }
 
-  /* Fade animations for framer-motion */
   .fade-in {
     @apply animate-in;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    @apply bg-white text-black;
   }
 }

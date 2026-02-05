@@ -8,6 +8,16 @@ import {
   ChevronDown,
   LayoutDashboard,
   ShoppingCart,
+  FileText,
+  DollarSign,
+  ClipboardList,
+  Factory,
+  FlaskConical,
+  Boxes,
+  BarChart3,
+  Shield,
+  MessageSquare,
+  Store,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,20 +39,76 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-const menuGroups = [
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: any;
+  badge?: string;
+}
+
+interface MenuGroup {
+  label: string;
+  items: MenuItem[];
+}
+
+const menuGroups: MenuGroup[] = [
+  {
+    label: "Principal",
+    items: [
+      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+    ],
+  },
   {
     label: "Cadastros",
     items: [
       { title: "Fornecedores", url: "/cadastros/fornecedores", icon: Truck },
       { title: "Clientes", url: "/cadastros/clientes", icon: Users },
       { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart },
-      { title: "Produtos", url: "/cadastros/produtos", icon: Package },
+      { title: "Produtos/Insumos", url: "/cadastros/produtos", icon: Package },
     ],
   },
   {
-    label: "Configuracoes",
+    label: "Producao",
     items: [
-      { title: "Empresa", url: "/settings/empresa", icon: Building2 },
+      { title: "Formulador", url: "/producao/formulas", icon: FlaskConical, badge: "ANVISA" },
+      { title: "Ordens de Producao", url: "/producao/ordens", icon: Factory },
+    ],
+  },
+  {
+    label: "Estoque",
+    items: [
+      { title: "Lotes", url: "/estoque/lotes", icon: Boxes },
+      { title: "Movimentacoes", url: "/estoque/movimentacoes", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "Compras",
+    items: [
+      { title: "Importar NF-e", url: "/compras/nfe-import", icon: FileText },
+      { title: "Notas de Entrada", url: "/compras/notas", icon: FileText },
+    ],
+  },
+  {
+    label: "Financeiro",
+    items: [
+      { title: "Contas a Pagar", url: "/financeiro/pagar", icon: DollarSign },
+      { title: "Contas a Receber", url: "/financeiro/receber", icon: DollarSign },
+      { title: "Fluxo de Caixa", url: "/financeiro/fluxo", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Vendas",
+    items: [
+      { title: "CRM", url: "/vendas/crm", icon: MessageSquare },
+      { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart },
+      { title: "Marketplace", url: "/vendas/marketplace", icon: Store },
+    ],
+  },
+  {
+    label: "Relatorios",
+    items: [
+      { title: "Relatorios", url: "/relatorios", icon: BarChart3 },
+      { title: "Auditoria", url: "/auditoria", icon: Shield },
     ],
   },
 ];
@@ -65,28 +131,28 @@ export function AppSidebar() {
       )}
       collapsible="icon"
     >
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
         <Link to="/" className="flex items-center gap-3 px-4 py-4">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <LayoutDashboard className="w-5 h-5 text-primary-foreground" />
+          <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shadow-lg">
+            <Factory className="w-6 h-6 text-secondary-foreground" />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-semibold text-sidebar-foreground">LEGACY</span>
-              <span className="text-xs text-sidebar-foreground/60">ERP System</span>
+              <span className="font-bold text-lg text-sidebar-foreground tracking-tight">LEGACY</span>
+              <span className="text-xs text-sidebar-foreground/60 font-medium">ERP Industrial</span>
             </div>
           )}
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4">
+      <SidebarContent className="px-2 py-4 bg-sidebar overflow-y-auto">
         {menuGroups.map((group) => (
-          <Collapsible key={group.label} defaultOpen className="mb-2">
+          <Collapsible key={group.label} defaultOpen className="mb-1">
             <SidebarGroup>
               <CollapsibleTrigger className="w-full">
-                <SidebarGroupLabel className="flex items-center justify-between px-3 py-2 text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wider hover:text-sidebar-foreground transition-colors">
+                <SidebarGroupLabel className="flex items-center justify-between px-3 py-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors">
                   {!collapsed && group.label}
-                  {!collapsed && <ChevronDown className="w-4 h-4" />}
+                  {!collapsed && <ChevronDown className="w-3 h-3" />}
                 </SidebarGroupLabel>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -102,14 +168,21 @@ export function AppSidebar() {
                           <Link
                             to={item.url}
                             className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                              "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
                               isActive(item.url)
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                ? "bg-secondary text-secondary-foreground shadow-md"
+                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             )}
                           >
                             <item.icon className="w-5 h-5 shrink-0" />
-                            {!collapsed && <span>{item.title}</span>}
+                            {!collapsed && (
+                              <span className="flex-1 text-sm font-medium">{item.title}</span>
+                            )}
+                            {!collapsed && item.badge && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/20 text-secondary-foreground">
+                                {item.badge}
+                              </span>
+                            )}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -122,16 +195,30 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-4">
+      <SidebarFooter className="border-t border-sidebar-border p-3 bg-sidebar">
         <Link
           to="/settings/empresa"
           className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-            "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
+            isActive("/settings")
+              ? "bg-secondary text-secondary-foreground"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
           )}
         >
           <Settings className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Configuracoes</span>}
+          {!collapsed && <span className="text-sm font-medium">Configuracoes</span>}
+        </Link>
+        <Link
+          to="/usuarios"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
+            isActive("/usuarios")
+              ? "bg-secondary text-secondary-foreground"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          )}
+        >
+          <Shield className="w-5 h-5 shrink-0" />
+          {!collapsed && <span className="text-sm font-medium">Usuarios</span>}
         </Link>
       </SidebarFooter>
     </Sidebar>
