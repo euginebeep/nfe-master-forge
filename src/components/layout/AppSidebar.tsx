@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   FileText,
+  FileOutput,
   DollarSign,
   ClipboardList,
   Factory,
@@ -63,6 +64,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Cadastros",
     items: [
+      { title: "Entidades", url: "/cadastros/entidades", icon: Building2 },
       { title: "Fornecedores", url: "/cadastros/fornecedores", icon: Truck },
       { title: "Clientes", url: "/cadastros/clientes", icon: Users },
       { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart },
@@ -104,6 +106,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "CRM", url: "/vendas/crm", icon: MessageSquare },
       { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart },
+      { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput },
       { title: "Marketplace", url: "/vendas/marketplace", icon: Store },
     ],
   },

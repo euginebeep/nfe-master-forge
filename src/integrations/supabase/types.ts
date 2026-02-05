@@ -200,17 +200,69 @@ export type Database = {
           },
         ]
       }
+      entidade_comercial_crm: {
+        Row: {
+          canal_preferido: string | null
+          comissao_padrao_percent: number | null
+          desconto_maximo_percent: number | null
+          entidade_id: string
+          etapa_funil: string | null
+          observacoes_comerciais: string | null
+          origem_lead: string | null
+          responsavel_usuario_id: string | null
+          score: number | null
+          tabela_preco_padrao: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          canal_preferido?: string | null
+          comissao_padrao_percent?: number | null
+          desconto_maximo_percent?: number | null
+          entidade_id: string
+          etapa_funil?: string | null
+          observacoes_comerciais?: string | null
+          origem_lead?: string | null
+          responsavel_usuario_id?: string | null
+          score?: number | null
+          tabela_preco_padrao?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          canal_preferido?: string | null
+          comissao_padrao_percent?: number | null
+          desconto_maximo_percent?: number | null
+          entidade_id?: string
+          etapa_funil?: string | null
+          observacoes_comerciais?: string | null
+          origem_lead?: string | null
+          responsavel_usuario_id?: string | null
+          score?: number | null
+          tabela_preco_padrao?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entidade_comercial_crm_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: true
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entidade_contatos: {
         Row: {
           aceita_whatsapp: boolean | null
           cargo: string | null
           created_at: string
+          departamento: string | null
           email: string | null
           entidade_id: string
           id: string
           nome: string
           observacoes: string | null
           origem: string | null
+          preferencia_contato: string | null
           preferencial: boolean | null
           telefone: string | null
           whatsapp: string | null
@@ -219,12 +271,14 @@ export type Database = {
           aceita_whatsapp?: boolean | null
           cargo?: string | null
           created_at?: string
+          departamento?: string | null
           email?: string | null
           entidade_id: string
           id?: string
           nome: string
           observacoes?: string | null
           origem?: string | null
+          preferencia_contato?: string | null
           preferencial?: boolean | null
           telefone?: string | null
           whatsapp?: string | null
@@ -233,12 +287,14 @@ export type Database = {
           aceita_whatsapp?: boolean | null
           cargo?: string | null
           created_at?: string
+          departamento?: string | null
           email?: string | null
           entidade_id?: string
           id?: string
           nome?: string
           observacoes?: string | null
           origem?: string | null
+          preferencia_contato?: string | null
           preferencial?: boolean | null
           telefone?: string | null
           whatsapp?: string | null
@@ -253,6 +309,53 @@ export type Database = {
           },
         ]
       }
+      entidade_documentos: {
+        Row: {
+          created_at: string | null
+          entidade_id: string
+          hash_arquivo: string | null
+          id: string
+          mime_type: string | null
+          nome_arquivo: string
+          observacoes: string | null
+          storage_key: string
+          tamanho_bytes: number | null
+          tipo: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entidade_id: string
+          hash_arquivo?: string | null
+          id?: string
+          mime_type?: string | null
+          nome_arquivo: string
+          observacoes?: string | null
+          storage_key: string
+          tamanho_bytes?: number | null
+          tipo?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entidade_id?: string
+          hash_arquivo?: string | null
+          id?: string
+          mime_type?: string | null
+          nome_arquivo?: string
+          observacoes?: string | null
+          storage_key?: string
+          tamanho_bytes?: number | null
+          tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entidade_documentos_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entidade_enderecos: {
         Row: {
           bairro: string | null
@@ -260,6 +363,8 @@ export type Database = {
           cidade: string | null
           cmun: string | null
           compl: string | null
+          contato_local_fone: string | null
+          contato_local_nome: string | null
           cpais: string | null
           created_at: string
           entidade_id: string
@@ -267,6 +372,8 @@ export type Database = {
           logradouro: string | null
           nro: string | null
           pais: string | null
+          principal: boolean | null
+          referencia: string | null
           tipo: string
           uf: string | null
         }
@@ -276,6 +383,8 @@ export type Database = {
           cidade?: string | null
           cmun?: string | null
           compl?: string | null
+          contato_local_fone?: string | null
+          contato_local_nome?: string | null
           cpais?: string | null
           created_at?: string
           entidade_id: string
@@ -283,6 +392,8 @@ export type Database = {
           logradouro?: string | null
           nro?: string | null
           pais?: string | null
+          principal?: boolean | null
+          referencia?: string | null
           tipo?: string
           uf?: string | null
         }
@@ -292,6 +403,8 @@ export type Database = {
           cidade?: string | null
           cmun?: string | null
           compl?: string | null
+          contato_local_fone?: string | null
+          contato_local_nome?: string | null
           cpais?: string | null
           created_at?: string
           entidade_id?: string
@@ -299,6 +412,8 @@ export type Database = {
           logradouro?: string | null
           nro?: string | null
           pais?: string | null
+          principal?: boolean | null
+          referencia?: string | null
           tipo?: string
           uf?: string | null
         }
@@ -306,6 +421,160 @@ export type Database = {
           {
             foreignKeyName: "entidade_enderecos_entidade_id_fkey"
             columns: ["entidade_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entidade_financeiro_config: {
+        Row: {
+          bloquear_inadimplencia: boolean | null
+          categoria_financeira_padrao: string | null
+          centro_custo_padrao: string | null
+          condicao_pagamento_padrao: string | null
+          dias_tolerancia: number | null
+          email_boleto: string | null
+          email_nfe: string | null
+          entidade_id: string
+          forma_pagamento_padrao: string | null
+          importar_duplicatas_xml_gera_contas_pagar: boolean | null
+          limite_credito: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          bloquear_inadimplencia?: boolean | null
+          categoria_financeira_padrao?: string | null
+          centro_custo_padrao?: string | null
+          condicao_pagamento_padrao?: string | null
+          dias_tolerancia?: number | null
+          email_boleto?: string | null
+          email_nfe?: string | null
+          entidade_id: string
+          forma_pagamento_padrao?: string | null
+          importar_duplicatas_xml_gera_contas_pagar?: boolean | null
+          limite_credito?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          bloquear_inadimplencia?: boolean | null
+          categoria_financeira_padrao?: string | null
+          centro_custo_padrao?: string | null
+          condicao_pagamento_padrao?: string | null
+          dias_tolerancia?: number | null
+          email_boleto?: string | null
+          email_nfe?: string | null
+          entidade_id?: string
+          forma_pagamento_padrao?: string | null
+          importar_duplicatas_xml_gera_contas_pagar?: boolean | null
+          limite_credito?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entidade_financeiro_config_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: true
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entidade_fiscal_config: {
+        Row: {
+          bloquear_sem_cpf_cnpj_valido: boolean | null
+          bloquear_sem_ie_quando_exigido: boolean | null
+          cfop_padrao_entrada: string | null
+          cfop_padrao_saida: string | null
+          cst_cofins_padrao: string | null
+          cst_icms_padrao: string | null
+          cst_pis_padrao: string | null
+          entidade_id: string
+          natureza_operacao_padrao: string | null
+          observacao_fiscal_padrao: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          bloquear_sem_cpf_cnpj_valido?: boolean | null
+          bloquear_sem_ie_quando_exigido?: boolean | null
+          cfop_padrao_entrada?: string | null
+          cfop_padrao_saida?: string | null
+          cst_cofins_padrao?: string | null
+          cst_icms_padrao?: string | null
+          cst_pis_padrao?: string | null
+          entidade_id: string
+          natureza_operacao_padrao?: string | null
+          observacao_fiscal_padrao?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          bloquear_sem_cpf_cnpj_valido?: boolean | null
+          bloquear_sem_ie_quando_exigido?: boolean | null
+          cfop_padrao_entrada?: string | null
+          cfop_padrao_saida?: string | null
+          cst_cofins_padrao?: string | null
+          cst_icms_padrao?: string | null
+          cst_pis_padrao?: string | null
+          entidade_id?: string
+          natureza_operacao_padrao?: string | null
+          observacao_fiscal_padrao?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entidade_fiscal_config_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: true
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entidade_logistica_config: {
+        Row: {
+          entidade_id: string
+          frete_padrao: string | null
+          janela_recebimento: string | null
+          lead_time_dias: number | null
+          observacoes_entrega: string | null
+          pedido_minimo: number | null
+          prazo_medio_entrega_dias: number | null
+          transportadora_preferencial_entidade_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          entidade_id: string
+          frete_padrao?: string | null
+          janela_recebimento?: string | null
+          lead_time_dias?: number | null
+          observacoes_entrega?: string | null
+          pedido_minimo?: number | null
+          prazo_medio_entrega_dias?: number | null
+          transportadora_preferencial_entidade_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          entidade_id?: string
+          frete_padrao?: string | null
+          janela_recebimento?: string | null
+          lead_time_dias?: number | null
+          observacoes_entrega?: string | null
+          pedido_minimo?: number | null
+          prazo_medio_entrega_dias?: number | null
+          transportadora_preferencial_entidade_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entidade_logistica_config_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: true
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entidade_logistica_config_transportadora_preferencial_enti_fkey"
+            columns: ["transportadora_preferencial_entidade_id"]
             isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
@@ -348,7 +617,9 @@ export type Database = {
         Row: {
           classificacao: string | null
           cnae: string | null
+          codigo_interno: string | null
           condicao_frete_padrao: string | null
+          contribuinte_icms: string | null
           created_at: string
           crt: string | null
           documento: string
@@ -361,6 +632,7 @@ export type Database = {
           prazo_pagamento_padrao_dias: number | null
           razao_social: string
           score_risco: number | null
+          site: string | null
           status: string
           tags: Json | null
           tipo_pessoa: string
@@ -369,7 +641,9 @@ export type Database = {
         Insert: {
           classificacao?: string | null
           cnae?: string | null
+          codigo_interno?: string | null
           condicao_frete_padrao?: string | null
+          contribuinte_icms?: string | null
           created_at?: string
           crt?: string | null
           documento: string
@@ -382,6 +656,7 @@ export type Database = {
           prazo_pagamento_padrao_dias?: number | null
           razao_social: string
           score_risco?: number | null
+          site?: string | null
           status?: string
           tags?: Json | null
           tipo_pessoa?: string
@@ -390,7 +665,9 @@ export type Database = {
         Update: {
           classificacao?: string | null
           cnae?: string | null
+          codigo_interno?: string | null
           condicao_frete_padrao?: string | null
+          contribuinte_icms?: string | null
           created_at?: string
           crt?: string | null
           documento?: string
@@ -403,6 +680,7 @@ export type Database = {
           prazo_pagamento_padrao_dias?: number | null
           razao_social?: string
           score_risco?: number | null
+          site?: string | null
           status?: string
           tags?: Json | null
           tipo_pessoa?: string

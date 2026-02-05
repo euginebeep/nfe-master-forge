@@ -1,0 +1,230 @@
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
+import { useState } from "react";
+import { PAPEL_LABELS, type PapelEntidadeExtended } from "@/types/entidades";
+
+interface IdentificacaoTabProps {
+  data: {
+    tipo_pessoa: string;
+    documento: string;
+    razao_social: string;
+    nome_fantasia: string;
+    status: string;
+    classificacao: string;
+    contribuinte_icms: string;
+    site: string;
+    observacoes: string;
+    tags: string[];
+    papeis: string[];
+  };
+  onChange: (field: string, value: any) => void;
+  errors?: Record<string, string>;
+}
+
+const PAPEIS: PapelEntidadeExtended[] = ['CLIENTE', 'FORNECEDOR', 'TRANSPORTADORA', 'TERCEIRIZADO', 'VENDEDOR', 'AFILIADO', 'REPRESENTANTE', 'OUTRO'];
+
+export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabProps) {
+  const [newTag, setNewTag] = useState("");
+
+  const togglePapel = (papel: string) => {
+    const current = data.papeis || [];
+    if (current.includes(papel)) {
+      onChange("papeis", current.filter(p => p !== papel));
+    } else {
+      onChange("papeis", [...current, papel]);
+    }
+  };
+
+  const addTag = () => {
+    if (newTag.trim() && !data.tags?.includes(newTag.trim())) {
+      onChange("tags", [...(data.tags || []), newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (tag: string) => {
+    onChange("tags", (data.tags || []).filter(t => t !== tag));
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Tipo Pessoa e Documento */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Tipo Pessoa *</Label>
+          <Select value={data.tipo_pessoa} onValueChange={(v) => onChange("tipo_pessoa", v)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
+              <SelectItem value="PF">Pessoa Física</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="documento">
+            {data.tipo_pessoa === "PJ" ? "CNPJ" : "CPF"} *
+          </Label>
+          <Input
+            id="documento"
+            value={data.documento}
+            onChange={(e) => onChange("documento", e.target.value)}
+            placeholder={data.tipo_pessoa === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"}
+          />
+          {errors?.documento && (
+            <p className="text-sm text-destructive">{errors.documento}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Razao Social e Nome Fantasia */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="razao_social">Razão Social / Nome *</Label>
+          <Input
+            id="razao_social"
+            value={data.razao_social}
+            onChange={(e) => onChange("razao_social", e.target.value)}
+          />
+          {errors?.razao_social && (
+            <p className="text-sm text-destructive">{errors.razao_social}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
+          <Input
+            id="nome_fantasia"
+            value={data.nome_fantasia}
+            onChange={(e) => onChange("nome_fantasia", e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Status, Classificação e Contribuinte ICMS */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label>Status</Label>
+          <Select value={data.status} onValueChange={(v) => onChange("status", v)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ATIVO">Ativo</SelectItem>
+              <SelectItem value="INATIVO">Inativo</SelectItem>
+              <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Classificação</Label>
+          <Select value={data.classificacao} onValueChange={(v) => onChange("classificacao", v)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="REGULAR">Regular</SelectItem>
+              <SelectItem value="VIP">VIP</SelectItem>
+              <SelectItem value="RISCO">Risco</SelectItem>
+              <SelectItem value="RESTRITO">Restrito</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Contribuinte ICMS</Label>
+          <Select value={data.contribuinte_icms} onValueChange={(v) => onChange("contribuinte_icms", v)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="SIM">Sim</SelectItem>
+              <SelectItem value="NAO">Não</SelectItem>
+              <SelectItem value="ISENTO">Isento</SelectItem>
+              <SelectItem value="NAO_INFORMADO">Não Informado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Papeis */}
+      <div className="space-y-2">
+        <Label>Papéis *</Label>
+        <div className="flex flex-wrap gap-4 p-3 border rounded-md bg-muted/30">
+          {PAPEIS.map((papel) => (
+            <div key={papel} className="flex items-center space-x-2">
+              <Checkbox
+                id={`papel-${papel}`}
+                checked={data.papeis?.includes(papel)}
+                onCheckedChange={() => togglePapel(papel)}
+              />
+              <label htmlFor={`papel-${papel}`} className="text-sm cursor-pointer">
+                {PAPEL_LABELS[papel]}
+              </label>
+            </div>
+          ))}
+        </div>
+        {errors?.papeis && (
+          <p className="text-sm text-destructive">{errors.papeis}</p>
+        )}
+      </div>
+
+      {/* Site */}
+      <div className="space-y-2">
+        <Label htmlFor="site">Site</Label>
+        <Input
+          id="site"
+          value={data.site}
+          onChange={(e) => onChange("site", e.target.value)}
+          placeholder="https://"
+        />
+      </div>
+
+      {/* Tags */}
+      <div className="space-y-2">
+        <Label>Tags</Label>
+        <div className="flex gap-2">
+          <Input
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+            placeholder="Adicionar tag..."
+            className="flex-1"
+          />
+          <button
+            type="button"
+            onClick={addTag}
+            className="px-3 py-2 text-sm border rounded-md hover:bg-muted"
+          >
+            Adicionar
+          </button>
+        </div>
+        {data.tags?.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {data.tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="gap-1">
+                {tag}
+                <X className="h-3 w-3 cursor-pointer" onClick={() => removeTag(tag)} />
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Observações */}
+      <div className="space-y-2">
+        <Label htmlFor="observacoes">Observações</Label>
+        <Textarea
+          id="observacoes"
+          value={data.observacoes}
+          onChange={(e) => onChange("observacoes", e.target.value)}
+          rows={3}
+        />
+      </div>
+    </div>
+  );
+}

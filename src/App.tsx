@@ -13,8 +13,9 @@ import XmlBackupPage from "./pages/settings/XmlBackupPage";
 import FornecedoresListPage from "./pages/cadastros/FornecedoresListPage";
 import ClientesListPage from "./pages/cadastros/ClientesListPage";
 import TransportadorasListPage from "./pages/cadastros/TransportadorasListPage";
-import EntidadeDetailPage from "./pages/cadastros/EntidadeDetailPage";
-import ProdutosListPage from "./pages/cadastros/ProdutosListPage";
+import EntidadeDetailPageComplete from "./pages/cadastros/EntidadeDetailPageComplete";
+import EntidadesListPageComplete from "./pages/cadastros/EntidadesListPageComplete";
+import ItensListPageComplete from "./pages/cadastros/ItensListPageComplete";
 import ProdutoDetailPage from "./pages/cadastros/ProdutoDetailPage";
 import FormulasListPage from "./pages/producao/FormulasListPage";
 import OrdensProducaoPage from "./pages/producao/OrdensProducaoPage";
@@ -29,6 +30,7 @@ import FluxoCaixaPage from "./pages/financeiro/FluxoCaixaPage";
 import CRMPage from "./pages/vendas/CRMPage";
 import PedidosPage from "./pages/vendas/PedidosPage";
 import MarketplacePage from "./pages/vendas/MarketplacePage";
+import NotasSaidaPage from "./pages/vendas/NotasSaidaPage";
 import RelatoriosPage from "./pages/relatorios/RelatoriosPage";
 import AuditoriaPage from "./pages/auditoria/AuditoriaPage";
 import UsuariosPage from "./pages/usuarios/UsuariosPage";
@@ -50,11 +52,13 @@ const App = () => (
             <Route path="/settings/admin-master" element={<AdminMasterPage />} />
             <Route path="/settings/xml-backup" element={<XmlBackupPage />} />
             {/* Cadastros */}
+            <Route path="/cadastros/entidades" element={<EntidadesListPageComplete />} />
             <Route path="/cadastros/fornecedores" element={<FornecedoresListPage />} />
             <Route path="/cadastros/clientes" element={<ClientesListPage />} />
             <Route path="/cadastros/transportadoras" element={<TransportadorasListPage />} />
-            <Route path="/cadastros/entidades/:id" element={<EntidadeDetailPage />} />
-            <Route path="/cadastros/produtos" element={<ProdutosListPage />} />
+            <Route path="/cadastros/entidades/:id" element={<EntidadeDetailPageComplete />} />
+            <Route path="/cadastros/produtos" element={<ItensListPageComplete />} />
+            <Route path="/cadastros/itens/:id" element={<ProdutoDetailPage />} />
             <Route path="/cadastros/produtos/:id" element={<ProdutoDetailPage />} />
             {/* Producao */}
             <Route path="/producao/formulas" element={<FormulasListPage />} />
@@ -74,6 +78,7 @@ const App = () => (
             <Route path="/vendas/crm" element={<CRMPage />} />
             <Route path="/vendas/pedidos" element={<PedidosPage />} />
             <Route path="/vendas/marketplace" element={<MarketplacePage />} />
+            <Route path="/vendas/notas-saida" element={<NotasSaidaPage />} />
             {/* Relatorios */}
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/auditoria" element={<AuditoriaPage />} />
