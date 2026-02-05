@@ -82,6 +82,18 @@ export function useLocalEntidades(filters?: { papel?: string; status?: string })
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const collection = (event as CustomEvent)?.detail?.collection as string | undefined;
+      if (!collection || collection === '*' || collection.startsWith('entidade_') || collection === 'entidades') {
+        refresh();
+      }
+    };
+
+    window.addEventListener('localdb:change', handler as EventListener);
+    return () => window.removeEventListener('localdb:change', handler as EventListener);
+  }, [refresh]);
+
   return { data: entidades, isLoading: loading, refresh };
 }
 

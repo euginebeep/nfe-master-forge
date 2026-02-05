@@ -28,6 +28,16 @@ function getStorageKey(collection: CollectionName): string {
   return `${STORAGE_PREFIX}${collection}`;
 }
 
+function notifyChange(collection?: string) {
+  try {
+    if (typeof window === 'undefined') return;
+    if (typeof CustomEvent === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('localdb:change', { detail: { collection } }));
+  } catch {
+    // ignore (e.g. tests / restricted env)
+  }
+}
+
 export function getCollection<T>(collection: CollectionName): T[] {
   try {
     const data = localStorage.getItem(getStorageKey(collection));
@@ -39,6 +49,7 @@ export function getCollection<T>(collection: CollectionName): T[] {
 
 export function setCollection<T>(collection: CollectionName, data: T[]): void {
   localStorage.setItem(getStorageKey(collection), JSON.stringify(data));
+  notifyChange(collection);
 }
 
 export function getById<T extends { id: string }>(collection: CollectionName, id: string): T | null {
@@ -155,6 +166,7 @@ export function clearAll(): void {
     }
   }
   keysToRemove.forEach(key => localStorage.removeItem(key));
+  notifyChange('*');
 }
 
 export const LocalDb = {
