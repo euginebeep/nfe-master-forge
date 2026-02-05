@@ -1,75 +1,146 @@
 import { useState } from "react";
-import { Shield, Plus, Search, Edit, Trash2, Key } from "lucide-react";
+import { Shield, Plus, Edit, Key, UserCog } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserFormDialog } from "@/components/usuarios/UserFormDialog";
+import { useUsers, FACTORY_ROLES, type UserWithProfile, type ModulePermission, type CreateUserData, type UpdateUserData } from "@/hooks/use-users";
+import { useAuth } from "@/hooks/use-auth";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function UsuariosPage() {
-  // Placeholder data
-  const usuarios = [
-    { id: "1", nome: "Administrador", email: "admin@legacy.com", perfil: "ADMIN", status: "ATIVO", ultimoAcesso: "2024-01-15 14:30" },
-    { id: "2", nome: "Producao Operador", email: "producao@legacy.com", perfil: "PRODUCAO", status: "ATIVO", ultimoAcesso: "2024-01-15 13:45" },
-    { id: "3", nome: "Fiscal Responsavel", email: "fiscal@legacy.com", perfil: "FISCAL", status: "ATIVO", ultimoAcesso: "2024-01-15 10:20" },
-    { id: "4", nome: "Financeiro", email: "financeiro@legacy.com", perfil: "FINANCEIRO", status: "INATIVO", ultimoAcesso: "2024-01-10 09:00" },
-  ];
+  const { users, isLoading, createUser, updateUser, fetchUserPermissions } = useUsers();
+  const { hasRole } = useAuth();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
+  const [selectedUserPermissions, setSelectedUserPermissions] = useState<ModulePermission[]>([]);
 
-  const perfis = [
-    { nome: "Administrador", permissoes: "Acesso total ao sistema", usuarios: 1 },
-    { nome: "Producao", permissoes: "Formulas, OPs, Estoque", usuarios: 1 },
-    { nome: "Fiscal", permissoes: "NF-e, Relatorios Fiscais", usuarios: 1 },
-    { nome: "Financeiro", permissoes: "Contas, Fluxo de Caixa", usuarios: 1 },
-    { nome: "Vendas", permissoes: "CRM, Pedidos, Clientes", usuarios: 0 },
-  ];
+  const isAdmin = hasRole('admin');
+
+  const handleNewUser = () => {
+    setSelectedUser(null);
+    setSelectedUserPermissions([]);
+    setDialogOpen(true);
+  };
+
+  const handleEditUser = async (user: UserWithProfile) => {
+    setSelectedUser(user);
+    const perms = await fetchUserPermissions(user.id);
+    setSelectedUserPermissions(perms);
+    setDialogOpen(true);
+  };
+
+  const handleSave = async (data: CreateUserData | UpdateUserData) => {
+    if ('user_id' in data) {
+      return updateUser(data);
+    } else {
+      return createUser(data);
+    }
+  };
+
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case 'admin': return 'default';
+      case 'gerente': return 'success';
+      case 'supervisor': return 'warning';
+      case 'operador': return 'info';
+      default: return 'muted';
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'ATIVO': return 'success';
+      case 'INATIVO': return 'muted';
+      case 'BLOQUEADO': return 'error';
+      default: return 'muted';
+    }
+  };
 
   const columns = [
     { 
       key: "nome", 
-      header: "Usuario",
-      render: (item: any) => (
+      header: "Usuário",
+      render: (item: UserWithProfile) => (
         <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-              {item.nome.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-            </AvatarFallback>
+          <Avatar className="h-10 w-10">
+            {item.avatar_url ? (
+              <AvatarImage src={item.avatar_url} alt={item.nome_completo} />
+            ) : (
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                {item.nome_completo.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+              </AvatarFallback>
+            )}
           </Avatar>
           <div>
-            <p className="font-medium">{item.nome}</p>
-            <p className="text-xs text-muted-foreground">{item.email}</p>
+            <p className="font-medium">{item.nome_completo}</p>
+            <p className="text-xs text-muted-foreground">{item.cargo || 'Sem cargo'}</p>
           </div>
         </div>
       )
     },
     { 
-      key: "perfil", 
+      key: "departamento", 
+      header: "Departamento",
+      render: (item: UserWithProfile) => (
+        <span className="text-sm">{item.departamento || '-'}</span>
+      )
+    },
+    { 
+      key: "role", 
       header: "Perfil",
-      render: (item: any) => (
-        <StatusBadge variant="default">{item.perfil}</StatusBadge>
+      render: (item: UserWithProfile) => (
+        <StatusBadge variant={getRoleBadgeVariant(item.role)}>
+          {FACTORY_ROLES[item.role]?.label || item.role}
+        </StatusBadge>
       )
     },
     { 
       key: "status", 
       header: "Status",
-      render: (item: any) => (
-        <StatusBadge variant={item.status === "ATIVO" ? "success" : "muted"}>
+      render: (item: UserWithProfile) => (
+        <StatusBadge variant={getStatusBadgeVariant(item.status)}>
           {item.status}
         </StatusBadge>
       )
     },
-    { key: "ultimoAcesso", header: "Ultimo Acesso" },
+    { 
+      key: "ultimo_acesso", 
+      header: "Último Acesso",
+      render: (item: UserWithProfile) => (
+        <span className="text-sm text-muted-foreground">
+          {item.ultimo_acesso 
+            ? format(new Date(item.ultimo_acesso), "dd/MM/yyyy HH:mm", { locale: ptBR })
+            : 'Nunca acessou'
+          }
+        </span>
+      )
+    },
     {
       key: "actions",
       header: "",
       className: "w-24",
-      render: (item: any) => (
+      render: (item: UserWithProfile) => (
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => handleEditUser(item)}
+            disabled={!isAdmin}
+          >
             <Edit className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => handleEditUser(item)}
+            disabled={!isAdmin}
+          >
             <Key className="h-4 w-4" />
           </Button>
         </div>
@@ -77,17 +148,67 @@ export default function UsuariosPage() {
     }
   ];
 
+  // Count users per role
+  const roleStats = Object.entries(FACTORY_ROLES).map(([key, config]) => ({
+    role: key,
+    label: config.label,
+    description: config.description,
+    count: users.filter(u => u.role === key).length,
+  }));
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader
+          title="Usuários e Permissões"
+          description="Gestão de acesso e perfis de usuário"
+          icon={Shield}
+        />
+        <div className="grid grid-cols-3 gap-6">
+          <div className="col-span-2">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-24" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
-        title="Usuarios e Permissoes"
-        description="Gestao de acesso e perfis de usuario"
+        title="Usuários e Permissões"
+        description="Gestão de acesso e perfis de usuário"
         icon={Shield}
         actions={
-          <Button className="bg-secondary hover:bg-secondary/90">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Usuario
-          </Button>
+          isAdmin && (
+            <Button className="bg-secondary hover:bg-secondary/90" onClick={handleNewUser}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Usuário
+            </Button>
+          )
         }
       />
 
@@ -95,16 +216,19 @@ export default function UsuariosPage() {
         <div className="col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Usuarios</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <UserCog className="h-5 w-5" />
+                Usuários ({users.length})
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <DataTable
-                data={usuarios}
+                data={users}
                 columns={columns}
                 searchable
-                searchPlaceholder="Buscar usuario..."
-                searchKeys={["nome", "email"]}
-                emptyMessage="Nenhum usuario cadastrado"
+                searchPlaceholder="Buscar usuário..."
+                searchKeys={["nome_completo", "cargo", "departamento"]}
+                emptyMessage="Nenhum usuário cadastrado"
               />
             </CardContent>
           </Card>
@@ -113,26 +237,54 @@ export default function UsuariosPage() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Perfis de Acesso</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Perfis de Acesso
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {perfis.map((perfil) => (
-                <div key={perfil.nome} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardContent className="space-y-3">
+              {roleStats.map((stat) => (
+                <div 
+                  key={stat.role} 
+                  className="p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-medium">{perfil.nome}</p>
-                    <span className="text-xs text-muted-foreground">{perfil.usuarios} usuarios</span>
+                    <p className="font-medium">{stat.label}</p>
+                    <StatusBadge variant={getRoleBadgeVariant(stat.role)}>
+                      {stat.count} {stat.count === 1 ? 'usuário' : 'usuários'}
+                    </StatusBadge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{perfil.permissoes}</p>
+                  <p className="text-xs text-muted-foreground">{stat.description}</p>
                 </div>
               ))}
-              <Button variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Perfil
-              </Button>
             </CardContent>
           </Card>
+
+          {!isAdmin && (
+            <Card className="mt-4">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Shield className="h-6 w-6" />
+                  <div>
+                    <p className="font-medium text-foreground">Acesso Restrito</p>
+                    <p className="text-sm">
+                      Apenas administradores podem gerenciar usuários.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
+
+      <UserFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        user={selectedUser}
+        existingPermissions={selectedUserPermissions}
+        onSave={handleSave}
+      />
     </div>
   );
 }

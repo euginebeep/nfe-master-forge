@@ -1135,7 +1135,9 @@ export type Database = {
           departamento: Database["public"]["Enums"]["app_departamento"] | null
           id: string
           nome_completo: string
+          status: string | null
           telefone: string | null
+          ultimo_acesso: string | null
           updated_at: string
         }
         Insert: {
@@ -1145,7 +1147,9 @@ export type Database = {
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
           id: string
           nome_completo: string
+          status?: string | null
           telefone?: string | null
+          ultimo_acesso?: string | null
           updated_at?: string
         }
         Update: {
@@ -1155,8 +1159,43 @@ export type Database = {
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
           id?: string
           nome_completo?: string
+          status?: string | null
           telefone?: string | null
+          ultimo_acesso?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_permissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          modulo: string
+          pode_criar: boolean | null
+          pode_editar: boolean | null
+          pode_excluir: boolean | null
+          pode_visualizar: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          modulo: string
+          pode_criar?: boolean | null
+          pode_editar?: boolean | null
+          pode_excluir?: boolean | null
+          pode_visualizar?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          modulo?: string
+          pode_criar?: boolean | null
+          pode_editar?: boolean | null
+          pode_excluir?: boolean | null
+          pode_visualizar?: boolean | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1189,6 +1228,10 @@ export type Database = {
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_module_permission: {
+        Args: { _modulo: string; _permission?: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
