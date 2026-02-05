@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useHybridItens, type HybridItem } from "@/hooks/use-hybrid-data";
+import { ItemFormDialog } from "@/components/itens/ItemFormDialog";
 
 type TipoItem = 'MP' | 'EMBALAGEM' | 'ROTULO' | 'TAMPA' | 'POTE' | 'SILICA' | 'CAPSULA_VAZIA' | 'PA' | 'OUTRO';
 type CriticidadeItem = 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA';
@@ -38,6 +39,7 @@ export default function ItensListPageComplete() {
   const navigate = useNavigate();
   const [selectedTipos, setSelectedTipos] = useState<TipoItem[]>([]);
   const [ativoFilter, setAtivoFilter] = useState<string>("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: itensData, isLoading } = useHybridItens({
     tipo_item: undefined,
@@ -163,11 +165,17 @@ export default function ItensListPageComplete() {
         description="Matérias primas, embalagens e produtos acabados"
         icon={Package}
         actions={
-          <Button onClick={() => navigate("/cadastros/itens/novo")}>
+          <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Item
           </Button>
         }
+      />
+
+      <ItemFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={() => setDialogOpen(false)}
       />
 
       <DataTable

@@ -35,6 +35,7 @@ import PedidosPage from "./pages/vendas/PedidosPage";
 import MarketplacePage from "./pages/vendas/MarketplacePage";
 import NotasSaidaPage from "./pages/vendas/NotasSaidaPage";
 import RelatoriosPage from "./pages/relatorios/RelatoriosPage";
+import RelatorioCapsulasPage from "./pages/relatorios/RelatorioCapsulasPage";
 import AuditoriaPage from "./pages/auditoria/AuditoriaPage";
 import UsuariosPage from "./pages/usuarios/UsuariosPage";
 
@@ -92,6 +93,7 @@ const App = () => (
             <Route path="/vendas/notas-saida" element={<NotasSaidaPage />} />
             {/* Relatorios */}
             <Route path="/relatorios" element={<RelatoriosPage />} />
+            <Route path="/relatorios/capsulas" element={<RelatorioCapsulasPage />} />
             <Route path="/auditoria" element={<AuditoriaPage />} />
             {/* Usuarios */}
             <Route path="/usuarios" element={<UsuariosPage />} />
