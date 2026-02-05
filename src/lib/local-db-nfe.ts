@@ -3,6 +3,7 @@
 // ============================================
 
 import { LocalDb } from './local-db';
+import { saveXmlBackup } from './xml-backup';
 import type {
   NotaFiscalCompleta,
   NotaFiscalObservacao,
@@ -347,12 +348,29 @@ export function criarLoteEstoque(
                     produto?.criticidade === 'CRITICO' || 
                     produto?.criticidade === 'ULTRA';
   
+  // IMPORTANTE: A quantidade original é a quantidade comercial do item na nota
+  // Se tiver rastro, usar a quantidade do rastro (pode ser fracionada)
+  // A unidade original é SEMPRE a unidade comercial da nota
   const quantidadeOriginal = rastro?.quantidade || item.quantidade_comercial;
-  const quantidadeInterna = quantidadeOriginal * fatorConversao;
-  const custoUnitarioOriginal = item.valor_unitario_comercial;
-  const custoUnitarioInterno = custoUnitarioOriginal / fatorConversao;
   const unidadeOriginal = item.unidade_comercial.toUpperCase();
   const unidadeInterna = produto?.unidade_interna || 'g';
+  
+  // Calcular fator de conversão baseado na unidade comercial
+  // O fator converte da unidade original para a unidade interna
+  const fatorCalculado = calcularFatorConversao(unidadeOriginal, unidadeInterna);
+  
+  // Usar o fator calculado (mais preciso) ou o fator passado (se já existir link com fornecedor)
+  const fatorFinal = fatorCalculado > 0 ? fatorCalculado : fatorConversao;
+  
+  // Converter quantidade e custo para unidade interna
+  const quantidadeInterna = quantidadeOriginal * fatorFinal;
+  const custoUnitarioOriginal = item.valor_unitario_comercial;
+  const custoUnitarioInterno = fatorFinal > 0 ? custoUnitarioOriginal / fatorFinal : custoUnitarioOriginal;
+  
+  // Calcular valor total proporcional ao lote (se tiver rastro)
+  const valorTotalItem = rastro ? 
+    (rastro.quantidade / item.quantidade_comercial) * item.valor_total :
+    item.valor_total;
   
   const lote = LocalDb.insert<LocalEstoqueLote>('estoque_lotes', {
     item_id: itemId,
@@ -361,16 +379,16 @@ export function criarLoteEstoque(
     numero_lote: rastro?.numero_lote || `LOTE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
     data_fab: rastro?.data_fabricacao,
     data_val: rastro?.data_validade,
-    // Quantidades originais
+    // Quantidades originais (EXATAMENTE como veio na nota)
     quantidade_original: quantidadeOriginal,
     unidade_original: unidadeOriginal,
     custo_unitario_original: custoUnitarioOriginal,
-    valor_total_item: item.valor_total,
-    // Quantidades internas
+    valor_total_item: valorTotalItem,
+    // Quantidades internas (convertidas)
     quantidade_interna: quantidadeInterna,
     unidade_interna: unidadeInterna,
     custo_unitario_interno: custoUnitarioInterno,
-    fator_conversao: fatorConversao,
+    fator_conversao: fatorFinal,
     status: isCritico ? 'QUARENTENA' : 'DISPONIVEL',
     // Dados da Nota de Entrada
     nota_numero: notaInfo?.numero,
@@ -410,6 +428,51 @@ export function criarLoteEstoque(
   });
   
   return lote.id;
+}
+
+// ============================================
+// CALCULAR FATOR DE CONVERSÃO
+// ============================================
+function calcularFatorConversao(unidadeOrigem: string, unidadeDestino: string): number {
+  const origem = unidadeOrigem.toUpperCase().trim();
+  const destino = unidadeDestino.toLowerCase().trim();
+  
+  // Tabela de conversão para GRAMAS (g) como unidade base de massa
+  const paraGramas: Record<string, number> = {
+    'KG': 1000,
+    'G': 1,
+    'MG': 0.001,
+    'TON': 1000000,
+    'T': 1000000,
+  };
+  
+  // Tabela de conversão para MILILITROS (ml) como unidade base de volume
+  const paraMl: Record<string, number> = {
+    'L': 1000,
+    'LT': 1000,
+    'ML': 1,
+  };
+  
+  // Se for unidade, não converte
+  if (origem === 'UN' || origem === 'UND' || origem === 'UNID' || origem === 'PCT' || origem === 'CX') {
+    return 1;
+  }
+  
+  // Conversão de massa
+  if (paraGramas[origem] !== undefined) {
+    if (destino === 'g') return paraGramas[origem];
+    if (destino === 'mg') return paraGramas[origem] * 1000;
+    if (destino === 'kg') return paraGramas[origem] / 1000;
+  }
+  
+  // Conversão de volume
+  if (paraMl[origem] !== undefined) {
+    if (destino === 'ml') return paraMl[origem];
+    if (destino === 'l') return paraMl[origem] / 1000;
+  }
+  
+  // Se não conseguiu determinar, retorna 1 (sem conversão)
+  return 1;
 }
 
 // ============================================
@@ -498,6 +561,19 @@ export function importarNFeCompleta(
     transportadora_id: transportadoraId,
     updated_at: new Date().toISOString(),
   });
+  
+  // 2.1. BACKUP: Salvar XML original na íntegra para backup gerencial
+  if (parseResult.notaFiscal.xml_raw) {
+    saveXmlBackup(parseResult.notaFiscal.xml_raw, {
+      chave_acesso: parseResult.notaFiscal.chave_acesso,
+      numero_nota: parseResult.notaFiscal.numero,
+      serie: parseResult.notaFiscal.serie,
+      data_emissao: parseResult.notaFiscal.dh_emissao,
+      fornecedor_cnpj: parseResult.emitente.documento,
+      fornecedor_razao: parseResult.emitente.razao_social,
+      valor_total: parseResult.notaFiscal.total_nota,
+    });
+  }
   
   // 3. Criar observações
   parseResult.observacoes.forEach(obs => {
