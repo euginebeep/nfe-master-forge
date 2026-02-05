@@ -530,6 +530,16 @@ export default function ProdutoDetailPage() {
                             </Button>
                           </div>
                         </div>
+                        
+                        {/* Dados da Nota */}
+                        {l.nota_numero && (
+                          <div className="mb-3 p-2 bg-muted/50 rounded text-sm">
+                            <span className="font-medium">NF-e {l.nota_numero}</span>
+                            {l.nota_serie && <span className="text-muted-foreground"> | Série {l.nota_serie}</span>}
+                            {l.nota_data && <span className="text-muted-foreground"> | {new Date(l.nota_data).toLocaleDateString('pt-BR')}</span>}
+                          </div>
+                        )}
+                        
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Fornecedor</p>
@@ -546,6 +556,36 @@ export default function ProdutoDetailPage() {
                           <div>
                             <p className="text-muted-foreground">Validade</p>
                             <p>{l.data_val || "-"}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Preço e Impostos */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mt-3 pt-3 border-t">
+                          <div>
+                            <p className="text-muted-foreground">Custo Unit. Original</p>
+                            <p className="font-medium">R$ {l.custo_unitario_original?.toFixed(4) || "-"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">ICMS</p>
+                            <p>
+                              {l.icms_valor ? `R$ ${l.icms_valor.toFixed(2)}` : "-"}
+                              {l.icms_aliquota ? ` (${l.icms_aliquota}%)` : ""}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">IPI</p>
+                            <p>
+                              {l.ipi_valor ? `R$ ${l.ipi_valor.toFixed(2)}` : "-"}
+                              {l.ipi_aliquota ? ` (${l.ipi_aliquota}%)` : ""}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">PIS</p>
+                            <p>{l.pis_valor ? `R$ ${l.pis_valor.toFixed(2)}` : "-"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">COFINS</p>
+                            <p>{l.cofins_valor ? `R$ ${l.cofins_valor.toFixed(2)}` : "-"}</p>
                           </div>
                         </div>
                       </div>
