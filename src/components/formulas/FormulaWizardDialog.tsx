@@ -377,8 +377,8 @@ export function FormulaWizardDialog({
                         <FormItem>
                           <FormLabel>Tipo de Cápsula</FormLabel>
                           <Select 
-                            value={field.value || ""} 
-                            onValueChange={(v) => field.onChange(v || undefined)}
+                            value={field.value || "default"} 
+                            onValueChange={(v) => field.onChange(v === "default" ? undefined : v)}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -386,7 +386,7 @@ export function FormulaWizardDialog({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">Usar do produto</SelectItem>
+                              <SelectItem value="default">Usar do produto</SelectItem>
                               {TIPOS_CAPSULA.map(tipo => (
                                 <SelectItem key={tipo} value={tipo}>
                                   {tipo} ({CAPSULAS_CAPACIDADE[tipo].alvo}mg)
