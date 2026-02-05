@@ -7,7 +7,7 @@ export default function ClearDataPage() {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Clear specific collections
+    // Clear all collections
     LocalDb.setCollection('entidades', []);
     LocalDb.setCollection('entidade_contatos', []);
     LocalDb.setCollection('entidade_enderecos', []);
@@ -16,8 +16,10 @@ export default function ClearDataPage() {
     LocalDb.setCollection('item_alias', []);
     LocalDb.setCollection('estoque_lotes', []);
     LocalDb.setCollection('lote_documentos', []);
+    LocalDb.setCollection('notas_entrada', []);
+    LocalDb.setCollection('notas_entrada_itens', []);
     
-    toast.success("Produtos, fornecedores e clientes apagados!");
+    toast.success("Todos os cadastros foram apagados!");
     navigate("/cadastros/produtos");
   }, [navigate]);
 
