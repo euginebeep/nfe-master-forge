@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import EmpresaSettingsPage from "./pages/settings/EmpresaSettingsPage";
 import ClearDataPage from "./pages/settings/ClearDataPage";
+import AdminMasterPage from "./pages/settings/AdminMasterPage";
 import FornecedoresListPage from "./pages/cadastros/FornecedoresListPage";
 import ClientesListPage from "./pages/cadastros/ClientesListPage";
 import TransportadorasListPage from "./pages/cadastros/TransportadorasListPage";
@@ -44,6 +45,7 @@ const App = () => (
             {/* Settings */}
             <Route path="/settings/empresa" element={<EmpresaSettingsPage />} />
             <Route path="/settings/clear-data" element={<ClearDataPage />} />
+            <Route path="/settings/admin-master" element={<AdminMasterPage />} />
             {/* Cadastros */}
             <Route path="/cadastros/fornecedores" element={<FornecedoresListPage />} />
             <Route path="/cadastros/clientes" element={<ClientesListPage />} />
