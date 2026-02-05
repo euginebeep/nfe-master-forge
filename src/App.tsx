@@ -6,7 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import AuthPage from "./components/auth/AuthPage";
 import EmpresaSettingsPage from "./pages/settings/EmpresaSettingsPage";
+import CompanySettingsPage from "./pages/settings/CompanySettingsPage";
 import ClearDataPage from "./pages/settings/ClearDataPage";
 import MigrarDadosPage from "./pages/settings/MigrarDadosPage";
 import AdminMasterPage from "./pages/settings/AdminMasterPage";
@@ -45,10 +47,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Auth */}
+          <Route path="/auth" element={<AuthPage />} />
+          
           <Route element={<MainLayout />}>
             <Route path="/" element={<Index />} />
             {/* Settings */}
             <Route path="/settings/empresa" element={<EmpresaSettingsPage />} />
+            <Route path="/settings/company" element={<CompanySettingsPage />} />
             <Route path="/settings/clear-data" element={<ClearDataPage />} />
             <Route path="/settings/migrar-dados" element={<MigrarDadosPage />} />
             <Route path="/settings/admin-master" element={<AdminMasterPage />} />
@@ -60,6 +66,7 @@ const App = () => (
             <Route path="/cadastros/transportadoras" element={<TransportadorasListPage />} />
             <Route path="/cadastros/entidades/:id" element={<EntidadeDetailPageComplete />} />
             <Route path="/cadastros/produtos" element={<ItensListPageComplete />} />
+            <Route path="/cadastros/itens" element={<ItensListPageComplete />} />
             <Route path="/cadastros/itens/:id" element={<ProdutoDetailPage />} />
             <Route path="/cadastros/produtos/:id" element={<ProdutoDetailPage />} />
             {/* Producao */}
@@ -71,9 +78,11 @@ const App = () => (
             <Route path="/estoque/movimentacoes" element={<MovimentacoesPage />} />
             {/* Compras */}
             <Route path="/compras/importar-nfe" element={<NFeImportPage />} />
+            <Route path="/compras/nfe-import" element={<NFeImportPage />} />
             <Route path="/compras/notas-entrada" element={<NotasEntradaPage />} />
             {/* Financeiro */}
             <Route path="/financeiro/pagar" element={<ContasPagarPage />} />
+            <Route path="/financeiro/contas-pagar" element={<ContasPagarPage />} />
             <Route path="/financeiro/receber" element={<ContasReceberPage />} />
             <Route path="/financeiro/fluxo" element={<FluxoCaixaPage />} />
             {/* Vendas */}

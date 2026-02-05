@@ -15,6 +15,7 @@ import { useCompany, useUpsertCompany } from "@/hooks/use-company";
 import { useUploadFile } from "@/hooks/use-files";
 import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
 import { CertificateTestButton } from "@/components/company/CertificateTestButton";
+import { MaskedInput } from "@/components/ui/masked-input";
 import type { Company, AmbienteNFe } from "@/types/erp";
 
 const UF_OPTIONS = [
@@ -222,7 +223,11 @@ export default function CompanySettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Telefone</Label>
-                    <Input {...form.register("telefone")} placeholder="(00) 00000-0000" />
+                    <MaskedInput
+                      mask="phone"
+                      value={form.watch("telefone") || ""}
+                      onChange={(value) => form.setValue("telefone", value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Site</Label>
@@ -349,7 +354,11 @@ export default function CompanySettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>CEP</Label>
-                    <Input {...form.register("endereco_cep")} placeholder="00000-000" />
+                    <MaskedInput
+                      mask="cep"
+                      value={form.watch("endereco_cep") || ""}
+                      onChange={(value) => form.setValue("endereco_cep", value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Codigo Municipio (IBGE)</Label>
