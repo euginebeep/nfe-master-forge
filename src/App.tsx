@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import EmpresaSettingsPage from "./pages/settings/EmpresaSettingsPage";
 import ClearDataPage from "./pages/settings/ClearDataPage";
+import MigrarDadosPage from "./pages/settings/MigrarDadosPage";
 import AdminMasterPage from "./pages/settings/AdminMasterPage";
 import XmlBackupPage from "./pages/settings/XmlBackupPage";
 import FornecedoresListPage from "./pages/cadastros/FornecedoresListPage";
@@ -49,6 +50,7 @@ const App = () => (
             {/* Settings */}
             <Route path="/settings/empresa" element={<EmpresaSettingsPage />} />
             <Route path="/settings/clear-data" element={<ClearDataPage />} />
+            <Route path="/settings/migrar-dados" element={<MigrarDadosPage />} />
             <Route path="/settings/admin-master" element={<AdminMasterPage />} />
             <Route path="/settings/xml-backup" element={<XmlBackupPage />} />
             {/* Cadastros */}

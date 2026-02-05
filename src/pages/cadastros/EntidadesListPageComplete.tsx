@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Plus, Eye, Filter, Search } from "lucide-react";
+import { Users, Plus, Eye, Filter } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLocalEntidades, useLocalEntidade, LocalEntidade, LocalEntidadeEndereco } from "@/hooks/use-local-entidades";
+import { useHybridEntidades, type HybridEntidade } from "@/hooks/use-hybrid-data";
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { formatDocument } from "@/lib/formatters";
-import { LocalDb } from "@/lib/local-db";
 
 const PAPEL_LABELS: Record<string, string> = {
   CLIENTE: "Cliente",
@@ -48,34 +46,32 @@ export default function EntidadesListPageComplete() {
   const [ufFilter, setUfFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data: entidadesBase, isLoading, refresh } = useLocalEntidades({
+  const { data: entidadesData, isLoading, refetch } = useHybridEntidades({
     papel: papelFilter !== "all" ? papelFilter : undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
 
-  // Get all enderecos for enrichment
-  const allEnderecos = LocalDb.getCollection<LocalEntidadeEndereco>('entidade_enderecos');
-
-  // Apply additional filters and enrich with enderecos
-  const entidades = entidadesBase.map(e => ({
-    ...e,
-    enderecos: allEnderecos.filter(end => end.entidade_id === e.id),
-  })).filter(e => {
+  // Apply additional filters
+  const entidades = (entidadesData || []).filter(e => {
     if (classificacaoFilter !== "all" && e.classificacao !== classificacaoFilter) return false;
-    if (ufFilter !== "all" && !e.enderecos?.some(end => end.uf === ufFilter)) return false;
+    if (ufFilter !== "all") {
+      const hasUf = e.entidade_enderecos?.some(end => end.uf === ufFilter);
+      if (!hasUf) return false;
+    }
     return true;
   });
 
-  const getEnderecoFiscal = (entidade: typeof entidades[0]) => {
-    const fiscal = entidade.enderecos?.find(e => e.tipo === 'FISCAL');
+  const getEnderecoFiscal = (entidade: HybridEntidade) => {
+    const enderecos = entidade.entidade_enderecos || [];
+    const fiscal = enderecos.find((e: any) => e.tipo === 'FISCAL');
     if (fiscal) return `${fiscal.cidade}/${fiscal.uf}`;
-    const any = entidade.enderecos?.[0];
+    const any = enderecos[0];
     if (any) return `${any.cidade}/${any.uf}`;
     return '-';
   };
 
-  const getContatoPrincipal = (entidade: LocalEntidade) => {
-    const contact = (entidade as any)._primaryContact;
+  const getContatoPrincipal = (entidade: HybridEntidade) => {
+    const contact = entidade._primaryContact;
     if (contact) return contact.whatsapp || contact.telefone || contact.email || '-';
     return '-';
   };
@@ -85,7 +81,7 @@ export default function EntidadesListPageComplete() {
       key: "codigo_interno",
       header: "Código",
       sortable: true,
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <span className="font-mono text-sm">{(item as any).codigo_interno || '-'}</span>
       ),
     },
@@ -93,7 +89,7 @@ export default function EntidadesListPageComplete() {
       key: "razao_social",
       header: "Nome/Razão Social",
       sortable: true,
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <div>
           <p className="font-medium">{item.razao_social}</p>
           {item.nome_fantasia && (
@@ -106,14 +102,14 @@ export default function EntidadesListPageComplete() {
       key: "documento",
       header: "CPF/CNPJ",
       sortable: true,
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <span className="font-mono text-sm">{formatDocument(item.documento)}</span>
       ),
     },
     {
       key: "papeis",
       header: "Papéis",
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <div className="flex flex-wrap gap-1">
           {item.papeis?.map((papel, idx) => (
             <StatusBadge key={idx} variant="muted" className="text-xs">
@@ -126,19 +122,19 @@ export default function EntidadesListPageComplete() {
     {
       key: "cidade_uf",
       header: "Cidade/UF",
-      render: (item: typeof entidades[0]) => getEnderecoFiscal(item),
+      render: (item: HybridEntidade) => getEnderecoFiscal(item),
     },
     {
       key: "contato",
       header: "Contato",
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <span className="text-sm">{getContatoPrincipal(item)}</span>
       ),
     },
     {
       key: "status",
       header: "Status",
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <StatusBadge variant={STATUS_VARIANTS[item.status] || "muted"}>
           {item.status}
         </StatusBadge>
@@ -147,7 +143,7 @@ export default function EntidadesListPageComplete() {
     {
       key: "classificacao",
       header: "Classificação",
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <StatusBadge variant={CLASSIFICACAO_VARIANTS[item.classificacao || 'REGULAR'] || "muted"}>
           {item.classificacao || "REGULAR"}
         </StatusBadge>
@@ -157,7 +153,7 @@ export default function EntidadesListPageComplete() {
       key: "actions",
       header: "",
       className: "w-16",
-      render: (item: typeof entidades[0]) => (
+      render: (item: HybridEntidade) => (
         <Button
           variant="ghost"
           size="icon"
@@ -254,7 +250,7 @@ export default function EntidadesListPageComplete() {
       <EntidadeFormDialogComplete
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSuccess={() => refresh()}
+        onSuccess={() => refetch()}
       />
     </div>
   );
