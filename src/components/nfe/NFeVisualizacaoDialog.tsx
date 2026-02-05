@@ -194,9 +194,31 @@ export function NFeVisualizacaoDialog({
         </div>
 
         <ScrollArea className="max-h-[calc(90vh-80px)]">
-          <div className="p-6 space-y-6 print:p-4" id="nfe-content">
-            {/* Cabeçalho da Nota */}
-            <div className="flex items-start justify-between">
+          <div className="p-6 space-y-6 print:p-0 print:m-0" id="nfe-content">
+            {/* Cabeçalho para Impressão (só aparece na impressão) */}
+            <div className="hidden print:block print:mb-4">
+              <div className="text-center border-b-2 border-black pb-3 mb-4">
+                <h1 className="text-xl font-bold">DOCUMENTO AUXILIAR - NF-e</h1>
+                <p className="text-sm mt-1">Nota Fiscal Eletrônica</p>
+              </div>
+              <div className="flex justify-between text-sm mb-4">
+                <div>
+                  <p><strong>NF-e Nº:</strong> {nota.numero}</p>
+                  <p><strong>Série:</strong> {nota.serie}</p>
+                </div>
+                <div className="text-right">
+                  <p><strong>Emissão:</strong> {formatDate(nota.dh_emissao)}</p>
+                  <p><strong>Status:</strong> {nota.status_sefaz}</p>
+                </div>
+              </div>
+              <div className="text-xs mb-4 p-2 border bg-muted">
+                <strong>Chave de Acesso:</strong><br />
+                <span className="font-mono break-all">{nota.chave_acesso}</span>
+              </div>
+            </div>
+
+            {/* Cabeçalho da Nota (tela) */}
+            <div className="flex items-start justify-between print:hidden">
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant={nota.status_sefaz === 'AUTORIZADA' ? 'default' : 'secondary'}>
