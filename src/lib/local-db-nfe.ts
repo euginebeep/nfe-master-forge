@@ -243,34 +243,42 @@ export function findOrCreateProduto(
   }
   
   // 5. Criar novo produto
-  const tipoItem = mapClassificacaoToTipoItem(classificacao);
+  const tipoItem = mapClassificacaoToTipoItem(classificacao, descricao);
   const isCritico = tipoItem === 'MP' || classificacao === 'MATERIA_PRIMA';
+  
+  // Verificar se é cápsula pelo nome
+  const isCapsule = tipoItem === 'CAPSULA';
   
   // Determinar unidade interna baseado no tipo de item
   // REGRA: Embalagens e itens discretos mantêm unidade da nota fiscal (UN)
   //        Matérias-primas convertem para grama
+  //        Cápsulas usam 'un' com fator de conversão de milheiro
   const uCom = item.unidade_comercial.toUpperCase();
-  const isEmbalagem = ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA'].includes(tipoItem);
+  const isEmbalagem = ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA', 'CAPSULA'].includes(tipoItem);
   const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'CAP', 'CAPS', 'ENV', 'ENVL', 'PC', 'PÇ', 'ROLO', 'MT', 'M'];
   const isUnidadeDiscreta = unidadesDiscretas.includes(uCom);
   
   // Para embalagens: sempre usar 'un' (unidade)
   // Para itens com unidade discreta na nota: usar 'un'
   // Para matérias-primas com unidade de massa: usar 'g' (grama)
-  let unidadeInterna: 'g' | 'mg' | 'un' | 'ml' = 'g';
+  let unidadeInterna: 'g' | 'mg' | 'un' | 'ml' | 'milheiro' = 'g';
   if (isEmbalagem || isUnidadeDiscreta) {
     unidadeInterna = 'un';
   } else if (uCom === 'ML' || uCom === 'L' || uCom === 'LT') {
     unidadeInterna = 'ml';
   }
   
+  // Detectar unidade milheiro na nota
+  const unidadesMilheiro = ['MILHEIRO', 'MIL', 'MI'];
+  const isUnidadeMilheiro = unidadesMilheiro.includes(uCom);
+  
   const novoItem = LocalDb.insert<LocalItem>('itens', {
     sku_interno: LocalDb.generateSKU(tipoItem),
     descricao_interna: descricao,
-    tipo_item: tipoItem,
+    tipo_item: tipoItem as any,
     ncm: ncm,
     ean: ean || undefined,
-    unidade_interna: unidadeInterna,
+    unidade_interna: unidadeInterna as any,
     controla_lote: true,
     controla_validade: true,
     criticidade: isCritico ? 'CRITICO' : 'NORMAL',
@@ -278,12 +286,20 @@ export function findOrCreateProduto(
     armazenamento: 'AMBIENTE',
     exige_premix: false,
     ativo: true,
+    // Para cápsulas: configurar conversão de milheiro automaticamente
+    ...(isCapsule && {
+      unidade_compra: isUnidadeMilheiro ? 'milheiro' : undefined,
+      fator_compra_para_interna: isUnidadeMilheiro ? 1000 : undefined,
+    }),
   });
   
   // Calcular fator de conversão
   // Para embalagens e unidades discretas: fator = 1 (sem conversão)
+  // Para cápsulas em milheiro: fator = 1000
   let fatorConversao = 1;
-  if (!isEmbalagem && !isUnidadeDiscreta) {
+  if (isCapsule && isUnidadeMilheiro) {
+    fatorConversao = 1000;
+  } else if (!isEmbalagem && !isUnidadeDiscreta) {
     if (uCom === 'KG') fatorConversao = 1000;
     else if (uCom === 'G') fatorConversao = 1;
     else if (uCom === 'MG') fatorConversao = 0.001;
@@ -298,7 +314,7 @@ export function findOrCreateProduto(
     fornecedor_id: fornecedorId,
     codigo_fornecedor: codigoFornecedor,
     descricao_fornecedor: descricao,
-    unidade_compra_padrao: isEmbalagem || isUnidadeDiscreta ? 'un' : uCom.toLowerCase(),
+    unidade_compra_padrao: isEmbalagem || isUnidadeDiscreta ? 'un' : (isUnidadeMilheiro ? 'milheiro' : uCom.toLowerCase()) as any,
     fator_para_unidade_interna: fatorConversao,
     fornecedor_preferencial: true,
     preco_referencia: item.valor_unitario_comercial,
@@ -354,7 +370,16 @@ function getFatorConversao(itemId: string, fornecedorId: string): number {
   return link?.fator_para_unidade_interna || 1;
 }
 
-function mapClassificacaoToTipoItem(classificacao: ClassificacaoNota): string {
+function mapClassificacaoToTipoItem(classificacao: ClassificacaoNota, descricao?: string): string {
+  // Detectar cápsula pelo nome do produto
+  if (descricao) {
+    const descNorm = descricao.toUpperCase();
+    if (descNorm.includes('CAPSULA') || descNorm.includes('CÁPSULA') || 
+        descNorm.includes('CAPS') && (descNorm.includes('VAZIA') || descNorm.includes('GELATINA') || descNorm.includes('VEGETAL'))) {
+      return 'CAPSULA';
+    }
+  }
+  
   switch (classificacao) {
     case 'MATERIA_PRIMA': return 'MP';
     case 'EMBALAGEM': return 'EMBALAGEM';
@@ -382,11 +407,19 @@ export function criarLoteEstoque(
                     produto?.criticidade === 'CRITICO' || 
                     produto?.criticidade === 'ULTRA';
   
-  // REGRA: Embalagens e itens discretos NÃO convertem unidade
-  const isEmbalagem = produto && ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA'].includes(produto.tipo_item);
+  // REGRA: Verificar se é cápsula com fator de conversão de milheiro configurado
+  const isCapsule = produto && (produto.tipo_item === 'CAPSULA' || produto.tipo_item === 'CAPSULA_VAZIA');
+  const temFatorCompra = produto?.fator_compra_para_interna && produto.fator_compra_para_interna > 1;
+  
+  // REGRA: Embalagens e itens discretos NÃO convertem unidade (exceto se tiver fator configurado)
+  const isEmbalagem = produto && ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA', 'CAPSULA'].includes(produto.tipo_item);
   const unidadeOriginal = item.unidade_comercial.toUpperCase();
-  const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'CAP', 'CAPS', 'ENV', 'ENVL', 'PC', 'PÇ', 'ROLO', 'MT', 'M'];
+  const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'CAP', 'CAPS', 'ENV', 'ENVL', 'PC', 'PÇ', 'ROLO', 'MT', 'M', 'MILHEIRO', 'MIL'];
   const isUnidadeDiscreta = unidadesDiscretas.includes(unidadeOriginal);
+  
+  // Unidades que indicam milheiro na nota
+  const unidadesMilheiro = ['MILHEIRO', 'MIL', 'ML', 'MI'];
+  const isUnidadeMilheiro = unidadesMilheiro.includes(unidadeOriginal);
   
   // IMPORTANTE: A quantidade original é a quantidade comercial do item na nota
   // Se tiver rastro, usar a quantidade do rastro (pode ser fracionada)
@@ -398,7 +431,21 @@ export function criarLoteEstoque(
   let quantidadeInterna: number;
   let custoUnitarioInterno: number;
   
-  if (isEmbalagem || isUnidadeDiscreta) {
+  // Caso especial: Cápsula com compra em milheiro
+  if ((isCapsule || temFatorCompra) && (isUnidadeMilheiro || temFatorCompra)) {
+    // Usar fator configurado no cadastro ou detectar automaticamente
+    fatorFinal = temFatorCompra ? produto!.fator_compra_para_interna! : 1000;
+    unidadeInterna = produto?.unidade_interna || 'un';
+    
+    // Converter: 1 milheiro = 1000 unidades
+    // Quantidade: qtd_milheiro × 1000 = quantidade de cápsulas
+    quantidadeInterna = quantidadeOriginal * fatorFinal;
+    
+    // Custo: valor_total ÷ quantidade_total = custo por unidade
+    // Exemplo: R$ 100,00 por 1 milheiro = R$ 0,10 por cápsula
+    custoUnitarioInterno = item.valor_total / quantidadeInterna;
+    
+  } else if (isEmbalagem || isUnidadeDiscreta) {
     // NÃO CONVERTER - manter tudo na unidade original
     unidadeInterna = 'un'; // Padronizar como 'un' para embalagens
     fatorFinal = 1;
