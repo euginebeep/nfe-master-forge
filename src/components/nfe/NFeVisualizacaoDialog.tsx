@@ -29,6 +29,8 @@ import {
   FileText,
   Calendar,
   Hash,
+  ClipboardList,
+  Info,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import type { NotaFiscalCompleta } from '@/types/nfe-completa';
@@ -88,6 +90,14 @@ export function NFeVisualizacaoDialog({
 
   // Buscar pagamentos
   const todosPagamentos = getNFeCollection<any>('notas_fiscais_pagamentos');
+
+  // Buscar logs de importação/auditoria
+  const todosLogs = getNFeCollection<any>('importacao_logs');
+  const logsNota = nota ? todosLogs.filter((l) => l.nota_id === nota.id) : [];
+
+  // Buscar observações da nota
+  const todasObservacoes = getNFeCollection<any>('notas_fiscais_observacoes');
+  const observacoes = nota ? todasObservacoes.filter((o) => o.nota_id === nota.id) : [];
   const pagamentos = nota ? todosPagamentos.filter((p) => p.nota_id === nota.id) : [];
 
   // Buscar entidades
@@ -504,24 +514,116 @@ export function NFeVisualizacaoDialog({
               </>
             )}
 
+            {/* Observações da Nota */}
+            {observacoes.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                    <Info className="h-4 w-4" />
+                    OBSERVAÇÕES DA NOTA
+                  </div>
+                  <div className="space-y-2">
+                    {observacoes.map((obs, idx) => (
+                      <div key={idx} className="bg-muted/30 p-3 rounded text-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-xs">{obs.tipo}</Badge>
+                          {obs.campo && <span className="text-xs text-muted-foreground">{obs.campo}</span>}
+                        </div>
+                        <p>{obs.texto}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Auditoria / Histórico de Importação */}
+            <Separator />
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <ClipboardList className="h-4 w-4" />
+                AUDITORIA / HISTÓRICO
+              </div>
+              <div className="bg-muted/30 p-4 rounded-lg text-sm space-y-3">
+                {/* Dados de importação */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Data de Importação</p>
+                    <p className="font-medium">{formatDate(nota.created_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Última Atualização</p>
+                    <p className="font-medium">{formatDate(nota.updated_at)}</p>
+                  </div>
+                  {nota.importado_por && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">Importado por</p>
+                      <p className="font-medium">{nota.importado_por}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-muted-foreground text-xs">Classificação</p>
+                    <p className="font-medium">{nota.classificacao}</p>
+                  </div>
+                </div>
+
+                {/* Log de ações */}
+                {logsNota.length > 0 && (
+                  <div className="mt-4 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">Histórico de Ações:</p>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {logsNota.map((log, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs">
+                          <span className="text-muted-foreground whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </span>
+                          <Badge variant="outline" className="text-xs shrink-0">{log.acao}</Badge>
+                          {log.usuario && <span className="text-muted-foreground">por {log.usuario}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hash do XML */}
+                {nota.xml_hash_sha256 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground">Hash SHA-256 do XML:</p>
+                    <p className="font-mono text-xs break-all mt-1">{nota.xml_hash_sha256}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Informações Adicionais */}
             <Separator />
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-primary">
                 <Hash className="h-4 w-4" />
-                INFORMAÇÕES ADICIONAIS
+                INFORMAÇÕES TÉCNICAS
               </div>
               <div className="bg-muted/30 p-4 rounded-lg text-sm space-y-2">
                 <p><strong>Chave de Acesso:</strong></p>
                 <p className="font-mono text-xs break-all">{nota.chave_acesso}</p>
+                {nota.protocolo_autorizacao && (
+                  <p className="mt-2"><strong>Protocolo SEFAZ:</strong> {nota.protocolo_autorizacao}</p>
+                )}
+                {nota.dh_recebimento && (
+                  <p><strong>Recebido SEFAZ:</strong> {formatDate(nota.dh_recebimento)}</p>
+                )}
                 {nota.digest_value && (
                   <>
                     <p className="mt-2"><strong>Digest Value:</strong></p>
                     <p className="font-mono text-xs break-all">{nota.digest_value}</p>
                   </>
                 )}
-                <p className="mt-2"><strong>Versão do Schema:</strong> {nota.versao_schema}</p>
-                <p><strong>Modelo:</strong> {nota.modelo}</p>
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t">
+                  <p><strong>Versão Schema:</strong> {nota.versao_schema}</p>
+                  <p><strong>Modelo:</strong> {nota.modelo}</p>
+                  <p><strong>Finalidade:</strong> {nota.finalidade}</p>
+                  <p><strong>Ambiente:</strong> {nota.ambiente}</p>
+                </div>
               </div>
             </div>
           </div>
