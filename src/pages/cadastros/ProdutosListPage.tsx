@@ -7,6 +7,8 @@ import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocalItens, useDeleteItem, LocalItem } from "@/hooks/use-local-itens";
+import { LocalDb, seedInitialData } from "@/lib/local-db";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +46,7 @@ export default function ProdutosListPage() {
   const [ativoFilter, setAtivoFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [clearAllOpen, setClearAllOpen] = useState(false);
 
   const { data: itens, isLoading, refresh } = useLocalItens({
     tipo_item: tipoFilter !== "all" ? tipoFilter : undefined,
@@ -59,6 +62,16 @@ export default function ProdutosListPage() {
       refresh();
     }
   };
+
+  const handleClearAll = () => {
+    LocalDb.clearAll();
+    seedInitialData();
+    toast.success("Todos os cadastros foram apagados!");
+    setClearAllOpen(false);
+    setDeleteId(null);
+    refresh();
+  };
+
 
   const columns = [
     {
@@ -168,10 +181,16 @@ export default function ProdutosListPage() {
         description="Materias primas, embalagens e produtos acabados"
         icon={Package}
         actions={
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Produto
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="destructive" onClick={() => setClearAllOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Apagar tudo
+            </Button>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Produto
+            </Button>
+          </div>
         }
       />
 
@@ -214,6 +233,26 @@ export default function ProdutosListPage() {
           </div>
         }
       />
+
+      <AlertDialog open={clearAllOpen} onOpenChange={setClearAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar todos os cadastros</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai apagar Produtos/Insumos, Fornecedores, Clientes, Lotes e documentos deste navegador. Esta acao nao pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAll}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Apagar tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
