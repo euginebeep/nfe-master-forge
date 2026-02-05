@@ -13,7 +13,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { 
-  useLocalItem, 
   useUpdateItem, 
   useItemFornecedores,
   useItemAliases,
@@ -27,6 +26,7 @@ import {
   LocalLoteDocumento,
 } from "@/hooks/use-local-itens";
 import { useLocalEntidades, LocalEntidade } from "@/hooks/use-local-entidades";
+import { useHybridItem, useUpdateHybridItem, type HybridItem } from "@/hooks/use-hybrid-data";
 import { LocalDb } from "@/lib/local-db";
 import {
   Dialog,
@@ -89,14 +89,15 @@ const STATUS_LOTE_VARIANTS: Record<string, "success" | "warning" | "error" | "mu
 export default function ProdutoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { item, isLoading, refresh } = useLocalItem(id);
-  const { update } = useUpdateItem();
+  const { data: item, isLoading, refetch } = useHybridItem(id);
+  const updateMutation = useUpdateHybridItem();
+  const { update: updateLocal } = useUpdateItem();
   const { fornecedores, create: createFornecedor, update: updateFornecedor, remove: removeFornecedor } = useItemFornecedores(id);
   const { aliases, create: createAlias, remove: removeAlias } = useItemAliases(id);
   const { lotes, create: createLote, update: updateLote, remove: removeLote } = useEstoqueLotes(id);
   const { data: entidadesFornecedores } = useLocalEntidades({ papel: "FORNECEDOR" });
 
-  const [formData, setFormData] = useState<Partial<LocalItem>>({});
+  const [formData, setFormData] = useState<Partial<HybridItem>>({});
   const [showFornecedorForm, setShowFornecedorForm] = useState(false);
   const [showAliasForm, setShowAliasForm] = useState(false);
   const [showLoteForm, setShowLoteForm] = useState(false);
@@ -113,8 +114,8 @@ export default function ProdutoDetailPage() {
 
   const handleSave = () => {
     if (!id) return;
-    update(id, formData);
-    refresh();
+    // Try hybrid update (Supabase first, then localStorage)
+    updateMutation.mutate({ id, data: formData });
   };
 
   if (isLoading) {
@@ -810,7 +811,7 @@ export default function ProdutoDetailPage() {
         open={showLoteForm}
         onOpenChange={setShowLoteForm}
         itemId={id!}
-        item={item}
+        item={item as LocalItem}
         fornecedores={fornecedores}
         onSave={(data) => {
           createLote(data as any);
@@ -826,7 +827,7 @@ export default function ProdutoDetailPage() {
           lote={selectedLote}
           itemId={id!}
           onLoteUpdate={() => {
-            refresh();
+            refetch();
           }}
         />
       )}
