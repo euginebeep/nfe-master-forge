@@ -7,6 +7,7 @@ import { MainLayout } from "./components/layout/MainLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import EmpresaSettingsPage from "./pages/settings/EmpresaSettingsPage";
+import ClearDataPage from "./pages/settings/ClearDataPage";
 import FornecedoresListPage from "./pages/cadastros/FornecedoresListPage";
 import ClientesListPage from "./pages/cadastros/ClientesListPage";
 import TransportadorasListPage from "./pages/cadastros/TransportadorasListPage";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             {/* Settings */}
             <Route path="/settings/empresa" element={<EmpresaSettingsPage />} />
+            <Route path="/settings/clear-data" element={<ClearDataPage />} />
             {/* Cadastros */}
             <Route path="/cadastros/fornecedores" element={<FornecedoresListPage />} />
             <Route path="/cadastros/clientes" element={<ClientesListPage />} />

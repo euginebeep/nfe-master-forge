@@ -145,6 +145,18 @@ export function seedInitialData(): void {
 // Initialize on load
 seedInitialData();
 
+// Clear all data
+export function clearAll(): void {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(STORAGE_PREFIX)) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+}
+
 export const LocalDb = {
   getCollection,
   setCollection,
@@ -157,6 +169,7 @@ export const LocalDb = {
   upsertSingleton,
   generateSKU,
   generateUUID,
+  clearAll,
 };
 
 export default LocalDb;
