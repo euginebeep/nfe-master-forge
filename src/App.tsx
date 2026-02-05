@@ -95,6 +95,7 @@ const App = () => (
             <Route path="/auditoria" element={<AuditoriaPage />} />
             {/* Usuarios */}
             <Route path="/usuarios" element={<UsuariosPage />} />
+            <Route path="/settings/usuarios" element={<UsuariosPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
