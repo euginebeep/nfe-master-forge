@@ -52,6 +52,7 @@ export interface LocalEstoqueLote {
   id: string;
   item_id: string;
   fornecedor_id?: string;
+  nota_entrada_item_id?: string;
   numero_lote: string;
   data_fab?: string;
   data_val?: string;
@@ -62,6 +63,18 @@ export interface LocalEstoqueLote {
   custo_unitario_interno: number;
   status: 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO';
   observacoes_qc?: string;
+  // Dados da Nota de Entrada
+  nota_numero?: string;
+  nota_serie?: string;
+  nota_data?: string;
+  nota_chave?: string;
+  // Impostos do item
+  icms_valor?: number;
+  icms_aliquota?: number;
+  ipi_valor?: number;
+  ipi_aliquota?: number;
+  pis_valor?: number;
+  cofins_valor?: number;
   created_at?: string;
 }
 

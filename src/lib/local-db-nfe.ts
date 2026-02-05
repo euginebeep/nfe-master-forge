@@ -338,7 +338,9 @@ export function criarLoteEstoque(
   notaItemId: string,
   rastro: NFeParseResult['itens'][0]['rastros'][0] | null,
   item: NFeParseResult['itens'][0]['item'],
-  fatorConversao: number
+  fatorConversao: number,
+  notaInfo?: { numero: string; serie: string; data: string; chave: string },
+  impostos?: NFeParseResult['itens'][0]['impostos']
 ): string {
   const produto = LocalDb.getById<LocalItem>('itens', itemId);
   const isCritico = produto?.tipo_item === 'MP' || 
@@ -363,6 +365,18 @@ export function criarLoteEstoque(
     custo_unitario_original: custoUnitarioOriginal,
     custo_unitario_interno: custoUnitarioInterno,
     status: isCritico ? 'QUARENTENA' : 'DISPONIVEL',
+    // Dados da Nota de Entrada
+    nota_numero: notaInfo?.numero,
+    nota_serie: notaInfo?.serie,
+    nota_data: notaInfo?.data,
+    nota_chave: notaInfo?.chave,
+    // Impostos do item
+    icms_valor: impostos?.icms_valor,
+    icms_aliquota: impostos?.icms_aliquota,
+    ipi_valor: impostos?.ipi_valor,
+    ipi_aliquota: impostos?.ipi_aliquota,
+    pis_valor: impostos?.pis_valor,
+    cofins_valor: impostos?.cofins_valor,
   });
   
   return lote.id;
@@ -535,6 +549,13 @@ export function importarNFeCompleta(
     });
     
     // Criar rastros e lotes
+    const notaInfo = {
+      numero: parseResult.notaFiscal.numero,
+      serie: parseResult.notaFiscal.serie,
+      data: parseResult.notaFiscal.dh_emissao,
+      chave: parseResult.notaFiscal.chave_acesso,
+    };
+    
     if (itemData.rastros.length > 0) {
       itemData.rastros.forEach(rastro => {
         // Salvar rastro do XML
@@ -543,13 +564,13 @@ export function importarNFeCompleta(
           ...rastro,
         });
         
-        // Criar lote de estoque
-        criarLoteEstoque(itemId, emitenteId, notaItem.id, rastro, itemData.item, fatorConversao);
+        // Criar lote de estoque com dados da nota e impostos
+        criarLoteEstoque(itemId, emitenteId, notaItem.id, rastro, itemData.item, fatorConversao, notaInfo, itemData.impostos);
         stats.lotesCriados++;
       });
     } else {
       // Criar lote único se não tem rastro
-      criarLoteEstoque(itemId, emitenteId, notaItem.id, null, itemData.item, fatorConversao);
+      criarLoteEstoque(itemId, emitenteId, notaItem.id, null, itemData.item, fatorConversao, notaInfo, itemData.impostos);
       stats.lotesCriados++;
     }
   });
