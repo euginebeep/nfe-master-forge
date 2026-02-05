@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pill, Image } from "lucide-react";
+import { Pill } from "lucide-react";
 import { useCreateItem, LocalItem, TipoItemLocal, UnidadeInternaLocal } from "@/hooks/use-local-itens";
+import { CapsulePhotoUpload } from "./CapsulePhotoUpload";
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -87,6 +88,8 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
   const [capsulaMaterial, setCapsulaMaterial] = useState<string>("");
   const [unidadeCompra, setUnidadeCompra] = useState("");
   const [fatorCompra, setFatorCompra] = useState<number>(1);
+  const [fotoUrl, setFotoUrl] = useState<string | undefined>();
+  const [fotoStorageKey, setFotoStorageKey] = useState<string | undefined>();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: {
@@ -138,6 +141,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
         capsula_tamanho: capsulaTamanho || undefined,
         capsula_cor: capsulaCor || undefined,
         capsula_material: capsulaMaterial || undefined,
+        foto_url: fotoUrl || undefined,
       }),
       // Conversão de unidade
       unidade_compra: unidadeCompra || undefined,
@@ -161,6 +165,8 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
       setCapsulaMaterial("");
       setUnidadeCompra("");
       setFatorCompra(1);
+      setFotoUrl(undefined);
+      setFotoStorageKey(undefined);
       onSuccess?.();
     }
   };
@@ -300,11 +306,14 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Foto do Produto</Label>
-                    <Button type="button" variant="outline" className="w-full" disabled>
-                      <Image className="h-4 w-4 mr-2" />
-                      Em breve
-                    </Button>
+                    <Label>Foto da Cápsula</Label>
+                    <CapsulePhotoUpload
+                      currentPhotoUrl={fotoUrl}
+                      onPhotoChange={(url, key) => {
+                        setFotoUrl(url);
+                        setFotoStorageKey(key);
+                      }}
+                    />
                   </div>
                 </div>
               </CardContent>
