@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,23 +58,13 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // Update password if provided
     if (new_password) {
-      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
-        password: new_password
-      })
-      if (passwordError) {
-        console.error('Password update error:', passwordError)
-      }
+      await supabaseAdmin.auth.admin.updateUserById(user_id, { password: new_password })
     }
 
-    // Update profile
     const profileUpdate: Record<string, unknown> = {}
     if (nome_completo !== undefined) profileUpdate.nome_completo = nome_completo
     if (cargo !== undefined) profileUpdate.cargo = cargo
@@ -83,52 +73,24 @@ Deno.serve(async (req) => {
     if (status !== undefined) profileUpdate.status = status
 
     if (Object.keys(profileUpdate).length > 0) {
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .update(profileUpdate)
-        .eq('id', user_id)
-
-      if (profileError) {
-        console.error('Profile update error:', profileError)
-      }
+      await supabaseAdmin.from('profiles').update(profileUpdate).eq('id', user_id)
     }
 
-    // Update role
     if (role) {
-      const { error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .update({ role })
-        .eq('user_id', user_id)
-
-      if (roleError) {
-        console.error('Role update error:', roleError)
-      }
+      await supabaseAdmin.from('user_roles').update({ role }).eq('user_id', user_id)
     }
 
-    // Update permissions
     if (permissions && Array.isArray(permissions)) {
-      // Delete existing permissions
-      await supabaseAdmin
-        .from('user_permissions')
-        .delete()
-        .eq('user_id', user_id)
-
-      // Insert new permissions
+      await supabaseAdmin.from('user_permissions').delete().eq('user_id', user_id)
       for (const perm of permissions) {
-        const { error: permError } = await supabaseAdmin
-          .from('user_permissions')
-          .insert({
-            user_id,
-            modulo: perm.modulo,
-            pode_visualizar: perm.pode_visualizar ?? false,
-            pode_criar: perm.pode_criar ?? false,
-            pode_editar: perm.pode_editar ?? false,
-            pode_excluir: perm.pode_excluir ?? false
-          })
-
-        if (permError) {
-          console.error('Permission error:', permError)
-        }
+        await supabaseAdmin.from('user_permissions').insert({
+          user_id,
+          modulo: perm.modulo,
+          pode_visualizar: perm.pode_visualizar ?? false,
+          pode_criar: perm.pode_criar ?? false,
+          pode_editar: perm.pode_editar ?? false,
+          pode_excluir: perm.pode_excluir ?? false
+        })
       }
     }
 
@@ -136,7 +98,6 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-
   } catch (error) {
     console.error('Error:', error)
     return new Response(
