@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useLocalItens, type LocalItem } from "@/hooks/use-local-itens";
+import { useHybridItens, type HybridItem } from "@/hooks/use-hybrid-data";
 
 type TipoItem = 'MP' | 'EMBALAGEM' | 'ROTULO' | 'TAMPA' | 'POTE' | 'SILICA' | 'CAPSULA_VAZIA' | 'PA' | 'OUTRO';
 type CriticidadeItem = 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA';
@@ -39,10 +39,12 @@ export default function ItensListPageComplete() {
   const [selectedTipos, setSelectedTipos] = useState<TipoItem[]>([]);
   const [ativoFilter, setAtivoFilter] = useState<string>("all");
 
-  const { data: itens, isLoading } = useLocalItens({
+  const { data: itensData, isLoading } = useHybridItens({
     tipo_item: undefined,
     ativo: ativoFilter !== "all" ? ativoFilter === "true" : undefined,
   });
+  
+  const itens = itensData || [];
 
   // Filter by selected tipos
   const filteredItens = selectedTipos.length > 0 
@@ -70,7 +72,7 @@ export default function ItensListPageComplete() {
       key: "sku_interno",
       header: "SKU",
       sortable: true,
-      render: (item: LocalItem) => (
+      render: (item: HybridItem) => (
         <span className="font-mono text-sm">{item.sku_interno || "-"}</span>
       ),
     },
@@ -78,7 +80,7 @@ export default function ItensListPageComplete() {
       key: "descricao_interna",
       header: "Descrição",
       sortable: true,
-      render: (item: LocalItem) => (
+      render: (item: HybridItem) => (
         <div>
           <p className="font-medium">{item.descricao_interna}</p>
           {item.descricao_comercial && item.descricao_comercial !== item.descricao_interna && (
@@ -90,7 +92,7 @@ export default function ItensListPageComplete() {
     {
       key: "tipo_item",
       header: "Tipo",
-      render: (item: LocalItem) => (
+      render: (item: HybridItem) => (
         <StatusBadge variant="default">
           {TIPO_LABELS[item.tipo_item as TipoItem] || item.tipo_item}
         </StatusBadge>
@@ -99,28 +101,28 @@ export default function ItensListPageComplete() {
     {
       key: "ncm",
       header: "NCM",
-      render: (item: LocalItem) => (
+      render: (item: HybridItem) => (
         <span className="font-mono text-sm">{item.ncm || "-"}</span>
       ),
     },
     {
       key: "unidade_interna",
       header: "Unidade",
-      render: (item: LocalItem) => item.unidade_interna,
+      render: (item: HybridItem) => item.unidade_interna,
     },
     {
       key: "criticidade",
       header: "Criticidade",
-      render: (item: LocalItem) => (
-        <StatusBadge variant={CRITICIDADE_VARIANTS[item.criticidade as CriticidadeItem] || "muted"}>
-          {item.criticidade}
+      render: (item: HybridItem) => (
+        <StatusBadge variant={CRITICIDADE_VARIANTS[(item.criticidade || 'NORMAL') as CriticidadeItem] || "muted"}>
+          {item.criticidade || 'NORMAL'}
         </StatusBadge>
       ),
     },
     {
       key: "controla_lote",
       header: "Lote",
-      render: (item: LocalItem) => (
+      render: (item: HybridItem) => (
         <StatusBadge variant={item.controla_lote ? "success" : "muted"}>
           {item.controla_lote ? "Sim" : "Não"}
         </StatusBadge>
@@ -129,7 +131,7 @@ export default function ItensListPageComplete() {
     {
       key: "ativo",
       header: "Status",
-      render: (item: LocalItem) => (
+      render: (item: HybridItem) => (
         <StatusBadge variant={item.ativo ? "success" : "error"}>
           {item.ativo ? "Ativo" : "Inativo"}
         </StatusBadge>
@@ -139,7 +141,7 @@ export default function ItensListPageComplete() {
       key: "actions",
       header: "",
       className: "w-16",
-      render: (item: LocalItem) => (
+      render: (item: HybridItem) => (
         <Button
           variant="ghost"
           size="icon"
