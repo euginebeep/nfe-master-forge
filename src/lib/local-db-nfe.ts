@@ -629,3 +629,26 @@ export function getContasPagarByNota(notaId: string): ContaPagar[] {
   return getCollection<ContaPagar>('contas_pagar')
     .filter(c => c.nota_id === notaId);
 }
+
+export interface ContaPagarUpdate {
+  status?: 'ABERTO' | 'PAGO' | 'PARCIAL' | 'VENCIDO' | 'CANCELADO';
+  valor_pago?: number;
+  data_pagamento?: string;
+  forma_pagamento?: string;
+  observacoes?: string;
+}
+
+export function updateContaPagar(id: string, updates: ContaPagarUpdate): ContaPagar | null {
+  const contas = getCollection<ContaPagar>('contas_pagar');
+  const index = contas.findIndex(c => c.id === id);
+  if (index === -1) return null;
+  
+  const updated = {
+    ...contas[index],
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+  contas[index] = updated;
+  setCollection('contas_pagar', contas);
+  return updated;
+}
