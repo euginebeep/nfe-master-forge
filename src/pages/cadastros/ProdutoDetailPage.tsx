@@ -474,7 +474,78 @@ export default function ProdutoDetailPage() {
 
         {/* Tab Lotes */}
         <TabsContent value="lotes">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            {/* Resumo de Estoque Total */}
+            {lotes.length > 0 && (() => {
+              const resumo = lotes.reduce((acc, l) => {
+                acc.quantidadeInterna += l.quantidade_interna || 0;
+                acc.valorTotal += l.valor_total_item || 0;
+                acc.qtdDisponivel += l.status === 'DISPONIVEL' ? (l.quantidade_interna || 0) : 0;
+                acc.qtdQuarentena += l.status === 'QUARENTENA' ? (l.quantidade_interna || 0) : 0;
+                acc.qtdBloqueado += l.status === 'BLOQUEADO' ? (l.quantidade_interna || 0) : 0;
+                acc.custoMedioPonderado += (l.custo_unitario_interno || 0) * (l.quantidade_interna || 0);
+                return acc;
+              }, { 
+                quantidadeInterna: 0, 
+                valorTotal: 0, 
+                qtdDisponivel: 0, 
+                qtdQuarentena: 0, 
+                qtdBloqueado: 0,
+                custoMedioPonderado: 0 
+              });
+              
+              const custoMedio = resumo.quantidadeInterna > 0 
+                ? resumo.custoMedioPonderado / resumo.quantidadeInterna 
+                : 0;
+              
+              return (
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">📦 Resumo de Estoque</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Estoque Total</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {resumo.quantidadeInterna.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{item.unidade_interna}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Disponível</p>
+                        <p className="text-xl font-semibold text-green-600">
+                          {resumo.qtdDisponivel.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{item.unidade_interna}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Quarentena</p>
+                        <p className="text-xl font-semibold text-amber-600">
+                          {resumo.qtdQuarentena.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{item.unidade_interna}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Custo Médio</p>
+                        <p className="text-xl font-semibold">
+                          R$ {custoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 6 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">por {item.unidade_interna}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Valor em Estoque</p>
+                        <p className="text-xl font-semibold">
+                          R$ {resumo.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{lotes.length} lote(s)</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+            
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Lotes em Estoque</CardTitle>
