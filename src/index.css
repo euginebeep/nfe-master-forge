@@ -273,7 +273,7 @@
   /* Configuração de página A4 */
   @page {
     size: A4 portrait;
-    margin: 15mm 10mm;
+    margin: 12mm 10mm;
   }
 
   /* Reset geral para impressão */
@@ -283,160 +283,232 @@
     color-adjust: exact !important;
   }
 
-  /* Esconder elementos não imprimíveis */
-  .no-print,
-  .print\\:hidden,
-  [data-radix-dialog-overlay],
-  button:not(.print-visible),
-  nav,
+  /* ESCONDER TUDO por padrão */
+  body > *:not(.nfe-print-container),
+  #root > *,
   aside,
-  header:not(.print-visible),
-  footer:not(.print-visible) {
+  nav,
+  header,
+  footer,
+  .print\\:hidden,
+  button,
+  [data-radix-dialog-overlay] {
     display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* MOSTRAR apenas o container de impressão NF-e */
+  .nfe-print-container,
+  .nfe-print-container * {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Reset para o container de impressão */
+  .nfe-print-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 15mm 10mm !important;
+    background: white !important;
+    z-index: 999999 !important;
+    overflow: visible !important;
   }
 
   /* Fundo e cores */
   html, body {
     background: white !important;
     color: black !important;
-    font-size: 11pt !important;
-    line-height: 1.4 !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-  }
-
-  /* Dialog de NF-e para impressão */
-  [role="dialog"] {
-    position: static !important;
-    transform: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    max-height: none !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    background: white !important;
     overflow: visible !important;
   }
 
-  /* Conteúdo do dialog */
-  [role="dialog"] > div {
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  /* Área de scroll - remover limite de altura */
-  [data-radix-scroll-area-viewport] {
-    max-height: none !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-
-  /* Tabelas */
-  table {
+  /* Tabelas responsivas para impressão */
+  .nfe-print-container table {
+    display: table !important;
     width: 100% !important;
     border-collapse: collapse !important;
     page-break-inside: auto !important;
-  }
-
-  tr {
-    page-break-inside: avoid !important;
-    page-break-after: auto !important;
-  }
-
-  th, td {
-    padding: 4px 6px !important;
-    font-size: 9pt !important;
-    border: 1px solid #ddd !important;
-  }
-
-  th {
-    background-color: #f0f0f0 !important;
-    font-weight: 600 !important;
-  }
-
-  /* Cards e seções */
-  [class*="bg-muted"] {
-    background-color: #f5f5f5 !important;
-    border: 1px solid #e0e0e0 !important;
-  }
-
-  /* Separadores */
-  hr, [role="separator"] {
-    border-color: #ccc !important;
-    margin: 8px 0 !important;
-  }
-
-  /* Badges */
-  .badge, [class*="Badge"] {
-    background-color: #e0e0e0 !important;
-    color: black !important;
-    border: 1px solid #999 !important;
-    padding: 2px 6px !important;
     font-size: 8pt !important;
   }
 
-  /* Fontes monoespaçadas */
-  .font-mono {
+  .nfe-print-container thead {
+    display: table-header-group !important;
+  }
+
+  .nfe-print-container tbody {
+    display: table-row-group !important;
+  }
+
+  .nfe-print-container tr {
+    display: table-row !important;
+    page-break-inside: avoid !important;
+  }
+
+  .nfe-print-container th,
+  .nfe-print-container td {
+    display: table-cell !important;
+    padding: 3px 4px !important;
+    font-size: 8pt !important;
+    border: 1px solid #ccc !important;
+    vertical-align: top !important;
+  }
+
+  .nfe-print-container th {
+    background-color: #f0f0f0 !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+  }
+
+  /* Grid para impressão - 2 colunas lado a lado */
+  .nfe-print-container .grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  .nfe-print-container .grid-cols-2 > * {
+    flex: 0 0 48% !important;
+    max-width: 48% !important;
+  }
+
+  /* Seções de dados */
+  .nfe-print-container .nfe-section {
+    background-color: #f8f8f8 !important;
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+    border-radius: 4px !important;
+  }
+
+  /* Cabeçalho do documento */
+  .nfe-print-header {
+    text-align: center !important;
+    border-bottom: 2px solid #333 !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 15px !important;
+  }
+
+  .nfe-print-header h1 {
+    font-size: 14pt !important;
+    font-weight: bold !important;
+    margin: 0 0 5px 0 !important;
+  }
+
+  .nfe-print-header p {
+    font-size: 9pt !important;
+    margin: 2px 0 !important;
+  }
+
+  /* Chave de acesso em destaque */
+  .nfe-print-chave {
+    font-family: 'Courier New', monospace !important;
+    font-size: 9pt !important;
+    background: #f0f0f0 !important;
+    border: 1px solid #999 !important;
+    padding: 6px !important;
+    margin: 8px 0 !important;
+    word-break: break-all !important;
+    text-align: center !important;
+  }
+
+  /* Títulos de seção */
+  .nfe-print-container .text-primary {
+    color: #0F2A44 !important;
+    font-weight: 600 !important;
+  }
+
+  .nfe-print-container .font-medium {
+    font-weight: 500 !important;
+  }
+
+  /* Separadores */
+  .nfe-print-container hr,
+  .nfe-print-container [role="separator"] {
+    border-color: #ccc !important;
+    margin: 10px 0 !important;
+    display: block !important;
+  }
+
+  /* Valores monetários */
+  .nfe-print-container .font-mono {
     font-family: 'Courier New', monospace !important;
     font-size: 9pt !important;
   }
 
-  /* Quebras de página */
-  h2, h3, .card-header {
+  /* Badges */
+  .nfe-print-container .badge,
+  .nfe-print-container [class*="Badge"] {
+    display: inline !important;
+    background-color: #e0e0e0 !important;
+    color: black !important;
+    border: 1px solid #999 !important;
+    padding: 1px 4px !important;
+    font-size: 7pt !important;
+    border-radius: 2px !important;
+  }
+
+  /* Informações inline */
+  .nfe-print-container .flex {
+    display: flex !important;
+  }
+
+  .nfe-print-container .justify-between {
+    justify-content: space-between !important;
+  }
+
+  .nfe-print-container .items-center {
+    align-items: center !important;
+  }
+
+  .nfe-print-container .gap-2 {
+    gap: 5px !important;
+  }
+
+  /* Textos auxiliares */
+  .nfe-print-container .text-muted-foreground {
+    color: #555 !important;
+  }
+
+  .nfe-print-container .text-sm {
+    font-size: 9pt !important;
+  }
+
+  .nfe-print-container .text-xs {
+    font-size: 8pt !important;
+  }
+
+  /* Evitar quebras */
+  .nfe-print-container h2,
+  .nfe-print-container h3,
+  .nfe-print-container .space-y-3:first-child {
     page-break-after: avoid !important;
   }
 
-  .card, section {
+  .nfe-print-container .space-y-3,
+  .nfe-print-container .space-y-2 {
     page-break-inside: avoid !important;
   }
 
-  /* Garantir visibilidade de cores em fundos */
-  .text-primary {
-    color: #0F2A44 !important;
-  }
-
-  .text-muted-foreground {
+  /* Rodapé do documento */
+  .nfe-print-footer {
+    margin-top: 15px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #ccc !important;
+    font-size: 7pt !important;
     color: #666 !important;
+    text-align: center !important;
   }
 
-  /* Grid para impressão */
-  .grid {
-    display: block !important;
-  }
-
-  .grid > div {
-    display: inline-block !important;
-    width: 48% !important;
-    vertical-align: top !important;
-    margin-bottom: 8px !important;
-  }
-
-  .grid-cols-2 > div {
-    width: 48% !important;
-  }
-
-  .grid-cols-4 > div,
-  .md\\:grid-cols-4 > div {
-    width: 23% !important;
-  }
-
-  .grid-cols-6 > div,
-  .md\\:grid-cols-6 > div {
-    width: 15% !important;
-  }
-
-  /* Links não são clicáveis na impressão */
-  a {
-    text-decoration: none !important;
-    color: inherit !important;
-  }
-
-  /* Chave de acesso - quebrar corretamente */
-  .break-all {
-    word-break: break-all !important;
+  /* Esconder ícones SVG na impressão */
+  .nfe-print-container svg {
+    display: none !important;
   }
 }
