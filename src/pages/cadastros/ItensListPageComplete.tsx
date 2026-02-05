@@ -8,8 +8,10 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useItens } from "@/hooks/use-itens";
-import type { Item, TipoItem, CriticidadeItem } from "@/types/erp";
+import { useLocalItens, type LocalItem } from "@/hooks/use-local-itens";
+
+type TipoItem = 'MP' | 'EMBALAGEM' | 'ROTULO' | 'TAMPA' | 'POTE' | 'SILICA' | 'CAPSULA_VAZIA' | 'PA' | 'OUTRO';
+type CriticidadeItem = 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA';
 
 const TIPO_LABELS: Record<TipoItem, string> = {
   MP: "Matéria Prima",
@@ -37,14 +39,14 @@ export default function ItensListPageComplete() {
   const [selectedTipos, setSelectedTipos] = useState<TipoItem[]>([]);
   const [ativoFilter, setAtivoFilter] = useState<string>("all");
 
-  const { data: itens = [], isLoading } = useItens({
-    tipo_item: undefined, // We'll filter client-side for multiple types
+  const { data: itens, isLoading } = useLocalItens({
+    tipo_item: undefined,
     ativo: ativoFilter !== "all" ? ativoFilter === "true" : undefined,
   });
 
   // Filter by selected tipos
   const filteredItens = selectedTipos.length > 0 
-    ? itens.filter(item => selectedTipos.includes(item.tipo_item))
+    ? itens.filter(item => selectedTipos.includes(item.tipo_item as TipoItem))
     : itens;
 
   const toggleTipo = (tipo: TipoItem) => {
@@ -68,7 +70,7 @@ export default function ItensListPageComplete() {
       key: "sku_interno",
       header: "SKU",
       sortable: true,
-      render: (item: Item) => (
+      render: (item: LocalItem) => (
         <span className="font-mono text-sm">{item.sku_interno || "-"}</span>
       ),
     },
@@ -76,7 +78,7 @@ export default function ItensListPageComplete() {
       key: "descricao_interna",
       header: "Descrição",
       sortable: true,
-      render: (item: Item) => (
+      render: (item: LocalItem) => (
         <div>
           <p className="font-medium">{item.descricao_interna}</p>
           {item.descricao_comercial && item.descricao_comercial !== item.descricao_interna && (
@@ -88,29 +90,29 @@ export default function ItensListPageComplete() {
     {
       key: "tipo_item",
       header: "Tipo",
-      render: (item: Item) => (
+      render: (item: LocalItem) => (
         <StatusBadge variant="default">
-          {TIPO_LABELS[item.tipo_item] || item.tipo_item}
+          {TIPO_LABELS[item.tipo_item as TipoItem] || item.tipo_item}
         </StatusBadge>
       ),
     },
     {
       key: "ncm",
       header: "NCM",
-      render: (item: Item) => (
+      render: (item: LocalItem) => (
         <span className="font-mono text-sm">{item.ncm || "-"}</span>
       ),
     },
     {
       key: "unidade_interna",
       header: "Unidade",
-      render: (item: Item) => item.unidade_interna,
+      render: (item: LocalItem) => item.unidade_interna,
     },
     {
       key: "criticidade",
       header: "Criticidade",
-      render: (item: Item) => (
-        <StatusBadge variant={CRITICIDADE_VARIANTS[item.criticidade]}>
+      render: (item: LocalItem) => (
+        <StatusBadge variant={CRITICIDADE_VARIANTS[item.criticidade as CriticidadeItem] || "muted"}>
           {item.criticidade}
         </StatusBadge>
       ),
@@ -118,7 +120,7 @@ export default function ItensListPageComplete() {
     {
       key: "controla_lote",
       header: "Lote",
-      render: (item: Item) => (
+      render: (item: LocalItem) => (
         <StatusBadge variant={item.controla_lote ? "success" : "muted"}>
           {item.controla_lote ? "Sim" : "Não"}
         </StatusBadge>
@@ -127,7 +129,7 @@ export default function ItensListPageComplete() {
     {
       key: "ativo",
       header: "Status",
-      render: (item: Item) => (
+      render: (item: LocalItem) => (
         <StatusBadge variant={item.ativo ? "success" : "error"}>
           {item.ativo ? "Ativo" : "Inativo"}
         </StatusBadge>
@@ -137,7 +139,7 @@ export default function ItensListPageComplete() {
       key: "actions",
       header: "",
       className: "w-16",
-      render: (item: Item) => (
+      render: (item: LocalItem) => (
         <Button
           variant="ghost"
           size="icon"
