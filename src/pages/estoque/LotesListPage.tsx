@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Boxes, Filter, Eye, Upload, CheckCircle, AlertCircle } from "lucide-react";
+import { Boxes, Filter, Eye, CheckCircle, AlertCircle, FileText } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLotes } from "@/hooks/use-lotes";
-import { formatDate, formatNumber } from "@/lib/formatters";
-import type { StatusLote } from "@/types/erp";
+import { Input } from "@/components/ui/input";
+import { LocalDb } from "@/lib/local-db";
+import { formatDate, formatNumber, formatCurrency } from "@/lib/formatters";
+import type { LocalEstoqueLote, LocalItem } from "@/hooks/use-local-itens";
+
+type StatusLote = 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO';
 
 const STATUS_VARIANTS: Record<StatusLote, "success" | "warning" | "error" | "muted"> = {
   QUARENTENA: "warning",
@@ -20,10 +23,47 @@ const STATUS_VARIANTS: Record<StatusLote, "success" | "warning" | "error" | "mut
 export default function LotesListPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [notaFilter, setNotaFilter] = useState<string>("");
+  const [lotes, setLotes] = useState<(LocalEstoqueLote & { item?: LocalItem })[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { data: lotes = [], isLoading } = useLotes({
-    status: statusFilter !== "all" ? (statusFilter as StatusLote) : undefined,
-  });
+  useEffect(() => {
+    const loadLotes = () => {
+      setLoading(true);
+      let data = LocalDb.getCollection<LocalEstoqueLote>('estoque_lotes');
+      const itens = LocalDb.getCollection<LocalItem>('itens');
+      
+      // Enrich with item data
+      const enriched = data.map(lote => ({
+        ...lote,
+        item: itens.find(i => i.id === lote.item_id),
+      }));
+
+      // Apply filters
+      let filtered = enriched;
+      
+      if (statusFilter !== "all") {
+        filtered = filtered.filter(l => l.status === statusFilter);
+      }
+      
+      if (notaFilter.trim()) {
+        const search = notaFilter.toLowerCase().trim();
+        filtered = filtered.filter(l => 
+          l.nota_numero?.toLowerCase().includes(search) ||
+          l.nota_chave?.toLowerCase().includes(search)
+        );
+      }
+
+      setLotes(filtered);
+      setLoading(false);
+    };
+
+    loadLotes();
+
+    const handler = () => loadLotes();
+    window.addEventListener('localdb:change', handler);
+    return () => window.removeEventListener('localdb:change', handler);
+  }, [statusFilter, notaFilter]);
 
   const columns = [
     {
@@ -39,15 +79,27 @@ export default function LotesListPage() {
       header: "Item",
       render: (item: any) => (
         <div>
-          <p className="font-medium">{item.item?.descricao_interna}</p>
-          <p className="text-sm text-muted-foreground font-mono">{item.item?.sku_interno}</p>
+          <p className="font-medium text-sm">{item.item?.descricao_interna || '-'}</p>
+          <p className="text-xs text-muted-foreground font-mono">{item.item?.sku_interno}</p>
         </div>
       ),
     },
     {
-      key: "fornecedor",
-      header: "Fornecedor",
-      render: (item: any) => item.fornecedor?.razao_social || "-",
+      key: "nota_numero",
+      header: "Nota Fiscal",
+      render: (item: any) => item.nota_numero ? (
+        <div className="flex items-center gap-1">
+          <FileText className="h-3 w-3 text-muted-foreground" />
+          <span className="font-mono text-sm">{item.nota_numero}</span>
+          {item.nota_serie && <span className="text-xs text-muted-foreground">/{item.nota_serie}</span>}
+        </div>
+      ) : <span className="text-muted-foreground">-</span>,
+    },
+    {
+      key: "nota_data",
+      header: "Data Entrada",
+      sortable: true,
+      render: (item: any) => item.nota_data ? formatDate(item.nota_data) : "-",
     },
     {
       key: "quantidade_interna",
@@ -57,6 +109,12 @@ export default function LotesListPage() {
           {formatNumber(item.quantidade_interna, 2)} {item.item?.unidade_interna || item.unidade_original}
         </span>
       ),
+    },
+    {
+      key: "custo_unitario_original",
+      header: "Preço Unit.",
+      render: (item: any) => item.custo_unitario_original ? 
+        formatCurrency(item.custo_unitario_original) : "-",
     },
     {
       key: "data_val",
@@ -83,11 +141,12 @@ export default function LotesListPage() {
       ),
     },
     {
-      key: "documentos",
+      key: "coa",
       header: "COA",
       render: (item: any) => {
-        const hasCOA = item.lote_documentos?.some((d: any) => d.tipo_documento === "COA");
-        const coaValidado = item.lote_documentos?.some(
+        const docs = LocalDb.query<any>('lote_documentos', d => d.lote_id === item.id);
+        const hasCOA = docs.some((d: any) => d.tipo_documento === "COA");
+        const coaValidado = docs.some(
           (d: any) => d.tipo_documento === "COA" && d.status_validacao === "VALIDADO"
         );
         if (coaValidado) {
@@ -129,27 +188,38 @@ export default function LotesListPage() {
       <DataTable
         data={lotes}
         columns={columns}
-        loading={isLoading}
+        loading={loading}
         searchable
-        searchPlaceholder="Buscar por lote, item ou fornecedor..."
+        searchPlaceholder="Buscar por lote ou item..."
         searchKeys={["numero_lote"]}
         onRowClick={(item) => navigate(`/estoque/lotes/${item.id}`)}
         emptyMessage="Nenhum lote encontrado"
         actions={
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="QUARENTENA">Quarentena</SelectItem>
-                <SelectItem value="DISPONIVEL">Disponivel</SelectItem>
-                <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
-                <SelectItem value="VENCIDO">Vencido</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Filtrar por nota..."
+                value={notaFilter}
+                onChange={(e) => setNotaFilter(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="QUARENTENA">Quarentena</SelectItem>
+                  <SelectItem value="DISPONIVEL">Disponível</SelectItem>
+                  <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
+                  <SelectItem value="VENCIDO">Vencido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         }
       />
