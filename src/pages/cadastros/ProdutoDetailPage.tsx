@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText } from "lucide-react";
+import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 
 const TIPOS_ITEM = [
   { value: "MP", label: "Materia Prima" },
@@ -101,6 +102,8 @@ export default function ProdutoDetailPage() {
   const [showLoteForm, setShowLoteForm] = useState(false);
   const [selectedLote, setSelectedLote] = useState<LocalEstoqueLote | null>(null);
   const [showDocumentos, setShowDocumentos] = useState(false);
+  const [showNFeDialog, setShowNFeDialog] = useState(false);
+  const [selectedChaveNfe, setSelectedChaveNfe] = useState<string>("");
 
   useEffect(() => {
     if (item) {
@@ -604,10 +607,22 @@ export default function ProdutoDetailPage() {
                         
                         {/* Dados da Nota */}
                         {l.nota_numero && (
-                          <div className="mb-3 p-2 bg-muted/50 rounded text-sm">
-                            <span className="font-medium">NF-e {l.nota_numero}</span>
-                            {l.nota_serie && <span className="text-muted-foreground"> | Série {l.nota_serie}</span>}
-                            {l.nota_data && <span className="text-muted-foreground"> | {new Date(l.nota_data).toLocaleDateString('pt-BR')}</span>}
+                          <div className="mb-3 p-2 bg-muted/50 rounded text-sm flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                if (l.nota_chave) {
+                                  setSelectedChaveNfe(l.nota_chave);
+                                  setShowNFeDialog(true);
+                                }
+                              }}
+                              className="font-medium text-primary hover:underline cursor-pointer flex items-center gap-1"
+                              disabled={!l.nota_chave}
+                            >
+                              NF-e {l.nota_numero}
+                              <ExternalLink className="h-3 w-3" />
+                            </button>
+                            {l.nota_serie && <span className="text-muted-foreground">| Série {l.nota_serie}</span>}
+                            {l.nota_data && <span className="text-muted-foreground">| {new Date(l.nota_data).toLocaleDateString('pt-BR')}</span>}
                           </div>
                         )}
                         
@@ -815,6 +830,13 @@ export default function ProdutoDetailPage() {
           }}
         />
       )}
+
+      {/* NF-e Visualização Dialog */}
+      <NFeVisualizacaoDialog
+        open={showNFeDialog}
+        onOpenChange={setShowNFeDialog}
+        chaveNfe={selectedChaveNfe}
+      />
     </div>
   );
 }
