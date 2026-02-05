@@ -530,6 +530,103 @@ export function criarLoteEstoque(
 }
 
 // ============================================
+// CRIAR LOTE COM CONFIGURAÇÃO MANUAL
+// ============================================
+export function criarLoteEstoqueComConfig(
+  itemId: string,
+  fornecedorId: string,
+  notaItemId: string,
+  rastro: NFeParseResult['itens'][0]['rastros'][0] | null,
+  item: NFeParseResult['itens'][0]['item'],
+  fatorConversao: number,
+  notaInfo?: { numero: string; serie: string; data: string; chave: string },
+  impostos?: NFeParseResult['itens'][0]['impostos'],
+  unidadeManual?: 'g' | 'mg' | 'un' | 'ml' | 'kg' | 'l' | 'milheiro'
+): string {
+  const produto = LocalDb.getById<LocalItem>('itens', itemId);
+  const isCritico = produto?.tipo_item === 'MP' || 
+                    produto?.criticidade === 'CRITICO' || 
+                    produto?.criticidade === 'ULTRA';
+  
+  // IMPORTANTE: A quantidade original é a quantidade comercial do item na nota
+  const quantidadeOriginal = rastro?.quantidade || item.quantidade_comercial;
+  const unidadeOriginal = item.unidade_comercial.toUpperCase();
+  
+  // Usar unidade manual se especificada, senão usar a do produto
+  const unidadeInterna = unidadeManual || produto?.unidade_interna || 'g';
+  
+  // Calcular quantidade interna usando o fator fornecido
+  const quantidadeInterna = quantidadeOriginal * fatorConversao;
+  
+  // Calcular custo unitário interno
+  // Custo = Valor Total do Item / Quantidade Interna
+  const custoUnitarioInterno = item.valor_total / quantidadeInterna;
+  const custoUnitarioOriginal = item.valor_unitario_comercial;
+  
+  // Calcular valor total proporcional ao lote (se tiver rastro)
+  const valorTotalItem = rastro ? 
+    (rastro.quantidade / item.quantidade_comercial) * item.valor_total :
+    item.valor_total;
+  
+  const lote = LocalDb.insert<LocalEstoqueLote>('estoque_lotes', {
+    item_id: itemId,
+    fornecedor_id: fornecedorId,
+    nota_entrada_item_id: notaItemId,
+    numero_lote: rastro?.numero_lote || `LOTE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+    data_fab: rastro?.data_fabricacao,
+    data_val: rastro?.data_validade,
+    // Quantidades originais (EXATAMENTE como veio na nota)
+    quantidade_original: quantidadeOriginal,
+    unidade_original: unidadeOriginal,
+    custo_unitario_original: custoUnitarioOriginal,
+    valor_total_item: valorTotalItem,
+    // Quantidades internas (com conversão manual se configurada)
+    quantidade_interna: quantidadeInterna,
+    unidade_interna: unidadeInterna,
+    custo_unitario_interno: custoUnitarioInterno,
+    fator_conversao: fatorConversao,
+    status: isCritico ? 'QUARENTENA' : 'DISPONIVEL',
+    // Dados da Nota de Entrada
+    nota_numero: notaInfo?.numero,
+    nota_serie: notaInfo?.serie,
+    nota_data: notaInfo?.data,
+    nota_chave: notaInfo?.chave,
+    // Impostos completos
+    icms_base_calculo: impostos?.icms_base_calculo,
+    icms_aliquota: impostos?.icms_aliquota,
+    icms_valor: impostos?.icms_valor,
+    icms_cst: impostos?.icms_cst,
+    icms_st_base_calculo: impostos?.icms_st_base_calculo,
+    icms_st_aliquota: impostos?.icms_st_aliquota,
+    icms_st_valor: impostos?.icms_st_valor,
+    ipi_base_calculo: impostos?.ipi_base_calculo,
+    ipi_aliquota: impostos?.ipi_aliquota,
+    ipi_valor: impostos?.ipi_valor,
+    ipi_cst: impostos?.ipi_cst,
+    pis_base_calculo: impostos?.pis_base_calculo,
+    pis_aliquota: impostos?.pis_aliquota,
+    pis_valor: impostos?.pis_valor,
+    pis_cst: impostos?.pis_cst,
+    cofins_base_calculo: impostos?.cofins_base_calculo,
+    cofins_aliquota: impostos?.cofins_aliquota,
+    cofins_valor: impostos?.cofins_valor,
+    cofins_cst: impostos?.cofins_cst,
+    // Valores adicionais
+    valor_frete_item: item.valor_frete,
+    valor_seguro_item: item.valor_seguro,
+    valor_desconto_item: item.valor_desconto,
+    valor_outros_item: item.valor_outros,
+    // Dados da nota
+    ncm: item.ncm,
+    cfop: item.cfop,
+    codigo_produto_fornecedor: item.codigo_produto,
+    descricao_produto_nota: item.descricao,
+  });
+  
+  return lote.id;
+}
+
+
 // CALCULAR FATOR DE CONVERSÃO
 // ============================================
 // 
@@ -648,11 +745,21 @@ export function gerarContasPagar(
 }
 
 // ============================================
+// CONFIGURAÇÃO MANUAL DE CONVERSÃO POR ITEM
+// ============================================
+export interface ItemImportConfig {
+  itemIndex: number;           // Índice do item no array
+  unidadeInterna: 'g' | 'mg' | 'un' | 'ml' | 'kg' | 'l' | 'milheiro'; // Unidade interna desejada
+  fatorConversao: number;      // Fator de conversão manual
+}
+
+// ============================================
 // IMPORTAR NF-e COMPLETA
 // ============================================
 export function importarNFeCompleta(
   parseResult: NFeParseResult,
-  classificacaoManual?: ClassificacaoNota
+  classificacaoManual?: ClassificacaoNota,
+  configuracoesItens?: ItemImportConfig[]
 ): { notaId: string; stats: ImportStats } {
   const stats: ImportStats = {
     entidadesCriadas: 0,
@@ -758,9 +865,12 @@ export function importarNFeCompleta(
   });
   
   // 10. Processar itens
-  parseResult.itens.forEach(itemData => {
+  parseResult.itens.forEach((itemData, itemIndex) => {
+    // Verificar se tem configuração manual para este item
+    const configManual = configuracoesItens?.find(c => c.itemIndex === itemIndex);
+    
     // Deduzir ou criar produto
-    const { itemId, isNew, fatorConversao } = findOrCreateProduto(
+    const { itemId, isNew, fatorConversao: fatorAutomatico } = findOrCreateProduto(
       itemData.item,
       emitenteId,
       classificacao
@@ -790,6 +900,10 @@ export function importarNFeCompleta(
       chave: parseResult.notaFiscal.chave_acesso,
     };
     
+    // Usar fator/unidade manual se configurado, senão usar automático
+    const fatorFinal = configManual?.fatorConversao ?? fatorAutomatico;
+    const unidadeManual = configManual?.unidadeInterna;
+    
     if (itemData.rastros.length > 0) {
       itemData.rastros.forEach(rastro => {
         // Salvar rastro do XML
@@ -799,12 +913,32 @@ export function importarNFeCompleta(
         });
         
         // Criar lote de estoque com dados da nota e impostos
-        criarLoteEstoque(itemId, emitenteId, notaItem.id, rastro, itemData.item, fatorConversao, notaInfo, itemData.impostos);
+        criarLoteEstoqueComConfig(
+          itemId, 
+          emitenteId, 
+          notaItem.id, 
+          rastro, 
+          itemData.item, 
+          fatorFinal, 
+          notaInfo, 
+          itemData.impostos,
+          unidadeManual
+        );
         stats.lotesCriados++;
       });
     } else {
       // Criar lote único se não tem rastro
-      criarLoteEstoque(itemId, emitenteId, notaItem.id, null, itemData.item, fatorConversao, notaInfo, itemData.impostos);
+      criarLoteEstoqueComConfig(
+        itemId, 
+        emitenteId, 
+        notaItem.id, 
+        null, 
+        itemData.item, 
+        fatorFinal, 
+        notaInfo, 
+        itemData.impostos,
+        unidadeManual
+      );
       stats.lotesCriados++;
     }
   });
