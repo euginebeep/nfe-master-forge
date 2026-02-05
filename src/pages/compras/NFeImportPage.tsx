@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   FileText, Upload, Loader2, Check, AlertCircle, Building2, 
   Package, CheckCircle2, Truck, Receipt, CreditCard, DollarSign,
-  Scale, FileWarning, Info, Box
+  Scale, FileWarning, Info, Box, ArrowRightLeft, Calculator
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,9 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { parseNFeCompleto, formatCNPJ, formatCurrency, formatDate, formatDateTime } from "@/lib/nfe-parser-completo";
-import { checkNotaFiscalExists, importarNFeCompleta, type ImportStats } from "@/lib/local-db-nfe";
+import { checkNotaFiscalExists, importarNFeCompleta, type ImportStats, type ItemImportConfig } from "@/lib/local-db-nfe";
 import type { NFeParseResult, ClassificacaoNota } from "@/types/nfe-completa";
 
 const CLASSIFICACOES_NOTA: { value: ClassificacaoNota; label: string; description: string }[] = [
@@ -30,7 +32,23 @@ const CLASSIFICACOES_NOTA: { value: ClassificacaoNota; label: string; descriptio
   { value: "OUTRO", label: "Outro", description: "Classificação manual" },
 ];
 
+const UNIDADES_INTERNAS = [
+  { value: "un", label: "Unidade (un)", descricao: "Peças, cápsulas, embalagens" },
+  { value: "g", label: "Gramas (g)", descricao: "Matérias-primas pesáveis" },
+  { value: "mg", label: "Miligramas (mg)", descricao: "Micronutrientes" },
+  { value: "kg", label: "Quilogramas (kg)", descricao: "Grandes volumes" },
+  { value: "ml", label: "Mililitros (ml)", descricao: "Líquidos pequenos" },
+  { value: "l", label: "Litros (l)", descricao: "Líquidos grandes" },
+  { value: "milheiro", label: "Milheiro", descricao: "Mil unidades" },
+];
+
 type ImportStep = 'upload' | 'preview' | 'processing' | 'complete';
+
+// Interface para configuração de cada item
+interface ItemConversaoConfig {
+  unidadeInterna: string;
+  fatorConversao: number;
+}
 
 export default function NFeImportPage() {
   const navigate = useNavigate();
@@ -40,6 +58,55 @@ export default function NFeImportPage() {
   const [parsedResult, setParsedResult] = useState<NFeParseResult | null>(null);
   const [classificacao, setClassificacao] = useState<ClassificacaoNota | null>(null);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
+  const [itemConfigs, setItemConfigs] = useState<Record<number, ItemConversaoConfig>>({});
+
+  // Sugerir unidade e fator baseado na descrição e unidade comercial
+  const sugerirConversao = useCallback((descricao: string, unidadeComercial: string): ItemConversaoConfig => {
+    const uCom = unidadeComercial.toUpperCase();
+    const desc = descricao.toUpperCase();
+    
+    // Detectar cápsulas
+    if (desc.includes('CAPSULA') || desc.includes('CÁPSULA') || desc.includes('CAPS')) {
+      if (uCom === 'MILHEIRO' || uCom === 'MIL' || uCom === 'MI') {
+        return { unidadeInterna: 'un', fatorConversao: 1000 };
+      }
+      return { unidadeInterna: 'un', fatorConversao: 1 };
+    }
+    
+    // Detectar embalagens
+    if (desc.includes('POTE') || desc.includes('FRASCO') || desc.includes('TAMPA') || 
+        desc.includes('ROTULO') || desc.includes('RÓTULO') || desc.includes('CAIXA')) {
+      return { unidadeInterna: 'un', fatorConversao: 1 };
+    }
+    
+    // Conversões de massa
+    if (uCom === 'KG') return { unidadeInterna: 'g', fatorConversao: 1000 };
+    if (uCom === 'G') return { unidadeInterna: 'g', fatorConversao: 1 };
+    if (uCom === 'MG') return { unidadeInterna: 'mg', fatorConversao: 1 };
+    if (uCom === 'TON' || uCom === 'T') return { unidadeInterna: 'g', fatorConversao: 1000000 };
+    
+    // Conversões de volume
+    if (uCom === 'L' || uCom === 'LT') return { unidadeInterna: 'ml', fatorConversao: 1000 };
+    if (uCom === 'ML') return { unidadeInterna: 'ml', fatorConversao: 1 };
+    
+    // Unidades discretas
+    if (['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'PC', 'PÇ'].includes(uCom)) {
+      return { unidadeInterna: 'un', fatorConversao: 1 };
+    }
+    
+    // Default: gramas com fator 1
+    return { unidadeInterna: 'g', fatorConversao: 1 };
+  }, []);
+
+  // Inicializar configs quando o resultado é parseado
+  const initializeItemConfigs = useCallback((result: NFeParseResult) => {
+    const configs: Record<number, ItemConversaoConfig> = {};
+    result.itens.forEach((itemData, index) => {
+      const sugestao = sugerirConversao(itemData.item.descricao, itemData.item.unidade_comercial);
+      configs[index] = sugestao;
+    });
+    setItemConfigs(configs);
+  }, [sugerirConversao]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -47,6 +114,7 @@ export default function NFeImportPage() {
       setFile(selectedFile);
       setParsedResult(null);
       setClassificacao(null);
+      setItemConfigs({});
       setStep('upload');
     }
   }, []);
@@ -77,6 +145,7 @@ export default function NFeImportPage() {
 
         setParsedResult(parsed);
         setClassificacao(parsed.notaFiscal.classificacao);
+        initializeItemConfigs(parsed);
         setStep('preview');
         setParsing(false);
       };
@@ -97,7 +166,14 @@ export default function NFeImportPage() {
       // Simular delay para UX
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const result = importarNFeCompleta(parsedResult, classificacao);
+      // Converter configs para o formato esperado
+      const configuracoesItens: ItemImportConfig[] = Object.entries(itemConfigs).map(([indexStr, config]) => ({
+        itemIndex: parseInt(indexStr),
+        unidadeInterna: config.unidadeInterna as ItemImportConfig['unidadeInterna'],
+        fatorConversao: config.fatorConversao,
+      }));
+      
+      const result = importarNFeCompleta(parsedResult, classificacao, configuracoesItens);
       setImportStats(result.stats);
       
       setStep('complete');
@@ -110,12 +186,38 @@ export default function NFeImportPage() {
     }
   };
 
+  const updateItemConfig = useCallback((index: number, field: keyof ItemConversaoConfig, value: string | number) => {
+    setItemConfigs(prev => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        [field]: value,
+      }
+    }));
+  }, []);
+
+  // Calcular preview da conversão
+  const calcularPreview = useCallback((index: number, item: NFeParseResult['itens'][0]['item']) => {
+    const config = itemConfigs[index];
+    if (!config) return null;
+    
+    const qtdInterna = item.quantidade_comercial * config.fatorConversao;
+    const custoUnitario = item.valor_total / qtdInterna;
+    
+    return {
+      qtdInterna,
+      custoUnitario,
+      unidade: config.unidadeInterna,
+    };
+  }, [itemConfigs]);
+
   const resetImport = () => {
     setStep('upload');
     setFile(null);
     setParsedResult(null);
     setClassificacao(null);
     setImportStats(null);
+    setItemConfigs({});
   };
 
   const goToHistory = () => {
@@ -438,57 +540,132 @@ export default function NFeImportPage() {
               {/* Itens */}
               <TabsContent value="itens">
                 <Card>
-                  <CardContent className="pt-4">
-                    <div className="space-y-3">
-                      {parsedResult.itens.map((itemData, index) => (
-                        <div key={index} className="border rounded-lg p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
-                                  #{itemData.item.n_item}
-                                </span>
-                                <span className="text-xs font-mono text-muted-foreground">
-                                  NCM: {itemData.item.ncm}
-                                </span>
-                                <span className="text-xs font-mono text-muted-foreground">
-                                  CFOP: {itemData.item.cfop}
-                                </span>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <ArrowRightLeft className="h-4 w-4" />
+                      Conversão de Unidades
+                    </CardTitle>
+                    <CardDescription>
+                      Configure a unidade interna e o fator de conversão para cada item
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {parsedResult.itens.map((itemData, index) => {
+                        const preview = calcularPreview(index, itemData.item);
+                        const config = itemConfigs[index] || { unidadeInterna: 'g', fatorConversao: 1 };
+                        
+                        return (
+                          <div key={index} className="border rounded-lg p-4 space-y-3">
+                            {/* Cabeçalho do item */}
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
+                                    #{itemData.item.n_item}
+                                  </span>
+                                  <span className="text-xs font-mono text-muted-foreground">
+                                    NCM: {itemData.item.ncm}
+                                  </span>
+                                  <span className="text-xs font-mono text-muted-foreground">
+                                    CFOP: {itemData.item.cfop}
+                                  </span>
+                                </div>
+                                <p className="font-medium">{itemData.item.descricao}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Cód: {itemData.item.codigo_produto} | EAN: {itemData.item.ean || '-'}
+                                </p>
+                                
+                                {/* Rastros/Lotes */}
+                                {itemData.rastros.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {itemData.rastros.map((r, ri) => (
+                                      <StatusBadge key={ri} variant="info">
+                                        Lote: {r.numero_lote} | Val: {formatDate(r.data_validade || '')}
+                                      </StatusBadge>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                              <p className="font-medium">{itemData.item.descricao}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Cód: {itemData.item.codigo_produto} | EAN: {itemData.item.ean || '-'}
-                              </p>
+                              <div className="text-right">
+                                <p className="font-semibold">{formatCurrency(itemData.item.valor_total)}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {itemData.item.quantidade_comercial} {itemData.item.unidade_comercial} × {formatCurrency(itemData.item.valor_unitario_comercial)}
+                                </p>
+                                {/* Impostos resumidos */}
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {itemData.impostos.icms_valor && (
+                                    <span className="mr-2">ICMS: {formatCurrency(itemData.impostos.icms_valor)}</span>
+                                  )}
+                                  {itemData.impostos.ipi_valor && (
+                                    <span>IPI: {formatCurrency(itemData.impostos.ipi_valor)}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            
+                            {/* Configuração de conversão */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Unidade Interna</Label>
+                                <Select 
+                                  value={config.unidadeInterna} 
+                                  onValueChange={(v) => updateItemConfig(index, 'unidadeInterna', v)}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {UNIDADES_INTERNAS.map(u => (
+                                      <SelectItem key={u.value} value={u.value}>
+                                        {u.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                               
-                              {/* Rastros/Lotes */}
-                              {itemData.rastros.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {itemData.rastros.map((r, ri) => (
-                                    <StatusBadge key={ri} variant="info">
-                                      Lote: {r.numero_lote} | Val: {formatDate(r.data_validade || '')}
-                                    </StatusBadge>
-                                  ))}
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Fator de Conversão</Label>
+                                <Input
+                                  type="number"
+                                  step="0.0001"
+                                  min="0.0001"
+                                  value={config.fatorConversao}
+                                  onChange={(e) => updateItemConfig(index, 'fatorConversao', parseFloat(e.target.value) || 1)}
+                                  className="h-9"
+                                />
+                              </div>
+                              
+                              {/* Preview da conversão */}
+                              {preview && (
+                                <div className="md:col-span-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Calculator className="h-4 w-4 text-primary" />
+                                    <span className="font-medium text-primary">Resultado:</span>
+                                  </div>
+                                  <div className="mt-1 grid grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">Qtd Interna: </span>
+                                      <span className="font-semibold">
+                                        {preview.qtdInterna.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} {preview.unidade}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Custo/{preview.unidade}: </span>
+                                      <span className="font-semibold text-primary">
+                                        {formatCurrency(preview.custoUnitario)}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </div>
-                            <div className="text-right">
-                              <p className="font-semibold">{formatCurrency(itemData.item.valor_total)}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {itemData.item.quantidade_comercial} {itemData.item.unidade_comercial} × {formatCurrency(itemData.item.valor_unitario_comercial)}
-                              </p>
-                              {/* Impostos resumidos */}
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {itemData.impostos.icms_valor && (
-                                  <span className="mr-2">ICMS: {formatCurrency(itemData.impostos.icms_valor)}</span>
-                                )}
-                                {itemData.impostos.ipi_valor && (
-                                  <span>IPI: {formatCurrency(itemData.impostos.ipi_valor)}</span>
-                                )}
-                              </div>
-                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
