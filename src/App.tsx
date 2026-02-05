@@ -6,11 +6,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import CompanySettingsPage from "./pages/settings/CompanySettingsPage";
-import EntidadesListPage from "./pages/cadastros/EntidadesListPage";
-import ItensListPage from "./pages/cadastros/ItensListPage";
-import LotesListPage from "./pages/estoque/LotesListPage";
-import NFeImportPage from "./pages/compras/NFeImportPage";
+import EmpresaSettingsPage from "./pages/settings/EmpresaSettingsPage";
+import FornecedoresListPage from "./pages/cadastros/FornecedoresListPage";
+import ClientesListPage from "./pages/cadastros/ClientesListPage";
+import TransportadorasListPage from "./pages/cadastros/TransportadorasListPage";
+import EntidadeDetailPage from "./pages/cadastros/EntidadeDetailPage";
+import ProdutosListPage from "./pages/cadastros/ProdutosListPage";
+import ProdutoDetailPage from "./pages/cadastros/ProdutoDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -23,11 +25,13 @@ const App = () => (
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<Index />} />
-            <Route path="/settings/company" element={<CompanySettingsPage />} />
-            <Route path="/cadastros/entidades" element={<EntidadesListPage />} />
-            <Route path="/cadastros/itens" element={<ItensListPage />} />
-            <Route path="/estoque/lotes" element={<LotesListPage />} />
-            <Route path="/compras/nfe-import" element={<NFeImportPage />} />
+            <Route path="/settings/empresa" element={<EmpresaSettingsPage />} />
+            <Route path="/cadastros/fornecedores" element={<FornecedoresListPage />} />
+            <Route path="/cadastros/clientes" element={<ClientesListPage />} />
+            <Route path="/cadastros/transportadoras" element={<TransportadorasListPage />} />
+            <Route path="/cadastros/entidades/:id" element={<EntidadeDetailPage />} />
+            <Route path="/cadastros/produtos" element={<ProdutosListPage />} />
+            <Route path="/cadastros/produtos/:id" element={<ProdutoDetailPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
