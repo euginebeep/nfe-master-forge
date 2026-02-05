@@ -2,6 +2,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
+import { isEstrangeiro } from "@/types/entidades";
 
 interface FiscalTabProps {
   data: {
@@ -9,6 +12,7 @@ interface FiscalTabProps {
     im: string;
     cnae: string;
     crt: string;
+    tipo_pessoa?: string;
   };
   fiscalConfig: {
     natureza_operacao_padrao: string;
@@ -26,8 +30,20 @@ interface FiscalTabProps {
 }
 
 export function FiscalTab({ data, fiscalConfig, onChange, onFiscalConfigChange }: FiscalTabProps) {
+  const isForeign = isEstrangeiro(data.tipo_pessoa || 'PJ');
   return (
     <div className="space-y-6">
+      {/* Alert for foreign entities */}
+      {isForeign && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Entidades estrangeiras não possuem IE, IM, CNAE ou CRT brasileiros.
+            Para operações de importação/exportação, utilize os campos de observação fiscal.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Dados Fiscais Básicos */}
       <div>
         <h3 className="text-sm font-medium mb-4">Dados Fiscais</h3>
@@ -36,35 +52,40 @@ export function FiscalTab({ data, fiscalConfig, onChange, onFiscalConfigChange }
             <Label htmlFor="ie">Inscrição Estadual</Label>
             <Input
               id="ie"
-              value={data.ie}
+              value={isForeign ? "" : data.ie}
               onChange={(e) => onChange("ie", e.target.value)}
-              placeholder="ISENTO ou número"
+              placeholder={isForeign ? "N/A" : "ISENTO ou número"}
+              disabled={isForeign}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="im">Inscrição Municipal</Label>
             <Input
               id="im"
-              value={data.im}
+              value={isForeign ? "" : data.im}
               onChange={(e) => onChange("im", e.target.value)}
+              disabled={isForeign}
+              placeholder={isForeign ? "N/A" : ""}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="cnae">CNAE</Label>
             <Input
               id="cnae"
-              value={data.cnae}
+              value={isForeign ? "" : data.cnae}
               onChange={(e) => onChange("cnae", e.target.value)}
-              placeholder="0000-0/00"
+              placeholder={isForeign ? "N/A" : "0000-0/00"}
+              disabled={isForeign}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="crt">CRT (Regime)</Label>
             <Input
               id="crt"
-              value={data.crt}
+              value={isForeign ? "" : data.crt}
               onChange={(e) => onChange("crt", e.target.value)}
-              placeholder="1, 2 ou 3"
+              placeholder={isForeign ? "N/A" : "1, 2 ou 3"}
+              disabled={isForeign}
             />
           </div>
         </div>

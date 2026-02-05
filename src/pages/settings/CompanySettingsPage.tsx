@@ -10,8 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { useCompany, useUpsertCompany } from "@/hooks/use-company";
 import { useUploadFile } from "@/hooks/use-files";
+import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
+import { CertificateTestButton } from "@/components/company/CertificateTestButton";
 import type { Company, AmbienteNFe } from "@/types/erp";
 
 const UF_OPTIONS = [
@@ -41,6 +44,42 @@ export default function CompanySettingsPage() {
 
   const onSubmit = async (data: Partial<Company>) => {
     await upsertCompany.mutateAsync(data);
+  };
+
+  // Handle CNPJ lookup data
+  const handleCNPJDataFound = (data: {
+    razao_social: string;
+    nome_fantasia: string;
+    cnae: string;
+    crt: string;
+    regime_tributario: string;
+    endereco_logradouro: string;
+    endereco_nro: string;
+    endereco_compl: string;
+    endereco_bairro: string;
+    endereco_cep: string;
+    endereco_uf: string;
+    endereco_cidade: string;
+    endereco_cmun: string;
+    telefone: string;
+    email_fiscal: string;
+  }) => {
+    // Only update if fields are empty or user confirms
+    form.setValue("razao_social", data.razao_social);
+    form.setValue("nome_fantasia", data.nome_fantasia);
+    form.setValue("cnae", data.cnae);
+    form.setValue("crt", data.crt);
+    form.setValue("regime_tributario", data.regime_tributario);
+    form.setValue("endereco_logradouro", data.endereco_logradouro);
+    form.setValue("endereco_nro", data.endereco_nro);
+    form.setValue("endereco_compl", data.endereco_compl);
+    form.setValue("endereco_bairro", data.endereco_bairro);
+    form.setValue("endereco_cep", data.endereco_cep);
+    form.setValue("endereco_uf", data.endereco_uf);
+    form.setValue("endereco_cidade", data.endereco_cidade);
+    form.setValue("endereco_cmun", data.endereco_cmun);
+    if (data.telefone) form.setValue("telefone", data.telefone);
+    if (data.email_fiscal) form.setValue("email_fiscal", data.email_fiscal);
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,9 +162,13 @@ export default function CompanySettingsPage() {
                     <Label>Nome Fantasia</Label>
                     <Input {...form.register("nome_fantasia")} placeholder="Nome Fantasia" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>CNPJ *</Label>
-                    <Input {...form.register("cnpj")} placeholder="00.000.000/0000-00" />
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>CNPJ * <span className="text-xs text-muted-foreground">(busca automática na Receita Federal)</span></Label>
+                    <CNPJLookupInput
+                      value={form.watch("cnpj") || ""}
+                      onChange={(value) => form.setValue("cnpj", value)}
+                      onDataFound={handleCNPJDataFound}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Inscricao Estadual</Label>
@@ -192,47 +235,64 @@ export default function CompanySettingsPage() {
                 <CardHeader>
                   <CardTitle className="text-lg">Arquivos</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Logo da Empresa</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        disabled={logoUploading}
-                        className="file:mr-2 file:px-4 file:py-1 file:rounded file:border-0 file:bg-primary/10 file:text-primary file:font-medium"
-                      />
-                      {logoUploading && <Loader2 className="h-4 w-4 animate-spin" />}
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Logo da Empresa</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          disabled={logoUploading}
+                          className="file:mr-2 file:px-4 file:py-1 file:rounded file:border-0 file:bg-primary/10 file:text-primary file:font-medium"
+                        />
+                        {logoUploading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      </div>
+                      {form.watch("logo_file_id") && (
+                        <p className="text-xs text-muted-foreground">Logo vinculado</p>
+                      )}
                     </div>
-                    {form.watch("logo_file_id") && (
-                      <p className="text-xs text-muted-foreground">Logo vinculado</p>
-                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label>Certificado Digital A1</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="file"
-                        accept=".pfx,.p12"
-                        onChange={handleCertUpload}
-                        disabled={certUploading}
-                        className="file:mr-2 file:px-4 file:py-1 file:rounded file:border-0 file:bg-primary/10 file:text-primary file:font-medium"
-                      />
-                      {certUploading && <Loader2 className="h-4 w-4 animate-spin" />}
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="text-sm font-medium mb-4">Certificado Digital A1</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Arquivo do Certificado (PFX/P12)</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="file"
+                            accept=".pfx,.p12"
+                            onChange={handleCertUpload}
+                            disabled={certUploading}
+                            className="file:mr-2 file:px-4 file:py-1 file:rounded file:border-0 file:bg-primary/10 file:text-primary file:font-medium"
+                          />
+                          {certUploading && <Loader2 className="h-4 w-4 animate-spin" />}
+                        </div>
+                        {form.watch("certificado_a1_file_id") && (
+                          <p className="text-xs text-muted-foreground">Certificado vinculado ✓</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Senha do Certificado</Label>
+                        <Input
+                          type="password"
+                          placeholder="Atualizar senha"
+                          onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual</p>
+                      </div>
                     </div>
-                    {form.watch("certificado_a1_file_id") && (
-                      <p className="text-xs text-muted-foreground">Certificado vinculado</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Senha do Certificado</Label>
-                    <Input
-                      type="password"
-                      placeholder="Atualizar senha"
-                      onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual</p>
+                    
+                    <div className="mt-4 max-w-sm">
+                      <CertificateTestButton
+                        certificateFileId={form.watch("certificado_a1_file_id")}
+                        certificatePassword={form.watch("certificado_senha_encrypted") || undefined}
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
