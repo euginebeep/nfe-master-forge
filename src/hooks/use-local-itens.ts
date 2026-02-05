@@ -101,6 +101,18 @@ export function useLocalItens(filters?: { tipo_item?: string; ativo?: boolean })
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const collection = (event as CustomEvent)?.detail?.collection as string | undefined;
+      if (!collection || collection === '*' || collection === 'itens') {
+        refresh();
+      }
+    };
+
+    window.addEventListener('localdb:change', handler as EventListener);
+    return () => window.removeEventListener('localdb:change', handler as EventListener);
+  }, [refresh]);
+
   return { data: itens, isLoading: loading, refresh };
 }
 

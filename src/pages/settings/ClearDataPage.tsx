@@ -1,26 +1,20 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LocalDb } from "@/lib/local-db";
+import { LocalDb, seedInitialData } from "@/lib/local-db";
 import { toast } from "sonner";
 
 export default function ClearDataPage() {
   const navigate = useNavigate();
-  
+
   useEffect(() => {
-    // Clear all collections
-    LocalDb.setCollection('entidades', []);
-    LocalDb.setCollection('entidade_contatos', []);
-    LocalDb.setCollection('entidade_enderecos', []);
-    LocalDb.setCollection('itens', []);
-    LocalDb.setCollection('item_fornecedores', []);
-    LocalDb.setCollection('item_alias', []);
-    LocalDb.setCollection('estoque_lotes', []);
-    LocalDb.setCollection('lote_documentos', []);
-    LocalDb.setCollection('notas_entrada', []);
-    LocalDb.setCollection('notas_entrada_itens', []);
-    
+    // Limpa absolutamente tudo do LocalDb (todas as chaves legacy_erp_*)
+    LocalDb.clearAll();
+
+    // Recria o registro mínimo da empresa (em branco) para evitar telas sem contexto
+    seedInitialData();
+
     toast.success("Todos os cadastros foram apagados!");
-    navigate("/cadastros/produtos");
+    navigate("/cadastros/produtos", { replace: true });
   }, [navigate]);
 
   return (
