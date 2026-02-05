@@ -2,16 +2,32 @@ import { useState, useEffect, useCallback } from 'react';
 import { LocalDb } from '@/lib/local-db';
 import { toast } from 'sonner';
 
+// Tipos de item disponíveis no cadastro
+export type TipoItemLocal = 
+  | 'MP' 
+  | 'EMBALAGEM' 
+  | 'ROTULO' 
+  | 'TAMPA' 
+  | 'POTE' 
+  | 'SILICA' 
+  | 'CAPSULA' // Cápsula vazia com marca e foto
+  | 'CAPSULA_VAZIA' // Mantido para retrocompatibilidade
+  | 'PA' 
+  | 'OUTRO';
+
+// Unidades internas disponíveis
+export type UnidadeInternaLocal = 'g' | 'mg' | 'un' | 'ml' | 'milheiro';
+
 export interface LocalItem {
   id: string;
   sku_interno: string;
   descricao_interna: string;
   descricao_comercial?: string;
-  tipo_item: 'MP' | 'EMBALAGEM' | 'ROTULO' | 'TAMPA' | 'POTE' | 'SILICA' | 'CAPSULA_VAZIA' | 'PA' | 'OUTRO';
+  tipo_item: TipoItemLocal;
   categoria_operacional?: string;
   ncm?: string;
   ean?: string;
-  unidade_interna: 'g' | 'mg' | 'un' | 'ml';
+  unidade_interna: UnidadeInternaLocal;
   controla_lote: boolean;
   controla_validade: boolean;
   criticidade: 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA';
@@ -22,6 +38,15 @@ export interface LocalItem {
   fator_conversao?: number;
   exige_premix: boolean;
   ativo: boolean;
+  // Campos específicos para cápsulas
+  capsula_marca?: string;
+  capsula_tamanho?: '000' | '00' | '0' | '1' | '2' | '3' | '4' | '5';
+  capsula_cor?: string;
+  capsula_material?: 'GELATINA' | 'VEGETAL' | 'HPMC';
+  foto_url?: string; // URL ou storage key da foto
+  // Conversão de unidade de compra
+  unidade_compra?: string; // Ex: 'milheiro', 'caixa', 'pacote'
+  fator_compra_para_interna?: number; // Ex: 1 milheiro = 1000 unidades
   created_at?: string;
   updated_at?: string;
 }
