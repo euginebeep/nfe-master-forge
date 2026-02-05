@@ -3,11 +3,11 @@ import {
   Building2,
   Users,
   Package,
-  FileText,
-  Boxes,
+  Truck,
   Settings,
   ChevronDown,
   LayoutDashboard,
+  ShoppingCart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,21 +33,16 @@ const menuGroups = [
   {
     label: "Cadastros",
     items: [
-      { title: "Empresa", url: "/settings/company", icon: Building2 },
-      { title: "Entidades", url: "/cadastros/entidades", icon: Users },
-      { title: "Itens", url: "/cadastros/itens", icon: Package },
+      { title: "Fornecedores", url: "/cadastros/fornecedores", icon: Truck },
+      { title: "Clientes", url: "/cadastros/clientes", icon: Users },
+      { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart },
+      { title: "Produtos", url: "/cadastros/produtos", icon: Package },
     ],
   },
   {
-    label: "Compras",
+    label: "Configuracoes",
     items: [
-      { title: "Importar NF-e", url: "/compras/nfe-import", icon: FileText },
-    ],
-  },
-  {
-    label: "Estoque",
-    items: [
-      { title: "Lotes", url: "/estoque/lotes", icon: Boxes },
+      { title: "Empresa", url: "/settings/empresa", icon: Building2 },
     ],
   },
 ];
@@ -129,7 +124,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <Link
-          to="/settings/company"
+          to="/settings/empresa"
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
             "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"

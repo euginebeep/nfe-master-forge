@@ -1,0 +1,1122 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText } from "lucide-react";
+import { motion } from "framer-motion";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { DataTable } from "@/components/ui/data-table";
+import { 
+  useLocalItem, 
+  useUpdateItem, 
+  useItemFornecedores,
+  useItemAliases,
+  useEstoqueLotes,
+  useLoteDocumentos,
+  canReleaseLote,
+  LocalItem,
+  LocalItemFornecedor,
+  LocalItemAlias,
+  LocalEstoqueLote,
+  LocalLoteDocumento,
+} from "@/hooks/use-local-itens";
+import { useLocalEntidades, LocalEntidade } from "@/hooks/use-local-entidades";
+import { LocalDb } from "@/lib/local-db";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+
+const TIPOS_ITEM = [
+  { value: "MP", label: "Materia Prima" },
+  { value: "EMBALAGEM", label: "Embalagem" },
+  { value: "ROTULO", label: "Rotulo" },
+  { value: "TAMPA", label: "Tampa" },
+  { value: "POTE", label: "Pote" },
+  { value: "SILICA", label: "Silica" },
+  { value: "CAPSULA_VAZIA", label: "Capsula Vazia" },
+  { value: "PA", label: "Produto Acabado" },
+  { value: "OUTRO", label: "Outro" },
+];
+
+const CRITICIDADES = [
+  { value: "NORMAL", label: "Normal" },
+  { value: "ATENCAO", label: "Atencao" },
+  { value: "CRITICO", label: "Critico" },
+  { value: "ULTRA", label: "Ultra Critico" },
+];
+
+const ARMAZENAMENTOS = [
+  { value: "AMBIENTE", label: "Ambiente" },
+  { value: "REFRIGERADO", label: "Refrigerado" },
+  { value: "PROTEGIDO_LUZ", label: "Protegido da Luz" },
+  { value: "OUTRO", label: "Outro" },
+];
+
+const TIPOS_ALIAS = [
+  { value: "ALIAS_FORNECEDOR", label: "Alias Fornecedor" },
+  { value: "ALIAS_INTERNO", label: "Alias Interno" },
+  { value: "ALIAS_MARKETPLACE", label: "Alias Marketplace" },
+];
+
+const STATUS_LOTE_VARIANTS: Record<string, "success" | "warning" | "error" | "muted"> = {
+  QUARENTENA: "warning",
+  DISPONIVEL: "success",
+  BLOQUEADO: "error",
+  VENCIDO: "muted",
+};
+
+export default function ProdutoDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { item, isLoading, refresh } = useLocalItem(id);
+  const { update } = useUpdateItem();
+  const { fornecedores, create: createFornecedor, update: updateFornecedor, remove: removeFornecedor } = useItemFornecedores(id);
+  const { aliases, create: createAlias, remove: removeAlias } = useItemAliases(id);
+  const { lotes, create: createLote, update: updateLote, remove: removeLote } = useEstoqueLotes(id);
+  const { data: entidadesFornecedores } = useLocalEntidades({ papel: "FORNECEDOR" });
+
+  const [formData, setFormData] = useState<Partial<LocalItem>>({});
+  const [showFornecedorForm, setShowFornecedorForm] = useState(false);
+  const [showAliasForm, setShowAliasForm] = useState(false);
+  const [showLoteForm, setShowLoteForm] = useState(false);
+  const [selectedLote, setSelectedLote] = useState<LocalEstoqueLote | null>(null);
+  const [showDocumentos, setShowDocumentos] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      setFormData(item);
+    }
+  }, [item]);
+
+  const handleSave = () => {
+    if (!id) return;
+    update(id, formData);
+    refresh();
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64">Carregando...</div>;
+  }
+
+  if (!item) {
+    return <div className="flex items-center justify-center h-64">Item nao encontrado</div>;
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title={item.descricao_interna}
+        description={`SKU: ${item.sku_interno}`}
+        icon={Package}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <Button onClick={handleSave}>
+              <Save className="h-4 w-4 mr-2" />
+              Salvar
+            </Button>
+          </div>
+        }
+      />
+
+      <Tabs defaultValue="geral" className="mt-6">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="geral">Geral</TabsTrigger>
+          <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
+          <TabsTrigger value="processo">Processo</TabsTrigger>
+          <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
+          <TabsTrigger value="aliases">Aliases</TabsTrigger>
+          <TabsTrigger value="lotes">Lotes</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos</TabsTrigger>
+        </TabsList>
+
+        {/* Tab Geral */}
+        <TabsContent value="geral">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados Gerais</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>SKU Interno</Label>
+                    <Input
+                      value={formData.sku_interno || ""}
+                      onChange={(e) => setFormData({ ...formData, sku_interno: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-2">
+                    <Label>Descricao Interna</Label>
+                    <Input
+                      value={formData.descricao_interna || ""}
+                      onChange={(e) => setFormData({ ...formData, descricao_interna: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Descricao Comercial</Label>
+                    <Input
+                      value={formData.descricao_comercial || ""}
+                      onChange={(e) => setFormData({ ...formData, descricao_comercial: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Categoria Operacional</Label>
+                    <Input
+                      value={formData.categoria_operacional || ""}
+                      onChange={(e) => setFormData({ ...formData, categoria_operacional: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tipo do Item</Label>
+                    <Select 
+                      value={formData.tipo_item} 
+                      onValueChange={(v) => setFormData({ ...formData, tipo_item: v as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_ITEM.map((tipo) => (
+                          <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unidade Interna</Label>
+                    <Select 
+                      value={formData.unidade_interna} 
+                      onValueChange={(v) => setFormData({ ...formData, unidade_interna: v as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="g">Gramas (g)</SelectItem>
+                        <SelectItem value="mg">Miligramas (mg)</SelectItem>
+                        <SelectItem value="un">Unidades (un)</SelectItem>
+                        <SelectItem value="ml">Mililitros (ml)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="ativo"
+                    checked={formData.ativo}
+                    onCheckedChange={(checked) => setFormData({ ...formData, ativo: !!checked })}
+                  />
+                  <label htmlFor="ativo" className="text-sm font-medium">Ativo</label>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Tab Fiscal */}
+        <TabsContent value="fiscal">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados Fiscais</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>NCM</Label>
+                    <Input
+                      value={formData.ncm || ""}
+                      onChange={(e) => setFormData({ ...formData, ncm: e.target.value })}
+                      placeholder="0000.00.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>EAN/GTIN</Label>
+                    <Input
+                      value={formData.ean || ""}
+                      onChange={(e) => setFormData({ ...formData, ean: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Tab Processo */}
+        <TabsContent value="processo">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados de Processo</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Criticidade</Label>
+                    <Select 
+                      value={formData.criticidade} 
+                      onValueChange={(v) => setFormData({ ...formData, criticidade: v as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CRITICIDADES.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Armazenamento</Label>
+                    <Select 
+                      value={formData.armazenamento} 
+                      onValueChange={(v) => setFormData({ ...formData, armazenamento: v as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ARMAZENAMENTOS.map((a) => (
+                          <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Unidade Declaracao</Label>
+                    <Input
+                      value={formData.unidade_declaracao || ""}
+                      onChange={(e) => setFormData({ ...formData, unidade_declaracao: e.target.value })}
+                      placeholder="mg, mcg, UI..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unidade Pesagem</Label>
+                    <Input
+                      value={formData.unidade_pesagem || ""}
+                      onChange={(e) => setFormData({ ...formData, unidade_pesagem: e.target.value })}
+                      placeholder="mg, g..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fator Conversao</Label>
+                    <Input
+                      type="number"
+                      value={formData.fator_conversao || ""}
+                      onChange={(e) => setFormData({ ...formData, fator_conversao: parseFloat(e.target.value) || undefined })}
+                      placeholder="ex: 40000"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="controla_lote"
+                      checked={formData.controla_lote}
+                      onCheckedChange={(checked) => setFormData({ ...formData, controla_lote: !!checked })}
+                    />
+                    <label htmlFor="controla_lote" className="text-sm">Controla Lote</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="controla_validade"
+                      checked={formData.controla_validade}
+                      onCheckedChange={(checked) => setFormData({ ...formData, controla_validade: !!checked })}
+                    />
+                    <label htmlFor="controla_validade" className="text-sm">Controla Validade</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="higroscopico"
+                      checked={formData.higroscopico}
+                      onCheckedChange={(checked) => setFormData({ ...formData, higroscopico: !!checked })}
+                    />
+                    <label htmlFor="higroscopico" className="text-sm">Higroscopico</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="exige_premix"
+                      checked={formData.exige_premix}
+                      onCheckedChange={(checked) => setFormData({ ...formData, exige_premix: !!checked })}
+                    />
+                    <label htmlFor="exige_premix" className="text-sm">Exige Premix</label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Tab Fornecedores */}
+        <TabsContent value="fornecedores">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Fornecedores do Item</CardTitle>
+                <Button size="sm" onClick={() => setShowFornecedorForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Vincular Fornecedor
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {fornecedores.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Nenhum fornecedor vinculado</p>
+                ) : (
+                  <div className="space-y-3">
+                    {fornecedores.map((f) => (
+                      <div key={f.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          {f.fornecedor_preferencial && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                          <div>
+                            <p className="font-medium">{f.fornecedor?.razao_social || "Fornecedor"}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Codigo: {f.codigo_fornecedor || "-"} | 
+                              Unidade: {f.unidade_compra_padrao} | 
+                              Fator: {f.fator_para_unidade_interna}x
+                            </p>
+                            {f.descricao_fornecedor && (
+                              <p className="text-sm text-muted-foreground">
+                                Descricao: {f.descricao_fornecedor}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeFornecedor(f.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Tab Aliases */}
+        <TabsContent value="aliases">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Aliases do Item</CardTitle>
+                <Button size="sm" onClick={() => setShowAliasForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Alias
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {aliases.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Nenhum alias cadastrado</p>
+                ) : (
+                  <div className="space-y-3">
+                    {aliases.map((a) => (
+                      <div key={a.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <StatusBadge variant="muted">{a.tipo}</StatusBadge>
+                          <p className="mt-1">{a.texto}</p>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeAlias(a.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Tab Lotes */}
+        <TabsContent value="lotes">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Lotes em Estoque</CardTitle>
+                <Button size="sm" onClick={() => setShowLoteForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Lote
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {lotes.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Nenhum lote cadastrado</p>
+                ) : (
+                  <div className="space-y-3">
+                    {lotes.map((l) => (
+                      <div key={l.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-medium">{l.numero_lote}</span>
+                            <StatusBadge variant={STATUS_LOTE_VARIANTS[l.status]}>
+                              {l.status}
+                            </StatusBadge>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedLote(l);
+                                setShowDocumentos(true);
+                              }}
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              Documentos
+                            </Button>
+                            {l.status === "QUARENTENA" && canReleaseLote(l.id, id!) && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  updateLote(l.id, { status: "DISPONIVEL" });
+                                }}
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Liberar
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => removeLote(l.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Fornecedor</p>
+                            <p>{l.fornecedor?.razao_social || "-"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Qtd Interna</p>
+                            <p>{l.quantidade_interna.toLocaleString()} {item.unidade_interna}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Fabricacao</p>
+                            <p>{l.data_fab || "-"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Validade</p>
+                            <p>{l.data_val || "-"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Tab Documentos */}
+        <TabsContent value="documentos">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Documentos por Lote</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Selecione um lote na aba "Lotes" e clique em "Documentos" para gerenciar COA/laudos.
+                </p>
+                {lotes.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Nenhum lote cadastrado</p>
+                ) : (
+                  <div className="space-y-2">
+                    {lotes.map((l) => (
+                      <Button 
+                        key={l.id}
+                        variant="outline" 
+                        className="w-full justify-start"
+                        onClick={() => {
+                          setSelectedLote(l);
+                          setShowDocumentos(true);
+                        }}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Lote {l.numero_lote} - Ver Documentos
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Fornecedor Form Dialog */}
+      <FornecedorFormDialog
+        open={showFornecedorForm}
+        onOpenChange={setShowFornecedorForm}
+        itemId={id!}
+        fornecedores={entidadesFornecedores}
+        onSave={(data) => {
+          createFornecedor(data as Omit<LocalItemFornecedor, 'id'>);
+          setShowFornecedorForm(false);
+        }}
+      />
+
+      {/* Alias Form Dialog */}
+      <AliasFormDialog
+        open={showAliasForm}
+        onOpenChange={setShowAliasForm}
+        itemId={id!}
+        onSave={(data) => {
+          createAlias(data as Omit<LocalItemAlias, 'id'>);
+          setShowAliasForm(false);
+        }}
+      />
+
+      {/* Lote Form Dialog */}
+      <LoteFormDialog
+        open={showLoteForm}
+        onOpenChange={setShowLoteForm}
+        itemId={id!}
+        item={item}
+        fornecedores={fornecedores}
+        onSave={(data) => {
+          createLote(data as any);
+          setShowLoteForm(false);
+        }}
+      />
+
+      {/* Documentos Dialog */}
+      {selectedLote && (
+        <LoteDocumentosDialog
+          open={showDocumentos}
+          onOpenChange={setShowDocumentos}
+          lote={selectedLote}
+          itemId={id!}
+          onLoteUpdate={() => {
+            refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Fornecedor Form Dialog
+function FornecedorFormDialog({ 
+  open, 
+  onOpenChange, 
+  itemId,
+  fornecedores,
+  onSave 
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  itemId: string;
+  fornecedores: LocalEntidade[];
+  onSave: (data: Partial<LocalItemFornecedor>) => void;
+}) {
+  const [formData, setFormData] = useState({
+    fornecedor_id: "",
+    codigo_fornecedor: "",
+    descricao_fornecedor: "",
+    unidade_compra_padrao: "kg" as const,
+    fator_para_unidade_interna: 1000,
+    fornecedor_preferencial: false,
+    preco_referencia: 0,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Vincular Fornecedor</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Fornecedor *</Label>
+            <Select 
+              value={formData.fornecedor_id} 
+              onValueChange={(v) => setFormData({ ...formData, fornecedor_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um fornecedor" />
+              </SelectTrigger>
+              <SelectContent>
+                {fornecedores.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.razao_social}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Codigo Fornecedor (cProd)</Label>
+              <Input
+                value={formData.codigo_fornecedor}
+                onChange={(e) => setFormData({ ...formData, codigo_fornecedor: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Unidade Compra</Label>
+              <Select 
+                value={formData.unidade_compra_padrao} 
+                onValueChange={(v) => setFormData({ ...formData, unidade_compra_padrao: v as any })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="kg">Quilogramas (kg)</SelectItem>
+                  <SelectItem value="g">Gramas (g)</SelectItem>
+                  <SelectItem value="un">Unidades (un)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Descricao do Fornecedor</Label>
+            <Input
+              value={formData.descricao_fornecedor}
+              onChange={(e) => setFormData({ ...formData, descricao_fornecedor: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fator para Unidade Interna</Label>
+              <Input
+                type="number"
+                value={formData.fator_para_unidade_interna}
+                onChange={(e) => setFormData({ ...formData, fator_para_unidade_interna: parseFloat(e.target.value) || 1 })}
+              />
+              <p className="text-xs text-muted-foreground">Ex: kg para g = 1000</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Preco Referencia</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.preco_referencia}
+                onChange={(e) => setFormData({ ...formData, preco_referencia: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="fornecedor_preferencial"
+              checked={formData.fornecedor_preferencial}
+              onCheckedChange={(checked) => setFormData({ ...formData, fornecedor_preferencial: !!checked })}
+            />
+            <label htmlFor="fornecedor_preferencial" className="text-sm">Fornecedor Preferencial</label>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button onClick={() => onSave({ ...formData, item_id: itemId })}>Salvar</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Alias Form Dialog
+function AliasFormDialog({ 
+  open, 
+  onOpenChange, 
+  itemId,
+  onSave 
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  itemId: string;
+  onSave: (data: Partial<LocalItemAlias>) => void;
+}) {
+  const [formData, setFormData] = useState({
+    tipo: "ALIAS_INTERNO" as const,
+    texto: "",
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Novo Alias</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Tipo</Label>
+            <Select 
+              value={formData.tipo} 
+              onValueChange={(v) => setFormData({ ...formData, tipo: v as any })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS_ALIAS.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Texto do Alias</Label>
+            <Input
+              value={formData.texto}
+              onChange={(e) => setFormData({ ...formData, texto: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button onClick={() => onSave({ ...formData, item_id: itemId })}>Salvar</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Lote Form Dialog
+function LoteFormDialog({ 
+  open, 
+  onOpenChange, 
+  itemId,
+  item,
+  fornecedores,
+  onSave 
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  itemId: string;
+  item: LocalItem;
+  fornecedores: any[];
+  onSave: (data: any) => void;
+}) {
+  const [formData, setFormData] = useState({
+    fornecedor_id: "",
+    numero_lote: "",
+    data_fab: "",
+    data_val: "",
+    quantidade_original: 0,
+    unidade_original: "kg" as const,
+    custo_unitario_original: 0,
+    status: "QUARENTENA" as const,
+    fator_para_unidade_interna: 1000,
+  });
+
+  // Auto-set status based on item type
+  useEffect(() => {
+    if (item.tipo_item === "MP" || item.criticidade === "CRITICO" || item.criticidade === "ULTRA") {
+      setFormData(prev => ({ ...prev, status: "QUARENTENA" }));
+    }
+  }, [item]);
+
+  // Update fator when fornecedor changes
+  const handleFornecedorChange = (fornecedorId: string) => {
+    const forn = fornecedores.find(f => f.fornecedor_id === fornecedorId);
+    setFormData(prev => ({
+      ...prev,
+      fornecedor_id: fornecedorId,
+      unidade_original: forn?.unidade_compra_padrao || "kg",
+      fator_para_unidade_interna: forn?.fator_para_unidade_interna || 1000,
+    }));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Novo Lote</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Fornecedor</Label>
+            <Select 
+              value={formData.fornecedor_id} 
+              onValueChange={handleFornecedorChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um fornecedor" />
+              </SelectTrigger>
+              <SelectContent>
+                {fornecedores.map((f) => (
+                  <SelectItem key={f.fornecedor_id} value={f.fornecedor_id}>
+                    {f.fornecedor?.razao_social || "Fornecedor"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Numero do Lote *</Label>
+            <Input
+              value={formData.numero_lote}
+              onChange={(e) => setFormData({ ...formData, numero_lote: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Data Fabricacao</Label>
+              <Input
+                type="date"
+                value={formData.data_fab}
+                onChange={(e) => setFormData({ ...formData, data_fab: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data Validade</Label>
+              <Input
+                type="date"
+                value={formData.data_val}
+                onChange={(e) => setFormData({ ...formData, data_val: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Quantidade</Label>
+              <Input
+                type="number"
+                value={formData.quantidade_original}
+                onChange={(e) => setFormData({ ...formData, quantidade_original: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Unidade</Label>
+              <Select 
+                value={formData.unidade_original} 
+                onValueChange={(v) => setFormData({ ...formData, unidade_original: v as any })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="kg">kg</SelectItem>
+                  <SelectItem value="g">g</SelectItem>
+                  <SelectItem value="un">un</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Fator Conv.</Label>
+              <Input
+                type="number"
+                value={formData.fator_para_unidade_interna}
+                onChange={(e) => setFormData({ ...formData, fator_para_unidade_interna: parseFloat(e.target.value) || 1 })}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Custo Unitario Original</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.custo_unitario_original}
+              onChange={(e) => setFormData({ ...formData, custo_unitario_original: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+          <div className="p-3 bg-muted rounded-lg text-sm">
+            <p>Quantidade Interna: <strong>{(formData.quantidade_original * formData.fator_para_unidade_interna).toLocaleString()} {item.unidade_interna}</strong></p>
+            <p>Custo Interno: <strong>R$ {(formData.custo_unitario_original / formData.fator_para_unidade_interna).toFixed(4)}/{item.unidade_interna}</strong></p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button 
+              onClick={() => onSave({ ...formData, item_id: itemId })}
+              disabled={!formData.numero_lote}
+            >
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Lote Documentos Dialog
+function LoteDocumentosDialog({ 
+  open, 
+  onOpenChange, 
+  lote,
+  itemId,
+  onLoteUpdate
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  lote: LocalEstoqueLote;
+  itemId: string;
+  onLoteUpdate: () => void;
+}) {
+  const { documentos, create, validate, reject, remove, refresh } = useLoteDocumentos(lote.id);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    
+    // Read file as base64
+    const reader = new FileReader();
+    reader.onload = () => {
+      create({
+        lote_id: lote.id,
+        tipo_documento: "COA",
+        arquivo_nome: file.name,
+        arquivo_tipo: file.type,
+        arquivo_size: file.size,
+        arquivo_data: reader.result as string,
+        status_validacao: "PENDENTE",
+      });
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleValidate = (docId: string) => {
+    validate(docId);
+    // Check if lote can now be released
+    setTimeout(() => {
+      if (canReleaseLote(lote.id, itemId)) {
+        toast.info("Lote pode ser liberado! COA validado.");
+      }
+      onLoteUpdate();
+    }, 100);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Documentos do Lote {lote.numero_lote}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="file-upload" className="cursor-pointer">
+              <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors">
+                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {uploading ? "Carregando..." : "Clique para fazer upload de COA/Laudo (PDF)"}
+                </p>
+              </div>
+            </Label>
+            <input
+              id="file-upload"
+              type="file"
+              accept=".pdf,.jpg,.png"
+              className="hidden"
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
+          </div>
+
+          {documentos.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">Nenhum documento anexado</p>
+          ) : (
+            <div className="space-y-3">
+              {documentos.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{doc.arquivo_nome}</p>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge variant="muted">{doc.tipo_documento}</StatusBadge>
+                        <StatusBadge 
+                          variant={
+                            doc.status_validacao === "VALIDADO" ? "success" : 
+                            doc.status_validacao === "REJEITADO" ? "error" : "warning"
+                          }
+                        >
+                          {doc.status_validacao}
+                        </StatusBadge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    {doc.status_validacao === "PENDENTE" && (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleValidate(doc.id)}
+                          title="Validar"
+                        >
+                          <Check className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => reject(doc.id)}
+                          title="Rejeitar"
+                        >
+                          <X className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => remove(doc.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
