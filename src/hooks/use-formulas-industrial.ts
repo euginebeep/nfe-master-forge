@@ -14,6 +14,7 @@ import {
   gerarAlertasFormula,
   determinarStatusOcupacao,
   calcularQSPIndustrial,
+  calcularCustoPorCapsula,
 } from '@/types/formulas-industrial';
 import { toast } from 'sonner';
 
@@ -366,6 +367,7 @@ export function useCreateFormulaIndustrial() {
     // Calcular ingredientes
     const ingredientes: FormulaIngredienteIndustrial[] = [];
     let totalAtivos = 0;
+    let custoIngredientes = 0;
     const erros: string[] = [];
 
     produto.ativos.forEach((ativo, index) => {
@@ -393,6 +395,10 @@ export function useCreateFormulaIndustrial() {
 
       totalAtivos += peso_mg;
 
+      // Calcular custo deste ingrediente
+      const custoIngrediente = calcularCustoPorCapsula(peso_mg, insumo.custo_por_kg);
+      custoIngredientes += custoIngrediente;
+
       ingredientes.push({
         id: crypto.randomUUID(),
         insumo_id: insumo.id,
@@ -405,6 +411,8 @@ export function useCreateFormulaIndustrial() {
         tipo_potencia: insumo.tipo_potencia,
         valor_potencia: insumo.valor_potencia,
         peso_a_pesar_mg: Math.round(peso_mg * 100) / 100,
+        custo_por_kg: insumo.custo_por_kg,
+        custo_por_capsula: Math.round(custoIngrediente * 10000) / 10000,
         higroscopico: insumo.higroscopico,
         nivel_higroscopicidade: insumo.nivel_higroscopicidade,
         ordem: index,
@@ -417,14 +425,33 @@ export function useCreateFormulaIndustrial() {
 
     // Calcular excipientes
     const excipientes = calcularExcipientes(perfil, capacidadeAlvo, totalAtivos);
-    const totalExcipientesFixos = excipientes
+    
+    // Adicionar custo aos excipientes (custo padrão estimado se não informado)
+    const excipientesComCusto = excipientes.map(exc => {
+      // Custo padrão para excipientes: ~R$ 50/kg (estimativa conservadora)
+      const custoExcKg = 50;
+      const custoExc = calcularCustoPorCapsula(exc.peso_mg, custoExcKg);
+      custoIngredientes += custoExc;
+      return {
+        ...exc,
+        custo_por_kg: custoExcKg,
+        custo_por_capsula: Math.round(custoExc * 10000) / 10000,
+      };
+    });
+
+    const totalExcipientesFixos = excipientesComCusto
       .filter(e => e.tipo === 'PERCENTUAL_FIXO')
       .reduce((sum, e) => sum + e.peso_mg, 0);
-    const qsp = excipientes.find(e => e.tipo === 'QSP')?.peso_mg || 0;
+    const qsp = excipientesComCusto.find(e => e.tipo === 'QSP')?.peso_mg || 0;
 
     const pesoTotal = totalAtivos + totalExcipientesFixos + qsp;
     const percentualOcupacao = capacidadeAlvo > 0 ? (pesoTotal / capacidadeAlvo) * 100 : 0;
     const statusOcupacao = determinarStatusOcupacao(pesoTotal, capacidadeAlvo);
+
+    // Custo total
+    const custoTotalCapsula = Math.round(custoIngredientes * 10000) / 10000;
+    const totalCapsulas = params.numero_doses * params.capsulas_por_dose;
+    const custoTotalLote = Math.round(custoTotalCapsula * totalCapsulas * 100) / 100;
 
     const formulaBase: Omit<FormulaIndustrial, 'id' | 'codigo' | 'created_at' | 'updated_at' | 'alertas'> = {
       produto_id: produto.id,
@@ -436,12 +463,14 @@ export function useCreateFormulaIndustrial() {
       capacidade_alvo_mg: capacidadeAlvo,
       ingredientes,
       perfil_excipiente_id: params.perfil_excipiente_id,
-      excipientes,
+      excipientes: excipientesComCusto,
       total_ativos_mg: Math.round(totalAtivos * 100) / 100,
       total_excipientes_fixos_mg: Math.round(totalExcipientesFixos * 100) / 100,
       qsp_mg: Math.round(qsp * 100) / 100,
       peso_total_capsula_mg: Math.round(pesoTotal * 100) / 100,
       percentual_ocupacao: Math.round(percentualOcupacao * 10) / 10,
+      custo_total_capsula: custoTotalCapsula,
+      custo_total_lote: custoTotalLote,
       status_ocupacao: statusOcupacao,
       versao: 1,
       status: 'RASCUNHO',

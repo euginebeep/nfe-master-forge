@@ -73,6 +73,9 @@ export interface InsumoFormulacao {
   // Para minerais - percentual elementar
   percentual_elementar?: number; // Ex: Citrato de Magnésio tem ~16% de Mg elementar
   
+  // CUSTO
+  custo_por_kg?: number;      // Custo do insumo por kg (R$/kg)
+  
   // Flags técnicas
   higroscopico: boolean;
   nivel_higroscopicidade?: NivelHigroscopicidade;
@@ -205,6 +208,10 @@ export interface FormulaIngredienteIndustrial {
   // peso_a_pesar = dose_por_capsula / potencia
   peso_a_pesar_mg: number;
   
+  // CUSTO
+  custo_por_kg?: number;         // Custo do insumo por kg
+  custo_por_capsula?: number;    // Custo deste ingrediente por cápsula
+  
   // Flags
   higroscopico: boolean;
   nivel_higroscopicidade?: NivelHigroscopicidade;
@@ -219,6 +226,8 @@ export interface FormulaExcipienteIndustrial {
   tipo: 'PERCENTUAL_FIXO' | 'QSP';
   valor_percentual?: number;
   peso_mg: number;               // Peso calculado em mg
+  custo_por_kg?: number;         // Custo do excipiente por kg
+  custo_por_capsula?: number;    // Custo deste excipiente por cápsula
 }
 
 export interface AlertaFormulaIndustrial {
@@ -262,6 +271,10 @@ export interface FormulaIndustrial {
   qsp_mg: number;                     // Q.S.P. calculado
   peso_total_capsula_mg: number;      // Peso total final por cápsula
   percentual_ocupacao: number;        // % de ocupação da cápsula
+  
+  // CUSTO
+  custo_total_capsula?: number;      // Custo total por cápsula (R$)
+  custo_total_lote?: number;         // Custo total do lote (R$)
   
   // Status de ocupação
   status_ocupacao: 'OK' | 'ATENCAO' | 'NAO_CABE';
@@ -507,6 +520,20 @@ export function determinarStatusOcupacao(
     return 'ATENCAO';
   }
   return 'OK';
+}
+
+/**
+ * Calcula custo por cápsula baseado no peso em mg e custo por kg
+ */
+export function calcularCustoPorCapsula(
+  peso_mg: number,
+  custo_por_kg?: number
+): number {
+  if (!custo_por_kg || custo_por_kg <= 0) return 0;
+  // peso_mg / 1000 = peso_g, peso_g / 1000 = peso_kg
+  // custo = peso_kg * custo_por_kg
+  const peso_kg = peso_mg / 1_000_000;
+  return peso_kg * custo_por_kg;
 }
 
 // ========================================

@@ -47,6 +47,7 @@ const insumoSchema = z.object({
   tipo_potencia: z.string(),
   valor_potencia: z.coerce.number().optional(),
   percentual_elementar: z.coerce.number().optional(),
+  custo_por_kg: z.coerce.number().optional(),
   higroscopico: z.boolean(),
   nivel_higroscopicidade: z.string().optional(),
   observacoes_processo: z.string().optional(),
@@ -98,6 +99,7 @@ export function InsumoFormDialog({
       tipo_potencia: "NENHUMA",
       valor_potencia: undefined,
       percentual_elementar: undefined,
+      custo_por_kg: undefined,
       higroscopico: false,
       nivel_higroscopicidade: undefined,
       observacoes_processo: "",
@@ -113,6 +115,7 @@ export function InsumoFormDialog({
         tipo_potencia: insumo.tipo_potencia,
         valor_potencia: insumo.valor_potencia,
         percentual_elementar: insumo.percentual_elementar,
+        custo_por_kg: insumo.custo_por_kg,
         higroscopico: insumo.higroscopico,
         nivel_higroscopicidade: insumo.nivel_higroscopicidade,
         observacoes_processo: insumo.observacoes_processo || "",
@@ -125,6 +128,7 @@ export function InsumoFormDialog({
         tipo_potencia: "NENHUMA",
         valor_potencia: undefined,
         percentual_elementar: undefined,
+        custo_por_kg: undefined,
         higroscopico: false,
         nivel_higroscopicidade: undefined,
         observacoes_processo: "",
@@ -152,6 +156,7 @@ export function InsumoFormDialog({
       tipo_potencia: data.tipo_potencia as TipoPotencia,
       valor_potencia: data.tipo_potencia !== 'NENHUMA' ? data.valor_potencia : undefined,
       percentual_elementar: data.percentual_elementar,
+      custo_por_kg: data.custo_por_kg,
       higroscopico: data.higroscopico,
       nivel_higroscopicidade: data.higroscopico ? data.nivel_higroscopicidade as NivelHigroscopicidade : undefined,
       observacoes_processo: data.observacoes_processo || undefined,
@@ -335,6 +340,31 @@ export function InsumoFormDialog({
                     </div>
                   </>
                 )}
+
+                <Separator />
+
+                {/* Custo */}
+                <FormField
+                  control={form.control}
+                  name="custo_por_kg"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custo por Kg (R$/kg)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01"
+                          placeholder="Ex: 1500.00"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Custo do insumo por quilograma para cálculo de custo da fórmula
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <Separator />
 
