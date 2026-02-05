@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ShieldCheck, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CertificateTestButtonProps {
   certificateFileId?: string | null;
@@ -17,6 +18,7 @@ export interface CertificateTestResult {
   validFrom?: string;
   validTo?: string;
   daysUntilExpiry?: number;
+  serialNumber?: string;
   error?: string;
 }
 
@@ -43,31 +45,32 @@ export function CertificateTestButton({
     setResult(null);
 
     try {
-      // For now, simulate a test since we'd need an edge function to actually test
-      // In a real implementation, this would call an edge function that:
-      // 1. Downloads the certificate from storage
-      // 2. Uses a library to validate the PFX/P12 file with the password
-      // 3. Extracts certificate details and expiration
-      
-      // Simulated response for UI demonstration
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const testResult: CertificateTestResult = {
-        valid: true,
-        subject: "EMPRESA EXEMPLO LTDA:12345678000190",
-        issuer: "AC SAFEWEB RFB v5",
-        validFrom: new Date().toLocaleDateString('pt-BR'),
-        validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
-        daysUntilExpiry: 365,
-      };
+      const { data, error } = await supabase.functions.invoke('validate-certificate', {
+        body: { 
+          fileId: certificateFileId, 
+          password: certificatePassword 
+        }
+      });
 
+      if (error) {
+        throw new Error(error.message || "Erro ao chamar função de validação");
+      }
+
+      const testResult: CertificateTestResult = data;
       setResult(testResult);
       onTestResult?.(testResult);
       
       if (testResult.valid) {
-        toast.success("Certificado válido!");
+        if (testResult.daysUntilExpiry !== undefined && testResult.daysUntilExpiry < 30) {
+          toast.warning(`Certificado válido, mas expira em ${testResult.daysUntilExpiry} dias!`);
+        } else {
+          toast.success("Certificado válido!");
+        }
+      } else {
+        toast.error(testResult.error || "Certificado inválido");
       }
     } catch (error) {
+      console.error('Certificate validation error:', error);
       const errorResult: CertificateTestResult = {
         valid: false,
         error: error instanceof Error ? error.message : "Erro ao validar certificado",
@@ -78,6 +81,21 @@ export function CertificateTestButton({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getExpiryColor = (days?: number) => {
+    if (days === undefined) return "";
+    if (days < 0) return "text-destructive";
+    if (days < 30) return "text-yellow-600 dark:text-yellow-500";
+    if (days < 90) return "text-orange-600 dark:text-orange-500";
+    return "text-primary";
+  };
+
+  const getExpiryIcon = (days?: number) => {
+    if (days === undefined) return null;
+    if (days < 30) return "⚠️";
+    if (days < 90) return "⏳";
+    return "✓";
   };
 
   return (
@@ -92,7 +110,7 @@ export function CertificateTestButton({
         {isLoading ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Testando Certificado...
+            Validando Certificado...
           </>
         ) : (
           <>
@@ -103,30 +121,43 @@ export function CertificateTestButton({
       </Button>
 
       {result && (
-        <Alert variant={result.valid ? "default" : "destructive"}>
+        <Alert variant={result.valid ? "default" : "destructive"} className="animate-in fade-in slide-in-from-top-2">
           {result.valid ? (
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-4 w-4 text-primary" />
           ) : (
             <AlertCircle className="h-4 w-4" />
           )}
-          <AlertTitle>
+          <AlertTitle className="flex items-center gap-2">
             {result.valid ? "Certificado Válido" : "Certificado Inválido"}
+            {result.valid && result.daysUntilExpiry !== undefined && result.daysUntilExpiry < 30 && (
+              <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded-full">
+                Expira em breve
+              </span>
+            )}
           </AlertTitle>
           <AlertDescription>
             {result.valid ? (
-              <div className="text-sm space-y-1 mt-2">
+              <div className="text-sm space-y-1.5 mt-2">
                 <p><strong>Titular:</strong> {result.subject}</p>
                 <p><strong>Emitido por:</strong> {result.issuer}</p>
-                <p><strong>Válido de:</strong> {result.validFrom} até {result.validTo}</p>
+                <p><strong>Válido de:</strong> {result.validFrom} <strong>até</strong> {result.validTo}</p>
+                {result.serialNumber && (
+                  <p className="text-muted-foreground text-xs"><strong>Nº Série:</strong> {result.serialNumber}</p>
+                )}
                 {result.daysUntilExpiry !== undefined && (
-                  <p className={result.daysUntilExpiry < 30 ? "text-yellow-600" : ""}>
-                    <strong>Dias até expirar:</strong> {result.daysUntilExpiry}
-                    {result.daysUntilExpiry < 30 && " ⚠️ Renove em breve!"}
-                  </p>
+                  <div className={`flex items-center gap-2 font-medium mt-2 p-2 rounded-md bg-muted/50 ${getExpiryColor(result.daysUntilExpiry)}`}>
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      {result.daysUntilExpiry < 0 
+                        ? `Expirado há ${Math.abs(result.daysUntilExpiry)} dias`
+                        : `${result.daysUntilExpiry} dias até expirar`
+                      } {getExpiryIcon(result.daysUntilExpiry)}
+                    </span>
+                  </div>
                 )}
               </div>
             ) : (
-              <p>{result.error}</p>
+              <p className="mt-1">{result.error}</p>
             )}
           </AlertDescription>
         </Alert>
