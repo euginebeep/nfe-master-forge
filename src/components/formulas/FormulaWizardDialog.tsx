@@ -432,13 +432,13 @@ export function FormulaWizardDialog({
                     ? 'border-destructive' 
                     : preview.status_ocupacao === 'ATENCAO' 
                       ? 'border-warning' 
-                      : 'border-green-500'
+                      : 'border-secondary'
                 }>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         {preview.status_ocupacao === 'OK' && (
-                          <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-500" />
+                          <CheckCircle2 className="h-8 w-8 text-secondary" />
                         )}
                         {preview.status_ocupacao === 'ATENCAO' && (
                           <AlertTriangle className="h-8 w-8 text-warning" />

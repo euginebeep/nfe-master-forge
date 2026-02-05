@@ -46,7 +46,8 @@ import {
 import { FormulaWizardDialog } from "@/components/formulas/FormulaWizardDialog";
 import { InsumoFormDialog } from "@/components/formulas/InsumoFormDialog";
 import { ProdutoFormDialog } from "@/components/formulas/ProdutoFormDialog";
-import { TabelaNutricionalDialog } from "@/components/formulas/TabelaNutricionalDialog";
+import { FichaTecnicaPDF } from "@/components/formulas/FichaTecnicaPDF";
+import { TabelaNutricionalIndustrial } from "@/components/formulas/TabelaNutricionalIndustrial";
 import { FormulaIndustrial, InsumoFormulacao, ProdutoFormulacao } from "@/types/formulas-industrial";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error" | "muted" | "default"> = {
@@ -79,6 +80,8 @@ export default function FormulasListPage() {
   const [deleteFormulaId, setDeleteFormulaId] = useState<string | null>(null);
   const [deleteInsumoId, setDeleteInsumoId] = useState<string | null>(null);
   const [deleteProdutoId, setDeleteProdutoId] = useState<string | null>(null);
+  const [formulaParaFicha, setFormulaParaFicha] = useState<FormulaIndustrial | null>(null);
+  const [formulaParaTabela, setFormulaParaTabela] = useState<FormulaIndustrial | null>(null);
 
   // Hooks
   const { data: formulas, isLoading: loadingFormulas, refresh: refreshFormulas } = useFormulasIndustrial(
@@ -268,6 +271,8 @@ export default function FormulasListPage() {
                   onDuplicate={() => { duplicate(formula.id, false); refreshFormulas(); }}
                   onNewVersion={() => { duplicate(formula.id, true); refreshFormulas(); }}
                   onDelete={() => setDeleteFormulaId(formula.id)}
+                  onViewFicha={() => setFormulaParaFicha(formula)}
+                  onViewTabela={() => setFormulaParaTabela(formula)}
                 />
               ))}
             </div>
@@ -539,6 +544,20 @@ export default function FormulasListPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Ficha Técnica PDF */}
+      <FichaTecnicaPDF
+        open={!!formulaParaFicha}
+        onOpenChange={() => setFormulaParaFicha(null)}
+        formula={formulaParaFicha}
+      />
+
+      {/* Tabela Nutricional Industrial */}
+      <TabelaNutricionalIndustrial
+        open={!!formulaParaTabela}
+        onOpenChange={() => setFormulaParaTabela(null)}
+        formula={formulaParaTabela}
+      />
     </div>
   );
 }
@@ -548,12 +567,16 @@ function FormulaCard({
   formula, 
   onDuplicate, 
   onNewVersion, 
-  onDelete 
+  onDelete,
+  onViewFicha,
+  onViewTabela,
 }: { 
   formula: FormulaIndustrial;
   onDuplicate: () => void;
   onNewVersion: () => void;
   onDelete: () => void;
+  onViewFicha: () => void;
+  onViewTabela: () => void;
 }) {
   return (
     <Card className="cursor-pointer hover:shadow-md transition-shadow group">
@@ -590,11 +613,11 @@ function FormulaCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); }}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewFicha(); }}>
                   <Eye className="h-4 w-4 mr-2" />
-                  Visualizar
+                  Ficha Técnica
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); }}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewTabela(); }}>
                   <FileText className="h-4 w-4 mr-2" />
                   Tabela Nutricional
                 </DropdownMenuItem>
@@ -636,11 +659,21 @@ function FormulaCard({
           </div>
         </div>
 
+        {/* Custo */}
+        {formula.custo_total_capsula && formula.custo_total_capsula > 0 && (
+          <div className="flex justify-between items-center text-sm mb-3 p-2 bg-muted/50 rounded">
+            <span className="text-muted-foreground">Custo/Cápsula:</span>
+            <span className="font-semibold text-primary">
+              R$ {formula.custo_total_capsula.toFixed(4)}
+            </span>
+          </div>
+        )}
+
         {/* Barra de ocupação */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              {formula.status_ocupacao === 'OK' && <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-500" />}
+              {formula.status_ocupacao === 'OK' && <CheckCircle2 className="h-3 w-3 text-secondary" />}
               {formula.status_ocupacao === 'ATENCAO' && <AlertTriangle className="h-3 w-3 text-warning" />}
               {formula.status_ocupacao === 'NAO_CABE' && <XCircle className="h-3 w-3 text-destructive" />}
               Ocupação
