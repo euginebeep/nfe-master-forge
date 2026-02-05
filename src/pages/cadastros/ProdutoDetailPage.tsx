@@ -540,54 +540,116 @@ export default function ProdutoDetailPage() {
                           </div>
                         )}
                         
+                        {/* Quantidades e Conversão */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Fornecedor</p>
                             <p>{l.fornecedor?.razao_social || "-"}</p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">Qtd Interna</p>
-                            <p>{l.quantidade_interna.toLocaleString()} {item.unidade_interna}</p>
+                            <p className="text-muted-foreground">Qtd Original (Nota)</p>
+                            <p className="font-medium">
+                              {l.quantidade_original?.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} {l.unidade_original}
+                            </p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">Fabricacao</p>
-                            <p>{l.data_fab || "-"}</p>
+                            <p className="text-muted-foreground">Qtd Interna (Convertido)</p>
+                            <p className="font-medium text-primary">
+                              {l.quantidade_interna?.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {l.unidade_interna || item.unidade_interna}
+                              {l.fator_conversao && l.fator_conversao !== 1 && (
+                                <span className="text-xs text-muted-foreground ml-1">(×{l.fator_conversao})</span>
+                              )}
+                            </p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Validade</p>
-                            <p>{l.data_val || "-"}</p>
+                            <p className={l.data_val && new Date(l.data_val) < new Date() ? "text-destructive font-medium" : ""}>
+                              {l.data_val ? new Date(l.data_val).toLocaleDateString('pt-BR') : "-"}
+                            </p>
                           </div>
                         </div>
                         
-                        {/* Preço e Impostos */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mt-3 pt-3 border-t">
+                        {/* Preços e Custos */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-3 pt-3 border-t">
                           <div>
-                            <p className="text-muted-foreground">Custo Unit. Original</p>
-                            <p className="font-medium">R$ {l.custo_unitario_original?.toFixed(4) || "-"}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">ICMS</p>
-                            <p>
-                              {l.icms_valor ? `R$ ${l.icms_valor.toFixed(2)}` : "-"}
-                              {l.icms_aliquota ? ` (${l.icms_aliquota}%)` : ""}
+                            <p className="text-muted-foreground">Preço Unit. Original</p>
+                            <p className="font-medium">
+                              R$ {l.custo_unitario_original?.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) || "-"}/{l.unidade_original}
                             </p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">IPI</p>
-                            <p>
-                              {l.ipi_valor ? `R$ ${l.ipi_valor.toFixed(2)}` : "-"}
-                              {l.ipi_aliquota ? ` (${l.ipi_aliquota}%)` : ""}
+                            <p className="text-muted-foreground">Custo Unit. Interno</p>
+                            <p className="font-medium text-primary">
+                              R$ {l.custo_unitario_interno?.toLocaleString('pt-BR', { minimumFractionDigits: 6, maximumFractionDigits: 6 }) || "-"}/{l.unidade_interna || item.unidade_interna}
                             </p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">PIS</p>
-                            <p>{l.pis_valor ? `R$ ${l.pis_valor.toFixed(2)}` : "-"}</p>
+                            <p className="text-muted-foreground">Valor Total (Nota)</p>
+                            <p className="font-medium">
+                              R$ {l.valor_total_item?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "-"}
+                            </p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">COFINS</p>
-                            <p>{l.cofins_valor ? `R$ ${l.cofins_valor.toFixed(2)}` : "-"}</p>
+                            <p className="text-muted-foreground">Fabricação</p>
+                            <p>{l.data_fab ? new Date(l.data_fab).toLocaleDateString('pt-BR') : "-"}</p>
                           </div>
                         </div>
+                        
+                        {/* Impostos Detalhados */}
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm mt-3 pt-3 border-t bg-muted/30 rounded p-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground">ICMS</p>
+                            <p className="font-mono text-xs">
+                              {l.icms_valor ? `R$ ${l.icms_valor.toFixed(2)}` : "-"}
+                              {l.icms_aliquota ? <span className="text-muted-foreground"> ({l.icms_aliquota}%)</span> : ""}
+                            </p>
+                            {l.icms_cst && <p className="text-xs text-muted-foreground">CST: {l.icms_cst}</p>}
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">ICMS-ST</p>
+                            <p className="font-mono text-xs">
+                              {l.icms_st_valor ? `R$ ${l.icms_st_valor.toFixed(2)}` : "-"}
+                              {l.icms_st_aliquota ? <span className="text-muted-foreground"> ({l.icms_st_aliquota}%)</span> : ""}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">IPI</p>
+                            <p className="font-mono text-xs">
+                              {l.ipi_valor ? `R$ ${l.ipi_valor.toFixed(2)}` : "-"}
+                              {l.ipi_aliquota ? <span className="text-muted-foreground"> ({l.ipi_aliquota}%)</span> : ""}
+                            </p>
+                            {l.ipi_cst && <p className="text-xs text-muted-foreground">CST: {l.ipi_cst}</p>}
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">PIS</p>
+                            <p className="font-mono text-xs">
+                              {l.pis_valor ? `R$ ${l.pis_valor.toFixed(2)}` : "-"}
+                              {l.pis_aliquota ? <span className="text-muted-foreground"> ({l.pis_aliquota}%)</span> : ""}
+                            </p>
+                            {l.pis_cst && <p className="text-xs text-muted-foreground">CST: {l.pis_cst}</p>}
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">COFINS</p>
+                            <p className="font-mono text-xs">
+                              {l.cofins_valor ? `R$ ${l.cofins_valor.toFixed(2)}` : "-"}
+                              {l.cofins_aliquota ? <span className="text-muted-foreground"> ({l.cofins_aliquota}%)</span> : ""}
+                            </p>
+                            {l.cofins_cst && <p className="text-xs text-muted-foreground">CST: {l.cofins_cst}</p>}
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">NCM/CFOP</p>
+                            <p className="font-mono text-xs">{l.ncm || "-"}</p>
+                            <p className="font-mono text-xs text-muted-foreground">{l.cfop || "-"}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Descrição do produto na nota (se diferente) */}
+                        {l.descricao_produto_nota && l.descricao_produto_nota !== item.descricao_interna && (
+                          <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                            <span className="font-medium">Descrição na Nota:</span> {l.descricao_produto_nota}
+                            {l.codigo_produto_fornecedor && <span className="ml-2">| Cód: {l.codigo_produto_fornecedor}</span>}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

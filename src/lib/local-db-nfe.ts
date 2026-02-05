@@ -351,6 +351,8 @@ export function criarLoteEstoque(
   const quantidadeInterna = quantidadeOriginal * fatorConversao;
   const custoUnitarioOriginal = item.valor_unitario_comercial;
   const custoUnitarioInterno = custoUnitarioOriginal / fatorConversao;
+  const unidadeOriginal = item.unidade_comercial.toUpperCase();
+  const unidadeInterna = produto?.unidade_interna || 'g';
   
   const lote = LocalDb.insert<LocalEstoqueLote>('estoque_lotes', {
     item_id: itemId,
@@ -359,24 +361,52 @@ export function criarLoteEstoque(
     numero_lote: rastro?.numero_lote || `LOTE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
     data_fab: rastro?.data_fabricacao,
     data_val: rastro?.data_validade,
+    // Quantidades originais
     quantidade_original: quantidadeOriginal,
-    unidade_original: item.unidade_comercial,
-    quantidade_interna: quantidadeInterna,
+    unidade_original: unidadeOriginal,
     custo_unitario_original: custoUnitarioOriginal,
+    valor_total_item: item.valor_total,
+    // Quantidades internas
+    quantidade_interna: quantidadeInterna,
+    unidade_interna: unidadeInterna,
     custo_unitario_interno: custoUnitarioInterno,
+    fator_conversao: fatorConversao,
     status: isCritico ? 'QUARENTENA' : 'DISPONIVEL',
     // Dados da Nota de Entrada
     nota_numero: notaInfo?.numero,
     nota_serie: notaInfo?.serie,
     nota_data: notaInfo?.data,
     nota_chave: notaInfo?.chave,
-    // Impostos do item
-    icms_valor: impostos?.icms_valor,
+    // Impostos completos
+    icms_base_calculo: impostos?.icms_base_calculo,
     icms_aliquota: impostos?.icms_aliquota,
-    ipi_valor: impostos?.ipi_valor,
+    icms_valor: impostos?.icms_valor,
+    icms_cst: impostos?.icms_cst,
+    icms_st_base_calculo: impostos?.icms_st_base_calculo,
+    icms_st_aliquota: impostos?.icms_st_aliquota,
+    icms_st_valor: impostos?.icms_st_valor,
+    ipi_base_calculo: impostos?.ipi_base_calculo,
     ipi_aliquota: impostos?.ipi_aliquota,
+    ipi_valor: impostos?.ipi_valor,
+    ipi_cst: impostos?.ipi_cst,
+    pis_base_calculo: impostos?.pis_base_calculo,
+    pis_aliquota: impostos?.pis_aliquota,
     pis_valor: impostos?.pis_valor,
+    pis_cst: impostos?.pis_cst,
+    cofins_base_calculo: impostos?.cofins_base_calculo,
+    cofins_aliquota: impostos?.cofins_aliquota,
     cofins_valor: impostos?.cofins_valor,
+    cofins_cst: impostos?.cofins_cst,
+    // Valores adicionais
+    valor_frete_item: item.valor_frete,
+    valor_seguro_item: item.valor_seguro,
+    valor_desconto_item: item.valor_desconto,
+    valor_outros_item: item.valor_outros,
+    // Dados da nota
+    ncm: item.ncm,
+    cfop: item.cfop,
+    codigo_produto_fornecedor: item.codigo_produto,
+    descricao_produto_nota: item.descricao,
   });
   
   return lote.id;

@@ -56,11 +56,16 @@ export interface LocalEstoqueLote {
   numero_lote: string;
   data_fab?: string;
   data_val?: string;
+  // Quantidades originais (da nota)
   quantidade_original: number;
-  unidade_original: 'kg' | 'g' | 'un';
-  quantidade_interna: number;
+  unidade_original: string; // kg, g, un, ml, etc - exatamente como veio na nota
   custo_unitario_original: number;
+  valor_total_item: number; // vProd do XML
+  // Quantidades internas (convertidas)
+  quantidade_interna: number;
+  unidade_interna: string; // g, mg, un, ml - unidade padrão interna
   custo_unitario_interno: number;
+  fator_conversao: number; // fator usado para converter original → interno
   status: 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO';
   observacoes_qc?: string;
   // Dados da Nota de Entrada
@@ -68,13 +73,36 @@ export interface LocalEstoqueLote {
   nota_serie?: string;
   nota_data?: string;
   nota_chave?: string;
-  // Impostos do item
-  icms_valor?: number;
+  // Impostos completos do item
+  icms_base_calculo?: number;
   icms_aliquota?: number;
-  ipi_valor?: number;
+  icms_valor?: number;
+  icms_cst?: string;
+  icms_st_base_calculo?: number;
+  icms_st_aliquota?: number;
+  icms_st_valor?: number;
+  ipi_base_calculo?: number;
   ipi_aliquota?: number;
+  ipi_valor?: number;
+  ipi_cst?: string;
+  pis_base_calculo?: number;
+  pis_aliquota?: number;
   pis_valor?: number;
+  pis_cst?: string;
+  cofins_base_calculo?: number;
+  cofins_aliquota?: number;
   cofins_valor?: number;
+  cofins_cst?: string;
+  // Valores adicionais do item
+  valor_frete_item?: number;
+  valor_seguro_item?: number;
+  valor_desconto_item?: number;
+  valor_outros_item?: number;
+  // Dados do produto na nota (para referência)
+  ncm?: string;
+  cfop?: string;
+  codigo_produto_fornecedor?: string;
+  descricao_produto_nota?: string;
   created_at?: string;
 }
 
