@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   FileText, Upload, Loader2, Check, AlertCircle, Building2, 
   Package, AlertTriangle, CheckCircle2, XCircle, Plus, Truck
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { parseNFeXML, formatCNPJ, formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { matchXmlItems, suggestTipoItem, type MatchedItem } from "@/lib/nfe-matcher";
 import { LocalDb } from "@/lib/local-db";
+import { checkNFeExistsByChave, saveNotaEntrada, saveNotaEntradaItem } from "@/hooks/use-notas-entrada";
 import type { NFeXMLParsed } from "@/types/erp";
 import type { LocalEntidade } from "@/hooks/use-local-entidades";
 import type { LocalItem, LocalEstoqueLote, LocalItemFornecedor } from "@/hooks/use-local-itens";
@@ -35,8 +37,10 @@ const TIPOS_ITEM = [
 type ImportStep = 'upload' | 'preview' | 'processing' | 'complete';
 
 export default function NFeImportPage() {
+  const navigate = useNavigate();
   const [step, setStep] = useState<ImportStep>('upload');
   const [file, setFile] = useState<File | null>(null);
+  const [xmlContent, setXmlContent] = useState<string>("");
   const [parsing, setParsing] = useState(false);
   const [parsedNFe, setParsedNFe] = useState<NFeXMLParsed | null>(null);
   const [matchedItems, setMatchedItems] = useState<MatchedItem[]>([]);
@@ -60,8 +64,8 @@ export default function NFeImportPage() {
     try {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const xmlContent = ev.target?.result as string;
-        const parsed = parseNFeXML(xmlContent);
+        const xml = ev.target?.result as string;
+        const parsed = parseNFeXML(xml);
         
         if (!parsed) {
           toast.error("Erro ao processar XML. Verifique se é um arquivo NF-e válido.");
@@ -69,6 +73,15 @@ export default function NFeImportPage() {
           return;
         }
 
+        // Check for duplicate by chave
+        const existingNota = checkNFeExistsByChave(parsed.chave);
+        if (existingNota) {
+          toast.error(`Esta NF-e já foi importada anteriormente (Nº ${existingNota.numero})`);
+          setParsing(false);
+          return;
+        }
+
+        setXmlContent(xml);
         setParsedNFe(parsed);
 
         // Check if fornecedor exists
@@ -261,7 +274,39 @@ export default function NFeImportPage() {
         }
       }
 
-      // 4. Log the import
+      // 4. Save nota entrada to history
+      const notaEntrada = saveNotaEntrada({
+        chave_nfe: parsedNFe.chave,
+        numero: parsedNFe.numero,
+        serie: parsedNFe.serie,
+        modelo: parsedNFe.modelo,
+        dh_emissao: parsedNFe.dhEmissao,
+        fornecedor_id: fornecedorId,
+        fornecedor_razao: parsedNFe.emitente.razaoSocial,
+        fornecedor_cnpj: parsedNFe.emitente.cnpj,
+        total_produtos: parsedNFe.total.totalProdutos,
+        total_nota: parsedNFe.total.totalNota,
+        status: 'IMPORTADA',
+        xml_raw: xmlContent,
+      });
+
+      // 5. Save nota entrada items
+      for (const matched of matchedItems) {
+        saveNotaEntradaItem({
+          nota_entrada_id: notaEntrada.id,
+          item_id: matched.matchedProduct?.id,
+          codigo_fornecedor: matched.xmlItem.cProd,
+          descricao: matched.xmlItem.xProd,
+          ncm: matched.xmlItem.NCM,
+          cfop: matched.xmlItem.CFOP,
+          ucom: matched.xmlItem.uCom,
+          qcom: matched.xmlItem.qCom,
+          vuncom: matched.xmlItem.vUnCom,
+          vprod: matched.xmlItem.vProd,
+        });
+      }
+
+      // 6. Log the file
       LocalDb.insert('arquivos', {
         nome_original: file?.name || 'nfe.xml',
         mime_type: 'application/xml',
@@ -283,10 +328,15 @@ export default function NFeImportPage() {
   const resetImport = () => {
     setStep('upload');
     setFile(null);
+    setXmlContent("");
     setParsedNFe(null);
     setMatchedItems([]);
     setFornecedor(null);
     setIsNewFornecedor(false);
+  };
+
+  const goToHistory = () => {
+    navigate("/compras/notas-entrada");
   };
 
   // Check if all items without match have classification
@@ -681,7 +731,10 @@ export default function NFeImportPage() {
                     <Button variant="outline" onClick={resetImport}>
                       Importar Outra NF-e
                     </Button>
-                    <Button onClick={() => window.location.href = '/cadastros/produtos'}>
+                    <Button variant="outline" onClick={goToHistory}>
+                      Ver Histórico
+                    </Button>
+                    <Button onClick={() => navigate('/cadastros/produtos')}>
                       Ver Produtos
                     </Button>
                   </div>
