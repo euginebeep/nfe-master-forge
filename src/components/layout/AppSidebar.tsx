@@ -84,8 +84,8 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Compras",
     items: [
-      { title: "Importar NF-e", url: "/compras/nfe-import", icon: FileText },
-      { title: "Notas de Entrada", url: "/compras/notas", icon: FileText },
+      { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText },
+      { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText },
     ],
   },
   {

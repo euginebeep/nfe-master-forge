@@ -10,7 +10,9 @@ type CollectionName =
   | 'estoque_lotes'
   | 'lote_documentos'
   | 'company'
-  | 'arquivos';
+  | 'arquivos'
+  | 'notas_entrada'
+  | 'notas_entrada_itens';
 
 const STORAGE_PREFIX = 'legacy_erp_';
 
