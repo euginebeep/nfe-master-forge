@@ -7,15 +7,27 @@ import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEntidadesCompletas } from "@/hooks/use-entidades-extended";
+import { useLocalEntidades, useLocalEntidade, LocalEntidade, LocalEntidadeEndereco } from "@/hooks/use-local-entidades";
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { formatDocument } from "@/lib/formatters";
-import { PAPEL_LABELS, type PapelEntidadeExtended, type EntidadeCompleta } from "@/types/entidades";
+import { LocalDb } from "@/lib/local-db";
+
+const PAPEL_LABELS: Record<string, string> = {
+  CLIENTE: "Cliente",
+  FORNECEDOR: "Fornecedor",
+  TRANSPORTADORA: "Transportadora",
+  TERCEIRIZADO: "Terceirizado",
+  VENDEDOR: "Vendedor",
+  AFILIADO: "Afiliado",
+  REPRESENTANTE: "Representante",
+  OUTRO: "Outro",
+};
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
   BLOQUEADO: "error",
   INATIVO: "warning",
+  HOMOLOGACAO: "warning",
 };
 
 const CLASSIFICACAO_VARIANTS: Record<string, "success" | "info" | "error" | "warning" | "muted"> = {
@@ -23,6 +35,7 @@ const CLASSIFICACAO_VARIANTS: Record<string, "success" | "info" | "error" | "war
   REGULAR: "muted",
   RISCO: "warning",
   RESTRITO: "error",
+  PROBLEMA: "error",
 };
 
 const UF_OPTIONS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
@@ -35,26 +48,35 @@ export default function EntidadesListPageComplete() {
   const [ufFilter, setUfFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data: entidades = [], isLoading, refetch } = useEntidadesCompletas({
-    status: statusFilter !== "all" ? statusFilter : undefined,
+  const { data: entidadesBase, isLoading, refresh } = useLocalEntidades({
     papel: papelFilter !== "all" ? papelFilter : undefined,
-    classificacao: classificacaoFilter !== "all" ? classificacaoFilter : undefined,
-    uf: ufFilter !== "all" ? ufFilter : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
   });
 
-  const getEnderecoFiscal = (entidade: EntidadeCompleta) => {
-    const fiscal = entidade.entidade_enderecos?.find(e => e.tipo === 'FISCAL' || e.principal);
+  // Get all enderecos for enrichment
+  const allEnderecos = LocalDb.getCollection<LocalEntidadeEndereco>('entidade_enderecos');
+
+  // Apply additional filters and enrich with enderecos
+  const entidades = entidadesBase.map(e => ({
+    ...e,
+    enderecos: allEnderecos.filter(end => end.entidade_id === e.id),
+  })).filter(e => {
+    if (classificacaoFilter !== "all" && e.classificacao !== classificacaoFilter) return false;
+    if (ufFilter !== "all" && !e.enderecos?.some(end => end.uf === ufFilter)) return false;
+    return true;
+  });
+
+  const getEnderecoFiscal = (entidade: typeof entidades[0]) => {
+    const fiscal = entidade.enderecos?.find(e => e.tipo === 'FISCAL');
     if (fiscal) return `${fiscal.cidade}/${fiscal.uf}`;
-    const any = entidade.entidade_enderecos?.[0];
+    const any = entidade.enderecos?.[0];
     if (any) return `${any.cidade}/${any.uf}`;
     return '-';
   };
 
-  const getContatoPrincipal = (entidade: EntidadeCompleta) => {
-    const principal = entidade.entidade_contatos?.find(c => c.preferencial);
-    if (principal) return principal.whatsapp || principal.telefone || principal.email || '-';
-    const any = entidade.entidade_contatos?.[0];
-    if (any) return any.whatsapp || any.telefone || any.email || '-';
+  const getContatoPrincipal = (entidade: LocalEntidade) => {
+    const contact = (entidade as any)._primaryContact;
+    if (contact) return contact.whatsapp || contact.telefone || contact.email || '-';
     return '-';
   };
 
@@ -63,15 +85,15 @@ export default function EntidadesListPageComplete() {
       key: "codigo_interno",
       header: "Código",
       sortable: true,
-      render: (item: EntidadeCompleta) => (
-        <span className="font-mono text-sm">{item.codigo_interno || '-'}</span>
+      render: (item: typeof entidades[0]) => (
+        <span className="font-mono text-sm">{(item as any).codigo_interno || '-'}</span>
       ),
     },
     {
       key: "razao_social",
       header: "Nome/Razão Social",
       sortable: true,
-      render: (item: EntidadeCompleta) => (
+      render: (item: typeof entidades[0]) => (
         <div>
           <p className="font-medium">{item.razao_social}</p>
           {item.nome_fantasia && (
@@ -84,18 +106,18 @@ export default function EntidadesListPageComplete() {
       key: "documento",
       header: "CPF/CNPJ",
       sortable: true,
-      render: (item: EntidadeCompleta) => (
+      render: (item: typeof entidades[0]) => (
         <span className="font-mono text-sm">{formatDocument(item.documento)}</span>
       ),
     },
     {
       key: "papeis",
       header: "Papéis",
-      render: (item: EntidadeCompleta) => (
+      render: (item: typeof entidades[0]) => (
         <div className="flex flex-wrap gap-1">
-          {item.entidade_papeis?.map((p) => (
-            <StatusBadge key={p.id} variant="muted" className="text-xs">
-              {PAPEL_LABELS[p.papel as PapelEntidadeExtended] || p.papel}
+          {item.papeis?.map((papel, idx) => (
+            <StatusBadge key={idx} variant="muted" className="text-xs">
+              {PAPEL_LABELS[papel] || papel}
             </StatusBadge>
           ))}
         </div>
@@ -104,19 +126,19 @@ export default function EntidadesListPageComplete() {
     {
       key: "cidade_uf",
       header: "Cidade/UF",
-      render: (item: EntidadeCompleta) => getEnderecoFiscal(item),
+      render: (item: typeof entidades[0]) => getEnderecoFiscal(item),
     },
     {
       key: "contato",
       header: "Contato",
-      render: (item: EntidadeCompleta) => (
+      render: (item: typeof entidades[0]) => (
         <span className="text-sm">{getContatoPrincipal(item)}</span>
       ),
     },
     {
       key: "status",
       header: "Status",
-      render: (item: EntidadeCompleta) => (
+      render: (item: typeof entidades[0]) => (
         <StatusBadge variant={STATUS_VARIANTS[item.status] || "muted"}>
           {item.status}
         </StatusBadge>
@@ -125,7 +147,7 @@ export default function EntidadesListPageComplete() {
     {
       key: "classificacao",
       header: "Classificação",
-      render: (item: EntidadeCompleta) => (
+      render: (item: typeof entidades[0]) => (
         <StatusBadge variant={CLASSIFICACAO_VARIANTS[item.classificacao || 'REGULAR'] || "muted"}>
           {item.classificacao || "REGULAR"}
         </StatusBadge>
@@ -135,7 +157,7 @@ export default function EntidadesListPageComplete() {
       key: "actions",
       header: "",
       className: "w-16",
-      render: (item: EntidadeCompleta) => (
+      render: (item: typeof entidades[0]) => (
         <Button
           variant="ghost"
           size="icon"
@@ -232,7 +254,7 @@ export default function EntidadesListPageComplete() {
       <EntidadeFormDialogComplete
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSuccess={() => refetch()}
+        onSuccess={() => refresh()}
       />
     </div>
   );
