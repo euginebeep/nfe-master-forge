@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CalendarIcon, Package, FlaskConical, User, Hash, Calculator, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Package, FlaskConical, User, Hash, Calculator, AlertTriangle, UserCheck } from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -43,9 +43,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarLoteProdutoAcabado } from "@/types/op-industrial";
+import { RTSelectorOP } from "@/components/responsavel-tecnico/RTSelectorOP";
 
 const formSchema = z.object({
   produto_nome: z.string().min(1, "Nome do produto é obrigatório"),
@@ -58,6 +60,7 @@ const formSchema = z.object({
   tipo_capsula: z.string().min(1, "Tipo de cápsula é obrigatório"),
   excipiente_base: z.enum(["AMIDO", "CELULOSE", "PRE_BLEND"]),
   responsavel_producao_nome: z.string().min(1, "Responsável é obrigatório"),
+  responsavel_tecnico_id: z.string().min(1, "Responsável Técnico é obrigatório"),
   observacoes: z.string().optional(),
 });
 
@@ -100,6 +103,7 @@ export function CriarOPDialog({
       tipo_capsula: "00",
       excipiente_base: "AMIDO",
       responsavel_producao_nome: "",
+      responsavel_tecnico_id: "",
       observacoes: "",
     },
   });
@@ -204,6 +208,7 @@ export function CriarOPDialog({
         excipiente_base: values.excipiente_base,
         status: "PLANEJADA",
         responsavel_producao_nome: values.responsavel_producao_nome,
+        responsavel_tecnico_id: values.responsavel_tecnico_id,
         observacoes: values.observacoes || null,
       };
 

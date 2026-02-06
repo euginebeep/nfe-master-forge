@@ -235,6 +235,66 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_trail_imutavel: {
+        Row: {
+          created_at: string
+          dados_anteriores: Json | null
+          dados_evento: Json
+          dados_novos: Json | null
+          descricao: string
+          entidade_codigo: string | null
+          entidade_id: string
+          entidade_tipo: string
+          hash_anterior: string | null
+          hash_atual: string
+          id: string
+          ip_address: string | null
+          sequencia: number
+          tipo_evento: Database["public"]["Enums"]["tipo_evento_auditoria"]
+          user_agent: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_evento?: Json
+          dados_novos?: Json | null
+          descricao: string
+          entidade_codigo?: string | null
+          entidade_id: string
+          entidade_tipo: string
+          hash_anterior?: string | null
+          hash_atual: string
+          id?: string
+          ip_address?: string | null
+          sequencia: number
+          tipo_evento: Database["public"]["Enums"]["tipo_evento_auditoria"]
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_evento?: Json
+          dados_novos?: Json | null
+          descricao?: string
+          entidade_codigo?: string | null
+          entidade_id?: string
+          entidade_tipo?: string
+          hash_anterior?: string | null
+          hash_atual?: string
+          id?: string
+          ip_address?: string | null
+          sequencia?: number
+          tipo_evento?: Database["public"]["Enums"]["tipo_evento_auditoria"]
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
+      }
       avaliacoes_fornecedor: {
         Row: {
           avaliado_por: string | null
@@ -1776,6 +1836,170 @@ export type Database = {
           },
         ]
       }
+      lote_materias_primas: {
+        Row: {
+          created_at: string
+          fornecedor_id: string | null
+          fornecedor_nome: string
+          id: string
+          insumo_id: string | null
+          insumo_lote: string
+          insumo_nome: string
+          lote_produto_acabado_id: string
+          quantidade_utilizada_g: number
+        }
+        Insert: {
+          created_at?: string
+          fornecedor_id?: string | null
+          fornecedor_nome: string
+          id?: string
+          insumo_id?: string | null
+          insumo_lote: string
+          insumo_nome: string
+          lote_produto_acabado_id: string
+          quantidade_utilizada_g: number
+        }
+        Update: {
+          created_at?: string
+          fornecedor_id?: string | null
+          fornecedor_nome?: string
+          id?: string
+          insumo_id?: string | null
+          insumo_lote?: string
+          insumo_nome?: string
+          lote_produto_acabado_id?: string
+          quantidade_utilizada_g?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lote_materias_primas_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lote_materias_primas_insumo_id_fkey"
+            columns: ["insumo_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lote_materias_primas_lote_produto_acabado_id_fkey"
+            columns: ["lote_produto_acabado_id"]
+            isOneToOne: false
+            referencedRelation: "lotes_produto_acabado"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lotes_produto_acabado: {
+        Row: {
+          assinatura_liberacao_id: string | null
+          codigo_auditoria: string
+          created_at: string
+          data_fabricacao: string
+          data_validade: string
+          id: string
+          liberado_em: string | null
+          liberado_por: string | null
+          motivo_bloqueio: string | null
+          numero_lote: string
+          op_id: string
+          produto_codigo: string | null
+          produto_id: string | null
+          produto_nome: string
+          qr_code_hash: string
+          quantidade_aprovada: number | null
+          quantidade_produzida: number
+          quantidade_rejeitada: number | null
+          responsavel_tecnico_id: string | null
+          rt_nome: string
+          rt_numero_registro: string
+          rt_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          rt_uf_conselho: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assinatura_liberacao_id?: string | null
+          codigo_auditoria: string
+          created_at?: string
+          data_fabricacao: string
+          data_validade: string
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_bloqueio?: string | null
+          numero_lote: string
+          op_id: string
+          produto_codigo?: string | null
+          produto_id?: string | null
+          produto_nome: string
+          qr_code_hash: string
+          quantidade_aprovada?: number | null
+          quantidade_produzida: number
+          quantidade_rejeitada?: number | null
+          responsavel_tecnico_id?: string | null
+          rt_nome: string
+          rt_numero_registro: string
+          rt_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          rt_uf_conselho: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assinatura_liberacao_id?: string | null
+          codigo_auditoria?: string
+          created_at?: string
+          data_fabricacao?: string
+          data_validade?: string
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_bloqueio?: string | null
+          numero_lote?: string
+          op_id?: string
+          produto_codigo?: string | null
+          produto_id?: string | null
+          produto_nome?: string
+          qr_code_hash?: string
+          quantidade_aprovada?: number | null
+          quantidade_produzida?: number
+          quantidade_rejeitada?: number | null
+          responsavel_tecnico_id?: string | null
+          rt_nome?: string
+          rt_numero_registro?: string
+          rt_tipo_conselho?: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          rt_uf_conselho?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lotes_produto_acabado_assinatura_liberacao_id_fkey"
+            columns: ["assinatura_liberacao_id"]
+            isOneToOne: false
+            referencedRelation: "op_assinaturas_rt"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_produto_acabado_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_produto_acabado_responsavel_tecnico_id_fkey"
+            columns: ["responsavel_tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "responsaveis_tecnicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notas_entrada: {
         Row: {
           chave_nfe: string
@@ -1898,6 +2122,65 @@ export type Database = {
             columns: ["nota_entrada_id"]
             isOneToOne: false
             referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      op_assinaturas_rt: {
+        Row: {
+          assinatura_timestamp: string
+          created_at: string
+          declaracao_aceita: boolean
+          hash_op: string
+          id: string
+          ip_address: string | null
+          op_id: string
+          responsavel_tecnico_id: string
+          rt_cpf: string
+          rt_nome: string
+          rt_numero_registro: string
+          rt_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          rt_uf_conselho: string
+          user_agent: string | null
+        }
+        Insert: {
+          assinatura_timestamp?: string
+          created_at?: string
+          declaracao_aceita?: boolean
+          hash_op: string
+          id?: string
+          ip_address?: string | null
+          op_id: string
+          responsavel_tecnico_id: string
+          rt_cpf: string
+          rt_nome: string
+          rt_numero_registro: string
+          rt_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          rt_uf_conselho: string
+          user_agent?: string | null
+        }
+        Update: {
+          assinatura_timestamp?: string
+          created_at?: string
+          declaracao_aceita?: boolean
+          hash_op?: string
+          id?: string
+          ip_address?: string | null
+          op_id?: string
+          responsavel_tecnico_id?: string
+          rt_cpf?: string
+          rt_nome?: string
+          rt_numero_registro?: string
+          rt_tipo_conselho?: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          rt_uf_conselho?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "op_assinaturas_rt_responsavel_tecnico_id_fkey"
+            columns: ["responsavel_tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "responsaveis_tecnicos"
             referencedColumns: ["id"]
           },
         ]
@@ -2356,6 +2639,7 @@ export type Database = {
       ordens_producao_industrial: {
         Row: {
           acrescimo_percentual: number | null
+          assinatura_rt_id: string | null
           capsulas_por_frasco: number
           codigo: string
           created_at: string | null
@@ -2377,9 +2661,18 @@ export type Database = {
           peso_capsula_mg: number | null
           produto_id: string | null
           produto_nome: string
+          qr_code_lote: string | null
           quantidade_frascos: number
           responsavel_producao_id: string | null
           responsavel_producao_nome: string | null
+          responsavel_tecnico_id: string | null
+          rt_nome: string | null
+          rt_numero_registro: string | null
+          rt_tipo_conselho:
+            | Database["public"]["Enums"]["tipo_conselho_profissional"]
+            | null
+          rt_uf_conselho: string | null
+          rt_vinculado_em: string | null
           status: string
           tipo_apresentacao: string
           tipo_capsula: string | null
@@ -2389,6 +2682,7 @@ export type Database = {
         }
         Insert: {
           acrescimo_percentual?: number | null
+          assinatura_rt_id?: string | null
           capsulas_por_frasco: number
           codigo: string
           created_at?: string | null
@@ -2410,9 +2704,18 @@ export type Database = {
           peso_capsula_mg?: number | null
           produto_id?: string | null
           produto_nome: string
+          qr_code_lote?: string | null
           quantidade_frascos: number
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
+          responsavel_tecnico_id?: string | null
+          rt_nome?: string | null
+          rt_numero_registro?: string | null
+          rt_tipo_conselho?:
+            | Database["public"]["Enums"]["tipo_conselho_profissional"]
+            | null
+          rt_uf_conselho?: string | null
+          rt_vinculado_em?: string | null
           status?: string
           tipo_apresentacao?: string
           tipo_capsula?: string | null
@@ -2422,6 +2725,7 @@ export type Database = {
         }
         Update: {
           acrescimo_percentual?: number | null
+          assinatura_rt_id?: string | null
           capsulas_por_frasco?: number
           codigo?: string
           created_at?: string | null
@@ -2443,9 +2747,18 @@ export type Database = {
           peso_capsula_mg?: number | null
           produto_id?: string | null
           produto_nome?: string
+          qr_code_lote?: string | null
           quantidade_frascos?: number
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
+          responsavel_tecnico_id?: string | null
+          rt_nome?: string | null
+          rt_numero_registro?: string | null
+          rt_tipo_conselho?:
+            | Database["public"]["Enums"]["tipo_conselho_profissional"]
+            | null
+          rt_uf_conselho?: string | null
+          rt_vinculado_em?: string | null
           status?: string
           tipo_apresentacao?: string
           tipo_capsula?: string | null
@@ -2454,6 +2767,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ordens_producao_industrial_assinatura_rt_id_fkey"
+            columns: ["assinatura_rt_id"]
+            isOneToOne: false
+            referencedRelation: "op_assinaturas_rt"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ordens_producao_industrial_created_by_fkey"
             columns: ["created_by"]
@@ -2487,6 +2807,13 @@ export type Database = {
             columns: ["responsavel_producao_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_responsavel_tecnico_id_fkey"
+            columns: ["responsavel_tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "responsaveis_tecnicos"
             referencedColumns: ["id"]
           },
         ]
@@ -2704,6 +3031,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      responsaveis_tecnicos: {
+        Row: {
+          cpf: string
+          created_at: string
+          created_by: string | null
+          documento_comprobatorio_id: string | null
+          email: string
+          id: string
+          nome_completo: string
+          numero_registro: string
+          status: string
+          telefone: string | null
+          tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          uf_conselho: string
+          updated_at: string
+          validade_registro: string
+        }
+        Insert: {
+          cpf: string
+          created_at?: string
+          created_by?: string | null
+          documento_comprobatorio_id?: string | null
+          email: string
+          id?: string
+          nome_completo: string
+          numero_registro: string
+          status?: string
+          telefone?: string | null
+          tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          uf_conselho: string
+          updated_at?: string
+          validade_registro: string
+        }
+        Update: {
+          cpf?: string
+          created_at?: string
+          created_by?: string | null
+          documento_comprobatorio_id?: string | null
+          email?: string
+          id?: string
+          nome_completo?: string
+          numero_registro?: string
+          status?: string
+          telefone?: string | null
+          tipo_conselho?: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          uf_conselho?: string
+          updated_at?: string
+          validade_registro?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responsaveis_tecnicos_documento_comprobatorio_id_fkey"
+            columns: ["documento_comprobatorio_id"]
+            isOneToOne: false
+            referencedRelation: "arquivos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       simulacoes_producao: {
         Row: {
@@ -3024,6 +3410,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -3036,6 +3423,31 @@ export type Database = {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      registrar_evento_auditoria: {
+        Args: {
+          p_dados_anteriores?: Json
+          p_dados_evento?: Json
+          p_dados_novos?: Json
+          p_descricao: string
+          p_entidade_codigo?: string
+          p_entidade_id: string
+          p_entidade_tipo: string
+          p_ip_address?: string
+          p_tipo_evento: Database["public"]["Enums"]["tipo_evento_auditoria"]
+          p_user_agent?: string
+          p_usuario_id?: string
+          p_usuario_nome?: string
+        }
+        Returns: string
+      }
+      rt_valido_para_producao: { Args: { p_rt_id: string }; Returns: boolean }
+      validar_compatibilidade_rt: {
+        Args: {
+          p_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
+          p_tipo_produto: string
         }
         Returns: boolean
       }
@@ -3075,6 +3487,23 @@ export type Database = {
         | "DESVIO_CUSTO"
         | "DESVIO_QUALIDADE"
       tipo_apresentacao_formula: "CAPSULA" | "LIQUIDO" | "PO"
+      tipo_conselho_profissional: "CRN" | "CRQ" | "CRF"
+      tipo_evento_auditoria:
+        | "FORMULA_CRIADA"
+        | "FORMULA_APROVADA"
+        | "FORMULA_ALTERADA"
+        | "OP_CRIADA"
+        | "OP_INICIADA"
+        | "OP_ALTERADA"
+        | "OP_FINALIZADA"
+        | "OP_BLOQUEADA"
+        | "RT_ASSINATURA"
+        | "LOTE_LIBERADO"
+        | "LOTE_BLOQUEADO"
+        | "QC_APROVADO"
+        | "QC_REPROVADO"
+        | "PESAGEM_REGISTRADA"
+        | "CHECKLIST_VERIFICADO"
       tipo_excipiente_formula: "AMIDO" | "CELULOSE" | "PRE_BLEND"
       tipo_sugestao_otimizacao:
         | "AJUSTE_EXCIPIENTE"
@@ -3249,6 +3678,24 @@ export const Constants = {
         "DESVIO_QUALIDADE",
       ],
       tipo_apresentacao_formula: ["CAPSULA", "LIQUIDO", "PO"],
+      tipo_conselho_profissional: ["CRN", "CRQ", "CRF"],
+      tipo_evento_auditoria: [
+        "FORMULA_CRIADA",
+        "FORMULA_APROVADA",
+        "FORMULA_ALTERADA",
+        "OP_CRIADA",
+        "OP_INICIADA",
+        "OP_ALTERADA",
+        "OP_FINALIZADA",
+        "OP_BLOQUEADA",
+        "RT_ASSINATURA",
+        "LOTE_LIBERADO",
+        "LOTE_BLOQUEADO",
+        "QC_APROVADO",
+        "QC_REPROVADO",
+        "PESAGEM_REGISTRADA",
+        "CHECKLIST_VERIFICADO",
+      ],
       tipo_excipiente_formula: ["AMIDO", "CELULOSE", "PRE_BLEND"],
       tipo_sugestao_otimizacao: [
         "AJUSTE_EXCIPIENTE",

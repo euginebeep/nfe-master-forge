@@ -21,6 +21,7 @@ import EntidadeDetailPageComplete from "./pages/cadastros/EntidadeDetailPageComp
 import EntidadesListPageComplete from "./pages/cadastros/EntidadesListPageComplete";
 import ItensListPageComplete from "./pages/cadastros/ItensListPageComplete";
 import ProdutoDetailPage from "./pages/cadastros/ProdutoDetailPage";
+import ResponsaveisTecnicosPage from "./pages/cadastros/ResponsaveisTecnicosPage";
 import FormuladorIndustrialPage from "./pages/producao/FormuladorIndustrialPage";
 import NovaFormulaPage from "./pages/producao/NovaFormulaPage";
 import EditarFormulaPage from "./pages/producao/EditarFormulaPage";
@@ -46,6 +47,7 @@ import RelatoriosPage from "./pages/relatorios/RelatoriosPage";
 import RelatorioCapsulasPage from "./pages/relatorios/RelatorioCapsulasPage";
 import AuditoriaPage from "./pages/auditoria/AuditoriaPage";
 import UsuariosPage from "./pages/usuarios/UsuariosPage";
+import LoteAuditoriaPublicaPage from "./pages/audit/LoteAuditoriaPublicaPage";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +81,7 @@ const App = () => (
             <Route path="/cadastros/itens" element={<ItensListPageComplete />} />
             <Route path="/cadastros/itens/:id" element={<ProdutoDetailPage />} />
             <Route path="/cadastros/produtos/:id" element={<ProdutoDetailPage />} />
+            <Route path="/cadastros/responsaveis-tecnicos" element={<ResponsaveisTecnicosPage />} />
             {/* Producao - Formulador Industrial */}
             <Route path="/producao/formulas" element={<FormuladorIndustrialPage />} />
             <Route path="/producao/formulas/nova" element={<NovaFormulaPage />} />
@@ -115,6 +118,8 @@ const App = () => (
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/settings/usuarios" element={<UsuariosPage />} />
           </Route>
+          {/* Página Pública de Auditoria de Lote (sem layout) */}
+          <Route path="/audit/lote/:hash" element={<LoteAuditoriaPublicaPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

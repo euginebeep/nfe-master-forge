@@ -22,6 +22,7 @@ import {
   ShieldAlert,
   FileArchive,
   Database,
+  UserCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -70,6 +71,7 @@ const menuGroups: MenuGroup[] = [
       { title: "Clientes", url: "/cadastros/clientes", icon: Users },
       { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart },
       { title: "Produtos/Insumos", url: "/cadastros/produtos", icon: Package },
+      { title: "Responsáveis Técnicos", url: "/cadastros/responsaveis-tecnicos", icon: UserCheck, badge: "RT" },
     ],
   },
   {
