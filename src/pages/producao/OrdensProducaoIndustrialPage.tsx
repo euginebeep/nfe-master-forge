@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Factory, Search, Plus, Play, Check, Eye, 
   RefreshCw, Package, Calendar, AlertTriangle, 
-  Lock, XCircle, Clock, Scale, Beaker
+  Lock, XCircle, Clock, Scale, Beaker, UserCheck,
+  ClipboardCheck, QrCode
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/page-header';
@@ -25,9 +26,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CriarOPDialog } from '@/components/producao/CriarOPDialog';
+import { CriarOPDialogMaster } from '@/components/producao/CriarOPDialogMaster';
 import type { StatusOP } from '@/types/op-industrial';
 
 interface OrdemProducaoDisplay {
@@ -49,6 +56,12 @@ interface OrdemProducaoDisplay {
   excipiente_base: string;
   status: StatusOP;
   responsavel_producao_nome?: string;
+  responsavel_tecnico_id?: string;
+  rt_nome?: string;
+  rt_tipo_conselho?: string;
+  rt_numero_registro?: string;
+  assinatura_rt_id?: string;
+  qr_code_lote?: string;
   observacoes?: string;
   created_at: string;
   updated_at: string;
@@ -150,12 +163,22 @@ export default function OrdensProducaoIndustrialPage() {
 
       {/* Info Industrial */}
       <Card className="mb-6 bg-muted/30 border-muted">
-        <CardContent className="p-4 text-sm text-muted-foreground flex items-center gap-3">
-          <Beaker className="h-5 w-5 text-primary" />
-          <div>
-            <strong className="text-foreground">Sistema Industrial ANVISA:</strong> OP é um módulo independente. 
-            Pode ser criada manualmente ou vinculada a uma fórmula aprovada. Inclui pick list, 
-            pesagem crítica (dupla conferência), ordem de mistura fixa e controle de qualidade.
+        <CardContent className="p-4 text-sm text-muted-foreground flex items-start gap-3">
+          <Beaker className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="space-y-2">
+            <p>
+              <strong className="text-foreground">Motor OP MASTER - Sistema Industrial ANVISA:</strong>
+            </p>
+            <ul className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+              <li>✓ OP Manual ou baseada em Fórmula</li>
+              <li>✓ Acréscimo industrial automático (+5%)</li>
+              <li>✓ Lista de pesagem em ordem fixa</li>
+              <li>✓ Pesagem crítica com dupla conferência</li>
+              <li>✓ Checklist industrial obrigatório</li>
+              <li>✓ Excipientes tecnológicos automáticos</li>
+              <li>✓ Responsável Técnico vinculado</li>
+              <li>✓ QR Code de rastreabilidade</li>
+            </ul>
           </div>
         </CardContent>
       </Card>
@@ -336,7 +359,7 @@ export default function OrdensProducaoIndustrialPage() {
       )}
 
       {/* Dialog Criar OP */}
-      <CriarOPDialog
+      <CriarOPDialogMaster
         open={dialogCriarOpen}
         onOpenChange={setDialogCriarOpen}
         onSuccess={handleOPCreated}
