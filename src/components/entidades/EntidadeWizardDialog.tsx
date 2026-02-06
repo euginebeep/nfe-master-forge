@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,12 +17,14 @@ import {
 } from "lucide-react";
 import { useCreateEntidade, LocalEntidade } from "@/hooks/use-local-entidades";
 import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
+import { CepLookupInput } from "@/components/company/CepLookupInput";
 import { MaskedInput } from "@/components/ui/masked-input";
 import { 
   TipoPessoa, ContribuinteICMS, Departamento, TipoEnderecoExtended, FormaPagamento,
   TIPO_PESSOA_LABELS, DEPARTAMENTO_LABELS, TIPO_ENDERECO_LABELS, FORMA_PAGAMENTO_LABELS,
   isEstrangeiro
 } from "@/types/entidades";
+import { type EnderecoViaCep } from "@/lib/viacep";
 
 interface EntidadeWizardDialogProps {
   open: boolean;
@@ -259,6 +261,21 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
     updated[index] = { ...updated[index], [field]: value };
     setEnderecos(updated);
   };
+
+  // Handler para quando o CEP é encontrado via ViaCEP
+  const handleCepFound = useCallback((index: number, address: EnderecoViaCep) => {
+    const updated = [...enderecos];
+    updated[index] = {
+      ...updated[index],
+      cep: address.cep,
+      logradouro: address.logradouro,
+      bairro: address.bairro,
+      cidade: address.cidade,
+      uf: address.uf,
+      pais: address.pais,
+    };
+    setEnderecos(updated);
+  }, [enderecos]);
 
   const addContato = () => {
     setContatos([...contatos, {
@@ -732,11 +749,11 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                       </div>
                       {!isForeign && (
                         <div className="space-y-2">
-                          <Label>CEP</Label>
-                          <MaskedInput
-                            mask="cep"
+                          <Label>CEP (busca automática)</Label>
+                          <CepLookupInput
                             value={endereco.cep}
                             onChange={(v) => updateEndereco(index, 'cep', v)}
+                            onAddressFound={(addr) => handleCepFound(index, addr)}
                           />
                         </div>
                       )}
