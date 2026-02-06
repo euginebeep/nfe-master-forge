@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      alegacoes_anvisa: {
+        Row: {
+          created_at: string | null
+          fonte_anvisa: string | null
+          formula_id: string
+          id: string
+          permitido: boolean | null
+          texto_alegacao: string
+        }
+        Insert: {
+          created_at?: string | null
+          fonte_anvisa?: string | null
+          formula_id: string
+          id?: string
+          permitido?: boolean | null
+          texto_alegacao: string
+        }
+        Update: {
+          created_at?: string | null
+          fonte_anvisa?: string | null
+          formula_id?: string
+          id?: string
+          permitido?: boolean | null
+          texto_alegacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alegacoes_anvisa_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       arquivos: {
         Row: {
           checksum_sha256: string | null
@@ -199,6 +234,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      conversoes_unidades: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          fator_ui_para_mg: number
+          fonte_tecnica: string | null
+          id: string
+          substancia: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          fator_ui_para_mg: number
+          fonte_tecnica?: string | null
+          id?: string
+          substancia: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          fator_ui_para_mg?: number
+          fonte_tecnica?: string | null
+          id?: string
+          substancia?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       entidade_comercial_crm: {
         Row: {
@@ -764,6 +829,211 @@ export type Database = {
           },
         ]
       }
+      formula_itens: {
+        Row: {
+          ativo_critico: boolean | null
+          created_at: string | null
+          exige_premix: boolean | null
+          formula_id: string
+          id: string
+          nome_insumo: string
+          ordem_mistura: number | null
+          percentual_na_capsula: number | null
+          produto_materia_prima_id: string | null
+          quantidade_convertida_mg: number
+          quantidade_informada: number
+          unidade_informada: Database["public"]["Enums"]["unidade_informada_formula"]
+        }
+        Insert: {
+          ativo_critico?: boolean | null
+          created_at?: string | null
+          exige_premix?: boolean | null
+          formula_id: string
+          id?: string
+          nome_insumo: string
+          ordem_mistura?: number | null
+          percentual_na_capsula?: number | null
+          produto_materia_prima_id?: string | null
+          quantidade_convertida_mg: number
+          quantidade_informada: number
+          unidade_informada?: Database["public"]["Enums"]["unidade_informada_formula"]
+        }
+        Update: {
+          ativo_critico?: boolean | null
+          created_at?: string | null
+          exige_premix?: boolean | null
+          formula_id?: string
+          id?: string
+          nome_insumo?: string
+          ordem_mistura?: number | null
+          percentual_na_capsula?: number | null
+          produto_materia_prima_id?: string | null
+          quantidade_convertida_mg?: number
+          quantidade_informada?: number
+          unidade_informada?: Database["public"]["Enums"]["unidade_informada_formula"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formula_itens_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formula_itens_produto_materia_prima_id_fkey"
+            columns: ["produto_materia_prima_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formula_versoes: {
+        Row: {
+          alterado_em: string | null
+          alterado_por: string | null
+          formula_id: string
+          id: string
+          motivo_alteracao: string | null
+          snapshot_json: Json
+          versao: number
+        }
+        Insert: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          formula_id: string
+          id?: string
+          motivo_alteracao?: string | null
+          snapshot_json: Json
+          versao: number
+        }
+        Update: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          formula_id?: string
+          id?: string
+          motivo_alteracao?: string | null
+          snapshot_json?: Json
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formula_versoes_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formulas: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          codigo_formula: string
+          criado_em: string | null
+          criado_por: string | null
+          densidade_media: number | null
+          doses_por_frasco: number | null
+          doses_por_pote: number | null
+          excipiente_padrao:
+            | Database["public"]["Enums"]["tipo_excipiente_formula"]
+            | null
+          gotas_por_dose: number | null
+          gotas_por_ml: number | null
+          id: string
+          nome_formula: string
+          observacoes_tecnicas: string | null
+          peso_capsula_alvo_mg: number | null
+          peso_capsula_nominal_mg: number | null
+          peso_por_dose_g: number | null
+          peso_total_pote_g: number | null
+          produto_acabado_id: string | null
+          status:
+            | Database["public"]["Enums"]["status_formula_industrial"]
+            | null
+          tipo_apresentacao: Database["public"]["Enums"]["tipo_apresentacao_formula"]
+          tipo_capsula: string | null
+          updated_at: string | null
+          versao: number | null
+          volume_frasco_ml: number | null
+          volume_por_dose_ml: number | null
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          codigo_formula: string
+          criado_em?: string | null
+          criado_por?: string | null
+          densidade_media?: number | null
+          doses_por_frasco?: number | null
+          doses_por_pote?: number | null
+          excipiente_padrao?:
+            | Database["public"]["Enums"]["tipo_excipiente_formula"]
+            | null
+          gotas_por_dose?: number | null
+          gotas_por_ml?: number | null
+          id?: string
+          nome_formula: string
+          observacoes_tecnicas?: string | null
+          peso_capsula_alvo_mg?: number | null
+          peso_capsula_nominal_mg?: number | null
+          peso_por_dose_g?: number | null
+          peso_total_pote_g?: number | null
+          produto_acabado_id?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_formula_industrial"]
+            | null
+          tipo_apresentacao?: Database["public"]["Enums"]["tipo_apresentacao_formula"]
+          tipo_capsula?: string | null
+          updated_at?: string | null
+          versao?: number | null
+          volume_frasco_ml?: number | null
+          volume_por_dose_ml?: number | null
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          codigo_formula?: string
+          criado_em?: string | null
+          criado_por?: string | null
+          densidade_media?: number | null
+          doses_por_frasco?: number | null
+          doses_por_pote?: number | null
+          excipiente_padrao?:
+            | Database["public"]["Enums"]["tipo_excipiente_formula"]
+            | null
+          gotas_por_dose?: number | null
+          gotas_por_ml?: number | null
+          id?: string
+          nome_formula?: string
+          observacoes_tecnicas?: string | null
+          peso_capsula_alvo_mg?: number | null
+          peso_capsula_nominal_mg?: number | null
+          peso_por_dose_g?: number | null
+          peso_total_pote_g?: number | null
+          produto_acabado_id?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_formula_industrial"]
+            | null
+          tipo_apresentacao?: Database["public"]["Enums"]["tipo_apresentacao_formula"]
+          tipo_capsula?: string | null
+          updated_at?: string | null
+          versao?: number | null
+          volume_frasco_ml?: number | null
+          volume_por_dose_ml?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formulas_produto_acabado_id_fkey"
+            columns: ["produto_acabado_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       item_alias: {
         Row: {
           created_at: string
@@ -1127,6 +1397,41 @@ export type Database = {
           },
         ]
       }
+      ordens_producao_geradas: {
+        Row: {
+          dados_op: Json
+          data_geracao: string | null
+          formula_id: string
+          id: string
+          op_codigo: string
+          tipo_documento: string | null
+        }
+        Insert: {
+          dados_op?: Json
+          data_geracao?: string | null
+          formula_id: string
+          id?: string
+          op_codigo: string
+          tipo_documento?: string | null
+        }
+        Update: {
+          dados_op?: Json
+          data_geracao?: string | null
+          formula_id?: string
+          id?: string
+          op_codigo?: string
+          tipo_documento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_producao_geradas_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1165,6 +1470,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tabelas_nutricionais: {
+        Row: {
+          data_geracao: string | null
+          formula_id: string
+          id: string
+          porcao: number
+          porcao_unidade: string
+          tabela_json_padrao_anvisa: Json
+        }
+        Insert: {
+          data_geracao?: string | null
+          formula_id: string
+          id?: string
+          porcao: number
+          porcao_unidade: string
+          tabela_json_padrao_anvisa?: Json
+        }
+        Update: {
+          data_geracao?: string | null
+          formula_id?: string
+          id?: string
+          porcao?: number
+          porcao_unidade?: string
+          tabela_json_padrao_anvisa?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tabelas_nutricionais_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_permissions: {
         Row: {
@@ -1253,6 +1593,10 @@ export type Database = {
         | "RH"
         | "TI"
       app_role: "admin" | "gerente" | "supervisor" | "operador" | "visualizador"
+      status_formula_industrial: "RASCUNHO" | "APROVADA" | "BLOQUEADA"
+      tipo_apresentacao_formula: "CAPSULA" | "LIQUIDO" | "PO"
+      tipo_excipiente_formula: "AMIDO" | "CELULOSE" | "PRE_BLEND"
+      unidade_informada_formula: "MG" | "MCG" | "UI"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1392,6 +1736,10 @@ export const Constants = {
         "TI",
       ],
       app_role: ["admin", "gerente", "supervisor", "operador", "visualizador"],
+      status_formula_industrial: ["RASCUNHO", "APROVADA", "BLOQUEADA"],
+      tipo_apresentacao_formula: ["CAPSULA", "LIQUIDO", "PO"],
+      tipo_excipiente_formula: ["AMIDO", "CELULOSE", "PRE_BLEND"],
+      unidade_informada_formula: ["MG", "MCG", "UI"],
     },
   },
 } as const

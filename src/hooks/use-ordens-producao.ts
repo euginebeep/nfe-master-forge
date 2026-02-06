@@ -6,7 +6,6 @@ import {
   gerarCodigoOP,
   calcularConsumoInsumos,
 } from '@/types/ordens-producao';
-import { FormulaIndustrial } from '@/types/formulas-industrial';
 import { toast } from 'sonner';
 
 // Gerar código único de OP
@@ -99,8 +98,32 @@ export interface CriarOPParams {
   responsavel?: string;
 }
 
+// Interface simplificada para fórmula (compatível com novo sistema)
+interface FormulaBasica {
+  id: string;
+  codigo: string;
+  nome: string;
+  produto_nome?: string;
+  capsulas_por_dose: number;
+  tipo_capsula: string;
+  peso_total_capsula_mg: number;
+  ingredientes: Array<{
+    insumo_id: string;
+    item_id?: string;
+    nome_interno: string;
+    categoria: string;
+    peso_a_pesar_mg: number;
+    custo_por_kg?: number;
+  }>;
+  excipientes: Array<{
+    nome: string;
+    peso_mg: number;
+    custo_por_kg?: number;
+  }>;
+}
+
 export function useCreateOrdemProducao() {
-  const criarOP = useCallback((formula: FormulaIndustrial, params: CriarOPParams): OrdemProducao | null => {
+  const criarOP = useCallback((formula: FormulaBasica, params: CriarOPParams): OrdemProducao | null => {
     const totalCapsulas = params.quantidade_doses * formula.capsulas_por_dose;
     
     // Calcular consumo de insumos

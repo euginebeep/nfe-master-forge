@@ -21,7 +21,10 @@ import EntidadeDetailPageComplete from "./pages/cadastros/EntidadeDetailPageComp
 import EntidadesListPageComplete from "./pages/cadastros/EntidadesListPageComplete";
 import ItensListPageComplete from "./pages/cadastros/ItensListPageComplete";
 import ProdutoDetailPage from "./pages/cadastros/ProdutoDetailPage";
-import FormulasListPage from "./pages/producao/FormulasListPage";
+import FormuladorIndustrialPage from "./pages/producao/FormuladorIndustrialPage";
+import NovaFormulaPage from "./pages/producao/NovaFormulaPage";
+import EditarFormulaPage from "./pages/producao/EditarFormulaPage";
+import VisualizarFormulaPage from "./pages/producao/VisualizarFormulaPage";
 import OrdensProducaoPage from "./pages/producao/OrdensProducaoPage";
 import QuarentenaPage from "./pages/estoque/QuarentenaPage";
 import LotesListPage from "./pages/estoque/LotesListPage";
@@ -73,8 +76,11 @@ const App = () => (
             <Route path="/cadastros/itens" element={<ItensListPageComplete />} />
             <Route path="/cadastros/itens/:id" element={<ProdutoDetailPage />} />
             <Route path="/cadastros/produtos/:id" element={<ProdutoDetailPage />} />
-            {/* Producao */}
-            <Route path="/producao/formulas" element={<FormulasListPage />} />
+            {/* Producao - Formulador Industrial */}
+            <Route path="/producao/formulas" element={<FormuladorIndustrialPage />} />
+            <Route path="/producao/formulas/nova" element={<NovaFormulaPage />} />
+            <Route path="/producao/formulas/:id" element={<VisualizarFormulaPage />} />
+            <Route path="/producao/formulas/:id/editar" element={<EditarFormulaPage />} />
             <Route path="/producao/ordens" element={<OrdensProducaoPage />} />
             {/* Estoque */}
             <Route path="/estoque/quarentena" element={<QuarentenaPage />} />
