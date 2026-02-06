@@ -144,7 +144,7 @@ export default function EditarFormulaPage() {
       if (!fator) {
         toast.error(
           `Fator de conversão UI→mg não encontrado para "${novoItem.nome_insumo}". ` +
-          `Cadastre o fator em: Produção → Formulador → Conversões de Unidades. ` +
+          `Solicite ao administrador que cadastre o fator na tabela "conversoes_unidades" do sistema. ` +
           `Consulte o laudo/COA do fornecedor para obter o valor correto (ex: Vitamina D3 = 40.000 UI/mg).`,
           { duration: 8000 }
         );
@@ -421,12 +421,18 @@ export default function EditarFormulaPage() {
                             • Se você informar 2.000 UI, o sistema converte para 0,05 mg
                           </p>
                           <p className="text-warning font-medium">
-                            ⚠️ Se o fator não estiver cadastrado, vá em:<br/>
-                            <span className="font-mono bg-muted px-1 rounded">Produção → Formulador → Conversões de Unidades</span>
+                            ⚠️ Se o fator não estiver cadastrado:
                           </p>
                           <p className="text-muted-foreground">
-                            Cadastre o fator UI/mg do seu insumo específico (consulte o laudo/COA do fornecedor).
+                            Solicite ao <strong>administrador do sistema</strong> que cadastre o fator UI/mg na 
+                            tabela de conversões. Informe o nome do insumo e o valor do laudo/COA do fornecedor.
                           </p>
+                          <div className="mt-2 p-2 bg-muted rounded text-xs">
+                            <strong>Exemplos de fatores comuns:</strong><br/>
+                            • Vitamina D3: 40.000 UI = 1 mg<br/>
+                            • Vitamina A: 3.333 UI = 1 mg<br/>
+                            • Vitamina E: 1,49 UI = 1 mg
+                          </div>
                         </div>
                       </TooltipContent>
                     </Tooltip>
