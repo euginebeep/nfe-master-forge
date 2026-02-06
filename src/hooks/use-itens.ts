@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Item, ItemFornecedor, ItemAlias, TipoItem } from "@/types/erp";
-import { toast } from "sonner";
+import { centralToast } from "@/components/ui/central-toast";
 
 export function useItens(filters?: { tipo_item?: TipoItem; ativo?: boolean }) {
   return useQuery({
@@ -71,10 +71,11 @@ export function useCreateItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["itens"] });
-      toast.success("Item criado com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["hybrid-itens"] });
+      centralToast.success("Item Criado", "Produto cadastrado com sucesso");
     },
     onError: (error) => {
-      toast.error("Erro ao criar item: " + error.message);
+      centralToast.error("Erro ao Criar", error.message);
     },
   });
 }
@@ -94,13 +95,16 @@ export function useUpdateItem() {
       if (error) throw error;
       return item;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["itens"] });
-      queryClient.invalidateQueries({ queryKey: ["item", vars.id] });
-      toast.success("Item atualizado com sucesso");
+    onSuccess: async (_, vars) => {
+      await queryClient.invalidateQueries({ queryKey: ["itens"] });
+      await queryClient.invalidateQueries({ queryKey: ["hybrid-itens"] });
+      await queryClient.invalidateQueries({ queryKey: ["item", vars.id] });
+      await queryClient.invalidateQueries({ queryKey: ["hybrid-item", vars.id] });
+      await queryClient.refetchQueries({ queryKey: ["hybrid-itens"] });
+      centralToast.success("Item Atualizado", "Alterações salvas com sucesso");
     },
     onError: (error) => {
-      toast.error("Erro ao atualizar item: " + error.message);
+      centralToast.error("Erro ao Atualizar", error.message);
     },
   });
 }
@@ -121,10 +125,10 @@ export function useCreateItemFornecedor() {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["item", vars.item_id] });
-      toast.success("Fornecedor vinculado");
+      centralToast.success("Fornecedor Vinculado");
     },
     onError: (error) => {
-      toast.error("Erro ao vincular fornecedor: " + error.message);
+      centralToast.error("Erro ao Vincular", error.message);
     },
   });
 }
@@ -151,7 +155,7 @@ export function useUpdateItemFornecedor() {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["item", vars.item_id] });
-      toast.success("Fornecedor atualizado");
+      centralToast.success("Fornecedor Atualizado");
     },
   });
 }
@@ -170,7 +174,7 @@ export function useDeleteItemFornecedor() {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["item", vars.item_id] });
-      toast.success("Fornecedor removido");
+      centralToast.success("Fornecedor Removido");
     },
   });
 }
@@ -191,7 +195,7 @@ export function useCreateItemAlias() {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["item", vars.item_id] });
-      toast.success("Alias adicionado");
+      centralToast.success("Alias Adicionado");
     },
   });
 }
@@ -207,7 +211,7 @@ export function useDeleteItemAlias() {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["item", vars.item_id] });
-      toast.success("Alias removido");
+      centralToast.success("Alias Removido");
     },
   });
 }
