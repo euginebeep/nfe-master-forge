@@ -54,6 +54,77 @@ export const REFERENCIAS_TECNICAS = [
 // ============================================================
 
 /**
+ * Normaliza texto para comparação (remove acentos, pontuação, espaços extras)
+ */
+function normalizarTexto(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .replace(/[^a-z0-9]/g, '') // Remove pontuação e espaços
+    .trim();
+}
+
+/**
+ * Extrai tokens chave de um nome de substância para matching
+ */
+function extrairTokensChave(nome: string): string[] {
+  const normalizado = normalizarTexto(nome);
+  const tokens: string[] = [];
+  
+  // Detecta vitaminas com letra/número (D3, B12, A, E, K2, etc.)
+  const vitaminaMatch = normalizado.match(/vit(?:amina)?([a-z]?\d*)/);
+  if (vitaminaMatch) {
+    tokens.push('vitamina');
+    tokens.push(vitaminaMatch[1] || '');
+  }
+  
+  // Detecta D3, B12, etc. isolados
+  const vitMatch = normalizado.match(/([a-z])(\d+)/);
+  if (vitMatch) {
+    tokens.push(vitMatch[1] + vitMatch[2]);
+  }
+  
+  // Token específico para "d3"
+  if (normalizado.includes('d3') || normalizado.includes('d-3')) {
+    tokens.push('d3');
+  }
+  
+  return tokens.filter(t => t.length > 0);
+}
+
+/**
+ * Verifica se dois nomes de substância são equivalentes
+ */
+function substanciasEquivalentes(nome1: string, nome2: string): boolean {
+  const norm1 = normalizarTexto(nome1);
+  const norm2 = normalizarTexto(nome2);
+  
+  // Match direto
+  if (norm1.includes(norm2) || norm2.includes(norm1)) {
+    return true;
+  }
+  
+  // Match por tokens chave
+  const tokens1 = extrairTokensChave(nome1);
+  const tokens2 = extrairTokensChave(nome2);
+  
+  // Se ambos têm "d3" ou equivalente
+  if (tokens1.includes('d3') && tokens2.includes('d3')) {
+    return true;
+  }
+  
+  // Verifica vitaminas com mesmo identificador
+  const vitPattern1 = tokens1.find(t => /^[a-z]\d+$/.test(t));
+  const vitPattern2 = tokens2.find(t => /^[a-z]\d+$/.test(t));
+  if (vitPattern1 && vitPattern2 && vitPattern1 === vitPattern2) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Busca informações de conversão/risco para uma substância
  */
 export async function buscarInfoConversaoCompleta(nomeSubstancia: string): Promise<ConversaoUICompleta | null> {
@@ -66,11 +137,8 @@ export async function buscarInfoConversaoCompleta(nomeSubstancia: string): Promi
 
     if (error) throw error;
 
-    // Busca fuzzy pelo nome
-    const encontrado = (data || []).find(c =>
-      c.substancia.toLowerCase().includes(nomeSubstancia.toLowerCase()) ||
-      nomeSubstancia.toLowerCase().includes(c.substancia.toLowerCase())
-    );
+    // Busca com algoritmo melhorado de matching
+    const encontrado = (data || []).find(c => substanciasEquivalentes(c.substancia, nomeSubstancia));
 
     return encontrado as ConversaoUICompleta | null;
   } catch (err) {
