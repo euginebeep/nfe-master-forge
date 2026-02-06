@@ -108,6 +108,7 @@ const menuGroups: MenuGroup[] = [
     label: "Vendas",
     items: [
       { title: "CRM", url: "/vendas/crm", icon: MessageSquare },
+      { title: "Orçamentos", url: "/vendas/orcamentos", icon: FileText },
       { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart },
       { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput },
       { title: "Marketplace", url: "/vendas/marketplace", icon: Store },

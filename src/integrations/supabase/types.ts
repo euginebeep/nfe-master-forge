@@ -2742,6 +2742,174 @@ export type Database = {
           },
         ]
       }
+      orcamento_itens: {
+        Row: {
+          created_at: string
+          desconto_percentual: number | null
+          formula_id: string | null
+          id: string
+          orcamento_id: string
+          ordem: number | null
+          peso_unidade_mg: number | null
+          preco_final: number
+          preco_unitario: number
+          produto_codigo: string | null
+          produto_descricao: string | null
+          produto_id: string | null
+          produto_nome: string
+          quantidade: number
+          unidade: string | null
+          unidades_por_frasco: number | null
+          valor_total: number
+        }
+        Insert: {
+          created_at?: string
+          desconto_percentual?: number | null
+          formula_id?: string | null
+          id?: string
+          orcamento_id: string
+          ordem?: number | null
+          peso_unidade_mg?: number | null
+          preco_final?: number
+          preco_unitario?: number
+          produto_codigo?: string | null
+          produto_descricao?: string | null
+          produto_id?: string | null
+          produto_nome: string
+          quantidade?: number
+          unidade?: string | null
+          unidades_por_frasco?: number | null
+          valor_total?: number
+        }
+        Update: {
+          created_at?: string
+          desconto_percentual?: number | null
+          formula_id?: string | null
+          id?: string
+          orcamento_id?: string
+          ordem?: number | null
+          peso_unidade_mg?: number | null
+          preco_final?: number
+          preco_unitario?: number
+          produto_codigo?: string | null
+          produto_descricao?: string | null
+          produto_id?: string | null
+          produto_nome?: string
+          quantidade?: number
+          unidade?: string | null
+          unidades_por_frasco?: number | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_itens_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamentos: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          cliente_documento: string | null
+          cliente_email: string | null
+          cliente_id: string | null
+          cliente_nome: string
+          cliente_telefone: string | null
+          codigo: string
+          condicao_pagamento: string | null
+          created_at: string
+          created_by: string | null
+          data_orcamento: string
+          data_validade: string | null
+          desconto_percentual: number | null
+          desconto_valor: number | null
+          id: string
+          observacoes: string | null
+          prazo_entrega_dias: number | null
+          status: string
+          updated_at: string
+          validade_dias: number | null
+          valor_final: number
+          valor_total: number
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          cliente_documento?: string | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nome: string
+          cliente_telefone?: string | null
+          codigo: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_orcamento?: string
+          data_validade?: string | null
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          id?: string
+          observacoes?: string | null
+          prazo_entrega_dias?: number | null
+          status?: string
+          updated_at?: string
+          validade_dias?: number | null
+          valor_final?: number
+          valor_total?: number
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          cliente_documento?: string | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string
+          cliente_telefone?: string | null
+          codigo?: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_orcamento?: string
+          data_validade?: string | null
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          id?: string
+          observacoes?: string | null
+          prazo_entrega_dias?: number | null
+          status?: string
+          updated_at?: string
+          validade_dias?: number | null
+          valor_final?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ordens_producao_geradas: {
         Row: {
           dados_op: Json
@@ -2994,6 +3162,257 @@ export type Database = {
             columns: ["responsavel_tecnico_id"]
             isOneToOne: false
             referencedRelation: "responsaveis_tecnicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedido_itens: {
+        Row: {
+          created_at: string
+          desconto_percentual: number | null
+          formula_id: string | null
+          id: string
+          lote_produto_acabado_id: string | null
+          orcamento_item_id: string | null
+          ordem: number | null
+          pedido_id: string
+          peso_unidade_mg: number | null
+          preco_final: number
+          preco_unitario: number
+          produto_codigo: string | null
+          produto_descricao: string | null
+          produto_id: string | null
+          produto_nome: string
+          quantidade: number
+          quantidade_entregue: number | null
+          quantidade_faturada: number | null
+          quantidade_produzida: number | null
+          status: string | null
+          unidade: string | null
+          unidades_por_frasco: number | null
+          valor_total: number
+        }
+        Insert: {
+          created_at?: string
+          desconto_percentual?: number | null
+          formula_id?: string | null
+          id?: string
+          lote_produto_acabado_id?: string | null
+          orcamento_item_id?: string | null
+          ordem?: number | null
+          pedido_id: string
+          peso_unidade_mg?: number | null
+          preco_final?: number
+          preco_unitario?: number
+          produto_codigo?: string | null
+          produto_descricao?: string | null
+          produto_id?: string | null
+          produto_nome: string
+          quantidade?: number
+          quantidade_entregue?: number | null
+          quantidade_faturada?: number | null
+          quantidade_produzida?: number | null
+          status?: string | null
+          unidade?: string | null
+          unidades_por_frasco?: number | null
+          valor_total?: number
+        }
+        Update: {
+          created_at?: string
+          desconto_percentual?: number | null
+          formula_id?: string | null
+          id?: string
+          lote_produto_acabado_id?: string | null
+          orcamento_item_id?: string | null
+          ordem?: number | null
+          pedido_id?: string
+          peso_unidade_mg?: number | null
+          preco_final?: number
+          preco_unitario?: number
+          produto_codigo?: string | null
+          produto_descricao?: string | null
+          produto_id?: string | null
+          produto_nome?: string
+          quantidade?: number
+          quantidade_entregue?: number | null
+          quantidade_faturada?: number | null
+          quantidade_produzida?: number | null
+          status?: string | null
+          unidade?: string | null
+          unidades_por_frasco?: number | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_itens_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_itens_lote_produto_acabado_id_fkey"
+            columns: ["lote_produto_acabado_id"]
+            isOneToOne: false
+            referencedRelation: "lotes_produto_acabado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_itens_orcamento_item_id_fkey"
+            columns: ["orcamento_item_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_venda"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos_venda: {
+        Row: {
+          cliente_documento: string | null
+          cliente_email: string | null
+          cliente_id: string | null
+          cliente_nome: string
+          cliente_telefone: string | null
+          codigo: string
+          condicao_pagamento: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          created_at: string
+          created_by: string | null
+          data_entrega_prevista: string | null
+          data_entrega_realizada: string | null
+          data_pedido: string
+          desconto_percentual: number | null
+          desconto_valor: number | null
+          endereco_entrega_id: string | null
+          endereco_entrega_texto: string | null
+          enviado_em: string | null
+          faturado_em: string | null
+          forma_pagamento: string | null
+          frete_tipo: string | null
+          id: string
+          observacoes: string | null
+          observacoes_internas: string | null
+          op_id: string | null
+          orcamento_id: string | null
+          status: string
+          transportadora_id: string | null
+          updated_at: string
+          valor_frete: number | null
+          valor_produtos: number
+          valor_total: number
+        }
+        Insert: {
+          cliente_documento?: string | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nome: string
+          cliente_telefone?: string | null
+          codigo: string
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_entrega_prevista?: string | null
+          data_entrega_realizada?: string | null
+          data_pedido?: string
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          endereco_entrega_id?: string | null
+          endereco_entrega_texto?: string | null
+          enviado_em?: string | null
+          faturado_em?: string | null
+          forma_pagamento?: string | null
+          frete_tipo?: string | null
+          id?: string
+          observacoes?: string | null
+          observacoes_internas?: string | null
+          op_id?: string | null
+          orcamento_id?: string | null
+          status?: string
+          transportadora_id?: string | null
+          updated_at?: string
+          valor_frete?: number | null
+          valor_produtos?: number
+          valor_total?: number
+        }
+        Update: {
+          cliente_documento?: string | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string
+          cliente_telefone?: string | null
+          codigo?: string
+          condicao_pagamento?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_entrega_prevista?: string | null
+          data_entrega_realizada?: string | null
+          data_pedido?: string
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          endereco_entrega_id?: string | null
+          endereco_entrega_texto?: string | null
+          enviado_em?: string | null
+          faturado_em?: string | null
+          forma_pagamento?: string | null
+          frete_tipo?: string | null
+          id?: string
+          observacoes?: string | null
+          observacoes_internas?: string | null
+          op_id?: string | null
+          orcamento_id?: string | null
+          status?: string
+          transportadora_id?: string | null
+          updated_at?: string
+          valor_frete?: number | null
+          valor_produtos?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_venda_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_venda_endereco_entrega_id_fkey"
+            columns: ["endereco_entrega_id"]
+            isOneToOne: false
+            referencedRelation: "entidade_enderecos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_venda_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_venda_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
         ]
@@ -3590,6 +4009,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      gerar_codigo_orcamento: { Args: never; Returns: string }
+      gerar_codigo_pedido: { Args: never; Returns: string }
       gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }
       gerar_hash_qr_code_op: {
         Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }

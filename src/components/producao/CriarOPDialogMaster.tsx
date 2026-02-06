@@ -64,7 +64,7 @@ import { RTSelectorOP } from "@/components/responsavel-tecnico/RTSelectorOP";
 // TIPOS
 // ============================================================
 
-type TipoOP = "MANUAL" | "BASEADA_FORMULA";
+type TipoOP = "MANUAL" | "BASEADA_FORMULA" | "BASEADA_PEDIDO";
 type TipoProduto = "CAPSULA" | "LIQUIDO" | "PO";
 type EtapaWizard = 1 | 2 | 3 | 4;
 
@@ -79,6 +79,24 @@ interface Formula {
   tipo_apresentacao?: string;
 }
 
+interface PedidoVenda {
+  id: string;
+  codigo: string;
+  cliente_nome: string;
+  cliente_documento?: string;
+  cliente_id?: string;
+  valor_total: number;
+  status: string;
+}
+
+interface PedidoItem {
+  id: string;
+  produto_nome: string;
+  quantidade: number;
+  unidades_por_frasco: number;
+  formula_id?: string;
+}
+
 interface CriarOPDialogMasterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -91,8 +109,11 @@ interface CriarOPDialogMasterProps {
 
 const formSchema = z.object({
   // Etapa 1: Tipo de OP
-  tipo_op: z.enum(["MANUAL", "BASEADA_FORMULA"]),
+  tipo_op: z.enum(["MANUAL", "BASEADA_FORMULA", "BASEADA_PEDIDO"]),
   formula_id: z.string().optional(),
+  pedido_id: z.string().optional(),
+  cliente_nome: z.string().optional(),
+  cliente_documento: z.string().optional(),
   
   // Etapa 2: Dados Produtivos
   produto_nome: z.string().min(1, "Nome do produto é obrigatório"),
@@ -140,7 +161,10 @@ export function CriarOPDialogMaster({
 }: CriarOPDialogMasterProps) {
   const [etapaAtual, setEtapaAtual] = useState<EtapaWizard>(1);
   const [formulas, setFormulas] = useState<Formula[]>([]);
+  const [pedidos, setPedidos] = useState<PedidoVenda[]>([]);
   const [selectedFormula, setSelectedFormula] = useState<Formula | null>(null);
+  const [selectedPedido, setSelectedPedido] = useState<PedidoVenda | null>(null);
+  const [pedidoItens, setPedidoItens] = useState<PedidoItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<FormValues>({
@@ -148,6 +172,9 @@ export function CriarOPDialogMaster({
     defaultValues: {
       tipo_op: "MANUAL",
       formula_id: "",
+      pedido_id: "",
+      cliente_nome: "",
+      cliente_documento: "",
       produto_nome: "",
       tipo_produto: "CAPSULA",
       quantidade_frascos: 100,
@@ -171,7 +198,7 @@ export function CriarOPDialogMaster({
   const totalUnidades = quantidadeFrascos * unidadesPorFrasco;
   const totalComAcrescimo = Math.ceil(totalUnidades * (1 + ACRESCIMO_INDUSTRIAL / 100));
 
-  // Carregar fórmulas aprovadas
+  // Carregar fórmulas aprovadas e pedidos confirmados
   useEffect(() => {
     if (open) {
       const fetchFormulas = async () => {
@@ -183,10 +210,25 @@ export function CriarOPDialogMaster({
 
         setFormulas((data as Formula[]) || []);
       };
+      
+      const fetchPedidos = async () => {
+        const { data } = await supabase
+          .from("pedidos_venda")
+          .select("id, codigo, cliente_nome, cliente_documento, cliente_id, valor_total, status")
+          .eq("status", "CONFIRMADO")
+          .is("op_id", null)
+          .order("created_at", { ascending: false });
+        
+        setPedidos((data as PedidoVenda[]) || []);
+      };
+      
       fetchFormulas();
+      fetchPedidos();
       setEtapaAtual(1);
       form.reset();
       setSelectedFormula(null);
+      setSelectedPedido(null);
+      setPedidoItens([]);
     }
   }, [open, form]);
 
@@ -220,11 +262,53 @@ export function CriarOPDialogMaster({
     }
   };
 
+  // Quando seleciona pedido
+  const handlePedidoChange = async (pedidoId: string) => {
+    form.setValue("pedido_id", pedidoId);
+    const pedido = pedidos.find((p) => p.id === pedidoId);
+    if (pedido) {
+      setSelectedPedido(pedido);
+      form.setValue("cliente_nome", pedido.cliente_nome);
+      form.setValue("cliente_documento", pedido.cliente_documento || "");
+      
+      // Buscar itens do pedido
+      const { data: itens } = await supabase
+        .from("pedido_itens")
+        .select("id, produto_nome, quantidade, unidades_por_frasco, formula_id")
+        .eq("pedido_id", pedidoId)
+        .order("ordem");
+      
+      if (itens && itens.length > 0) {
+        setPedidoItens(itens as PedidoItem[]);
+        // Preencher dados do primeiro item
+        const primeiroItem = itens[0];
+        form.setValue("produto_nome", primeiroItem.produto_nome);
+        form.setValue("quantidade_frascos", primeiroItem.quantidade);
+        form.setValue("unidades_por_frasco", primeiroItem.unidades_por_frasco || 60);
+        
+        // Se o item tem fórmula vinculada, buscar
+        if (primeiroItem.formula_id) {
+          form.setValue("formula_id", primeiroItem.formula_id);
+          const formula = formulas.find(f => f.id === primeiroItem.formula_id);
+          if (formula) {
+            setSelectedFormula(formula);
+            form.setValue("tipo_capsula", formula.tipo_capsula || "00");
+            form.setValue("excipiente_base", (formula.excipiente_padrao as "AMIDO" | "CELULOSE" | "PRE_BLEND") || "AMIDO");
+          }
+        }
+      }
+    } else {
+      setSelectedPedido(null);
+      setPedidoItens([]);
+    }
+  };
+
   // Navegação do wizard
   const podeAvancar = (): boolean => {
     switch (etapaAtual) {
       case 1:
         if (tipoOP === "BASEADA_FORMULA" && !form.watch("formula_id")) return false;
+        if (tipoOP === "BASEADA_PEDIDO" && !form.watch("pedido_id")) return false;
         return true;
       case 2:
         return !!form.watch("produto_nome") && quantidadeFrascos > 0 && unidadesPorFrasco > 0;
@@ -660,7 +744,7 @@ export function CriarOPDialogMaster({
               <RadioGroup
                 value={field.value}
                 onValueChange={field.onChange}
-                className="grid grid-cols-2 gap-4"
+                className="grid grid-cols-3 gap-4"
               >
                 <div>
                   <RadioGroupItem value="MANUAL" id="manual" className="peer sr-only" />
@@ -697,6 +781,24 @@ export function CriarOPDialogMaster({
                     </span>
                   </Label>
                 </div>
+
+                <div>
+                  <RadioGroupItem value="BASEADA_PEDIDO" id="pedido" className="peer sr-only" />
+                  <Label
+                    htmlFor="pedido"
+                    className={cn(
+                      "flex flex-col items-center justify-between rounded-lg border-2 p-4 cursor-pointer",
+                      "hover:bg-accent hover:text-accent-foreground",
+                      field.value === "BASEADA_PEDIDO" ? "border-primary bg-primary/5" : "border-muted"
+                    )}
+                  >
+                    <Package className="h-8 w-8 mb-2" />
+                    <span className="font-semibold">Baseada em Pedido</span>
+                    <span className="text-xs text-muted-foreground text-center mt-1">
+                      Importar de pedido confirmado
+                    </span>
+                  </Label>
+                </div>
               </RadioGroup>
             </FormControl>
           </FormItem>
@@ -729,9 +831,50 @@ export function CriarOPDialogMaster({
                 <Alert className="mt-2">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    Nenhuma fórmula aprovada disponível. Aprove uma fórmula no Formulador Industrial primeiro.
+                    Nenhuma fórmula aprovada disponível.
                   </AlertDescription>
                 </Alert>
+              )}
+            </FormItem>
+          )}
+        />
+      )}
+
+      {tipoOP === "BASEADA_PEDIDO" && (
+        <FormField
+          control={form.control}
+          name="pedido_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Selecionar Pedido Confirmado *</FormLabel>
+              <Select value={field.value} onValueChange={handlePedidoChange}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um pedido" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {pedidos.map((pedido) => (
+                    <SelectItem key={pedido.id} value={pedido.id}>
+                      {pedido.codigo} - {pedido.cliente_nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+              {pedidos.length === 0 && (
+                <Alert className="mt-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Nenhum pedido confirmado disponível.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {selectedPedido && (
+                <div className="mt-2 p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium">{selectedPedido.cliente_nome}</p>
+                  <p className="text-xs text-muted-foreground">{selectedPedido.cliente_documento}</p>
+                </div>
               )}
             </FormItem>
           )}

@@ -40,7 +40,8 @@ import ContasPagarPage from "./pages/financeiro/ContasPagarPage";
 import ContasReceberPage from "./pages/financeiro/ContasReceberPage";
 import FluxoCaixaPage from "./pages/financeiro/FluxoCaixaPage";
 import CRMPage from "./pages/vendas/CRMPage";
-import PedidosPage from "./pages/vendas/PedidosPage";
+import OrcamentosPage from "./pages/vendas/OrcamentosPage";
+import PedidosVendaPage from "./pages/vendas/PedidosVendaPage";
 import MarketplacePage from "./pages/vendas/MarketplacePage";
 import NotasSaidaPage from "./pages/vendas/NotasSaidaPage";
 import RelatoriosPage from "./pages/relatorios/RelatoriosPage";
@@ -108,7 +109,8 @@ const App = () => (
             <Route path="/financeiro/fluxo" element={<FluxoCaixaPage />} />
             {/* Vendas */}
             <Route path="/vendas/crm" element={<CRMPage />} />
-            <Route path="/vendas/pedidos" element={<PedidosPage />} />
+            <Route path="/vendas/orcamentos" element={<OrcamentosPage />} />
+            <Route path="/vendas/pedidos" element={<PedidosVendaPage />} />
             <Route path="/vendas/marketplace" element={<MarketplacePage />} />
             <Route path="/vendas/notas-saida" element={<NotasSaidaPage />} />
             {/* Relatorios */}
