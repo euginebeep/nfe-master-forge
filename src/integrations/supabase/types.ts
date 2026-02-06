@@ -235,6 +235,102 @@ export type Database = {
           },
         ]
       }
+      config_capacidade_producao: {
+        Row: {
+          encapsuladora_caps_min: number
+          fator_eficiencia: number
+          id: string
+          misturador_capacidade_kg: number
+          operadores_disponiveis: number
+          tecnicos_disponiveis: number
+          tempo_diluicao_geometrica_min: number
+          tempo_limpeza_min: number
+          tempo_mistura_base_min: number
+          tempo_pesagem_item_critico_min: number
+          tempo_pesagem_item_padrao_min: number
+          tempo_qc_min: number
+          tempo_setup_encapsulamento_min: number
+          tempo_setup_pesagem_min: number
+          updated_at: string
+        }
+        Insert: {
+          encapsuladora_caps_min?: number
+          fator_eficiencia?: number
+          id?: string
+          misturador_capacidade_kg?: number
+          operadores_disponiveis?: number
+          tecnicos_disponiveis?: number
+          tempo_diluicao_geometrica_min?: number
+          tempo_limpeza_min?: number
+          tempo_mistura_base_min?: number
+          tempo_pesagem_item_critico_min?: number
+          tempo_pesagem_item_padrao_min?: number
+          tempo_qc_min?: number
+          tempo_setup_encapsulamento_min?: number
+          tempo_setup_pesagem_min?: number
+          updated_at?: string
+        }
+        Update: {
+          encapsuladora_caps_min?: number
+          fator_eficiencia?: number
+          id?: string
+          misturador_capacidade_kg?: number
+          operadores_disponiveis?: number
+          tecnicos_disponiveis?: number
+          tempo_diluicao_geometrica_min?: number
+          tempo_limpeza_min?: number
+          tempo_mistura_base_min?: number
+          tempo_pesagem_item_critico_min?: number
+          tempo_pesagem_item_padrao_min?: number
+          tempo_qc_min?: number
+          tempo_setup_encapsulamento_min?: number
+          tempo_setup_pesagem_min?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      config_custos_producao: {
+        Row: {
+          custo_capsula_vazia: number
+          custo_frasco_padrao: number
+          custo_hora_operador: number
+          custo_hora_tecnico: number
+          custo_lacre_padrao: number
+          custo_overhead_hora: number
+          custo_rotulo_padrao: number
+          id: string
+          percentual_overhead: number
+          percentual_perda_padrao: number
+          updated_at: string
+        }
+        Insert: {
+          custo_capsula_vazia?: number
+          custo_frasco_padrao?: number
+          custo_hora_operador?: number
+          custo_hora_tecnico?: number
+          custo_lacre_padrao?: number
+          custo_overhead_hora?: number
+          custo_rotulo_padrao?: number
+          id?: string
+          percentual_overhead?: number
+          percentual_perda_padrao?: number
+          updated_at?: string
+        }
+        Update: {
+          custo_capsula_vazia?: number
+          custo_frasco_padrao?: number
+          custo_hora_operador?: number
+          custo_hora_tecnico?: number
+          custo_lacre_padrao?: number
+          custo_overhead_hora?: number
+          custo_rotulo_padrao?: number
+          id?: string
+          percentual_overhead?: number
+          percentual_perda_padrao?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conversoes_unidades: {
         Row: {
           ativo: boolean | null
@@ -264,6 +360,140 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      custos_op: {
+        Row: {
+          created_at: string
+          custo_embalagem: number
+          custo_excipientes: number
+          custo_mao_obra: number
+          custo_materia_prima_real: number
+          custo_overhead: number
+          custo_perdas: number
+          custo_total_real: number
+          custo_unitario_real: number
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          impostos_cofins_rateado: number
+          impostos_icms_rateado: number
+          impostos_ipi_rateado: number
+          impostos_pis_rateado: number
+          impostos_total_rateado: number
+          op_codigo: string
+          op_id: string
+          quantidade_perdas: number
+          quantidade_produzida: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custo_embalagem?: number
+          custo_excipientes?: number
+          custo_mao_obra?: number
+          custo_materia_prima_real?: number
+          custo_overhead?: number
+          custo_perdas?: number
+          custo_total_real?: number
+          custo_unitario_real?: number
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          impostos_cofins_rateado?: number
+          impostos_icms_rateado?: number
+          impostos_ipi_rateado?: number
+          impostos_pis_rateado?: number
+          impostos_total_rateado?: number
+          op_codigo: string
+          op_id: string
+          quantidade_perdas?: number
+          quantidade_produzida?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custo_embalagem?: number
+          custo_excipientes?: number
+          custo_mao_obra?: number
+          custo_materia_prima_real?: number
+          custo_overhead?: number
+          custo_perdas?: number
+          custo_total_real?: number
+          custo_unitario_real?: number
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          impostos_cofins_rateado?: number
+          impostos_icms_rateado?: number
+          impostos_ipi_rateado?: number
+          impostos_pis_rateado?: number
+          impostos_total_rateado?: number
+          op_codigo?: string
+          op_id?: string
+          quantidade_perdas?: number
+          quantidade_produzida?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      custos_op_lotes: {
+        Row: {
+          cofins_valor: number | null
+          created_at: string
+          custo_op_id: string
+          custo_total_lote: number
+          custo_unitario_lote: number
+          icms_valor: number | null
+          id: string
+          insumo_nome: string
+          ipi_valor: number | null
+          lote_id: string
+          numero_lote: string
+          pis_valor: number | null
+          quantidade_consumida_g: number
+        }
+        Insert: {
+          cofins_valor?: number | null
+          created_at?: string
+          custo_op_id: string
+          custo_total_lote: number
+          custo_unitario_lote: number
+          icms_valor?: number | null
+          id?: string
+          insumo_nome: string
+          ipi_valor?: number | null
+          lote_id: string
+          numero_lote: string
+          pis_valor?: number | null
+          quantidade_consumida_g: number
+        }
+        Update: {
+          cofins_valor?: number | null
+          created_at?: string
+          custo_op_id?: string
+          custo_total_lote?: number
+          custo_unitario_lote?: number
+          icms_valor?: number | null
+          id?: string
+          insumo_nome?: string
+          ipi_valor?: number | null
+          lote_id?: string
+          numero_lote?: string
+          pis_valor?: number | null
+          quantidade_consumida_g?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custos_op_lotes_custo_op_id_fkey"
+            columns: ["custo_op_id"]
+            isOneToOne: false
+            referencedRelation: "custos_op"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       entidade_comercial_crm: {
         Row: {
@@ -1217,6 +1447,51 @@ export type Database = {
         }
         Relationships: []
       }
+      log_validacoes_anvisa: {
+        Row: {
+          acao_sistema: string | null
+          created_at: string
+          dados_validacao: Json | null
+          descricao: string
+          entidade_codigo: string
+          entidade_id: string
+          fonte_legal: string | null
+          id: string
+          regra_aplicada: string
+          resultado: string
+          tipo_entidade: string
+          usuario_responsavel: string | null
+        }
+        Insert: {
+          acao_sistema?: string | null
+          created_at?: string
+          dados_validacao?: Json | null
+          descricao: string
+          entidade_codigo: string
+          entidade_id: string
+          fonte_legal?: string | null
+          id?: string
+          regra_aplicada: string
+          resultado: string
+          tipo_entidade: string
+          usuario_responsavel?: string | null
+        }
+        Update: {
+          acao_sistema?: string | null
+          created_at?: string
+          dados_validacao?: Json | null
+          descricao?: string
+          entidade_codigo?: string
+          entidade_id?: string
+          fonte_legal?: string | null
+          id?: string
+          regra_aplicada?: string
+          resultado?: string
+          tipo_entidade?: string
+          usuario_responsavel?: string | null
+        }
+        Relationships: []
+      }
       lote_documentos: {
         Row: {
           arquivo_id: string | null
@@ -1468,6 +1743,138 @@ export type Database = {
           telefone?: string | null
           ultimo_acesso?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      regras_anvisa: {
+        Row: {
+          alegacoes_permitidas: string[] | null
+          alegacoes_proibidas: string[] | null
+          ativo: boolean
+          avisos_rotulo: string[] | null
+          created_at: string
+          data_publicacao: string | null
+          dose_maxima_diaria_mg: number | null
+          dose_maxima_por_porcao_mg: number | null
+          fonte_legal: string
+          formas_permitidas: string[] | null
+          id: string
+          substancia: string
+          substancia_normalizada: string
+          updated_at: string
+        }
+        Insert: {
+          alegacoes_permitidas?: string[] | null
+          alegacoes_proibidas?: string[] | null
+          ativo?: boolean
+          avisos_rotulo?: string[] | null
+          created_at?: string
+          data_publicacao?: string | null
+          dose_maxima_diaria_mg?: number | null
+          dose_maxima_por_porcao_mg?: number | null
+          fonte_legal: string
+          formas_permitidas?: string[] | null
+          id?: string
+          substancia: string
+          substancia_normalizada: string
+          updated_at?: string
+        }
+        Update: {
+          alegacoes_permitidas?: string[] | null
+          alegacoes_proibidas?: string[] | null
+          ativo?: boolean
+          avisos_rotulo?: string[] | null
+          created_at?: string
+          data_publicacao?: string | null
+          dose_maxima_diaria_mg?: number | null
+          dose_maxima_por_porcao_mg?: number | null
+          fonte_legal?: string
+          formas_permitidas?: string[] | null
+          id?: string
+          substancia?: string
+          substancia_normalizada?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      simulacoes_producao: {
+        Row: {
+          created_at: string
+          custo_mao_obra_estimado: number
+          custo_mp_estimado: number
+          custo_overhead_estimado: number
+          custo_real: number | null
+          custo_total_estimado: number
+          custo_unitario_estimado: number
+          desvio_custo_percent: number | null
+          desvio_tempo_percent: number | null
+          formula_codigo: string
+          formula_id: string
+          gargalos: Json | null
+          id: string
+          op_id: string | null
+          perdas_estimadas_unidades: number
+          quantidade_unidades: number
+          rendimento_esperado_percent: number
+          sugestoes: Json | null
+          tempo_encapsulamento_estimado: number
+          tempo_mistura_estimado: number
+          tempo_pesagem_estimado: number
+          tempo_qc_estimado: number
+          tempo_real_min: number | null
+          tempo_total_estimado: number
+        }
+        Insert: {
+          created_at?: string
+          custo_mao_obra_estimado: number
+          custo_mp_estimado: number
+          custo_overhead_estimado: number
+          custo_real?: number | null
+          custo_total_estimado: number
+          custo_unitario_estimado: number
+          desvio_custo_percent?: number | null
+          desvio_tempo_percent?: number | null
+          formula_codigo: string
+          formula_id: string
+          gargalos?: Json | null
+          id?: string
+          op_id?: string | null
+          perdas_estimadas_unidades: number
+          quantidade_unidades: number
+          rendimento_esperado_percent: number
+          sugestoes?: Json | null
+          tempo_encapsulamento_estimado: number
+          tempo_mistura_estimado: number
+          tempo_pesagem_estimado: number
+          tempo_qc_estimado: number
+          tempo_real_min?: number | null
+          tempo_total_estimado: number
+        }
+        Update: {
+          created_at?: string
+          custo_mao_obra_estimado?: number
+          custo_mp_estimado?: number
+          custo_overhead_estimado?: number
+          custo_real?: number | null
+          custo_total_estimado?: number
+          custo_unitario_estimado?: number
+          desvio_custo_percent?: number | null
+          desvio_tempo_percent?: number | null
+          formula_codigo?: string
+          formula_id?: string
+          gargalos?: Json | null
+          id?: string
+          op_id?: string | null
+          perdas_estimadas_unidades?: number
+          quantidade_unidades?: number
+          rendimento_esperado_percent?: number
+          sugestoes?: Json | null
+          tempo_encapsulamento_estimado?: number
+          tempo_mistura_estimado?: number
+          tempo_pesagem_estimado?: number
+          tempo_qc_estimado?: number
+          tempo_real_min?: number | null
+          tempo_total_estimado?: number
         }
         Relationships: []
       }
