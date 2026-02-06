@@ -185,7 +185,8 @@ function calculateSimilarity(str1: string, str2: string): number {
 export function findOrCreateProduto(
   item: NFeParseResult['itens'][0]['item'],
   fornecedorId: string,
-  classificacao: ClassificacaoNota
+  classificacao: ClassificacaoNota,
+  impostos?: NFeParseResult['itens'][0]['impostos']
 ): { itemId: string; isNew: boolean; fatorConversao: number } {
   const itens = LocalDb.getCollection<LocalItem>('itens');
   const aliases = LocalDb.getCollection<LocalItemAlias>('item_alias');
@@ -285,6 +286,22 @@ export function findOrCreateProduto(
     else if (uCom === 'ML') fatorConversaoCadastro = 1;
   }
 
+  // Extrair dados fiscais do XML (impostos) - preenchimento automático
+  const dadosFiscais = impostos ? {
+    cfop_entrada_padrao: item.cfop || undefined,
+    cst_icms: impostos.icms_cst || undefined,
+    origem_icms: impostos.icms_origem || undefined,
+    aliquota_icms: impostos.icms_aliquota || undefined,
+    mva_st: impostos.icms_st_mva || undefined,
+    cst_ipi: impostos.ipi_cst || undefined,
+    aliquota_ipi: impostos.ipi_aliquota || undefined,
+    cst_pis: impostos.pis_cst || undefined,
+    aliquota_pis: impostos.pis_aliquota || undefined,
+    cst_cofins: impostos.cofins_cst || undefined,
+    aliquota_cofins: impostos.cofins_aliquota || undefined,
+    cest: item.cest || undefined,
+  } : {};
+
   const novoItem = LocalDb.insert<LocalItem>('itens', {
     sku_interno: LocalDb.generateSKU(tipoItem),
     descricao_interna: descricao,
@@ -304,6 +321,8 @@ export function findOrCreateProduto(
     armazenamento: 'AMBIENTE',
     exige_premix: false,
     ativo: true,
+    // DADOS FISCAIS DO XML
+    ...dadosFiscais,
   });
   
   // O fator de conversão já foi calculado acima (fatorConversaoCadastro)
@@ -869,11 +888,12 @@ export function importarNFeCompleta(
     // Verificar se tem configuração manual para este item
     const configManual = configuracoesItens?.find(c => c.itemIndex === itemIndex);
     
-    // Deduzir ou criar produto
+    // Deduzir ou criar produto (com dados fiscais do XML)
     const { itemId, isNew, fatorConversao: fatorAutomatico } = findOrCreateProduto(
       itemData.item,
       emitenteId,
-      classificacao
+      classificacao,
+      itemData.impostos // Passar impostos para preenchimento automático
     );
     
     if (isNew) stats.produtosCriados++;

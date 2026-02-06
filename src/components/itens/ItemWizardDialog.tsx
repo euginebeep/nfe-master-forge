@@ -257,12 +257,39 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
     return precoUnitarioFornecedor / fatorConversao;
   }, [precoUnitarioFornecedor, fatorConversao]);
 
+  // Validação por tipo de item
+  const validacaoTipoItem = useMemo(() => {
+    const erros: string[] = [];
+    
+    // Cápsulas exigem tamanho e material
+    if (isCapsule) {
+      if (!capsulaTamanho) erros.push("Tamanho da cápsula é obrigatório");
+      if (!capsulaMaterial) erros.push("Material da cápsula é obrigatório");
+    }
+    
+    // Ativos exigem tipo de potência
+    if (isAtivo && tipoPotencia === 'NENHUMA') {
+      erros.push("Ativos e MPs devem ter tipo de potência definido (%, UI/g ou mcg/g)");
+    }
+    
+    return {
+      valido: erros.length === 0,
+      erros,
+    };
+  }, [isCapsule, isAtivo, capsulaTamanho, capsulaMaterial, tipoPotencia]);
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return !!descricaoInterna.trim();
+        // Identificação: descrição obrigatória + validação por tipo
+        if (!descricaoInterna.trim()) return false;
+        if (isCapsule && (!capsulaTamanho || !capsulaMaterial)) return false;
+        return true;
       case 2:
-        return validacaoFator.valido;
+        // Unidades: fator válido + potência para ativos
+        if (!validacaoFator.valido) return false;
+        if (isAtivo && tipoPotencia === 'NENHUMA') return false;
+        return true;
       case 3:
         return true; // Comercial é opcional
       case 4:

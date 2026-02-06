@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EntidadeFormDialog } from "@/components/entidades/EntidadeFormDialog";
+import { EntidadeWizardDialog } from "@/components/entidades/EntidadeWizardDialog";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
@@ -211,7 +211,7 @@ export default function ClientesListPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <EntidadeFormDialog
+      <EntidadeWizardDialog
         open={showForm}
         onOpenChange={setShowForm}
         initialPapel="CLIENTE"

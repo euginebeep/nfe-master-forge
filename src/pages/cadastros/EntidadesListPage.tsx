@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEntidades } from "@/hooks/use-entidades";
 import { formatDocument } from "@/lib/formatters";
+import { EntidadeWizardDialog } from "@/components/entidades/EntidadeWizardDialog";
 import type { Entidade, EntidadePapel, StatusEntidade, PapelEntidade } from "@/types/erp";
 
 const STATUS_VARIANTS: Record<StatusEntidade, "success" | "warning" | "error"> = {
@@ -29,6 +30,7 @@ export default function EntidadesListPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [papelFilter, setPapelFilter] = useState<string>("all");
+  const [showWizard, setShowWizard] = useState(false);
 
   const { data: entidades = [], isLoading } = useEntidades({
     status: statusFilter !== "all" ? statusFilter : undefined,
@@ -122,11 +124,17 @@ export default function EntidadesListPage() {
         description="Fornecedores, clientes, transportadoras e parceiros"
         icon={Users}
         actions={
-          <Button onClick={() => navigate("/cadastros/entidades/novo")}>
+          <Button onClick={() => setShowWizard(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Entidade
           </Button>
         }
+      />
+
+      <EntidadeWizardDialog
+        open={showWizard}
+        onOpenChange={setShowWizard}
+        onSuccess={() => setShowWizard(false)}
       />
 
       <DataTable
