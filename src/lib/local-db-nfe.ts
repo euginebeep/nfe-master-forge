@@ -272,13 +272,31 @@ export function findOrCreateProduto(
   const unidadesMilheiro = ['MILHEIRO', 'MIL', 'MI'];
   const isUnidadeMilheiro = unidadesMilheiro.includes(uCom);
   
+  // Calcular fator de conversão primeiro para usar no cadastro
+  let fatorConversaoCadastro = 1;
+  if (isCapsule && isUnidadeMilheiro) {
+    fatorConversaoCadastro = 1000;
+  } else if (!isEmbalagem && !isUnidadeDiscreta) {
+    if (uCom === 'KG') fatorConversaoCadastro = 1000;
+    else if (uCom === 'G') fatorConversaoCadastro = 1;
+    else if (uCom === 'MG') fatorConversaoCadastro = 0.001;
+    else if (uCom === 'TON' || uCom === 'T') fatorConversaoCadastro = 1000000;
+    else if (uCom === 'L' || uCom === 'LT') fatorConversaoCadastro = 1000;
+    else if (uCom === 'ML') fatorConversaoCadastro = 1;
+  }
+
   const novoItem = LocalDb.insert<LocalItem>('itens', {
     sku_interno: LocalDb.generateSKU(tipoItem),
     descricao_interna: descricao,
     tipo_item: tipoItem as any,
     ncm: ncm,
     ean: ean || undefined,
+    // REGRA MESTRE: Unidade do Fornecedor (IMUTÁVEL)
+    unidade_fornecedor: (isUnidadeMilheiro ? 'milheiro' : (isEmbalagem || isUnidadeDiscreta ? 'un' : uCom.toLowerCase())) as any,
+    // REGRA MESTRE: Unidade Interna de Controle
     unidade_interna: unidadeInterna as any,
+    // REGRA MESTRE: Fator de Conversão OBRIGATÓRIO
+    fator_conversao: fatorConversaoCadastro,
     controla_lote: true,
     controla_validade: true,
     criticidade: isCritico ? 'CRITICO' : 'NORMAL',
@@ -286,27 +304,9 @@ export function findOrCreateProduto(
     armazenamento: 'AMBIENTE',
     exige_premix: false,
     ativo: true,
-    // Para cápsulas: configurar conversão de milheiro automaticamente
-    ...(isCapsule && {
-      unidade_compra: isUnidadeMilheiro ? 'milheiro' : undefined,
-      fator_compra_para_interna: isUnidadeMilheiro ? 1000 : undefined,
-    }),
   });
   
-  // Calcular fator de conversão
-  // Para embalagens e unidades discretas: fator = 1 (sem conversão)
-  // Para cápsulas em milheiro: fator = 1000
-  let fatorConversao = 1;
-  if (isCapsule && isUnidadeMilheiro) {
-    fatorConversao = 1000;
-  } else if (!isEmbalagem && !isUnidadeDiscreta) {
-    if (uCom === 'KG') fatorConversao = 1000;
-    else if (uCom === 'G') fatorConversao = 1;
-    else if (uCom === 'MG') fatorConversao = 0.001;
-    else if (uCom === 'TON' || uCom === 'T') fatorConversao = 1000000;
-    else if (uCom === 'L' || uCom === 'LT') fatorConversao = 1000; // L para ml
-    else if (uCom === 'ML') fatorConversao = 1;
-  }
+  // O fator de conversão já foi calculado acima (fatorConversaoCadastro)
   
   // Criar link com fornecedor
   LocalDb.insert<LocalItemFornecedor>('item_fornecedores', {
@@ -315,12 +315,12 @@ export function findOrCreateProduto(
     codigo_fornecedor: codigoFornecedor,
     descricao_fornecedor: descricao,
     unidade_compra_padrao: isEmbalagem || isUnidadeDiscreta ? 'un' : (isUnidadeMilheiro ? 'milheiro' : uCom.toLowerCase()) as any,
-    fator_para_unidade_interna: fatorConversao,
+    fator_para_unidade_interna: fatorConversaoCadastro,
     fornecedor_preferencial: true,
     preco_referencia: item.valor_unitario_comercial,
   });
   
-  return { itemId: novoItem.id, isNew: true, fatorConversao };
+  return { itemId: novoItem.id, isNew: true, fatorConversao: fatorConversaoCadastro };
 }
 
 function ensureItemFornecedor(
@@ -407,9 +407,9 @@ export function criarLoteEstoque(
                     produto?.criticidade === 'CRITICO' || 
                     produto?.criticidade === 'ULTRA';
   
-  // REGRA: Verificar se é cápsula com fator de conversão de milheiro configurado
+  // REGRA: Verificar se é cápsula com fator de conversão configurado
   const isCapsule = produto && (produto.tipo_item === 'CAPSULA' || produto.tipo_item === 'CAPSULA_VAZIA');
-  const temFatorCompra = produto?.fator_compra_para_interna && produto.fator_compra_para_interna > 1;
+  const temFatorCadastrado = produto?.fator_conversao && produto.fator_conversao > 1;
   
   // REGRA: Embalagens e itens discretos NÃO convertem unidade (exceto se tiver fator configurado)
   const isEmbalagem = produto && ['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA', 'CAPSULA_VAZIA', 'CAPSULA'].includes(produto.tipo_item);
@@ -418,7 +418,7 @@ export function criarLoteEstoque(
   const isUnidadeDiscreta = unidadesDiscretas.includes(unidadeOriginal);
   
   // Unidades que indicam milheiro na nota
-  const unidadesMilheiro = ['MILHEIRO', 'MIL', 'ML', 'MI'];
+  const unidadesMilheiro = ['MILHEIRO', 'MIL', 'MI'];
   const isUnidadeMilheiro = unidadesMilheiro.includes(unidadeOriginal);
   
   // IMPORTANTE: A quantidade original é a quantidade comercial do item na nota
@@ -432,9 +432,9 @@ export function criarLoteEstoque(
   let custoUnitarioInterno: number;
   
   // Caso especial: Cápsula com compra em milheiro
-  if ((isCapsule || temFatorCompra) && (isUnidadeMilheiro || temFatorCompra)) {
+  if ((isCapsule || temFatorCadastrado) && (isUnidadeMilheiro || temFatorCadastrado)) {
     // Usar fator configurado no cadastro ou detectar automaticamente
-    fatorFinal = temFatorCompra ? produto!.fator_compra_para_interna! : 1000;
+    fatorFinal = temFatorCadastrado ? produto!.fator_conversao : 1000;
     unidadeInterna = produto?.unidade_interna || 'un';
     
     // Converter: 1 milheiro = 1000 unidades
