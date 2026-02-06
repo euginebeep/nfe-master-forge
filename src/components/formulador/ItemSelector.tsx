@@ -1,6 +1,7 @@
 // ============================================================
 // SELETOR DE MATÉRIA-PRIMA DO CADASTRO DE ITENS
 // Combobox com busca para selecionar itens do cadastro
+// Usa hook híbrido para buscar dados do Supabase + localStorage
 // ============================================================
 
 import { useState, useMemo } from "react";
@@ -21,13 +22,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { useItens } from "@/hooks/use-itens";
+import { useHybridItens, type HybridItem } from "@/hooks/use-hybrid-data";
 import { Link } from "react-router-dom";
-import type { Item } from "@/types/erp";
 
 interface ItemSelectorProps {
   value?: string; // item_id selecionado
-  onSelect: (item: Item | null) => void;
+  onSelect: (item: HybridItem | null) => void;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -41,8 +41,8 @@ export function ItemSelector({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Buscar TODOS os itens ativos (não só matéria-prima, para maior flexibilidade)
-  const { data: itens = [], isLoading } = useItens({ ativo: true });
+  // Buscar TODOS os itens ativos usando hook híbrido (Supabase + localStorage)
+  const { data: itens = [], isLoading } = useHybridItens({ ativo: true });
 
   // Filtrar itens baseado na busca
   const itensFiltrados = useMemo(() => {
@@ -61,7 +61,7 @@ export function ItemSelector({
     [itens, value]
   );
 
-  const handleSelect = (item: Item) => {
+  const handleSelect = (item: HybridItem) => {
     onSelect(item);
     setOpen(false);
     setSearch("");
