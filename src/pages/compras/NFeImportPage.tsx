@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   FileText, Upload, Loader2, Check, AlertCircle, Building2, 
   Package, CheckCircle2, Truck, Receipt, CreditCard, DollarSign,
-  Scale, FileWarning, Info, Box, ArrowRightLeft, Calculator, Edit
+  Scale, FileWarning, Info, Box, ArrowRightLeft, Calculator, Edit, Link
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,6 +20,8 @@ import { parseNFeCompleto, formatCNPJ, formatCurrency, formatDate, formatDateTim
 import { checkNotaFiscalExists, importarNFeCompleta, type ImportStats, type ItemImportConfig } from "@/lib/local-db-nfe";
 import type { NFeParseResult, ClassificacaoNota } from "@/types/nfe-completa";
 import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/FiscalReviewDialog";
+import { ItemVinculoSelector } from "@/components/nfe/ItemVinculoSelector";
+import type { LocalItem } from "@/hooks/use-local-itens";
 
 const CLASSIFICACOES_NOTA: { value: ClassificacaoNota; label: string; description: string }[] = [
   { value: "MATERIA_PRIMA", label: "Matéria Prima", description: "Insumos para produção" },
@@ -49,6 +51,7 @@ type ImportStep = 'upload' | 'preview' | 'processing' | 'complete';
 interface ItemConversaoConfig {
   unidadeInterna: string;
   fatorConversao: number;
+  vinculoItemId?: string; // ID do item vinculado manualmente
 }
 
 export default function NFeImportPage() {
@@ -62,6 +65,7 @@ export default function NFeImportPage() {
   const [itemConfigs, setItemConfigs] = useState<Record<number, ItemConversaoConfig>>({});
   const [fiscalReviewOpen, setFiscalReviewOpen] = useState(false);
   const [fiscalConfigs, setFiscalConfigs] = useState<FiscalItemConfig[]>([]);
+  const [itemVinculos, setItemVinculos] = useState<Record<number, string | undefined>>({});
 
   // Sugerir unidade e fator baseado na descrição e unidade comercial
   const sugerirConversao = useCallback((descricao: string, unidadeComercial: string): ItemConversaoConfig => {
@@ -185,11 +189,13 @@ export default function NFeImportPage() {
       const configuracoesItens: ItemImportConfig[] = Object.entries(itemConfigs).map(([indexStr, config]) => {
         const idx = parseInt(indexStr);
         const fiscalConfig = fiscalConfigsParam?.find(fc => fc.itemIndex === idx);
+        const vinculoId = itemVinculos[idx];
         
         return {
           itemIndex: idx,
           unidadeInterna: config.unidadeInterna as ItemImportConfig['unidadeInterna'],
           fatorConversao: config.fatorConversao,
+          vinculoItemId: vinculoId, // Incluir vínculo manual
           // Adicionar dados fiscais editados se houver
           ...(fiscalConfig && {
             ncm: fiscalConfig.ncm,
@@ -229,6 +235,34 @@ export default function NFeImportPage() {
     }));
   }, []);
 
+  // Vincular item manualmente
+  const handleItemVinculo = useCallback((index: number, item: LocalItem | null) => {
+    setItemVinculos(prev => ({
+      ...prev,
+      [index]: item?.id,
+    }));
+    
+    // Se vinculou, atualizar config com unidade do item
+    if (item) {
+      setItemConfigs(prev => ({
+        ...prev,
+        [index]: {
+          ...prev[index],
+          unidadeInterna: item.unidade_interna,
+          vinculoItemId: item.id,
+        }
+      }));
+    } else {
+      setItemConfigs(prev => ({
+        ...prev,
+        [index]: {
+          ...prev[index],
+          vinculoItemId: undefined,
+        }
+      }));
+    }
+  }, []);
+
   // Calcular preview da conversão
   const calcularPreview = useCallback((index: number, item: NFeParseResult['itens'][0]['item']) => {
     const config = itemConfigs[index];
@@ -251,6 +285,7 @@ export default function NFeImportPage() {
     setClassificacao(null);
     setImportStats(null);
     setItemConfigs({});
+    setItemVinculos({});
   };
 
   const goToHistory = () => {
@@ -575,11 +610,11 @@ export default function NFeImportPage() {
                 <Card>
                   <CardHeader className="py-3">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <ArrowRightLeft className="h-4 w-4" />
-                      Conversão de Unidades
+                      <Link className="h-4 w-4" />
+                      Vinculação e Conversão de Itens
                     </CardTitle>
                     <CardDescription>
-                      Configure a unidade interna e o fator de conversão para cada item
+                      Vincule cada item a um produto cadastrado ou deixe em branco para criar automaticamente
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -587,6 +622,7 @@ export default function NFeImportPage() {
                       {parsedResult.itens.map((itemData, index) => {
                         const preview = calcularPreview(index, itemData.item);
                         const config = itemConfigs[index] || { unidadeInterna: 'g', fatorConversao: 1 };
+                        const vinculoId = itemVinculos[index];
                         
                         return (
                           <div key={index} className="border rounded-lg p-4 space-y-3">
@@ -635,6 +671,24 @@ export default function NFeImportPage() {
                                   )}
                                 </div>
                               </div>
+                            </div>
+                            
+                            <Separator />
+                            
+                            {/* Vinculação manual */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs flex items-center gap-1">
+                                <Link className="h-3 w-3" />
+                                Vincular a Item Cadastrado
+                              </Label>
+                              <ItemVinculoSelector
+                                xmlDescricao={itemData.item.descricao}
+                                xmlCodigo={itemData.item.codigo_produto}
+                                xmlNcm={itemData.item.ncm}
+                                xmlEan={itemData.item.ean}
+                                selectedItemId={vinculoId}
+                                onSelect={(item) => handleItemVinculo(index, item)}
+                              />
                             </div>
                             
                             <Separator />

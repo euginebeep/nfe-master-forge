@@ -770,6 +770,7 @@ export interface ItemImportConfig {
   itemIndex: number;           // Índice do item no array
   unidadeInterna: 'g' | 'mg' | 'un' | 'ml' | 'kg' | 'l' | 'milheiro'; // Unidade interna desejada
   fatorConversao: number;      // Fator de conversão manual
+  vinculoItemId?: string;      // ID do item vinculado manualmente (opcional)
 }
 
 // ============================================
@@ -888,16 +889,35 @@ export function importarNFeCompleta(
     // Verificar se tem configuração manual para este item
     const configManual = configuracoesItens?.find(c => c.itemIndex === itemIndex);
     
-    // Deduzir ou criar produto (com dados fiscais do XML)
-    const { itemId, isNew, fatorConversao: fatorAutomatico } = findOrCreateProduto(
-      itemData.item,
-      emitenteId,
-      classificacao,
-      itemData.impostos // Passar impostos para preenchimento automático
-    );
+    let itemId: string;
+    let isNew: boolean;
+    let fatorAutomatico: number;
     
-    if (isNew) stats.produtosCriados++;
-    else stats.produtosVinculados++;
+    // Se tem vínculo manual, usar o item vinculado
+    if (configManual?.vinculoItemId) {
+      itemId = configManual.vinculoItemId;
+      isNew = false;
+      fatorAutomatico = configManual.fatorConversao;
+      
+      // Garantir que o link com o fornecedor existe
+      ensureItemFornecedor(itemId, emitenteId, itemData.item.codigo_produto, itemData.item);
+      stats.produtosVinculados++;
+    } else {
+      // Deduzir ou criar produto (com dados fiscais do XML)
+      const result = findOrCreateProduto(
+        itemData.item,
+        emitenteId,
+        classificacao,
+        itemData.impostos // Passar impostos para preenchimento automático
+      );
+      
+      itemId = result.itemId;
+      isNew = result.isNew;
+      fatorAutomatico = result.fatorConversao;
+      
+      if (isNew) stats.produtosCriados++;
+      else stats.produtosVinculados++;
+    }
     
     // Criar item da nota
     const notaItem = insert<NotaFiscalItem>('notas_fiscais_itens', {
