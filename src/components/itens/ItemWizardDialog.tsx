@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,19 +11,43 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Package, ArrowRight, ArrowLeft, Check, AlertTriangle, Calculator, 
-  Pill, Beaker, FileText, Truck, DollarSign, ClipboardList, Users, Tag, Plus, Trash2, Star
+import {
+  Package,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  AlertTriangle,
+  Calculator,
+  Pill,
+  Beaker,
+  FileText,
+  Truck,
+  DollarSign,
+  ClipboardList,
+  Users,
+  Tag,
+  Plus,
+  Trash2,
+  Star,
 } from "lucide-react";
-import { useCreateItem, LocalItem, TipoItemLocal, UnidadeInternaLocal, UnidadeFornecedor } from "@/hooks/use-local-itens";
+import {
+  useCreateItem,
+  LocalItem,
+  LocalItemAlias,
+  LocalItemFornecedor,
+  TipoItemLocal,
+  UnidadeInternaLocal,
+  UnidadeFornecedor,
+} from "@/hooks/use-local-itens";
+import { LocalDb } from "@/lib/local-db";
 import { useLocalEntidades, LocalEntidade } from "@/hooks/use-local-entidades";
 import { CapsulePhotoUpload } from "./CapsulePhotoUpload";
-import { 
-  calcularFatorConversaoAutomatico, 
-  unidadeInternaSugerida, 
+import {
+  calcularFatorConversaoAutomatico,
+  unidadeInternaSugerida,
   unidadeFornecedorSugerida,
   formatarUnidade,
-  validarFatorConversao 
+  validarFatorConversao,
 } from "@/lib/erp-validation";
 
 interface ItemWizardDialogProps {
@@ -182,6 +207,7 @@ const WIZARD_STEPS = [
 const TOTAL_STEPS = 8;
 
 export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDialogProps) {
+  const queryClient = useQueryClient();
   const { create } = useCreateItem();
   const { data: entidadesFornecedores } = useLocalEntidades({ papel: "FORNECEDOR" });
   const [currentStep, setCurrentStep] = useState(1);
@@ -488,8 +514,38 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
     } as Omit<LocalItem, 'id' | 'sku_interno'> & { sku_interno?: string });
 
     if (item) {
-      // TODO: Salvar fornecedores e aliases vinculados ao item criado
-      // Isso seria feito com item.id após a criação
+      // Persistir vínculos (fornecedores) e aliases criados no wizard
+      const hasPreferencial = fornecedores.some((f) => !!f.fornecedor_preferencial);
+      const fornecedoresToSave = fornecedores.map((f, idx) => ({
+        ...f,
+        fornecedor_preferencial: hasPreferencial ? !!f.fornecedor_preferencial : idx === 0,
+      }));
+
+      fornecedoresToSave.forEach((f) => {
+        LocalDb.insert<LocalItemFornecedor>("item_fornecedores" as any, {
+          item_id: item.id,
+          fornecedor_id: f.fornecedor_id,
+          codigo_fornecedor: f.codigo_fornecedor || undefined,
+          descricao_fornecedor: f.descricao_fornecedor || undefined,
+          unidade_compra_padrao: (f.unidade_compra_padrao as any) || "kg",
+          fator_para_unidade_interna: f.fator_para_unidade_interna || fatorConversao,
+          fornecedor_preferencial: !!f.fornecedor_preferencial,
+          preco_referencia: f.preco_referencia,
+        } as any);
+      });
+
+      aliases.forEach((a) => {
+        LocalDb.insert<LocalItemAlias>("item_alias" as any, {
+          item_id: item.id,
+          fornecedor_id: a.fornecedor_id || undefined,
+          tipo: a.tipo as any,
+          texto: a.texto,
+        } as any);
+      });
+
+      // Atualizar listagens híbridas imediatamente
+      queryClient.invalidateQueries({ queryKey: ["hybrid-itens"] });
+
       resetForm();
       onSuccess?.();
     }

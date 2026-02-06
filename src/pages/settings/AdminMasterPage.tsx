@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { seedInitialData } from "@/lib/local-db";
+import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsManager";
 
 const STORAGE_PREFIX = "legacy_erp_";
 
@@ -131,6 +133,9 @@ export default function AdminMasterPage() {
     }
     allKeys.forEach((key) => localStorage.removeItem(key));
 
+    // Recria o registro mínimo da empresa (em branco) para evitar telas sem contexto
+    seedInitialData();
+
     setCurrentStep(null);
     setCleaning(false);
     setCompleted(true);
@@ -148,6 +153,8 @@ export default function AdminMasterPage() {
         description="Área restrita - Operações administrativas avançadas"
         icon={ShieldAlert}
       />
+
+      <LocalCollectionsManager storagePrefix={STORAGE_PREFIX} collections={ALL_COLLECTIONS} />
 
       <Card className="border-destructive/50">
         <CardHeader>
