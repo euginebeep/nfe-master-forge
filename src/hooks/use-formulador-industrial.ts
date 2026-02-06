@@ -30,6 +30,9 @@ type FormulaItemInsert = {
   exige_premix?: boolean;
   ordem_mistura?: number;
   percentual_na_capsula?: number;
+  classificacao_risco?: string;
+  metodo_distribuicao?: string | null;
+  alerta_exibido?: boolean;
 };
 
 // ============================================================

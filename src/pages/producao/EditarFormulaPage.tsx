@@ -65,6 +65,13 @@ import {
 } from "@/lib/formulador-industrial-rules";
 import { ItemSelector } from "@/components/formulador/ItemSelector";
 import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
+import { 
+  verificarAtivoUltraCritico, 
+  determinarClassificacaoRisco,
+  gerarAlertasUltraCritico,
+  type ClassificacaoRisco,
+  ALERTA_ULTRA_CRITICO_PADRAO,
+} from "@/lib/ativo-ultra-critico";
 import { toast } from "sonner";
 
 export default function EditarFormulaPage() {
@@ -85,6 +92,11 @@ export default function EditarFormulaPage() {
     unidade_informada: "MG" as UnidadeInformada,
     exige_premix: false, // SEMPRE DESMARCADO por padrão
   });
+  const [alertaUltraCritico, setAlertaUltraCritico] = useState<{
+    nome: string;
+    alertas: string[];
+    classificacao: ClassificacaoRisco;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [aprovando, setAprovando] = useState(false);
 
@@ -138,6 +150,9 @@ export default function EditarFormulaPage() {
       return;
     }
 
+    // Verificar se é ativo ultra crítico
+    const infoUltraCritico = await verificarAtivoUltraCritico(novoItem.nome_insumo);
+    
     // Verificar fator de conversão para UI
     if (novoItem.unidade_informada === 'UI') {
       const fator = buscarFator(novoItem.nome_insumo);
@@ -157,6 +172,22 @@ export default function EditarFormulaPage() {
       novoItem.unidade_informada,
       novoItem.nome_insumo
     );
+
+    // Determinar classificação de risco
+    const classificacaoRisco = infoUltraCritico?.classificacao_risco || 
+      determinarClassificacaoRisco(quantidadeConvertida, novoItem.unidade_informada);
+    
+    // Se é ULTRA_CRÍTICO, forçar pré-mix e alertar
+    let forcarPremix = novoItem.exige_premix;
+    if (classificacaoRisco === 'ULTRA_CRITICO') {
+      forcarPremix = true; // Obrigatório para ultra críticos
+      const alertas = gerarAlertasUltraCritico(novoItem.nome_insumo, classificacaoRisco, quantidadeConvertida);
+      setAlertaUltraCritico({
+        nome: novoItem.nome_insumo,
+        alertas,
+        classificacao: classificacaoRisco,
+      });
+    }
 
     // FLAG AUTOMÁTICA: Ativo crítico (não editável)
     const ativoCritico = isAtivoCritico(quantidadeConvertida, novoItem.unidade_informada);
@@ -181,9 +212,11 @@ export default function EditarFormulaPage() {
       quantidade_informada: novoItem.quantidade_informada,
       unidade_informada: unidadeBanco,
       quantidade_convertida_mg: quantidadeConvertida,
-      ativo_critico: ativoCritico,
-      exige_premix: novoItem.exige_premix,
+      ativo_critico: ativoCritico || classificacaoRisco === 'ULTRA_CRITICO' || classificacaoRisco === 'CRITICO',
+      exige_premix: forcarPremix,
       ordem_mistura: itensLocal.length,
+      classificacao_risco: classificacaoRisco,
+      metodo_distribuicao: classificacaoRisco === 'ULTRA_CRITICO' ? 'DISTRIBUICAO_GEOMETRICA_POR_PREMIX' : null,
     });
 
     if (item) {
@@ -442,6 +475,32 @@ export default function EditarFormulaPage() {
             </Card>
           )}
 
+          {/* Alerta de Ativo Ultra Crítico */}
+          {alertaUltraCritico && (
+            <Alert className="border-destructive bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <AlertDescription>
+                <div className="font-bold text-destructive mb-2 flex items-center gap-2">
+                  🚨 ATIVO ULTRA CRÍTICO DETECTADO: {alertaUltraCritico.nome}
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {alertaUltraCritico.alertas.map((alerta, idx) => (
+                    <li key={idx}>{alerta}</li>
+                  ))}
+                </ul>
+                <div className="mt-3 flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setAlertaUltraCritico(null)}
+                  >
+                    Entendi
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Lista de ativos */}
           <Card>
             <CardHeader>
@@ -485,17 +544,25 @@ export default function EditarFormulaPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-1 flex-wrap">
-                            {item.ativo_critico && (
+                            {/* Classificação de risco */}
+                            {(item as any).classificacao_risco === 'ULTRA_CRITICO' && (
+                              <Badge variant="destructive" className="text-xs">
+                                🚨 Ultra
+                              </Badge>
+                            )}
+                            {item.ativo_critico && (item as any).classificacao_risco !== 'ULTRA_CRITICO' && (
                               <Badge variant="destructive" className="text-xs">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
                                 Crítico
                               </Badge>
                             )}
+                            {/* Pré-mix */}
                             {item.exige_premix && (
-                              <Badge variant="outline" className="text-xs">
-                                Pré-mix
+                              <Badge variant="outline" className="text-xs bg-secondary/20">
+                                Pré-mix ✓
                               </Badge>
                             )}
+                            {/* Sugestão de pré-mix */}
                             {!item.exige_premix && verificarSugestaoPremix(item.quantidade_convertida_mg, item.unidade_informada, false).sugerido && (
                               <TooltipProvider>
                                 <Tooltip>

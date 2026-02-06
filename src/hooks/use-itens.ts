@@ -47,7 +47,7 @@ export function useItem(id: string | undefined) {
         .single();
 
       if (error) throw error;
-      return data as Item & {
+      return data as unknown as Item & {
         item_fornecedores: (ItemFornecedor & { fornecedor: { id: string; razao_social: string; documento: string } })[];
         item_alias: ItemAlias[];
       };
