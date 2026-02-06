@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Factory, ArrowLeft, Play, Check, XCircle,
   Package, Scale, ClipboardCheck, FileText, AlertTriangle,
-  Calendar, Users, RefreshCw, Lock, Unlock, Printer
+  Calendar, Users, RefreshCw, Lock, Unlock, Printer,
+  QrCode, Box, ListChecks
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -32,8 +33,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EtapasProducaoTracker, type EtapaProducao } from '@/components/producao/EtapasProducaoTracker';
+import { OPTabResumoAuditoria } from '@/components/producao/OPTabResumoAuditoria';
+import { OPTabEmbalagens } from '@/components/producao/OPTabEmbalagens';
+import { OPTabProcesso } from '@/components/producao/OPTabProcesso';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { StatusOP, OPMateriaPrima, OPChecklist, OPPesagemCritica } from '@/types/op-industrial';
 
 export default function OrdemProducaoDetailPage() {
@@ -398,25 +403,34 @@ export default function OrdemProducaoDetailPage() {
       )}
 
       {/* Tabs principais */}
-      <Tabs defaultValue="materias-primas" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="resumo" className="space-y-4">
+        <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="resumo" className="flex items-center gap-2">
+            <QrCode className="h-4 w-4" />
+            Resumo & Auditoria
+          </TabsTrigger>
           <TabsTrigger value="materias-primas" className="flex items-center gap-2">
             <Scale className="h-4 w-4" />
-            Matérias-Primas ({materiasPrimas.length})
+            Pesagem ({materiasPrimas.length})
           </TabsTrigger>
           <TabsTrigger value="checklist" className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4" />
             Checklist
           </TabsTrigger>
-          <TabsTrigger value="pesagem-critica" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Pesagem Crítica ({pesagensCriticas.length})
+          <TabsTrigger value="processo" className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4" />
+            Processo
           </TabsTrigger>
-          <TabsTrigger value="ficha" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Ficha de Produção
+          <TabsTrigger value="embalagens" className="flex items-center gap-2">
+            <Box className="h-4 w-4" />
+            Embalagens
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab: Resumo & Auditoria */}
+        <TabsContent value="resumo">
+          <OPTabResumoAuditoria op={currentOP as any} />
+        </TabsContent>
 
         {/* Tab: Matérias-Primas */}
         <TabsContent value="materias-primas">
@@ -752,6 +766,26 @@ export default function OrdemProducaoDetailPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Processo Passo a Passo */}
+        <TabsContent value="processo">
+          <OPTabProcesso 
+            opId={id!}
+            status={currentOP.status}
+            tipoProduto={currentOP.tipo_apresentacao || 'CAPSULA'}
+            temAtivosCriticos={temAtivosCriticos}
+            excipienteBase={currentOP.excipiente_base}
+          />
+        </TabsContent>
+
+        {/* Tab: Embalagens */}
+        <TabsContent value="embalagens">
+          <OPTabEmbalagens 
+            opId={id!}
+            status={currentOP.status}
+            quantidadeFrascos={currentOP.quantidade_frascos}
+          />
         </TabsContent>
       </Tabs>
 
