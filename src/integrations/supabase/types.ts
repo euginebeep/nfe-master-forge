@@ -1902,6 +1902,422 @@ export type Database = {
           },
         ]
       }
+      op_checklist: {
+        Row: {
+          categoria: string
+          created_at: string | null
+          id: string
+          item: string
+          obrigatorio: boolean | null
+          observacoes: string | null
+          op_id: string
+          ordem: number
+          verificado: boolean | null
+          verificado_em: string | null
+          verificado_por: string | null
+        }
+        Insert: {
+          categoria: string
+          created_at?: string | null
+          id?: string
+          item: string
+          obrigatorio?: boolean | null
+          observacoes?: string | null
+          op_id: string
+          ordem: number
+          verificado?: boolean | null
+          verificado_em?: string | null
+          verificado_por?: string | null
+        }
+        Update: {
+          categoria?: string
+          created_at?: string | null
+          id?: string
+          item?: string
+          obrigatorio?: boolean | null
+          observacoes?: string | null
+          op_id?: string
+          ordem?: number
+          verificado?: boolean | null
+          verificado_em?: string | null
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "op_checklist_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_checklist_verificado_por_fkey"
+            columns: ["verificado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      op_controle_perdas: {
+        Row: {
+          acrescimo_percentual: number
+          created_at: string | null
+          id: string
+          justificativa_perdas: string | null
+          op_id: string
+          perda_percentual: number | null
+          perda_total: number | null
+          quantidade_aprovada: number | null
+          quantidade_com_acrescimo: number
+          quantidade_planejada: number
+          quantidade_produzida: number | null
+          quantidade_rejeitada: number | null
+          rendimento_percentual: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          acrescimo_percentual: number
+          created_at?: string | null
+          id?: string
+          justificativa_perdas?: string | null
+          op_id: string
+          perda_percentual?: number | null
+          perda_total?: number | null
+          quantidade_aprovada?: number | null
+          quantidade_com_acrescimo: number
+          quantidade_planejada: number
+          quantidade_produzida?: number | null
+          quantidade_rejeitada?: number | null
+          rendimento_percentual?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          acrescimo_percentual?: number
+          created_at?: string | null
+          id?: string
+          justificativa_perdas?: string | null
+          op_id?: string
+          perda_percentual?: number | null
+          perda_total?: number | null
+          quantidade_aprovada?: number | null
+          quantidade_com_acrescimo?: number
+          quantidade_planejada?: number
+          quantidade_produzida?: number | null
+          quantidade_rejeitada?: number | null
+          rendimento_percentual?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "op_controle_perdas_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      op_controle_qualidade: {
+        Row: {
+          aparencia_conforme: boolean | null
+          aparencia_po: string | null
+          avaliado_em: string | null
+          avaliado_por: string | null
+          created_at: string | null
+          desvio_padrao_peso: number | null
+          fluidez: string | null
+          fluidez_conforme: boolean | null
+          homogeneidade: string | null
+          homogeneidade_conforme: boolean | null
+          id: string
+          motivo_reprovacao: string | null
+          observacoes: string | null
+          op_id: string
+          peso_conforme: boolean | null
+          peso_maximo_capsulas_mg: number | null
+          peso_medio_capsulas_mg: number | null
+          peso_minimo_capsulas_mg: number | null
+          status: string | null
+        }
+        Insert: {
+          aparencia_conforme?: boolean | null
+          aparencia_po?: string | null
+          avaliado_em?: string | null
+          avaliado_por?: string | null
+          created_at?: string | null
+          desvio_padrao_peso?: number | null
+          fluidez?: string | null
+          fluidez_conforme?: boolean | null
+          homogeneidade?: string | null
+          homogeneidade_conforme?: boolean | null
+          id?: string
+          motivo_reprovacao?: string | null
+          observacoes?: string | null
+          op_id: string
+          peso_conforme?: boolean | null
+          peso_maximo_capsulas_mg?: number | null
+          peso_medio_capsulas_mg?: number | null
+          peso_minimo_capsulas_mg?: number | null
+          status?: string | null
+        }
+        Update: {
+          aparencia_conforme?: boolean | null
+          aparencia_po?: string | null
+          avaliado_em?: string | null
+          avaliado_por?: string | null
+          created_at?: string | null
+          desvio_padrao_peso?: number | null
+          fluidez?: string | null
+          fluidez_conforme?: boolean | null
+          homogeneidade?: string | null
+          homogeneidade_conforme?: boolean | null
+          id?: string
+          motivo_reprovacao?: string | null
+          observacoes?: string | null
+          op_id?: string
+          peso_conforme?: boolean | null
+          peso_maximo_capsulas_mg?: number | null
+          peso_medio_capsulas_mg?: number | null
+          peso_minimo_capsulas_mg?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "op_controle_qualidade_avaliado_por_fkey"
+            columns: ["avaliado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_controle_qualidade_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      op_materias_primas: {
+        Row: {
+          categoria: string
+          conferido_em: string | null
+          conferido_por: string | null
+          created_at: string | null
+          dentro_tolerancia: boolean | null
+          fornecedor_id: string | null
+          fornecedor_nome: string | null
+          id: string
+          insumo_id: string | null
+          insumo_nome: string
+          lote_id: string | null
+          motivo_critico: string | null
+          numero_lote: string | null
+          observacoes: string | null
+          op_id: string
+          ordem_mistura: number
+          pesado_em: string | null
+          pesado_por: string | null
+          pesagem_critica: boolean | null
+          quantidade_maxima_g: number | null
+          quantidade_minima_g: number | null
+          quantidade_real_g: number | null
+          quantidade_teorica_g: number
+          quantidade_teorica_mg: number
+          tolerancia_percentual: number | null
+          unidade: string | null
+        }
+        Insert: {
+          categoria?: string
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string | null
+          dentro_tolerancia?: boolean | null
+          fornecedor_id?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          insumo_id?: string | null
+          insumo_nome: string
+          lote_id?: string | null
+          motivo_critico?: string | null
+          numero_lote?: string | null
+          observacoes?: string | null
+          op_id: string
+          ordem_mistura: number
+          pesado_em?: string | null
+          pesado_por?: string | null
+          pesagem_critica?: boolean | null
+          quantidade_maxima_g?: number | null
+          quantidade_minima_g?: number | null
+          quantidade_real_g?: number | null
+          quantidade_teorica_g: number
+          quantidade_teorica_mg: number
+          tolerancia_percentual?: number | null
+          unidade?: string | null
+        }
+        Update: {
+          categoria?: string
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string | null
+          dentro_tolerancia?: boolean | null
+          fornecedor_id?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          insumo_id?: string | null
+          insumo_nome?: string
+          lote_id?: string | null
+          motivo_critico?: string | null
+          numero_lote?: string | null
+          observacoes?: string | null
+          op_id?: string
+          ordem_mistura?: number
+          pesado_em?: string | null
+          pesado_por?: string | null
+          pesagem_critica?: boolean | null
+          quantidade_maxima_g?: number | null
+          quantidade_minima_g?: number | null
+          quantidade_real_g?: number | null
+          quantidade_teorica_g?: number
+          quantidade_teorica_mg?: number
+          tolerancia_percentual?: number | null
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "op_materias_primas_conferido_por_fkey"
+            columns: ["conferido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_materias_primas_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_materias_primas_insumo_id_fkey"
+            columns: ["insumo_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_materias_primas_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_materias_primas_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_materias_primas_pesado_por_fkey"
+            columns: ["pesado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      op_pesagens_criticas: {
+        Row: {
+          assinatura_conferente: string | null
+          assinatura_operador: string | null
+          conferente_id: string | null
+          conferente_nome: string | null
+          created_at: string | null
+          data_conferencia: string | null
+          data_pesagem: string | null
+          id: string
+          insumo_nome: string
+          materia_prima_id: string
+          observacoes: string | null
+          op_id: string
+          operador_pesagem_id: string | null
+          operador_pesagem_nome: string | null
+          quantidade_pesada_mg: number | null
+          quantidade_teorica_mg: number
+          status: string | null
+        }
+        Insert: {
+          assinatura_conferente?: string | null
+          assinatura_operador?: string | null
+          conferente_id?: string | null
+          conferente_nome?: string | null
+          created_at?: string | null
+          data_conferencia?: string | null
+          data_pesagem?: string | null
+          id?: string
+          insumo_nome: string
+          materia_prima_id: string
+          observacoes?: string | null
+          op_id: string
+          operador_pesagem_id?: string | null
+          operador_pesagem_nome?: string | null
+          quantidade_pesada_mg?: number | null
+          quantidade_teorica_mg: number
+          status?: string | null
+        }
+        Update: {
+          assinatura_conferente?: string | null
+          assinatura_operador?: string | null
+          conferente_id?: string | null
+          conferente_nome?: string | null
+          created_at?: string | null
+          data_conferencia?: string | null
+          data_pesagem?: string | null
+          id?: string
+          insumo_nome?: string
+          materia_prima_id?: string
+          observacoes?: string | null
+          op_id?: string
+          operador_pesagem_id?: string | null
+          operador_pesagem_nome?: string | null
+          quantidade_pesada_mg?: number | null
+          quantidade_teorica_mg?: number
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "op_pesagens_criticas_conferente_id_fkey"
+            columns: ["conferente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_pesagens_criticas_materia_prima_id_fkey"
+            columns: ["materia_prima_id"]
+            isOneToOne: false
+            referencedRelation: "op_materias_primas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_pesagens_criticas_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_pesagens_criticas_operador_pesagem_id_fkey"
+            columns: ["operador_pesagem_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ordens_producao_geradas: {
         Row: {
           dados_op: Json
@@ -1933,6 +2349,144 @@ export type Database = {
             columns: ["formula_id"]
             isOneToOne: false
             referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordens_producao_industrial: {
+        Row: {
+          acrescimo_percentual: number | null
+          capsulas_por_frasco: number
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          data_fabricacao: string
+          data_fim_producao: string | null
+          data_inicio_producao: string | null
+          data_validade: string
+          excipiente_base: string | null
+          finalizado_por: string | null
+          formula_codigo: string | null
+          formula_id: string | null
+          formula_versao: number | null
+          id: string
+          lote_produto_acabado: string
+          motivo_bloqueio: string | null
+          observacoes: string | null
+          operadores: Json | null
+          peso_capsula_mg: number | null
+          produto_id: string | null
+          produto_nome: string
+          quantidade_frascos: number
+          responsavel_producao_id: string | null
+          responsavel_producao_nome: string | null
+          status: string
+          tipo_apresentacao: string
+          tipo_capsula: string | null
+          total_capsulas: number
+          total_capsulas_com_acrescimo: number
+          updated_at: string | null
+        }
+        Insert: {
+          acrescimo_percentual?: number | null
+          capsulas_por_frasco: number
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fabricacao: string
+          data_fim_producao?: string | null
+          data_inicio_producao?: string | null
+          data_validade: string
+          excipiente_base?: string | null
+          finalizado_por?: string | null
+          formula_codigo?: string | null
+          formula_id?: string | null
+          formula_versao?: number | null
+          id?: string
+          lote_produto_acabado: string
+          motivo_bloqueio?: string | null
+          observacoes?: string | null
+          operadores?: Json | null
+          peso_capsula_mg?: number | null
+          produto_id?: string | null
+          produto_nome: string
+          quantidade_frascos: number
+          responsavel_producao_id?: string | null
+          responsavel_producao_nome?: string | null
+          status?: string
+          tipo_apresentacao?: string
+          tipo_capsula?: string | null
+          total_capsulas: number
+          total_capsulas_com_acrescimo: number
+          updated_at?: string | null
+        }
+        Update: {
+          acrescimo_percentual?: number | null
+          capsulas_por_frasco?: number
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fabricacao?: string
+          data_fim_producao?: string | null
+          data_inicio_producao?: string | null
+          data_validade?: string
+          excipiente_base?: string | null
+          finalizado_por?: string | null
+          formula_codigo?: string | null
+          formula_id?: string | null
+          formula_versao?: number | null
+          id?: string
+          lote_produto_acabado?: string
+          motivo_bloqueio?: string | null
+          observacoes?: string | null
+          operadores?: Json | null
+          peso_capsula_mg?: number | null
+          produto_id?: string | null
+          produto_nome?: string
+          quantidade_frascos?: number
+          responsavel_producao_id?: string | null
+          responsavel_producao_nome?: string | null
+          status?: string
+          tipo_apresentacao?: string
+          tipo_capsula?: string | null
+          total_capsulas?: number
+          total_capsulas_com_acrescimo?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_producao_industrial_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_finalizado_por_fkey"
+            columns: ["finalizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_responsavel_producao_id_fkey"
+            columns: ["responsavel_producao_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
