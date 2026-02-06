@@ -1,13 +1,13 @@
 // ============================================================
 // FORMULADOR INDUSTRIAL - EDITOR DE FÓRMULA
-// Adicionar e gerenciar ativos
+// Adicionar e gerenciar ativos com seleção de matéria-prima
 // ============================================================
 
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
   ArrowLeft, FlaskConical, Save, Plus, Trash2, AlertTriangle, 
-  CheckCircle, Scale, Percent, Beaker, GripVertical
+  CheckCircle, Scale, Percent, Beaker, GripVertical, Package
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,8 @@ import {
   calcularPercentual,
   validarFormula,
 } from "@/types/formulador-industrial";
+import { ItemSelector } from "@/components/formulador/ItemSelector";
+import type { Item } from "@/types/erp";
 import { toast } from "sonner";
 
 export default function EditarFormulaPage() {
@@ -66,6 +68,7 @@ export default function EditarFormulaPage() {
   const [itensLocal, setItensLocal] = useState<FormulaItem[]>([]);
   const [novoItem, setNovoItem] = useState({
     nome_insumo: "",
+    produto_materia_prima_id: null as string | null,
     quantidade_informada: 0,
     unidade_informada: "MG" as UnidadeInformada,
     exige_premix: false,
@@ -141,6 +144,7 @@ export default function EditarFormulaPage() {
     const item = await adicionar({
       formula_id: id,
       nome_insumo: novoItem.nome_insumo,
+      produto_materia_prima_id: novoItem.produto_materia_prima_id,
       quantidade_informada: novoItem.quantidade_informada,
       unidade_informada: novoItem.unidade_informada,
       quantidade_convertida_mg: quantidadeConvertida,
@@ -153,6 +157,7 @@ export default function EditarFormulaPage() {
       setItensLocal(prev => [...prev, item]);
       setNovoItem({
         nome_insumo: "",
+        produto_materia_prima_id: null,
         quantidade_informada: 0,
         unidade_informada: "MG",
         exige_premix: false,
@@ -257,26 +262,60 @@ export default function EditarFormulaPage() {
                   Adicionar Ativo
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Linha 1: Seletor de Matéria-prima OU Nome manual */}
                 <div className="grid grid-cols-12 gap-4 items-end">
-                  <div className="col-span-5 space-y-2">
-                    <Label>Nome do Insumo</Label>
+                  <div className="col-span-6 space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Package className="h-3.5 w-3.5" />
+                      Matéria-prima do Cadastro
+                    </Label>
+                    <ItemSelector
+                      value={novoItem.produto_materia_prima_id || undefined}
+                      onSelect={(item) => {
+                        if (item) {
+                          setNovoItem(prev => ({ 
+                            ...prev, 
+                            produto_materia_prima_id: item.id,
+                            nome_insumo: item.descricao_interna,
+                          }));
+                        } else {
+                          setNovoItem(prev => ({ 
+                            ...prev, 
+                            produto_materia_prima_id: null,
+                            nome_insumo: "",
+                          }));
+                        }
+                      }}
+                      placeholder="Buscar no cadastro de itens..."
+                    />
+                  </div>
+                  <div className="col-span-6 space-y-2">
+                    <Label>Nome do Insumo (ou manual)</Label>
                     <Input
                       value={novoItem.nome_insumo}
                       onChange={(e) => setNovoItem(prev => ({ ...prev, nome_insumo: e.target.value }))}
                       placeholder="Ex: Vitamina D3"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Preenchido automaticamente ou digite manualmente
+                    </p>
                   </div>
-                  <div className="col-span-2 space-y-2">
+                </div>
+
+                {/* Linha 2: Quantidade, Unidade, Pré-mix e Botão */}
+                <div className="grid grid-cols-12 gap-4 items-end">
+                  <div className="col-span-3 space-y-2">
                     <Label>Quantidade</Label>
                     <Input
                       type="number"
                       step="any"
                       value={novoItem.quantidade_informada || ""}
                       onChange={(e) => setNovoItem(prev => ({ ...prev, quantidade_informada: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0"
                     />
                   </div>
-                  <div className="col-span-2 space-y-2">
+                  <div className="col-span-3 space-y-2">
                     <Label>Unidade</Label>
                     <Select 
                       value={novoItem.unidade_informada}
@@ -292,20 +331,22 @@ export default function EditarFormulaPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
+                  <div className="col-span-3 flex items-center gap-2 pt-6">
                     <Checkbox
                       id="premix"
                       checked={novoItem.exige_premix}
                       onCheckedChange={(c) => setNovoItem(prev => ({ ...prev, exige_premix: !!c }))}
                     />
-                    <Label htmlFor="premix" className="text-xs">Pré-mix</Label>
+                    <Label htmlFor="premix" className="text-sm">Pré-mix obrigatório</Label>
                   </div>
-                  <div className="col-span-1">
+                  <div className="col-span-3">
                     <Button 
                       onClick={handleAdicionarItem}
                       disabled={!novoItem.nome_insumo.trim() || novoItem.quantidade_informada <= 0}
+                      className="w-full"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar
                     </Button>
                   </div>
                 </div>
