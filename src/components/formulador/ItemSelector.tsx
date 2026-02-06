@@ -1,10 +1,10 @@
 // ============================================================
 // SELETOR DE MATÉRIA-PRIMA DO CADASTRO DE ITENS
-// Combobox com busca para selecionar itens do tipo MATERIA_PRIMA
+// Combobox com busca para selecionar itens do cadastro
 // ============================================================
 
 import { useState, useMemo } from "react";
-import { Check, ChevronsUpDown, Search, Package } from "lucide-react";
+import { Check, ChevronsUpDown, Search, Package, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { useItens } from "@/hooks/use-itens";
+import { Link } from "react-router-dom";
 import type { Item } from "@/types/erp";
 
 interface ItemSelectorProps {
@@ -34,17 +35,14 @@ interface ItemSelectorProps {
 export function ItemSelector({ 
   value, 
   onSelect, 
-  placeholder = "Selecionar matéria-prima...",
+  placeholder = "Buscar no cadastro de itens...",
   disabled = false,
 }: ItemSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Buscar apenas matérias-primas ativas
-  const { data: itens = [], isLoading } = useItens({ 
-    tipo_item: "MATERIA_PRIMA" as any, 
-    ativo: true 
-  });
+  // Buscar TODOS os itens ativos (não só matéria-prima, para maior flexibilidade)
+  const { data: itens = [], isLoading } = useItens({ ativo: true });
 
   // Filtrar itens baseado na busca
   const itensFiltrados = useMemo(() => {
@@ -117,9 +115,21 @@ export function ItemSelector({
               <div className="py-6 text-center text-sm text-muted-foreground">
                 Carregando...
               </div>
+            ) : itens.length === 0 ? (
+              <div className="py-6 text-center">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Nenhum item cadastrado no sistema.
+                </p>
+                <Link to="/cadastros/itens">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    Cadastrar Itens
+                  </Button>
+                </Link>
+              </div>
             ) : itensFiltrados.length === 0 ? (
               <CommandEmpty>
-                Nenhuma matéria-prima encontrada.
+                Nenhum item encontrado com "{search}".
               </CommandEmpty>
             ) : (
               <CommandGroup>
@@ -148,7 +158,7 @@ export function ItemSelector({
                       <div className="min-w-0">
                         <p className="truncate font-medium">{item.descricao_interna}</p>
                         <p className="text-xs text-muted-foreground">
-                          {item.unidade_interna} 
+                          {item.tipo_item} • {item.unidade_interna} 
                           {item.sku_interno && ` • ${item.sku_interno}`}
                         </p>
                       </div>
