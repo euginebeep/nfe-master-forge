@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   FileText, Upload, Loader2, Check, AlertCircle, Building2, 
   Package, CheckCircle2, Truck, Receipt, CreditCard, DollarSign,
-  Scale, FileWarning, Info, Box, ArrowRightLeft, Calculator
+  Scale, FileWarning, Info, Box, ArrowRightLeft, Calculator, Edit
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { parseNFeCompleto, formatCNPJ, formatCurrency, formatDate, formatDateTime } from "@/lib/nfe-parser-completo";
 import { checkNotaFiscalExists, importarNFeCompleta, type ImportStats, type ItemImportConfig } from "@/lib/local-db-nfe";
 import type { NFeParseResult, ClassificacaoNota } from "@/types/nfe-completa";
+import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/FiscalReviewDialog";
 
 const CLASSIFICACOES_NOTA: { value: ClassificacaoNota; label: string; description: string }[] = [
   { value: "MATERIA_PRIMA", label: "Matéria Prima", description: "Insumos para produção" },
@@ -59,6 +60,8 @@ export default function NFeImportPage() {
   const [classificacao, setClassificacao] = useState<ClassificacaoNota | null>(null);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
   const [itemConfigs, setItemConfigs] = useState<Record<number, ItemConversaoConfig>>({});
+  const [fiscalReviewOpen, setFiscalReviewOpen] = useState(false);
+  const [fiscalConfigs, setFiscalConfigs] = useState<FiscalItemConfig[]>([]);
 
   // Sugerir unidade e fator baseado na descrição e unidade comercial
   const sugerirConversao = useCallback((descricao: string, unidadeComercial: string): ItemConversaoConfig => {
@@ -157,7 +160,19 @@ export default function NFeImportPage() {
     }
   };
 
-  const handleConfirmImport = async () => {
+  // Abre modal de revisão fiscal antes de confirmar importação
+  const handleOpenFiscalReview = () => {
+    setFiscalReviewOpen(true);
+  };
+
+  // Callback quando usuário confirma revisão fiscal
+  const handleFiscalReviewConfirm = (configs: FiscalItemConfig[]) => {
+    setFiscalConfigs(configs);
+    // Proceder com importação
+    handleConfirmImport(configs);
+  };
+
+  const handleConfirmImport = async (fiscalConfigsParam?: FiscalItemConfig[]) => {
     if (!parsedResult || !classificacao) return;
     
     setStep('processing');
@@ -167,11 +182,29 @@ export default function NFeImportPage() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Converter configs para o formato esperado
-      const configuracoesItens: ItemImportConfig[] = Object.entries(itemConfigs).map(([indexStr, config]) => ({
-        itemIndex: parseInt(indexStr),
-        unidadeInterna: config.unidadeInterna as ItemImportConfig['unidadeInterna'],
-        fatorConversao: config.fatorConversao,
-      }));
+      const configuracoesItens: ItemImportConfig[] = Object.entries(itemConfigs).map(([indexStr, config]) => {
+        const idx = parseInt(indexStr);
+        const fiscalConfig = fiscalConfigsParam?.find(fc => fc.itemIndex === idx);
+        
+        return {
+          itemIndex: idx,
+          unidadeInterna: config.unidadeInterna as ItemImportConfig['unidadeInterna'],
+          fatorConversao: config.fatorConversao,
+          // Adicionar dados fiscais editados se houver
+          ...(fiscalConfig && {
+            ncm: fiscalConfig.ncm,
+            cfop: fiscalConfig.cfop,
+            cstIcms: fiscalConfig.cstIcms,
+            aliquotaIcms: fiscalConfig.aliquotaIcms,
+            cstIpi: fiscalConfig.cstIpi,
+            aliquotaIpi: fiscalConfig.aliquotaIpi,
+            cstPis: fiscalConfig.cstPis,
+            aliquotaPis: fiscalConfig.aliquotaPis,
+            cstCofins: fiscalConfig.cstCofins,
+            aliquotaCofins: fiscalConfig.aliquotaCofins,
+          }),
+        };
+      });
       
       const result = importarNFeCompleta(parsedResult, classificacao, configuracoesItens);
       setImportStats(result.stats);
@@ -890,15 +923,33 @@ export default function NFeImportPage() {
               <Button variant="outline" onClick={resetImport}>
                 Cancelar
               </Button>
-              <Button 
-                onClick={handleConfirmImport}
-                disabled={!classificacao}
-                size="lg"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Confirmar Importação
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={handleOpenFiscalReview}
+                  disabled={!classificacao}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Revisar Fiscal
+                </Button>
+                <Button 
+                  onClick={handleOpenFiscalReview}
+                  disabled={!classificacao}
+                  size="lg"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Confirmar Importação
+                </Button>
+              </div>
             </div>
+
+            {/* Modal de Revisão Fiscal */}
+            <FiscalReviewDialog
+              open={fiscalReviewOpen}
+              onOpenChange={setFiscalReviewOpen}
+              parsedResult={parsedResult}
+              onConfirm={handleFiscalReviewConfirm}
+            />
           </motion.div>
         )}
 

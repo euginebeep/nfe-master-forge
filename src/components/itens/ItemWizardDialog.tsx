@@ -355,6 +355,53 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
     };
   }, [isCapsule, isAtivo, capsulaTamanho, capsulaMaterial, tipoPotencia]);
 
+  // Validação da etapa Comercial
+  const validacaoComercial = useMemo(() => {
+    const erros: string[] = [];
+    const avisos: string[] = [];
+    
+    // Embalagens exigem MOQ
+    if (['EMBALAGEM', 'POTE', 'TAMPA', 'ROTULO', 'CAPSULA'].includes(tipoItem)) {
+      if (!moq || moq <= 0) {
+        avisos.push("Recomenda-se informar MOQ (Quantidade Mínima de Pedido) para embalagens");
+      }
+    }
+    
+    return {
+      valido: erros.length === 0,
+      erros,
+      avisos,
+    };
+  }, [tipoItem, moq]);
+
+  // Validação da etapa Fiscal
+  const validacaoFiscal = useMemo(() => {
+    const erros: string[] = [];
+    const avisos: string[] = [];
+    
+    // Tipos que exigem NCM
+    const tiposExigemNCM = ['MP', 'ATIVO', 'EXCIPIENTE', 'PA'];
+    if (tiposExigemNCM.includes(tipoItem) && !ncm) {
+      avisos.push("NCM é recomendado para este tipo de item (operações fiscais)");
+    }
+    
+    // Validar formato NCM
+    if (ncm && ncm.length !== 8) {
+      erros.push("NCM deve ter exatamente 8 dígitos");
+    }
+    
+    // Validar formato EAN
+    if (ean && ![8, 12, 13, 14].includes(ean.length)) {
+      erros.push("EAN deve ter 8, 12, 13 ou 14 dígitos");
+    }
+    
+    return {
+      valido: erros.length === 0,
+      erros,
+      avisos,
+    };
+  }, [tipoItem, ncm, ean]);
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -368,9 +415,11 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
         if (isAtivo && tipoPotencia === 'NENHUMA') return false;
         return true;
       case 3:
-        return true; // Comercial é opcional
+        // Comercial: validações de aviso, não bloqueia
+        return validacaoComercial.valido;
       case 4:
-        return true; // Fiscal é opcional
+        // Fiscal: NCM com formato válido
+        return validacaoFiscal.valido;
       case 5:
         return true; // Processo é opcional
       case 6:
@@ -381,6 +430,22 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
         return true;
     }
   };
+
+  // Mensagens de erro/aviso da etapa atual
+  const stepValidationMessages = useMemo(() => {
+    switch (currentStep) {
+      case 1:
+        return validacaoTipoItem;
+      case 2:
+        return { valido: validacaoFator.valido, erros: validacaoFator.erro ? [validacaoFator.erro] : [], avisos: [] };
+      case 3:
+        return validacaoComercial;
+      case 4:
+        return validacaoFiscal;
+      default:
+        return { valido: true, erros: [], avisos: [] };
+    }
+  }, [currentStep, validacaoTipoItem, validacaoFator, validacaoComercial, validacaoFiscal]);
 
   const handleNext = () => {
     if (currentStep < TOTAL_STEPS && canProceed()) {
@@ -1021,6 +1086,20 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                       rows={3}
                     />
                   </div>
+
+                  {/* Avisos de validação */}
+                  {validacaoComercial.avisos.length > 0 && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <ul className="list-disc list-inside">
+                          {validacaoComercial.avisos.map((aviso, i) => (
+                            <li key={i}>{aviso}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1238,6 +1317,32 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                       rows={2}
                     />
                   </div>
+
+                  {/* Alertas de validação */}
+                  {validacaoFiscal.erros.length > 0 && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <ul className="list-disc list-inside">
+                          {validacaoFiscal.erros.map((erro, i) => (
+                            <li key={i}>{erro}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {validacaoFiscal.avisos.length > 0 && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <ul className="list-disc list-inside">
+                          {validacaoFiscal.avisos.map((aviso, i) => (
+                            <li key={i}>{aviso}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
             </div>

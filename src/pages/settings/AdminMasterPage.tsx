@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { seedInitialData } from "@/lib/local-db";
 import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsManager";
+import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
 
 const STORAGE_PREFIX = "legacy_erp_";
 
@@ -156,7 +157,9 @@ export default function AdminMasterPage() {
 
       <LocalCollectionsManager storagePrefix={STORAGE_PREFIX} collections={ALL_COLLECTIONS} />
 
-      <Card className="border-destructive/50">
+      <BackendCleanupManager />
+
+      <Card className="border-destructive/50 mt-6">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-destructive/10">
