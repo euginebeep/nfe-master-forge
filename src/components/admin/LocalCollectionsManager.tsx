@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Download, RefreshCw, Trash2, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { seedInitialData } from "@/lib/local-db";
+import { toast } from "sonner";
 
 export type LocalCollectionDef = { key: string; label: string };
 
@@ -39,6 +40,16 @@ function getCountFromStorage(storageKey: string): number {
   }
 }
 
+function getDataFromStorage(storageKey: string): unknown {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function LocalCollectionsManager({
   storagePrefix,
   collections,
@@ -49,11 +60,40 @@ export function LocalCollectionsManager({
   const [rows, setRows] = useState<CollectionRow[]>([]);
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [exporting, setExporting] = useState<string | null>(null);
 
   const confirmRow = useMemo(
     () => (confirmKey ? rows.find((r) => r.key === confirmKey) : undefined),
     [confirmKey, rows]
   );
+
+  const handleExport = (row: CollectionRow) => {
+    setExporting(row.key);
+    try {
+      const data = getDataFromStorage(row.storageKey);
+      if (!data) {
+        toast.error("Nenhum dado para exportar");
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup_${row.key}_${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Backup de ${row.label} exportado!`);
+    } catch (error) {
+      console.error("Error exporting:", error);
+      toast.error("Erro ao exportar dados");
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const canConfirm = confirmText.trim().toUpperCase() === "APAGAR";
 
@@ -151,10 +191,23 @@ export function LocalCollectionsManager({
                   <p className="text-xs text-muted-foreground font-mono truncate">{r.storageKey}</p>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <StatusBadge variant={statusVariant as any}>
                     {statusLabel} • {r.count}
                   </StatusBadge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExport(r)}
+                    disabled={exporting === r.key || r.count === 0}
+                    title="Exportar backup JSON"
+                  >
+                    {exporting === r.key ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </Button>
                   <Button
                     variant="destructive"
                     size="sm"
