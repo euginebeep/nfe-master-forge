@@ -83,8 +83,45 @@ export interface LocalItem {
   capsula_material?: 'GELATINA' | 'VEGETAL' | 'HPMC';
   foto_url?: string;
   
-  // Custo de referência (por unidade interna)
-  custo_por_unidade_interna?: number;
+  // ====================================================
+  // DADOS COMERCIAIS (como aparecem no XML da NF-e)
+  // ====================================================
+  preco_unitario_fornecedor?: number;     // vUnCom - preço por unidade do fornecedor
+  custo_por_unidade_interna?: number;     // Custo calculado por unidade interna
+  moq?: number;                           // Quantidade mínima de pedido
+  lead_time_dias?: number;                // Prazo de entrega em dias
+  observacoes_comerciais?: string;        // Condições, negociações
+  
+  // ====================================================
+  // DADOS FISCAIS COMPLETOS (como aparecem no XML)
+  // ====================================================
+  // CFOP padrão
+  cfop_entrada_padrao?: string;
+  cfop_saida_padrao?: string;
+  
+  // ICMS
+  cst_icms?: string;
+  aliquota_icms?: number;
+  origem_icms?: string;                   // 0=Nacional, 1=Estrangeira, etc
+  mva_st?: number;                        // MVA para Substituição Tributária
+  
+  // IPI
+  cst_ipi?: string;
+  aliquota_ipi?: number;
+  codigo_enquadramento_ipi?: string;
+  
+  // PIS
+  cst_pis?: string;
+  aliquota_pis?: number;
+  
+  // COFINS
+  cst_cofins?: string;
+  aliquota_cofins?: number;
+  
+  // Outros
+  cest?: string;                          // Código CEST
+  codigo_anp?: string;                    // Código ANP (combustíveis)
+  observacoes_fiscais?: string;           // Informações adicionais fiscais
   
   created_at?: string;
   updated_at?: string;
