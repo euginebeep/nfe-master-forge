@@ -2,21 +2,41 @@ import { useState, useEffect, useCallback } from 'react';
 import { LocalDb } from '@/lib/local-db';
 import { toast } from 'sonner';
 
+// ====================================================
+// REGRA MESTRE (IMUTÁVEL)
+// ====================================================
+// TODO INSUMO OU PRODUTO DEVE TER:
+// 1) UNIDADE DE COMPRA (FORNECEDOR / FISCAL) – IMUTÁVEL
+// 2) UNIDADE INTERNA DE CONTROLE – PADRONIZADA
+// 3) FATOR DE CONVERSÃO FIXO ENTRE ELAS
+// NUNCA CONFUNDIR UNIDADE FISCAL COM UNIDADE INTERNA.
+// ====================================================
+
 // Tipos de item disponíveis no cadastro
 export type TipoItemLocal = 
-  | 'MP' 
-  | 'EMBALAGEM' 
-  | 'ROTULO' 
-  | 'TAMPA' 
-  | 'POTE' 
-  | 'SILICA' 
-  | 'CAPSULA' // Cápsula vazia com marca e foto
-  | 'CAPSULA_VAZIA' // Mantido para retrocompatibilidade
-  | 'PA' 
+  | 'MP'           // Matéria-prima
+  | 'ATIVO'        // Ativo funcional
+  | 'EXCIPIENTE'   // Excipiente/veículo
+  | 'EMBALAGEM'    // Embalagem genérica
+  | 'ROTULO'       // Rótulo
+  | 'TAMPA'        // Tampa
+  | 'POTE'         // Pote/Frasco
+  | 'SILICA'       // Sílica dessecante
+  | 'CAPSULA'      // Cápsula vazia
+  | 'CAPSULA_VAZIA'// Mantido para retrocompatibilidade
+  | 'ACESSORIO'    // Acessório de produção
+  | 'PA'           // Produto acabado
   | 'OUTRO';
 
-// Unidades internas disponíveis
-export type UnidadeInternaLocal = 'g' | 'mg' | 'un' | 'ml' | 'milheiro';
+// Unidades de compra/fornecedor (IMUTÁVEL após cadastro)
+export type UnidadeFornecedor = 
+  | 'kg' | 'g' | 'mg' 
+  | 'un' | 'milheiro' | 'caixa' | 'fardo' | 'pacote'
+  | 'l' | 'ml'
+  | 'UI_g' | 'mcg_g'; // Concentração
+
+// Unidades internas de controle (padronizadas)
+export type UnidadeInternaLocal = 'g' | 'mg' | 'kg' | 'un' | 'ml' | 'l';
 
 export interface LocalItem {
   id: string;
@@ -27,7 +47,25 @@ export interface LocalItem {
   categoria_operacional?: string;
   ncm?: string;
   ean?: string;
+  
+  // ====================================================
+  // UNIDADES E CONVERSÃO (REGRA MESTRE)
+  // ====================================================
+  // 1. Unidade do Fornecedor (IMUTÁVEL após primeiro registro)
+  unidade_fornecedor: UnidadeFornecedor;
+  // 2. Unidade Interna de Controle (padronizada)
   unidade_interna: UnidadeInternaLocal;
+  // 3. Fator de Conversão FIXO (OBRIGATÓRIO quando unidades diferem)
+  // Ex: milheiro → un = 1000, kg → g = 1000, caixa(12) → un = 12
+  fator_conversao: number;
+  
+  // Para ativos com potência (UI/g, mcg/g, %)
+  tipo_potencia?: 'NENHUMA' | 'PERCENTUAL' | 'UI_POR_GRAMA' | 'MCG_POR_GRAMA';
+  valor_potencia?: number; // Ex: 100000 para 100.000 UI/g
+  
+  // Para minerais - percentual elementar
+  percentual_elementar?: number; // Ex: 16 para Citrato de Magnésio (16% Mg)
+  
   controla_lote: boolean;
   controla_validade: boolean;
   criticidade: 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA';
@@ -35,18 +73,19 @@ export interface LocalItem {
   armazenamento: 'AMBIENTE' | 'REFRIGERADO' | 'PROTEGIDO_LUZ' | 'OUTRO';
   unidade_declaracao?: string;
   unidade_pesagem?: string;
-  fator_conversao?: number;
   exige_premix: boolean;
   ativo: boolean;
+  
   // Campos específicos para cápsulas
   capsula_marca?: string;
   capsula_tamanho?: '000' | '00' | '0' | '1' | '2' | '3' | '4' | '5';
   capsula_cor?: string;
   capsula_material?: 'GELATINA' | 'VEGETAL' | 'HPMC';
-  foto_url?: string; // URL ou storage key da foto
-  // Conversão de unidade de compra
-  unidade_compra?: string; // Ex: 'milheiro', 'caixa', 'pacote'
-  fator_compra_para_interna?: number; // Ex: 1 milheiro = 1000 unidades
+  foto_url?: string;
+  
+  // Custo de referência (por unidade interna)
+  custo_por_unidade_interna?: number;
+  
   created_at?: string;
   updated_at?: string;
 }

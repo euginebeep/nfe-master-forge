@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pill } from "lucide-react";
-import { useCreateItem, LocalItem, TipoItemLocal, UnidadeInternaLocal } from "@/hooks/use-local-itens";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Pill, AlertTriangle, ArrowRight, Calculator, Package, Beaker } from "lucide-react";
+import { useCreateItem, LocalItem, TipoItemLocal, UnidadeInternaLocal, UnidadeFornecedor } from "@/hooks/use-local-itens";
 import { CapsulePhotoUpload } from "./CapsulePhotoUpload";
+import { 
+  calcularFatorConversaoAutomatico, 
+  unidadeInternaSugerida, 
+  unidadeFornecedorSugerida,
+  formatarUnidade,
+  validarFatorConversao 
+} from "@/lib/erp-validation";
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -18,16 +26,22 @@ interface ItemFormDialogProps {
   onSuccess?: () => void;
 }
 
-const TIPOS_ITEM: { value: TipoItemLocal; label: string }[] = [
-  { value: "MP", label: "Matéria Prima" },
-  { value: "EMBALAGEM", label: "Embalagem" },
-  { value: "ROTULO", label: "Rótulo" },
-  { value: "TAMPA", label: "Tampa" },
-  { value: "POTE", label: "Pote" },
-  { value: "SILICA", label: "Sílica" },
-  { value: "CAPSULA", label: "Cápsula Vazia" },
-  { value: "PA", label: "Produto Acabado" },
-  { value: "OUTRO", label: "Outro" },
+// ====================================================
+// REGRA MESTRE: TIPOS DE ITEM
+// ====================================================
+const TIPOS_ITEM: { value: TipoItemLocal; label: string; description: string }[] = [
+  { value: "MP", label: "Matéria Prima", description: "Insumos para produção" },
+  { value: "ATIVO", label: "Ativo", description: "Componente funcional" },
+  { value: "EXCIPIENTE", label: "Excipiente", description: "Veículo/enchimento" },
+  { value: "EMBALAGEM", label: "Embalagem", description: "Embalagem genérica" },
+  { value: "ROTULO", label: "Rótulo", description: "Rótulos impressos" },
+  { value: "TAMPA", label: "Tampa", description: "Tampas de potes" },
+  { value: "POTE", label: "Pote", description: "Potes/frascos" },
+  { value: "SILICA", label: "Sílica", description: "Dessecante" },
+  { value: "CAPSULA", label: "Cápsula Vazia", description: "Cápsulas para encapsulamento" },
+  { value: "ACESSORIO", label: "Acessório", description: "Acessórios de produção" },
+  { value: "PA", label: "Produto Acabado", description: "Produto final" },
+  { value: "OUTRO", label: "Outro", description: "Classificação manual" },
 ];
 
 const CRITICIDADES = [
@@ -44,12 +58,39 @@ const ARMAZENAMENTOS = [
   { value: "OUTRO", label: "Outro" },
 ];
 
+// ====================================================
+// REGRA MESTRE: UNIDADES
+// ====================================================
+const UNIDADES_FORNECEDOR: { value: UnidadeFornecedor; label: string; grupo: string }[] = [
+  // Massa
+  { value: "kg", label: "Quilograma (kg)", grupo: "Massa" },
+  { value: "g", label: "Grama (g)", grupo: "Massa" },
+  { value: "mg", label: "Miligrama (mg)", grupo: "Massa" },
+  // Volume
+  { value: "l", label: "Litro (L)", grupo: "Volume" },
+  { value: "ml", label: "Mililitro (mL)", grupo: "Volume" },
+  // Discretas
+  { value: "un", label: "Unidade (un)", grupo: "Contável" },
+  { value: "milheiro", label: "Milheiro (1000 un)", grupo: "Contável" },
+  { value: "caixa", label: "Caixa", grupo: "Contável" },
+  { value: "fardo", label: "Fardo", grupo: "Contável" },
+  { value: "pacote", label: "Pacote", grupo: "Contável" },
+];
+
 const UNIDADES_INTERNAS: { value: UnidadeInternaLocal; label: string; description: string }[] = [
   { value: "g", label: "Gramas (g)", description: "Para matérias-primas pesáveis" },
   { value: "mg", label: "Miligramas (mg)", description: "Para micro-dosagens" },
+  { value: "kg", label: "Quilogramas (kg)", description: "Para grandes volumes" },
   { value: "un", label: "Unidades (un)", description: "Para itens discretos" },
   { value: "ml", label: "Mililitros (ml)", description: "Para líquidos" },
-  { value: "milheiro", label: "Milheiro", description: "1000 unidades - para cápsulas" },
+  { value: "l", label: "Litros (l)", description: "Para grandes volumes líquidos" },
+];
+
+const TIPOS_POTENCIA = [
+  { value: "NENHUMA", label: "Nenhuma (excipiente)" },
+  { value: "PERCENTUAL", label: "Percentual (%)" },
+  { value: "UI_POR_GRAMA", label: "UI por grama (UI/g)" },
+  { value: "MCG_POR_GRAMA", label: "Micrograma por grama (mcg/g)" },
 ];
 
 const TAMANHOS_CAPSULA = ['000', '00', '0', '1', '2', '3', '4', '5'];
@@ -74,7 +115,20 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
   const [tipoItem, setTipoItem] = useState<TipoItemLocal>("MP");
   const [criticidade, setCriticidade] = useState("NORMAL");
   const [armazenamento, setArmazenamento] = useState("AMBIENTE");
+  
+  // ====================================================
+  // REGRA MESTRE: UNIDADES E CONVERSÃO
+  // ====================================================
+  const [unidadeFornecedor, setUnidadeFornecedor] = useState<UnidadeFornecedor>("kg");
   const [unidadeInterna, setUnidadeInterna] = useState<UnidadeInternaLocal>("g");
+  const [fatorConversao, setFatorConversao] = useState<number>(1000);
+  const [fatorManual, setFatorManual] = useState(false);
+  
+  // Potência (para ativos)
+  const [tipoPotencia, setTipoPotencia] = useState<string>("NENHUMA");
+  const [valorPotencia, setValorPotencia] = useState<number | undefined>();
+  const [percentualElementar, setPercentualElementar] = useState<number | undefined>();
+  
   const [controlaLote, setControlaLote] = useState(true);
   const [controlaValidade, setControlaValidade] = useState(true);
   const [higroscopico, setHigroscopico] = useState(false);
@@ -86,8 +140,6 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
   const [capsulaTamanho, setCapsulaTamanho] = useState<string>("");
   const [capsulaCor, setCapsulaCor] = useState("");
   const [capsulaMaterial, setCapsulaMaterial] = useState<string>("");
-  const [unidadeCompra, setUnidadeCompra] = useState("");
-  const [fatorCompra, setFatorCompra] = useState<number>(1);
   const [fotoUrl, setFotoUrl] = useState<string | undefined>();
   const [fotoStorageKey, setFotoStorageKey] = useState<string | undefined>();
 
@@ -102,34 +154,81 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
     },
   });
 
-  // Auto-ajustar unidade interna baseado no tipo
+  // ====================================================
+  // AUTO-CONFIGURAÇÃO baseada no tipo de item
+  // ====================================================
   useEffect(() => {
+    const unidadeIntSugerida = unidadeInternaSugerida(tipoItem);
+    const unidadeFornSugerida = unidadeFornecedorSugerida(tipoItem);
+    
+    setUnidadeInterna(unidadeIntSugerida);
+    setUnidadeFornecedor(unidadeFornSugerida);
+    
+    // Calcular fator automático
+    const fatorAuto = calcularFatorConversaoAutomatico(unidadeFornSugerida, unidadeIntSugerida);
+    if (fatorAuto !== null) {
+      setFatorConversao(fatorAuto);
+      setFatorManual(false);
+    } else {
+      setFatorConversao(1);
+      setFatorManual(true);
+    }
+    
+    // Configurações específicas por tipo
     if (tipoItem === 'CAPSULA' || tipoItem === 'CAPSULA_VAZIA') {
-      setUnidadeInterna('un');
-      setUnidadeCompra('milheiro');
-      setFatorCompra(1000);
       setControlaLote(true);
       setControlaValidade(true);
-    } else if (['EMBALAGEM', 'ROTULO', 'TAMPA', 'POTE', 'SILICA'].includes(tipoItem)) {
-      setUnidadeInterna('un');
-      setUnidadeCompra('');
-      setFatorCompra(1);
-    } else if (tipoItem === 'MP') {
-      setUnidadeInterna('g');
-      setUnidadeCompra('');
-      setFatorCompra(1);
+    } else if (tipoItem === 'MP' || tipoItem === 'ATIVO') {
+      setControlaLote(true);
+      setControlaValidade(true);
+      setCriticidade('CRITICO');
     }
   }, [tipoItem]);
 
+  // Recalcular fator quando unidades mudam
+  useEffect(() => {
+    if (!fatorManual) {
+      const fatorAuto = calcularFatorConversaoAutomatico(unidadeFornecedor, unidadeInterna);
+      if (fatorAuto !== null) {
+        setFatorConversao(fatorAuto);
+      }
+    }
+  }, [unidadeFornecedor, unidadeInterna, fatorManual]);
+
   const isCapsule = tipoItem === 'CAPSULA' || tipoItem === 'CAPSULA_VAZIA';
+  const isAtivo = tipoItem === 'ATIVO' || tipoItem === 'MP';
+
+  // Validação do fator
+  const validacaoFator = useMemo(() => {
+    return validarFatorConversao(unidadeFornecedor, unidadeInterna, fatorConversao);
+  }, [unidadeFornecedor, unidadeInterna, fatorConversao]);
+
+  // Preview da conversão
+  const previewConversao = useMemo(() => {
+    const qtdExemplo = 1;
+    const custoExemplo = 100;
+    const qtdInterna = qtdExemplo * fatorConversao;
+    const custoInterno = custoExemplo / fatorConversao;
+    return { qtdInterna, custoInterno };
+  }, [fatorConversao]);
 
   const onSubmit = (data: any) => {
+    // Validar fator de conversão
+    if (!validacaoFator.valido) {
+      return;
+    }
+
     const item = create({
       ...data,
       tipo_item: tipoItem,
       criticidade: criticidade as any,
       armazenamento: armazenamento as any,
+      unidade_fornecedor: unidadeFornecedor,
       unidade_interna: unidadeInterna,
+      fator_conversao: fatorConversao,
+      tipo_potencia: tipoPotencia !== 'NENHUMA' ? tipoPotencia : undefined,
+      valor_potencia: valorPotencia,
+      percentual_elementar: percentualElementar,
       controla_lote: controlaLote,
       controla_validade: controlaValidade,
       higroscopico,
@@ -143,39 +242,47 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
         capsula_material: capsulaMaterial || undefined,
         foto_url: fotoUrl || undefined,
       }),
-      // Conversão de unidade
-      unidade_compra: unidadeCompra || undefined,
-      fator_compra_para_interna: fatorCompra > 1 ? fatorCompra : undefined,
     } as Omit<LocalItem, 'id' | 'sku_interno'> & { sku_interno?: string });
 
     if (item) {
-      reset();
-      setTipoItem("MP");
-      setCriticidade("NORMAL");
-      setArmazenamento("AMBIENTE");
-      setUnidadeInterna("g");
-      setControlaLote(true);
-      setControlaValidade(true);
-      setHigroscopico(false);
-      setExigePremix(false);
-      setAtivo(true);
-      setCapsulaMarca("");
-      setCapsulaTamanho("");
-      setCapsulaCor("");
-      setCapsulaMaterial("");
-      setUnidadeCompra("");
-      setFatorCompra(1);
-      setFotoUrl(undefined);
-      setFotoStorageKey(undefined);
+      resetForm();
       onSuccess?.();
     }
   };
 
+  const resetForm = () => {
+    reset();
+    setTipoItem("MP");
+    setCriticidade("NORMAL");
+    setArmazenamento("AMBIENTE");
+    setUnidadeFornecedor("kg");
+    setUnidadeInterna("g");
+    setFatorConversao(1000);
+    setFatorManual(false);
+    setTipoPotencia("NENHUMA");
+    setValorPotencia(undefined);
+    setPercentualElementar(undefined);
+    setControlaLote(true);
+    setControlaValidade(true);
+    setHigroscopico(false);
+    setExigePremix(false);
+    setAtivo(true);
+    setCapsulaMarca("");
+    setCapsulaTamanho("");
+    setCapsulaCor("");
+    setCapsulaMaterial("");
+    setFotoUrl(undefined);
+    setFotoStorageKey(undefined);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Produto</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Novo Produto / Insumo
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -186,10 +293,11 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
               <Input id="sku_interno" {...register("sku_interno")} placeholder="MP-XXXX" />
             </div>
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="descricao_interna">Descrição Interna *</Label>
+              <Label htmlFor="descricao_interna">Nome Técnico *</Label>
               <Input
                 id="descricao_interna"
-                {...register("descricao_interna", { required: "Descrição é obrigatória" })}
+                {...register("descricao_interna", { required: "Nome é obrigatório" })}
+                placeholder="Vitamina D3 100.000 UI/g"
               />
               {errors.descricao_interna && (
                 <p className="text-sm text-destructive">{errors.descricao_interna.message}</p>
@@ -197,19 +305,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
             </div>
           </div>
 
-          {/* Descrição Comercial e Categoria */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="descricao_comercial">Descrição Comercial</Label>
-              <Input id="descricao_comercial" {...register("descricao_comercial")} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="categoria_operacional">Categoria Operacional</Label>
-              <Input id="categoria_operacional" {...register("categoria_operacional")} />
-            </div>
-          </div>
-
-          {/* Tipo e Unidade */}
+          {/* Tipo do Item */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo do Item *</Label>
@@ -219,30 +315,191 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
                 </SelectTrigger>
                 <SelectContent>
                   {TIPOS_ITEM.map((tipo) => (
-                    <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Unidade Interna *</Label>
-              <Select value={unidadeInterna} onValueChange={(v) => setUnidadeInterna(v as UnidadeInternaLocal)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {UNIDADES_INTERNAS.map((u) => (
-                    <SelectItem key={u.value} value={u.value}>
+                    <SelectItem key={tipo.value} value={tipo.value}>
                       <div className="flex flex-col">
-                        <span>{u.label}</span>
-                        <span className="text-xs text-muted-foreground">{u.description}</span>
+                        <span>{tipo.label}</span>
+                        <span className="text-xs text-muted-foreground">{tipo.description}</span>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="descricao_comercial">Descrição Comercial</Label>
+              <Input id="descricao_comercial" {...register("descricao_comercial")} />
+            </div>
           </div>
+
+          {/* ====================================================
+              REGRA MESTRE: UNIDADES E CONVERSÃO
+              ==================================================== */}
+          <Card className="border-2 border-primary/30 bg-primary/5">
+            <CardHeader className="py-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ArrowRight className="h-4 w-4" />
+                Unidades e Conversão (REGRA MESTRE)
+              </CardTitle>
+              <CardDescription>
+                Defina a unidade do fornecedor e a unidade interna de controle. O fator de conversão é OBRIGATÓRIO quando diferem.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-4 items-end">
+                {/* Unidade Fornecedor */}
+                <div className="space-y-2">
+                  <Label>Unidade do Fornecedor (Fiscal)</Label>
+                  <Select value={unidadeFornecedor} onValueChange={(v) => {
+                    setUnidadeFornecedor(v as UnidadeFornecedor);
+                    setFatorManual(false);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIDADES_FORNECEDOR.map((u) => (
+                        <SelectItem key={u.value} value={u.value}>
+                          {u.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Exatamente como vem na nota fiscal</p>
+                </div>
+
+                {/* Fator de Conversão */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    Fator de Conversão
+                    <Calculator className="h-3 w-3" />
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0.0001"
+                    value={fatorConversao}
+                    onChange={(e) => {
+                      setFatorConversao(parseFloat(e.target.value) || 1);
+                      setFatorManual(true);
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    1 {formatarUnidade(unidadeFornecedor)} = {fatorConversao} {formatarUnidade(unidadeInterna)}
+                  </p>
+                </div>
+
+                {/* Unidade Interna */}
+                <div className="space-y-2">
+                  <Label>Unidade Interna (Controle)</Label>
+                  <Select value={unidadeInterna} onValueChange={(v) => {
+                    setUnidadeInterna(v as UnidadeInternaLocal);
+                    setFatorManual(false);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIDADES_INTERNAS.map((u) => (
+                        <SelectItem key={u.value} value={u.value}>
+                          {u.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Unidade padronizada do sistema</p>
+                </div>
+              </div>
+
+              {/* Validação do Fator */}
+              {!validacaoFator.valido && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{validacaoFator.erro}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Preview da Conversão */}
+              <div className="p-3 bg-background rounded-lg border">
+                <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                  <Calculator className="h-4 w-4 text-primary" />
+                  Preview da Conversão
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Estoque: </span>
+                    <span className="font-mono">
+                      1 {formatarUnidade(unidadeFornecedor)} → {previewConversao.qtdInterna.toLocaleString('pt-BR')} {formatarUnidade(unidadeInterna)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Custo: </span>
+                    <span className="font-mono">
+                      R$ 100,00/{formatarUnidade(unidadeFornecedor)} → R$ {previewConversao.custoInterno.toFixed(4)}/{formatarUnidade(unidadeInterna)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Potência (para ativos) */}
+          {isAtivo && (
+            <Card>
+              <CardHeader className="py-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Beaker className="h-4 w-4" />
+                  Potência / Concentração
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tipo de Potência</Label>
+                    <Select value={tipoPotencia} onValueChange={setTipoPotencia}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_POTENCIA.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {tipoPotencia !== 'NENHUMA' && (
+                    <div className="space-y-2">
+                      <Label>Valor da Potência</Label>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={valorPotencia || ''}
+                        onChange={(e) => setValorPotencia(parseFloat(e.target.value) || undefined)}
+                        placeholder={tipoPotencia === 'UI_POR_GRAMA' ? '100000' : '0.5'}
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>% Elementar (minerais)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={percentualElementar || ''}
+                      onChange={(e) => setPercentualElementar(parseFloat(e.target.value) || undefined)}
+                      placeholder="Ex: 16 para Citrato de Mg"
+                    />
+                  </div>
+                </div>
+                {tipoPotencia === 'UI_POR_GRAMA' && (
+                  <Alert className="mt-3">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>BLOQUEIO:</strong> Conversão de UI só é permitida se a potência UI/g for informada.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Seção específica de Cápsulas */}
           {isCapsule && (
@@ -316,42 +573,6 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Conversão de Unidade de Compra */}
-          {(isCapsule || unidadeCompra) && (
-            <Card>
-              <CardHeader className="py-3">
-                <CardTitle className="text-base">Conversão de Unidade de Compra</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 items-end">
-                  <div className="space-y-2">
-                    <Label>Unidade de Compra</Label>
-                    <Input 
-                      value={unidadeCompra}
-                      onChange={(e) => setUnidadeCompra(e.target.value)}
-                      placeholder="Ex: milheiro, caixa..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Fator de Conversão</Label>
-                    <Input 
-                      type="number"
-                      value={fatorCompra}
-                      onChange={(e) => setFatorCompra(Number(e.target.value))}
-                      placeholder="1000"
-                    />
-                  </div>
-                  <div className="text-sm text-muted-foreground pb-2">
-                    1 {unidadeCompra || 'unidade de compra'} = {fatorCompra} {unidadeInterna}
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Ao importar uma NF-e, o custo unitário será calculado: Total ÷ (Qtd × Fator)
-                </p>
               </CardContent>
             </Card>
           )}
@@ -444,12 +665,14 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3">
+          {/* Botões */}
+          <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit">Salvar</Button>
+            <Button type="submit" disabled={!validacaoFator.valido}>
+              Salvar Produto
+            </Button>
           </div>
         </form>
       </DialogContent>
