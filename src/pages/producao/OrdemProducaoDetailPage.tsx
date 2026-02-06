@@ -748,6 +748,16 @@ export default function OrdemProducaoDetailPage() {
             quantidadeFrascos={currentOP.quantidade_frascos}
           />
         </TabsContent>
+
+        {/* Tab: Documentos A4 - Impressão Profissional */}
+        <TabsContent value="documentos">
+          <OPDocumentoCompleto
+            op={currentOP}
+            materiasPrimas={materiasPrimas}
+            embalagens={[]}
+            checklist={checklist}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Dialog Finalizar */}
