@@ -3014,12 +3014,16 @@ export type Database = {
           cliente_id: string | null
           cliente_nome: string | null
           codigo: string
+          cor_capsula: string | null
+          cor_tampa: string | null
           created_at: string | null
           created_by: string | null
           data_fabricacao: string
           data_fim_producao: string | null
           data_inicio_producao: string | null
           data_validade: string
+          descricao_rotulo: string | null
+          especificacoes_embalagem: Json | null
           etapa_atualizada_em: string | null
           etapa_producao_atual: string | null
           excipiente_base: string | null
@@ -3028,6 +3032,7 @@ export type Database = {
           formula_id: string | null
           formula_versao: number | null
           id: string
+          incluir_silica: boolean | null
           linha_producao: string | null
           lote_produto_acabado: string
           maquina: string | null
@@ -3043,6 +3048,7 @@ export type Database = {
           qr_code_lote: string | null
           qr_code_token: string | null
           quantidade_frascos: number
+          quantidade_silica_sache: string | null
           responsavel_producao_id: string | null
           responsavel_producao_nome: string | null
           responsavel_tecnico_id: string | null
@@ -3057,6 +3063,8 @@ export type Database = {
           status: string
           tipo_apresentacao: string
           tipo_capsula: string | null
+          tipo_pote: string | null
+          tipo_tampa: string | null
           total_capsulas: number
           total_capsulas_com_acrescimo: number
           turno: string | null
@@ -3070,12 +3078,16 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome?: string | null
           codigo: string
+          cor_capsula?: string | null
+          cor_tampa?: string | null
           created_at?: string | null
           created_by?: string | null
           data_fabricacao: string
           data_fim_producao?: string | null
           data_inicio_producao?: string | null
           data_validade: string
+          descricao_rotulo?: string | null
+          especificacoes_embalagem?: Json | null
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
           excipiente_base?: string | null
@@ -3084,6 +3096,7 @@ export type Database = {
           formula_id?: string | null
           formula_versao?: number | null
           id?: string
+          incluir_silica?: boolean | null
           linha_producao?: string | null
           lote_produto_acabado: string
           maquina?: string | null
@@ -3099,6 +3112,7 @@ export type Database = {
           qr_code_lote?: string | null
           qr_code_token?: string | null
           quantidade_frascos: number
+          quantidade_silica_sache?: string | null
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
@@ -3113,6 +3127,8 @@ export type Database = {
           status?: string
           tipo_apresentacao?: string
           tipo_capsula?: string | null
+          tipo_pote?: string | null
+          tipo_tampa?: string | null
           total_capsulas: number
           total_capsulas_com_acrescimo: number
           turno?: string | null
@@ -3126,12 +3142,16 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome?: string | null
           codigo?: string
+          cor_capsula?: string | null
+          cor_tampa?: string | null
           created_at?: string | null
           created_by?: string | null
           data_fabricacao?: string
           data_fim_producao?: string | null
           data_inicio_producao?: string | null
           data_validade?: string
+          descricao_rotulo?: string | null
+          especificacoes_embalagem?: Json | null
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
           excipiente_base?: string | null
@@ -3140,6 +3160,7 @@ export type Database = {
           formula_id?: string | null
           formula_versao?: number | null
           id?: string
+          incluir_silica?: boolean | null
           linha_producao?: string | null
           lote_produto_acabado?: string
           maquina?: string | null
@@ -3155,6 +3176,7 @@ export type Database = {
           qr_code_lote?: string | null
           qr_code_token?: string | null
           quantidade_frascos?: number
+          quantidade_silica_sache?: string | null
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
@@ -3169,6 +3191,8 @@ export type Database = {
           status?: string
           tipo_apresentacao?: string
           tipo_capsula?: string | null
+          tipo_pote?: string | null
+          tipo_tampa?: string | null
           total_capsulas?: number
           total_capsulas_com_acrescimo?: number
           turno?: string | null
