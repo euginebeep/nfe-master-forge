@@ -65,10 +65,45 @@ export function useConversoesUnidades() {
   }, [refresh]);
 
   const buscarFator = useCallback((substancia: string): number | null => {
-    const found = conversoes.find(c => 
-      c.substancia.toLowerCase().includes(substancia.toLowerCase()) ||
-      substancia.toLowerCase().includes(c.substancia.toLowerCase())
-    );
+    const normalizarTexto = (texto: string): string => {
+      return texto
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+    };
+
+    const extrairIdVitamina = (nome: string): string | null => {
+      const s = normalizarTexto(nome);
+
+      // Captura padrões como d3, k1, b12 etc (com ou sem prefixo vit/vitamina)
+      const m = s.match(/(?:vitamina|vit)?([a-z]\d+)/);
+      if (m?.[1]) return m[1];
+
+      // Se não tiver número, tenta "Vitamina A/E/K" etc.
+      const afterPrefix = s.replace(/^vitamina/, '').replace(/^vit/, '');
+      if (afterPrefix.length > 0) return afterPrefix[0];
+
+      return null;
+    };
+
+    const idAlvo = extrairIdVitamina(substancia);
+    const alvoNorm = normalizarTexto(substancia);
+
+    const found = conversoes.find((c) => {
+      const candNorm = normalizarTexto(c.substancia);
+
+      // Match por inclusão (modo antigo)
+      if (candNorm.includes(alvoNorm) || alvoNorm.includes(candNorm)) return true;
+
+      // Match por identificador de vitamina (ex: d3)
+      const idCand = extrairIdVitamina(c.substancia);
+      if (idAlvo && idCand && idAlvo === idCand) return true;
+
+      return false;
+    });
+
     return found?.fator_ui_para_mg || null;
   }, [conversoes]);
 
