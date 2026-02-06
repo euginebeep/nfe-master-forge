@@ -144,7 +144,7 @@ export default function EditarFormulaPage() {
       if (!fator) {
         toast.error(
           `Fator de conversão UI→mg não encontrado para "${novoItem.nome_insumo}". ` +
-          `Solicite ao administrador que cadastre o fator na tabela "conversoes_unidades" do sistema. ` +
+          `Cadastre o fator em: Formulador → aba "Conversões UI". ` +
           `Consulte o laudo/COA do fornecedor para obter o valor correto (ex: Vitamina D3 = 40.000 UI/mg).`,
           { duration: 8000 }
         );
@@ -424,8 +424,8 @@ export default function EditarFormulaPage() {
                             ⚠️ Se o fator não estiver cadastrado:
                           </p>
                           <p className="text-muted-foreground">
-                            Solicite ao <strong>administrador do sistema</strong> que cadastre o fator UI/mg na 
-                            tabela de conversões. Informe o nome do insumo e o valor do laudo/COA do fornecedor.
+                            Vá em <strong>Formulador → aba "Conversões UI"</strong> e cadastre o fator UI/mg. 
+                            Consulte o laudo/COA do fornecedor para obter o valor correto.
                           </p>
                           <div className="mt-2 p-2 bg-muted rounded text-xs">
                             <strong>Exemplos de fatores comuns:</strong><br/>
