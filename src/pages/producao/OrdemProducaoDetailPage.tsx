@@ -1,19 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Factory, ArrowLeft, Play, Pause, Check, XCircle,
+  Factory, ArrowLeft, Play, Check, XCircle,
   Package, Scale, ClipboardCheck, FileText, AlertTriangle,
-  Calendar, Users, Printer, RefreshCw, Lock
+  Calendar, Users, RefreshCw, Lock, Unlock, Printer
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -30,67 +31,126 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  useOrdemProducaoIndustrial, 
-  useOrdemProducaoIndustrialActions 
-} from '@/hooks/use-ordem-producao-industrial';
-import { StatusOP } from '@/types/ordem-producao-industrial';
-import { OPDocumentoPDF } from '@/components/producao/OPDocumentoPDF';
-import { PickListLotes } from '@/components/producao/PickListLotes';
-import { ControleQualidadeForm } from '@/components/producao/ControleQualidadeForm';
+import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { toast } from 'sonner';
+import type { StatusOP, OPMateriaPrima, OPChecklist, OPPesagemCritica } from '@/types/op-industrial';
 
 export default function OrdemProducaoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { ordem, isLoading, refresh } = useOrdemProducaoIndustrial(id);
-  const actions = useOrdemProducaoIndustrialActions();
+  const {
+    currentOP,
+    materiasPrimas,
+    checklist,
+    isLoading,
+    buscarOP,
+    buscarMateriasPrimas,
+    buscarChecklist,
+    atualizarStatus,
+    registrarPesagem,
+    verificarChecklist,
+  } = useOPIndustrial();
 
+  const [pesagensCriticas, setPesagensCriticas] = useState<OPPesagemCritica[]>([]);
   const [dialogFinalizar, setDialogFinalizar] = useState(false);
   const [qtdProduzida, setQtdProduzida] = useState('');
   const [qtdAprovada, setQtdAprovada] = useState('');
 
-  if (isLoading) {
+  // Carregar dados da OP
+  useEffect(() => {
+    if (id) {
+      buscarOP(id);
+      buscarMateriasPrimas(id);
+      buscarChecklist(id);
+      // Buscar pesagens críticas
+      import('@/integrations/supabase/client').then(({ supabase }) => {
+        supabase
+          .from('op_pesagens_criticas')
+          .select('*')
+          .eq('op_id', id)
+          .order('created_at', { ascending: true })
+          .then(({ data }) => {
+            setPesagensCriticas((data || []) as unknown as OPPesagemCritica[]);
+          });
+      });
+    }
+  }, [id, buscarOP, buscarMateriasPrimas, buscarChecklist]);
+
+  const refresh = () => {
+    if (id) {
+      buscarOP(id);
+      buscarMateriasPrimas(id);
+      buscarChecklist(id);
+    }
+  };
+
+  if (isLoading || !currentOP) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        {isLoading ? (
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+        ) : (
+          <>
+            <Factory className="h-12 w-12 text-muted-foreground" />
+            <h2 className="text-xl font-medium">OP não encontrada</h2>
+            <Button onClick={() => navigate('/producao/ordens')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+          </>
+        )}
       </div>
     );
   }
 
-  if (!ordem) {
-    return (
-      <div className="text-center py-12">
-        <Factory className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-xl font-medium mb-2">OP não encontrada</h2>
-        <Button onClick={() => navigate('/producao/ordens')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
-        </Button>
-      </div>
-    );
-  }
-
-  const getStatusBadge = (status: StatusOP) => {
-    const map: Record<StatusOP, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
+  const getStatusConfig = (status: StatusOP) => {
+    const map: Record<StatusOP, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string; className?: string }> = {
       PLANEJADA: { variant: 'outline', label: 'Planejada' },
-      AGUARDANDO_MATERIAIS: { variant: 'outline', label: 'Aguardando Materiais' },
+      AGUARDANDO_MATERIAIS: { variant: 'outline', label: 'Aguardando Materiais', className: 'border-warning text-warning' },
       EM_PRODUCAO: { variant: 'default', label: 'Em Produção' },
       FINALIZADA: { variant: 'secondary', label: 'Finalizada' },
       BLOQUEADA: { variant: 'destructive', label: 'Bloqueada' },
       CANCELADA: { variant: 'destructive', label: 'Cancelada' },
     };
-    const config = map[status];
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return map[status] || map.PLANEJADA;
   };
 
-  const handleIniciar = () => {
-    actions.iniciarProducao(ordem.id);
-    refresh();
+  const statusConfig = getStatusConfig(currentOP.status);
+
+  // Calcular progresso
+  const totalItens = materiasPrimas.length;
+  const itensPesados = materiasPrimas.filter(i => i.quantidade_real_g !== null && i.quantidade_real_g !== undefined).length;
+  const progressoPesagem = totalItens > 0 ? (itensPesados / totalItens) * 100 : 0;
+
+  const totalChecklist = checklist.length;
+  const checklistVerificados = checklist.filter(c => c.verificado).length;
+  const progressoChecklist = totalChecklist > 0 ? (checklistVerificados / totalChecklist) * 100 : 0;
+
+  const temAtivosCriticos = materiasPrimas.some(i => i.pesagem_critica);
+
+  // Handlers
+  const handleIniciar = async () => {
+    if (id) {
+      const success = await atualizarStatus(id, 'EM_PRODUCAO');
+      if (success) refresh();
+    }
   };
 
-  const handleFinalizar = () => {
+  const handleBloquear = async () => {
+    if (id) {
+      const success = await atualizarStatus(id, 'BLOQUEADA', 'Bloqueio manual pelo operador');
+      if (success) refresh();
+    }
+  };
+
+  const handleDesbloquear = async () => {
+    if (id) {
+      const success = await atualizarStatus(id, 'EM_PRODUCAO');
+      if (success) refresh();
+    }
+  };
+
+  const handleFinalizar = async () => {
     const produzida = parseInt(qtdProduzida);
     const aprovada = parseInt(qtdAprovada);
     
@@ -104,41 +164,41 @@ export default function OrdemProducaoDetailPage() {
       return;
     }
 
-    actions.finalizarProducao(ordem.id, produzida, aprovada, 'Usuário');
-    setDialogFinalizar(false);
-    refresh();
+    if (id) {
+      const success = await atualizarStatus(id, 'FINALIZADA');
+      if (success) {
+        setDialogFinalizar(false);
+        refresh();
+      }
+    }
   };
 
-  const handleAlocarLote = (
-    insumoId: string,
-    insumoNome: string,
-    loteId: string,
-    numeroLote: string,
-    fornecedorNome: string,
-    quantidade: number,
-    custoUnitario: number
-  ) => {
-    actions.alocarLote(ordem.id, insumoId, insumoNome, loteId, numeroLote, fornecedorNome, quantidade, custoUnitario);
-    refresh();
+  const handleVerificarChecklist = async (checklistId: string) => {
+    const success = await verificarChecklist(checklistId, 'Operador');
+    if (success) {
+      buscarChecklist(id!);
+    }
   };
 
-  const handleSalvarQC = (qc: any) => {
-    actions.registrarQC(ordem.id, qc);
-    refresh();
-  };
+  // Agrupar checklist por categoria
+  const checklistPorCategoria = checklist.reduce((acc, item) => {
+    if (!acc[item.categoria]) acc[item.categoria] = [];
+    acc[item.categoria].push(item);
+    return acc;
+  }, {} as Record<string, OPChecklist[]>);
 
-  // Calcular progresso
-  const totalItens = ordem.itens_pesagem.length;
-  const itensPesados = ordem.itens_pesagem.filter(i => i.quantidade_pesada_g !== undefined).length;
-  const progressoPesagem = totalItens > 0 ? (itensPesados / totalItens) * 100 : 0;
-
-  const temAtivosCriticos = ordem.itens_pesagem.some(i => i.tipo_pesagem === 'CRITICA');
+  const categoriasChecklist = [
+    { key: 'PRE_PRODUCAO', label: 'Pré-Produção' },
+    { key: 'DURANTE_PRODUCAO', label: 'Durante Produção' },
+    { key: 'POS_PRODUCAO', label: 'Pós-Produção' },
+    { key: 'QC', label: 'Controle de Qualidade' },
+  ];
 
   return (
     <div>
       <PageHeader
-        title={ordem.codigo}
-        description={ordem.produto_nome}
+        title={currentOP.codigo}
+        description={currentOP.produto_nome}
         icon={Factory}
         actions={
           <div className="flex items-center gap-2">
@@ -146,25 +206,41 @@ export default function OrdemProducaoDetailPage() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
+            <Button variant="outline" size="icon" onClick={refresh}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             
-            {ordem.status === 'PLANEJADA' && (
+            {currentOP.status === 'PLANEJADA' && (
               <Button onClick={handleIniciar}>
                 <Play className="h-4 w-4 mr-2" />
                 Iniciar Produção
               </Button>
             )}
             
-            {ordem.status === 'EM_PRODUCAO' && ordem.controle_qualidade?.status === 'APROVADO' && (
-              <Button 
-                className="bg-secondary hover:bg-secondary/90"
-                onClick={() => {
-                  setQtdProduzida(String(ordem.quantidade_com_acrescimo));
-                  setQtdAprovada(String(ordem.quantidade_planejada));
-                  setDialogFinalizar(true);
-                }}
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Finalizar
+            {currentOP.status === 'EM_PRODUCAO' && (
+              <>
+                <Button variant="destructive" onClick={handleBloquear}>
+                  <Lock className="h-4 w-4 mr-2" />
+                  Bloquear
+                </Button>
+                <Button 
+                  className="bg-secondary hover:bg-secondary/90"
+                  onClick={() => {
+                    setQtdProduzida(String(currentOP.total_capsulas_com_acrescimo));
+                    setQtdAprovada(String(currentOP.total_capsulas));
+                    setDialogFinalizar(true);
+                  }}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Finalizar
+                </Button>
+              </>
+            )}
+            
+            {currentOP.status === 'BLOQUEADA' && (
+              <Button onClick={handleDesbloquear}>
+                <Unlock className="h-4 w-4 mr-2" />
+                Desbloquear
               </Button>
             )}
           </div>
@@ -172,49 +248,80 @@ export default function OrdemProducaoDetailPage() {
       />
 
       {/* Cabeçalho com informações principais */}
-      <div className="grid grid-cols-6 gap-4 mb-6">
-        <Card className="col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+        <Card className="md:col-span-2">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-muted-foreground">Status</span>
-              {getStatusBadge(ordem.status)}
+              <Badge variant={statusConfig.variant} className={statusConfig.className}>
+                {statusConfig.label}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Fórmula</span>
+              <span className="font-mono text-sm">
+                {currentOP.formula_codigo || 'OP Manual'} 
+                {currentOP.formula_versao && ` v${currentOP.formula_versao}`}
+              </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Fórmula</span>
-              <span className="font-mono">{ordem.formula_codigo} v{ordem.formula_versao}</span>
+              <span className="text-sm text-muted-foreground">Excipiente</span>
+              <span className="text-sm">{currentOP.excipiente_base}</span>
             </div>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <Package className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-2xl font-bold">{ordem.quantidade_com_acrescimo.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">Quantidade (+{ordem.acrescimo_producao_percentual}%)</p>
+            <Package className="h-5 w-5 mx-auto mb-1 text-primary" />
+            <p className="text-2xl font-bold">{currentOP.quantidade_frascos.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Frascos</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <Calendar className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-lg font-bold font-mono">{ordem.lote_produto_acabado}</p>
+            <Scale className="h-5 w-5 mx-auto mb-1 text-primary" />
+            <p className="text-lg font-bold">{currentOP.total_capsulas_com_acrescimo.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Cápsulas (+{currentOP.acrescimo_percentual}%)</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Calendar className="h-5 w-5 mx-auto mb-1 text-primary" />
+            <p className="text-sm font-bold font-mono">{currentOP.lote_produto_acabado}</p>
             <p className="text-xs text-muted-foreground">Lote PA</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <Scale className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-lg font-bold">{progressoPesagem.toFixed(0)}%</p>
-            <p className="text-xs text-muted-foreground">Pesagem</p>
+            <Users className="h-5 w-5 mx-auto mb-1 text-primary" />
+            <p className="text-sm font-medium truncate">{currentOP.responsavel_producao_nome || '-'}</p>
+            <p className="text-xs text-muted-foreground">Responsável</p>
           </CardContent>
         </Card>
-        
+      </div>
+
+      {/* Progresso */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
         <Card>
-          <CardContent className="p-4 text-center">
-            <Users className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-sm font-medium truncate">{ordem.responsavel_tecnico || '-'}</p>
-            <p className="text-xs text-muted-foreground">Responsável</p>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Pesagem</span>
+              <span className="text-sm">{itensPesados}/{totalItens}</span>
+            </div>
+            <Progress value={progressoPesagem} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Checklist</span>
+              <span className="text-sm">{checklistVerificados}/{totalChecklist}</span>
+            </div>
+            <Progress value={progressoChecklist} />
           </CardContent>
         </Card>
       </div>
@@ -227,8 +334,7 @@ export default function OrdemProducaoDetailPage() {
             <div>
               <p className="font-medium text-destructive">Ativos Críticos Detectados</p>
               <p className="text-sm text-muted-foreground">
-                Esta OP contém ativos que exigem pesagem crítica com dupla conferência.
-                Procedimentos de diluição geométrica incluídos.
+                Esta OP contém {pesagensCriticas.length} ativo(s) que exigem pesagem crítica com dupla conferência.
               </p>
             </div>
           </CardContent>
@@ -236,116 +342,108 @@ export default function OrdemProducaoDetailPage() {
       )}
 
       {/* Tabs principais */}
-      <Tabs defaultValue="pesagem" className="space-y-4">
+      <Tabs defaultValue="materias-primas" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="pesagem" className="flex items-center gap-2">
+          <TabsTrigger value="materias-primas" className="flex items-center gap-2">
             <Scale className="h-4 w-4" />
-            Pesagem
+            Matérias-Primas ({materiasPrimas.length})
           </TabsTrigger>
-          <TabsTrigger value="pick-list" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Pick List
-          </TabsTrigger>
-          <TabsTrigger value="qc" className="flex items-center gap-2">
+          <TabsTrigger value="checklist" className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4" />
-            Controle de Qualidade
+            Checklist
           </TabsTrigger>
-          <TabsTrigger value="documento" className="flex items-center gap-2">
+          <TabsTrigger value="pesagem-critica" className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Pesagem Crítica ({pesagensCriticas.length})
+          </TabsTrigger>
+          <TabsTrigger value="ficha" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Documento
+            Ficha de Produção
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab: Pesagem */}
-        <TabsContent value="pesagem">
+        {/* Tab: Matérias-Primas */}
+        <TabsContent value="materias-primas">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Scale className="h-5 w-5 text-secondary" />
-                Lista de Pesagem - Ordem Industrial
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Scale className="h-5 w-5" />
+                Lista de Pesagem - Ordem de Mistura Industrial
               </CardTitle>
+              <CardDescription>
+                Ordem fixa ANVISA: Ativos → Excipiente Base → Dióxido de Silício → Talco → Estearato de Magnésio
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm">Progresso:</span>
-                  <Progress value={progressoPesagem} className="flex-1 max-w-xs" />
-                  <span className="text-sm font-medium">{itensPesados}/{totalItens}</span>
-                </div>
-              </div>
-
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">Ordem</TableHead>
+                    <TableHead className="w-16">Ordem</TableHead>
                     <TableHead>Insumo</TableHead>
                     <TableHead>Categoria</TableHead>
-                    <TableHead className="text-center">Tipo</TableHead>
-                    <TableHead className="text-right">Qtd. Lote (g)</TableHead>
+                    <TableHead className="text-right">Teórico (g)</TableHead>
                     <TableHead className="text-right">Tolerância</TableHead>
-                    <TableHead className="text-right">Pesado (g)</TableHead>
-                    <TableHead>Lote MP</TableHead>
+                    <TableHead className="text-right">Real (g)</TableHead>
+                    <TableHead>Lote</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ordem.itens_pesagem.map((item) => (
+                  {materiasPrimas.map((item) => (
                     <TableRow 
                       key={item.id}
-                      className={item.tipo_pesagem === 'CRITICA' ? 'bg-destructive/5' : ''}
+                      className={item.pesagem_critica ? 'bg-destructive/5' : ''}
                     >
                       <TableCell>
-                        <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs">
-                          {item.ordem}
+                        <span className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-sm">
+                          {item.ordem_mistura}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium">
-                        {item.insumo_nome}
-                        {item.motivo_critico && (
-                          <p className="text-xs text-muted-foreground">{item.motivo_critico}</p>
-                        )}
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.insumo_nome}</p>
+                          {item.motivo_critico && (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {item.motivo_critico}
+                            </p>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {item.categoria}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center">
-                        {item.tipo_pesagem === 'CRITICA' ? (
-                          <Badge variant="destructive" className="text-xs">CRÍTICA</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">PADRÃO</Badge>
-                        )}
-                      </TableCell>
                       <TableCell className="text-right font-mono font-bold">
-                        {item.quantidade_lote_g.toFixed(4)}
+                        {item.quantidade_teorica_g.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">
                         {item.quantidade_minima_g.toFixed(2)} - {item.quantidade_maxima_g.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        {item.quantidade_pesada_g !== undefined ? (
+                        {item.quantidade_real_g !== null && item.quantidade_real_g !== undefined ? (
                           <span className={item.dentro_tolerancia ? 'text-secondary' : 'text-destructive'}>
-                            {item.quantidade_pesada_g.toFixed(4)}
+                            {item.quantidade_real_g.toFixed(2)}
                           </span>
                         ) : (
-                          '-'
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         {item.numero_lote || '-'}
                       </TableCell>
                       <TableCell>
-                        {item.quantidade_pesada_g !== undefined ? (
+                        {item.quantidade_real_g !== null && item.quantidade_real_g !== undefined ? (
                           item.dentro_tolerancia ? (
                             <Badge variant="secondary" className="text-xs">
                               <Check className="h-3 w-3 mr-1" />
                               OK
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-300">
+                            <Badge variant="outline" className="text-xs border-warning text-warning">
                               <AlertTriangle className="h-3 w-3 mr-1" />
-                              Tolerância
+                              Fora
                             </Badge>
                           )
                         ) : (
@@ -360,49 +458,196 @@ export default function OrdemProducaoDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Tab: Pick List */}
-        <TabsContent value="pick-list">
-          <PickListLotes
-            itensPesagem={ordem.itens_pesagem}
-            alocacoesExistentes={ordem.alocacoes_lote}
-            onAlocarLote={handleAlocarLote}
-          />
+        {/* Tab: Checklist */}
+        <TabsContent value="checklist">
+          <div className="space-y-4">
+            {categoriasChecklist.map(({ key, label }) => {
+              const items = checklistPorCategoria[key] || [];
+              if (items.length === 0) return null;
+              
+              return (
+                <Card key={key}>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">{label}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2">
+                      {items.map((item) => (
+                        <div 
+                          key={item.id} 
+                          className="flex items-center gap-3 p-2 rounded hover:bg-muted/50"
+                        >
+                          <Checkbox 
+                            checked={item.verificado}
+                            onCheckedChange={() => {
+                              if (!item.verificado && currentOP.status === 'EM_PRODUCAO') {
+                                handleVerificarChecklist(item.id);
+                              }
+                            }}
+                            disabled={item.verificado || currentOP.status !== 'EM_PRODUCAO'}
+                          />
+                          <div className="flex-1">
+                            <p className={item.verificado ? 'text-muted-foreground line-through' : ''}>
+                              {item.item}
+                            </p>
+                            {item.verificado && item.verificado_em && (
+                              <p className="text-xs text-muted-foreground">
+                                Verificado em {new Date(item.verificado_em).toLocaleString('pt-BR')}
+                              </p>
+                            )}
+                          </div>
+                          {item.obrigatorio && (
+                            <Badge variant="outline" className="text-xs">Obrigatório</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </TabsContent>
 
-        {/* Tab: QC */}
-        <TabsContent value="qc">
-          <ControleQualidadeForm
-            opId={ordem.id}
-            qcExistente={ordem.controle_qualidade}
-            pesoCapsulaAlvo={ordem.peso_unidade_mg}
-            onSalvar={handleSalvarQC}
-            disabled={ordem.status !== 'EM_PRODUCAO'}
-          />
+        {/* Tab: Pesagem Crítica */}
+        <TabsContent value="pesagem-critica">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Pesagem Crítica - Dupla Conferência Obrigatória
+              </CardTitle>
+              <CardDescription>
+                Ativos com quantidade &lt; 1mg ou em unidades UI/MCG exigem conferência dupla
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pesagensCriticas.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum ativo crítico nesta OP
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ativo</TableHead>
+                      <TableHead className="text-right">Qtd. Teórica (mg)</TableHead>
+                      <TableHead className="text-right">Qtd. Pesada (mg)</TableHead>
+                      <TableHead>Pesado por</TableHead>
+                      <TableHead>Conferido por</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pesagensCriticas.map((pc) => (
+                      <TableRow key={pc.id}>
+                        <TableCell className="font-medium">{pc.insumo_nome}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {pc.quantidade_teorica_mg.toFixed(4)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {pc.quantidade_pesada_mg?.toFixed(4) || '-'}
+                        </TableCell>
+                        <TableCell>{pc.operador_pesagem_nome || '-'}</TableCell>
+                        <TableCell>{pc.conferente_nome || '-'}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              pc.status === 'CONFERIDO' ? 'secondary' : 
+                              pc.status === 'REPROVADO' ? 'destructive' : 'outline'
+                            }
+                          >
+                            {pc.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* Tab: Documento */}
-        <TabsContent value="documento">
-          <OPDocumentoPDF op={ordem} />
+        {/* Tab: Ficha de Produção */}
+        <TabsContent value="ficha">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Ficha de Produção - {currentOP.codigo}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2">Identificação</h4>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-muted-foreground">Código:</span> {currentOP.codigo}</p>
+                      <p><span className="text-muted-foreground">Produto:</span> {currentOP.produto_nome}</p>
+                      <p><span className="text-muted-foreground">Fórmula:</span> {currentOP.formula_codigo || 'OP Manual'}</p>
+                      <p><span className="text-muted-foreground">Lote PA:</span> {currentOP.lote_produto_acabado}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">Quantidades</h4>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-muted-foreground">Frascos:</span> {currentOP.quantidade_frascos}</p>
+                      <p><span className="text-muted-foreground">Cápsulas/Frasco:</span> {currentOP.capsulas_por_frasco}</p>
+                      <p><span className="text-muted-foreground">Total:</span> {currentOP.total_capsulas.toLocaleString()}</p>
+                      <p><span className="text-muted-foreground">Com Acréscimo (+{currentOP.acrescimo_percentual}%):</span> {currentOP.total_capsulas_com_acrescimo.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2">Datas</h4>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-muted-foreground">Fabricação:</span> {new Date(currentOP.data_fabricacao).toLocaleDateString('pt-BR')}</p>
+                      <p><span className="text-muted-foreground">Validade:</span> {new Date(currentOP.data_validade).toLocaleDateString('pt-BR')}</p>
+                      {currentOP.data_inicio_producao && (
+                        <p><span className="text-muted-foreground">Início Produção:</span> {new Date(currentOP.data_inicio_producao).toLocaleString('pt-BR')}</p>
+                      )}
+                      {currentOP.data_fim_producao && (
+                        <p><span className="text-muted-foreground">Fim Produção:</span> {new Date(currentOP.data_fim_producao).toLocaleString('pt-BR')}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">Configuração</h4>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-muted-foreground">Tipo Cápsula:</span> {currentOP.tipo_capsula}</p>
+                      <p><span className="text-muted-foreground">Peso Cápsula:</span> {currentOP.peso_capsula_mg}mg</p>
+                      <p><span className="text-muted-foreground">Excipiente Base:</span> {currentOP.excipiente_base}</p>
+                      <p><span className="text-muted-foreground">Responsável:</span> {currentOP.responsavel_producao_nome || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {currentOP.observacoes && (
+                <div className="mt-6">
+                  <h4 className="font-semibold mb-2">Observações</h4>
+                  <p className="text-sm bg-muted p-3 rounded">{currentOP.observacoes}</p>
+                </div>
+              )}
+              
+              <Separator className="my-6" />
+              
+              <div className="flex justify-end">
+                <Button variant="outline" disabled>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir Ficha (Em breve)
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Rastreabilidade */}
-      {ordem.status === 'FINALIZADA' && ordem.lotes_mp_origem.length > 0 && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-sm">Rastreabilidade - Lotes de Origem</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {ordem.lotes_mp_origem.map((loteId) => (
-                <Badge key={loteId} variant="outline" className="font-mono">
-                  {loteId.slice(0, 8)}...
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Dialog Finalizar */}
       <Dialog open={dialogFinalizar} onOpenChange={setDialogFinalizar}>
@@ -410,7 +655,7 @@ export default function OrdemProducaoDetailPage() {
           <DialogHeader>
             <DialogTitle>Finalizar Produção</DialogTitle>
             <DialogDescription>
-              Informe as quantidades finais para fechar a OP {ordem.codigo}
+              Informe as quantidades finais para fechar a OP {currentOP.codigo}
             </DialogDescription>
           </DialogHeader>
           
@@ -421,10 +666,10 @@ export default function OrdemProducaoDetailPage() {
                 type="number"
                 value={qtdProduzida}
                 onChange={(e) => setQtdProduzida(e.target.value)}
-                placeholder={String(ordem.quantidade_com_acrescimo)}
+                placeholder={String(currentOP.total_capsulas_com_acrescimo)}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Planejado: {ordem.quantidade_com_acrescimo.toLocaleString()}
+                Planejado: {currentOP.total_capsulas_com_acrescimo.toLocaleString()}
               </p>
             </div>
             
@@ -434,10 +679,10 @@ export default function OrdemProducaoDetailPage() {
                 type="number"
                 value={qtdAprovada}
                 onChange={(e) => setQtdAprovada(e.target.value)}
-                placeholder={String(ordem.quantidade_planejada)}
+                placeholder={String(currentOP.total_capsulas)}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Objetivo: {ordem.quantidade_planejada.toLocaleString()}
+                Objetivo: {currentOP.total_capsulas.toLocaleString()}
               </p>
             </div>
           </div>
