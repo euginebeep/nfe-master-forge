@@ -62,6 +62,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { RTSelectorOP } from "@/components/responsavel-tecnico/RTSelectorOP";
 import { QuickClienteModal } from "@/components/entidades/QuickClienteModal";
+import { EmbalagemItemSelector, type ItemEmbalagem } from "@/components/producao/EmbalagemItemSelector";
 import { LocalDb } from "@/lib/local-db";
 import type { LocalEntidade } from "@/hooks/use-local-entidades";
 
@@ -136,13 +137,16 @@ const formSchema = z.object({
   quantidade_frascos: z.number().min(1, "Mínimo 1 frasco"),
   unidades_por_frasco: z.number().min(1, "Mínimo 1 unidade por frasco"),
   
-  // Especificações de Embalagem
-  cor_capsula: z.string().optional(),
-  cor_tampa: z.string().optional(),
-  tipo_pote: z.string().optional(),
-  tipo_tampa: z.string().optional(),
+  // Especificações de Embalagem - IDs de itens do cadastro
+  capsula_item_id: z.string().optional(),
+  capsula_item_nome: z.string().optional(),
+  pote_item_id: z.string().optional(),
+  pote_item_nome: z.string().optional(),
+  tampa_item_id: z.string().optional(),
+  tampa_item_nome: z.string().optional(),
+  silica_item_id: z.string().optional(),
+  silica_item_nome: z.string().optional(),
   incluir_silica: z.boolean().default(true),
-  quantidade_silica_sache: z.string().default("1g"),
   descricao_rotulo: z.string().optional(),
   
   // Etapa 3: Lote e Rastreabilidade
@@ -210,12 +214,15 @@ export function CriarOPDialogMaster({
       tipo_produto: "CAPSULA",
       quantidade_frascos: 100,
       unidades_por_frasco: 60,
-      cor_capsula: "",
-      cor_tampa: "",
-      tipo_pote: "",
-      tipo_tampa: "",
+      capsula_item_id: "",
+      capsula_item_nome: "",
+      pote_item_id: "",
+      pote_item_nome: "",
+      tampa_item_id: "",
+      tampa_item_nome: "",
+      silica_item_id: "",
+      silica_item_nome: "",
       incluir_silica: true,
-      quantidade_silica_sache: "1g",
       descricao_rotulo: "",
       lote_produto_acabado: "",
       tipo_capsula: "00",
@@ -519,13 +526,16 @@ export function CriarOPDialogMaster({
         // Cliente
         cliente_id: values.cliente_id || null,
         cliente_nome: values.cliente_nome || null,
-        // Embalagem
-        cor_capsula: values.cor_capsula || null,
-        cor_tampa: values.cor_tampa || null,
-        tipo_pote: values.tipo_pote || null,
-        tipo_tampa: values.tipo_tampa || null,
+        // Embalagem - IDs dos itens selecionados
+        capsula_item_id: values.capsula_item_id || null,
+        capsula_item_nome: values.capsula_item_nome || null,
+        pote_item_id: values.pote_item_id || null,
+        pote_item_nome: values.pote_item_nome || null,
+        tampa_item_id: values.tampa_item_id || null,
+        tampa_item_nome: values.tampa_item_nome || null,
+        silica_item_id: values.silica_item_id || null,
+        silica_item_nome: values.silica_item_nome || null,
         incluir_silica: values.incluir_silica,
-        quantidade_silica_sache: values.quantidade_silica_sache || null,
         descricao_rotulo: values.descricao_rotulo || null,
       };
 
@@ -1213,116 +1223,65 @@ export function CriarOPDialogMaster({
             <Package className="h-4 w-4" />
             Especificações de Embalagem
           </CardTitle>
-          <CardDescription>Defina cores, materiais e acessórios</CardDescription>
+          <CardDescription>Selecione os itens de embalagem cadastrados no sistema</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {tipoProduto === "CAPSULA" && (
-              <FormField
-                control={form.control}
-                name="cor_capsula"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cor da Cápsula</FormLabel>
-                    <Select value={field.value || ""} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="TRANSPARENTE">Transparente</SelectItem>
-                        <SelectItem value="BRANCA">Branca</SelectItem>
-                        <SelectItem value="VERDE">Verde</SelectItem>
-                        <SelectItem value="VERMELHA">Vermelha</SelectItem>
-                        <SelectItem value="AZUL">Azul</SelectItem>
-                        <SelectItem value="PRETA">Preta</SelectItem>
-                        <SelectItem value="AMARELA">Amarela</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
+              <EmbalagemItemSelector
+                label="Cápsula Vazia"
+                tiposFiltro={["CAPSULA_VAZIA"]}
+                value={form.watch("capsula_item_id")}
+                selectedItemName={form.watch("capsula_item_nome")}
+                onSelect={(item) => {
+                  form.setValue("capsula_item_id", item?.id || "");
+                  form.setValue("capsula_item_nome", item?.descricao_interna || "");
+                }}
+                placeholder="Buscar cápsula..."
               />
             )}
 
-            <FormField
-              control={form.control}
-              name="tipo_pote"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Pote/Frasco</FormLabel>
-                  <Select value={field.value || ""} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="PEAD_BRANCO">PEAD Branco</SelectItem>
-                      <SelectItem value="PEAD_AMBAR">PEAD Âmbar</SelectItem>
-                      <SelectItem value="VIDRO_AMBAR">Vidro Âmbar</SelectItem>
-                      <SelectItem value="VIDRO_TRANSPARENTE">Vidro Transparente</SelectItem>
-                      <SelectItem value="PET_TRANSPARENTE">PET Transparente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
+            <EmbalagemItemSelector
+              label="Pote/Frasco"
+              tiposFiltro={["POTE", "EMBALAGEM"]}
+              value={form.watch("pote_item_id")}
+              selectedItemName={form.watch("pote_item_nome")}
+              onSelect={(item) => {
+                form.setValue("pote_item_id", item?.id || "");
+                form.setValue("pote_item_nome", item?.descricao_interna || "");
+              }}
+              placeholder="Buscar pote ou frasco..."
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="cor_tampa"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cor da Tampa</FormLabel>
-                  <Select value={field.value || ""} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="BRANCA">Branca</SelectItem>
-                      <SelectItem value="PRETA">Preta</SelectItem>
-                      <SelectItem value="DOURADA">Dourada</SelectItem>
-                      <SelectItem value="PRATA">Prata</SelectItem>
-                      <SelectItem value="VERDE">Verde</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
+            <EmbalagemItemSelector
+              label="Tampa"
+              tiposFiltro={["TAMPA", "EMBALAGEM"]}
+              value={form.watch("tampa_item_id")}
+              selectedItemName={form.watch("tampa_item_nome")}
+              onSelect={(item) => {
+                form.setValue("tampa_item_id", item?.id || "");
+                form.setValue("tampa_item_nome", item?.descricao_interna || "");
+              }}
+              placeholder="Buscar tampa..."
             />
 
-            <FormField
-              control={form.control}
-              name="tipo_tampa"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Tampa</FormLabel>
-                  <Select value={field.value || ""} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="ROSCA_LACRE">Rosca com Lacre Indução</SelectItem>
-                      <SelectItem value="ROSCA_SIMPLES">Rosca Simples</SelectItem>
-                      <SelectItem value="FLIP_TOP">Flip Top</SelectItem>
-                      <SelectItem value="CONTA_GOTAS">Conta-gotas</SelectItem>
-                      <SelectItem value="PUMP">Pump/Dosador</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
+            <EmbalagemItemSelector
+              label="Rótulo"
+              tiposFiltro={["ROTULO", "EMBALAGEM"]}
+              value={form.watch("descricao_rotulo")}
+              selectedItemName={form.watch("descricao_rotulo")}
+              onSelect={(item) => {
+                form.setValue("descricao_rotulo", item?.descricao_interna || "");
+              }}
+              placeholder="Buscar rótulo..."
             />
           </div>
 
           {/* Sílica */}
           {tipoProduto !== "LIQUIDO" && (
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+            <div className="space-y-3 p-3 bg-muted rounded-lg">
               <div className="flex items-center gap-3">
                 <FormField
                   control={form.control}
@@ -1342,38 +1301,28 @@ export function CriarOPDialogMaster({
               </div>
               
               {form.watch("incluir_silica") && (
-                <FormField
-                  control={form.control}
-                  name="quantidade_silica_sache"
-                  render={({ field }) => (
-                    <FormItem className="w-24">
-                      <Select value={field.value || "1g"} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="0.5g">0,5g</SelectItem>
-                          <SelectItem value="1g">1g</SelectItem>
-                          <SelectItem value="2g">2g</SelectItem>
-                          <SelectItem value="5g">5g</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
+                <EmbalagemItemSelector
+                  label="Sílica Gel"
+                  tiposFiltro={["SILICA", "EMBALAGEM"]}
+                  value={form.watch("silica_item_id")}
+                  selectedItemName={form.watch("silica_item_nome")}
+                  onSelect={(item) => {
+                    form.setValue("silica_item_id", item?.id || "");
+                    form.setValue("silica_item_nome", item?.descricao_interna || "");
+                  }}
+                  placeholder="Buscar sílica gel..."
                 />
               )}
             </div>
           )}
 
-          {/* Descrição do Rótulo */}
+          {/* Observações do Rótulo */}
           <FormField
             control={form.control}
             name="descricao_rotulo"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Descrição/Observações do Rótulo</FormLabel>
+                <FormLabel>Observações do Rótulo</FormLabel>
                 <FormControl>
                   <Textarea 
                     placeholder="Informações adicionais sobre o rótulo (arte, versão, etc)..."
