@@ -45,7 +45,7 @@ import {
 } from "@/hooks/use-formulas-industrial";
 import { FormulaWizardDialog } from "@/components/formulas/FormulaWizardDialog";
 import { InsumoFormDialog } from "@/components/formulas/InsumoFormDialog";
-import { ProdutoFormDialog } from "@/components/formulas/ProdutoFormDialog";
+import { ProdutoFormDialogV2 } from "@/components/formulas/ProdutoFormDialogV2";
 import { FichaTecnicaPDF } from "@/components/formulas/FichaTecnicaPDF";
 import { TabelaNutricionalIndustrial } from "@/components/formulas/TabelaNutricionalIndustrial";
 import { FormulaIndustrial, InsumoFormulacao, ProdutoFormulacao } from "@/types/formulas-industrial";
@@ -486,7 +486,7 @@ export default function FormulasListPage() {
         onSuccess={refreshInsumos}
       />
 
-      <ProdutoFormDialog
+      <ProdutoFormDialogV2
         open={showProdutoForm}
         onOpenChange={setShowProdutoForm}
         produto={selectedProduto}
