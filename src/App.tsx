@@ -25,7 +25,8 @@ import FormuladorIndustrialPage from "./pages/producao/FormuladorIndustrialPage"
 import NovaFormulaPage from "./pages/producao/NovaFormulaPage";
 import EditarFormulaPage from "./pages/producao/EditarFormulaPage";
 import VisualizarFormulaPage from "./pages/producao/VisualizarFormulaPage";
-import OrdensProducaoPage from "./pages/producao/OrdensProducaoPage";
+import OrdensProducaoIndustrialPage from "./pages/producao/OrdensProducaoIndustrialPage";
+import OrdemProducaoDetailPage from "./pages/producao/OrdemProducaoDetailPage";
 import QuarentenaPage from "./pages/estoque/QuarentenaPage";
 import LotesListPage from "./pages/estoque/LotesListPage";
 import LoteDetailPage from "./pages/estoque/LoteDetailPage";
@@ -81,7 +82,8 @@ const App = () => (
             <Route path="/producao/formulas/nova" element={<NovaFormulaPage />} />
             <Route path="/producao/formulas/:id" element={<VisualizarFormulaPage />} />
             <Route path="/producao/formulas/:id/editar" element={<EditarFormulaPage />} />
-            <Route path="/producao/ordens" element={<OrdensProducaoPage />} />
+            <Route path="/producao/ordens" element={<OrdensProducaoIndustrialPage />} />
+            <Route path="/producao/ordens/:id" element={<OrdemProducaoDetailPage />} />
             {/* Estoque */}
             <Route path="/estoque/quarentena" element={<QuarentenaPage />} />
             <Route path="/estoque/lotes" element={<LotesListPage />} />
