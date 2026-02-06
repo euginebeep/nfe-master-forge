@@ -3010,6 +3010,8 @@ export type Database = {
           acrescimo_percentual: number | null
           assinatura_rt_hash: string | null
           assinatura_rt_id: string | null
+          capsula_item_id: string | null
+          capsula_item_nome: string | null
           capsulas_por_frasco: number
           cliente_id: string | null
           cliente_nome: string | null
@@ -3042,6 +3044,8 @@ export type Database = {
           pedido_id: string | null
           pedido_numero: string | null
           peso_capsula_mg: number | null
+          pote_item_id: string | null
+          pote_item_nome: string | null
           produto_id: string | null
           produto_nome: string
           qr_code_hash: string | null
@@ -3060,7 +3064,11 @@ export type Database = {
             | null
           rt_uf_conselho: string | null
           rt_vinculado_em: string | null
+          silica_item_id: string | null
+          silica_item_nome: string | null
           status: string
+          tampa_item_id: string | null
+          tampa_item_nome: string | null
           tipo_apresentacao: string
           tipo_capsula: string | null
           tipo_pote: string | null
@@ -3074,6 +3082,8 @@ export type Database = {
           acrescimo_percentual?: number | null
           assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
+          capsula_item_id?: string | null
+          capsula_item_nome?: string | null
           capsulas_por_frasco: number
           cliente_id?: string | null
           cliente_nome?: string | null
@@ -3106,6 +3116,8 @@ export type Database = {
           pedido_id?: string | null
           pedido_numero?: string | null
           peso_capsula_mg?: number | null
+          pote_item_id?: string | null
+          pote_item_nome?: string | null
           produto_id?: string | null
           produto_nome: string
           qr_code_hash?: string | null
@@ -3124,7 +3136,11 @@ export type Database = {
             | null
           rt_uf_conselho?: string | null
           rt_vinculado_em?: string | null
+          silica_item_id?: string | null
+          silica_item_nome?: string | null
           status?: string
+          tampa_item_id?: string | null
+          tampa_item_nome?: string | null
           tipo_apresentacao?: string
           tipo_capsula?: string | null
           tipo_pote?: string | null
@@ -3138,6 +3154,8 @@ export type Database = {
           acrescimo_percentual?: number | null
           assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
+          capsula_item_id?: string | null
+          capsula_item_nome?: string | null
           capsulas_por_frasco?: number
           cliente_id?: string | null
           cliente_nome?: string | null
@@ -3170,6 +3188,8 @@ export type Database = {
           pedido_id?: string | null
           pedido_numero?: string | null
           peso_capsula_mg?: number | null
+          pote_item_id?: string | null
+          pote_item_nome?: string | null
           produto_id?: string | null
           produto_nome?: string
           qr_code_hash?: string | null
@@ -3188,7 +3208,11 @@ export type Database = {
             | null
           rt_uf_conselho?: string | null
           rt_vinculado_em?: string | null
+          silica_item_id?: string | null
+          silica_item_nome?: string | null
           status?: string
+          tampa_item_id?: string | null
+          tampa_item_nome?: string | null
           tipo_apresentacao?: string
           tipo_capsula?: string | null
           tipo_pote?: string | null
@@ -3204,6 +3228,13 @@ export type Database = {
             columns: ["assinatura_rt_id"]
             isOneToOne: false
             referencedRelation: "op_assinaturas_rt"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_capsula_item_id_fkey"
+            columns: ["capsula_item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
@@ -3228,6 +3259,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ordens_producao_industrial_pote_item_id_fkey"
+            columns: ["pote_item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ordens_producao_industrial_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
@@ -3246,6 +3284,20 @@ export type Database = {
             columns: ["responsavel_tecnico_id"]
             isOneToOne: false
             referencedRelation: "responsaveis_tecnicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_silica_item_id_fkey"
+            columns: ["silica_item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_tampa_item_id_fkey"
+            columns: ["tampa_item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
             referencedColumns: ["id"]
           },
         ]
