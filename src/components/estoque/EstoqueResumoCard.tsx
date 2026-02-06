@@ -19,14 +19,15 @@ interface EstoqueResumoCardProps {
 
 /**
  * Card de resumo de estoque com ícones profissionais.
- * REGRA: A unidade exibida vem do LOTE (importação NF-e), não do cadastro do item.
- * Isso garante fidelidade ao que foi comprado/convertido.
+ * REGRA: A unidade exibida SEMPRE vem do ITEM (unidade_interna), pois os valores
+ * já estão convertidos (quantidade_interna = quantidade_original × fator_conversão).
+ * Isso garante consistência: se o item tem unidade interna "g", o estoque mostra em "g".
  */
 export function EstoqueResumoCard({ lotes, unidadeInternaItem }: EstoqueResumoCardProps) {
   if (lotes.length === 0) return null;
 
-  // Determina a unidade a partir dos lotes (prioriza lote, fallback para item)
-  const unidadePrincipal = lotes[0]?.unidade_interna || unidadeInternaItem || 'un';
+  // SEMPRE usa a unidade interna do ITEM (dados já convertidos)
+  const unidadePrincipal = unidadeInternaItem || 'un';
   
   // Calcula resumo
   const resumo = lotes.reduce((acc, l) => {
