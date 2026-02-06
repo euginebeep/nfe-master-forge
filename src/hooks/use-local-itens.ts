@@ -132,6 +132,17 @@ export interface LocalEstoqueLote {
   fator_conversao: number; // fator usado para converter original → interno
   status: 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO';
   observacoes_qc?: string;
+
+  // ====================================================
+  // POTÊNCIA DO LOTE (COA DO FORNECEDOR)
+  // REGRA: INSUMO MESTRE NÃO TEM POTÊNCIA FIXA.
+  // A POTÊNCIA (UI/g, mg/g, %) É ATRIBUTO DO LOTE.
+  // ====================================================
+  tipo_potencia?: 'NENHUMA' | 'PERCENTUAL' | 'UI_POR_GRAMA' | 'MG_POR_GRAMA';
+  potencia_valor?: number;       // Ex: 400000 para 400.000 UI/g
+  potencia_unidade?: string;     // Ex: "UI/g", "mg/g", "%"
+  potencia_observacoes?: string; // Campo livre (ex: "COA DSM, lote 2025")
+
   // Dados da Nota de Entrada
   nota_numero?: string;
   nota_serie?: string;

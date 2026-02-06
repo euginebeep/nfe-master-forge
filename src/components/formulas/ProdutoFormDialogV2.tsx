@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -30,17 +30,16 @@ import {
 } from "@/components/ui/form";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { 
-  useProdutosFormulacao, 
+import {
+  useProdutosFormulacao,
   useInsumosFormulacao,
   usePerfisExcipiente,
 } from "@/hooks/use-formulas-industrial";
-import { useLotesDoInsumo, formatarPotencia } from "@/hooks/use-lotes-formulacao";
-import { 
+import { useLotesDoItem, formatarPotencia } from "@/hooks/use-lotes-formulacao";
+import {
   ProdutoFormulacao,
   TipoCapsulaIndustrial,
   CAPSULAS_CAPACIDADE,
@@ -49,7 +48,6 @@ import {
   calcularMassaRealComPotenciaLote,
   verificarDiluicaoGeometrica,
   autocompletarNomeRotulo,
-  ProdutoAtivoComLote,
 } from "@/types/lote-formulacao";
 
 // ========================================
@@ -70,52 +68,70 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
   const loteId = watch(`ativos.${index}.lote_id`);
   const doseDeclarada = watch(`ativos.${index}.dose_declarada`);
   const unidadeDose = watch(`ativos.${index}.unidade_dose`);
-  
-  const { lotes, isLoading: loadingLotes } = useLotesDoInsumo(insumoId);
-  const loteSelecionado = lotes.find(l => l.id === loteId);
-  
+
+  const insumoSelecionado = useMemo(
+    () => insumosAtivos.find((i) => i.id === insumoId),
+    [insumosAtivos, insumoId]
+  );
+  const itemId = insumoSelecionado?.item_id as string | undefined;
+
+  const { lotes, isLoading: loadingLotes } = useLotesDoItem(itemId);
+  const loteSelecionado = lotes.find((l) => l.id === loteId);
+
+  const [erroCalculo, setErroCalculo] = useState<string | null>(null);
+
   // Recalcular quando mudar dose/lote
   useEffect(() => {
     if (loteSelecionado && doseDeclarada > 0) {
+      setErroCalculo(null);
       const resultado = calcularMassaRealComPotenciaLote(
         doseDeclarada,
         unidadeDose,
-        loteSelecionado.tipo_potencia,
-        loteSelecionado.potencia_valor
+        (loteSelecionado as any).tipo_potencia,
+        (loteSelecionado as any).potencia_valor
       );
-      
+
+      if (resultado.bloqueado) {
+        setErroCalculo(resultado.erro || "BLOQUEADO: potência ausente/ inválida no lote");
+        setValue(`ativos.${index}.massa_real_mg`, 0);
+        setValue(`ativos.${index}.equivalente_mcg`, 0);
+        return;
+      }
+
       setValue(`ativos.${index}.massa_real_mg`, resultado.massa_mg);
       setValue(`ativos.${index}.equivalente_mcg`, resultado.equivalente_mcg);
-      setValue(`ativos.${index}.lote_potencia_tipo`, loteSelecionado.tipo_potencia);
-      setValue(`ativos.${index}.lote_potencia_valor`, loteSelecionado.potencia_valor);
+      setValue(`ativos.${index}.lote_potencia_tipo`, (loteSelecionado as any).tipo_potencia);
+      setValue(`ativos.${index}.lote_potencia_valor`, (loteSelecionado as any).potencia_valor);
       setValue(`ativos.${index}.lote_numero`, loteSelecionado.numero_lote);
-      
+
       const diluicao = verificarDiluicaoGeometrica(resultado.massa_mg);
       setValue(`ativos.${index}.pesagem_critica`, diluicao.pesagem_critica);
       setValue(`ativos.${index}.requer_diluicao`, diluicao.requer_diluicao);
       setValue(`ativos.${index}.sugestao_premix`, diluicao.sugestao_premix);
     }
   }, [loteSelecionado, doseDeclarada, unidadeDose, setValue, index]);
-  
+
   const massaRealMg = watch(`ativos.${index}.massa_real_mg`) || 0;
   const equivalenteMcg = watch(`ativos.${index}.equivalente_mcg`) || 0;
   const pesagemCritica = watch(`ativos.${index}.pesagem_critica`);
   const requerDiluicao = watch(`ativos.${index}.requer_diluicao`);
   const sugestaoPremix = watch(`ativos.${index}.sugestao_premix`);
-  
+
   const handleInsumoSelect = (id: string) => {
-    const insumo = insumosAtivos.find(i => i.id === id);
+    const insumo = insumosAtivos.find((i) => i.id === id);
     if (insumo) {
       setValue(`ativos.${index}.nome_insumo`, insumo.nome_interno);
-      setValue(`ativos.${index}.nome_rotulo`, insumo.nome_rotulo || '');
+      setValue(`ativos.${index}.nome_rotulo`, insumo.nome_rotulo || "");
       // Limpar lote ao trocar insumo
-      setValue(`ativos.${index}.lote_id`, '');
+      setValue(`ativos.${index}.lote_id`, "");
       setValue(`ativos.${index}.massa_real_mg`, 0);
+      setValue(`ativos.${index}.equivalente_mcg`, 0);
+      setErroCalculo(null);
     }
   };
-  
+
   const handleNomeRotuloKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Tab') {
+    if (e.key === "Tab") {
       const input = e.currentTarget.value;
       const sugestao = autocompletarNomeRotulo(input);
       if (sugestao) {
@@ -124,9 +140,11 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
       }
     }
   };
-  
+
   return (
-    <Card className={`${requerDiluicao ? 'border-destructive bg-destructive/5' : pesagemCritica ? 'border-warning bg-warning/5' : ''}`}>
+    <Card
+      className={`${requerDiluicao ? "border-destructive bg-destructive/5" : pesagemCritica ? "border-warning bg-warning/5" : ""}`}
+    >
       <CardContent className="pt-4 space-y-3">
         <div className="flex justify-between items-start">
           <div className="flex-1 grid grid-cols-2 gap-3">
@@ -136,9 +154,9 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
               name={`ativos.${index}.insumo_id`}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs">Insumo (Cadastro) *</FormLabel>
-                  <Select 
-                    value={field.value} 
+                  <FormLabel className="text-xs">1) Insumo (Cadastro) *</FormLabel>
+                  <Select
+                    value={field.value}
                     onValueChange={(v) => {
                       field.onChange(v);
                       handleInsumoSelect(v);
@@ -150,7 +168,7 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {insumosAtivos.map(insumo => (
+                      {insumosAtivos.map((insumo) => (
                         <SelectItem key={insumo.id} value={insumo.id}>
                           {insumo.nome_interno}
                         </SelectItem>
@@ -161,36 +179,44 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
                 </FormItem>
               )}
             />
-            
+
             {/* Lote (com potência) */}
             <FormField
               control={control}
               name={`ativos.${index}.lote_id`}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs">Lote (Potência) *</FormLabel>
-                  <Select 
-                    value={field.value} 
+                  <FormLabel className="text-xs">2) Lote (COA / Potência) *</FormLabel>
+                  <Select
+                    value={field.value}
                     onValueChange={field.onChange}
-                    disabled={!insumoId || loadingLotes}
+                    disabled={!itemId || loadingLotes}
                   >
                     <FormControl>
                       <SelectTrigger className="h-9">
-                        <SelectValue placeholder={loadingLotes ? "Carregando..." : "Selecione o lote..."} />
+                        <SelectValue
+                          placeholder={
+                            !itemId
+                              ? "Vincule este insumo a um item do estoque"
+                              : loadingLotes
+                                ? "Carregando..."
+                                : "Selecione o lote..."
+                          }
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {lotes.length === 0 ? (
                         <div className="p-2 text-sm text-muted-foreground text-center">
-                          Nenhum lote disponível
+                          Nenhum lote DISPONÍVEL
                         </div>
                       ) : (
-                        lotes.map(lote => (
+                        lotes.map((lote) => (
                           <SelectItem key={lote.id} value={lote.id}>
                             <div className="flex flex-col">
                               <span>{lote.numero_lote}</span>
                               <span className="text-xs text-muted-foreground">
-                                {formatarPotencia(lote.tipo_potencia, lote.potencia_valor)}
+                                {formatarPotencia((lote as any).tipo_potencia, (lote as any).potencia_valor)}
                               </span>
                             </div>
                           </SelectItem>
@@ -203,7 +229,7 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
               )}
             />
           </div>
-          
+
           <Button
             type="button"
             size="icon"
@@ -214,7 +240,7 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-        
+
         {/* Linha 2: Dose e Nome Rótulo */}
         <div className="grid grid-cols-4 gap-3">
           <FormField
@@ -222,21 +248,21 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
             name={`ativos.${index}.dose_declarada`}
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-xs">Dose Declarada *</FormLabel>
+                <FormLabel className="text-xs">3) Dose Declarada *</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    step="any" 
+                  <Input
+                    type="number"
+                    step="any"
                     className="h-9"
                     placeholder="Ex: 2000"
-                    {...field} 
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={control}
             name={`ativos.${index}.unidade_dose`}
@@ -260,7 +286,7 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={control}
             name={`ativos.${index}.nome_rotulo`}
@@ -271,7 +297,9 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info className="h-3 w-3 text-muted-foreground" />
+                        <span className="inline-flex" aria-hidden>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </span>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Digite e pressione TAB para autocompletar</p>
@@ -280,7 +308,7 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
                   </TooltipProvider>
                 </FormLabel>
                 <FormControl>
-                  <Input 
+                  <Input
                     className="h-9"
                     placeholder="vitamina d + TAB"
                     {...field}
@@ -292,47 +320,57 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
             )}
           />
         </div>
-        
+
         {/* Resultados calculados */}
-        {loteSelecionado && massaRealMg > 0 && (
+        {erroCalculo && (
+          <Alert variant="destructive" className="mt-2">
+            <Beaker className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              {erroCalculo}. Vá em <strong>Estoque → Lotes</strong> e registre a potência do COA neste lote.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {loteSelecionado && massaRealMg > 0 && !erroCalculo && (
           <div className="bg-muted/50 rounded-lg p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Scale className="h-4 w-4 text-secondary" />
               Cálculo Automático
             </div>
-            
+
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Potência do Lote:</span>
                 <div className="font-mono font-medium">
-                  {formatarPotencia(loteSelecionado.tipo_potencia, loteSelecionado.potencia_valor)}
+                  {formatarPotencia((loteSelecionado as any).tipo_potencia, (loteSelecionado as any).potencia_valor)}
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Massa Real/Cápsula:</span>
-                <div className={`font-mono font-medium ${requerDiluicao ? 'text-destructive' : pesagemCritica ? 'text-warning' : 'text-secondary'}`}>
+                <div
+                  className={`font-mono font-medium ${requerDiluicao ? "text-destructive" : pesagemCritica ? "text-warning" : "text-secondary"}`}
+                >
                   {massaRealMg.toFixed(3)} mg
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Equivalente:</span>
-                <div className="font-mono font-medium">
-                  {equivalenteMcg.toFixed(2)} mcg
-                </div>
+                <div className="font-mono font-medium">{equivalenteMcg.toFixed(2)} mcg</div>
               </div>
             </div>
-            
+
             {/* Alerta de segurança */}
             {requerDiluicao && (
               <Alert variant="destructive" className="mt-2">
                 <Beaker className="h-4 w-4" />
                 <AlertDescription className="text-xs">
-                  <strong>DILUIÇÃO GEOMÉTRICA OBRIGATÓRIA!</strong><br/>
+                  <strong>DILUIÇÃO GEOMÉTRICA OBRIGATÓRIA!</strong>
+                  <br />
                   {sugestaoPremix}
                 </AlertDescription>
               </Alert>
             )}
-            
+
             {pesagemCritica && !requerDiluicao && (
               <Alert className="mt-2 border-warning bg-warning/10">
                 <AlertTriangle className="h-4 w-4 text-warning" />
@@ -343,13 +381,13 @@ function AtivoRow({ index, control, setValue, watch, remove, insumosAtivos }: At
             )}
           </div>
         )}
-        
+
         {/* Aviso quando falta lote */}
-        {insumoId && !loteId && lotes.length === 0 && (
+        {itemId && !loteId && lotes.length === 0 && (
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              Este insumo não possui lotes disponíveis. Cadastre um lote com a potência informada pelo fornecedor.
+              Este insumo não possui lotes em <strong>DISPONÍVEL</strong>. Se o lote estiver em quarentena, valide COA e registre a potência.
             </AlertDescription>
           </Alert>
         )}
@@ -367,7 +405,7 @@ const ativoSchema = z.object({
   insumo_id: z.string().min(1, "Selecione um insumo"),
   nome_insumo: z.string(),
   nome_rotulo: z.string().optional(),
-  lote_id: z.string().optional(),
+  lote_id: z.string().min(1, "Selecione um lote"),
   lote_numero: z.string().optional(),
   lote_potencia_tipo: z.string().optional(),
   lote_potencia_valor: z.coerce.number().optional(),
@@ -379,6 +417,7 @@ const ativoSchema = z.object({
   requer_diluicao: z.boolean().optional(),
   sugestao_premix: z.string().optional(),
 });
+
 
 const produtoSchema = z.object({
   nome_comercial: z.string().min(1, "Nome comercial obrigatório"),
@@ -443,12 +482,12 @@ export function ProdutoFormDialogV2({
         nome_comercial: produto.nome_comercial,
         descricao: produto.descricao || "",
         dose_diaria: produto.dose_diaria,
-        ativos: produto.ativos.map(a => ({
+        ativos: produto.ativos.map((a) => ({
           id: a.id,
           insumo_id: a.insumo_id,
           nome_insumo: a.nome_insumo,
           nome_rotulo: '',
-          lote_id: '',
+          lote_id: a.materia_prima_padrao_id || '',
           lote_numero: '',
           dose_declarada: a.dose_diaria,
           unidade_dose: a.unidade_dose,
@@ -460,7 +499,7 @@ export function ProdutoFormDialogV2({
         perfil_excipiente_id: produto.perfil_excipiente_id || "",
       });
     } else {
-      const perfilPadrao = perfis.find(p => p.padrao);
+      const perfilPadrao = perfis.find((p) => p.padrao);
       form.reset({
         nome_comercial: "",
         descricao: "",

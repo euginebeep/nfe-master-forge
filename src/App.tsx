@@ -24,6 +24,7 @@ import FormulasListPage from "./pages/producao/FormulasListPage";
 import OrdensProducaoPage from "./pages/producao/OrdensProducaoPage";
 import QuarentenaPage from "./pages/estoque/QuarentenaPage";
 import LotesListPage from "./pages/estoque/LotesListPage";
+import LoteDetailPage from "./pages/estoque/LoteDetailPage";
 import MovimentacoesPage from "./pages/estoque/MovimentacoesPage";
 import NFeImportPage from "./pages/compras/NFeImportPage";
 import NotasEntradaPage from "./pages/compras/NotasEntradaPage";
@@ -76,6 +77,7 @@ const App = () => (
             {/* Estoque */}
             <Route path="/estoque/quarentena" element={<QuarentenaPage />} />
             <Route path="/estoque/lotes" element={<LotesListPage />} />
+            <Route path="/estoque/lotes/:id" element={<LoteDetailPage />} />
             <Route path="/estoque/movimentacoes" element={<MovimentacoesPage />} />
             {/* Compras */}
             <Route path="/compras/importar-nfe" element={<NFeImportPage />} />

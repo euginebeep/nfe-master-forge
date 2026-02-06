@@ -371,26 +371,41 @@ export function useCreateFormulaIndustrial() {
     const erros: string[] = [];
 
     produto.ativos.forEach((ativo, index) => {
-      const insumo = insumos.find(i => i.id === ativo.insumo_id);
+      const insumo = insumos.find((i) => i.id === ativo.insumo_id);
       if (!insumo) {
         erros.push(`Insumo "${ativo.nome_insumo}" não encontrado`);
+        return;
+      }
+
+      // REGRA: Potência vem do LOTE selecionado no produto (COA do fornecedor)
+      const loteId = ativo.materia_prima_padrao_id;
+      const lote = loteId
+        ? LocalDb.getById<any>("estoque_lotes", loteId)
+        : null;
+
+      if (!lote) {
+        erros.push(`${insumo.nome_interno}: selecione um LOTE (com potência) no cadastro do Produto`);
         return;
       }
 
       // Calcular dose por cápsula
       const dosePorCapsula = ativo.dose_diaria / params.capsulas_por_dose;
 
-      // Calcular peso a pesar
+      // Potência do lote (UI/g, mg/g, %, ...)
+      const tipoPotenciaLote = (lote.tipo_potencia || 'NENHUMA') as any;
+      const valorPotenciaLote = lote.potencia_valor;
+
+      // Calcular peso a pesar (corrigido pela potência do lote)
       const { peso_mg, erro } = calcularPesoAPesar(
         dosePorCapsula,
         ativo.unidade_dose,
-        insumo.tipo_potencia,
-        insumo.valor_potencia,
+        tipoPotenciaLote,
+        valorPotenciaLote,
         insumo.percentual_elementar
       );
 
       if (erro) {
-        erros.push(`${insumo.nome_interno}: ${erro}`);
+        erros.push(`${insumo.nome_interno}: ${erro} (potência do lote não informada/ inválida)`);
       }
 
       totalAtivos += peso_mg;
@@ -408,8 +423,8 @@ export function useCreateFormulaIndustrial() {
         categoria: insumo.categoria,
         dose_por_capsula: dosePorCapsula,
         unidade_dose: ativo.unidade_dose,
-        tipo_potencia: insumo.tipo_potencia,
-        valor_potencia: insumo.valor_potencia,
+        tipo_potencia: tipoPotenciaLote,
+        valor_potencia: valorPotenciaLote,
         peso_a_pesar_mg: Math.round(peso_mg * 100) / 100,
         custo_por_kg: insumo.custo_por_kg,
         custo_por_capsula: Math.round(custoIngrediente * 10000) / 10000,
