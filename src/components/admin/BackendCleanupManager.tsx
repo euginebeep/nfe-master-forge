@@ -20,10 +20,15 @@ import { toast } from "sonner";
 
 // Tabelas do backend que podem ser limpas
 const BACKEND_TABLES = [
+  { key: "formulas", label: "Fórmulas (Formulador)", cascade: ["formula_itens", "formula_versoes", "alegacoes_anvisa"] },
+  { key: "ordens_producao_industrial", label: "Ordens de Produção (OP)", cascade: ["op_insumos_consumidos", "op_embalagens", "op_etapas", "op_anexos", "op_assinaturas_rt", "custos_op", "lotes_produto_acabado"] },
+  { key: "estoque_lotes", label: "Lotes de Estoque", cascade: ["lote_documentos", "lote_materias_primas"] },
+  { key: "lotes_produto_acabado", label: "Lotes Produto Acabado (Quarentena)", cascade: ["lote_materias_primas"] },
   { key: "itens", label: "Produtos/Insumos", cascade: ["item_fornecedores", "item_alias", "estoque_lotes"] },
   { key: "entidades", label: "Entidades (Fornecedores/Clientes)", cascade: ["entidade_contatos", "entidade_enderecos", "entidade_papeis", "entidade_comercial_crm", "entidade_financeiro_config", "entidade_fiscal_config", "entidade_logistica_config", "entidade_documentos"] },
-  { key: "estoque_lotes", label: "Lotes de Estoque", cascade: ["lote_documentos"] },
   { key: "notas_entrada", label: "Notas de Entrada", cascade: ["notas_entrada_itens"] },
+  { key: "orcamentos", label: "Orçamentos", cascade: ["orcamento_itens"] },
+  { key: "pedidos_venda", label: "Pedidos de Venda", cascade: ["pedido_itens"] },
   { key: "item_fornecedores", label: "Vínculos Item-Fornecedor", cascade: [] },
   { key: "item_alias", label: "Aliases de Itens", cascade: [] },
   { key: "entidade_contatos", label: "Contatos de Entidades", cascade: [] },
