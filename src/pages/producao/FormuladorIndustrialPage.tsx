@@ -9,6 +9,8 @@ import {
   FlaskConical, Plus, Search, Filter, Eye, Edit, Trash2, 
   CheckCircle, XCircle, Clock, FileText, RefreshCw
 } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AdminCleanupButton } from "@/components/admin/AdminCleanupButton";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -182,6 +184,15 @@ export default function FormuladorIndustrialPage() {
         <Button variant="outline" size="icon" onClick={refresh}>
           <RefreshCw className="h-4 w-4" />
         </Button>
+        <TooltipProvider>
+          <AdminCleanupButton
+            tableName="formulas"
+            tableLabel="Fórmulas"
+            cascadeTables={["formula_itens", "formula_versoes", "alegacoes_anvisa"]}
+            dateColumn="criado_em"
+            onCleanupComplete={refresh}
+          />
+        </TooltipProvider>
       </div>
 
       {/* Tabela de fórmulas */}
