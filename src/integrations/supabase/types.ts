@@ -49,6 +49,132 @@ export type Database = {
           },
         ]
       }
+      alertas_executivos: {
+        Row: {
+          acao_sugerida: string | null
+          created_at: string | null
+          dados_contexto: Json | null
+          descricao: string
+          entidade_codigo: string | null
+          entidade_id: string | null
+          entidade_tipo: string | null
+          expires_at: string | null
+          id: string
+          impacto_financeiro: number | null
+          nivel: Database["public"]["Enums"]["nivel_alerta"]
+          resolucao_observacoes: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: string | null
+          tipo_alerta: Database["public"]["Enums"]["tipo_alerta_executivo"]
+          titulo: string
+          valor_atual: number | null
+          valor_referencia: number | null
+          visualizado_em: string | null
+          visualizado_por: string | null
+        }
+        Insert: {
+          acao_sugerida?: string | null
+          created_at?: string | null
+          dados_contexto?: Json | null
+          descricao: string
+          entidade_codigo?: string | null
+          entidade_id?: string | null
+          entidade_tipo?: string | null
+          expires_at?: string | null
+          id?: string
+          impacto_financeiro?: number | null
+          nivel?: Database["public"]["Enums"]["nivel_alerta"]
+          resolucao_observacoes?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string | null
+          tipo_alerta: Database["public"]["Enums"]["tipo_alerta_executivo"]
+          titulo: string
+          valor_atual?: number | null
+          valor_referencia?: number | null
+          visualizado_em?: string | null
+          visualizado_por?: string | null
+        }
+        Update: {
+          acao_sugerida?: string | null
+          created_at?: string | null
+          dados_contexto?: Json | null
+          descricao?: string
+          entidade_codigo?: string | null
+          entidade_id?: string | null
+          entidade_tipo?: string | null
+          expires_at?: string | null
+          id?: string
+          impacto_financeiro?: number | null
+          nivel?: Database["public"]["Enums"]["nivel_alerta"]
+          resolucao_observacoes?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string | null
+          tipo_alerta?: Database["public"]["Enums"]["tipo_alerta_executivo"]
+          titulo?: string
+          valor_atual?: number | null
+          valor_referencia?: number | null
+          visualizado_em?: string | null
+          visualizado_por?: string | null
+        }
+        Relationships: []
+      }
+      anomalias_operacionais: {
+        Row: {
+          analise_observacoes: string | null
+          created_at: string | null
+          descricao: string
+          desvio_percentual: number | null
+          formula_id: string | null
+          id: string
+          lote_id: string | null
+          op_id: string | null
+          resolvido_em: string | null
+          responsavel_analise: string | null
+          severidade: Database["public"]["Enums"]["severidade_anomalia"]
+          status: string | null
+          tipo_anomalia: Database["public"]["Enums"]["tipo_anomalia"]
+          valor_esperado: number | null
+          valor_real: number | null
+        }
+        Insert: {
+          analise_observacoes?: string | null
+          created_at?: string | null
+          descricao: string
+          desvio_percentual?: number | null
+          formula_id?: string | null
+          id?: string
+          lote_id?: string | null
+          op_id?: string | null
+          resolvido_em?: string | null
+          responsavel_analise?: string | null
+          severidade?: Database["public"]["Enums"]["severidade_anomalia"]
+          status?: string | null
+          tipo_anomalia: Database["public"]["Enums"]["tipo_anomalia"]
+          valor_esperado?: number | null
+          valor_real?: number | null
+        }
+        Update: {
+          analise_observacoes?: string | null
+          created_at?: string | null
+          descricao?: string
+          desvio_percentual?: number | null
+          formula_id?: string | null
+          id?: string
+          lote_id?: string | null
+          op_id?: string | null
+          resolvido_em?: string | null
+          responsavel_analise?: string | null
+          severidade?: Database["public"]["Enums"]["severidade_anomalia"]
+          status?: string | null
+          tipo_anomalia?: Database["public"]["Enums"]["tipo_anomalia"]
+          valor_esperado?: number | null
+          valor_real?: number | null
+        }
+        Relationships: []
+      }
       arquivos: {
         Row: {
           checksum_sha256: string | null
@@ -108,6 +234,50 @@ export type Database = {
           payload?: Json | null
         }
         Relationships: []
+      }
+      avaliacoes_fornecedor: {
+        Row: {
+          avaliado_por: string | null
+          created_at: string | null
+          fornecedor_id: string
+          id: string
+          lote_id: string | null
+          nota_entrada_id: string | null
+          observacoes: string | null
+          score: number
+          tipo_avaliacao: string
+        }
+        Insert: {
+          avaliado_por?: string | null
+          created_at?: string | null
+          fornecedor_id: string
+          id?: string
+          lote_id?: string | null
+          nota_entrada_id?: string | null
+          observacoes?: string | null
+          score: number
+          tipo_avaliacao: string
+        }
+        Update: {
+          avaliado_por?: string | null
+          created_at?: string | null
+          fornecedor_id?: string
+          id?: string
+          lote_id?: string | null
+          nota_entrada_id?: string | null
+          observacoes?: string | null
+          score?: number
+          tipo_avaliacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avaliacoes_fornecedor_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company: {
         Row: {
@@ -1447,6 +1617,66 @@ export type Database = {
         }
         Relationships: []
       }
+      kpis_executivos: {
+        Row: {
+          alertas_regulatorios: number | null
+          anomalias_criticas: number | null
+          created_at: string | null
+          custo_medio_unitario: number | null
+          custo_total_producao: number | null
+          dados_detalhados: Json | null
+          data_referencia: string
+          fornecedores_risco: number | null
+          id: string
+          margem_media_percent: number | null
+          nao_conformidades: number | null
+          ops_bloqueadas: number | null
+          ops_finalizadas: number | null
+          rendimento_medio_percent: number | null
+          taxa_aprovacao_qc: number | null
+          total_anomalias: number | null
+          validacoes_bloqueio: number | null
+        }
+        Insert: {
+          alertas_regulatorios?: number | null
+          anomalias_criticas?: number | null
+          created_at?: string | null
+          custo_medio_unitario?: number | null
+          custo_total_producao?: number | null
+          dados_detalhados?: Json | null
+          data_referencia: string
+          fornecedores_risco?: number | null
+          id?: string
+          margem_media_percent?: number | null
+          nao_conformidades?: number | null
+          ops_bloqueadas?: number | null
+          ops_finalizadas?: number | null
+          rendimento_medio_percent?: number | null
+          taxa_aprovacao_qc?: number | null
+          total_anomalias?: number | null
+          validacoes_bloqueio?: number | null
+        }
+        Update: {
+          alertas_regulatorios?: number | null
+          anomalias_criticas?: number | null
+          created_at?: string | null
+          custo_medio_unitario?: number | null
+          custo_total_producao?: number | null
+          dados_detalhados?: Json | null
+          data_referencia?: string
+          fornecedores_risco?: number | null
+          id?: string
+          margem_media_percent?: number | null
+          nao_conformidades?: number | null
+          ops_bloqueadas?: number | null
+          ops_finalizadas?: number | null
+          rendimento_medio_percent?: number | null
+          taxa_aprovacao_qc?: number | null
+          total_anomalias?: number | null
+          validacoes_bloqueio?: number | null
+        }
+        Relationships: []
+      }
       log_validacoes_anvisa: {
         Row: {
           acao_sistema: string | null
@@ -1707,6 +1937,62 @@ export type Database = {
           },
         ]
       }
+      previsoes_producao: {
+        Row: {
+          alerta: string | null
+          confianca_percentual: number | null
+          created_at: string | null
+          dados_historico: Json | null
+          demanda_prevista: number
+          gerado_em: string | null
+          id: string
+          lote_sugerido: number
+          periodo: string
+          ponto_reposicao: number | null
+          prioridade: string | null
+          produto_id: string | null
+          valido_ate: string | null
+        }
+        Insert: {
+          alerta?: string | null
+          confianca_percentual?: number | null
+          created_at?: string | null
+          dados_historico?: Json | null
+          demanda_prevista?: number
+          gerado_em?: string | null
+          id?: string
+          lote_sugerido?: number
+          periodo: string
+          ponto_reposicao?: number | null
+          prioridade?: string | null
+          produto_id?: string | null
+          valido_ate?: string | null
+        }
+        Update: {
+          alerta?: string | null
+          confianca_percentual?: number | null
+          created_at?: string | null
+          dados_historico?: Json | null
+          demanda_prevista?: number
+          gerado_em?: string | null
+          id?: string
+          lote_sugerido?: number
+          periodo?: string
+          ponto_reposicao?: number | null
+          prioridade?: string | null
+          produto_id?: string | null
+          valido_ate?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "previsoes_producao_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1745,6 +2031,74 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ranking_fornecedores: {
+        Row: {
+          classificacao: string | null
+          created_at: string | null
+          custo_medio_kg: number | null
+          dados_historico: Json | null
+          fornecedor_id: string
+          id: string
+          score_conformidade: number | null
+          score_custo: number | null
+          score_pontualidade: number | null
+          score_qualidade: number | null
+          score_total: number | null
+          score_variacao_preco: number | null
+          total_entregas_atrasadas: number | null
+          total_lotes_recebidos: number | null
+          total_nao_conformidades: number | null
+          ultima_avaliacao: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          classificacao?: string | null
+          created_at?: string | null
+          custo_medio_kg?: number | null
+          dados_historico?: Json | null
+          fornecedor_id: string
+          id?: string
+          score_conformidade?: number | null
+          score_custo?: number | null
+          score_pontualidade?: number | null
+          score_qualidade?: number | null
+          score_total?: number | null
+          score_variacao_preco?: number | null
+          total_entregas_atrasadas?: number | null
+          total_lotes_recebidos?: number | null
+          total_nao_conformidades?: number | null
+          ultima_avaliacao?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          classificacao?: string | null
+          created_at?: string | null
+          custo_medio_kg?: number | null
+          dados_historico?: Json | null
+          fornecedor_id?: string
+          id?: string
+          score_conformidade?: number | null
+          score_custo?: number | null
+          score_pontualidade?: number | null
+          score_qualidade?: number | null
+          score_total?: number | null
+          score_variacao_preco?: number | null
+          total_entregas_atrasadas?: number | null
+          total_lotes_recebidos?: number | null
+          total_nao_conformidades?: number | null
+          ultima_avaliacao?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ranking_fornecedores_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: true
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       regras_anvisa: {
         Row: {
@@ -1878,6 +2232,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sugestoes_otimizacao: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string | null
+          dados_analise: Json | null
+          descricao: string
+          entidade_codigo: string | null
+          entidade_id: string
+          entidade_tipo: string
+          id: string
+          impacto_estimado: number | null
+          impacto_unidade: string | null
+          implementado_em: string | null
+          justificativa_tecnica: string
+          observacoes_implementacao: string | null
+          status: string | null
+          tipo_sugestao: Database["public"]["Enums"]["tipo_sugestao_otimizacao"]
+          titulo: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string | null
+          dados_analise?: Json | null
+          descricao: string
+          entidade_codigo?: string | null
+          entidade_id: string
+          entidade_tipo: string
+          id?: string
+          impacto_estimado?: number | null
+          impacto_unidade?: string | null
+          implementado_em?: string | null
+          justificativa_tecnica: string
+          observacoes_implementacao?: string | null
+          status?: string | null
+          tipo_sugestao: Database["public"]["Enums"]["tipo_sugestao_otimizacao"]
+          titulo: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string | null
+          dados_analise?: Json | null
+          descricao?: string
+          entidade_codigo?: string | null
+          entidade_id?: string
+          entidade_tipo?: string
+          id?: string
+          impacto_estimado?: number | null
+          impacto_unidade?: string | null
+          implementado_em?: string | null
+          justificativa_tecnica?: string
+          observacoes_implementacao?: string | null
+          status?: string | null
+          tipo_sugestao?: Database["public"]["Enums"]["tipo_sugestao_otimizacao"]
+          titulo?: string
+        }
+        Relationships: []
+      }
       tabelas_nutricionais: {
         Row: {
           data_geracao: string | null
@@ -1912,6 +2326,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trilha_auditoria_tecnica: {
+        Row: {
+          acao: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          diff_resumo: string | null
+          entidade_codigo: string | null
+          entidade_id: string
+          entidade_tipo: string
+          hash_integridade: string | null
+          id: string
+          ip_origem: string | null
+          motivo: string | null
+          timestamp: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          diff_resumo?: string | null
+          entidade_codigo?: string | null
+          entidade_id: string
+          entidade_tipo: string
+          hash_integridade?: string | null
+          id?: string
+          ip_origem?: string | null
+          motivo?: string | null
+          timestamp?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          diff_resumo?: string | null
+          entidade_codigo?: string | null
+          entidade_id?: string
+          entidade_tipo?: string
+          hash_integridade?: string | null
+          id?: string
+          ip_origem?: string | null
+          motivo?: string | null
+          timestamp?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
       }
       user_permissions: {
         Row: {
@@ -1967,6 +2432,39 @@ export type Database = {
         }
         Relationships: []
       }
+      versoes_parametros_industriais: {
+        Row: {
+          alterado_em: string | null
+          alterado_por: string | null
+          ativo: boolean | null
+          dados: Json
+          id: string
+          motivo_alteracao: string | null
+          tipo_parametro: string
+          versao: number
+        }
+        Insert: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          ativo?: boolean | null
+          dados: Json
+          id?: string
+          motivo_alteracao?: string | null
+          tipo_parametro: string
+          versao?: number
+        }
+        Update: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          ativo?: boolean | null
+          dados?: Json
+          id?: string
+          motivo_alteracao?: string | null
+          tipo_parametro?: string
+          versao?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2000,9 +2498,38 @@ export type Database = {
         | "RH"
         | "TI"
       app_role: "admin" | "gerente" | "supervisor" | "operador" | "visualizador"
+      nivel_alerta: "CRITICO" | "ALTO" | "MEDIO" | "BAIXO"
+      severidade_anomalia: "CRITICA" | "ALTA" | "MEDIA" | "BAIXA" | "INFO"
       status_formula_industrial: "RASCUNHO" | "APROVADA" | "BLOQUEADA"
+      tipo_alerta_executivo:
+        | "MARGEM_BAIXA"
+        | "FORNECEDOR_RISCO"
+        | "PROCESSO_FORA_PADRAO"
+        | "RISCO_REGULATORIO"
+        | "ESTOQUE_CRITICO"
+        | "CUSTO_ELEVADO"
+        | "QUALIDADE_COMPROMETIDA"
+        | "VENCIMENTO_PROXIMO"
+        | "PRODUCAO_ATRASADA"
+        | "ANOMALIA_DETECTADA"
+      tipo_anomalia:
+        | "PESO_FORA_PADRAO"
+        | "CONSUMO_EXCESSIVO"
+        | "TEMPO_ANORMAL"
+        | "RENDIMENTO_BAIXO"
+        | "PERDA_ELEVADA"
+        | "DESVIO_CUSTO"
+        | "DESVIO_QUALIDADE"
       tipo_apresentacao_formula: "CAPSULA" | "LIQUIDO" | "PO"
       tipo_excipiente_formula: "AMIDO" | "CELULOSE" | "PRE_BLEND"
+      tipo_sugestao_otimizacao:
+        | "AJUSTE_EXCIPIENTE"
+        | "ORDEM_MISTURA"
+        | "REDUCAO_PERDA"
+        | "MELHORIA_RENDIMENTO"
+        | "SUBSTITUICAO_INSUMO"
+        | "ALTERACAO_PROCESSO"
+        | "ECONOMIA_CUSTO"
       unidade_informada_formula: "MG" | "MCG" | "UI"
     }
     CompositeTypes: {
@@ -2143,9 +2670,41 @@ export const Constants = {
         "TI",
       ],
       app_role: ["admin", "gerente", "supervisor", "operador", "visualizador"],
+      nivel_alerta: ["CRITICO", "ALTO", "MEDIO", "BAIXO"],
+      severidade_anomalia: ["CRITICA", "ALTA", "MEDIA", "BAIXA", "INFO"],
       status_formula_industrial: ["RASCUNHO", "APROVADA", "BLOQUEADA"],
+      tipo_alerta_executivo: [
+        "MARGEM_BAIXA",
+        "FORNECEDOR_RISCO",
+        "PROCESSO_FORA_PADRAO",
+        "RISCO_REGULATORIO",
+        "ESTOQUE_CRITICO",
+        "CUSTO_ELEVADO",
+        "QUALIDADE_COMPROMETIDA",
+        "VENCIMENTO_PROXIMO",
+        "PRODUCAO_ATRASADA",
+        "ANOMALIA_DETECTADA",
+      ],
+      tipo_anomalia: [
+        "PESO_FORA_PADRAO",
+        "CONSUMO_EXCESSIVO",
+        "TEMPO_ANORMAL",
+        "RENDIMENTO_BAIXO",
+        "PERDA_ELEVADA",
+        "DESVIO_CUSTO",
+        "DESVIO_QUALIDADE",
+      ],
       tipo_apresentacao_formula: ["CAPSULA", "LIQUIDO", "PO"],
       tipo_excipiente_formula: ["AMIDO", "CELULOSE", "PRE_BLEND"],
+      tipo_sugestao_otimizacao: [
+        "AJUSTE_EXCIPIENTE",
+        "ORDEM_MISTURA",
+        "REDUCAO_PERDA",
+        "MELHORIA_RENDIMENTO",
+        "SUBSTITUICAO_INSUMO",
+        "ALTERACAO_PROCESSO",
+        "ECONOMIA_CUSTO",
+      ],
       unidade_informada_formula: ["MG", "MCG", "UI"],
     },
   },
