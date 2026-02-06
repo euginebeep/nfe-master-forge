@@ -180,8 +180,9 @@ export function ConsultaANVISACard() {
         populacaoAlvo: dadosEncontrados.populacaoAlvo || [],
         observacoes: dadosEncontrados.observacoes || null,
         linksUteis: [
-          { titulo: 'Portal ANVISA - Suplementos', url: 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares' },
-          { titulo: 'Sistema de Consulta Pública', url: 'https://consultas.anvisa.gov.br/' },
+          { titulo: 'IN 28/2018 - Alegações de Propriedade', url: 'https://antigo.anvisa.gov.br/documents/10181/3898888/IN_28_2018_.pdf' },
+          { titulo: 'RDC 239/2018 - Limites de Nutrientes', url: 'https://antigo.anvisa.gov.br/documents/10181/3898888/RDC_239_2018_.pdf' },
+          { titulo: 'RDC 243/2018 - Suplementos Alimentares', url: 'https://antigo.anvisa.gov.br/documents/10181/3898888/RDC_243_2018_.pdf' },
         ],
       });
     } else {
@@ -193,10 +194,11 @@ export function ConsultaANVISACard() {
         alegacoes: [],
         advertencias: [],
         populacaoAlvo: [],
-        observacoes: 'Substância não encontrada na base local. Consulte diretamente a ANVISA.',
+        observacoes: 'Substância não encontrada na base local. Consulte a legislação ANVISA diretamente.',
         linksUteis: [
-          { titulo: 'Portal ANVISA - Suplementos', url: 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares' },
-          { titulo: 'Sistema de Consulta Pública', url: 'https://consultas.anvisa.gov.br/' },
+          { titulo: 'IN 28/2018 - Alegações de Propriedade', url: 'https://antigo.anvisa.gov.br/documents/10181/3898888/IN_28_2018_.pdf' },
+          { titulo: 'RDC 239/2018 - Limites de Nutrientes', url: 'https://antigo.anvisa.gov.br/documents/10181/3898888/RDC_239_2018_.pdf' },
+          { titulo: 'Biblioteca ANVISA - Suplementos', url: 'https://antigo.anvisa.gov.br/suplementos-alimentares' },
         ],
       });
     }
@@ -270,13 +272,13 @@ export function ConsultaANVISACard() {
             </div>
             
             <a
-              href="https://consultas.anvisa.gov.br/"
+              href="https://antigo.anvisa.gov.br/suplementos-alimentares"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-xs text-primary hover:underline pt-1"
             >
               <ExternalLink className="h-3 w-3" />
-              Acessar Portal ANVISA
+              Legislação ANVISA - Suplementos
             </a>
           </CardContent>
         </Card>
