@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink } from "lucide-react";
+import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search } from "lucide-react";
 import { EstoqueResumoCard } from "@/components/estoque/EstoqueResumoCard";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
+import { COAParserButton } from "@/components/lotes/COAParserButton";
 
 const TIPOS_ITEM = [
   { value: "MP", label: "Materia Prima" },
@@ -830,6 +831,26 @@ export default function ProdutoDetailPage() {
                             </StatusBadge>
                           </div>
                           <div className="flex gap-2">
+                            <COAParserButton 
+                              materiasPrimas={[{ id: item.id, descricao: item.descricao_interna }]}
+                              onPotenciaEncontrada={(dados) => {
+                                // Update lote with potency data
+                                type TipoPotencia = "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL" | "NENHUMA";
+                                const tipoMap: Record<string, TipoPotencia> = {
+                                  "UI_POR_GRAMA": "UI_POR_GRAMA",
+                                  "MG_POR_GRAMA": "MG_POR_GRAMA", 
+                                  "PERCENTUAL": "PERCENTUAL",
+                                };
+                                const tipoPotencia = tipoMap[dados.tipo] || "NENHUMA";
+                                updateLote(l.id, { 
+                                  tipo_potencia: tipoPotencia,
+                                  potencia_valor: dados.valor,
+                                  potencia_unidade: dados.tipo === "UI_POR_GRAMA" ? "UI/g" : 
+                                                   dados.tipo === "MG_POR_GRAMA" ? "mg/g" : "%"
+                                });
+                                toast.success(`Potência ${dados.valor} ${dados.tipo === "UI_POR_GRAMA" ? "UI/g" : dados.tipo === "MG_POR_GRAMA" ? "mg/g" : "%"} registrada no lote ${l.numero_lote}`);
+                              }}
+                            />
                             <Button 
                               variant="outline" 
                               size="sm"
