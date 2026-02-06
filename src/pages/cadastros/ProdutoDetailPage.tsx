@@ -149,11 +149,12 @@ export default function ProdutoDetailPage() {
       <Tabs defaultValue="geral" className="mt-6">
         <TabsList className="flex-wrap">
           <TabsTrigger value="geral">Geral</TabsTrigger>
-          <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
+          <TabsTrigger value="comercial">Comercial</TabsTrigger>
+          <TabsTrigger value="fiscal">Fiscal/Impostos</TabsTrigger>
           <TabsTrigger value="processo">Processo</TabsTrigger>
           <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
           <TabsTrigger value="aliases">Aliases</TabsTrigger>
-          <TabsTrigger value="lotes">Lotes</TabsTrigger>
+          <TabsTrigger value="lotes">Lotes/Estoque</TabsTrigger>
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
         </TabsList>
 
@@ -248,28 +249,349 @@ export default function ProdutoDetailPage() {
           </motion.div>
         </TabsContent>
 
-        {/* Tab Fiscal */}
-        <TabsContent value="fiscal">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        {/* Tab Comercial - Preços e Custos (como no XML) */}
+        <TabsContent value="comercial">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Dados Fiscais</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Dados Comerciais (como aparecem no XML da NF-e)
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>NCM</Label>
-                    <Input
-                      value={formData.ncm || ""}
-                      onChange={(e) => setFormData({ ...formData, ncm: e.target.value })}
-                      placeholder="0000.00.00"
-                    />
+                {/* Unidades e Conversão */}
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">Unidades e Conversão</h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Unidade Fornecedor (uCom)</Label>
+                      <Input
+                        value={(formData as any).unidade_fornecedor || ""}
+                        onChange={(e) => setFormData({ ...formData, unidade_fornecedor: e.target.value } as any)}
+                        placeholder="kg, un, milheiro..."
+                      />
+                      <p className="text-xs text-muted-foreground">Conforme nota fiscal</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Unidade Interna</Label>
+                      <Select 
+                        value={formData.unidade_interna} 
+                        onValueChange={(v) => setFormData({ ...formData, unidade_interna: v as any })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="g">Gramas (g)</SelectItem>
+                          <SelectItem value="mg">Miligramas (mg)</SelectItem>
+                          <SelectItem value="kg">Quilogramas (kg)</SelectItem>
+                          <SelectItem value="un">Unidades (un)</SelectItem>
+                          <SelectItem value="ml">Mililitros (ml)</SelectItem>
+                          <SelectItem value="l">Litros (l)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Controle interno</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Fator de Conversão</Label>
+                      <Input
+                        type="number"
+                        value={formData.fator_conversao || 1}
+                        onChange={(e) => setFormData({ ...formData, fator_conversao: parseFloat(e.target.value) || 1 })}
+                        placeholder="1000"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        1 {(formData as any).unidade_fornecedor || 'kg'} = {formData.fator_conversao || 1} {formData.unidade_interna || 'g'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>EAN/GTIN</Label>
-                    <Input
-                      value={formData.ean || ""}
-                      onChange={(e) => setFormData({ ...formData, ean: e.target.value })}
+                </div>
+
+                {/* Preços de Referência */}
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">Preços de Referência</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>Preço Unitário (vUnCom)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          className="pl-10"
+                          value={(formData as any).preco_unitario_fornecedor || ""}
+                          onChange={(e) => setFormData({ ...formData, preco_unitario_fornecedor: parseFloat(e.target.value) || undefined } as any)}
+                          placeholder="0.0000"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Por {(formData as any).unidade_fornecedor || 'kg'}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Custo por Unidade Interna</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                        <Input
+                          type="number"
+                          step="0.000001"
+                          className="pl-10"
+                          value={(formData as any).custo_por_unidade_interna || ""}
+                          onChange={(e) => setFormData({ ...formData, custo_por_unidade_interna: parseFloat(e.target.value) || undefined } as any)}
+                          placeholder="0.000000"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Por {formData.unidade_interna || 'g'}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>MOQ (Qtd. Mín. Pedido)</Label>
+                      <Input
+                        type="number"
+                        value={(formData as any).moq || ""}
+                        onChange={(e) => setFormData({ ...formData, moq: parseFloat(e.target.value) || undefined } as any)}
+                        placeholder="25"
+                      />
+                      <p className="text-xs text-muted-foreground">Em {(formData as any).unidade_fornecedor || 'kg'}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Lead Time (dias)</Label>
+                      <Input
+                        type="number"
+                        value={(formData as any).lead_time_dias || ""}
+                        onChange={(e) => setFormData({ ...formData, lead_time_dias: parseInt(e.target.value) || undefined } as any)}
+                        placeholder="7"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Observações Comerciais */}
+                <div>
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">Observações</h4>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Observações Comerciais</Label>
+                      <textarea 
+                        className="w-full min-h-[100px] p-3 rounded-md border bg-background"
+                        value={(formData as any).observacoes_comerciais || ""}
+                        onChange={(e) => setFormData({ ...formData, observacoes_comerciais: e.target.value } as any)}
+                        placeholder="Condições especiais, negociações, histórico de preços..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Tab Fiscal/Impostos - Dados completos do XML */}
+        <TabsContent value="fiscal">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados Fiscais do Produto</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Identificação Fiscal */}
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">Identificação Fiscal</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>NCM</Label>
+                      <Input
+                        value={formData.ncm || ""}
+                        onChange={(e) => setFormData({ ...formData, ncm: e.target.value })}
+                        placeholder="0000.00.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>EAN/GTIN</Label>
+                      <Input
+                        value={formData.ean || ""}
+                        onChange={(e) => setFormData({ ...formData, ean: e.target.value })}
+                        placeholder="7891234567890"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>CFOP Entrada Padrão</Label>
+                      <Input
+                        value={(formData as any).cfop_entrada_padrao || ""}
+                        onChange={(e) => setFormData({ ...formData, cfop_entrada_padrao: e.target.value } as any)}
+                        placeholder="1102, 2102..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>CFOP Saída Padrão</Label>
+                      <Input
+                        value={(formData as any).cfop_saida_padrao || ""}
+                        onChange={(e) => setFormData({ ...formData, cfop_saida_padrao: e.target.value } as any)}
+                        placeholder="5102, 6102..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ICMS */}
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">ICMS</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>CST ICMS</Label>
+                      <Input
+                        value={(formData as any).cst_icms || ""}
+                        onChange={(e) => setFormData({ ...formData, cst_icms: e.target.value } as any)}
+                        placeholder="00, 10, 20..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Alíquota ICMS (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={(formData as any).aliquota_icms || ""}
+                        onChange={(e) => setFormData({ ...formData, aliquota_icms: parseFloat(e.target.value) || undefined } as any)}
+                        placeholder="18.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Origem</Label>
+                      <Select 
+                        value={(formData as any).origem_icms || "0"} 
+                        onValueChange={(v) => setFormData({ ...formData, origem_icms: v } as any)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0 - Nacional</SelectItem>
+                          <SelectItem value="1">1 - Estrangeira Importação</SelectItem>
+                          <SelectItem value="2">2 - Estrangeira Adquirida</SelectItem>
+                          <SelectItem value="3">3 - Nacional 40-70% importado</SelectItem>
+                          <SelectItem value="4">4 - Nacional PPB</SelectItem>
+                          <SelectItem value="5">5 - Nacional menos 40%</SelectItem>
+                          <SelectItem value="6">6 - Estrangeira s/ similar</SelectItem>
+                          <SelectItem value="7">7 - Estrangeira c/ similar</SelectItem>
+                          <SelectItem value="8">8 - Nacional 70%+ importado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>MVA ST (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={(formData as any).mva_st || ""}
+                        onChange={(e) => setFormData({ ...formData, mva_st: parseFloat(e.target.value) || undefined } as any)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* IPI */}
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">IPI</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>CST IPI</Label>
+                      <Input
+                        value={(formData as any).cst_ipi || ""}
+                        onChange={(e) => setFormData({ ...formData, cst_ipi: e.target.value } as any)}
+                        placeholder="00, 01, 49, 50..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Alíquota IPI (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={(formData as any).aliquota_ipi || ""}
+                        onChange={(e) => setFormData({ ...formData, aliquota_ipi: parseFloat(e.target.value) || undefined } as any)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Código Enquadramento</Label>
+                      <Input
+                        value={(formData as any).codigo_enquadramento_ipi || ""}
+                        onChange={(e) => setFormData({ ...formData, codigo_enquadramento_ipi: e.target.value } as any)}
+                        placeholder="999"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* PIS/COFINS */}
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">PIS/COFINS</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>CST PIS</Label>
+                      <Input
+                        value={(formData as any).cst_pis || ""}
+                        onChange={(e) => setFormData({ ...formData, cst_pis: e.target.value } as any)}
+                        placeholder="01, 04, 06..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Alíquota PIS (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={(formData as any).aliquota_pis || ""}
+                        onChange={(e) => setFormData({ ...formData, aliquota_pis: parseFloat(e.target.value) || undefined } as any)}
+                        placeholder="1.65"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>CST COFINS</Label>
+                      <Input
+                        value={(formData as any).cst_cofins || ""}
+                        onChange={(e) => setFormData({ ...formData, cst_cofins: e.target.value } as any)}
+                        placeholder="01, 04, 06..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Alíquota COFINS (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={(formData as any).aliquota_cofins || ""}
+                        onChange={(e) => setFormData({ ...formData, aliquota_cofins: parseFloat(e.target.value) || undefined } as any)}
+                        placeholder="7.60"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informações Adicionais Fiscais */}
+                <div>
+                  <h4 className="font-medium mb-4 text-sm text-muted-foreground uppercase tracking-wide">Informações Adicionais</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>CEST (se aplicável)</Label>
+                      <Input
+                        value={(formData as any).cest || ""}
+                        onChange={(e) => setFormData({ ...formData, cest: e.target.value } as any)}
+                        placeholder="00.000.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Código ANP (se combustível)</Label>
+                      <Input
+                        value={(formData as any).codigo_anp || ""}
+                        onChange={(e) => setFormData({ ...formData, codigo_anp: e.target.value } as any)}
+                        placeholder=""
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <Label>Observações Fiscais</Label>
+                    <textarea 
+                      className="w-full min-h-[80px] p-3 rounded-md border bg-background"
+                      value={(formData as any).observacoes_fiscais || ""}
+                      onChange={(e) => setFormData({ ...formData, observacoes_fiscais: e.target.value } as any)}
+                      placeholder="Informações adicionais para nota fiscal, benefícios fiscais, etc..."
                     />
                   </div>
                 </div>
