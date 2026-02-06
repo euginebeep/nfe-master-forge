@@ -14,8 +14,8 @@ import { toast } from "sonner";
 import { LocalDb } from "@/lib/local-db";
 import type { LocalEstoqueLote, LocalItem, LocalLoteDocumento } from "@/hooks/use-local-itens";
 import { useLoteDocumentos } from "@/hooks/use-local-itens";
-import type { TipoPotencia } from "@/types/formulas-industrial";
-import { formatarPotencia } from "@/hooks/use-lotes-formulacao";
+
+type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
 
 function getTipoPotenciaLabel(tipo: TipoPotencia) {
   switch (tipo) {
@@ -29,6 +29,11 @@ function getTipoPotenciaLabel(tipo: TipoPotencia) {
     default:
       return "-";
   }
+}
+
+function formatarPotencia(tipo: TipoPotencia, valor?: number): string {
+  if (tipo === "NENHUMA" || !valor) return "-";
+  return `${valor.toLocaleString('pt-BR')} ${getTipoPotenciaLabel(tipo)}`;
 }
 
 export default function LoteDetailPage() {
