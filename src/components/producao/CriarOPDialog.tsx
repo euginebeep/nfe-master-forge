@@ -5,6 +5,7 @@ import { z } from "zod";
 import { CalendarIcon, Package, FlaskConical, User, Hash, Calculator, AlertTriangle } from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -166,17 +167,28 @@ export function CriarOPDialog({
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      // Importar hook dentro da função para evitar problemas de dependência circular
-      const { useOPIndustrial } = await import("@/hooks/use-op-industrial");
-      
-      // Para criar a OP, vamos usar uma função inline
-      const codigo = `OP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`;
+      // Buscar próximo código sequencial
+      const ano = new Date().getFullYear();
+      const { data: lastOP } = await supabase
+        .from("ordens_producao_industrial")
+        .select("codigo")
+        .ilike("codigo", `OP-${ano}-%`)
+        .order("codigo", { ascending: false })
+        .limit(1);
+
+      let sequencia = 1;
+      if (lastOP && lastOP.length > 0) {
+        const partes = lastOP[0].codigo.split('-');
+        sequencia = parseInt(partes[2] || '0', 10) + 1;
+      }
+      const codigo = `OP-${ano}-${String(sequencia).padStart(5, '0')}`;
       
       const opData = {
         codigo,
         produto_nome: values.produto_nome,
         formula_id: values.formula_id || null,
         formula_codigo: selectedFormula?.codigo_formula || null,
+        formula_versao: selectedFormula ? 1 : null,
         quantidade_frascos: values.quantidade_frascos,
         capsulas_por_frasco: values.capsulas_por_frasco,
         total_capsulas: totalCapsulas,
@@ -194,21 +206,236 @@ export function CriarOPDialog({
         observacoes: values.observacoes || null,
       };
 
-      const { error } = await supabase
+      const { data: newOP, error } = await supabase
         .from("ordens_producao_industrial")
-        .insert(opData);
+        .insert(opData)
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Se tem fórmula vinculada, criar matérias-primas automaticamente
+      if (values.formula_id && newOP) {
+        await criarMateriasPrimasDaFormula(newOP.id, values.formula_id, totalComAcrescimo);
+      }
+
+      // Criar checklist padrão
+      if (newOP) {
+        await criarChecklistPadrao(newOP.id);
+      }
+
+      toast.success(`OP ${codigo} criada com sucesso!`);
       onSuccess();
       onOpenChange(false);
       form.reset();
       setSelectedFormula(null);
     } catch (error) {
       console.error("Erro ao criar OP:", error);
+      toast.error("Erro ao criar ordem de produção");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Criar matérias-primas a partir da fórmula
+  const criarMateriasPrimasDaFormula = async (opId: string, formulaId: string, totalCaps: number) => {
+    try {
+      // Buscar itens da fórmula
+      const { data: itens } = await supabase
+        .from("formula_itens")
+        .select("*")
+        .eq("formula_id", formulaId)
+        .order("ordem_mistura", { ascending: true });
+
+      if (!itens || itens.length === 0) return;
+
+      const pesoCapsula = 500; // mg
+      let ordemMistura = 1;
+      const materiasData: Array<{
+        op_id: string;
+        insumo_id?: string;
+        insumo_nome: string;
+        categoria: string;
+        quantidade_teorica_mg: number;
+        quantidade_teorica_g: number;
+        unidade: string;
+        pesagem_critica: boolean;
+        motivo_critico?: string;
+        tolerancia_percentual: number;
+        quantidade_minima_g: number;
+        quantidade_maxima_g: number;
+        ordem_mistura: number;
+      }> = [];
+
+      // Adicionar ativos da fórmula
+      for (const item of itens) {
+        const qTotalMg = item.quantidade_convertida_mg * totalCaps;
+        const qTotalG = qTotalMg / 1000;
+        const critico = item.ativo_critico || item.quantidade_convertida_mg < 1;
+        const tolerancia = 10;
+        const minimo = qTotalG * (1 - tolerancia / 100);
+        const maximo = qTotalG * (1 + tolerancia / 100);
+
+        materiasData.push({
+          op_id: opId,
+          insumo_id: item.produto_materia_prima_id || undefined,
+          insumo_nome: item.nome_insumo,
+          categoria: 'ATIVO',
+          quantidade_teorica_mg: qTotalMg,
+          quantidade_teorica_g: qTotalG,
+          unidade: 'g',
+          pesagem_critica: critico,
+          motivo_critico: critico ? (item.quantidade_convertida_mg < 1 ? 'Quantidade < 1mg' : 'Ativo crítico') : undefined,
+          tolerancia_percentual: tolerancia,
+          quantidade_minima_g: minimo,
+          quantidade_maxima_g: maximo,
+          ordem_mistura: ordemMistura++,
+        });
+      }
+
+      // Calcular excipientes tecnológicos (fixos para 500mg)
+      const talcoMg = pesoCapsula * 0.05; // 5%
+      const dioxidoMg = pesoCapsula * 0.02; // 2%
+      const estearatoMg = pesoCapsula * 0.025; // 2.5%
+      const totalTecnologicos = talcoMg + dioxidoMg + estearatoMg;
+      const totalAtivos = itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
+      const excipienteBaseMg = pesoCapsula - totalAtivos - totalTecnologicos;
+
+      // Excipiente base (Q.S.P.)
+      const qspG = (excipienteBaseMg * totalCaps) / 1000;
+      materiasData.push({
+        op_id: opId,
+        insumo_nome: 'Excipiente Base (Q.S.P.)',
+        categoria: 'EXCIPIENTE_BASE',
+        quantidade_teorica_mg: excipienteBaseMg * totalCaps,
+        quantidade_teorica_g: qspG,
+        unidade: 'g',
+        pesagem_critica: false,
+        tolerancia_percentual: 10,
+        quantidade_minima_g: qspG * 0.9,
+        quantidade_maxima_g: qspG * 1.1,
+        ordem_mistura: ordemMistura++,
+      });
+
+      // Dióxido de Silício
+      const dioxidoG = (dioxidoMg * totalCaps) / 1000;
+      materiasData.push({
+        op_id: opId,
+        insumo_nome: 'Dióxido de Silício',
+        categoria: 'EXCIPIENTE_TECNOLOGICO',
+        quantidade_teorica_mg: dioxidoMg * totalCaps,
+        quantidade_teorica_g: dioxidoG,
+        unidade: 'g',
+        pesagem_critica: false,
+        tolerancia_percentual: 10,
+        quantidade_minima_g: dioxidoG * 0.9,
+        quantidade_maxima_g: dioxidoG * 1.1,
+        ordem_mistura: ordemMistura++,
+      });
+
+      // Talco
+      const talcoG = (talcoMg * totalCaps) / 1000;
+      materiasData.push({
+        op_id: opId,
+        insumo_nome: 'Talco Farmacêutico',
+        categoria: 'EXCIPIENTE_TECNOLOGICO',
+        quantidade_teorica_mg: talcoMg * totalCaps,
+        quantidade_teorica_g: talcoG,
+        unidade: 'g',
+        pesagem_critica: false,
+        tolerancia_percentual: 10,
+        quantidade_minima_g: talcoG * 0.9,
+        quantidade_maxima_g: talcoG * 1.1,
+        ordem_mistura: ordemMistura++,
+      });
+
+      // Estearato de Magnésio (SEMPRE ÚLTIMO)
+      const estearatoG = (estearatoMg * totalCaps) / 1000;
+      materiasData.push({
+        op_id: opId,
+        insumo_nome: 'Estearato de Magnésio',
+        categoria: 'EXCIPIENTE_TECNOLOGICO',
+        quantidade_teorica_mg: estearatoMg * totalCaps,
+        quantidade_teorica_g: estearatoG,
+        unidade: 'g',
+        pesagem_critica: false,
+        tolerancia_percentual: 10,
+        quantidade_minima_g: estearatoG * 0.9,
+        quantidade_maxima_g: estearatoG * 1.1,
+        ordem_mistura: ordemMistura++,
+      });
+
+      await supabase.from("op_materias_primas").insert(materiasData);
+
+      // Criar pesagens críticas
+      const criticos = materiasData.filter(m => m.pesagem_critica);
+      if (criticos.length > 0) {
+        const { data: mps } = await supabase
+          .from("op_materias_primas")
+          .select("id, insumo_nome, quantidade_teorica_mg")
+          .eq("op_id", opId)
+          .eq("pesagem_critica", true);
+
+        if (mps) {
+          const pesagensCriticas = mps.map(mp => ({
+            op_id: opId,
+            materia_prima_id: mp.id,
+            insumo_nome: mp.insumo_nome,
+            quantidade_teorica_mg: mp.quantidade_teorica_mg,
+            status: 'PENDENTE',
+          }));
+          await supabase.from("op_pesagens_criticas").insert(pesagensCriticas);
+        }
+      }
+
+      // Criar controle de perdas
+      await supabase.from("op_controle_perdas").insert({
+        op_id: opId,
+        quantidade_planejada: Math.floor(totalCaps / 1.05),
+        acrescimo_percentual: 5,
+        quantidade_com_acrescimo: totalCaps,
+      });
+
+    } catch (error) {
+      console.error("Erro ao criar matérias-primas:", error);
+    }
+  };
+
+  // Criar checklist padrão
+  const criarChecklistPadrao = async (opId: string) => {
+    const checklistItems = [
+      // PRE_PRODUCAO
+      { item: 'Conferência de lotes das matérias-primas', categoria: 'PRE_PRODUCAO', ordem: 1, obrigatorio: true },
+      { item: 'Verificação de validade de todos os insumos', categoria: 'PRE_PRODUCAO', ordem: 2, obrigatorio: true },
+      { item: 'Limpeza e sanitização da área de pesagem', categoria: 'PRE_PRODUCAO', ordem: 3, obrigatorio: true },
+      { item: 'Calibração da balança conferida', categoria: 'PRE_PRODUCAO', ordem: 4, obrigatorio: true },
+      { item: 'Utensílios de pesagem limpos e identificados', categoria: 'PRE_PRODUCAO', ordem: 5, obrigatorio: true },
+      // DURANTE_PRODUCAO
+      { item: 'Pesagem de ativos críticos com dupla conferência', categoria: 'DURANTE_PRODUCAO', ordem: 1, obrigatorio: true },
+      { item: 'Conferência de pesos dentro da tolerância (±10%)', categoria: 'DURANTE_PRODUCAO', ordem: 2, obrigatorio: true },
+      { item: 'Ordem de mistura seguida corretamente', categoria: 'DURANTE_PRODUCAO', ordem: 3, obrigatorio: true },
+      { item: 'Tempo de homogeneização respeitado', categoria: 'DURANTE_PRODUCAO', ordem: 4, obrigatorio: true },
+      { item: 'Limpeza de equipamentos entre etapas', categoria: 'DURANTE_PRODUCAO', ordem: 5, obrigatorio: true },
+      { item: 'Ajuste da encapsuladora realizado', categoria: 'DURANTE_PRODUCAO', ordem: 6, obrigatorio: true },
+      // POS_PRODUCAO
+      { item: 'Contagem final de cápsulas', categoria: 'POS_PRODUCAO', ordem: 1, obrigatorio: true },
+      { item: 'Registro de perdas justificado', categoria: 'POS_PRODUCAO', ordem: 2, obrigatorio: true },
+      { item: 'Limpeza final da área', categoria: 'POS_PRODUCAO', ordem: 3, obrigatorio: true },
+      // QC
+      { item: 'Teste de peso médio realizado', categoria: 'QC', ordem: 1, obrigatorio: true },
+      { item: 'Avaliação de aparência do pó', categoria: 'QC', ordem: 2, obrigatorio: true },
+      { item: 'Avaliação de fluidez do pó', categoria: 'QC', ordem: 3, obrigatorio: true },
+      { item: 'Avaliação de homogeneidade', categoria: 'QC', ordem: 4, obrigatorio: true },
+      { item: 'Liberação do lote para estoque', categoria: 'QC', ordem: 5, obrigatorio: true },
+    ];
+
+    const checklistData = checklistItems.map(item => ({
+      op_id: opId,
+      ...item,
+      verificado: false,
+    }));
+
+    await supabase.from("op_checklist").insert(checklistData);
   };
 
   return (
