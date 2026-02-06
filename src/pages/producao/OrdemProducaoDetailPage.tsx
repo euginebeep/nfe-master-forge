@@ -40,6 +40,7 @@ import { OPTabProcesso } from '@/components/producao/OPTabProcesso';
 import { OPCabecalhoMaster } from '@/components/producao/OPCabecalhoMaster';
 import { OPPreMixGeometrico } from '@/components/producao/OPPreMixGeometrico';
 import { OPChecklistOperacional } from '@/components/producao/OPChecklistOperacional';
+import { OPDocumentoCompleto } from '@/components/producao/pdf/OPDocumentoCompleto';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -434,6 +435,10 @@ export default function OrdemProducaoDetailPage() {
           <TabsTrigger value="embalagens" className="flex items-center gap-2">
             <Box className="h-4 w-4" />
             Embalagens
+          </TabsTrigger>
+          <TabsTrigger value="documentos" className="flex items-center gap-2 text-primary">
+            <Printer className="h-4 w-4" />
+            Documentos A4
           </TabsTrigger>
         </TabsList>
 
