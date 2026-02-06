@@ -35,6 +35,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CriarOPDialogMaster } from '@/components/producao/CriarOPDialogMaster';
+import { AdminCleanupButton } from "@/components/admin/AdminCleanupButton";
 import type { StatusOP } from '@/types/op-industrial';
 
 interface OrdemProducaoDisplay {
@@ -251,6 +252,15 @@ export default function OrdensProducaoIndustrialPage() {
         <Button variant="outline" size="icon" onClick={refresh} disabled={isLoading}>
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
+        <TooltipProvider>
+          <AdminCleanupButton
+            tableName="ordens_producao_industrial"
+            tableLabel="Ordens de Produção"
+            cascadeTables={["op_insumos_consumidos", "op_embalagens", "op_etapas", "op_anexos", "op_assinaturas_rt", "custos_op", "lotes_produto_acabado"]}
+            dateColumn="created_at"
+            onCleanupComplete={refresh}
+          />
+        </TooltipProvider>
       </div>
 
       {/* Lista de OPs */}
