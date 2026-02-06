@@ -319,19 +319,19 @@ export default function OrdemProducaoDetailPage() {
         </Card>
       </div>
 
-      {/* Tracker de Etapas - Apenas quando Em Produção */}
-      {currentOP.status === 'EM_PRODUCAO' && (
-        <Card className="mb-6">
-          <CardHeader className="py-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Factory className="h-4 w-4" />
-              Acompanhamento de Produção
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <EtapasProducaoTracker etapaAtual={etapaAtual} />
-            
-            {/* Seletor de etapa (para operador atualizar) */}
+      {/* Tracker de Etapas - Sempre visível */}
+      <Card className="mb-6">
+        <CardHeader className="py-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Factory className="h-4 w-4" />
+            Acompanhamento de Produção
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <EtapasProducaoTracker etapaAtual={etapaAtual} />
+          
+          {/* Seletor de etapa (para operador atualizar) - Apenas quando Em Produção */}
+          {currentOP.status === 'EM_PRODUCAO' && (
             <div className="mt-4 flex flex-wrap gap-2">
               {(['SEPARACAO_MP', 'PESAGEM', 'MISTURA', 'ENCAPSULAMENTO', 'ENVASE', 
                 'FECHAMENTO_INDUCAO', 'ROTULACAO', 'MARCACAO_VALIDADE', 'CONTAGEM', 
@@ -353,9 +353,9 @@ export default function OrdemProducaoDetailPage() {
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Progresso */}
       <div className="grid grid-cols-2 gap-4 mb-6">
