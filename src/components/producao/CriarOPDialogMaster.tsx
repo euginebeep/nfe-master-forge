@@ -61,6 +61,9 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { RTSelectorOP } from "@/components/responsavel-tecnico/RTSelectorOP";
+import { QuickClienteModal } from "@/components/entidades/QuickClienteModal";
+import { LocalDb } from "@/lib/local-db";
+import type { LocalEntidade } from "@/hooks/use-local-entidades";
 
 // Tipos de entidade para busca de clientes
 interface EntidadeCliente {
@@ -68,6 +71,7 @@ interface EntidadeCliente {
   razao_social: string;
   nome_fantasia?: string;
   documento: string;
+  source?: "supabase" | "local";
 }
 
 // ============================================================
@@ -191,6 +195,7 @@ export function CriarOPDialogMaster({
   const [pedidoItens, setPedidoItens] = useState<PedidoItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showClienteDropdown, setShowClienteDropdown] = useState(false);
+  const [showQuickClienteModal, setShowQuickClienteModal] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -268,7 +273,7 @@ export function CriarOPDialogMaster({
     }
   }, [open, form]);
 
-  // Buscar clientes quando o usuário digita
+  // Buscar clientes quando o usuário digita (Supabase + LocalDb)
   useEffect(() => {
     const buscarClientes = async () => {
       if (clienteSearch.length < 2) {
@@ -276,14 +281,43 @@ export function CriarOPDialogMaster({
         return;
       }
       
-      const { data } = await supabase
+      const searchLower = clienteSearch.toLowerCase();
+      
+      // Buscar no Supabase
+      const { data: supabaseData } = await supabase
         .from("entidades")
         .select("id, razao_social, nome_fantasia, documento")
         .or(`razao_social.ilike.%${clienteSearch}%,nome_fantasia.ilike.%${clienteSearch}%,documento.ilike.%${clienteSearch}%`)
         .eq("status", "ATIVO")
         .limit(10);
       
-      setClientes((data as EntidadeCliente[]) || []);
+      const supabaseClientes: EntidadeCliente[] = (supabaseData || []).map(c => ({
+        ...c,
+        nome_fantasia: c.nome_fantasia || undefined,
+        source: "supabase" as const,
+      }));
+      
+      // Buscar no LocalDb
+      const localEntidades = LocalDb.query<LocalEntidade>("entidades", (e) => {
+        if (e.status !== "ATIVO") return false;
+        const matchRazao = e.razao_social?.toLowerCase().includes(searchLower);
+        const matchFantasia = e.nome_fantasia?.toLowerCase().includes(searchLower);
+        const matchDoc = e.documento?.includes(clienteSearch.replace(/\D/g, ""));
+        return matchRazao || matchFantasia || matchDoc;
+      });
+      
+      const localClientes: EntidadeCliente[] = localEntidades
+        .filter(l => !supabaseClientes.find(s => s.id === l.id)) // Evitar duplicados
+        .slice(0, 10)
+        .map(l => ({
+          id: l.id,
+          razao_social: l.razao_social,
+          nome_fantasia: l.nome_fantasia,
+          documento: l.documento,
+          source: "local" as const,
+        }));
+      
+      setClientes([...supabaseClientes, ...localClientes]);
       setShowClienteDropdown(true);
     };
 
@@ -299,6 +333,14 @@ export function CriarOPDialogMaster({
     form.setValue("cliente_documento", cliente.documento);
     setClienteSearch(cliente.nome_fantasia || cliente.razao_social);
     setShowClienteDropdown(false);
+  };
+
+  // Quando cadastra um cliente pelo modal rápido
+  const handleQuickClienteCreated = (cliente: { id: string; razao_social: string; nome_fantasia?: string; documento: string }) => {
+    handleClienteSelect({
+      ...cliente,
+      source: "supabase",
+    });
   };
 
   // Gerar lote automático quando data de fabricação muda
@@ -1002,7 +1044,12 @@ export function CriarOPDialogMaster({
                     className="px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
                     onClick={() => handleClienteSelect(cliente)}
                   >
-                    <div className="font-medium text-sm">{cliente.nome_fantasia || cliente.razao_social}</div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{cliente.nome_fantasia || cliente.razao_social}</span>
+                      {cliente.source === "local" && (
+                        <Badge variant="outline" className="text-xs">Local</Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {cliente.documento.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}
                     </div>
@@ -1021,10 +1068,7 @@ export function CriarOPDialogMaster({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        onOpenChange(false);
-                        navigate("/cadastros/entidades");
-                      }}
+                      onClick={() => setShowQuickClienteModal(true)}
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Cadastrar
@@ -1574,69 +1618,79 @@ export function CriarOPDialogMaster({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Factory className="h-5 w-5 text-primary" />
-            Criar Ordem de Produção
-          </DialogTitle>
-          <DialogDescription>
-            Sistema Industrial ANVISA - Etapa {etapaAtual} de 4
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Factory className="h-5 w-5 text-primary" />
+              Criar Ordem de Produção
+            </DialogTitle>
+            <DialogDescription>
+              Sistema Industrial ANVISA - Etapa {etapaAtual} de 4
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* Progresso */}
-        <div className="space-y-2">
-          <Progress value={progressoEtapas} className="h-2" />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span className={etapaAtual >= 1 ? "text-primary font-medium" : ""}>1. Tipo</span>
-            <span className={etapaAtual >= 2 ? "text-primary font-medium" : ""}>2. Produção</span>
-            <span className={etapaAtual >= 3 ? "text-primary font-medium" : ""}>3. Lote</span>
-            <span className={etapaAtual >= 4 ? "text-primary font-medium" : ""}>4. Técnico</span>
+          {/* Progresso */}
+          <div className="space-y-2">
+            <Progress value={progressoEtapas} className="h-2" />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span className={etapaAtual >= 1 ? "text-primary font-medium" : ""}>1. Tipo</span>
+              <span className={etapaAtual >= 2 ? "text-primary font-medium" : ""}>2. Produção</span>
+              <span className={etapaAtual >= 3 ? "text-primary font-medium" : ""}>3. Lote</span>
+              <span className={etapaAtual >= 4 ? "text-primary font-medium" : ""}>4. Técnico</span>
+            </div>
           </div>
-        </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {etapaAtual === 1 && renderEtapa1()}
-            {etapaAtual === 2 && renderEtapa2()}
-            {etapaAtual === 3 && renderEtapa3()}
-            {etapaAtual === 4 && renderEtapa4()}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {etapaAtual === 1 && renderEtapa1()}
+              {etapaAtual === 2 && renderEtapa2()}
+              {etapaAtual === 3 && renderEtapa3()}
+              {etapaAtual === 4 && renderEtapa4()}
 
-            <DialogFooter className="flex justify-between">
-              <div>
-                {etapaAtual > 1 && (
-                  <Button type="button" variant="outline" onClick={voltar}>
-                    <ChevronLeft className="h-4 w-4 mr-2" />
-                    Voltar
+              <DialogFooter className="flex justify-between">
+                <div>
+                  {etapaAtual > 1 && (
+                    <Button type="button" variant="outline" onClick={voltar}>
+                      <ChevronLeft className="h-4 w-4 mr-2" />
+                      Voltar
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    Cancelar
                   </Button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancelar
-                </Button>
-                {etapaAtual < 4 ? (
-                  <Button type="button" onClick={avancar} disabled={!podeAvancar()}>
-                    Próximo
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
-                ) : (
-                  <Button type="submit" disabled={isLoading || !podeAvancar()}>
-                    {isLoading ? "Criando..." : (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Criar OP
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+                  {etapaAtual < 4 ? (
+                    <Button type="button" onClick={avancar} disabled={!podeAvancar()}>
+                      Próximo
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={isLoading || !podeAvancar()}>
+                      {isLoading ? "Criando..." : (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Criar OP
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de cadastro rápido de cliente */}
+      <QuickClienteModal
+        open={showQuickClienteModal}
+        onOpenChange={setShowQuickClienteModal}
+        onClienteCreated={handleQuickClienteCreated}
+        initialSearch={clienteSearch}
+      />
+    </>
   );
 }
