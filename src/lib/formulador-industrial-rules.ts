@@ -77,6 +77,22 @@ export interface SugestaoPremix {
  * Calcula os excipientes tecnológicos baseado no peso alvo
  * GRUPO A - Sempre incluídos automaticamente
  */
+/**
+ * Inicializa os percentuais padrão dos excipientes
+ */
+export function getPercentuaisPadrao(): Record<string, number> {
+  const padrao: Record<string, number> = {};
+  EXCIPIENTES_TECNOLOGICOS.forEach(exc => {
+    padrao[exc.nome] = exc.percentual_padrao;
+  });
+  return padrao;
+}
+
+/**
+ * Calcula os excipientes tecnológicos baseado no peso alvo
+ * GRUPO A - Sempre incluídos automaticamente
+ * Agora aceita percentuais editáveis pelo usuário
+ */
 export function calcularExcipientesTecnologicos(
   pesoAlvoMg: number,
   percentuaisPersonalizados?: Record<string, number>
@@ -84,11 +100,16 @@ export function calcularExcipientesTecnologicos(
   return EXCIPIENTES_TECNOLOGICOS.filter(e => e.obrigatorio).map(exc => {
     // Usar percentual personalizado se fornecido, senão usar padrão
     const percentual = percentuaisPersonalizados?.[exc.nome] ?? exc.percentual_padrao;
-    const quantidade_mg = (pesoAlvoMg * percentual) / 100;
+    // Clampar entre min e max
+    const percentualClampado = Math.max(
+      exc.percentual_min, 
+      Math.min(exc.percentual_max, percentual)
+    );
+    const quantidade_mg = (pesoAlvoMg * percentualClampado) / 100;
     
     return {
       nome: exc.nome,
-      percentual,
+      percentual: percentualClampado,
       quantidade_mg: parseFloat(quantidade_mg.toFixed(4)),
     };
   });

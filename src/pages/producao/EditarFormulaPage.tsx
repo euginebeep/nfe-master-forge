@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
   ArrowLeft, FlaskConical, Save, Plus, Trash2, AlertTriangle, 
-  CheckCircle, Scale, Percent, Beaker, GripVertical, Package, Info
+  CheckCircle, Scale, Percent, Beaker, GripVertical, Package, Info, BookOpen
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -65,8 +65,11 @@ import {
   getNomeDiluente,
   gerarAlertasFormula,
   gerarDadosParaOP,
+  getPercentuaisPadrao,
 } from "@/lib/formulador-industrial-rules";
 import { ItemSelector } from "@/components/formulador/ItemSelector";
+import { ExcipientesTecnologicosEditor, PercentuaisExcipientes } from "@/components/formulador/ExcipientesTecnologicosEditor";
+import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
 import type { Item } from "@/types/erp";
 import { toast } from "sonner";
 
@@ -90,6 +93,11 @@ export default function EditarFormulaPage() {
   });
   const [saving, setSaving] = useState(false);
   const [aprovando, setAprovando] = useState(false);
+  
+  // Estado para percentuais editáveis dos excipientes tecnológicos
+  const [percentuaisExcipientes, setPercentuaisExcipientes] = useState<PercentuaisExcipientes>(
+    getPercentuaisPadrao()
+  );
 
   // Sincronizar itens quando carregar
   useEffect(() => {
@@ -98,7 +106,7 @@ export default function EditarFormulaPage() {
     }
   }, [itens]);
 
-  // Cálculos da cápsula - MODELO INDUSTRIAL COMPLETO
+  // Cálculos da cápsula - MODELO INDUSTRIAL COMPLETO COM EXCIPIENTES EDITÁVEIS
   const calculosIndustriais = useMemo(() => {
     if (!formula || formula.tipo_apresentacao !== 'CAPSULA') {
       return null;
@@ -108,9 +116,9 @@ export default function EditarFormulaPage() {
     const totalAtivos = itensLocal.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
     const diluenteNome = getNomeDiluente(formula.excipiente_padrao || 'AMIDO');
     
-    // Usar cálculo industrial que considera excipientes tecnológicos
-    return calcularCapsulaIndustrial(pesoAlvo, totalAtivos, diluenteNome);
-  }, [formula, itensLocal]);
+    // Usar cálculo industrial que considera excipientes tecnológicos COM percentuais editáveis
+    return calcularCapsulaIndustrial(pesoAlvo, totalAtivos, diluenteNome, percentuaisExcipientes);
+  }, [formula, itensLocal, percentuaisExcipientes]);
 
   // Manter objeto legado para compatibilidade com UI existente
   const calculos = useMemo(() => {
@@ -445,6 +453,7 @@ export default function EditarFormulaPage() {
                       <TableHead className="text-right">Qtd. Informada</TableHead>
                       <TableHead className="text-right">Convertido (mg)</TableHead>
                       <TableHead className="text-center">Flags</TableHead>
+                      <TableHead className="text-center">Regulatório</TableHead>
                       {!isReadOnly && <TableHead className="w-12"></TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -493,6 +502,18 @@ export default function EditarFormulaPage() {
                               </TooltipProvider>
                             )}
                           </div>
+                        </TableCell>
+                        {/* Botão de Consulta Regulatória ANVISA */}
+                        <TableCell className="text-center">
+                          <ConsultaRegulatoriaANVISA
+                            nomeAtivo={item.nome_insumo}
+                            quantidadeMg={item.quantidade_convertida_mg}
+                            trigger={
+                              <Button variant="ghost" size="sm" className="h-7 px-2">
+                                <BookOpen className="h-3.5 w-3.5" />
+                              </Button>
+                            }
+                          />
                         </TableCell>
                         {!isReadOnly && (
                           <TableCell>
@@ -554,17 +575,15 @@ export default function EditarFormulaPage() {
                   
                   <Separator className="my-2" />
                   
-                  {/* GRUPO A - Excipientes Tecnológicos */}
-                  <div className="text-xs text-muted-foreground font-medium">
-                    Excipientes Tecnológicos (automático):
-                  </div>
-                  {calculos.excipientesTecnologicos.map((exc) => (
-                    <div key={exc.nome} className="flex justify-between text-xs text-muted-foreground pl-2">
-                      <span>{exc.nome} ({exc.percentual}%)</span>
-                      <span className="font-mono">{exc.quantidade_mg.toFixed(2)} mg</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between text-sm">
+                  {/* GRUPO A - Excipientes Tecnológicos EDITÁVEIS */}
+                  <ExcipientesTecnologicosEditor
+                    pesoAlvoMg={calculos.pesoAlvo}
+                    percentuais={percentuaisExcipientes}
+                    onPercentuaisChange={setPercentuaisExcipientes}
+                    disabled={isReadOnly}
+                  />
+                  
+                  <div className="flex justify-between text-sm pt-2">
                     <span className="text-muted-foreground">Subtotal Tecnológicos</span>
                     <span className="font-mono">{calculos.totalExcipientesTecnologicos.toFixed(2)} mg</span>
                   </div>
