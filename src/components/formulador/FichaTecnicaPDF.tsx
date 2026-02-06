@@ -1,6 +1,5 @@
 // ============================================================
 // FORMULADOR INDUSTRIAL - FICHA TÉCNICA PDF
-// Geração de documento de fórmula aprovada com tabela nutricional
 // ============================================================
 
 import { useMemo } from "react";
@@ -9,7 +8,6 @@ import {
   FileText, Printer, Beaker
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -31,8 +29,12 @@ import {
   Formula, 
   FormulaItem, 
   TabelaNutricional,
-  calcularQSP,
 } from "@/types/formulador-industrial";
+import {
+  calcularCapsulaIndustrial,
+  CodigoVeiculoBase,
+  EXCIPIENTES_INDUSTRIAIS,
+} from "@/lib/formulador-industrial-rules";
 
 interface FichaTecnicaPDFProps {
   formula: Formula;
@@ -42,14 +44,15 @@ interface FichaTecnicaPDFProps {
 }
 
 export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnicaPDFProps) {
-  // Cálculos
+  // Cálculos industriais
   const totalAtivos = useMemo(() => 
     itens.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0),
     [itens]
   );
   
   const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
-  const qsp = calcularQSP(pesoAlvo, totalAtivos);
+  const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
+  const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
 
   const handlePrint = () => {
     window.print();
@@ -123,7 +126,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                     <p className="font-medium">{pesoAlvo} mg</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Excipiente:</span>
+                    <span className="text-muted-foreground">Veículo:</span>
                     <p className="font-medium">{formula.excipiente_padrao}</p>
                   </div>
                 </>
@@ -206,21 +209,21 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                   </TableRow>
                 ))}
                 
-                {formula.tipo_apresentacao === 'CAPSULA' && qsp > 0 && (
+                {formula.tipo_apresentacao === 'CAPSULA' && calculos.veiculo_base_mg > 0 && (
                   <TableRow className="bg-muted/50 font-medium">
                     <TableCell></TableCell>
                     <TableCell>
                       <span className="flex items-center gap-2">
                         <Beaker className="h-4 w-4 text-primary" />
-                        {formula.excipiente_padrao} (Q.S.P.)
+                        {calculos.veiculo_base_nome} (Q.S.P.)
                       </span>
                     </TableCell>
                     <TableCell className="text-right">-</TableCell>
                     <TableCell className="text-right font-mono text-primary">
-                      {qsp.toFixed(2)}
+                      {calculos.veiculo_base_mg.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="secondary" className="text-xs">Excipiente</Badge>
+                      <Badge variant="secondary" className="text-xs">Veículo Base</Badge>
                     </TableCell>
                   </TableRow>
                 )}
@@ -234,8 +237,12 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                   <span className="font-mono font-medium">{totalAtivos.toFixed(2)} mg</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Q.S.P. (Excipiente):</span>
-                  <span className="font-mono font-medium text-primary">{qsp.toFixed(2)} mg</span>
+                  <span>Excipientes Tecnológicos (8%):</span>
+                  <span className="font-mono font-medium">{calculos.total_excipientes_tecnologicos_mg.toFixed(2)} mg</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Q.S.P. (Veículo Base):</span>
+                  <span className="font-mono font-medium text-primary">{calculos.veiculo_base_mg.toFixed(2)} mg</span>
                 </div>
                 <div className="flex justify-between font-semibold border-t pt-2 mt-2">
                   <span>Peso Total da Cápsula:</span>
@@ -245,7 +252,24 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
             )}
           </div>
 
-          {/* Tabela Nutricional (se existir) */}
+          {/* Excipientes Tecnológicos */}
+          {formula.tipo_apresentacao === 'CAPSULA' && (
+            <div>
+              <Separator className="my-6" />
+              <h2 className="text-lg font-semibold mb-3">Excipientes Tecnológicos (Padrão Industrial)</h2>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                {calculos.excipientes_tecnologicos.map((exc) => (
+                  <div key={exc.nome} className="p-3 bg-muted/30 rounded-lg">
+                    <p className="font-medium">{exc.nome}</p>
+                    <p className="text-muted-foreground">{exc.funcao}</p>
+                    <p className="font-mono mt-1">{exc.percentual}% = {exc.quantidade_mg.toFixed(2)} mg</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tabela Nutricional */}
           {tabela && tabela.tabela_json_padrao_anvisa && Array.isArray(tabela.tabela_json_padrao_anvisa) && tabela.tabela_json_padrao_anvisa.length > 0 && (
             <div>
               <Separator className="my-6" />
@@ -305,7 +329,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
               <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-4">
                 <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  Ativos Críticos - Atenção Industrial
+                  Ativos Críticos - Dupla Conferência
                 </h2>
                 <ul className="text-sm space-y-1">
                   {itens.filter(i => i.ativo_critico).map(item => (
@@ -316,14 +340,11 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                         ({item.quantidade_convertida_mg.toFixed(4)} mg)
                       </span>
                       {item.exige_premix && (
-                        <Badge variant="outline" className="text-xs">Requer pré-mix</Badge>
+                        <Badge variant="outline" className="text-xs">Pré-mix</Badge>
                       )}
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Ativos críticos (&lt;1mg ou UI/MCG) requerem pesagem de precisão e/ou pré-mistura.
-                </p>
               </div>
             </div>
           )}

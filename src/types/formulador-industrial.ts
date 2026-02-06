@@ -1,15 +1,22 @@
 // ============================================================
 // FORMULADOR INDUSTRIAL - TIPOS E INTERFACES
 // Sistema profissional de formulação de suplementos
+// VERSÃO DEFINITIVA
 // ============================================================
 
-// Enums
+// ============================================================
+// ENUMS E TIPOS BASE
+// ============================================================
+
 export type TipoApresentacao = 'CAPSULA' | 'LIQUIDO' | 'PO';
 export type StatusFormula = 'RASCUNHO' | 'APROVADA' | 'BLOQUEADA';
-export type TipoExcipiente = 'AMIDO' | 'CELULOSE' | 'PRE_BLEND';
-export type UnidadeInformada = 'MG' | 'MCG' | 'UI';
+export type TipoVeiculoBase = 'AMIDO' | 'CELULOSE' | 'PRE_BLEND';
+export type UnidadeInformada = 'MG' | 'MCG' | 'UI' | 'G' | 'ML';
 
-// Interface para conversões de unidades
+// ============================================================
+// CONVERSÕES DE UNIDADES
+// ============================================================
+
 export interface ConversaoUnidade {
   id: string;
   substancia: string;
@@ -20,28 +27,34 @@ export interface ConversaoUnidade {
   updated_at?: string;
 }
 
-// Interface para item da fórmula
+// ============================================================
+// ITEM DA FÓRMULA (ATIVO)
+// ============================================================
+
 export interface FormulaItem {
   id: string;
   formula_id: string;
-  produto_materia_prima_id?: string;
+  produto_materia_prima_id?: string | null;
   nome_insumo: string;
   quantidade_informada: number;
   unidade_informada: UnidadeInformada;
   quantidade_convertida_mg: number;
-  ativo_critico: boolean;
-  exige_premix: boolean;
+  ativo_critico: boolean; // FLAG AUTOMÁTICA
+  exige_premix: boolean; // USUÁRIO DECIDE
   ordem_mistura: number;
   percentual_na_capsula?: number;
   created_at?: string;
 }
 
-// Interface principal da fórmula
+// ============================================================
+// FÓRMULA PRINCIPAL
+// ============================================================
+
 export interface Formula {
   id: string;
   codigo_formula: string;
   nome_formula: string;
-  produto_acabado_id?: string;
+  produto_acabado_id?: string | null;
   
   // Tipo de apresentação
   tipo_apresentacao: TipoApresentacao;
@@ -50,7 +63,7 @@ export interface Formula {
   peso_capsula_alvo_mg?: number;
   peso_capsula_nominal_mg?: number;
   tipo_capsula?: string;
-  excipiente_padrao?: TipoExcipiente;
+  excipiente_padrao?: TipoVeiculoBase;
   
   // Campos LÍQUIDO
   volume_frasco_ml?: number;
@@ -81,7 +94,10 @@ export interface Formula {
   itens?: FormulaItem[];
 }
 
-// Tabela nutricional
+// ============================================================
+// TABELA NUTRICIONAL
+// ============================================================
+
 export interface TabelaNutricional {
   id: string;
   formula_id: string;
@@ -97,7 +113,10 @@ export interface NutrienteANVISA {
   vd_percentual: string;
 }
 
-// Alegações ANVISA
+// ============================================================
+// ALEGAÇÕES ANVISA
+// ============================================================
+
 export interface AlegacaoANVISA {
   id: string;
   formula_id: string;
@@ -107,7 +126,10 @@ export interface AlegacaoANVISA {
   created_at?: string;
 }
 
-// OP gerada
+// ============================================================
+// OP GERADA
+// ============================================================
+
 export interface OrdemProducaoGerada {
   id: string;
   formula_id: string;
@@ -117,7 +139,10 @@ export interface OrdemProducaoGerada {
   dados_op: Record<string, unknown>;
 }
 
-// Versão da fórmula (histórico)
+// ============================================================
+// VERSÃO DA FÓRMULA (HISTÓRICO)
+// ============================================================
+
 export interface FormulaVersao {
   id: string;
   formula_id: string;
@@ -132,108 +157,80 @@ export interface FormulaVersao {
 // FUNÇÕES AUXILIARES
 // ============================================================
 
-// Gera código único de fórmula
+/**
+ * Gera código único de fórmula
+ */
 export function gerarCodigoFormula(sequencia: number): string {
   const ano = new Date().getFullYear();
   return `FRM-${ano}-${String(sequencia).padStart(4, '0')}`;
 }
 
-// Converte UI para MG usando fator
-export function converterUIparaMG(valorUI: number, fatorUIPorMG: number): number {
-  if (fatorUIPorMG <= 0) return 0;
-  return valorUI * fatorUIPorMG;
+/**
+ * Gerar estrutura base de OP
+ */
+export interface OPBase {
+  codigo: string;
+  formula_id: string;
+  formula_codigo: string;
+  formula_nome: string;
+  versao: number;
+  tipo_apresentacao: TipoApresentacao;
+  itens: Array<{
+    nome: string;
+    quantidade_mg: number;
+    ativo_critico: boolean;
+    exige_premix: boolean;
+  }>;
+  veiculo_base?: TipoVeiculoBase;
+  avisos: string[];
 }
 
-// Converte MCG para MG
-export function converterMCGparaMG(valorMCG: number): number {
-  return valorMCG / 1000;
-}
-
-// Determina se é ativo crítico (FLAG AUTOMÁTICA)
-// REGRA: Ativo < 1 mg OU unidade original UI/MCG
-export function isAtivoCritico(
-  quantidadeConvertidaMG: number,
-  unidadeOriginal: UnidadeInformada
-): boolean {
-  // Ativo < 1 mg é sempre crítico
-  if (quantidadeConvertidaMG < 1) return true;
-  // Unidades de alta precisão são críticas
-  if (unidadeOriginal === 'UI' || unidadeOriginal === 'MCG') return true;
-  return false;
-}
-
-// Verifica se PRÉ-MIX é SUGERIDO (não obrigatório)
-// IMPORTANTE: Retorna apenas sugestão, checkbox deve permanecer DESMARCADO por padrão
-export function sugerePremix(
-  quantidadeConvertidaMG: number,
-  unidadeOriginal: UnidadeInformada,
-  higroscopico: boolean = false
-): { sugerido: boolean; motivo: string } {
-  const motivos: string[] = [];
+export function gerarOPBase(
+  formula: Formula,
+  itens: FormulaItem[],
+  sequenciaOP: number
+): OPBase {
+  const avisos: string[] = [];
   
-  if (quantidadeConvertidaMG < 1) {
-    motivos.push('Quantidade < 1 mg');
+  // Detectar ativos críticos
+  const ativosCriticos = itens.filter(i => i.ativo_critico);
+  if (ativosCriticos.length > 0) {
+    avisos.push(`ATENÇÃO: ${ativosCriticos.length} ativo(s) crítico(s) - DUPLA CONFERÊNCIA OBRIGATÓRIA`);
+    ativosCriticos.forEach(a => {
+      avisos.push(`  • ${a.nome_insumo}: ${a.quantidade_convertida_mg.toFixed(4)} mg`);
+    });
   }
-  if (unidadeOriginal === 'MCG' || unidadeOriginal === 'UI') {
-    motivos.push(`Unidade ${unidadeOriginal}`);
+  
+  // Veículo base
+  if (formula.tipo_apresentacao === 'CAPSULA' && formula.excipiente_padrao) {
+    avisos.push(`Veículo base: ${formula.excipiente_padrao}`);
   }
-  if (higroscopico) {
-    motivos.push('Higroscópico');
-  }
+  
+  const ano = new Date().getFullYear();
+  const opCodigo = `OP-${ano}-${String(sequenciaOP).padStart(4, '0')}`;
   
   return {
-    sugerido: motivos.length > 0,
-    motivo: motivos.join(', '),
+    codigo: opCodigo,
+    formula_id: formula.id,
+    formula_codigo: formula.codigo_formula,
+    formula_nome: formula.nome_formula,
+    versao: formula.versao,
+    tipo_apresentacao: formula.tipo_apresentacao,
+    itens: itens.map(i => ({
+      nome: i.nome_insumo,
+      quantidade_mg: i.quantidade_convertida_mg,
+      ativo_critico: i.ativo_critico,
+      exige_premix: i.exige_premix,
+    })),
+    veiculo_base: formula.excipiente_padrao,
+    avisos,
   };
 }
 
-// Calcula QSP INDUSTRIAL (diluente principal considerando excipientes tecnológicos)
-// REGRA INDUSTRIAL CORRETA:
-// peso_diluente = peso_alvo - soma_ativos - soma_excipientes_tecnologicos
-export function calcularQSP(
-  pesoAlvoMG: number,
-  totalAtivosMG: number,
-  totalExcipientesTecnologicosMG: number = 0
-): number {
-  const qsp = pesoAlvoMG - totalAtivosMG - totalExcipientesTecnologicosMG;
-  return Math.max(0, parseFloat(qsp.toFixed(4)));
-}
+// ============================================================
+// VALIDAÇÃO DA FÓRMULA
+// ============================================================
 
-// Calcula QSP legado (sem excipientes tecnológicos) - mantido para compatibilidade
-export function calcularQSPSimples(
-  pesoAlvoMG: number,
-  totalAtivosMG: number
-): number {
-  const qsp = pesoAlvoMG - totalAtivosMG;
-  return Math.max(0, qsp);
-}
-
-// Calcula percentual na cápsula
-export function calcularPercentual(
-  quantidadeMG: number,
-  pesoTotalMG: number
-): number {
-  if (pesoTotalMG <= 0) return 0;
-  return (quantidadeMG / pesoTotalMG) * 100;
-}
-
-// Formata quantidade para exibição
-export function formatarQuantidade(
-  valor: number,
-  unidade: UnidadeInformada
-): string {
-  switch (unidade) {
-    case 'UI':
-      return `${valor.toLocaleString('pt-BR')} UI`;
-    case 'MCG':
-      return `${valor.toLocaleString('pt-BR')} mcg`;
-    case 'MG':
-    default:
-      return `${valor.toLocaleString('pt-BR')} mg`;
-  }
-}
-
-// Validações
 export interface ValidacaoFormula {
   valido: boolean;
   erros: string[];
@@ -279,14 +276,17 @@ export function validarFormula(
     const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
     const totalAtivos = itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
     
-    if (totalAtivos > pesoAlvo) {
-      erros.push(`Peso dos ativos (${totalAtivos.toFixed(2)} mg) excede a capacidade da cápsula (${pesoAlvo} mg)`);
+    // Considerar excipientes tecnológicos fixos (8%)
+    const totalExcipientesTec = pesoAlvo * 0.08;
+    
+    if ((totalAtivos + totalExcipientesTec) > pesoAlvo) {
+      erros.push(`Peso dos ativos + excipientes (${(totalAtivos + totalExcipientesTec).toFixed(2)} mg) excede ${pesoAlvo} mg`);
     }
     
-    // Alertas para ativos críticos
+    // Alertas para ativos críticos (INFORMATIVOS)
     const ativosCriticos = itens.filter(i => i.ativo_critico);
     if (ativosCriticos.length > 0) {
-      alertas.push(`${ativosCriticos.length} ativo(s) crítico(s) detectado(s) - considerar pré-blend ou dupla conferência`);
+      alertas.push(`${ativosCriticos.length} ativo(s) crítico(s) - dupla conferência recomendada`);
     }
   }
   
@@ -314,65 +314,5 @@ export function validarFormula(
     valido: erros.length === 0,
     erros,
     alertas,
-  };
-}
-
-// Gerar estrutura base de OP
-export interface OPBase {
-  codigo: string;
-  formula_id: string;
-  formula_codigo: string;
-  formula_nome: string;
-  versao: number;
-  tipo_apresentacao: TipoApresentacao;
-  itens: Array<{
-    nome: string;
-    quantidade_mg: number;
-    ativo_critico: boolean;
-    exige_premix: boolean;
-  }>;
-  excipiente?: TipoExcipiente;
-  avisos: string[];
-}
-
-export function gerarOPBase(
-  formula: Formula,
-  itens: FormulaItem[],
-  sequenciaOP: number
-): OPBase {
-  const avisos: string[] = [];
-  
-  // Detectar ativos críticos
-  const ativosCriticos = itens.filter(i => i.ativo_critico);
-  if (ativosCriticos.length > 0) {
-    avisos.push(`ATENÇÃO: ${ativosCriticos.length} ativo(s) crítico(s) - EXIGEM PRÉ-BLEND OU DUPLA CONFERÊNCIA`);
-    ativosCriticos.forEach(a => {
-      avisos.push(`  - ${a.nome_insumo}: ${a.quantidade_convertida_mg.toFixed(4)} mg`);
-    });
-  }
-  
-  // Aviso de excipiente
-  if (formula.tipo_apresentacao === 'CAPSULA' && formula.excipiente_padrao) {
-    avisos.push(`Excipiente padrão: ${formula.excipiente_padrao}`);
-  }
-  
-  const ano = new Date().getFullYear();
-  const opCodigo = `OP-${ano}-${String(sequenciaOP).padStart(4, '0')}`;
-  
-  return {
-    codigo: opCodigo,
-    formula_id: formula.id,
-    formula_codigo: formula.codigo_formula,
-    formula_nome: formula.nome_formula,
-    versao: formula.versao,
-    tipo_apresentacao: formula.tipo_apresentacao,
-    itens: itens.map(i => ({
-      nome: i.nome_insumo,
-      quantidade_mg: i.quantidade_convertida_mg,
-      ativo_critico: i.ativo_critico,
-      exige_premix: i.exige_premix,
-    })),
-    excipiente: formula.excipiente_padrao,
-    avisos,
   };
 }

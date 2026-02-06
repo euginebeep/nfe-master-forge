@@ -1,5 +1,6 @@
 // ============================================================
 // FORMULADOR INDUSTRIAL - HOOKS DE DADOS
+// VERSÃO DEFINITIVA
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,7 +10,6 @@ import {
   FormulaItem, 
   ConversaoUnidade,
   TabelaNutricional,
-  AlegacaoANVISA,
   OrdemProducaoGerada,
   FormulaVersao,
   StatusFormula,
@@ -17,6 +17,20 @@ import {
   gerarOPBase,
 } from '@/types/formulador-industrial';
 import { toast } from 'sonner';
+
+// Tipo para inserção (compatível com Supabase)
+type FormulaItemInsert = {
+  formula_id: string;
+  nome_insumo: string;
+  produto_materia_prima_id?: string | null;
+  quantidade_informada: number;
+  unidade_informada: 'MG' | 'MCG' | 'UI';
+  quantidade_convertida_mg: number;
+  ativo_critico?: boolean;
+  exige_premix?: boolean;
+  ordem_mistura?: number;
+  percentual_na_capsula?: number;
+};
 
 // ============================================================
 // HOOK: Conversões de Unidades
@@ -233,7 +247,7 @@ export function useFormulaCRUD() {
 // HOOK: CRUD de Itens da Fórmula
 // ============================================================
 export function useFormulaItensCRUD() {
-  const adicionar = useCallback(async (item: Omit<FormulaItem, 'id' | 'created_at'>) => {
+  const adicionar = useCallback(async (item: FormulaItemInsert) => {
     try {
       const { data, error } = await supabase
         .from('formula_itens')
@@ -249,11 +263,11 @@ export function useFormulaItensCRUD() {
     }
   }, []);
 
-  const atualizar = useCallback(async (id: string, data: Partial<FormulaItem>) => {
+  const atualizar = useCallback(async (id: string, updates: Partial<FormulaItemInsert>) => {
     try {
       const { data: item, error } = await supabase
         .from('formula_itens')
-        .update(data)
+        .update(updates)
         .eq('id', id)
         .select()
         .single();

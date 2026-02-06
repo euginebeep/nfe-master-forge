@@ -22,7 +22,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFormulaCRUD } from "@/hooks/use-formulador-industrial";
-import { TipoApresentacao, TipoExcipiente } from "@/types/formulador-industrial";
+import { TipoApresentacao, TipoVeiculoBase } from "@/types/formulador-industrial";
 
 export default function NovaFormulaPage() {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export default function NovaFormulaPage() {
     peso_capsula_alvo_mg: 490,
     peso_capsula_nominal_mg: 500,
     tipo_capsula: "00",
-    excipiente_padrao: "AMIDO" as TipoExcipiente,
+    excipiente_padrao: "AMIDO" as TipoVeiculoBase,
     // Líquido
     volume_frasco_ml: 30,
     volume_por_dose_ml: 1,
@@ -186,8 +186,8 @@ export default function NovaFormulaPage() {
               <Alert className="bg-muted/50">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Padrão Industrial:</strong> Cápsula 00 com capacidade nominal de 500 mg. 
-                  O peso alvo de 490 mg inclui margem de segurança.
+                  <strong>Padrão Industrial:</strong> Cápsula 00 com 500mg nominal, 490mg alvo.
+                  Excipientes tecnológicos: Sílica 2% + Estearato 1% + Talco 5% (fixos).
                 </AlertDescription>
               </Alert>
 
@@ -200,7 +200,7 @@ export default function NovaFormulaPage() {
                     disabled
                     className="bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground">Fixo em 500 mg (padrão)</p>
+                  <p className="text-xs text-muted-foreground">Fixo: 500 mg</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Peso Alvo (mg)</Label>
@@ -210,7 +210,7 @@ export default function NovaFormulaPage() {
                     disabled
                     className="bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground">Fixo em 490 mg (margem)</p>
+                  <p className="text-xs text-muted-foreground">Fixo: 490 mg</p>
                 </div>
               </div>
 
@@ -222,19 +222,19 @@ export default function NovaFormulaPage() {
                     disabled
                     className="bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground">Tamanho 00 (padrão)</p>
+                  <p className="text-xs text-muted-foreground">Tamanho 00</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Excipiente Padrão</Label>
+                  <Label>Veículo Base (Q.S.P.)</Label>
                   <Select 
                     value={form.excipiente_padrao}
-                    onValueChange={(v) => setForm(prev => ({ ...prev, excipiente_padrao: v as TipoExcipiente }))}
+                    onValueChange={(v) => setForm(prev => ({ ...prev, excipiente_padrao: v as TipoVeiculoBase }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="AMIDO">Amido</SelectItem>
+                      <SelectItem value="AMIDO">Amido de Milho</SelectItem>
                       <SelectItem value="CELULOSE">Celulose Microcristalina</SelectItem>
                       <SelectItem value="PRE_BLEND">Pré-blend Industrial</SelectItem>
                     </SelectContent>
