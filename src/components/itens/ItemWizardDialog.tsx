@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +12,10 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { 
   Package, ArrowRight, ArrowLeft, Check, AlertTriangle, Calculator, 
-  Pill, Beaker, FileText, Truck, DollarSign, ClipboardList
+  Pill, Beaker, FileText, Truck, DollarSign, ClipboardList, Users, Tag, Plus, Trash2, Star
 } from "lucide-react";
 import { useCreateItem, LocalItem, TipoItemLocal, UnidadeInternaLocal, UnidadeFornecedor } from "@/hooks/use-local-itens";
+import { useLocalEntidades, LocalEntidade } from "@/hooks/use-local-entidades";
 import { CapsulePhotoUpload } from "./CapsulePhotoUpload";
 import { 
   calcularFatorConversaoAutomatico, 
@@ -136,8 +136,37 @@ const CST_IPI_OPTIONS = [
   { value: "99", label: "99 - Outras saídas" },
 ];
 
+const TIPOS_ALIAS = [
+  { value: "ALIAS_FORNECEDOR", label: "Alias Fornecedor" },
+  { value: "ALIAS_INTERNO", label: "Alias Interno" },
+  { value: "ALIAS_MARKETPLACE", label: "Alias Marketplace" },
+];
+
+// Fornecedor temporário para cadastro
+interface TempFornecedor {
+  id: string;
+  fornecedor_id: string;
+  fornecedor_nome: string;
+  codigo_fornecedor: string;
+  descricao_fornecedor: string;
+  unidade_compra_padrao: string;
+  fator_para_unidade_interna: number;
+  preco_referencia?: number;
+  moq?: number;
+  lead_time_dias?: number;
+  fornecedor_preferencial: boolean;
+}
+
+// Alias temporário para cadastro
+interface TempAlias {
+  id: string;
+  tipo: string;
+  texto: string;
+  fornecedor_id?: string;
+}
+
 // ====================================================
-// ETAPAS DO WIZARD
+// ETAPAS DO WIZARD (8 etapas completas)
 // ====================================================
 const WIZARD_STEPS = [
   { id: 1, title: "Identificação", icon: Package, description: "Dados básicos do item" },
@@ -145,11 +174,16 @@ const WIZARD_STEPS = [
   { id: 3, title: "Comercial", icon: DollarSign, description: "Preço, MOQ e lead time" },
   { id: 4, title: "Fiscal", icon: FileText, description: "NCM, impostos e CFOP" },
   { id: 5, title: "Processo", icon: ClipboardList, description: "Controles e armazenamento" },
-  { id: 6, title: "Revisão", icon: Check, description: "Confirmar e salvar" },
+  { id: 6, title: "Fornecedores", icon: Users, description: "Vincular fornecedores" },
+  { id: 7, title: "Aliases", icon: Tag, description: "Nomes alternativos" },
+  { id: 8, title: "Revisão", icon: Check, description: "Confirmar e salvar" },
 ];
+
+const TOTAL_STEPS = 8;
 
 export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDialogProps) {
   const { create } = useCreateItem();
+  const { data: entidadesFornecedores } = useLocalEntidades({ papel: "FORNECEDOR" });
   const [currentStep, setCurrentStep] = useState(1);
   
   // Step 1: Identificação
@@ -200,6 +234,23 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
   const [higroscopico, setHigroscopico] = useState(false);
   const [exigePremix, setExigePremix] = useState(false);
   const [ativo, setAtivo] = useState(true);
+  
+  // Step 6: Fornecedores
+  const [fornecedores, setFornecedores] = useState<TempFornecedor[]>([]);
+  const [showFornecedorForm, setShowFornecedorForm] = useState(false);
+  const [newFornecedor, setNewFornecedor] = useState<Partial<TempFornecedor>>({
+    unidade_compra_padrao: "kg",
+    fator_para_unidade_interna: 1000,
+    fornecedor_preferencial: false,
+  });
+  
+  // Step 7: Aliases
+  const [aliases, setAliases] = useState<TempAlias[]>([]);
+  const [showAliasForm, setShowAliasForm] = useState(false);
+  const [newAlias, setNewAlias] = useState<Partial<TempAlias>>({
+    tipo: "ALIAS_FORNECEDOR",
+    texto: "",
+  });
   
   // Campos de cápsula
   const [capsulaMarca, setCapsulaMarca] = useState("");
@@ -296,13 +347,17 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
         return true; // Fiscal é opcional
       case 5:
         return true; // Processo é opcional
+      case 6:
+        return true; // Fornecedores é opcional
+      case 7:
+        return true; // Aliases é opcional
       default:
         return true;
     }
   };
 
   const handleNext = () => {
-    if (currentStep < 6 && canProceed()) {
+    if (currentStep < TOTAL_STEPS && canProceed()) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -311,6 +366,60 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  // Adicionar fornecedor temporário
+  const handleAddFornecedor = () => {
+    if (!newFornecedor.fornecedor_id) return;
+    
+    const fornecedor = entidadesFornecedores?.find(e => e.id === newFornecedor.fornecedor_id);
+    if (!fornecedor) return;
+    
+    const temp: TempFornecedor = {
+      id: crypto.randomUUID(),
+      fornecedor_id: newFornecedor.fornecedor_id,
+      fornecedor_nome: fornecedor.razao_social,
+      codigo_fornecedor: newFornecedor.codigo_fornecedor || "",
+      descricao_fornecedor: newFornecedor.descricao_fornecedor || "",
+      unidade_compra_padrao: newFornecedor.unidade_compra_padrao || "kg",
+      fator_para_unidade_interna: newFornecedor.fator_para_unidade_interna || 1000,
+      preco_referencia: newFornecedor.preco_referencia,
+      moq: newFornecedor.moq,
+      lead_time_dias: newFornecedor.lead_time_dias,
+      fornecedor_preferencial: newFornecedor.fornecedor_preferencial || false,
+    };
+    
+    setFornecedores([...fornecedores, temp]);
+    setNewFornecedor({
+      unidade_compra_padrao: "kg",
+      fator_para_unidade_interna: 1000,
+      fornecedor_preferencial: false,
+    });
+    setShowFornecedorForm(false);
+  };
+
+  const handleRemoveFornecedor = (id: string) => {
+    setFornecedores(fornecedores.filter(f => f.id !== id));
+  };
+
+  // Adicionar alias temporário
+  const handleAddAlias = () => {
+    if (!newAlias.texto?.trim()) return;
+    
+    const temp: TempAlias = {
+      id: crypto.randomUUID(),
+      tipo: newAlias.tipo || "ALIAS_FORNECEDOR",
+      texto: newAlias.texto,
+      fornecedor_id: newAlias.fornecedor_id,
+    };
+    
+    setAliases([...aliases, temp]);
+    setNewAlias({ tipo: "ALIAS_FORNECEDOR", texto: "" });
+    setShowAliasForm(false);
+  };
+
+  const handleRemoveAlias = (id: string) => {
+    setAliases(aliases.filter(a => a.id !== id));
   };
 
   const handleSubmit = () => {
@@ -365,6 +474,9 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
       exige_premix: exigePremix,
       ativo,
       
+      // Fornecedores e Aliases serão salvos separadamente após criação do item
+      // (através dos hooks específicos)
+      
       // Cápsulas
       ...(isCapsule && {
         capsula_marca: capsulaMarca || undefined,
@@ -376,6 +488,8 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
     } as Omit<LocalItem, 'id' | 'sku_interno'> & { sku_interno?: string });
 
     if (item) {
+      // TODO: Salvar fornecedores e aliases vinculados ao item criado
+      // Isso seria feito com item.id após a criação
       resetForm();
       onSuccess?.();
     }
@@ -422,6 +536,8 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
     setHigroscopico(false);
     setExigePremix(false);
     setAtivo(true);
+    setFornecedores([]);
+    setAliases([]);
     setCapsulaMarca("");
     setCapsulaTamanho("");
     setCapsulaCor("");
@@ -429,7 +545,7 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
     setFotoUrl(undefined);
   };
 
-  const progressPercent = (currentStep / 6) * 100;
+  const progressPercent = (currentStep / TOTAL_STEPS) * 100;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -444,34 +560,21 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="font-medium">Etapa {currentStep} de 6</span>
+            <span className="font-medium">Etapa {currentStep} de {TOTAL_STEPS}</span>
             <span className="text-muted-foreground">{WIZARD_STEPS[currentStep - 1].title}</span>
           </div>
           <Progress value={progressPercent} className="h-2" />
-          
-          {/* Step Indicators */}
-          <div className="flex justify-between mt-4">
+          <div className="flex justify-between">
             {WIZARD_STEPS.map((step) => {
               const Icon = step.icon;
               const isActive = currentStep === step.id;
               const isCompleted = currentStep > step.id;
-              
               return (
-                <div
-                  key={step.id}
-                  className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
-                    isActive ? 'text-primary' : isCompleted ? 'text-primary/60' : 'text-muted-foreground'
-                  }`}
-                  onClick={() => {
-                    if (isCompleted || step.id === currentStep) {
-                      setCurrentStep(step.id);
-                    }
-                  }}
+                <div 
+                  key={step.id} 
+                  className={`flex flex-col items-center gap-1 ${isActive ? 'text-primary' : isCompleted ? 'text-primary/60' : 'text-muted-foreground'}`}
                 >
-                  <div className={`p-2 rounded-full ${
-                    isActive ? 'bg-primary text-primary-foreground' : 
-                    isCompleted ? 'bg-primary/20' : 'bg-muted'
-                  }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${isActive ? 'border-primary bg-primary/10' : isCompleted ? 'border-primary/60 bg-primary/5' : 'border-muted'}`}>
                     {isCompleted ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                   </div>
                   <span className="text-xs hidden md:block">{step.title}</span>
@@ -481,146 +584,156 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
           </div>
         </div>
 
-        <Separator className="my-4" />
+        <Separator />
 
-        {/* Step Content */}
+        {/* Wizard Content */}
         <div className="min-h-[400px]">
           {/* Step 1: Identificação */}
           {currentStep === 1 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                Identificação do Item
+                Identificação do Produto
               </h3>
               
+              {/* Tipo de Item - Grid de Cards */}
+              <div>
+                <Label className="mb-2 block">Tipo de Item *</Label>
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                  {TIPOS_ITEM.map((tipo) => (
+                    <Card 
+                      key={tipo.value}
+                      className={`cursor-pointer transition-all hover:border-primary ${tipoItem === tipo.value ? 'border-primary bg-primary/5 ring-1 ring-primary' : ''}`}
+                      onClick={() => setTipoItem(tipo.value)}
+                    >
+                      <CardContent className="p-3 text-center">
+                        <p className="font-medium text-sm">{tipo.label}</p>
+                        <p className="text-xs text-muted-foreground">{tipo.description}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Campos básicos */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>SKU (auto se vazio)</Label>
-                  <Input 
+                  <Label>SKU Interno</Label>
+                  <Input
                     value={skuInterno}
                     onChange={(e) => setSkuInterno(e.target.value)}
-                    placeholder="MP-XXXX" 
+                    placeholder="AUTO-001 (gerado automaticamente se vazio)"
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
-                  <Label>Nome Técnico *</Label>
+                  <Label>Descrição Interna *</Label>
                   <Input
                     value={descricaoInterna}
                     onChange={(e) => setDescricaoInterna(e.target.value)}
-                    placeholder="Vitamina D3 Colecalciferol"
+                    placeholder="Nome técnico do produto"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Tipo do Item *</Label>
-                  <Select value={tipoItem} onValueChange={(v) => setTipoItem(v as TipoItemLocal)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_ITEM.map((tipo) => (
-                        <SelectItem key={tipo.value} value={tipo.value}>
-                          <div className="flex flex-col">
-                            <span>{tipo.label}</span>
-                            <span className="text-xs text-muted-foreground">{tipo.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
                   <Label>Descrição Comercial</Label>
-                  <Input 
+                  <Input
                     value={descricaoComercial}
                     onChange={(e) => setDescricaoComercial(e.target.value)}
-                    placeholder="Nome comercial do produto"
+                    placeholder="Nome para documentos e vendas"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Categoria Operacional</Label>
+                  <Input
+                    value={categoriaOperacional}
+                    onChange={(e) => setCategoriaOperacional(e.target.value)}
+                    placeholder="Ex: Vitaminas, Aminoácidos..."
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Categoria Operacional</Label>
-                <Input 
-                  value={categoriaOperacional}
-                  onChange={(e) => setCategoriaOperacional(e.target.value)}
-                  placeholder="Ex: Vitaminas, Minerais, Embalagens..."
-                />
-              </div>
-
-              {/* Campos de Cápsula */}
+              {/* Campos específicos de cápsula */}
               {isCapsule && (
-                <Card className="border-primary/50 bg-primary/5">
+                <Card className="border-primary/30">
                   <CardHeader className="py-3">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Pill className="h-4 w-4" />
-                      Dados da Cápsula
+                      Dados Específicos de Cápsula
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-4 gap-4">
                       <div className="space-y-2">
-                        <Label>Marca</Label>
-                        <Input 
-                          value={capsulaMarca}
-                          onChange={(e) => setCapsulaMarca(e.target.value)}
-                          placeholder="Ex: Capsugel, Qualicaps..."
-                          list="marcas-capsula"
-                        />
-                        <datalist id="marcas-capsula">
-                          {MARCAS_CAPSULA_SUGERIDAS.map(m => (
-                            <option key={m} value={m} />
-                          ))}
-                        </datalist>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Material</Label>
-                        <Select value={capsulaMaterial} onValueChange={setCapsulaMaterial}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {MATERIAIS_CAPSULA.map(m => (
-                              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tamanho</Label>
+                        <Label>Tamanho *</Label>
                         <Select value={capsulaTamanho} onValueChange={setCapsulaTamanho}>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {TAMANHOS_CAPSULA.map(t => (
-                              <SelectItem key={t} value={t}>Tamanho {t}</SelectItem>
+                            {TAMANHOS_CAPSULA.map((t) => (
+                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Material *</Label>
+                        <Select value={capsulaMaterial} onValueChange={setCapsulaMaterial}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MATERIAIS_CAPSULA.map((m) => (
+                              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
                         <Label>Cor</Label>
-                        <Input 
+                        <Input
                           value={capsulaCor}
                           onChange={(e) => setCapsulaCor(e.target.value)}
-                          placeholder="Ex: Transparente..."
+                          placeholder="Ex: Transparente"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Foto</Label>
-                        <CapsulePhotoUpload
-                          currentPhotoUrl={fotoUrl}
-                          onPhotoChange={(url) => setFotoUrl(url)}
-                        />
+                        <Label>Marca</Label>
+                        <Select value={capsulaMarca} onValueChange={setCapsulaMarca}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MARCAS_CAPSULA_SUGERIDAS.map((m) => (
+                              <SelectItem key={m} value={m}>{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
+                    
+                    <CapsulePhotoUpload
+                      currentPhotoUrl={fotoUrl}
+                      onPhotoChange={(url) => setFotoUrl(url)}
+                    />
                   </CardContent>
                 </Card>
+              )}
+
+              {/* Alertas de validação */}
+              {!validacaoTipoItem.valido && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <ul className="list-disc list-inside">
+                      {validacaoTipoItem.erros.map((erro, i) => (
+                        <li key={i}>{erro}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
           )}
@@ -633,69 +746,69 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                 Unidades e Conversão
               </h3>
               
-              <Card className="border-2 border-primary/30 bg-primary/5">
+              <Card>
                 <CardHeader className="py-3">
-                  <CardTitle className="text-base">REGRA MESTRE</CardTitle>
+                  <CardTitle className="text-base">Regra Mestre de Unidades</CardTitle>
                   <CardDescription>
-                    Defina a unidade do fornecedor (fiscal) e a unidade interna de controle
+                    Defina como converter a unidade do fornecedor para a unidade interna de controle
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 items-end">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>Unidade do Fornecedor (Fiscal)</Label>
-                      <Select value={unidadeFornecedor} onValueChange={(v) => {
-                        setUnidadeFornecedor(v as UnidadeFornecedor);
-                        setFatorManual(false);
-                      }}>
+                      <Label>Unidade Fornecedor</Label>
+                      <Select value={unidadeFornecedor} onValueChange={(v) => setUnidadeFornecedor(v as UnidadeFornecedor)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {UNIDADES_FORNECEDOR.map((u) => (
-                            <SelectItem key={u.value} value={u.value}>
-                              {u.label}
-                            </SelectItem>
+                            <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-muted-foreground">Exatamente como vem na nota fiscal</p>
+                      <p className="text-xs text-muted-foreground">uCom da NF-e</p>
                     </div>
-
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        Fator de Conversão
-                        <Calculator className="h-3 w-3" />
-                      </Label>
-                      <Input
-                        type="number"
-                        step="0.0001"
-                        min="0.0001"
-                        value={fatorConversao}
-                        onChange={(e) => {
-                          setFatorConversao(parseFloat(e.target.value) || 1);
-                          setFatorManual(true);
-                        }}
-                      />
+                      <Label>Fator de Conversão</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          value={fatorConversao}
+                          onChange={(e) => {
+                            setFatorConversao(parseFloat(e.target.value) || 1);
+                            setFatorManual(true);
+                          }}
+                          placeholder="1000"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const auto = calcularFatorConversaoAutomatico(unidadeFornecedor, unidadeInterna);
+                            if (auto !== null) {
+                              setFatorConversao(auto);
+                              setFatorManual(false);
+                            }
+                          }}
+                        >
+                          Auto
+                        </Button>
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        1 {formatarUnidade(unidadeFornecedor)} = {fatorConversao} {formatarUnidade(unidadeInterna)}
+                        1 {formatarUnidade(unidadeFornecedor)} = X {formatarUnidade(unidadeInterna)}
                       </p>
                     </div>
-
                     <div className="space-y-2">
-                      <Label>Unidade Interna (Controle)</Label>
-                      <Select value={unidadeInterna} onValueChange={(v) => {
-                        setUnidadeInterna(v as UnidadeInternaLocal);
-                        setFatorManual(false);
-                      }}>
+                      <Label>Unidade Interna</Label>
+                      <Select value={unidadeInterna} onValueChange={(v) => setUnidadeInterna(v as UnidadeInternaLocal)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {UNIDADES_INTERNAS.map((u) => (
-                            <SelectItem key={u.value} value={u.value}>
-                              {u.label}
-                            </SelectItem>
+                            <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1172,8 +1285,244 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
             </div>
           )}
 
-          {/* Step 6: Revisão */}
+          {/* Step 6: Fornecedores */}
           {currentStep === 6 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Fornecedores do Item
+              </h3>
+              
+              <Card>
+                <CardHeader className="py-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Vincular Fornecedores</CardTitle>
+                    <CardDescription>Adicione os fornecedores que fornecem este item</CardDescription>
+                  </div>
+                  <Button size="sm" onClick={() => setShowFornecedorForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Vincular
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {fornecedores.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      Nenhum fornecedor vinculado. Você pode adicionar após salvar ou vincular agora.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {fornecedores.map((f) => (
+                        <div key={f.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            {f.fornecedor_preferencial && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                            <div>
+                              <p className="font-medium">{f.fornecedor_nome}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Código: {f.codigo_fornecedor || "-"} | 
+                                Unidade: {f.unidade_compra_padrao} | 
+                                Fator: {f.fator_para_unidade_interna}x
+                              </p>
+                              {f.preco_referencia && (
+                                <p className="text-sm text-muted-foreground">
+                                  Preço: R$ {f.preco_referencia.toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleRemoveFornecedor(f.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Form para adicionar fornecedor */}
+              {showFornecedorForm && (
+                <Card className="border-primary">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">Novo Fornecedor</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Fornecedor *</Label>
+                        <Select 
+                          value={newFornecedor.fornecedor_id || ""} 
+                          onValueChange={(v) => setNewFornecedor({...newFornecedor, fornecedor_id: v})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {entidadesFornecedores?.map((e) => (
+                              <SelectItem key={e.id} value={e.id}>{e.razao_social}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Código no Fornecedor</Label>
+                        <Input
+                          value={newFornecedor.codigo_fornecedor || ""}
+                          onChange={(e) => setNewFornecedor({...newFornecedor, codigo_fornecedor: e.target.value})}
+                          placeholder="SKU do fornecedor"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Unidade Compra</Label>
+                        <Select 
+                          value={newFornecedor.unidade_compra_padrao || "kg"} 
+                          onValueChange={(v) => setNewFornecedor({...newFornecedor, unidade_compra_padrao: v})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNIDADES_FORNECEDOR.map((u) => (
+                              <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Fator Conversão</Label>
+                        <Input
+                          type="number"
+                          value={newFornecedor.fator_para_unidade_interna || 1000}
+                          onChange={(e) => setNewFornecedor({...newFornecedor, fator_para_unidade_interna: parseFloat(e.target.value) || 1})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Preço Referência</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={newFornecedor.preco_referencia || ""}
+                          onChange={(e) => setNewFornecedor({...newFornecedor, preco_referencia: parseFloat(e.target.value) || undefined})}
+                          placeholder="R$ 0,00"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="preferencial"
+                        checked={newFornecedor.fornecedor_preferencial || false}
+                        onCheckedChange={(checked) => setNewFornecedor({...newFornecedor, fornecedor_preferencial: !!checked})}
+                      />
+                      <label htmlFor="preferencial" className="text-sm">Fornecedor Preferencial</label>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => setShowFornecedorForm(false)}>Cancelar</Button>
+                      <Button onClick={handleAddFornecedor} disabled={!newFornecedor.fornecedor_id}>Adicionar</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Step 7: Aliases */}
+          {currentStep === 7 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Aliases do Item
+              </h3>
+              
+              <Card>
+                <CardHeader className="py-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Nomes Alternativos</CardTitle>
+                    <CardDescription>Adicione descrições alternativas usadas por fornecedores ou sistemas</CardDescription>
+                  </div>
+                  <Button size="sm" onClick={() => setShowAliasForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Alias
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {aliases.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      Nenhum alias cadastrado. Aliases ajudam no matching automático de NF-e.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {aliases.map((a) => (
+                        <div key={a.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <span className="inline-block px-2 py-1 text-xs bg-muted rounded mr-2">
+                              {TIPOS_ALIAS.find(t => t.value === a.tipo)?.label || a.tipo}
+                            </span>
+                            <span>{a.texto}</span>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleRemoveAlias(a.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Form para adicionar alias */}
+              {showAliasForm && (
+                <Card className="border-primary">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base">Novo Alias</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Tipo</Label>
+                        <Select 
+                          value={newAlias.tipo || "ALIAS_FORNECEDOR"} 
+                          onValueChange={(v) => setNewAlias({...newAlias, tipo: v})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TIPOS_ALIAS.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Texto do Alias *</Label>
+                        <Input
+                          value={newAlias.texto || ""}
+                          onChange={(e) => setNewAlias({...newAlias, texto: e.target.value})}
+                          placeholder="Nome alternativo do produto"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => setShowAliasForm(false)}>Cancelar</Button>
+                      <Button onClick={handleAddAlias} disabled={!newAlias.texto?.trim()}>Adicionar</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Step 8: Revisão */}
+          {currentStep === 8 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Check className="h-5 w-5" />
@@ -1226,6 +1575,43 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                   </CardContent>
                 </Card>
 
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm">Fornecedores</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm">
+                    {fornecedores.length === 0 ? (
+                      <p className="text-muted-foreground">Nenhum vinculado</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {fornecedores.map(f => (
+                          <li key={f.id} className="flex items-center gap-1">
+                            {f.fornecedor_preferencial && <Star className="h-3 w-3 text-amber-500" />}
+                            {f.fornecedor_nome}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm">Aliases</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm">
+                    {aliases.length === 0 ? (
+                      <p className="text-muted-foreground">Nenhum cadastrado</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {aliases.map(a => (
+                          <li key={a.id}>{a.texto}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+
                 <Card className="col-span-2">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm">Processo</CardTitle>
@@ -1257,7 +1643,7 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
             {currentStep === 1 ? 'Cancelar' : 'Voltar'}
           </Button>
           
-          {currentStep < 6 ? (
+          {currentStep < TOTAL_STEPS ? (
             <Button
               type="button"
               onClick={handleNext}
