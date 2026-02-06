@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   Factory, Plus, Search, Filter, Play, Pause, Check, 
   RefreshCw, Eye, AlertTriangle, XCircle, Clock, Package,
@@ -37,23 +37,148 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  useOrdensProducao, 
-  useOrdemProducaoActions,
-} from "@/hooks/use-ordens-producao";
-import { OrdemProducao, StatusOrdemProducao } from "@/types/ordens-producao";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
+
+// Tipo para OP vinda do Supabase
+interface OPGerada {
+  id: string;
+  formula_id: string;
+  op_codigo: string;
+  tipo_documento: string;
+  data_geracao: string;
+  dados_op: {
+    codigo: string;
+    formula_id: string;
+    formula_codigo: string;
+    formula_nome: string;
+    versao: number;
+    tipo_apresentacao: string;
+    itens: Array<{
+      nome: string;
+      quantidade_mg: number;
+      ativo_critico: boolean;
+      exige_premix: boolean;
+    }>;
+    veiculo_base: string;
+    avisos: string[];
+  };
+}
+
+// Tipo para exibição
+interface OrdemProducaoDisplay {
+  id: string;
+  codigo: string;
+  formula_id: string;
+  formula_codigo: string;
+  produto_nome: string;
+  tipo_apresentacao: string;
+  tipo_capsula: string;
+  total_capsulas: number;
+  quantidade_doses: number;
+  peso_total_lote_g: number;
+  custo_total_insumos: number;
+  progresso: number;
+  status: string;
+  data_geracao: string;
+  insumos: Array<{
+    id: string;
+    nome_insumo: string;
+    categoria: string;
+    quantidade_por_capsula_mg: number;
+    quantidade_total_g: number;
+    quantidade_total_kg: number;
+  }>;
+  observacoes?: string;
+  data_prevista_inicio?: string;
+}
 
 export default function OrdensProducaoPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [dialogDetalhe, setDialogDetalhe] = useState<OrdemProducao | null>(null);
-  const [dialogFinalizar, setDialogFinalizar] = useState<OrdemProducao | null>(null);
+  const [dialogDetalhe, setDialogDetalhe] = useState<OrdemProducaoDisplay | null>(null);
+  const [dialogFinalizar, setDialogFinalizar] = useState<OrdemProducaoDisplay | null>(null);
   const [capsulasFinais, setCapsulasFinais] = useState("");
+  const [ordens, setOrdens] = useState<OrdemProducaoDisplay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: ordens, isLoading, refresh, stats } = useOrdensProducao();
-  const actions = useOrdemProducaoActions();
+  // Função para converter OP do Supabase para formato de exibição
+  const convertOPGerada = useCallback((opGerada: OPGerada): OrdemProducaoDisplay => {
+    const dados = opGerada.dados_op;
+    return {
+      id: opGerada.id,
+      codigo: opGerada.op_codigo,
+      formula_id: opGerada.formula_id,
+      formula_codigo: dados.formula_codigo,
+      produto_nome: dados.formula_nome,
+      tipo_apresentacao: dados.tipo_apresentacao,
+      tipo_capsula: dados.tipo_apresentacao === 'CAPSULA' ? '00' : '-',
+      total_capsulas: 0,
+      quantidade_doses: 1,
+      peso_total_lote_g: 0,
+      custo_total_insumos: 0,
+      progresso: 0,
+      status: 'AGUARDANDO_INICIO',
+      data_geracao: opGerada.data_geracao,
+      insumos: dados.itens.map((item, idx) => ({
+        id: `${opGerada.id}-${idx}`,
+        nome_insumo: item.nome,
+        categoria: item.ativo_critico ? 'ATIVO_CRITICO' : 'ATIVO',
+        quantidade_por_capsula_mg: item.quantidade_mg,
+        quantidade_total_g: 0,
+        quantidade_total_kg: 0,
+      })),
+      observacoes: `Tipo: ${dados.tipo_apresentacao} | Veículo: ${dados.veiculo_base}\n${dados.avisos.join('\n')}`,
+    };
+  }, []);
+
+  // Buscar OPs do Supabase
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('ordens_producao_geradas')
+        .select('*')
+        .order('data_geracao', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar OPs:', error);
+        toast.error('Erro ao carregar ordens de produção');
+        setOrdens([]);
+      } else {
+        const ordensConvertidas = (data || []).map((op) => convertOPGerada(op as unknown as OPGerada));
+        setOrdens(ordensConvertidas);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar OPs:', err);
+      setOrdens([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [convertOPGerada]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  // Estatísticas
+  const stats = useMemo(() => ({
+    total: ordens.length,
+    aguardando: ordens.filter(op => op.status === 'AGUARDANDO_INICIO').length,
+    emProducao: ordens.filter(op => op.status === 'EM_PRODUCAO').length,
+    pausadas: ordens.filter(op => op.status === 'PAUSADA').length,
+    finalizadas: ordens.filter(op => op.status === 'FINALIZADA').length,
+  }), [ordens]);
+
+  // Ações placeholder
+  const actions = {
+    iniciarProducao: () => toast.info('Funcionalidade em desenvolvimento'),
+    pausarProducao: () => toast.info('Funcionalidade em desenvolvimento'),
+    retomarProducao: () => toast.info('Funcionalidade em desenvolvimento'),
+    finalizarProducao: () => toast.info('Funcionalidade em desenvolvimento'),
+  };
 
   // Filtrar ordens
   const ordensFiltradas = ordens.filter(op => {
@@ -64,7 +189,7 @@ export default function OrdensProducaoPage() {
     return matchSearch && matchStatus;
   });
 
-  const getStatusVariant = (status: StatusOrdemProducao) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
       case "EM_PRODUCAO": return "info";
       case "AGUARDANDO_INICIO": 
@@ -76,7 +201,7 @@ export default function OrdensProducaoPage() {
     }
   };
 
-  const getStatusLabel = (status: StatusOrdemProducao) => {
+  const getStatusLabel = (status: string) => {
     switch (status) {
       case "RASCUNHO": return "Rascunho";
       case "AGUARDANDO_MATERIAIS": return "Aguardando Materiais";
@@ -91,7 +216,7 @@ export default function OrdensProducaoPage() {
 
   const handleFinalizar = () => {
     if (!dialogFinalizar || !capsulasFinais) return;
-    actions.finalizarProducao(dialogFinalizar.id, parseInt(capsulasFinais));
+    actions.finalizarProducao();
     setDialogFinalizar(null);
     setCapsulasFinais("");
     refresh();
@@ -234,7 +359,7 @@ export default function OrdensProducaoPage() {
                           size="sm" 
                           variant="outline"
                           onClick={() => {
-                            actions.iniciarProducao(op.id);
+                            actions.iniciarProducao();
                             refresh();
                           }}
                         >
@@ -248,7 +373,7 @@ export default function OrdensProducaoPage() {
                             size="sm" 
                             variant="outline"
                             onClick={() => {
-                              actions.pausarProducao(op.id);
+                              actions.pausarProducao();
                               refresh();
                             }}
                           >
@@ -273,7 +398,7 @@ export default function OrdensProducaoPage() {
                           size="sm" 
                           variant="outline"
                           onClick={() => {
-                            actions.retomarProducao(op.id);
+                            actions.retomarProducao();
                             refresh();
                           }}
                         >
