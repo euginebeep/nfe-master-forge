@@ -140,12 +140,16 @@ const formSchema = z.object({
   // Especificações de Embalagem - IDs de itens do cadastro
   capsula_item_id: z.string().optional(),
   capsula_item_nome: z.string().optional(),
+  capsula_item_source: z.enum(["supabase", "local"]).optional(),
   pote_item_id: z.string().optional(),
   pote_item_nome: z.string().optional(),
+  pote_item_source: z.enum(["supabase", "local"]).optional(),
   tampa_item_id: z.string().optional(),
   tampa_item_nome: z.string().optional(),
+  tampa_item_source: z.enum(["supabase", "local"]).optional(),
   silica_item_id: z.string().optional(),
   silica_item_nome: z.string().optional(),
+  silica_item_source: z.enum(["supabase", "local"]).optional(),
   incluir_silica: z.boolean().default(true),
   descricao_rotulo: z.string().optional(),
   
@@ -216,12 +220,16 @@ export function CriarOPDialogMaster({
       unidades_por_frasco: 60,
       capsula_item_id: "",
       capsula_item_nome: "",
+      capsula_item_source: undefined,
       pote_item_id: "",
       pote_item_nome: "",
+      pote_item_source: undefined,
       tampa_item_id: "",
       tampa_item_nome: "",
+      tampa_item_source: undefined,
       silica_item_id: "",
       silica_item_nome: "",
+      silica_item_source: undefined,
       incluir_silica: true,
       descricao_rotulo: "",
       lote_produto_acabado: "",
@@ -526,14 +534,14 @@ export function CriarOPDialogMaster({
         // Cliente
         cliente_id: values.cliente_id || null,
         cliente_nome: values.cliente_nome || null,
-        // Embalagem - IDs dos itens selecionados
-        capsula_item_id: values.capsula_item_id || null,
+        // Embalagem - IDs dos itens selecionados (APENAS se forem do Supabase para evitar FK errors)
+        capsula_item_id: values.capsula_item_source === "supabase" ? (values.capsula_item_id || null) : null,
         capsula_item_nome: values.capsula_item_nome || null,
-        pote_item_id: values.pote_item_id || null,
+        pote_item_id: values.pote_item_source === "supabase" ? (values.pote_item_id || null) : null,
         pote_item_nome: values.pote_item_nome || null,
-        tampa_item_id: values.tampa_item_id || null,
+        tampa_item_id: values.tampa_item_source === "supabase" ? (values.tampa_item_id || null) : null,
         tampa_item_nome: values.tampa_item_nome || null,
-        silica_item_id: values.silica_item_id || null,
+        silica_item_id: values.silica_item_source === "supabase" ? (values.silica_item_id || null) : null,
         silica_item_nome: values.silica_item_nome || null,
         incluir_silica: values.incluir_silica,
         descricao_rotulo: values.descricao_rotulo || null,
@@ -575,6 +583,11 @@ export function CriarOPDialogMaster({
       
       onSuccess();
       onOpenChange(false);
+      
+      // Navegar automaticamente para a OP criada
+      if (newOP?.id) {
+        navigate(`/producao/ordens/${newOP.id}`);
+      }
     } catch (error) {
       console.error("Erro ao criar OP:", error);
       toast.error("Erro ao criar ordem de produção");
@@ -1236,6 +1249,7 @@ export function CriarOPDialogMaster({
                 onSelect={(item) => {
                   form.setValue("capsula_item_id", item?.id || "");
                   form.setValue("capsula_item_nome", item?.descricao_interna || "");
+                  form.setValue("capsula_item_source", item?.source);
                 }}
                 placeholder="Buscar cápsula..."
               />
@@ -1249,6 +1263,7 @@ export function CriarOPDialogMaster({
               onSelect={(item) => {
                 form.setValue("pote_item_id", item?.id || "");
                 form.setValue("pote_item_nome", item?.descricao_interna || "");
+                form.setValue("pote_item_source", item?.source);
               }}
               placeholder="Buscar pote ou frasco..."
             />
@@ -1263,6 +1278,7 @@ export function CriarOPDialogMaster({
               onSelect={(item) => {
                 form.setValue("tampa_item_id", item?.id || "");
                 form.setValue("tampa_item_nome", item?.descricao_interna || "");
+                form.setValue("tampa_item_source", item?.source);
               }}
               placeholder="Buscar tampa..."
             />
@@ -1309,6 +1325,7 @@ export function CriarOPDialogMaster({
                   onSelect={(item) => {
                     form.setValue("silica_item_id", item?.id || "");
                     form.setValue("silica_item_nome", item?.descricao_interna || "");
+                    form.setValue("silica_item_source", item?.source);
                   }}
                   placeholder="Buscar sílica gel..."
                 />
