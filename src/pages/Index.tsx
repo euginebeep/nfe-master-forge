@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserWelcomeCard } from "@/components/dashboard/UserWelcomeCard";
 import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
+import { MarketIndicesCard } from "@/components/dashboard/MarketIndicesCard";
 import { useAuth } from "@/hooks/use-auth";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
@@ -125,10 +126,11 @@ const Index = () => {
       )}
 
       {/* Quick Stats Row */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <ExchangeRateCard />
+        <MarketIndicesCard />
         
-        <Card className="md:col-span-2">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Sistema</CardTitle>
           </CardHeader>

@@ -76,10 +76,10 @@ export function UserWelcomeCard({ name, role, cargo, avatarUrl, isLoading }: Use
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-semibold truncate">
+                <h2 className="text-[32px] font-bold leading-tight truncate">
                   {greeting}, {name?.split(' ')[0] || 'Usuário'}!
                 </h2>
-                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                <Sparkles className="h-5 w-5 text-primary animate-pulse" />
               </div>
               
               <div className="flex items-center gap-2 mt-1 flex-wrap">

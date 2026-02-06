@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LocalDb } from '@/lib/local-db';
-import { toast } from 'sonner';
+import { centralToast } from '@/components/ui/central-toast';
 import type { LocalItem } from '@/hooks/use-local-itens';
 import type { LocalEntidade, LocalEntidadeContato, LocalEntidadeEndereco } from '@/hooks/use-local-entidades';
 
@@ -303,10 +303,10 @@ export function useCreateHybridItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hybrid-itens'] });
-      toast.success('Item criado com sucesso');
+      centralToast.success('Item Criado', 'Produto cadastrado com sucesso');
     },
     onError: (error) => {
-      toast.error('Erro ao criar item: ' + (error as Error).message);
+      centralToast.error('Erro ao Criar Item', (error as Error).message);
     },
   });
 }
@@ -346,10 +346,10 @@ export function useCreateHybridEntidade() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hybrid-entidades'] });
-      toast.success('Entidade criada com sucesso');
+      centralToast.success('Entidade Criada', 'Cadastro realizado com sucesso');
     },
     onError: (error) => {
-      toast.error('Erro ao criar entidade: ' + (error as Error).message);
+      centralToast.error('Erro ao Criar Entidade', (error as Error).message);
     },
   });
 }
@@ -367,12 +367,26 @@ export function useUpdateHybridItem() {
       if (error) {
         // Fallback: update in localStorage
         LocalDb.update<LocalItem>('itens', id, data as any);
+        // Dispatch event to notify other components
+        window.dispatchEvent(new CustomEvent('localdb:change', { detail: { collection: 'itens' } }));
       }
+      
+      return { id };
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['hybrid-itens'] });
-      queryClient.invalidateQueries({ queryKey: ['hybrid-item', vars.id] });
-      toast.success('Item atualizado com sucesso');
+    onSuccess: async (result, vars) => {
+      // Force invalidate all item-related queries to refresh data
+      await queryClient.invalidateQueries({ queryKey: ['hybrid-itens'] });
+      await queryClient.invalidateQueries({ queryKey: ['hybrid-item', vars.id] });
+      await queryClient.invalidateQueries({ queryKey: ['itens'] });
+      await queryClient.invalidateQueries({ queryKey: ['item', vars.id] });
+      
+      // Refetch immediately to ensure UI updates
+      await queryClient.refetchQueries({ queryKey: ['hybrid-itens'] });
+      
+      centralToast.success('Item Atualizado', 'Alterações salvas com sucesso');
+    },
+    onError: (error) => {
+      centralToast.error('Erro ao Atualizar', (error as Error).message);
     },
   });
 }
@@ -411,7 +425,7 @@ export function useUpdateHybridEntidade() {
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['hybrid-entidades'] });
       queryClient.invalidateQueries({ queryKey: ['hybrid-entidade', vars.id] });
-      toast.success('Entidade atualizada com sucesso');
+      centralToast.success('Entidade Atualizada', 'Alterações salvas com sucesso');
     },
   });
 }
