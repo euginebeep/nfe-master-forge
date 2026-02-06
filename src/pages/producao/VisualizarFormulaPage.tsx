@@ -1,6 +1,6 @@
 // ============================================================
 // FORMULADOR INDUSTRIAL - VISUALIZAÇÃO TÉCNICA
-// Somente leitura
+// Somente leitura com Ficha Técnica PDF
 // ============================================================
 
 import { useNavigate, useParams } from "react-router-dom";
@@ -27,8 +27,10 @@ import {
   useFormula, 
   useFormulaHistorico,
   useOPsGeradas,
+  useTabelaNutricional,
 } from "@/hooks/use-formulador-industrial";
 import { StatusFormula, TipoApresentacao, calcularQSP } from "@/types/formulador-industrial";
+import { FichaTecnicaPDF } from "@/components/formulador/FichaTecnicaPDF";
 
 export default function VisualizarFormulaPage() {
   const navigate = useNavigate();
@@ -36,6 +38,7 @@ export default function VisualizarFormulaPage() {
   const { formula, itens, loading } = useFormula(id);
   const { versoes } = useFormulaHistorico(id);
   const { ops } = useOPsGeradas(id);
+  const { tabela } = useTabelaNutricional(id);
 
   if (loading) {
     return (
@@ -91,6 +94,13 @@ export default function VisualizarFormulaPage() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
+            {formula.status === 'APROVADA' && (
+              <FichaTecnicaPDF 
+                formula={formula} 
+                itens={itens} 
+                tabela={tabela}
+              />
+            )}
             {formula.status === 'RASCUNHO' && (
               <Button onClick={() => navigate(`/producao/formulas/${id}/editar`)}>
                 <Edit className="h-4 w-4 mr-2" />

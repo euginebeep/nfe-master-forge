@@ -1,4 +1,4 @@
-import { Package, CheckCircle2, Clock, AlertTriangle, TrendingUp, Wallet, Layers } from "lucide-react";
+import { Package, CheckCircle2, Clock, TrendingUp, Wallet, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatNumber, formatCurrency } from "@/lib/formatters";
 
@@ -54,55 +54,52 @@ export function EstoqueResumoCard({ lotes, unidadeInternaItem }: EstoqueResumoCa
   const cards = [
     {
       icon: Package,
-      iconColor: "text-blue-600",
-      iconBg: "bg-blue-100 dark:bg-blue-900/30",
+      iconColor: "text-blue-500",
+      iconBg: "bg-blue-50 dark:bg-blue-950/50",
       label: "Estoque Total",
       value: formatNumber(resumo.quantidadeInterna, 2),
       unit: unidadePrincipal.toUpperCase(),
-      highlight: true,
     },
     {
       icon: CheckCircle2,
-      iconColor: "text-emerald-600",
-      iconBg: "bg-emerald-100 dark:bg-emerald-900/30",
+      iconColor: "text-emerald-500",
+      iconBg: "bg-emerald-50 dark:bg-emerald-950/50",
       label: "Disponível",
       value: formatNumber(resumo.qtdDisponivel, 2),
       unit: unidadePrincipal.toUpperCase(),
     },
     {
       icon: Clock,
-      iconColor: "text-amber-600",
-      iconBg: "bg-amber-100 dark:bg-amber-900/30",
+      iconColor: "text-amber-500",
+      iconBg: "bg-amber-50 dark:bg-amber-950/50",
       label: "Quarentena",
       value: formatNumber(resumo.qtdQuarentena, 2),
       unit: unidadePrincipal.toUpperCase(),
     },
     {
       icon: TrendingUp,
-      iconColor: "text-purple-600",
-      iconBg: "bg-purple-100 dark:bg-purple-900/30",
+      iconColor: "text-purple-500",
+      iconBg: "bg-purple-50 dark:bg-purple-950/50",
       label: "Custo Médio",
       value: formatCurrency(custoMedio),
-      unit: `por ${unidadePrincipal}`,
-      isCurrency: true,
+      unit: `por ${unidadePrincipal.toLowerCase()}`,
     },
     {
       icon: Wallet,
-      iconColor: "text-indigo-600",
-      iconBg: "bg-indigo-100 dark:bg-indigo-900/30",
+      iconColor: "text-indigo-500",
+      iconBg: "bg-indigo-50 dark:bg-indigo-950/50",
       label: "Valor em Estoque",
       value: formatCurrency(resumo.valorTotal),
       unit: `${lotes.length} lote(s)`,
-      isCurrency: true,
     },
   ];
 
   return (
-    <Card className="border-2 border-primary/10 bg-gradient-to-br from-background to-muted/30">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Layers className="h-5 w-5 text-primary" />
+    <Card className="bg-card">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-base font-medium">
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <Layers className="h-4 w-4 text-primary" />
           </div>
           Resumo de Estoque
         </CardTitle>
@@ -112,23 +109,19 @@ export function EstoqueResumoCard({ lotes, unidadeInternaItem }: EstoqueResumoCa
           {cards.map((card, idx) => (
             <div 
               key={idx} 
-              className={`flex flex-col gap-2 p-3 rounded-xl border ${
-                card.highlight 
-                  ? 'bg-primary/5 border-primary/20' 
-                  : 'bg-card border-border/50'
-              }`}
+              className="flex flex-col gap-3 p-4 rounded-xl bg-muted/30 border border-border/40"
             >
               <div className="flex items-center gap-2">
                 <div className={`p-1.5 rounded-lg ${card.iconBg}`}>
                   <card.icon className={`h-4 w-4 ${card.iconColor}`} />
                 </div>
-                <span className="text-xs font-medium text-muted-foreground">{card.label}</span>
+                <span className="text-xs text-muted-foreground">{card.label}</span>
               </div>
               <div>
-                <p className={`text-xl font-bold ${card.highlight ? 'text-primary' : ''}`}>
+                <p className="text-2xl font-semibold tracking-tight">
                   {card.value}
                 </p>
-                <p className="text-xs text-muted-foreground">{card.unit}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{card.unit}</p>
               </div>
             </div>
           ))}
