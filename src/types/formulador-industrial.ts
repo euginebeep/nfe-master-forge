@@ -149,16 +149,58 @@ export function converterMCGparaMG(valorMCG: number): number {
   return valorMCG / 1000;
 }
 
-// Determina se é ativo crítico
+// Determina se é ativo crítico (FLAG AUTOMÁTICA)
+// REGRA: Ativo < 1 mg OU unidade original UI/MCG
 export function isAtivoCritico(
   quantidadeConvertidaMG: number,
   unidadeOriginal: UnidadeInformada
 ): boolean {
-  return quantidadeConvertidaMG < 1 || unidadeOriginal === 'UI' || unidadeOriginal === 'MCG';
+  // Ativo < 1 mg é sempre crítico
+  if (quantidadeConvertidaMG < 1) return true;
+  // Unidades de alta precisão são críticas
+  if (unidadeOriginal === 'UI' || unidadeOriginal === 'MCG') return true;
+  return false;
 }
 
-// Calcula QSP (excipiente para completar a cápsula)
+// Verifica se PRÉ-MIX é SUGERIDO (não obrigatório)
+// IMPORTANTE: Retorna apenas sugestão, checkbox deve permanecer DESMARCADO por padrão
+export function sugerePremix(
+  quantidadeConvertidaMG: number,
+  unidadeOriginal: UnidadeInformada,
+  higroscopico: boolean = false
+): { sugerido: boolean; motivo: string } {
+  const motivos: string[] = [];
+  
+  if (quantidadeConvertidaMG < 1) {
+    motivos.push('Quantidade < 1 mg');
+  }
+  if (unidadeOriginal === 'MCG' || unidadeOriginal === 'UI') {
+    motivos.push(`Unidade ${unidadeOriginal}`);
+  }
+  if (higroscopico) {
+    motivos.push('Higroscópico');
+  }
+  
+  return {
+    sugerido: motivos.length > 0,
+    motivo: motivos.join(', '),
+  };
+}
+
+// Calcula QSP INDUSTRIAL (diluente principal considerando excipientes tecnológicos)
+// REGRA INDUSTRIAL CORRETA:
+// peso_diluente = peso_alvo - soma_ativos - soma_excipientes_tecnologicos
 export function calcularQSP(
+  pesoAlvoMG: number,
+  totalAtivosMG: number,
+  totalExcipientesTecnologicosMG: number = 0
+): number {
+  const qsp = pesoAlvoMG - totalAtivosMG - totalExcipientesTecnologicosMG;
+  return Math.max(0, parseFloat(qsp.toFixed(4)));
+}
+
+// Calcula QSP legado (sem excipientes tecnológicos) - mantido para compatibilidade
+export function calcularQSPSimples(
   pesoAlvoMG: number,
   totalAtivosMG: number
 ): number {
