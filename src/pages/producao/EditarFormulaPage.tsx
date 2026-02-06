@@ -142,7 +142,12 @@ export default function EditarFormulaPage() {
     if (novoItem.unidade_informada === 'UI') {
       const fator = buscarFator(novoItem.nome_insumo);
       if (!fator) {
-        toast.error(`Fator de conversão não encontrado para "${novoItem.nome_insumo}". Cadastre em Conversões de Unidades.`);
+        toast.error(
+          `Fator de conversão UI→mg não encontrado para "${novoItem.nome_insumo}". ` +
+          `Cadastre o fator em: Produção → Formulador → Conversões de Unidades. ` +
+          `Consulte o laudo/COA do fornecedor para obter o valor correto (ex: Vitamina D3 = 40.000 UI/mg).`,
+          { duration: 8000 }
+        );
         return;
       }
     }
@@ -389,12 +394,43 @@ export default function EditarFormulaPage() {
                 </div>
 
                 {novoItem.unidade_informada === 'UI' && (
-                  <Alert className="mt-4 bg-muted/50">
-                    <Beaker className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      <strong>Conversão UI:</strong> O sistema buscará o fator de conversão automaticamente.
-                    </AlertDescription>
-                  </Alert>
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Alert className="mt-4 bg-warning/10 border-warning/30 cursor-help">
+                          <Beaker className="h-4 w-4 text-warning" />
+                          <AlertDescription className="text-xs">
+                            <strong>Conversão UI → mg:</strong> O sistema buscará automaticamente o fator de conversão cadastrado. 
+                            <span className="text-muted-foreground ml-1">Passe o mouse para mais detalhes.</span>
+                          </AlertDescription>
+                        </Alert>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-md p-4 space-y-3">
+                        <div className="font-semibold text-sm border-b pb-2">
+                          O que é a conversão UI → mg?
+                        </div>
+                        <div className="text-xs space-y-2">
+                          <p>
+                            <strong>UI (Unidade Internacional)</strong> é uma medida de atividade biológica usada para vitaminas 
+                            e hormônios (como Vitamina D3, A, E). Porém, para pesagem na produção, precisamos converter para 
+                            <strong> miligramas (mg)</strong>.
+                          </p>
+                          <p>
+                            <strong>Exemplo prático:</strong><br/>
+                            • Vitamina D3 pura: 1 mg = 40.000 UI<br/>
+                            • Se você informar 2.000 UI, o sistema converte para 0,05 mg
+                          </p>
+                          <p className="text-warning font-medium">
+                            ⚠️ Se o fator não estiver cadastrado, vá em:<br/>
+                            <span className="font-mono bg-muted px-1 rounded">Produção → Formulador → Conversões de Unidades</span>
+                          </p>
+                          <p className="text-muted-foreground">
+                            Cadastre o fator UI/mg do seu insumo específico (consulte o laudo/COA do fornecedor).
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </CardContent>
             </Card>
