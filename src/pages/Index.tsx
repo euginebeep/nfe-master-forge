@@ -10,6 +10,7 @@ import { UserWelcomeCard } from "@/components/dashboard/UserWelcomeCard";
 import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
 import { MarketIndicesCard } from "@/components/dashboard/MarketIndicesCard";
 import { ExpiringLotsCard } from "@/components/dashboard/ExpiringLotsCard";
+import { ConsultaANVISACard } from "@/components/dashboard/ConsultaANVISACard";
 import { useAuth } from "@/hooks/use-auth";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
@@ -127,10 +128,11 @@ const Index = () => {
       )}
 
       {/* Alerts Row - Expiring Lots */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <ExpiringLotsCard />
         <ExchangeRateCard />
         <MarketIndicesCard />
+        <ConsultaANVISACard />
       </div>
 
       {/* Quick Stats Row */}

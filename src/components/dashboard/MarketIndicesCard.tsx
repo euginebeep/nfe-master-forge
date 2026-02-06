@@ -59,25 +59,39 @@ async function fetchCryptoPrices(): Promise<CryptoPrice[]> {
   }
 }
 
-// Fetch Ibovespa from Yahoo Finance proxy
+// Fetch Ibovespa from HG Brasil API (free, no auth required)
 async function fetchIbovespa(): Promise<IbovespaData | null> {
   try {
-    // Using a CORS proxy or alternative API
+    // Using HG Brasil free API for Brazilian market data
     const response = await fetch(
-      'https://brapi.dev/api/quote/^BVSP'
+      'https://api.hgbrasil.com/finance/stock_price?key=demo&symbol=ibovespa'
     );
     
     if (!response.ok) {
+      // Fallback: try alternative endpoint
+      const altResponse = await fetch(
+        'https://economia.awesomeapi.com.br/json/daily/IBOV/1'
+      );
+      
+      if (altResponse.ok) {
+        const altData = await altResponse.json();
+        if (altData && altData[0]) {
+          return {
+            price: parseFloat(altData[0].bid) || 0,
+            change: parseFloat(altData[0].pctChange) || 0,
+          };
+        }
+      }
       return null;
     }
     
     const data = await response.json();
-    const result = data.results?.[0];
+    const result = data.results?.IBOVESPA;
     
     if (result) {
       return {
-        price: result.regularMarketPrice || 0,
-        change: result.regularMarketChangePercent || 0,
+        price: result.price || 0,
+        change: result.change_percent || 0,
       };
     }
     
