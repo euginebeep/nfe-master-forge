@@ -146,8 +146,9 @@ export function CriarOPDialog({
 
   // Quando seleciona fórmula no dropdown
   const handleFormulaChange = (formulaId: string) => {
-    form.setValue("formula_id", formulaId);
-    const formula = formulas.find((f) => f.id === formulaId);
+    const actualId = formulaId === "none" ? "" : formulaId;
+    form.setValue("formula_id", actualId);
+    const formula = formulas.find((f) => f.id === actualId);
     if (formula) {
       setSelectedFormula(formula);
       form.setValue("produto_nome", formula.nome_formula);
@@ -469,7 +470,7 @@ export function CriarOPDialog({
                     <FormItem>
                       <FormLabel>Selecionar Fórmula Aprovada</FormLabel>
                       <Select
-                        value={field.value}
+                        value={field.value || "none"}
                         onValueChange={handleFormulaChange}
                       >
                         <FormControl>
@@ -478,7 +479,7 @@ export function CriarOPDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhuma (OP Manual)</SelectItem>
+                          <SelectItem value="none">Nenhuma (OP Manual)</SelectItem>
                           {formulas.map((formula) => (
                             <SelectItem key={formula.id} value={formula.id}>
                               {formula.codigo_formula} - {formula.nome_formula}
