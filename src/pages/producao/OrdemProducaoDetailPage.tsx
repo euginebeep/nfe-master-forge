@@ -4,7 +4,7 @@ import {
   Factory, ArrowLeft, Play, Check, XCircle,
   Package, Scale, ClipboardCheck, FileText, AlertTriangle,
   Calendar, Users, RefreshCw, Lock, Unlock, Printer,
-  QrCode, Box, ListChecks
+  QrCode, Box, ListChecks, Beaker, Siren
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,9 @@ import { OPTabResumoAuditoria } from '@/components/producao/OPTabResumoAuditoria
 import { OPTabEmbalagens } from '@/components/producao/OPTabEmbalagens';
 import { OPTabPesagemIndustrial } from '@/components/producao/OPTabPesagemIndustrial';
 import { OPTabProcesso } from '@/components/producao/OPTabProcesso';
+import { OPCabecalhoMaster } from '@/components/producao/OPCabecalhoMaster';
+import { OPPreMixGeometrico } from '@/components/producao/OPPreMixGeometrico';
+import { OPChecklistOperacional } from '@/components/producao/OPChecklistOperacional';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -414,6 +417,12 @@ export default function OrdemProducaoDetailPage() {
             <Scale className="h-4 w-4" />
             Pesagem ({materiasPrimas.length})
           </TabsTrigger>
+          {temAtivosCriticos && (
+            <TabsTrigger value="premix" className="flex items-center gap-2 text-destructive">
+              <Siren className="h-4 w-4" />
+              Pré-Mix Crítico
+            </TabsTrigger>
+          )}
           <TabsTrigger value="checklist" className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4" />
             Checklist
@@ -448,6 +457,32 @@ export default function OrdemProducaoDetailPage() {
             }}
           />
         </TabsContent>
+
+        {/* Tab: Pré-Mix (apenas se houver ativos críticos) */}
+        {temAtivosCriticos && (
+          <TabsContent value="premix">
+            <OPPreMixGeometrico
+              ativosCriticos={materiasPrimas
+                .filter(mp => mp.pesagem_critica || mp.quantidade_teorica_g < 0.01)
+                .map(mp => ({
+                  id: mp.id,
+                  nome: mp.insumo_nome,
+                  quantidade_mg: (mp.quantidade_teorica_g || 0) * 1000,
+                  quantidade_g: mp.quantidade_teorica_g || 0,
+                  potencia_coa: undefined,
+                  potencia_unidade: undefined,
+                  fator_correcao: undefined,
+                  metodo_distribuicao: mp.motivo_critico?.includes('ULTRA') ? 'Distribuição Geométrica' : 'Pré-Mix Simples',
+                }))}
+              diluenteNome={currentOP.excipiente_base || 'Amido de Milho'}
+              diluenteQuantidadeTotal={
+                materiasPrimas
+                  .filter(mp => mp.categoria === 'EXCIPIENTE_BASE')
+                  .reduce((acc, mp) => acc + (mp.quantidade_teorica_g || 0), 0)
+              }
+            />
+          </TabsContent>
+        )}
 
         {/* Tab: Checklist */}
         <TabsContent value="checklist">
