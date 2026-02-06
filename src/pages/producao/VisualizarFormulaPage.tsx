@@ -1,6 +1,5 @@
 // ============================================================
 // FORMULADOR INDUSTRIAL - VISUALIZAÇÃO TÉCNICA
-// Somente leitura com Ficha Técnica PDF
 // ============================================================
 
 import { useNavigate, useParams } from "react-router-dom";
@@ -29,7 +28,8 @@ import {
   useOPsGeradas,
   useTabelaNutricional,
 } from "@/hooks/use-formulador-industrial";
-import { StatusFormula, TipoApresentacao, calcularQSP } from "@/types/formulador-industrial";
+import { StatusFormula, TipoApresentacao } from "@/types/formulador-industrial";
+import { calcularCapsulaIndustrial, CodigoVeiculoBase } from "@/lib/formulador-industrial-rules";
 import { FichaTecnicaPDF } from "@/components/formulador/FichaTecnicaPDF";
 
 export default function VisualizarFormulaPage() {
@@ -77,10 +77,11 @@ export default function VisualizarFormulaPage() {
     }
   };
 
-  // Cálculos
+  // Cálculos industriais
   const totalAtivos = itens.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
   const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
-  const qsp = calcularQSP(pesoAlvo, totalAtivos);
+  const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
+  const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
 
   return (
     <div>
@@ -153,10 +154,10 @@ export default function VisualizarFormulaPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground uppercase">Q.S.P.</p>
-                    <p className="font-medium font-mono text-secondary">{qsp.toFixed(2)} mg</p>
+                    <p className="font-medium font-mono text-secondary">{calculos.veiculo_base_mg.toFixed(2)} mg</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase">Excipiente</p>
+                    <p className="text-xs text-muted-foreground uppercase">Veículo</p>
                     <p className="font-medium">{formula.excipiente_padrao}</p>
                   </div>
                 </div>

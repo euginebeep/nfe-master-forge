@@ -1,14 +1,13 @@
 // ============================================================
 // FORMULADOR INDUSTRIAL - EDITOR DE FÓRMULA
-// Adicionar e gerenciar ativos com seleção de matéria-prima
-// REGRAS INDUSTRIAIS DE EXCIPIENTES E PRÉ-MIX IMPLEMENTADAS
+// VERSÃO DEFINITIVA - REGRAS INDUSTRIAIS FIXAS
 // ============================================================
 
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
   ArrowLeft, FlaskConical, Save, Plus, Trash2, AlertTriangle, 
-  CheckCircle, Scale, Percent, Beaker, GripVertical, Package, Info, BookOpen
+  CheckCircle, Scale, Percent, Beaker, Package, Info, BookOpen
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -51,26 +50,21 @@ import {
 import { 
   FormulaItem, 
   UnidadeInformada,
-  isAtivoCritico,
-  sugerePremix,
-  converterUIparaMG,
-  converterMCGparaMG,
-  calcularQSP,
-  calcularPercentual,
   validarFormula,
 } from "@/types/formulador-industrial";
 import {
   calcularCapsulaIndustrial,
-  calcularExcipientesTecnologicos,
-  getNomeDiluente,
-  gerarAlertasFormula,
-  gerarDadosParaOP,
-  getPercentuaisPadrao,
+  isAtivoCritico,
+  verificarSugestaoPremix,
+  converterUIparaMG,
+  converterMCGparaMG,
+  getNomeVeiculoBase,
+  EXCIPIENTES_INDUSTRIAIS,
+  TOTAL_PERCENTUAL_TECNOLOGICOS,
+  CodigoVeiculoBase,
 } from "@/lib/formulador-industrial-rules";
 import { ItemSelector } from "@/components/formulador/ItemSelector";
-import { ExcipientesTecnologicosEditor, PercentuaisExcipientes } from "@/components/formulador/ExcipientesTecnologicosEditor";
 import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
-import type { Item } from "@/types/erp";
 import { toast } from "sonner";
 
 export default function EditarFormulaPage() {
@@ -89,15 +83,10 @@ export default function EditarFormulaPage() {
     produto_materia_prima_id: null as string | null,
     quantidade_informada: 0,
     unidade_informada: "MG" as UnidadeInformada,
-    exige_premix: false,
+    exige_premix: false, // SEMPRE DESMARCADO por padrão
   });
   const [saving, setSaving] = useState(false);
   const [aprovando, setAprovando] = useState(false);
-  
-  // Estado para percentuais editáveis dos excipientes tecnológicos
-  const [percentuaisExcipientes, setPercentuaisExcipientes] = useState<PercentuaisExcipientes>(
-    getPercentuaisPadrao()
-  );
 
   // Sincronizar itens quando carregar
   useEffect(() => {
@@ -106,7 +95,7 @@ export default function EditarFormulaPage() {
     }
   }, [itens]);
 
-  // Cálculos da cápsula - MODELO INDUSTRIAL COMPLETO COM EXCIPIENTES EDITÁVEIS
+  // CÁLCULOS INDUSTRIAIS COM REGRAS FIXAS
   const calculosIndustriais = useMemo(() => {
     if (!formula || formula.tipo_apresentacao !== 'CAPSULA') {
       return null;
@@ -114,33 +103,16 @@ export default function EditarFormulaPage() {
 
     const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
     const totalAtivos = itensLocal.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
-    const diluenteNome = getNomeDiluente(formula.excipiente_padrao || 'AMIDO');
+    const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
     
-    // Usar cálculo industrial que considera excipientes tecnológicos COM percentuais editáveis
-    return calcularCapsulaIndustrial(pesoAlvo, totalAtivos, diluenteNome, percentuaisExcipientes);
-  }, [formula, itensLocal, percentuaisExcipientes]);
-
-  // Manter objeto legado para compatibilidade com UI existente
-  const calculos = useMemo(() => {
-    if (!calculosIndustriais) return null;
-    
-    return {
-      pesoAlvo: calculosIndustriais.peso_alvo_mg,
-      totalAtivos: calculosIndustriais.total_ativos_mg,
-      totalExcipientesTecnologicos: calculosIndustriais.total_excipientes_tecnologicos_mg,
-      excipientesTecnologicos: calculosIndustriais.excipientes_tecnologicos,
-      qsp: calculosIndustriais.diluente_principal_mg,
-      diluenteNome: calculosIndustriais.diluente_principal_nome,
-      ocupacao: calculosIndustriais.ocupacao_percentual,
-      excedeu: calculosIndustriais.excedeu_capacidade,
-    };
-  }, [calculosIndustriais]);
+    return calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
+  }, [formula, itensLocal]);
 
   // Contadores para alertas
   const ativosCriticos = itensLocal.filter(i => i.ativo_critico).length;
   const ativosComSugestaoPremix = itensLocal.filter(i => {
-    const sugestao = sugerePremix(i.quantidade_convertida_mg, i.unidade_informada, false);
-    return sugestao.sugerido && !i.exige_premix; // Só conta se não está marcado
+    const sugestao = verificarSugestaoPremix(i.quantidade_convertida_mg, i.unidade_informada, false);
+    return sugestao.sugerido && !i.exige_premix;
   }).length;
 
   // Converter quantidade para mg
@@ -155,6 +127,8 @@ export default function EditarFormulaPage() {
       }
       return converterUIparaMG(quantidade, fator);
     }
+    if (unidade === 'G') return quantidade * 1000;
+    if (unidade === 'ML') return quantidade; // Manter para líquidos
     return quantidade;
   };
 
@@ -179,29 +153,31 @@ export default function EditarFormulaPage() {
       novoItem.nome_insumo
     );
 
-    // FLAG AUTOMÁTICA: Ativo crítico (não editável pelo usuário)
+    // FLAG AUTOMÁTICA: Ativo crítico (não editável)
     const ativoCritico = isAtivoCritico(quantidadeConvertida, novoItem.unidade_informada);
     
-    // SUGESTÃO DE PRÉ-MIX: Apenas informativa, checkbox permanece como usuário definiu
-    // REGRA INDUSTRIAL: NÃO marcar automaticamente, apenas sugerir
-    const sugestaoPremix = sugerePremix(quantidadeConvertida, novoItem.unidade_informada, false);
+    // SUGESTÃO DE PRÉ-MIX: Apenas informativa
+    // REGRA: Checkbox permanece DESMARCADO - usuário decide
+    const sugestaoPremix = verificarSugestaoPremix(quantidadeConvertida, novoItem.unidade_informada, false);
     
     if (sugestaoPremix.sugerido && !novoItem.exige_premix) {
-      // Mostrar sugestão como alerta informativo, não impositivo
       toast.info(`Sugestão: Pré-mix recomendado para ${novoItem.nome_insumo} (${sugestaoPremix.motivo})`);
     }
 
-    // IMPORTANTE: Se o item veio do localStorage (hybrid), não pode enviar o ID como FK
-    // porque não existe na tabela itens do Supabase. Enviar null e manter apenas o nome.
+    // Mapear unidade para banco (G/ML -> MG após conversão)
+    const unidadeBanco = novoItem.unidade_informada === 'G' || novoItem.unidade_informada === 'ML' 
+      ? 'MG' as const 
+      : novoItem.unidade_informada as 'MG' | 'MCG' | 'UI';
+
     const item = await adicionar({
       formula_id: id,
       nome_insumo: novoItem.nome_insumo,
-      produto_materia_prima_id: null, // Sempre null para evitar erro de FK com itens locais
+      produto_materia_prima_id: null,
       quantidade_informada: novoItem.quantidade_informada,
-      unidade_informada: novoItem.unidade_informada,
+      unidade_informada: unidadeBanco,
       quantidade_convertida_mg: quantidadeConvertida,
-      ativo_critico: ativoCritico, // FLAG automática
-      exige_premix: novoItem.exige_premix, // NÃO automático - usuário decide
+      ativo_critico: ativoCritico,
+      exige_premix: novoItem.exige_premix,
       ordem_mistura: itensLocal.length,
     });
 
@@ -231,7 +207,6 @@ export default function EditarFormulaPage() {
   const handleAprovar = async () => {
     if (!formula) return;
 
-    // Validar
     const validacao = validarFormula(formula, itensLocal, conversoes);
     if (!validacao.valido) {
       validacao.erros.forEach(e => toast.error(e));
@@ -292,7 +267,7 @@ export default function EditarFormulaPage() {
               <Button 
                 className="bg-secondary hover:bg-secondary/90"
                 onClick={handleAprovar}
-                disabled={aprovando || calculos?.excedeu}
+                disabled={aprovando || calculosIndustriais?.excedeu_capacidade}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {aprovando ? "Aprovando..." : "Aprovar Fórmula"}
@@ -315,7 +290,6 @@ export default function EditarFormulaPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Linha 1: Seletor de Matéria-prima OU Nome manual */}
                 <div className="grid grid-cols-12 gap-4 items-end">
                   <div className="col-span-6 space-y-2">
                     <Label className="flex items-center gap-2">
@@ -349,13 +323,9 @@ export default function EditarFormulaPage() {
                       onChange={(e) => setNovoItem(prev => ({ ...prev, nome_insumo: e.target.value }))}
                       placeholder="Ex: Vitamina D3"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Preenchido automaticamente ou digite manualmente
-                    </p>
                   </div>
                 </div>
 
-                {/* Linha 2: Quantidade, Unidade, Pré-mix e Botão */}
                 <div className="grid grid-cols-12 gap-4 items-end">
                   <div className="col-span-3 space-y-2">
                     <Label>Quantidade</Label>
@@ -380,6 +350,7 @@ export default function EditarFormulaPage() {
                         <SelectItem value="MG">mg</SelectItem>
                         <SelectItem value="MCG">mcg</SelectItem>
                         <SelectItem value="UI">UI</SelectItem>
+                        <SelectItem value="G">g</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -399,8 +370,7 @@ export default function EditarFormulaPage() {
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="text-xs max-w-xs">
-                            Marque se o ativo requer diluição prévia com excipiente.
-                            O sistema sugere quando detecta dosagens críticas.
+                            Marque APENAS se necessário. O sistema sugere quando detecta doses críticas.
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -422,8 +392,7 @@ export default function EditarFormulaPage() {
                   <Alert className="mt-4 bg-muted/50">
                     <Beaker className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      <strong>Conversão UI:</strong> O sistema buscará o fator de conversão UI→mg 
-                      automaticamente. Certifique-se de que a substância está cadastrada em Conversões de Unidades.
+                      <strong>Conversão UI:</strong> O sistema buscará o fator de conversão automaticamente.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -442,7 +411,7 @@ export default function EditarFormulaPage() {
             <CardContent className="p-0">
               {itensLocal.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
-                  Nenhum ativo adicionado. Adicione pelo menos um ativo para prosseguir.
+                  Nenhum ativo adicionado.
                 </div>
               ) : (
                 <Table>
@@ -485,8 +454,7 @@ export default function EditarFormulaPage() {
                                 Pré-mix
                               </Badge>
                             )}
-                            {/* Sugestão de pré-mix (informativo) */}
-                            {!item.exige_premix && sugerePremix(item.quantidade_convertida_mg, item.unidade_informada, false).sugerido && (
+                            {!item.exige_premix && verificarSugestaoPremix(item.quantidade_convertida_mg, item.unidade_informada, false).sugerido && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger>
@@ -496,14 +464,15 @@ export default function EditarFormulaPage() {
                                     </Badge>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p className="text-xs">Pré-mix recomendado: {sugerePremix(item.quantidade_convertida_mg, item.unidade_informada, false).motivo}</p>
+                                    <p className="text-xs">
+                                      Pré-mix recomendado: {verificarSugestaoPremix(item.quantidade_convertida_mg, item.unidade_informada, false).motivo}
+                                    </p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             )}
                           </div>
                         </TableCell>
-                        {/* Botão de Consulta Regulatória ANVISA */}
                         <TableCell className="text-center">
                           <ConsultaRegulatoriaANVISA
                             nomeAtivo={item.nome_insumo}
@@ -538,81 +507,104 @@ export default function EditarFormulaPage() {
 
         {/* Coluna lateral - Resumo da cápsula */}
         <div className="space-y-6">
-          {formula.tipo_apresentacao === 'CAPSULA' && calculos && (
+          {formula.tipo_apresentacao === 'CAPSULA' && calculosIndustriais && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Scale className="h-4 w-4" />
                   Resumo da Cápsula
                 </CardTitle>
+                <CardDescription>
+                  Padrão industrial 500mg / 490mg alvo
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Barra de ocupação */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Ocupação</span>
-                    <span className={calculos.excedeu ? "text-destructive font-bold" : "font-medium"}>
-                      {calculos.ocupacao.toFixed(1)}%
+                    <span>Ocupação de Ativos</span>
+                    <span className={calculosIndustriais.excedeu_capacidade ? "text-destructive font-bold" : "font-medium"}>
+                      {calculosIndustriais.ocupacao_percentual.toFixed(1)}%
                     </span>
                   </div>
                   <Progress 
-                    value={Math.min(calculos.ocupacao, 100)} 
-                    className={calculos.excedeu ? "bg-destructive/20" : ""} 
+                    value={Math.min(calculosIndustriais.ocupacao_percentual, 100)} 
+                    className={calculosIndustriais.excedeu_capacidade ? "bg-destructive/20" : ""} 
                   />
                 </div>
 
                 <Separator />
 
-                {/* RESUMO INDUSTRIAL COMPLETO */}
+                {/* Peso Alvo */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Peso Alvo</span>
+                  <span className="font-mono font-medium">{calculosIndustriais.peso_alvo_mg} mg</span>
+                </div>
+
+                {/* Total Ativos */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Ativos</span>
+                  <span className="font-mono">{calculosIndustriais.total_ativos_mg.toFixed(2)} mg</span>
+                </div>
+
+                <Separator />
+
+                {/* EXCIPIENTES TECNOLÓGICOS FIXOS */}
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Peso Alvo</span>
-                    <span className="font-mono">{calculos.pesoAlvo} mg</span>
+                  <div className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+                    Excipientes Tecnológicos (FIXOS: {TOTAL_PERCENTUAL_TECNOLOGICOS}%)
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3" />
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <p className="text-xs">
+                            Percentuais industriais fixos aplicados automaticamente em todas as cápsulas.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Ativos</span>
-                    <span className="font-mono">{calculos.totalAtivos.toFixed(2)} mg</span>
-                  </div>
                   
-                  <Separator className="my-2" />
+                  {calculosIndustriais.excipientes_tecnologicos.map((exc) => (
+                    <div key={exc.nome} className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">{exc.nome} ({exc.percentual}%)</span>
+                      <span className="font-mono text-muted-foreground">{exc.quantidade_mg.toFixed(2)} mg</span>
+                    </div>
+                  ))}
                   
-                  {/* GRUPO A - Excipientes Tecnológicos EDITÁVEIS */}
-                  <ExcipientesTecnologicosEditor
-                    pesoAlvoMg={calculos.pesoAlvo}
-                    percentuais={percentuaisExcipientes}
-                    onPercentuaisChange={setPercentuaisExcipientes}
-                    disabled={isReadOnly}
-                  />
-                  
-                  <div className="flex justify-between text-sm pt-2">
+                  <div className="flex justify-between text-sm pt-1 border-t">
                     <span className="text-muted-foreground">Subtotal Tecnológicos</span>
-                    <span className="font-mono">{calculos.totalExcipientesTecnologicos.toFixed(2)} mg</span>
-                  </div>
-                  
-                  <Separator className="my-2" />
-                  
-                  {/* GRUPO B - Diluente Principal (Q.S.P.) */}
-                  <div className="flex justify-between text-sm font-medium">
-                    <span>Q.S.P. ({calculos.diluenteNome})</span>
-                    <span className={`font-mono ${calculos.qsp <= 0 ? "text-destructive" : "text-secondary"}`}>
-                      {calculos.qsp.toFixed(2)} mg
-                    </span>
+                    <span className="font-mono">{calculosIndustriais.total_excipientes_tecnologicos_mg.toFixed(2)} mg</span>
                   </div>
                 </div>
 
-                {calculos.excedeu && (
+                <Separator />
+
+                {/* VEÍCULO BASE (Q.S.P.) */}
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Q.S.P. ({calculosIndustriais.veiculo_base_nome})</span>
+                  <span className={`font-mono ${calculosIndustriais.qsp_negativo ? "text-destructive" : "text-secondary"}`}>
+                    {calculosIndustriais.veiculo_base_mg.toFixed(2)} mg
+                  </span>
+                </div>
+
+                {/* Alertas */}
+                {calculosIndustriais.excedeu_capacidade && (
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      O peso dos ativos + excipientes excede a capacidade da cápsula!
+                      Peso excede a capacidade da cápsula!
                     </AlertDescription>
                   </Alert>
                 )}
 
-                {calculos.qsp <= 0 && !calculos.excedeu && (
+                {calculosIndustriais.qsp_negativo && !calculosIndustriais.excedeu_capacidade && (
                   <Alert className="bg-warning/10 border-warning">
                     <AlertTriangle className="h-4 w-4 text-warning" />
                     <AlertDescription className="text-xs">
-                      Não há espaço para o diluente principal. Considere reduzir ativos.
+                      Sem espaço para veículo base. Reduza ativos.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -620,20 +612,20 @@ export default function EditarFormulaPage() {
                 <Separator />
 
                 <div className="text-xs text-muted-foreground">
-                  <p><strong>Diluente:</strong> {getNomeDiluente(formula.excipiente_padrao || 'AMIDO')}</p>
-                  <p><strong>Tipo:</strong> Cápsula {formula.tipo_capsula}</p>
+                  <p><strong>Veículo:</strong> {getNomeVeiculoBase(formula.excipiente_padrao || 'AMIDO')}</p>
+                  <p><strong>Cápsula:</strong> {formula.tipo_capsula}</p>
                 </div>
               </CardContent>
             </Card>
           )}
 
           {/* Ativos críticos */}
-          {itensLocal.filter(i => i.ativo_critico).length > 0 && (
+          {ativosCriticos > 0 && (
             <Card className="border-destructive/50">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2 text-destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  Ativos Críticos
+                  Ativos Críticos ({ativosCriticos})
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -649,14 +641,13 @@ export default function EditarFormulaPage() {
                   ))}
                 </ul>
                 <p className="text-xs text-muted-foreground mt-3">
-                  Ativos críticos exigem dupla conferência na pesagem. 
-                  Pré-blend é <strong>recomendado</strong>, mas opcional.
+                  Dupla conferência na pesagem recomendada.
                 </p>
               </CardContent>
             </Card>
           )}
 
-          {/* Info do status */}
+          {/* Status */}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-sm">
@@ -673,9 +664,7 @@ export default function EditarFormulaPage() {
                   </>
                 )}
                 {formula.status === 'BLOQUEADA' && (
-                  <>
-                    <Badge variant="destructive">Bloqueada</Badge>
-                  </>
+                  <Badge variant="destructive">Bloqueada</Badge>
                 )}
               </div>
             </CardContent>
