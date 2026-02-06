@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ItemFormDialog } from "@/components/itens/ItemFormDialog";
+import { ItemWizardDialog } from "@/components/itens/ItemWizardDialog";
 
 const TIPO_LABELS: Record<string, string> = {
   MP: "Materia Prima",
@@ -271,7 +271,7 @@ export default function ProdutosListPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <ItemFormDialog
+      <ItemWizardDialog
         open={showForm}
         onOpenChange={setShowForm}
         onSuccess={() => {
