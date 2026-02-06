@@ -2744,13 +2744,16 @@ export type Database = {
       }
       orcamento_itens: {
         Row: {
+          capsula_cor: string | null
           created_at: string
           desconto_percentual: number | null
           formula_id: string | null
           id: string
+          incluir_silica: boolean
           orcamento_id: string
           ordem: number | null
           peso_unidade_mg: number | null
+          pote_cor: string | null
           preco_final: number
           preco_unitario: number
           produto_codigo: string | null
@@ -2758,18 +2761,23 @@ export type Database = {
           produto_id: string | null
           produto_nome: string
           quantidade: number
+          rotulo: string | null
+          tampa_cor: string | null
           unidade: string | null
           unidades_por_frasco: number | null
           valor_total: number
         }
         Insert: {
+          capsula_cor?: string | null
           created_at?: string
           desconto_percentual?: number | null
           formula_id?: string | null
           id?: string
+          incluir_silica?: boolean
           orcamento_id: string
           ordem?: number | null
           peso_unidade_mg?: number | null
+          pote_cor?: string | null
           preco_final?: number
           preco_unitario?: number
           produto_codigo?: string | null
@@ -2777,18 +2785,23 @@ export type Database = {
           produto_id?: string | null
           produto_nome: string
           quantidade?: number
+          rotulo?: string | null
+          tampa_cor?: string | null
           unidade?: string | null
           unidades_por_frasco?: number | null
           valor_total?: number
         }
         Update: {
+          capsula_cor?: string | null
           created_at?: string
           desconto_percentual?: number | null
           formula_id?: string | null
           id?: string
+          incluir_silica?: boolean
           orcamento_id?: string
           ordem?: number | null
           peso_unidade_mg?: number | null
+          pote_cor?: string | null
           preco_final?: number
           preco_unitario?: number
           produto_codigo?: string | null
@@ -2796,6 +2809,8 @@ export type Database = {
           produto_id?: string | null
           produto_nome?: string
           quantidade?: number
+          rotulo?: string | null
+          tampa_cor?: string | null
           unidade?: string | null
           unidades_por_frasco?: number | null
           valor_total?: number
@@ -2830,9 +2845,11 @@ export type Database = {
           aprovado_por: string | null
           cliente_documento: string | null
           cliente_email: string | null
+          cliente_endereco: string | null
           cliente_id: string | null
           cliente_nome: string
           cliente_telefone: string | null
+          cliente_whatsapp: string | null
           codigo: string
           condicao_pagamento: string | null
           created_at: string
@@ -2855,9 +2872,11 @@ export type Database = {
           aprovado_por?: string | null
           cliente_documento?: string | null
           cliente_email?: string | null
+          cliente_endereco?: string | null
           cliente_id?: string | null
           cliente_nome: string
           cliente_telefone?: string | null
+          cliente_whatsapp?: string | null
           codigo: string
           condicao_pagamento?: string | null
           created_at?: string
@@ -2880,9 +2899,11 @@ export type Database = {
           aprovado_por?: string | null
           cliente_documento?: string | null
           cliente_email?: string | null
+          cliente_endereco?: string | null
           cliente_id?: string | null
           cliente_nome?: string
           cliente_telefone?: string | null
+          cliente_whatsapp?: string | null
           codigo?: string
           condicao_pagamento?: string | null
           created_at?: string
@@ -3168,15 +3189,18 @@ export type Database = {
       }
       pedido_itens: {
         Row: {
+          capsula_cor: string | null
           created_at: string
           desconto_percentual: number | null
           formula_id: string | null
           id: string
+          incluir_silica: boolean
           lote_produto_acabado_id: string | null
           orcamento_item_id: string | null
           ordem: number | null
           pedido_id: string
           peso_unidade_mg: number | null
+          pote_cor: string | null
           preco_final: number
           preco_unitario: number
           produto_codigo: string | null
@@ -3187,21 +3211,26 @@ export type Database = {
           quantidade_entregue: number | null
           quantidade_faturada: number | null
           quantidade_produzida: number | null
+          rotulo: string | null
           status: string | null
+          tampa_cor: string | null
           unidade: string | null
           unidades_por_frasco: number | null
           valor_total: number
         }
         Insert: {
+          capsula_cor?: string | null
           created_at?: string
           desconto_percentual?: number | null
           formula_id?: string | null
           id?: string
+          incluir_silica?: boolean
           lote_produto_acabado_id?: string | null
           orcamento_item_id?: string | null
           ordem?: number | null
           pedido_id: string
           peso_unidade_mg?: number | null
+          pote_cor?: string | null
           preco_final?: number
           preco_unitario?: number
           produto_codigo?: string | null
@@ -3212,21 +3241,26 @@ export type Database = {
           quantidade_entregue?: number | null
           quantidade_faturada?: number | null
           quantidade_produzida?: number | null
+          rotulo?: string | null
           status?: string | null
+          tampa_cor?: string | null
           unidade?: string | null
           unidades_por_frasco?: number | null
           valor_total?: number
         }
         Update: {
+          capsula_cor?: string | null
           created_at?: string
           desconto_percentual?: number | null
           formula_id?: string | null
           id?: string
+          incluir_silica?: boolean
           lote_produto_acabado_id?: string | null
           orcamento_item_id?: string | null
           ordem?: number | null
           pedido_id?: string
           peso_unidade_mg?: number | null
+          pote_cor?: string | null
           preco_final?: number
           preco_unitario?: number
           produto_codigo?: string | null
@@ -3237,7 +3271,9 @@ export type Database = {
           quantidade_entregue?: number | null
           quantidade_faturada?: number | null
           quantidade_produzida?: number | null
+          rotulo?: string | null
           status?: string | null
+          tampa_cor?: string | null
           unidade?: string | null
           unidades_por_frasco?: number | null
           valor_total?: number

@@ -396,7 +396,7 @@ export default function OrcamentosPage() {
 
       // Copiar itens para o pedido
       if (pedido && orcItens && orcItens.length > 0) {
-        const pedidoItens = orcItens.map(item => ({
+        const pedidoItens = orcItens.map((item: any) => ({
           pedido_id: pedido.id,
           orcamento_item_id: item.id,
           formula_id: item.formula_id,
@@ -406,11 +406,11 @@ export default function OrcamentosPage() {
           preco_final: item.preco_final,
           valor_total: item.valor_total,
           unidades_por_frasco: item.unidades_por_frasco,
-          rotulo: item.rotulo,
-          tampa_cor: item.tampa_cor,
-          capsula_cor: item.capsula_cor,
-          pote_cor: item.pote_cor,
-          incluir_silica: item.incluir_silica,
+          rotulo: item.rotulo || null,
+          tampa_cor: item.tampa_cor || null,
+          capsula_cor: item.capsula_cor || null,
+          pote_cor: item.pote_cor || null,
+          incluir_silica: item.incluir_silica ?? true,
           ordem: item.ordem,
           status: "PENDENTE",
         }));
@@ -565,7 +565,7 @@ export default function OrcamentosPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-yellow-500" />
+              <Clock className="h-5 w-5 text-warning" />
               <div>
                 <p className="text-2xl font-bold">
                   {orcamentos?.filter(o => o.status === "RASCUNHO" || o.status === "ENVIADO").length || 0}
@@ -578,7 +578,7 @@ export default function OrcamentosPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-2xl font-bold">
                   {orcamentos?.filter(o => o.status === "CONVERTIDO").length || 0}
@@ -1111,7 +1111,7 @@ export default function OrcamentosPage() {
                       </span>
                     )}
                     {selectedOrcamento.cliente_whatsapp && (
-                      <span className="text-green-600">WhatsApp: {selectedOrcamento.cliente_whatsapp}</span>
+                      <span className="text-primary font-medium">WhatsApp: {selectedOrcamento.cliente_whatsapp}</span>
                     )}
                   </div>
                 </div>
