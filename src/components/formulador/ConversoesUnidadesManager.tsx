@@ -6,9 +6,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
-  Plus, Trash2, Save, RefreshCw, Info, Beaker, Edit2, X, Check 
+  Plus, Trash2, Save, RefreshCw, Info, Beaker, Edit2, X, Check, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -40,12 +41,17 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
 interface ConversaoUnidade {
   id: string;
   substancia: string;
   fator_ui_para_mg: number;
+  conversao_ui_mcg?: number;
+  potencia_faixa_min?: number;
+  potencia_faixa_max?: number;
+  classificacao_risco?: 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA_CRITICO';
   fonte_tecnica?: string;
   ativo: boolean;
   created_at?: string;
@@ -255,6 +261,7 @@ export function ConversoesUnidadesManager() {
                   <TableHead className="text-right">Fator (1 UI = X mg)</TableHead>
                   <TableHead className="text-right">Equivalência</TableHead>
                   <TableHead>Fonte/Referência</TableHead>
+                  <TableHead>Risco</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -269,8 +276,22 @@ export function ConversoesUnidadesManager() {
                     <TableCell className="text-right text-muted-foreground text-sm">
                       {calcularExemplo(conv.fator_ui_para_mg)} UI = 1 mg
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                    <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
                       {conv.fonte_tecnica || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {conv.classificacao_risco === 'ULTRA_CRITICO' && (
+                        <Badge variant="destructive" className="text-xs">🚨 Ultra</Badge>
+                      )}
+                      {conv.classificacao_risco === 'CRITICO' && (
+                        <Badge variant="secondary" className="text-xs bg-warning/20 text-warning-foreground">⚠️ Crítico</Badge>
+                      )}
+                      {conv.classificacao_risco === 'ATENCAO' && (
+                        <Badge variant="outline" className="text-xs">📋 Atenção</Badge>
+                      )}
+                      {(!conv.classificacao_risco || conv.classificacao_risco === 'NORMAL') && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">Normal</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       <Button
@@ -316,16 +337,24 @@ export function ConversoesUnidadesManager() {
       {/* Exemplos de referência */}
       <Card className="bg-muted/30">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Referências Técnicas Comuns (USP)</CardTitle>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            Ativos Ultra Críticos - Referências Técnicas (USP)
+          </CardTitle>
           <CardDescription className="text-xs">
             Use estes valores como referência. Sempre confirme com o COA/laudo do fornecedor.
+            Ativos classificados como ULTRA CRÍTICO exigem <strong>diluição geométrica por pré-mistura</strong>.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-xs space-y-1">
-          <p><strong>Vitamina D3:</strong> 1 UI = 0,000025 mg (40.000 UI/mg)</p>
+          <p><strong className="text-destructive">🚨 Vitamina D3 (Colecalciferol):</strong> 1 UI = 0,025 mcg = 0,000025 mg | Potência: ~40M UI/g</p>
           <p><strong>Vitamina A (Retinol):</strong> 1 UI = 0,0003 mg (3.333 UI/mg)</p>
           <p><strong>Vitamina E (Tocoferol):</strong> 1 UI = 0,67 mg (1,49 UI/mg)</p>
           <p><strong>Vitamina K1:</strong> 1 UI = 0,001 mg (1.000 UI/mg)</p>
+          <Separator className="my-2" />
+          <p className="text-muted-foreground italic">
+            💡 Fórmula de massa real: massa_mg = (dose_UI / potência_UI/g) × 1000
+          </p>
         </CardContent>
       </Card>
 
