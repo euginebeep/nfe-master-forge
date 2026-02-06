@@ -52,7 +52,7 @@ export default function AuthPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
             <Building2 className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">LEGACY ERP</h1>
+          <h1 className="text-2xl font-bold">AXIOMA Labs</h1>
           <p className="text-muted-foreground">Sistema de Gestão Empresarial</p>
         </div>
 
