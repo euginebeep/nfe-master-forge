@@ -4,7 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { 
   FlaskConical, ChevronRight, ChevronLeft, AlertTriangle, 
-  CheckCircle2, XCircle, Droplets, Info, Lightbulb
+  CheckCircle2, XCircle, Droplets, Info, Lightbulb, Scale,
+  Beaker, AlertCircle
 } from "lucide-react";
 import {
   Dialog,
@@ -48,6 +49,7 @@ import {
   FormulaIndustrial,
   TipoCapsulaIndustrial,
   CAPSULAS_CAPACIDADE,
+  TipoAlertaFormula,
 } from "@/types/formulas-industrial";
 
 const wizardSchema = z.object({
@@ -489,36 +491,63 @@ export function FormulaWizardDialog({
                 {/* Alertas */}
                 {preview.alertas.length > 0 && (
                   <div className="space-y-2">
-                    {preview.alertas.map((alerta, idx) => (
-                      <Alert 
-                        key={idx} 
-                        variant={alerta.severidade === 'error' ? 'destructive' : 'default'}
-                        className={alerta.severidade === 'warning' ? 'border-warning' : ''}
-                      >
-                        {alerta.tipo === 'HIGROSCOPICO_DETECTADO' && (
-                          <Droplets className="h-4 w-4" />
-                        )}
-                        {alerta.tipo === 'EXCEDE_CAPACIDADE' && (
-                          <XCircle className="h-4 w-4" />
-                        )}
-                        {alerta.tipo !== 'HIGROSCOPICO_DETECTADO' && alerta.tipo !== 'EXCEDE_CAPACIDADE' && (
-                          <AlertTriangle className="h-4 w-4" />
-                        )}
-                        <AlertTitle className="text-sm font-medium">{alerta.mensagem}</AlertTitle>
-                        {alerta.sugestoes && (
-                          <AlertDescription className="mt-2">
-                            <div className="flex items-start gap-2">
-                              <Lightbulb className="h-4 w-4 mt-0.5 text-warning" />
-                              <ul className="text-xs space-y-1">
-                                {alerta.sugestoes.map((s, i) => (
-                                  <li key={i}>• {s}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          </AlertDescription>
-                        )}
-                      </Alert>
-                    ))}
+                    {preview.alertas.map((alerta, idx) => {
+                      // Função para obter ícone baseado no tipo
+                      const getAlertIcon = (tipo: TipoAlertaFormula) => {
+                        switch (tipo) {
+                          case 'HIGROSCOPICO_DETECTADO':
+                            return <Droplets className="h-4 w-4" />;
+                          case 'EXCEDE_CAPACIDADE':
+                          case 'QSP_NEGATIVO':
+                            return <XCircle className="h-4 w-4" />;
+                          case 'DILUICAO_GEOMETRICA':
+                            return <Beaker className="h-4 w-4" />;
+                          case 'PESAGEM_CRITICA':
+                            return <Scale className="h-4 w-4" />;
+                          case 'CONVERSAO_UI_SEM_CONCENTRACAO':
+                          case 'CONVERSAO_MCG_SEM_CONCENTRACAO':
+                          case 'POTENCIA_AUSENTE':
+                            return <AlertCircle className="h-4 w-4" />;
+                          default:
+                            return <AlertTriangle className="h-4 w-4" />;
+                        }
+                      };
+
+                      // Classe especial para diluição geométrica
+                      const isDiluicao = alerta.tipo === 'DILUICAO_GEOMETRICA';
+                      const isPesagemCritica = alerta.tipo === 'PESAGEM_CRITICA';
+                      
+                      return (
+                        <Alert 
+                          key={idx} 
+                          variant={alerta.severidade === 'error' ? 'destructive' : 'default'}
+                          className={`
+                            ${alerta.severidade === 'warning' ? 'border-warning bg-warning/10' : ''}
+                            ${isDiluicao ? 'border-2 border-destructive bg-destructive/10' : ''}
+                            ${isPesagemCritica ? 'border-warning bg-warning/5' : ''}
+                          `}
+                        >
+                          {getAlertIcon(alerta.tipo)}
+                          <AlertTitle className={`text-sm font-medium ${isDiluicao ? 'text-destructive' : ''}`}>
+                            {isDiluicao && '⚠️ DILUIÇÃO GEOMÉTRICA OBRIGATÓRIA: '}
+                            {isPesagemCritica && '⚖️ ATENÇÃO: '}
+                            {alerta.mensagem}
+                          </AlertTitle>
+                          {alerta.sugestoes && (
+                            <AlertDescription className="mt-2">
+                              <div className="flex items-start gap-2">
+                                <Lightbulb className={`h-4 w-4 mt-0.5 ${isDiluicao ? 'text-destructive' : 'text-warning'}`} />
+                                <ul className="text-xs space-y-1">
+                                  {alerta.sugestoes.map((s, i) => (
+                                    <li key={i} className={isDiluicao ? 'font-medium' : ''}>• {s}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </AlertDescription>
+                          )}
+                        </Alert>
+                      );
+                    })}
                   </div>
                 )}
 

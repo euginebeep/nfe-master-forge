@@ -28,7 +28,11 @@ export type TipoAlertaFormula =
   | 'HIGROSCOPICO_DETECTADO'
   | 'POTENCIA_AUSENTE'
   | 'CAPACIDADE_BAIXA'
-  | 'QSP_NEGATIVO';
+  | 'QSP_NEGATIVO'
+  | 'DILUICAO_GEOMETRICA'
+  | 'PESAGEM_CRITICA'
+  | 'CONVERSAO_UI_SEM_CONCENTRACAO'
+  | 'CONVERSAO_MCG_SEM_CONCENTRACAO';
 
 // ========================================
 // CAPACIDADES DE CÁPSULAS (mg)
@@ -215,6 +219,10 @@ export interface FormulaIngredienteIndustrial {
   // Flags
   higroscopico: boolean;
   nivel_higroscopicidade?: NivelHigroscopicidade;
+  
+  // Flags de diluição geométrica
+  requer_diluicao_geometrica?: boolean;
+  sugestao_premix?: string;
   
   // Ordem no rótulo/ficha
   ordem: number;
@@ -479,6 +487,71 @@ export function gerarAlertasFormula(formula: Partial<FormulaIndustrial>): Alerta
           mensagem: `Potência não informada para "${ing.nome_interno}". Não é possível calcular peso a pesar.`,
           severidade: 'error',
           ingrediente_id: ing.id,
+        });
+      }
+    });
+  
+  // ========================================
+  // ALERTAS DE DILUIÇÃO GEOMÉTRICA
+  // ========================================
+  
+  // Alerta: Doses < 1mg requerem diluição geométrica
+  const ingredientesCriticos = ingredientes.filter(i => 
+    i.categoria === 'ATIVO' && i.peso_a_pesar_mg < 1 && i.peso_a_pesar_mg > 0
+  );
+  
+  if (ingredientesCriticos.length > 0) {
+    ingredientesCriticos.forEach(ing => {
+      alertas.push({
+        tipo: 'DILUICAO_GEOMETRICA',
+        mensagem: `"${ing.nome_interno}" requer ${ing.peso_a_pesar_mg.toFixed(3)}mg - DILUIÇÃO GEOMÉTRICA OBRIGATÓRIA`,
+        severidade: 'error',
+        ingrediente_id: ing.id,
+        sugestoes: [
+          `Preparar pré-mistura com diluente (ex: amido, maltodextrina)`,
+          `Concentração sugerida: ${ing.peso_a_pesar_mg.toFixed(3)}mg do ativo + ${(10 - ing.peso_a_pesar_mg).toFixed(3)}mg de diluente = 10mg de premix por cápsula`,
+          'Cadastrar o premix como novo insumo com lote próprio',
+          'Documentar a diluição para rastreabilidade',
+        ],
+      });
+    });
+  }
+  
+  // Alerta: Doses entre 1mg e 5mg - pesagem crítica (warning)
+  const pesagensCriticas = ingredientes.filter(i =>
+    i.categoria === 'ATIVO' && i.peso_a_pesar_mg >= 1 && i.peso_a_pesar_mg < 5
+  );
+  
+  if (pesagensCriticas.length > 0) {
+    const nomes = pesagensCriticas.map(p => `${p.nome_interno} (${p.peso_a_pesar_mg.toFixed(2)}mg)`).join(', ');
+    alertas.push({
+      tipo: 'PESAGEM_CRITICA',
+      mensagem: `Pesagem crítica detectada: ${nomes}`,
+      severidade: 'warning',
+      sugestoes: [
+        'Usar balança analítica com precisão de 0.001g (1mg)',
+        'Verificar calibração da balança antes da pesagem',
+        'Pesar em ambiente controlado sem correntes de ar',
+        'Considerar diluição geométrica para maior precisão',
+      ],
+    });
+  }
+  
+  // Alerta: Conversão de UI sem concentração
+  ingredientes
+    .filter(i => i.unidade_dose === 'UI' && i.tipo_potencia !== 'UI_POR_GRAMA')
+    .forEach(ing => {
+      if (!ing.valor_potencia || ing.valor_potencia <= 0) {
+        alertas.push({
+          tipo: 'CONVERSAO_UI_SEM_CONCENTRACAO',
+          mensagem: `"${ing.nome_interno}" usa UI mas não tem concentração UI/g definida. BLOQUEADO.`,
+          severidade: 'error',
+          ingrediente_id: ing.id,
+          sugestoes: [
+            'Cadastrar a concentração UI/g no insumo',
+            'Consultar o certificado de análise do fornecedor',
+            'Sem a concentração, não é possível calcular o peso a pesar',
+          ],
         });
       }
     });
