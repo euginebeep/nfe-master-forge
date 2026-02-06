@@ -48,6 +48,7 @@ import RelatorioCapsulasPage from "./pages/relatorios/RelatorioCapsulasPage";
 import AuditoriaPage from "./pages/auditoria/AuditoriaPage";
 import UsuariosPage from "./pages/usuarios/UsuariosPage";
 import LoteAuditoriaPublicaPage from "./pages/audit/LoteAuditoriaPublicaPage";
+import VerificarOPPage from "./pages/producao/VerificarOPPage";
 
 const queryClient = new QueryClient();
 
@@ -118,8 +119,9 @@ const App = () => (
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/settings/usuarios" element={<UsuariosPage />} />
           </Route>
-          {/* Página Pública de Auditoria de Lote (sem layout) */}
+          {/* Páginas Públicas de Auditoria (sem layout) */}
           <Route path="/audit/lote/:hash" element={<LoteAuditoriaPublicaPage />} />
+          <Route path="/op/verify/:opId" element={<VerificarOPPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -2126,6 +2126,54 @@ export type Database = {
           },
         ]
       }
+      op_anexos: {
+        Row: {
+          congelado_em: string | null
+          congelado_por: string | null
+          created_at: string | null
+          hash_sha256: string
+          id: string
+          mime_type: string | null
+          nome_arquivo: string
+          observacoes: string | null
+          op_id: string
+          storage_key: string
+          tamanho_bytes: number | null
+          tipo_anexo: string
+          versao: number
+        }
+        Insert: {
+          congelado_em?: string | null
+          congelado_por?: string | null
+          created_at?: string | null
+          hash_sha256: string
+          id?: string
+          mime_type?: string | null
+          nome_arquivo: string
+          observacoes?: string | null
+          op_id: string
+          storage_key: string
+          tamanho_bytes?: number | null
+          tipo_anexo: string
+          versao?: number
+        }
+        Update: {
+          congelado_em?: string | null
+          congelado_por?: string | null
+          created_at?: string | null
+          hash_sha256?: string
+          id?: string
+          mime_type?: string | null
+          nome_arquivo?: string
+          observacoes?: string | null
+          op_id?: string
+          storage_key?: string
+          tamanho_bytes?: number | null
+          tipo_anexo?: string
+          versao?: number
+        }
+        Relationships: []
+      }
       op_assinaturas_rt: {
         Row: {
           assinatura_timestamp: string
@@ -2382,9 +2430,95 @@ export type Database = {
           },
         ]
       }
+      op_embalagens: {
+        Row: {
+          created_at: string | null
+          custo_total: number | null
+          custo_unitario: number | null
+          id: string
+          insumo_id: string | null
+          insumo_nome: string
+          lote_id: string | null
+          numero_lote: string | null
+          op_id: string
+          quantidade_consumida: number | null
+          quantidade_planejada: number
+          status: string | null
+          tipo_embalagem: string
+        }
+        Insert: {
+          created_at?: string | null
+          custo_total?: number | null
+          custo_unitario?: number | null
+          id?: string
+          insumo_id?: string | null
+          insumo_nome: string
+          lote_id?: string | null
+          numero_lote?: string | null
+          op_id: string
+          quantidade_consumida?: number | null
+          quantidade_planejada: number
+          status?: string | null
+          tipo_embalagem: string
+        }
+        Update: {
+          created_at?: string | null
+          custo_total?: number | null
+          custo_unitario?: number | null
+          id?: string
+          insumo_id?: string | null
+          insumo_nome?: string
+          lote_id?: string | null
+          numero_lote?: string | null
+          op_id?: string
+          quantidade_consumida?: number | null
+          quantidade_planejada?: number
+          status?: string | null
+          tipo_embalagem?: string
+        }
+        Relationships: []
+      }
+      op_historico_etapas: {
+        Row: {
+          created_at: string | null
+          etapa: string
+          finalizada_em: string | null
+          id: string
+          iniciada_em: string
+          observacoes: string | null
+          op_id: string
+          operador_id: string | null
+          operador_nome: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          etapa: string
+          finalizada_em?: string | null
+          id?: string
+          iniciada_em?: string
+          observacoes?: string | null
+          op_id: string
+          operador_id?: string | null
+          operador_nome?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          etapa?: string
+          finalizada_em?: string | null
+          id?: string
+          iniciada_em?: string
+          observacoes?: string | null
+          op_id?: string
+          operador_id?: string | null
+          operador_nome?: string | null
+        }
+        Relationships: []
+      }
       op_materias_primas: {
         Row: {
           categoria: string
+          coa_arquivo_id: string | null
+          coa_hash: string | null
           conferido_em: string | null
           conferido_por: string | null
           created_at: string | null
@@ -2407,12 +2541,15 @@ export type Database = {
           quantidade_minima_g: number | null
           quantidade_real_g: number | null
           quantidade_teorica_g: number
+          quantidade_teorica_kg: number | null
           quantidade_teorica_mg: number
           tolerancia_percentual: number | null
           unidade: string | null
         }
         Insert: {
           categoria?: string
+          coa_arquivo_id?: string | null
+          coa_hash?: string | null
           conferido_em?: string | null
           conferido_por?: string | null
           created_at?: string | null
@@ -2435,12 +2572,15 @@ export type Database = {
           quantidade_minima_g?: number | null
           quantidade_real_g?: number | null
           quantidade_teorica_g: number
+          quantidade_teorica_kg?: number | null
           quantidade_teorica_mg: number
           tolerancia_percentual?: number | null
           unidade?: string | null
         }
         Update: {
           categoria?: string
+          coa_arquivo_id?: string | null
+          coa_hash?: string | null
           conferido_em?: string | null
           conferido_por?: string | null
           created_at?: string | null
@@ -2463,6 +2603,7 @@ export type Database = {
           quantidade_minima_g?: number | null
           quantidade_real_g?: number | null
           quantidade_teorica_g?: number
+          quantidade_teorica_kg?: number | null
           quantidade_teorica_mg?: number
           tolerancia_percentual?: number | null
           unidade?: string | null
@@ -2639,8 +2780,11 @@ export type Database = {
       ordens_producao_industrial: {
         Row: {
           acrescimo_percentual: number | null
+          assinatura_rt_hash: string | null
           assinatura_rt_id: string | null
           capsulas_por_frasco: number
+          cliente_id: string | null
+          cliente_nome: string | null
           codigo: string
           created_at: string | null
           created_by: string | null
@@ -2648,24 +2792,33 @@ export type Database = {
           data_fim_producao: string | null
           data_inicio_producao: string | null
           data_validade: string
+          etapa_atualizada_em: string | null
+          etapa_producao_atual: string | null
           excipiente_base: string | null
           finalizado_por: string | null
           formula_codigo: string | null
           formula_id: string | null
           formula_versao: number | null
           id: string
+          linha_producao: string | null
           lote_produto_acabado: string
+          maquina: string | null
           motivo_bloqueio: string | null
           observacoes: string | null
           operadores: Json | null
+          pedido_id: string | null
+          pedido_numero: string | null
           peso_capsula_mg: number | null
           produto_id: string | null
           produto_nome: string
+          qr_code_hash: string | null
           qr_code_lote: string | null
+          qr_code_token: string | null
           quantidade_frascos: number
           responsavel_producao_id: string | null
           responsavel_producao_nome: string | null
           responsavel_tecnico_id: string | null
+          rt_assinatura_timestamp: string | null
           rt_nome: string | null
           rt_numero_registro: string | null
           rt_tipo_conselho:
@@ -2678,12 +2831,16 @@ export type Database = {
           tipo_capsula: string | null
           total_capsulas: number
           total_capsulas_com_acrescimo: number
+          turno: string | null
           updated_at: string | null
         }
         Insert: {
           acrescimo_percentual?: number | null
+          assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
           capsulas_por_frasco: number
+          cliente_id?: string | null
+          cliente_nome?: string | null
           codigo: string
           created_at?: string | null
           created_by?: string | null
@@ -2691,24 +2848,33 @@ export type Database = {
           data_fim_producao?: string | null
           data_inicio_producao?: string | null
           data_validade: string
+          etapa_atualizada_em?: string | null
+          etapa_producao_atual?: string | null
           excipiente_base?: string | null
           finalizado_por?: string | null
           formula_codigo?: string | null
           formula_id?: string | null
           formula_versao?: number | null
           id?: string
+          linha_producao?: string | null
           lote_produto_acabado: string
+          maquina?: string | null
           motivo_bloqueio?: string | null
           observacoes?: string | null
           operadores?: Json | null
+          pedido_id?: string | null
+          pedido_numero?: string | null
           peso_capsula_mg?: number | null
           produto_id?: string | null
           produto_nome: string
+          qr_code_hash?: string | null
           qr_code_lote?: string | null
+          qr_code_token?: string | null
           quantidade_frascos: number
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
+          rt_assinatura_timestamp?: string | null
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
@@ -2721,12 +2887,16 @@ export type Database = {
           tipo_capsula?: string | null
           total_capsulas: number
           total_capsulas_com_acrescimo: number
+          turno?: string | null
           updated_at?: string | null
         }
         Update: {
           acrescimo_percentual?: number | null
+          assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
           capsulas_por_frasco?: number
+          cliente_id?: string | null
+          cliente_nome?: string | null
           codigo?: string
           created_at?: string | null
           created_by?: string | null
@@ -2734,24 +2904,33 @@ export type Database = {
           data_fim_producao?: string | null
           data_inicio_producao?: string | null
           data_validade?: string
+          etapa_atualizada_em?: string | null
+          etapa_producao_atual?: string | null
           excipiente_base?: string | null
           finalizado_por?: string | null
           formula_codigo?: string | null
           formula_id?: string | null
           formula_versao?: number | null
           id?: string
+          linha_producao?: string | null
           lote_produto_acabado?: string
+          maquina?: string | null
           motivo_bloqueio?: string | null
           observacoes?: string | null
           operadores?: Json | null
+          pedido_id?: string | null
+          pedido_numero?: string | null
           peso_capsula_mg?: number | null
           produto_id?: string | null
           produto_nome?: string
+          qr_code_hash?: string | null
           qr_code_lote?: string | null
+          qr_code_token?: string | null
           quantidade_frascos?: number
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
+          rt_assinatura_timestamp?: string | null
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
@@ -2764,6 +2943,7 @@ export type Database = {
           tipo_capsula?: string | null
           total_capsulas?: number
           total_capsulas_com_acrescimo?: number
+          turno?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -3411,6 +3591,10 @@ export type Database = {
     }
     Functions: {
       gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }
+      gerar_hash_qr_code_op: {
+        Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -3449,6 +3633,10 @@ export type Database = {
           p_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
           p_tipo_produto: string
         }
+        Returns: boolean
+      }
+      validar_qr_code_op: {
+        Args: { p_hash: string; p_op_id: string }
         Returns: boolean
       }
     }
