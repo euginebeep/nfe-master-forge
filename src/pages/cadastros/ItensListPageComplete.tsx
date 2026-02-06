@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Package, Plus, Eye, Filter, Check } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useHybridItens, type HybridItem } from "@/hooks/use-hybrid-data";
-import { ItemFormDialog } from "@/components/itens/ItemFormDialog";
+import { ItemWizardDialog } from "@/components/itens/ItemWizardDialog";
 
 type TipoItem = 'MP' | 'EMBALAGEM' | 'ROTULO' | 'TAMPA' | 'POTE' | 'SILICA' | 'CAPSULA_VAZIA' | 'PA' | 'OUTRO';
 type CriticidadeItem = 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA';
@@ -37,6 +38,7 @@ const CRITICIDADE_VARIANTS: Record<CriticidadeItem, "success" | "warning" | "err
 
 export default function ItensListPageComplete() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedTipos, setSelectedTipos] = useState<TipoItem[]>([]);
   const [ativoFilter, setAtivoFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -172,10 +174,13 @@ export default function ItensListPageComplete() {
         }
       />
 
-      <ItemFormDialog
+      <ItemWizardDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSuccess={() => setDialogOpen(false)}
+        onSuccess={() => {
+          setDialogOpen(false);
+          queryClient.invalidateQueries({ queryKey: ["hybrid-itens"] });
+        }}
       />
 
       <DataTable
