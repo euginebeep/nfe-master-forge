@@ -570,13 +570,25 @@ export function useOPIndustrial() {
   // ============================================================
   // VERIFICAR ITEM DO CHECKLIST
   // ============================================================
-  const verificarChecklist = useCallback(async (checklistId: string, verificadoPor?: string) => {
+  const verificarChecklist = useCallback(async (checklistId: string, verificadoPorId?: string | null) => {
     try {
+      const isUuid = (v: string) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
+      let resolvedUserId: string | null = null;
+
+      if (verificadoPorId && isUuid(verificadoPorId)) {
+        resolvedUserId = verificadoPorId;
+      } else {
+        const { data } = await supabase.auth.getUser();
+        resolvedUserId = data.user?.id ?? null;
+      }
+
       const { error } = await supabase
         .from('op_checklist')
         .update({
           verificado: true,
-          verificado_por: verificadoPor,
+          verificado_por: resolvedUserId,
           verificado_em: new Date().toISOString(),
         })
         .eq('id', checklistId);

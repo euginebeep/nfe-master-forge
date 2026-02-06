@@ -151,6 +151,11 @@ export default function OrdemProducaoDetailPage() {
   };
 
   const handleFinalizar = async () => {
+    if (totalChecklist > 0 && checklistVerificados < totalChecklist) {
+      toast.error('Checklist obrigatório: conclua 100% antes de finalizar a OP');
+      return;
+    }
+
     const produzida = parseInt(qtdProduzida);
     const aprovada = parseInt(qtdAprovada);
     
@@ -174,7 +179,7 @@ export default function OrdemProducaoDetailPage() {
   };
 
   const handleVerificarChecklist = async (checklistId: string) => {
-    const success = await verificarChecklist(checklistId, 'Operador');
+    const success = await verificarChecklist(checklistId);
     if (success) {
       toast.success('Item do checklist verificado!');
       buscarChecklist(id!);
@@ -470,9 +475,10 @@ export default function OrdemProducaoDetailPage() {
                 <CardContent className="p-4 flex items-center gap-3">
                   <AlertTriangle className="h-5 w-5 text-warning" />
                   <div>
-                    <p className="font-medium text-warning">Checklist bloqueado</p>
+                    <p className="font-medium text-warning">Checklist por fase</p>
                     <p className="text-sm text-muted-foreground">
-                      {currentOP.status === 'PLANEJADA' && 'Inicie a produção para habilitar o checklist.'}
+                      {currentOP.status === 'PLANEJADA' && 'Pré-Produção liberada. Itens de Produção / Pós-Produção / QC só após “Iniciar Produção”.'}
+                      {currentOP.status === 'AGUARDANDO_MATERIAIS' && 'Pré-Produção liberada. Itens de Produção / Pós-Produção / QC só após “Iniciar Produção”.'}
                       {currentOP.status === 'FINALIZADA' && 'Esta OP já foi finalizada e o checklist não pode ser alterado.'}
                       {currentOP.status === 'BLOQUEADA' && 'Desbloqueie a OP para continuar com o checklist.'}
                       {currentOP.status === 'CANCELADA' && 'Esta OP foi cancelada.'}
@@ -500,41 +506,59 @@ export default function OrdemProducaoDetailPage() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-2">
-                      {items.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className={`flex items-center gap-3 p-2 rounded hover:bg-muted/50 ${
-                            currentOP.status !== 'EM_PRODUCAO' ? 'opacity-60' : ''
-                          }`}
-                        >
-                          <Checkbox 
-                            checked={item.verificado}
-                            onCheckedChange={() => {
-                              if (!item.verificado && currentOP.status === 'EM_PRODUCAO') {
-                                handleVerificarChecklist(item.id);
-                              } else if (currentOP.status !== 'EM_PRODUCAO') {
-                                toast.warning('Inicie a produção para marcar itens do checklist');
-                              }
-                            }}
-                            disabled={item.verificado}
-                            className={currentOP.status !== 'EM_PRODUCAO' ? 'cursor-not-allowed' : ''}
-                          />
-                          <div className="flex-1">
-                            <p className={item.verificado ? 'text-muted-foreground line-through' : ''}>
-                              {item.item}
-                            </p>
-                            {item.verificado && item.verificado_em && (
-                              <p className="text-xs text-muted-foreground">
-                                Verificado em {new Date(item.verificado_em).toLocaleString('pt-BR')} 
-                                {item.verificado_por && ` por ${item.verificado_por}`}
+                      {items.map((item) => {
+                        const status = currentOP.status;
+                        const opImutavel = status === 'FINALIZADA' || status === 'CANCELADA';
+                        const opBloqueada = status === 'BLOQUEADA';
+
+                        const liberadoPorFase =
+                          item.categoria === 'PRE_PRODUCAO'
+                            ? status === 'PLANEJADA' || status === 'AGUARDANDO_MATERIAIS' || status === 'EM_PRODUCAO'
+                            : status === 'EM_PRODUCAO';
+
+                        const podeInteragir = !item.verificado && !opImutavel && !opBloqueada;
+                        const podeMarcar = podeInteragir && liberadoPorFase;
+
+                        return (
+                          <div 
+                            key={item.id} 
+                            className={`flex items-center gap-3 p-2 rounded hover:bg-muted/50 ${
+                              !podeMarcar ? 'opacity-60' : ''
+                            }`}
+                          >
+                            <Checkbox 
+                              checked={item.verificado}
+                              onCheckedChange={() => {
+                                if (podeMarcar) {
+                                  handleVerificarChecklist(item.id);
+                                  return;
+                                }
+
+                                if (!podeInteragir) return;
+
+                                toast.warning(
+                                  'Itens de Produção / Pós-Produção / QC só podem ser marcados após “Iniciar Produção”.'
+                                );
+                              }}
+                              disabled={!podeInteragir}
+                              className={!podeMarcar ? 'cursor-not-allowed' : ''}
+                            />
+                            <div className="flex-1">
+                              <p className={item.verificado ? 'text-muted-foreground line-through' : ''}>
+                                {item.item}
                               </p>
+                              {item.verificado && item.verificado_em && (
+                                <p className="text-xs text-muted-foreground">
+                                  Verificado em {new Date(item.verificado_em).toLocaleString('pt-BR')}
+                                </p>
+                              )}
+                            </div>
+                            {item.obrigatorio && (
+                              <Badge variant="outline" className="text-xs">Obrigatório</Badge>
                             )}
                           </div>
-                          {item.obrigatorio && (
-                            <Badge variant="outline" className="text-xs">Obrigatório</Badge>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
