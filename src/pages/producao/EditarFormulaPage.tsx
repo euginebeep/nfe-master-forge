@@ -141,10 +141,14 @@ export default function EditarFormulaPage() {
 
     const ativoCritico = isAtivoCritico(quantidadeConvertida, novoItem.unidade_informada);
 
+    // IMPORTANTE: Se o item veio do localStorage (hybrid), não pode enviar o ID como FK
+    // porque não existe na tabela itens do Supabase. Enviar null e manter apenas o nome.
+    // O produto_materia_prima_id só deve ser preenchido se o item existir no Supabase.
+    // Como estamos usando dados híbridos, enviamos sempre null por segurança.
     const item = await adicionar({
       formula_id: id,
       nome_insumo: novoItem.nome_insumo,
-      produto_materia_prima_id: novoItem.produto_materia_prima_id,
+      produto_materia_prima_id: null, // Sempre null para evitar erro de FK com itens locais
       quantidade_informada: novoItem.quantidade_informada,
       unidade_informada: novoItem.unidade_informada,
       quantidade_convertida_mg: quantidadeConvertida,
