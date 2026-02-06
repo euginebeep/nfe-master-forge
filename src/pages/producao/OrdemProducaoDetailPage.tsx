@@ -176,7 +176,10 @@ export default function OrdemProducaoDetailPage() {
   const handleVerificarChecklist = async (checklistId: string) => {
     const success = await verificarChecklist(checklistId, 'Operador');
     if (success) {
+      toast.success('Item do checklist verificado!');
       buscarChecklist(id!);
+    } else {
+      toast.error('Erro ao verificar item do checklist');
     }
   };
 
@@ -461,30 +464,60 @@ export default function OrdemProducaoDetailPage() {
         {/* Tab: Checklist */}
         <TabsContent value="checklist">
           <div className="space-y-4">
+            {/* Aviso sobre status da OP */}
+            {currentOP.status !== 'EM_PRODUCAO' && (
+              <Card className="border-warning/50 bg-warning/5">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  <div>
+                    <p className="font-medium text-warning">Checklist bloqueado</p>
+                    <p className="text-sm text-muted-foreground">
+                      {currentOP.status === 'PLANEJADA' && 'Inicie a produção para habilitar o checklist.'}
+                      {currentOP.status === 'FINALIZADA' && 'Esta OP já foi finalizada e o checklist não pode ser alterado.'}
+                      {currentOP.status === 'BLOQUEADA' && 'Desbloqueie a OP para continuar com o checklist.'}
+                      {currentOP.status === 'CANCELADA' && 'Esta OP foi cancelada.'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             {categoriasChecklist.map(({ key, label }) => {
               const items = checklistPorCategoria[key] || [];
               if (items.length === 0) return null;
               
+              const verificadosCategoria = items.filter(i => i.verificado).length;
+              
               return (
                 <Card key={key}>
                   <CardHeader className="py-3">
-                    <CardTitle className="text-base">{label}</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">{label}</CardTitle>
+                      <span className="text-sm text-muted-foreground">
+                        {verificadosCategoria}/{items.length}
+                      </span>
+                    </div>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-2">
                       {items.map((item) => (
                         <div 
                           key={item.id} 
-                          className="flex items-center gap-3 p-2 rounded hover:bg-muted/50"
+                          className={`flex items-center gap-3 p-2 rounded hover:bg-muted/50 ${
+                            currentOP.status !== 'EM_PRODUCAO' ? 'opacity-60' : ''
+                          }`}
                         >
                           <Checkbox 
                             checked={item.verificado}
                             onCheckedChange={() => {
                               if (!item.verificado && currentOP.status === 'EM_PRODUCAO') {
                                 handleVerificarChecklist(item.id);
+                              } else if (currentOP.status !== 'EM_PRODUCAO') {
+                                toast.warning('Inicie a produção para marcar itens do checklist');
                               }
                             }}
-                            disabled={item.verificado || currentOP.status !== 'EM_PRODUCAO'}
+                            disabled={item.verificado}
+                            className={currentOP.status !== 'EM_PRODUCAO' ? 'cursor-not-allowed' : ''}
                           />
                           <div className="flex-1">
                             <p className={item.verificado ? 'text-muted-foreground line-through' : ''}>
@@ -492,7 +525,8 @@ export default function OrdemProducaoDetailPage() {
                             </p>
                             {item.verificado && item.verificado_em && (
                               <p className="text-xs text-muted-foreground">
-                                Verificado em {new Date(item.verificado_em).toLocaleString('pt-BR')}
+                                Verificado em {new Date(item.verificado_em).toLocaleString('pt-BR')} 
+                                {item.verificado_por && ` por ${item.verificado_por}`}
                               </p>
                             )}
                           </div>
