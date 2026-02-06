@@ -35,6 +35,7 @@ import {
 import { EtapasProducaoTracker, type EtapaProducao } from '@/components/producao/EtapasProducaoTracker';
 import { OPTabResumoAuditoria } from '@/components/producao/OPTabResumoAuditoria';
 import { OPTabEmbalagens } from '@/components/producao/OPTabEmbalagens';
+import { OPTabPesagemIndustrial } from '@/components/producao/OPTabPesagemIndustrial';
 import { OPTabProcesso } from '@/components/producao/OPTabProcesso';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { toast } from 'sonner';
@@ -432,100 +433,20 @@ export default function OrdemProducaoDetailPage() {
           <OPTabResumoAuditoria op={currentOP as any} />
         </TabsContent>
 
-        {/* Tab: Matérias-Primas */}
+        {/* Tab: Matérias-Primas - Formato Industrial Profissional */}
         <TabsContent value="materias-primas">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Scale className="h-5 w-5" />
-                Lista de Pesagem - Ordem de Mistura Industrial
-              </CardTitle>
-              <CardDescription>
-                Ordem fixa ANVISA: Ativos → Excipiente Base → Dióxido de Silício → Talco → Estearato de Magnésio
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Ordem</TableHead>
-                    <TableHead>Insumo</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead className="text-right">Teórico (g)</TableHead>
-                    <TableHead className="text-right">Tolerância</TableHead>
-                    <TableHead className="text-right">Real (g)</TableHead>
-                    <TableHead>Lote</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {materiasPrimas.map((item) => (
-                    <TableRow 
-                      key={item.id}
-                      className={item.pesagem_critica ? 'bg-destructive/5' : ''}
-                    >
-                      <TableCell>
-                        <span className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-sm">
-                          {item.ordem_mistura}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{item.insumo_nome}</p>
-                          {item.motivo_critico && (
-                            <p className="text-xs text-destructive flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              {item.motivo_critico}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {item.categoria}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold">
-                        {item.quantidade_teorica_g.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">
-                        {item.quantidade_minima_g.toFixed(2)} - {item.quantidade_maxima_g.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {item.quantidade_real_g !== null && item.quantidade_real_g !== undefined ? (
-                          <span className={item.dentro_tolerancia ? 'text-secondary' : 'text-destructive'}>
-                            {item.quantidade_real_g.toFixed(2)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {item.numero_lote || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {item.quantidade_real_g !== null && item.quantidade_real_g !== undefined ? (
-                          item.dentro_tolerancia ? (
-                            <Badge variant="secondary" className="text-xs">
-                              <Check className="h-3 w-3 mr-1" />
-                              OK
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs border-warning text-warning">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              Fora
-                            </Badge>
-                          )
-                        ) : (
-                          <Badge variant="outline" className="text-xs">Pendente</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <OPTabPesagemIndustrial
+            materiasPrimas={materiasPrimas}
+            pesagensCriticas={pesagensCriticas}
+            statusOP={currentOP.status}
+            totalCapsulas={currentOP.total_capsulas_com_acrescimo}
+            pesoCapsula={currentOP.peso_capsula_mg}
+            onRegistrarPesagem={async (id, pesoReal, lote) => {
+              const success = await registrarPesagem(id, pesoReal, lote);
+              if (success) refresh();
+              return success;
+            }}
+          />
         </TabsContent>
 
         {/* Tab: Checklist */}
