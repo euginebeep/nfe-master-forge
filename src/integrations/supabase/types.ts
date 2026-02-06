@@ -4108,6 +4108,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      baixar_estoque_op_embalagens: {
+        Args: { p_op_id: string }
+        Returns: undefined
+      }
+      baixar_estoque_op_materias_primas: {
+        Args: { p_op_id: string }
+        Returns: undefined
+      }
       gerar_codigo_orcamento: { Args: never; Returns: string }
       gerar_codigo_pedido: { Args: never; Returns: string }
       gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }

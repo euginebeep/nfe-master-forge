@@ -549,6 +549,14 @@ export function CriarOPDialogMaster({
       if (newOP) {
         await criarChecklistPadrao(newOP.id);
         await criarControlePerdas(newOP.id, totalUnidades);
+        
+        // Dar baixa no estoque de embalagens (se houver lotes vinculados)
+        try {
+          await supabase.rpc('baixar_estoque_op_embalagens', { p_op_id: newOP.id });
+          await supabase.rpc('baixar_estoque_op_materias_primas', { p_op_id: newOP.id });
+        } catch (err) {
+          console.warn('Baixa de estoque não realizada (lotes podem não estar vinculados):', err);
+        }
       }
 
       toast.success(`OP ${codigo} criada com sucesso!`, {

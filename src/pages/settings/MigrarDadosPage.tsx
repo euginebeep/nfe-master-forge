@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Database, Upload, Loader2, CheckCircle, AlertCircle, Package, Building2, Boxes } from "lucide-react";
+import { Database, Upload, Loader2, CheckCircle, AlertCircle, Package, Building2, Boxes, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { 
   migrateAllToSupabase, 
@@ -62,9 +63,17 @@ export default function MigrarDadosPage() {
     <div className="max-w-4xl mx-auto">
       <PageHeader
         title="Migrar Dados para Nuvem"
-        description="Sincronize os dados do localStorage para o banco de dados Supabase"
+        description="Sincronize os dados do localStorage para o banco de dados. Após a migração, seus dados estarão disponíveis em qualquer dispositivo."
         icon={Database}
       />
+
+      <Alert className="mb-6 border-primary/50 bg-primary/5">
+        <Upload className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Importante:</strong> Seus dados atuais estão salvos localmente neste navegador. 
+          Para usar o sistema em outros dispositivos ou colaborar com sua equipe, migre os dados para o banco de dados.
+        </AlertDescription>
+      </Alert>
 
       <div className="space-y-6">
         {/* Current Local Data */}
