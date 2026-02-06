@@ -259,12 +259,47 @@ export function validarFormula(
   }
   
   // Validar conversões de UI
+  const normalizarTexto = (texto: string): string => {
+    return texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '')
+      .trim();
+  };
+
+  const extrairIdVitamina = (nome: string): string | null => {
+    const s = normalizarTexto(nome);
+    const m = s.match(/(?:vitamina|vit)?([a-z]\d+)/);
+    if (m?.[1]) return m[1];
+
+    const afterPrefix = s.replace(/^vitamina/, '').replace(/^vit/, '');
+    if (afterPrefix.length > 0) return afterPrefix[0];
+
+    return null;
+  };
+
+  const encontrarConversaoUI = (nomeInsumo: string): ConversaoUnidade | undefined => {
+    const alvoNorm = normalizarTexto(nomeInsumo);
+    const idAlvo = extrairIdVitamina(nomeInsumo);
+
+    return conversoes.find((c) => {
+      const candNorm = normalizarTexto(c.substancia);
+
+      // Match por inclusão (fallback)
+      if (candNorm.includes(alvoNorm) || alvoNorm.includes(candNorm)) return true;
+
+      // Match por identificador de vitamina (ex: d3, b12, k1)
+      const idCand = extrairIdVitamina(c.substancia);
+      if (idAlvo && idCand && idAlvo === idCand) return true;
+
+      return false;
+    });
+  };
+
   for (const item of itens) {
     if (item.unidade_informada === 'UI') {
-      const conversao = conversoes.find(c => 
-        c.substancia.toLowerCase().includes(item.nome_insumo.toLowerCase()) ||
-        item.nome_insumo.toLowerCase().includes(c.substancia.toLowerCase())
-      );
+      const conversao = encontrarConversaoUI(item.nome_insumo);
       if (!conversao) {
         erros.push(`Fator de conversão UI→mg não encontrado para: ${item.nome_insumo}`);
       }
