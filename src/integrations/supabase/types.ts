@@ -564,28 +564,40 @@ export type Database = {
       conversoes_unidades: {
         Row: {
           ativo: boolean | null
+          classificacao_risco: string | null
+          conversao_ui_mcg: number | null
           created_at: string | null
           fator_ui_para_mg: number
           fonte_tecnica: string | null
           id: string
+          potencia_faixa_max: number | null
+          potencia_faixa_min: number | null
           substancia: string
           updated_at: string | null
         }
         Insert: {
           ativo?: boolean | null
+          classificacao_risco?: string | null
+          conversao_ui_mcg?: number | null
           created_at?: string | null
           fator_ui_para_mg: number
           fonte_tecnica?: string | null
           id?: string
+          potencia_faixa_max?: number | null
+          potencia_faixa_min?: number | null
           substancia: string
           updated_at?: string | null
         }
         Update: {
           ativo?: boolean | null
+          classificacao_risco?: string | null
+          conversao_ui_mcg?: number | null
           created_at?: string | null
           fator_ui_para_mg?: number
           fonte_tecnica?: string | null
           id?: string
+          potencia_faixa_max?: number | null
+          potencia_faixa_min?: number | null
           substancia?: string
           updated_at?: string | null
         }
@@ -1291,11 +1303,14 @@ export type Database = {
       }
       formula_itens: {
         Row: {
+          alerta_exibido: boolean | null
           ativo_critico: boolean | null
+          classificacao_risco: string | null
           created_at: string | null
           exige_premix: boolean | null
           formula_id: string
           id: string
+          metodo_distribuicao: string | null
           nome_insumo: string
           ordem_mistura: number | null
           percentual_na_capsula: number | null
@@ -1305,11 +1320,14 @@ export type Database = {
           unidade_informada: Database["public"]["Enums"]["unidade_informada_formula"]
         }
         Insert: {
+          alerta_exibido?: boolean | null
           ativo_critico?: boolean | null
+          classificacao_risco?: string | null
           created_at?: string | null
           exige_premix?: boolean | null
           formula_id: string
           id?: string
+          metodo_distribuicao?: string | null
           nome_insumo: string
           ordem_mistura?: number | null
           percentual_na_capsula?: number | null
@@ -1319,11 +1337,14 @@ export type Database = {
           unidade_informada?: Database["public"]["Enums"]["unidade_informada_formula"]
         }
         Update: {
+          alerta_exibido?: boolean | null
           ativo_critico?: boolean | null
+          classificacao_risco?: string | null
           created_at?: string | null
           exige_premix?: boolean | null
           formula_id?: string
           id?: string
+          metodo_distribuicao?: string | null
           nome_insumo?: string
           ordem_mistura?: number | null
           percentual_na_capsula?: number | null
@@ -1600,9 +1621,13 @@ export type Database = {
         Row: {
           armazenamento: string | null
           ativo: boolean
+          bloquear_entrada_mg_manual: boolean | null
           categoria_operacional: string | null
+          classificacao_risco: string | null
           controla_lote: boolean
           controla_validade: boolean
+          controle_especial: boolean | null
+          conversao_ui_mcg: number | null
           created_at: string
           criticidade: string | null
           densidade_aparente: number | null
@@ -1613,10 +1638,12 @@ export type Database = {
           fator_conversao: number | null
           higroscopico: boolean | null
           id: string
+          metodo_distribuicao: string | null
           ncm: string | null
           potencia_compra: number | null
           potencia_rotulo: number | null
           sku_interno: string | null
+          texto_alerta_padrao: string | null
           tipo_item: string
           unidade_declaracao: string | null
           unidade_interna: string
@@ -1626,9 +1653,13 @@ export type Database = {
         Insert: {
           armazenamento?: string | null
           ativo?: boolean
+          bloquear_entrada_mg_manual?: boolean | null
           categoria_operacional?: string | null
+          classificacao_risco?: string | null
           controla_lote?: boolean
           controla_validade?: boolean
+          controle_especial?: boolean | null
+          conversao_ui_mcg?: number | null
           created_at?: string
           criticidade?: string | null
           densidade_aparente?: number | null
@@ -1639,10 +1670,12 @@ export type Database = {
           fator_conversao?: number | null
           higroscopico?: boolean | null
           id?: string
+          metodo_distribuicao?: string | null
           ncm?: string | null
           potencia_compra?: number | null
           potencia_rotulo?: number | null
           sku_interno?: string | null
+          texto_alerta_padrao?: string | null
           tipo_item?: string
           unidade_declaracao?: string | null
           unidade_interna?: string
@@ -1652,9 +1685,13 @@ export type Database = {
         Update: {
           armazenamento?: string | null
           ativo?: boolean
+          bloquear_entrada_mg_manual?: boolean | null
           categoria_operacional?: string | null
+          classificacao_risco?: string | null
           controla_lote?: boolean
           controla_validade?: boolean
+          controle_especial?: boolean | null
+          conversao_ui_mcg?: number | null
           created_at?: string
           criticidade?: string | null
           densidade_aparente?: number | null
@@ -1665,10 +1702,12 @@ export type Database = {
           fator_conversao?: number | null
           higroscopico?: boolean | null
           id?: string
+          metodo_distribuicao?: string | null
           ncm?: string | null
           potencia_compra?: number | null
           potencia_rotulo?: number | null
           sku_interno?: string | null
+          texto_alerta_padrao?: string | null
           tipo_item?: string
           unidade_declaracao?: string | null
           unidade_interna?: string
