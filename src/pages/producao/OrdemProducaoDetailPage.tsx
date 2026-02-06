@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EtapasProducaoTracker, type EtapaProducao } from '@/components/producao/EtapasProducaoTracker';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { toast } from 'sonner';
 import type { StatusOP, OPMateriaPrima, OPChecklist, OPPesagemCritica } from '@/types/op-industrial';
@@ -55,6 +56,7 @@ export default function OrdemProducaoDetailPage() {
   const [dialogFinalizar, setDialogFinalizar] = useState(false);
   const [qtdProduzida, setQtdProduzida] = useState('');
   const [qtdAprovada, setQtdAprovada] = useState('');
+  const [etapaAtual, setEtapaAtual] = useState<EtapaProducao | null>(null);
 
   // Carregar dados da OP
   useEffect(() => {
@@ -312,6 +314,44 @@ export default function OrdemProducaoDetailPage() {
         </Card>
       </div>
 
+      {/* Tracker de Etapas - Apenas quando Em Produção */}
+      {currentOP.status === 'EM_PRODUCAO' && (
+        <Card className="mb-6">
+          <CardHeader className="py-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Factory className="h-4 w-4" />
+              Acompanhamento de Produção
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <EtapasProducaoTracker etapaAtual={etapaAtual} />
+            
+            {/* Seletor de etapa (para operador atualizar) */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(['SEPARACAO_MP', 'PESAGEM', 'MISTURA', 'ENCAPSULAMENTO', 'ENVASE', 
+                'FECHAMENTO_INDUCAO', 'ROTULACAO', 'MARCACAO_VALIDADE', 'CONTAGEM', 
+                'EMPACOTAMENTO', 'CONFERENCIA', 'EMISSAO_NF', 'COLETA'] as EtapaProducao[]).map((etapa, idx) => {
+                const labels = ['Separação', 'Pesagem', 'Mistura', 'Encapsular', 'Envase', 
+                  'Indução', 'Rótulo', 'Validade', 'Contagem', 'Empacot.', 'Conferir', 'NF', 'Coleta'];
+                const isActive = etapaAtual === etapa;
+                
+                return (
+                  <Button
+                    key={etapa}
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    className={isActive ? "bg-success hover:bg-success/90" : ""}
+                    onClick={() => setEtapaAtual(etapa)}
+                  >
+                    {labels[idx]}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Progresso */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <Card>
@@ -320,7 +360,11 @@ export default function OrdemProducaoDetailPage() {
               <span className="text-sm font-medium">Pesagem</span>
               <span className="text-sm">{itensPesados}/{totalItens}</span>
             </div>
-            <Progress value={progressoPesagem} />
+            <Progress 
+              value={progressoPesagem} 
+              className="h-3"
+              indicatorClassName={progressoPesagem === 100 ? "bg-success" : "bg-muted-foreground/30"}
+            />
           </CardContent>
         </Card>
         <Card>
@@ -329,7 +373,11 @@ export default function OrdemProducaoDetailPage() {
               <span className="text-sm font-medium">Checklist</span>
               <span className="text-sm">{checklistVerificados}/{totalChecklist}</span>
             </div>
-            <Progress value={progressoChecklist} />
+            <Progress 
+              value={progressoChecklist} 
+              className="h-3"
+              indicatorClassName={progressoChecklist === 100 ? "bg-success" : "bg-muted-foreground/30"}
+            />
           </CardContent>
         </Card>
       </div>
