@@ -10,11 +10,12 @@ import { z } from "zod";
 import { 
   CalendarIcon, Package, FlaskConical, User, Hash, Calculator, 
   AlertTriangle, UserCheck, Beaker, Scale, Factory, ChevronRight,
-  ChevronLeft, Check, FileText
+  ChevronLeft, Check, FileText, Search, Plus, Building2
 } from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 import {
   Dialog,
@@ -56,9 +57,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { RTSelectorOP } from "@/components/responsavel-tecnico/RTSelectorOP";
+
+// Tipos de entidade para busca de clientes
+interface EntidadeCliente {
+  id: string;
+  razao_social: string;
+  nome_fantasia?: string;
+  documento: string;
+}
 
 // ============================================================
 // TIPOS
@@ -112,6 +122,7 @@ const formSchema = z.object({
   tipo_op: z.enum(["MANUAL", "BASEADA_FORMULA", "BASEADA_PEDIDO"]),
   formula_id: z.string().optional(),
   pedido_id: z.string().optional(),
+  cliente_id: z.string().optional(),
   cliente_nome: z.string().optional(),
   cliente_documento: z.string().optional(),
   
@@ -120,6 +131,15 @@ const formSchema = z.object({
   tipo_produto: z.enum(["CAPSULA", "LIQUIDO", "PO"]),
   quantidade_frascos: z.number().min(1, "Mínimo 1 frasco"),
   unidades_por_frasco: z.number().min(1, "Mínimo 1 unidade por frasco"),
+  
+  // Especificações de Embalagem
+  cor_capsula: z.string().optional(),
+  cor_tampa: z.string().optional(),
+  tipo_pote: z.string().optional(),
+  tipo_tampa: z.string().optional(),
+  incluir_silica: z.boolean().default(true),
+  quantidade_silica_sache: z.string().default("1g"),
+  descricao_rotulo: z.string().optional(),
   
   // Etapa 3: Lote e Rastreabilidade
   lote_produto_acabado: z.string().min(1, "Lote é obrigatório"),
@@ -159,13 +179,18 @@ export function CriarOPDialogMaster({
   onOpenChange,
   onSuccess,
 }: CriarOPDialogMasterProps) {
+  const navigate = useNavigate();
   const [etapaAtual, setEtapaAtual] = useState<EtapaWizard>(1);
   const [formulas, setFormulas] = useState<Formula[]>([]);
   const [pedidos, setPedidos] = useState<PedidoVenda[]>([]);
+  const [clientes, setClientes] = useState<EntidadeCliente[]>([]);
+  const [clienteSearch, setClienteSearch] = useState("");
   const [selectedFormula, setSelectedFormula] = useState<Formula | null>(null);
   const [selectedPedido, setSelectedPedido] = useState<PedidoVenda | null>(null);
+  const [selectedCliente, setSelectedCliente] = useState<EntidadeCliente | null>(null);
   const [pedidoItens, setPedidoItens] = useState<PedidoItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showClienteDropdown, setShowClienteDropdown] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -173,12 +198,20 @@ export function CriarOPDialogMaster({
       tipo_op: "MANUAL",
       formula_id: "",
       pedido_id: "",
+      cliente_id: "",
       cliente_nome: "",
       cliente_documento: "",
       produto_nome: "",
       tipo_produto: "CAPSULA",
       quantidade_frascos: 100,
       unidades_por_frasco: 60,
+      cor_capsula: "",
+      cor_tampa: "",
+      tipo_pote: "",
+      tipo_tampa: "",
+      incluir_silica: true,
+      quantidade_silica_sache: "1g",
+      descricao_rotulo: "",
       lote_produto_acabado: "",
       tipo_capsula: "00",
       excipiente_base: "AMIDO",
@@ -228,9 +261,45 @@ export function CriarOPDialogMaster({
       form.reset();
       setSelectedFormula(null);
       setSelectedPedido(null);
+      setSelectedCliente(null);
       setPedidoItens([]);
+      setClientes([]);
+      setClienteSearch("");
     }
   }, [open, form]);
+
+  // Buscar clientes quando o usuário digita
+  useEffect(() => {
+    const buscarClientes = async () => {
+      if (clienteSearch.length < 2) {
+        setClientes([]);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from("entidades")
+        .select("id, razao_social, nome_fantasia, documento")
+        .or(`razao_social.ilike.%${clienteSearch}%,nome_fantasia.ilike.%${clienteSearch}%,documento.ilike.%${clienteSearch}%`)
+        .eq("status", "ATIVO")
+        .limit(10);
+      
+      setClientes((data as EntidadeCliente[]) || []);
+      setShowClienteDropdown(true);
+    };
+
+    const debounce = setTimeout(buscarClientes, 300);
+    return () => clearTimeout(debounce);
+  }, [clienteSearch]);
+
+  // Quando seleciona um cliente
+  const handleClienteSelect = (cliente: EntidadeCliente) => {
+    setSelectedCliente(cliente);
+    form.setValue("cliente_id", cliente.id);
+    form.setValue("cliente_nome", cliente.nome_fantasia || cliente.razao_social);
+    form.setValue("cliente_documento", cliente.documento);
+    setClienteSearch(cliente.nome_fantasia || cliente.razao_social);
+    setShowClienteDropdown(false);
+  };
 
   // Gerar lote automático quando data de fabricação muda
   useEffect(() => {
@@ -405,6 +474,17 @@ export function CriarOPDialogMaster({
         rt_uf_conselho: rtData.rt_uf_conselho || null,
         rt_vinculado_em: new Date().toISOString(),
         observacoes: values.observacoes || null,
+        // Cliente
+        cliente_id: values.cliente_id || null,
+        cliente_nome: values.cliente_nome || null,
+        // Embalagem
+        cor_capsula: values.cor_capsula || null,
+        cor_tampa: values.cor_tampa || null,
+        tipo_pote: values.tipo_pote || null,
+        tipo_tampa: values.tipo_tampa || null,
+        incluir_silica: values.incluir_silica,
+        quantidade_silica_sache: values.quantidade_silica_sache || null,
+        descricao_rotulo: values.descricao_rotulo || null,
       };
 
       const { data: newOP, error } = await supabase
@@ -884,13 +964,94 @@ export function CriarOPDialogMaster({
   );
 
   const renderEtapa2 = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
       <div className="flex items-center gap-2 mb-4">
         <Package className="h-5 w-5 text-primary" />
         <h3 className="text-lg font-semibold">Dados Produtivos</h3>
         <Badge variant="destructive" className="ml-auto">Obrigatório</Badge>
       </div>
 
+      {/* ===== SEÇÃO CLIENTE ===== */}
+      <Card className="border-secondary/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Cliente
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="relative">
+            <FormLabel>Buscar Cliente *</FormLabel>
+            <div className="relative mt-1.5">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Digite nome, razão social ou CNPJ..."
+                value={clienteSearch}
+                onChange={(e) => setClienteSearch(e.target.value)}
+                onFocus={() => clientes.length > 0 && setShowClienteDropdown(true)}
+                className="pl-9"
+              />
+            </div>
+            
+            {/* Dropdown de clientes */}
+            {showClienteDropdown && clientes.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                {clientes.map((cliente) => (
+                  <div
+                    key={cliente.id}
+                    className="px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                    onClick={() => handleClienteSelect(cliente)}
+                  >
+                    <div className="font-medium text-sm">{cliente.nome_fantasia || cliente.razao_social}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {cliente.documento.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {clienteSearch.length >= 2 && clientes.length === 0 && (
+              <div className="mt-2">
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Cliente não encontrado.</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate("/cadastros/entidades");
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Cadastrar
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+          </div>
+          
+          {selectedCliente && (
+            <div className="p-3 bg-secondary/10 rounded-lg border border-secondary/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{selectedCliente.nome_fantasia || selectedCliente.razao_social}</p>
+                  <p className="text-xs text-muted-foreground">
+                    CNPJ: {selectedCliente.documento.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}
+                  </p>
+                </div>
+                <Badge variant="secondary">Vinculado</Badge>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===== PRODUTO ===== */}
       <FormField
         control={form.control}
         name="produto_nome"
@@ -988,6 +1149,190 @@ export function CriarOPDialogMaster({
               {totalComAcrescimo.toLocaleString()} {tipoProduto === "CAPSULA" ? "cápsulas" : "unidades"}
             </span>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ===== ESPECIFICAÇÕES DE EMBALAGEM ===== */}
+      <Separator />
+      
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Especificações de Embalagem
+          </CardTitle>
+          <CardDescription>Defina cores, materiais e acessórios</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            {tipoProduto === "CAPSULA" && (
+              <FormField
+                control={form.control}
+                name="cor_capsula"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cor da Cápsula</FormLabel>
+                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="TRANSPARENTE">Transparente</SelectItem>
+                        <SelectItem value="BRANCA">Branca</SelectItem>
+                        <SelectItem value="VERDE">Verde</SelectItem>
+                        <SelectItem value="VERMELHA">Vermelha</SelectItem>
+                        <SelectItem value="AZUL">Azul</SelectItem>
+                        <SelectItem value="PRETA">Preta</SelectItem>
+                        <SelectItem value="AMARELA">Amarela</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="tipo_pote"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Pote/Frasco</FormLabel>
+                  <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="PEAD_BRANCO">PEAD Branco</SelectItem>
+                      <SelectItem value="PEAD_AMBAR">PEAD Âmbar</SelectItem>
+                      <SelectItem value="VIDRO_AMBAR">Vidro Âmbar</SelectItem>
+                      <SelectItem value="VIDRO_TRANSPARENTE">Vidro Transparente</SelectItem>
+                      <SelectItem value="PET_TRANSPARENTE">PET Transparente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="cor_tampa"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cor da Tampa</FormLabel>
+                  <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="BRANCA">Branca</SelectItem>
+                      <SelectItem value="PRETA">Preta</SelectItem>
+                      <SelectItem value="DOURADA">Dourada</SelectItem>
+                      <SelectItem value="PRATA">Prata</SelectItem>
+                      <SelectItem value="VERDE">Verde</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="tipo_tampa"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Tampa</FormLabel>
+                  <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="ROSCA_LACRE">Rosca com Lacre Indução</SelectItem>
+                      <SelectItem value="ROSCA_SIMPLES">Rosca Simples</SelectItem>
+                      <SelectItem value="FLIP_TOP">Flip Top</SelectItem>
+                      <SelectItem value="CONTA_GOTAS">Conta-gotas</SelectItem>
+                      <SelectItem value="PUMP">Pump/Dosador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* Sílica */}
+          {tipoProduto !== "LIQUIDO" && (
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div className="flex items-center gap-3">
+                <FormField
+                  control={form.control}
+                  name="incluir_silica"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2 space-y-0">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="!mt-0">Incluir Sachê de Sílica Gel</FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              {form.watch("incluir_silica") && (
+                <FormField
+                  control={form.control}
+                  name="quantidade_silica_sache"
+                  render={({ field }) => (
+                    <FormItem className="w-24">
+                      <Select value={field.value || "1g"} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0.5g">0,5g</SelectItem>
+                          <SelectItem value="1g">1g</SelectItem>
+                          <SelectItem value="2g">2g</SelectItem>
+                          <SelectItem value="5g">5g</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Descrição do Rótulo */}
+          <FormField
+            control={form.control}
+            name="descricao_rotulo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Descrição/Observações do Rótulo</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Informações adicionais sobre o rótulo (arte, versão, etc)..."
+                    className="resize-none"
+                    rows={2}
+                    {...field} 
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
         </CardContent>
       </Card>
     </div>
