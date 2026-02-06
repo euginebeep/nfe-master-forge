@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Beaker, CheckCircle, FileText, Info, Upload } from "lucide-react";
+import { ArrowLeft, Beaker, CheckCircle, FileText, Info, Upload, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { LocalDb } from "@/lib/local-db";
 import type { LocalEstoqueLote, LocalItem, LocalLoteDocumento } from "@/hooks/use-local-itens";
 import { useLoteDocumentos } from "@/hooks/use-local-itens";
+import { COAParserButton } from "@/components/lotes/COAParserButton";
 
 type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
 
@@ -210,6 +211,20 @@ export default function LoteDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <COAParserButton 
+                materiasPrimas={[]}
+                onPotenciaEncontrada={(dados) => {
+                  // Map tipo to our format
+                  const tipoMap: Record<string, TipoPotencia> = {
+                    "UI_POR_GRAMA": "UI_POR_GRAMA",
+                    "MG_POR_GRAMA": "MG_POR_GRAMA", 
+                    "PERCENTUAL": "PERCENTUAL",
+                  };
+                  setTipoPotencia(tipoMap[dados.tipo] || "NENHUMA");
+                  setPotenciaValor(dados.valor);
+                  toast.success(`Potência extraída do COA: ${dados.valor}`);
+                }}
+              />
               <Button type="button" variant="secondary" onClick={aplicarPresetVitD}>
                 <Beaker className="h-4 w-4 mr-2" />
                 Vitamina D3 (400.000 UI/g)
