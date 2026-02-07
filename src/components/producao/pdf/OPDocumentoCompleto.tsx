@@ -143,8 +143,17 @@ export function OPDocumentoCompleto({
       if (section && section.innerHTML.trim()) {
         sectionsFound++;
         
-        // Usar conteúdo original completo (com grids de identificação de cada folha)
-        const sectionContent = section.innerHTML;
+        // Remover blocos de identificação internos das folhas (BLOCO 1)
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = section.innerHTML;
+        
+        // Remover o primeiro bloco de identificação de cada folha (border-2 border-slate-800 com título "IDENTIFICAÇÃO")
+        const blocoIdentificacao = tempDiv.querySelector('.border-2.border-slate-800');
+        if (blocoIdentificacao && blocoIdentificacao.textContent?.includes('IDENTIFICAÇÃO')) {
+          blocoIdentificacao.remove();
+        }
+        
+        const cleanContent = tempDiv.innerHTML;
         
         allSections += `
           <div class="section-page">
@@ -163,9 +172,45 @@ export function OPDocumentoCompleto({
               </div>
             </header>
             
-            <!-- CONTEÚDO DA SEÇÃO COM GRID INTERNO PRESERVADO -->
+            <!-- GRID DE METADADOS - 2 LINHAS × 4 COLUNAS -->
+            <div class="metadata-grid">
+              <div class="meta-cell">
+                <div class="meta-label">PRODUTO</div>
+                <div class="meta-value">${op.produto_nome || '-'}</div>
+              </div>
+              <div class="meta-cell">
+                <div class="meta-label">LOTE DO PRODUTO</div>
+                <div class="meta-value meta-mono">${op.lote_produto_acabado || '-'}</div>
+              </div>
+              <div class="meta-cell">
+                <div class="meta-label">QUANTIDADE</div>
+                <div class="meta-value">${op.quantidade_frascos || 0} frascos × ${op.capsulas_por_frasco || 60} un</div>
+              </div>
+              <div class="meta-cell">
+                <div class="meta-label">TOTAL C/ ACRÉSCIMO</div>
+                <div class="meta-value meta-highlight">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
+              </div>
+              <div class="meta-cell">
+                <div class="meta-label">RESPONSÁVEL TÉCNICO</div>
+                <div class="meta-value">${op.rt_nome || op.responsavel_producao_nome || '-'}</div>
+              </div>
+              <div class="meta-cell">
+                <div class="meta-label">CONSELHO/REGISTRO</div>
+                <div class="meta-value">${op.rt_tipo_conselho || ''} ${op.rt_numero_registro || '-'}</div>
+              </div>
+              <div class="meta-cell">
+                <div class="meta-label">DATA FABRICAÇÃO</div>
+                <div class="meta-value">${op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'}</div>
+              </div>
+              <div class="meta-cell">
+                <div class="meta-label">DATA VALIDADE</div>
+                <div class="meta-value">${op.data_validade ? new Date(op.data_validade).toLocaleDateString('pt-BR') : '-'}</div>
+              </div>
+            </div>
+            
+            <!-- CONTEÚDO DA SEÇÃO (SEM BLOCO DE IDENTIFICAÇÃO DUPLICADO) -->
             <div class="section-content-area">
-              ${sectionContent}
+              ${cleanContent}
             </div>
             
             <!-- RODAPÉ FIXO -->
@@ -324,6 +369,10 @@ export function OPDocumentoCompleto({
               font-weight: 700;
             }
             
+            .meta-mono {
+              font-family: 'Consolas', 'Monaco', monospace;
+              font-weight: 700;
+            }
             /* ============ CAPA PROFISSIONAL ============ */
             .op-capa {
               padding: 15mm 12mm;
