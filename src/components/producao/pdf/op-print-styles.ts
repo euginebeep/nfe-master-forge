@@ -517,27 +517,88 @@ export function getTerminalPrintStyles(): string {
       text-shadow: none !important;
     }
     
-    .terminal-header {
-      font-family: 'Courier New', monospace;
-      font-size: 7px;
+    /* ============ CABEÇALHO TERMINAL INDUSTRIAL ============ */
+    .terminal-header-industrial {
       margin-bottom: 3px;
-      border-bottom: 1px solid #000;
-      padding-bottom: 2px;
-      text-align: center;
     }
     
-    .terminal-title {
+    .terminal-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border: 2px solid #000;
+      padding: 3px 5px;
+      margin-bottom: 2px;
+    }
+    
+    .terminal-header-left {
+      flex: 1;
+    }
+    
+    .terminal-main-title {
+      font-size: 9px;
       font-weight: bold;
-      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
+    .terminal-subtitle {
+      font-size: 7px;
+      font-weight: bold;
+      margin-top: 1px;
+    }
+    
+    .terminal-header-right {
+      text-align: right;
+    }
+    
+    .terminal-op-code {
+      font-size: 9px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .terminal-lote {
+      font-size: 6px;
+      margin-top: 1px;
+    }
+    
+    .terminal-metadata {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px 8px;
+      padding: 2px 4px;
+      border: 1px solid #000;
+      border-top: none;
+      font-size: 5.5px;
+    }
+    
+    .terminal-meta-item {
+      white-space: nowrap;
+    }
+    
+    .terminal-meta-label {
+      font-weight: bold;
+    }
+    
+    /* RODAPÉ TERMINAL */
     .terminal-footer {
-      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 3px;
       font-family: 'Courier New', monospace;
       font-size: 5px;
-      text-align: center;
       border-top: 1px solid #000;
       padding-top: 2px;
+    }
+    
+    .terminal-footer-left {
+      font-weight: bold;
+    }
+    
+    .terminal-footer-right {
+      text-align: right;
     }
     
     .page-break {
