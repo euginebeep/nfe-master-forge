@@ -1,56 +1,12 @@
 // ============================================================
-// FOLHA DE MISTURA - FORMATO A4 PROFISSIONAL
-// Ordem fixa de mistura industrial
+// FOLHA DE MISTURA - PADRÃO INDUSTRIAL PROFISSIONAL A4
+// Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
-
-import { OPCabecalhoPDF, OPRodapePDF, OPAssinaturasPDF } from './OPCabecalhoPDF';
 
 interface OPFolhaMisturaProps {
   op: any;
   materiasPrimas: any[];
 }
-
-const InfoBox = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
-  <div className={`border rounded p-2 ${highlight ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
-    <div className="text-[9px] text-slate-500 uppercase tracking-wide">{label}</div>
-    <div className={`text-sm font-semibold ${highlight ? 'text-amber-700' : 'text-slate-800'}`}>{value}</div>
-  </div>
-);
-
-const EtapaBox = ({ 
-  numero, 
-  titulo, 
-  descricao, 
-  tempo, 
-  corBg, 
-  corBorda, 
-  destaque = false 
-}: { 
-  numero: number | string; 
-  titulo: string; 
-  descricao: string; 
-  tempo: string; 
-  corBg: string; 
-  corBorda: string; 
-  destaque?: boolean;
-}) => (
-  <div className={`flex items-center gap-3 p-3 rounded border-l-4 mb-2 ${corBg} ${corBorda}`}>
-    <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
-      destaque ? 'bg-amber-500 text-white' : 'bg-slate-800 text-white'
-    }`}>
-      {numero}
-    </div>
-    <div className="flex-1">
-      <div className={`font-bold text-sm ${destaque ? 'text-amber-800' : 'text-slate-800'}`}>{titulo}</div>
-      <div className="text-xs text-slate-600">{descricao}</div>
-    </div>
-    <div className={`text-xs font-semibold px-2 py-1 rounded ${
-      destaque ? 'bg-amber-200 text-amber-800' : 'bg-slate-200 text-slate-700'
-    }`}>
-      {tempo}
-    </div>
-  </div>
-);
 
 export function OPFolhaMistura({ op, materiasPrimas }: OPFolhaMisturaProps) {
   const mpOrdenadas = [...materiasPrimas].sort((a, b) => 
@@ -61,273 +17,364 @@ export function OPFolhaMistura({ op, materiasPrimas }: OPFolhaMisturaProps) {
   const excipienteBase = mpOrdenadas.filter(mp => mp.categoria === 'EXCIPIENTE_BASE');
   const tecnologicos = mpOrdenadas.filter(mp => mp.categoria === 'EXCIPIENTE_TECNOLOGICO');
 
-  const estearato = tecnologicos.find(t => t.insumo_nome.toLowerCase().includes('estearato'));
-  const silicio = tecnologicos.find(t => t.insumo_nome.toLowerCase().includes('silício') || t.insumo_nome.toLowerCase().includes('silica'));
-  const talco = tecnologicos.find(t => t.insumo_nome.toLowerCase().includes('talco'));
-  const outrosTecnologicos = tecnologicos.filter(t => 
-    !t.insumo_nome.toLowerCase().includes('estearato') &&
-    !t.insumo_nome.toLowerCase().includes('silício') &&
-    !t.insumo_nome.toLowerCase().includes('silica') &&
-    !t.insumo_nome.toLowerCase().includes('talco')
-  );
+  const estearato = tecnologicos.find(t => t.insumo_nome?.toLowerCase().includes('estearato'));
+  const silicio = tecnologicos.find(t => t.insumo_nome?.toLowerCase().includes('silício') || t.insumo_nome?.toLowerCase().includes('silica'));
+  const talco = tecnologicos.find(t => t.insumo_nome?.toLowerCase().includes('talco'));
 
   const formatarQuantidade = (valorG: number) => {
+    if (!valorG) return '-';
     if (valorG >= 1000) return `${(valorG / 1000).toFixed(3)} kg`;
     if (valorG >= 1) return `${valorG.toFixed(4)} g`;
     return `${(valorG * 1000).toFixed(4)} mg`;
   };
 
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
+  // Montar sequência de mistura
+  const sequenciaMistura = [];
+  let etapaNum = 1;
+  
+  if (ativos.some(a => a.pesagem_critica)) {
+    sequenciaMistura.push({
+      etapa: 0,
+      componente: 'PRÉ-MIX DE ATIVOS CRÍTICOS',
+      quantidade: 'Conforme Folha de Pesagem',
+      funcao: 'Distribuição Geométrica',
+      tempo: 'Conforme procedimento',
+      critico: true
+    });
+  }
+
+  sequenciaMistura.push({
+    etapa: etapaNum++,
+    componente: 'Ativos Pesados',
+    quantidade: ativos.map(a => formatarQuantidade(a.quantidade_teorica_g)).join(' + ') || '-',
+    funcao: 'Princípios Ativos',
+    tempo: '5 minutos',
+    critico: false
+  });
+
+  if (excipienteBase.length > 0) {
+    sequenciaMistura.push({
+      etapa: etapaNum++,
+      componente: excipienteBase.map(e => e.insumo_nome).join(', '),
+      quantidade: formatarQuantidade(excipienteBase.reduce((sum, e) => sum + (e.quantidade_teorica_g || 0), 0)),
+      funcao: 'Q.S.P. / Diluente',
+      tempo: '10 minutos',
+      critico: false
+    });
+  }
+
+  if (silicio) {
+    sequenciaMistura.push({
+      etapa: etapaNum++,
+      componente: silicio.insumo_nome,
+      quantidade: formatarQuantidade(silicio.quantidade_teorica_g),
+      funcao: 'Anti-umectante (2%)',
+      tempo: '3 minutos',
+      critico: false
+    });
+  }
+
+  if (talco) {
+    sequenciaMistura.push({
+      etapa: etapaNum++,
+      componente: talco.insumo_nome,
+      quantidade: formatarQuantidade(talco.quantidade_teorica_g),
+      funcao: 'Lubrificante (5%)',
+      tempo: '3 minutos',
+      critico: false
+    });
+  }
+
+  if (estearato) {
+    sequenciaMistura.push({
+      etapa: '⚠️',
+      componente: estearato.insumo_nome + ' (ÚLTIMO)',
+      quantidade: formatarQuantidade(estearato.quantidade_teorica_g),
+      funcao: 'Deslizante (2,5%)',
+      tempo: 'MÁX. 2 min!',
+      critico: true
+    });
+  }
+
   return (
-    <div id="section-mistura" className="bg-white p-6 text-sm print:p-0 print:text-[10px]">
-      {/* Cabeçalho */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-4 rounded-t-lg mb-4 print:rounded-none">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">FOLHA DE MISTURA</h1>
-            <p className="text-slate-300 text-xs">Fase 3 - Ordem de Mistura Industrial</p>
+    <div id="section-mistura" className="bg-white print:text-[9px]">
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 1: IDENTIFICAÇÃO DO PRODUTO                              */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mb-4">
+        <div className="bg-slate-100 px-4 py-2 border-b border-slate-800">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">
+            1. IDENTIFICAÇÃO DO PRODUTO E LOTE
+          </h2>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Produto</div>
+            <div className="text-sm font-bold text-slate-800">{op.produto_nome || '-'}</div>
           </div>
-          <div className="text-right">
-            <div className="text-xl font-mono font-bold">{op.codigo}</div>
-            <div className="text-xs text-slate-300">Lote: {op.lote_produto_acabado || '-'}</div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Lote do Produto</div>
+            <div className="text-sm font-bold text-slate-800 font-mono">{op.lote_produto_acabado || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Total de Cápsulas</div>
+            <div className="text-sm font-bold text-orange-600">{(op.total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Peso por Cápsula</div>
+            <div className="text-sm font-bold text-slate-800">{op.peso_capsula_mg || 500} mg</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300 border-t border-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Fórmula</div>
+            <div className="text-sm font-bold text-slate-800">{op.formula_codigo || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Fabricação</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_fabricacao)}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Validade</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_validade)}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Responsável Técnico</div>
+            <div className="text-sm font-bold text-slate-800">{op.rt_nome || '-'}</div>
           </div>
         </div>
       </div>
 
-      {/* Grid de informações */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
-        <InfoBox label="Produto" value={op.produto_nome || '-'} />
-        <InfoBox label="Total Cápsulas" value={`${op.total_capsulas_com_acrescimo?.toLocaleString() || 0} un`} />
-        <InfoBox label="Peso/Cápsula" value={`${op.peso_capsula_mg || 500} mg`} />
-        <InfoBox label="RT Responsável" value={op.rt_nome || '-'} />
-      </div>
-
-      {/* REGRAS DE MISTURA */}
-      <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-4 mb-4">
-        <div className="font-bold text-amber-800 mb-2 flex items-center gap-2">
-          <span>⚠️</span> REGRAS OBRIGATÓRIAS DE MISTURA
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 2: REGRAS OBRIGATÓRIAS DE MISTURA                        */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-amber-500 bg-amber-50 mb-4">
+        <div className="bg-amber-500 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
+            <span>⚠️</span> 2. REGRAS OBRIGATÓRIAS DE MISTURA
+          </h2>
         </div>
-        <ul className="text-xs text-amber-900 space-y-1 list-disc list-inside">
-          <li><strong>Homogeneização:</strong> Mínimo 5 minutos entre cada adição de componente</li>
-          <li><strong>Dióxido de Silício:</strong> Adicionar ANTES do Talco para melhor fluidez</li>
-          <li><strong>Estearato de Magnésio:</strong> SEMPRE adicionar POR ÚLTIMO (máx. 2 min de mistura)</li>
-          <li><strong>Temperatura:</strong> Ambiente controlado (15-25°C) / Umidade &lt; 60%</li>
-        </ul>
-      </div>
-
-      {/* SEQUÊNCIA DE MISTURA */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 p-3 bg-slate-100 border-l-4 border-l-slate-800 mb-3">
-          <div className="font-bold text-sm uppercase tracking-wide">SEQUÊNCIA DE MISTURA</div>
-        </div>
-
-        {/* ETAPA 0: PRÉ-MIX (se houver ativos críticos) */}
-        {ativos.some(a => a.pesagem_critica) && (
-          <EtapaBox
-            numero="0"
-            titulo="PRÉ-MIX DE ATIVOS CRÍTICOS"
-            descricao="Executar distribuição geométrica conforme Folha de Pesagem"
-            tempo="Conforme proc."
-            corBg="bg-red-50"
-            corBorda="border-l-red-500"
-            destaque
-          />
-        )}
-
-        {/* ETAPA 1: ATIVOS */}
-        <EtapaBox
-          numero={1}
-          titulo="ADICIONAR ATIVOS"
-          descricao={ativos.map(a => a.insumo_nome).join(', ') || 'Nenhum ativo'}
-          tempo="Homogeneizar 5 min"
-          corBg="bg-red-50"
-          corBorda="border-l-red-400"
-        />
-
-        {/* ETAPA 2: EXCIPIENTE BASE */}
-        <EtapaBox
-          numero={2}
-          titulo="ADICIONAR EXCIPIENTE BASE (Q.S.P.)"
-          descricao={excipienteBase.map(e => `${e.insumo_nome} - ${formatarQuantidade(e.quantidade_teorica_g)}`).join(', ') || 'Não definido'}
-          tempo="Homogeneizar 10 min"
-          corBg="bg-green-50"
-          corBorda="border-l-green-500"
-        />
-
-        {/* ETAPA 3: DIÓXIDO DE SILÍCIO */}
-        {silicio && (
-          <EtapaBox
-            numero={3}
-            titulo={`ADICIONAR ${silicio.insumo_nome.toUpperCase()}`}
-            descricao={`${formatarQuantidade(silicio.quantidade_teorica_g)} - Função: Anti-umectante`}
-            tempo="Homogeneizar 3 min"
-            corBg="bg-blue-50"
-            corBorda="border-l-blue-500"
-          />
-        )}
-
-        {/* ETAPA 4: TALCO */}
-        {talco && (
-          <EtapaBox
-            numero={4}
-            titulo={`ADICIONAR ${talco.insumo_nome.toUpperCase()}`}
-            descricao={`${formatarQuantidade(talco.quantidade_teorica_g)} - Função: Lubrificante`}
-            tempo="Homogeneizar 3 min"
-            corBg="bg-blue-50"
-            corBorda="border-l-blue-400"
-          />
-        )}
-
-        {/* Outros tecnológicos */}
-        {outrosTecnologicos.map((tec, idx) => (
-          <EtapaBox
-            key={tec.id || idx}
-            numero={5 + idx}
-            titulo={`ADICIONAR ${tec.insumo_nome.toUpperCase()}`}
-            descricao={`${formatarQuantidade(tec.quantidade_teorica_g)}`}
-            tempo="Homogeneizar 3 min"
-            corBg="bg-blue-50"
-            corBorda="border-l-blue-300"
-          />
-        ))}
-
-        {/* ETAPA FINAL: ESTEARATO (ÚLTIMO) */}
-        {estearato && (
-          <EtapaBox
-            numero="⚠️"
-            titulo={`ADICIONAR ${estearato.insumo_nome.toUpperCase()} - ÚLTIMO!`}
-            descricao={`${formatarQuantidade(estearato.quantidade_teorica_g)} - Função: Deslizante | MÁXIMO 2 MIN DE MISTURA!`}
-            tempo="MÁX. 2 min!"
-            corBg="bg-amber-100"
-            corBorda="border-l-amber-500"
-            destaque
-          />
-        )}
-      </div>
-
-      {/* REGISTRO DE EXECUÇÃO DA MISTURA */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 p-3 bg-slate-100 border-l-4 border-l-slate-800 mb-3">
-          <div className="font-bold text-sm uppercase tracking-wide">REGISTRO DE EXECUÇÃO DA MISTURA</div>
-        </div>
-        
-        <div className="overflow-hidden rounded border border-slate-200">
+        <div className="p-4">
           <table className="w-full text-xs">
-            <thead className="bg-slate-100">
-              <tr>
-                <th className="p-2 text-center w-[8%]">Etapa</th>
-                <th className="p-2 text-left w-[28%]">Componente</th>
-                <th className="p-2 text-right w-[12%]">Quantidade</th>
-                <th className="p-2 text-center w-[12%]">Hora Início</th>
-                <th className="p-2 text-center w-[12%]">Hora Fim</th>
-                <th className="p-2 text-center w-[14%]">Tempo Real</th>
-                <th className="p-2 text-center w-[14%]">Operador</th>
-              </tr>
-            </thead>
             <tbody>
-              <tr className="border-t bg-red-50">
-                <td className="p-2 text-center font-bold">1</td>
-                <td className="p-2">Ativos</td>
-                <td className="p-2 text-right">-</td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
+              <tr>
+                <td className="py-2 pr-4 font-bold text-amber-900 w-1/4">Homogeneização:</td>
+                <td className="py-2 text-amber-800">Mínimo 5 minutos entre cada adição de componente</td>
               </tr>
-              <tr className="border-t bg-green-50">
-                <td className="p-2 text-center font-bold">2</td>
-                <td className="p-2">Excipiente Base (Q.S.P.)</td>
-                <td className="p-2 text-right font-mono">{excipienteBase[0] ? formatarQuantidade(excipienteBase[0].quantidade_teorica_g) : '-'}</td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
+              <tr className="border-t border-amber-300">
+                <td className="py-2 pr-4 font-bold text-amber-900">Dióxido de Silício:</td>
+                <td className="py-2 text-amber-800">Adicionar ANTES do Talco para melhor fluidez</td>
               </tr>
-              {silicio && (
-                <tr className="border-t bg-blue-50">
-                  <td className="p-2 text-center font-bold">3</td>
-                  <td className="p-2">{silicio.insumo_nome}</td>
-                  <td className="p-2 text-right font-mono">{formatarQuantidade(silicio.quantidade_teorica_g)}</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                </tr>
-              )}
-              {talco && (
-                <tr className="border-t bg-blue-50">
-                  <td className="p-2 text-center font-bold">4</td>
-                  <td className="p-2">{talco.insumo_nome}</td>
-                  <td className="p-2 text-right font-mono">{formatarQuantidade(talco.quantidade_teorica_g)}</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                </tr>
-              )}
-              {estearato && (
-                <tr className="border-t bg-amber-100">
-                  <td className="p-2 text-center font-bold text-amber-800">⚠️</td>
-                  <td className="p-2 font-bold text-amber-800">{estearato.insumo_nome} (ÚLTIMO)</td>
-                  <td className="p-2 text-right font-mono">{formatarQuantidade(estearato.quantidade_teorica_g)}</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                </tr>
-              )}
+              <tr className="border-t border-amber-300">
+                <td className="py-2 pr-4 font-bold text-red-700">Estearato de Magnésio:</td>
+                <td className="py-2 text-red-700 font-semibold">SEMPRE adicionar POR ÚLTIMO — Máximo 2 minutos de mistura</td>
+              </tr>
+              <tr className="border-t border-amber-300">
+                <td className="py-2 pr-4 font-bold text-amber-900">Ambiente:</td>
+                <td className="py-2 text-amber-800">Temperatura: 15-25°C | Umidade Relativa: &lt; 60%</td>
+              </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* CONTROLE DE QUALIDADE DA MISTURA */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 p-3 bg-purple-100 border-l-4 border-l-purple-500 mb-3">
-          <div className="font-bold text-sm uppercase tracking-wide text-purple-800">CONTROLE DE QUALIDADE - PÓ FINAL</div>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 3: SEQUÊNCIA DE MISTURA (TABELA TÉCNICA)                 */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mb-4">
+        <div className="bg-slate-800 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            3. SEQUÊNCIA DE MISTURA
+          </h2>
         </div>
-        
-        <div className="overflow-hidden rounded border border-purple-200">
-          <table className="w-full text-xs">
-            <thead className="bg-purple-50">
-              <tr>
-                <th className="p-2 text-left w-[25%]">Teste</th>
-                <th className="p-2 text-left w-[35%]">Resultado</th>
-                <th className="p-2 text-center w-[15%]">Conforme?</th>
-                <th className="p-2 text-left w-[25%]">Observação</th>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-slate-200">
+              <th className="border-r border-slate-300 px-3 py-2 text-center w-[8%] font-bold">ETAPA</th>
+              <th className="border-r border-slate-300 px-3 py-2 text-left w-[30%] font-bold">COMPONENTE</th>
+              <th className="border-r border-slate-300 px-3 py-2 text-right w-[18%] font-bold">QUANTIDADE</th>
+              <th className="border-r border-slate-300 px-3 py-2 text-center w-[22%] font-bold">FUNÇÃO</th>
+              <th className="px-3 py-2 text-center w-[22%] font-bold">TEMPO DE MISTURA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sequenciaMistura.map((item, idx) => (
+              <tr 
+                key={idx} 
+                className={`border-t border-slate-300 ${
+                  item.critico ? 'bg-amber-100' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                }`}
+              >
+                <td className={`border-r border-slate-300 px-3 py-3 text-center font-bold ${
+                  item.critico ? 'text-amber-700' : ''
+                }`}>
+                  {item.etapa}
+                </td>
+                <td className={`border-r border-slate-300 px-3 py-3 ${item.critico ? 'font-bold text-amber-800' : ''}`}>
+                  {item.componente}
+                </td>
+                <td className="border-r border-slate-300 px-3 py-3 text-right font-mono">
+                  {item.quantidade}
+                </td>
+                <td className="border-r border-slate-300 px-3 py-3 text-center text-slate-600">
+                  {item.funcao}
+                </td>
+                <td className={`px-3 py-3 text-center font-semibold ${
+                  item.critico ? 'text-red-700' : 'text-slate-700'
+                }`}>
+                  {item.tempo}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {['Aparência do pó', 'Cor', 'Fluidez', 'Homogeneidade visual'].map((teste, idx) => (
-                <tr key={idx} className="border-t bg-white">
-                  <td className="p-2 font-medium">{teste}</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                  <td className="p-2 text-center text-[10px]">☐ Sim &nbsp; ☐ Não</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 4: REGISTRO DE EXECUÇÃO DA MISTURA                       */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mb-4">
+        <div className="bg-slate-700 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            4. REGISTRO DE EXECUÇÃO DA MISTURA
+          </h2>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-slate-100">
+              <th className="border border-slate-300 px-2 py-2 text-center w-[7%]">Etapa</th>
+              <th className="border border-slate-300 px-2 py-2 text-left w-[25%]">Componente</th>
+              <th className="border border-slate-300 px-2 py-2 text-right w-[13%]">Qtd. Teórica</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-[11%]">Hora Início</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-[11%]">Hora Fim</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-[11%]">Tempo Real</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-[11%]">Operador</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-[11%]">Conferente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sequenciaMistura.map((item, idx) => (
+              <tr key={idx} className={item.critico ? 'bg-amber-50' : 'bg-white'}>
+                <td className="border border-slate-300 px-2 py-3 text-center font-bold">{item.etapa}</td>
+                <td className="border border-slate-300 px-2 py-3">{item.componente}</td>
+                <td className="border border-slate-300 px-2 py-3 text-right font-mono text-[10px]">{item.quantidade}</td>
+                <td className="border border-slate-300 px-2 py-3">
+                  <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                </td>
+                <td className="border border-slate-300 px-2 py-3">
+                  <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                </td>
+                <td className="border border-slate-300 px-2 py-3">
+                  <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                </td>
+                <td className="border border-slate-300 px-2 py-3">
+                  <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                </td>
+                <td className="border border-slate-300 px-2 py-3">
+                  <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 5: CONTROLE DE QUALIDADE                                 */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-purple-600 mb-4">
+        <div className="bg-purple-600 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
+            <span>🔬</span> 5. CONTROLE DE QUALIDADE — PÓ FINAL
+          </h2>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-purple-100">
+              <th className="border border-purple-300 px-3 py-2 text-left w-[25%]">TESTE</th>
+              <th className="border border-purple-300 px-3 py-2 text-left w-[30%]">RESULTADO</th>
+              <th className="border border-purple-300 px-3 py-2 text-center w-[15%]">CONFORME?</th>
+              <th className="border border-purple-300 px-3 py-2 text-left w-[30%]">OBSERVAÇÃO</th>
+            </tr>
+          </thead>
+          <tbody>
+            {['Aparência do pó', 'Cor', 'Fluidez', 'Homogeneidade visual', 'Ausência de grumos'].map((teste, idx) => (
+              <tr key={idx} className="bg-white">
+                <td className="border border-purple-200 px-3 py-3 font-medium">{teste}</td>
+                <td className="border border-purple-200 px-3 py-3">
+                  <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                </td>
+                <td className="border border-purple-200 px-3 py-3 text-center">
+                  <span className="inline-flex gap-4">
+                    <span>☐ Sim</span>
+                    <span>☐ Não</span>
+                  </span>
+                </td>
+                <td className="border border-purple-200 px-3 py-3">
+                  <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="p-3 bg-purple-50 border-t border-purple-300">
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="font-semibold text-purple-800">Temperatura ambiente:</span>
+              <span className="inline-block ml-2 border-b-2 border-purple-400 min-w-[80px]">&nbsp;</span> °C
+            </div>
+            <div>
+              <span className="font-semibold text-purple-800">Umidade relativa:</span>
+              <span className="inline-block ml-2 border-b-2 border-purple-400 min-w-[80px]">&nbsp;</span> %
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Assinaturas */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t-2 border-slate-800">
-        {[
-          { cargo: 'Operador de Mistura', subtitulo: 'Nome / Data / Hora' },
-          { cargo: 'Conferente', subtitulo: 'Nome / Data / Hora' },
-          { cargo: 'Responsável Técnico', subtitulo: 'Liberação da Mistura' },
-        ].map((ass, idx) => (
-          <div key={idx} className="text-center">
-            <div className="border-b border-slate-800 h-8 mb-1">&nbsp;</div>
-            <div className="text-xs font-semibold">{ass.cargo}</div>
-            <div className="text-[9px] text-slate-500">{ass.subtitulo}</div>
-          </div>
-        ))}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 6: ASSINATURAS (RODAPÉ FIXO)                             */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mt-6">
+        <div className="bg-slate-800 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            6. ASSINATURAS E APROVAÇÕES
+          </h2>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-slate-300">
+          {[
+            { cargo: 'Operador de Mistura', funcao: 'Execução' },
+            { cargo: 'Conferente', funcao: 'Verificação' },
+            { cargo: 'Responsável Técnico', funcao: 'Liberação da Mistura' },
+          ].map((ass, idx) => (
+            <div key={idx} className="p-4 text-center">
+              <div className="border-b-2 border-slate-800 h-12 mb-2">&nbsp;</div>
+              <div className="text-xs font-bold text-slate-800 uppercase">{ass.cargo}</div>
+              <div className="text-[9px] text-slate-500">{ass.funcao}</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[9px]">
+                <div>
+                  <span className="text-slate-500">Nome:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+                <div>
+                  <span className="text-slate-500">Data/Hora:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Rodapé */}
-      <div className="mt-4 pt-2 border-t border-slate-300 text-center text-[8px] text-slate-500">
-        Documento gerado em {new Date().toLocaleString('pt-BR')} | {op.codigo} | Controle de produção e rastreabilidade ANVISA
+      {/* RODAPÉ DO DOCUMENTO */}
+      <div className="mt-4 pt-2 border-t-2 border-slate-400 flex justify-between text-[8px] text-slate-500">
+        <div>Vitalnow Industria Ltda | Documento de Produção Industrial</div>
+        <div>{op.codigo} | Gerado em {new Date().toLocaleString('pt-BR')}</div>
+        <div>Controle ANVISA/BPF</div>
       </div>
     </div>
   );

@@ -1,19 +1,11 @@
 // ============================================================
-// FOLHA DE ENCAPSULAMENTO - FORMATO A4 PROFISSIONAL
+// FOLHA DE ENCAPSULAMENTO - PADRÃO INDUSTRIAL PROFISSIONAL A4
+// Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
-
-import { OPCabecalhoPDF, OPRodapePDF, OPAssinaturasPDF } from './OPCabecalhoPDF';
 
 interface OPFolhaEncapsulamentoProps {
   op: any;
 }
-
-const InfoBox = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
-  <div className={`border rounded p-2 ${highlight ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
-    <div className="text-[9px] text-slate-500 uppercase tracking-wide">{label}</div>
-    <div className={`text-sm font-semibold ${highlight ? 'text-amber-700' : 'text-slate-800'}`}>{value}</div>
-  </div>
-);
 
 export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {
   const pesoCapsula = op.peso_capsula_mg || 500;
@@ -25,144 +17,195 @@ export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {
   const pesoMin = Math.round(pesoCapsula * 0.95);
   const pesoMax = Math.round(pesoCapsula * 1.05);
 
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
   return (
-    <div id="section-encapsulamento" className="bg-white p-6 text-sm print:p-0 print:text-[10px]">
-      {/* Cabeçalho */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-4 rounded-t-lg mb-4 print:rounded-none">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">FOLHA DE ENCAPSULAMENTO</h1>
-            <p className="text-slate-300 text-xs">Fase 4 - Encapsulamento Semi-Automático</p>
+    <div id="section-encapsulamento" className="bg-white print:text-[9px]">
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 1: IDENTIFICAÇÃO DO PRODUTO                              */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mb-4">
+        <div className="bg-slate-100 px-4 py-2 border-b border-slate-800">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">
+            1. IDENTIFICAÇÃO DO PRODUTO E ESPECIFICAÇÕES
+          </h2>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Produto</div>
+            <div className="text-sm font-bold text-slate-800">{op.produto_nome || '-'}</div>
           </div>
-          <div className="text-right">
-            <div className="text-xl font-mono font-bold">{op.codigo}</div>
-            <div className="text-xs text-slate-300">Lote: {op.lote_produto_acabado || '-'}</div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Lote do Produto</div>
+            <div className="text-sm font-bold text-slate-800 font-mono">{op.lote_produto_acabado || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Total a Produzir</div>
+            <div className="text-sm font-bold text-orange-600">{totalCapsulas.toLocaleString()} cápsulas</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Frascos</div>
+            <div className="text-sm font-bold text-slate-800">{totalFrascos} × {capsPorFrasco} un</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300 border-t border-slate-300">
+          <div className="p-3 bg-blue-50">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Tipo de Cápsula</div>
+            <div className="text-sm font-bold text-blue-700">Tamanho {tipoCapsula}</div>
+          </div>
+          <div className="p-3 bg-amber-50">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Peso Nominal</div>
+            <div className="text-sm font-bold text-amber-700">{pesoCapsula} mg</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Tolerância (±5%)</div>
+            <div className="text-sm font-bold text-slate-800">{pesoMin} - {pesoMax} mg</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Fabricação</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_fabricacao)}</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300 border-t border-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Fórmula</div>
+            <div className="text-sm font-bold text-slate-800">{op.formula_codigo || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Validade</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_validade)}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Responsável Técnico</div>
+            <div className="text-sm font-bold text-slate-800">{op.rt_nome || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Conselho/Registro</div>
+            <div className="text-sm font-bold text-slate-800">{op.rt_tipo_conselho || ''} {op.rt_numero_registro || '-'}</div>
           </div>
         </div>
       </div>
 
-      {/* ESPECIFICAÇÕES */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
-        <InfoBox label="Tipo de Cápsula" value={`Tamanho ${tipoCapsula}`} />
-        <InfoBox label="Peso Nominal" value={`${pesoCapsula} mg`} highlight />
-        <InfoBox label="Tolerância (±5%)" value={`${pesoMin} - ${pesoMax} mg`} />
-        <InfoBox label="Total a Produzir" value={`${totalCapsulas.toLocaleString()} un`} />
-      </div>
-
-      <div className="grid grid-cols-4 gap-2 mb-4">
-        <InfoBox label="Produto" value={op.produto_nome || '-'} />
-        <InfoBox label="Frascos" value={`${totalFrascos} × ${capsPorFrasco} un`} />
-        <InfoBox label="RT Responsável" value={op.rt_nome || '-'} />
-        <InfoBox label="Data Fabricação" value={op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'} />
-      </div>
-
-      {/* SETUP DA ENCAPSULADORA */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 p-3 bg-blue-100 border-l-4 border-l-blue-500 mb-3">
-          <div className="font-bold text-sm uppercase tracking-wide text-blue-800">SETUP DA ENCAPSULADORA</div>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 2: SETUP DA ENCAPSULADORA                                */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-blue-600 mb-4">
+        <div className="bg-blue-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-blue-600 rounded-full font-bold text-sm">2</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            SETUP DA ENCAPSULADORA
+          </h2>
         </div>
-        
-        <div className="overflow-hidden rounded border border-slate-200">
-          <table className="w-full text-xs">
-            <thead className="bg-blue-50">
-              <tr>
-                <th className="p-2 text-left w-[40%]">Item de Verificação</th>
-                <th className="p-2 text-left w-[25%]">Parâmetro</th>
-                <th className="p-2 text-center w-[15%]">Verificado</th>
-                <th className="p-2 text-center w-[20%]">Responsável</th>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-blue-100">
+              <th className="border border-blue-200 px-3 py-2 text-left w-[40%]">Item de Verificação</th>
+              <th className="border border-blue-200 px-3 py-2 text-left w-[25%]">Parâmetro</th>
+              <th className="border border-blue-200 px-3 py-2 text-center w-[12%]">Verificado</th>
+              <th className="border border-blue-200 px-3 py-2 text-center w-[23%]">Responsável</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { item: 'Limpeza do equipamento', param: 'Visualmente limpo' },
+              { item: 'Troca de placas (se aplicável)', param: `Tamanho ${tipoCapsula}` },
+              { item: 'Ajuste de dosagem', param: `${pesoCapsula} mg ± 5%` },
+              { item: 'Teste de peso (10 cápsulas)', param: 'Dentro da tolerância' },
+              { item: 'Fechamento das cápsulas', param: 'Sem vazamento de pó' },
+            ].map((row, idx) => (
+              <tr key={idx} className="bg-white">
+                <td className="border border-blue-200 px-3 py-3">{row.item}</td>
+                <td className="border border-blue-200 px-3 py-3 text-slate-600">{row.param}</td>
+                <td className="border border-blue-200 px-3 py-3 text-center">☐ OK</td>
+                <td className="border border-blue-200 px-3 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
               </tr>
-            </thead>
-            <tbody>
-              {[
-                { item: 'Limpeza do equipamento', param: 'Visualmente limpo' },
-                { item: 'Troca de placas (se aplicável)', param: `Tamanho ${tipoCapsula}` },
-                { item: 'Ajuste de dosagem', param: `${pesoCapsula} mg ± 5%` },
-                { item: 'Teste de peso (10 cápsulas)', param: 'Dentro da tolerância' },
-                { item: 'Fechamento das cápsulas', param: 'Sem vazamento de pó' },
-              ].map((row, idx) => (
-                <tr key={idx} className="border-t bg-white">
-                  <td className="p-2">{row.item}</td>
-                  <td className="p-2 text-slate-600">{row.param}</td>
-                  <td className="p-2 text-center">☐ OK</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* CONTROLE DE PESO */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 p-3 bg-amber-100 border-l-4 border-l-amber-500 mb-3">
-          <div className="font-bold text-sm uppercase tracking-wide text-amber-800">
-            CONTROLE DE PESO DURANTE PRODUÇÃO
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 3: CONTROLE DE PESO DURANTE PRODUÇÃO                     */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-amber-500 mb-4">
+        <div className="bg-amber-500 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-7 h-7 bg-white text-amber-600 rounded-full font-bold text-sm">3</span>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+              CONTROLE DE PESO DURANTE PRODUÇÃO
+            </h2>
           </div>
-          <div className="text-[10px] text-amber-700 ml-auto">Verificar a cada 30 min ou 1.000 cápsulas</div>
+          <span className="text-white text-xs">Verificar a cada 30 min ou 1.000 cápsulas</span>
         </div>
-        
-        <div className="overflow-hidden rounded border border-slate-200">
-          <table className="w-full text-xs">
-            <thead className="bg-amber-50">
-              <tr>
-                <th className="p-2 text-center w-[8%]">Hora</th>
-                <th className="p-2 text-center w-[9%]">C.1</th>
-                <th className="p-2 text-center w-[9%]">C.2</th>
-                <th className="p-2 text-center w-[9%]">C.3</th>
-                <th className="p-2 text-center w-[9%]">C.4</th>
-                <th className="p-2 text-center w-[9%]">C.5</th>
-                <th className="p-2 text-center w-[11%]">Média (mg)</th>
-                <th className="p-2 text-center w-[10%]">Desvio</th>
-                <th className="p-2 text-center w-[10%]">OK?</th>
-                <th className="p-2 text-center w-[16%]">Operador</th>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-amber-100">
+              <th className="border border-amber-300 px-1 py-2 text-center w-[8%]">Hora</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[9%]">C.1</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[9%]">C.2</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[9%]">C.3</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[9%]">C.4</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[9%]">C.5</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[11%]">Média</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[10%]">Desvio</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[8%]">OK?</th>
+              <th className="border border-amber-300 px-1 py-2 text-center w-[18%]">Operador</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((linha) => (
+              <tr key={linha} className="bg-white">
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
+                <td className="border border-amber-200 px-1 py-2 text-center">☐</td>
+                <td className="border border-amber-200 px-1 py-2"><div className="border-b-2 border-slate-400 min-h-[18px]">&nbsp;</div></td>
               </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((linha) => (
-                <tr key={linha} className="border-t bg-white">
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px] text-center">&nbsp;</div></td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                  <td className="p-1 text-center">☐</td>
-                  <td className="p-1"><div className="border-b border-slate-300 min-h-[14px]">&nbsp;</div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-2 text-[9px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
+            ))}
+          </tbody>
+        </table>
+        <div className="p-3 bg-amber-50 border-t border-amber-300 text-xs">
           <strong>Referência:</strong> Peso alvo: <span className="font-mono font-bold">{pesoCapsula} mg</span> | 
-          Tolerância: <span className="font-mono font-bold">±5% ({pesoMin} - {pesoMax} mg)</span>
+          Tolerância: <span className="font-mono font-bold text-amber-700">±5% ({pesoMin} - {pesoMax} mg)</span>
         </div>
       </div>
 
-      {/* REGISTRO DE PRODUÇÃO */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 4: REGISTRO DE PRODUÇÃO                                  */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="border border-slate-200 rounded overflow-hidden">
-          <div className="bg-slate-100 p-2 font-bold text-xs uppercase text-slate-700">Tempos de Produção</div>
+        <div className="border-2 border-slate-600">
+          <div className="bg-slate-600 px-4 py-2">
+            <h3 className="text-sm font-bold uppercase text-white">4A. TEMPOS DE PRODUÇÃO</h3>
+          </div>
           <table className="w-full text-xs">
             <tbody>
               {[
-                { label: 'Hora de Início', field: true },
-                { label: 'Hora de Término', field: true },
-                { label: 'Tempo Total', field: true },
+                { label: 'Hora de Início' },
+                { label: 'Hora de Término' },
+                { label: 'Tempo Total' },
               ].map((row, idx) => (
-                <tr key={idx} className="border-t">
-                  <td className="p-2 w-1/2 font-medium">{row.label}:</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
+                <tr key={idx} className="border-t border-slate-200">
+                  <td className="px-3 py-3 w-1/2 font-medium bg-slate-50">{row.label}:</td>
+                  <td className="px-3 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         
-        <div className="border border-slate-200 rounded overflow-hidden">
-          <div className="bg-slate-100 p-2 font-bold text-xs uppercase text-slate-700">Quantidades</div>
+        <div className="border-2 border-slate-600">
+          <div className="bg-slate-600 px-4 py-2">
+            <h3 className="text-sm font-bold uppercase text-white">4B. QUANTIDADES</h3>
+          </div>
           <table className="w-full text-xs">
             <tbody>
               {[
@@ -170,9 +213,9 @@ export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {
                 { label: 'Cápsulas Rejeitadas' },
                 { label: 'Cápsulas Aprovadas' },
               ].map((row, idx) => (
-                <tr key={idx} className="border-t">
-                  <td className="p-2 w-1/2 font-medium">{row.label}:</td>
-                  <td className="p-2"><div className="border-b border-slate-300 min-h-[16px]">&nbsp;</div></td>
+                <tr key={idx} className="border-t border-slate-200">
+                  <td className="px-3 py-3 w-1/2 font-medium bg-slate-50">{row.label}:</td>
+                  <td className="px-3 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
                 </tr>
               ))}
             </tbody>
@@ -180,73 +223,100 @@ export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {
         </div>
       </div>
 
-      {/* CÁLCULO DE RENDIMENTO */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 p-3 bg-green-100 border-l-4 border-l-green-500 mb-3">
-          <div className="font-bold text-sm uppercase tracking-wide text-green-800">CÁLCULO DE RENDIMENTO</div>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 5: CONTROLE DE QUALIDADE / RENDIMENTO                    */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-green-600 mb-4">
+        <div className="bg-green-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-green-600 rounded-full font-bold text-sm">5</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            🔬 CONTROLE DE QUALIDADE E RENDIMENTO
+          </h2>
         </div>
-        
-        <div className="overflow-hidden rounded border border-green-200">
-          <table className="w-full text-xs">
-            <tbody>
-              <tr className="bg-green-50">
-                <td className="p-2 w-[40%] font-medium">Quantidade Planejada:</td>
-                <td className="p-2 font-mono font-bold">{totalCapsulas.toLocaleString()} cápsulas (c/ 5% acréscimo)</td>
-              </tr>
-              <tr className="border-t bg-white">
-                <td className="p-2 font-medium">Quantidade Produzida:</td>
-                <td className="p-2"><span className="inline-block border-b border-slate-400 min-w-[80px]">&nbsp;</span> cápsulas</td>
-              </tr>
-              <tr className="border-t bg-white">
-                <td className="p-2 font-medium">Quantidade Aprovada:</td>
-                <td className="p-2"><span className="inline-block border-b border-slate-400 min-w-[80px]">&nbsp;</span> cápsulas</td>
-              </tr>
-              <tr className="border-t bg-white">
-                <td className="p-2 font-medium">Perda Total:</td>
-                <td className="p-2">
-                  <span className="inline-block border-b border-slate-400 min-w-[60px]">&nbsp;</span> cápsulas 
-                  (<span className="inline-block border-b border-slate-400 min-w-[30px]">&nbsp;</span>%)
-                </td>
-              </tr>
-              <tr className="border-t bg-green-100">
-                <td className="p-2 font-bold text-green-800">RENDIMENTO FINAL:</td>
-                <td className="p-2">
-                  <span className="inline-block border-b border-green-600 min-w-[60px] font-mono font-bold">&nbsp;</span>%
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <table className="w-full text-xs">
+          <tbody>
+            <tr className="bg-green-50">
+              <td className="border border-green-200 px-3 py-3 w-[40%] font-bold text-green-800">Quantidade Planejada:</td>
+              <td className="border border-green-200 px-3 py-3 font-mono font-bold">{totalCapsulas.toLocaleString()} cápsulas (c/ 5% acréscimo)</td>
+            </tr>
+            <tr className="bg-white">
+              <td className="border border-green-200 px-3 py-3 font-medium">Quantidade Produzida:</td>
+              <td className="border border-green-200 px-3 py-3"><span className="inline-block border-b-2 border-slate-400 min-w-[100px]">&nbsp;</span> cápsulas</td>
+            </tr>
+            <tr className="bg-white">
+              <td className="border border-green-200 px-3 py-3 font-medium">Quantidade Aprovada:</td>
+              <td className="border border-green-200 px-3 py-3"><span className="inline-block border-b-2 border-slate-400 min-w-[100px]">&nbsp;</span> cápsulas</td>
+            </tr>
+            <tr className="bg-white">
+              <td className="border border-green-200 px-3 py-3 font-medium">Perda Total:</td>
+              <td className="border border-green-200 px-3 py-3">
+                <span className="inline-block border-b-2 border-slate-400 min-w-[80px]">&nbsp;</span> cápsulas 
+                (<span className="inline-block border-b-2 border-slate-400 min-w-[40px]">&nbsp;</span>%)
+              </td>
+            </tr>
+            <tr className="bg-green-100">
+              <td className="border border-green-300 px-3 py-3 font-bold text-green-800">RENDIMENTO FINAL:</td>
+              <td className="border border-green-300 px-3 py-3">
+                <span className="inline-block border-b-2 border-green-600 min-w-[80px] font-mono font-bold">&nbsp;</span>%
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      {/* OBSERVAÇÕES */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 p-3 bg-slate-100 border-l-4 border-l-slate-500 mb-3">
-          <div className="font-bold text-sm uppercase tracking-wide">OBSERVAÇÕES / OCORRÊNCIAS</div>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 6: OBSERVAÇÕES                                           */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-600 mb-4">
+        <div className="bg-slate-600 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            6. OBSERVAÇÕES / OCORRÊNCIAS
+          </h2>
         </div>
-        <div className="border border-slate-300 rounded min-h-[60px] p-3 bg-white">
+        <div className="p-4 bg-white min-h-[60px]">
           &nbsp;
         </div>
       </div>
 
-      {/* Assinaturas */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t-2 border-slate-800">
-        {[
-          { cargo: 'Operador de Encapsulamento', subtitulo: 'Nome / Data / Hora' },
-          { cargo: 'Conferente', subtitulo: 'Nome / Data / Hora' },
-          { cargo: 'Responsável Técnico', subtitulo: 'Liberação' },
-        ].map((ass, idx) => (
-          <div key={idx} className="text-center">
-            <div className="border-b border-slate-800 h-8 mb-1">&nbsp;</div>
-            <div className="text-xs font-semibold">{ass.cargo}</div>
-            <div className="text-[9px] text-slate-500">{ass.subtitulo}</div>
-          </div>
-        ))}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 7: ASSINATURAS                                           */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mt-6">
+        <div className="bg-slate-800 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            7. ASSINATURAS E APROVAÇÕES
+          </h2>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-slate-300">
+          {[
+            { cargo: 'Operador de Encapsulamento', funcao: 'Execução' },
+            { cargo: 'Conferente', funcao: 'Verificação' },
+            { cargo: 'Responsável Técnico', funcao: 'Liberação' },
+          ].map((ass, idx) => (
+            <div key={idx} className="p-4 text-center">
+              <div className="border-b-2 border-slate-800 h-12 mb-2">&nbsp;</div>
+              <div className="text-xs font-bold text-slate-800 uppercase">{ass.cargo}</div>
+              <div className="text-[9px] text-slate-500">{ass.funcao}</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[9px]">
+                <div>
+                  <span className="text-slate-500">Nome:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+                <div>
+                  <span className="text-slate-500">Data/Hora:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Rodapé */}
-      <div className="mt-4 pt-2 border-t border-slate-300 text-center text-[8px] text-slate-500">
-        Documento gerado em {new Date().toLocaleString('pt-BR')} | {op.codigo} | Controle de produção e rastreabilidade ANVISA
+      {/* RODAPÉ */}
+      <div className="mt-4 pt-2 border-t-2 border-slate-400 flex justify-between text-[8px] text-slate-500">
+        <div>Vitalnow Industria Ltda | Documento de Produção Industrial</div>
+        <div>{op.codigo} | Gerado em {new Date().toLocaleString('pt-BR')}</div>
+        <div>Controle ANVISA/BPF</div>
       </div>
     </div>
   );
