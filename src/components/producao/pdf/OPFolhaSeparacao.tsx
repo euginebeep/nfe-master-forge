@@ -1,6 +1,6 @@
 // ============================================================
-// FOLHA DE SEPARAÇÃO DE MATERIAIS - FORMATO A4 PROFISSIONAL
-// Inclui matérias-primas E embalagens
+// FOLHA DE SEPARAÇÃO DE MATERIAIS - PADRÃO INDUSTRIAL A4
+// Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
 
 import { cn } from '@/lib/utils';
@@ -12,12 +12,10 @@ interface OPFolhaSeparacaoProps {
 }
 
 export function OPFolhaSeparacao({ op, materiasPrimas, embalagens = [] }: OPFolhaSeparacaoProps) {
-  // Separar por categoria
   const ativos = materiasPrimas.filter(mp => mp.categoria === 'ATIVO');
   const excipienteBase = materiasPrimas.filter(mp => mp.categoria === 'EXCIPIENTE_BASE');
   const tecnologicos = materiasPrimas.filter(mp => mp.categoria === 'EXCIPIENTE_TECNOLOGICO');
 
-  // Calcular embalagens se não fornecidas
   const embalagensFinal = embalagens.length > 0 ? embalagens : calcularEmbalagensPadrao(op);
 
   const formatDate = (dateStr: string | undefined) => {
@@ -27,367 +25,298 @@ export function OPFolhaSeparacao({ op, materiasPrimas, embalagens = [] }: OPFolh
 
   const formatarQuantidade = (valor: number, unidade: string = 'g') => {
     if (!valor) return '-';
-    if (valor >= 1000) {
-      return `${(valor / 1000).toFixed(4)} kg`;
-    }
+    if (valor >= 1000) return `${(valor / 1000).toFixed(4)} kg`;
     return `${valor.toFixed(4)} ${unidade}`;
   };
 
   return (
-    <div id="section-separacao" className="bg-white border border-border rounded-lg shadow-sm overflow-hidden print:border-0 print:shadow-none print:rounded-none">
-      {/* CABEÇALHO PRINCIPAL */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-6 py-4 print:bg-slate-800">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-lg font-bold tracking-wide">ORDEM DE PRODUÇÃO INDUSTRIAL</h1>
-            <p className="text-slate-300 text-sm mt-1">FOLHA DE SEPARAÇÃO DE MATERIAIS</p>
-            <p className="text-slate-400 text-xs">Fase 1 - Pré-Produção</p>
+    <div id="section-separacao" className="bg-white print:text-[9px]">
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 1: IDENTIFICAÇÃO DO PRODUTO                              */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mb-4">
+        <div className="bg-slate-100 px-4 py-2 border-b border-slate-800">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">
+            1. IDENTIFICAÇÃO DO PRODUTO E LOTE
+          </h2>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Produto</div>
+            <div className="text-sm font-bold text-slate-800">{op.produto_nome || '-'}</div>
           </div>
-          <div className="text-right">
-            <div className="text-xl font-mono font-bold">{op.codigo}</div>
-            <div className="text-sm text-slate-300 mt-1">Lote: {op.lote_produto_acabado || '-'}</div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Lote do Produto</div>
+            <div className="text-sm font-bold text-slate-800 font-mono">{op.lote_produto_acabado || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Quantidade</div>
+            <div className="text-sm font-bold text-slate-800">{op.quantidade_frascos?.toLocaleString() || '-'} frascos × {op.capsulas_por_frasco || 60} un</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Total c/ Acréscimo</div>
+            <div className="text-sm font-bold text-orange-600">{(op.total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300 border-t border-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Responsável Técnico</div>
+            <div className="text-sm font-bold text-slate-800">{op.rt_nome || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Conselho/Registro</div>
+            <div className="text-sm font-bold text-slate-800">{op.rt_tipo_conselho || ''} {op.rt_numero_registro || '-'}{op.rt_uf_conselho ? '/' + op.rt_uf_conselho : ''}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Fabricação</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_fabricacao)}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Validade</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_validade)}</div>
           </div>
         </div>
       </div>
 
-      {/* GRID DE INFORMAÇÕES */}
-      <div className="grid grid-cols-4 gap-px bg-slate-200 border-b border-slate-200">
-        <InfoBox label="Produto" value={op.produto_nome} />
-        <InfoBox label="Quantidade" value={`${op.quantidade_frascos?.toLocaleString() || '-'} frascos × ${op.capsulas_por_frasco || '-'} un`} />
-        <InfoBox label="Total c/ Acréscimo" value={`${op.total_capsulas_com_acrescimo?.toLocaleString() || '-'} unidades`} highlight />
-        <InfoBox label="Data Fabricação" value={formatDate(op.data_fabricacao)} />
-      </div>
-      <div className="grid grid-cols-4 gap-px bg-slate-200 border-b border-slate-300">
-        <InfoBox label="Responsável Técnico" value={op.rt_nome || '-'} />
-        <InfoBox label="Conselho/Registro" value={`${op.rt_tipo_conselho || ''} ${op.rt_numero_registro || ''}${op.rt_uf_conselho ? '/' + op.rt_uf_conselho : ''}`} />
-        <InfoBox label="Fórmula" value={op.formula_codigo || 'Manual'} />
-        <InfoBox label="Data Validade" value={formatDate(op.data_validade)} />
-      </div>
-
-      <div className="p-6 space-y-6">
-        {/* SEÇÃO 1: ATIVOS */}
-        <SectionBlock
-          numero={1}
-          titulo="ATIVOS E PRINCÍPIOS ATIVOS"
-          subtitulo="Separar conforme lista abaixo"
-          corBorda="border-l-red-500"
-          corFundo="bg-red-50"
-        >
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-100 text-xs uppercase text-slate-600">
-                <th className="border border-slate-300 px-3 py-2 w-12 text-center">Ord.</th>
-                <th className="border border-slate-300 px-3 py-2 text-left">Insumo</th>
-                <th className="border border-slate-300 px-3 py-2 w-24 text-center">Categoria</th>
-                <th className="border border-slate-300 px-3 py-2 w-32 text-right">Qtd. Necessária</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Lote MP</th>
-                <th className="border border-slate-300 px-3 py-2 w-24 text-center">Validade</th>
-                <th className="border border-slate-300 px-3 py-2 w-20 text-center">Separado</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Conferido</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ativos.map((mp, idx) => (
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 2: SEPARAÇÃO DE ATIVOS                                   */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-red-600 mb-4">
+        <div className="bg-red-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-red-600 rounded-full font-bold text-sm">2</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            ATIVOS E PRINCÍPIOS ATIVOS
+          </h2>
+          <span className="ml-auto text-white text-xs">{ativos.length} item(ns)</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-red-50">
+              <th className="border border-red-200 px-2 py-2 text-center w-[6%]">Ord.</th>
+              <th className="border border-red-200 px-2 py-2 text-left w-[28%]">Insumo</th>
+              <th className="border border-red-200 px-2 py-2 text-right w-[14%]">Qtd. Necessária</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[13%]">Lote MP</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[11%]">Validade</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[8%]">☑</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[20%]">Conferido Por</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ativos.length === 0 ? (
+              <tr><td colSpan={7} className="border border-red-200 p-3 text-center text-slate-400 italic">Nenhum ativo cadastrado</td></tr>
+            ) : (
+              ativos.map((mp, idx) => (
                 <tr key={mp.id || idx} className={cn(mp.pesagem_critica && "bg-yellow-50")}>
-                  <td className="border border-slate-300 px-3 py-2 text-center">
-                    <span className="inline-flex items-center justify-center w-6 h-6 bg-red-600 text-white rounded-full text-xs font-bold">
-                      {idx + 1}
-                    </span>
+                  <td className="border border-red-200 px-2 py-3 text-center">
+                    <span className="inline-flex items-center justify-center w-6 h-6 bg-red-600 text-white rounded-full text-[10px] font-bold">{idx + 1}</span>
                   </td>
-                  <td className="border border-slate-300 px-3 py-2">
+                  <td className="border border-red-200 px-2 py-3">
                     <div className="font-semibold text-slate-800">{mp.insumo_nome}</div>
                     {mp.pesagem_critica && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="inline-block px-2 py-0.5 bg-red-600 text-white text-xs font-semibold rounded">
-                          CRÍTICO
-                        </span>
-                        {mp.motivo_critico && (
-                          <span className="text-xs text-slate-500">({mp.motivo_critico})</span>
-                        )}
-                      </div>
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-red-600 text-white text-[9px] font-bold rounded">CRÍTICO</span>
                     )}
                   </td>
-                  <td className="border border-slate-300 px-3 py-2 text-center text-slate-600">Ativo</td>
-                  <td className="border border-slate-300 px-3 py-2 text-right font-mono font-semibold text-slate-800">
-                    {formatarQuantidade(mp.quantidade_teorica_g)}
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2 text-center text-xl">☐</td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
+                  <td className="border border-red-200 px-2 py-3 text-right font-mono font-semibold">{formatarQuantidade(mp.quantidade_teorica_g)}</td>
+                  <td className="border border-red-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                  <td className="border border-red-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                  <td className="border border-red-200 px-2 py-3 text-center text-xl">☐</td>
+                  <td className="border border-red-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
                 </tr>
-              ))}
-              {ativos.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="border border-slate-300 px-3 py-4 text-center text-slate-400 italic">
-                    Nenhum ativo cadastrado
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </SectionBlock>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        {/* SEÇÃO 2: EXCIPIENTE BASE */}
-        <SectionBlock
-          numero={2}
-          titulo="EXCIPIENTE BASE (Q.S.P.)"
-          corBorda="border-l-green-500"
-          corFundo="bg-green-50"
-        >
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-100 text-xs uppercase text-slate-600">
-                <th className="border border-slate-300 px-3 py-2 w-12 text-center">Ord.</th>
-                <th className="border border-slate-300 px-3 py-2 text-left">Insumo</th>
-                <th className="border border-slate-300 px-3 py-2 w-32 text-right">Qtd. Necessária</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Lote MP</th>
-                <th className="border border-slate-300 px-3 py-2 w-24 text-center">Validade</th>
-                <th className="border border-slate-300 px-3 py-2 w-20 text-center">Separado</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Conferido</th>
-              </tr>
-            </thead>
-            <tbody>
-              {excipienteBase.map((mp, idx) => (
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 3: EXCIPIENTE BASE                                       */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-green-600 mb-4">
+        <div className="bg-green-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-green-600 rounded-full font-bold text-sm">3</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            EXCIPIENTE BASE (Q.S.P.)
+          </h2>
+          <span className="ml-auto text-white text-xs">{excipienteBase.length} item(ns)</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-green-50">
+              <th className="border border-green-200 px-2 py-2 text-center w-[6%]">Ord.</th>
+              <th className="border border-green-200 px-2 py-2 text-left w-[32%]">Insumo</th>
+              <th className="border border-green-200 px-2 py-2 text-right w-[14%]">Qtd. Necessária</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[13%]">Lote MP</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[11%]">Validade</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[8%]">☑</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[16%]">Conferido Por</th>
+            </tr>
+          </thead>
+          <tbody>
+            {excipienteBase.length === 0 ? (
+              <tr><td colSpan={7} className="border border-green-200 p-3 text-center text-slate-400 italic">Nenhum excipiente base cadastrado</td></tr>
+            ) : (
+              excipienteBase.map((mp, idx) => (
                 <tr key={mp.id || idx} className="bg-green-50/50">
-                  <td className="border border-slate-300 px-3 py-2 text-center">
-                    <span className="inline-flex items-center justify-center w-6 h-6 bg-green-600 text-white rounded-full text-xs font-bold">
-                      {idx + 1}
-                    </span>
+                  <td className="border border-green-200 px-2 py-3 text-center">
+                    <span className="inline-flex items-center justify-center w-6 h-6 bg-green-600 text-white rounded-full text-[10px] font-bold">{idx + 1}</span>
                   </td>
-                  <td className="border border-slate-300 px-3 py-2">
+                  <td className="border border-green-200 px-2 py-3">
                     <span className="font-semibold text-slate-800">{mp.insumo_nome}</span>
-                    <span className="ml-2 inline-block px-2 py-0.5 bg-green-600 text-white text-xs font-semibold rounded">
-                      Q.S.P.
-                    </span>
+                    <span className="ml-2 inline-block px-2 py-0.5 bg-green-600 text-white text-[9px] font-bold rounded">Q.S.P.</span>
                   </td>
-                  <td className="border border-slate-300 px-3 py-2 text-right font-mono font-semibold text-slate-800">
-                    {formatarQuantidade(mp.quantidade_teorica_g)}
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2 text-center text-xl">☐</td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
+                  <td className="border border-green-200 px-2 py-3 text-right font-mono font-semibold">{formatarQuantidade(mp.quantidade_teorica_g)}</td>
+                  <td className="border border-green-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                  <td className="border border-green-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                  <td className="border border-green-200 px-2 py-3 text-center text-xl">☐</td>
+                  <td className="border border-green-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
                 </tr>
-              ))}
-              {excipienteBase.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="border border-slate-300 px-3 py-4 text-center text-slate-400 italic">
-                    Nenhum excipiente base cadastrado
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </SectionBlock>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        {/* SEÇÃO 3: EXCIPIENTES TECNOLÓGICOS */}
-        <SectionBlock
-          numero={3}
-          titulo="EXCIPIENTES TECNOLÓGICOS"
-          subtitulo="Dióxido de Silício, Talco, Estearato de Magnésio"
-          corBorda="border-l-blue-500"
-          corFundo="bg-blue-50"
-        >
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-100 text-xs uppercase text-slate-600">
-                <th className="border border-slate-300 px-3 py-2 w-12 text-center">Ord.</th>
-                <th className="border border-slate-300 px-3 py-2 text-left">Insumo</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Função</th>
-                <th className="border border-slate-300 px-3 py-2 w-16 text-center">%</th>
-                <th className="border border-slate-300 px-3 py-2 w-32 text-right">Qtd. Necessária</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Lote MP</th>
-                <th className="border border-slate-300 px-3 py-2 w-20 text-center">Separado</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Conferido</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tecnologicos.map((mp, idx) => {
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 4: EXCIPIENTES TECNOLÓGICOS                              */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-blue-600 mb-4">
+        <div className="bg-blue-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-blue-600 rounded-full font-bold text-sm">4</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            EXCIPIENTES TECNOLÓGICOS
+          </h2>
+          <span className="ml-auto text-white text-xs">{tecnologicos.length} item(ns)</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-blue-50">
+              <th className="border border-blue-200 px-2 py-2 text-center w-[6%]">Ord.</th>
+              <th className="border border-blue-200 px-2 py-2 text-left w-[24%]">Insumo</th>
+              <th className="border border-blue-200 px-2 py-2 text-center w-[14%]">Função</th>
+              <th className="border border-blue-200 px-2 py-2 text-right w-[12%]">Qtd. Necessária</th>
+              <th className="border border-blue-200 px-2 py-2 text-center w-[12%]">Lote MP</th>
+              <th className="border border-blue-200 px-2 py-2 text-center w-[8%]">☑</th>
+              <th className="border border-blue-200 px-2 py-2 text-center w-[16%]">Conferido Por</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tecnologicos.length === 0 ? (
+              <tr><td colSpan={7} className="border border-blue-200 p-3 text-center text-slate-400 italic">Nenhum excipiente tecnológico cadastrado</td></tr>
+            ) : (
+              tecnologicos.map((mp, idx) => {
                 const funcao = mp.insumo_nome?.toLowerCase().includes('silício') ? 'Anti-umectante' :
                               mp.insumo_nome?.toLowerCase().includes('talco') ? 'Lubrificante' :
                               mp.insumo_nome?.toLowerCase().includes('estearato') ? 'Deslizante' : 'Tecnológico';
-                const percentual = mp.insumo_nome?.toLowerCase().includes('silício') ? '2,0%' :
-                                  mp.insumo_nome?.toLowerCase().includes('talco') ? '5,0%' :
-                                  mp.insumo_nome?.toLowerCase().includes('estearato') ? '2,5%' : '-';
                 const isEstearato = mp.insumo_nome?.toLowerCase().includes('estearato');
-                
                 return (
-                  <tr key={mp.id || idx} className="bg-blue-50/50">
-                    <td className="border border-slate-300 px-3 py-2 text-center">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs font-bold">
-                        {idx + 1}
-                      </span>
+                  <tr key={mp.id || idx} className={isEstearato ? "bg-amber-50" : "bg-blue-50/50"}>
+                    <td className="border border-blue-200 px-2 py-3 text-center">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-[10px] font-bold">{idx + 1}</span>
                     </td>
-                    <td className="border border-slate-300 px-3 py-2">
+                    <td className="border border-blue-200 px-2 py-3">
                       <div className="font-semibold text-slate-800">{mp.insumo_nome}</div>
-                      {isEstearato && (
-                        <div className="text-xs text-amber-600 font-medium mt-1">
-                          ⚠ SEMPRE adicionar por último
-                        </div>
-                      )}
+                      {isEstearato && <div className="text-[9px] text-amber-600 font-semibold mt-1">⚠ SEMPRE adicionar por último</div>}
                     </td>
-                    <td className="border border-slate-300 px-3 py-2 text-center text-slate-600">{funcao}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-center font-mono">{percentual}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right font-mono font-semibold text-slate-800">
-                      {formatarQuantidade(mp.quantidade_teorica_g)}
-                    </td>
-                    <td className="border border-slate-300 px-3 py-2">
-                      <div className="h-6 border-b border-slate-400" />
-                    </td>
-                    <td className="border border-slate-300 px-3 py-2 text-center text-xl">☐</td>
-                    <td className="border border-slate-300 px-3 py-2">
-                      <div className="h-6 border-b border-slate-400" />
-                    </td>
+                    <td className="border border-blue-200 px-2 py-3 text-center text-slate-600">{funcao}</td>
+                    <td className="border border-blue-200 px-2 py-3 text-right font-mono font-semibold">{formatarQuantidade(mp.quantidade_teorica_g)}</td>
+                    <td className="border border-blue-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                    <td className="border border-blue-200 px-2 py-3 text-center text-xl">☐</td>
+                    <td className="border border-blue-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
                   </tr>
                 );
-              })}
-              {tecnologicos.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="border border-slate-300 px-3 py-4 text-center text-slate-400 italic">
-                    Nenhum excipiente tecnológico cadastrado
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </SectionBlock>
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        {/* SEÇÃO 4: MATERIAIS DE EMBALAGEM */}
-        <SectionBlock
-          numero={4}
-          titulo="MATERIAIS DE EMBALAGEM"
-          subtitulo="Potes, tampas, rótulos, lacres, sachês de sílica"
-          corBorda="border-l-purple-500"
-          corFundo="bg-purple-50"
-        >
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-100 text-xs uppercase text-slate-600">
-                <th className="border border-slate-300 px-3 py-2 w-12 text-center">Ord.</th>
-                <th className="border border-slate-300 px-3 py-2 text-left">Material</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Tipo</th>
-                <th className="border border-slate-300 px-3 py-2 w-32 text-right">Qtd. Necessária</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Lote</th>
-                <th className="border border-slate-300 px-3 py-2 w-20 text-center">Separado</th>
-                <th className="border border-slate-300 px-3 py-2 w-28 text-center">Conferido</th>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 5: MATERIAIS DE EMBALAGEM                                */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-purple-600 mb-4">
+        <div className="bg-purple-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-purple-600 rounded-full font-bold text-sm">5</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            MATERIAIS DE EMBALAGEM
+          </h2>
+          <span className="ml-auto text-white text-xs">{embalagensFinal.length} item(ns)</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-purple-50">
+              <th className="border border-purple-200 px-2 py-2 text-center w-[6%]">Ord.</th>
+              <th className="border border-purple-200 px-2 py-2 text-left w-[28%]">Material</th>
+              <th className="border border-purple-200 px-2 py-2 text-center w-[12%]">Tipo</th>
+              <th className="border border-purple-200 px-2 py-2 text-right w-[12%]">Qtd. Necessária</th>
+              <th className="border border-purple-200 px-2 py-2 text-center w-[12%]">Lote</th>
+              <th className="border border-purple-200 px-2 py-2 text-center w-[8%]">☑</th>
+              <th className="border border-purple-200 px-2 py-2 text-center w-[14%]">Conferido Por</th>
+            </tr>
+          </thead>
+          <tbody>
+            {embalagensFinal.map((emb: any, idx: number) => (
+              <tr key={emb.id || idx} className="bg-purple-50/50">
+                <td className="border border-purple-200 px-2 py-3 text-center">
+                  <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-600 text-white rounded-full text-[10px] font-bold">{idx + 1}</span>
+                </td>
+                <td className="border border-purple-200 px-2 py-3 font-semibold">{emb.descricao || emb.insumo_nome}</td>
+                <td className="border border-purple-200 px-2 py-3 text-center">
+                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px]">{emb.tipo || 'Embalagem'}</span>
+                </td>
+                <td className="border border-purple-200 px-2 py-3 text-right font-mono font-semibold">{emb.quantidade_necessaria?.toLocaleString() || '-'} {emb.unidade || 'un'}</td>
+                <td className="border border-purple-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                <td className="border border-purple-200 px-2 py-3 text-center text-xl">☐</td>
+                <td className="border border-purple-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
               </tr>
-            </thead>
-            <tbody>
-              {embalagensFinal.map((emb: any, idx: number) => (
-                <tr key={emb.id || idx} className="bg-purple-50/50">
-                  <td className="border border-slate-300 px-3 py-2 text-center">
-                    <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-600 text-white rounded-full text-xs font-bold">
-                      {idx + 1}
-                    </span>
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <span className="font-semibold text-slate-800">{emb.descricao || emb.insumo_nome}</span>
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2 text-center text-slate-600">{emb.tipo || 'Embalagem'}</td>
-                  <td className="border border-slate-300 px-3 py-2 text-right font-mono font-semibold text-slate-800">
-                    {emb.quantidade_necessaria?.toLocaleString() || '-'} {emb.unidade || 'un'}
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2 text-center text-xl">☐</td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="h-6 border-b border-slate-400" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </SectionBlock>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {/* ÁREA DE ASSINATURAS */}
-        <div className="border-t-2 border-slate-300 pt-6 mt-8">
-          <div className="grid grid-cols-3 gap-8">
-            <SignatureBlock title="Separado por" subtitle="Nome / Data / Hora" />
-            <SignatureBlock title="Conferido por" subtitle="Nome / Data / Hora" />
-            <SignatureBlock title="Liberado por" subtitle="Responsável Técnico" />
-          </div>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 6: ASSINATURAS                                           */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mt-6">
+        <div className="bg-slate-800 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            6. ASSINATURAS E APROVAÇÕES
+          </h2>
         </div>
+        <div className="grid grid-cols-3 divide-x divide-slate-300">
+          {[
+            { cargo: 'Separado Por', funcao: 'Execução' },
+            { cargo: 'Conferido Por', funcao: 'Verificação' },
+            { cargo: 'Responsável Técnico', funcao: 'Liberação' },
+          ].map((ass, idx) => (
+            <div key={idx} className="p-4 text-center">
+              <div className="border-b-2 border-slate-800 h-12 mb-2">&nbsp;</div>
+              <div className="text-xs font-bold text-slate-800 uppercase">{ass.cargo}</div>
+              <div className="text-[9px] text-slate-500">{ass.funcao}</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[9px]">
+                <div>
+                  <span className="text-slate-500">Nome:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+                <div>
+                  <span className="text-slate-500">Data/Hora:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
-        {/* RODAPÉ */}
-        <div className="border-t border-slate-200 pt-4 mt-6 text-center text-xs text-slate-500">
-          Documento gerado em {new Date().toLocaleString('pt-BR')} | {op.codigo} | 
-          Este documento é parte integrante do controle de produção e rastreabilidade ANVISA
-        </div>
+      {/* RODAPÉ */}
+      <div className="mt-4 pt-2 border-t-2 border-slate-400 flex justify-between text-[8px] text-slate-500">
+        <div>Vitalnow Industria Ltda | Documento de Produção Industrial</div>
+        <div>{op.codigo} | Gerado em {new Date().toLocaleString('pt-BR')}</div>
+        <div>Controle ANVISA/BPF</div>
       </div>
     </div>
   );
 }
 
-// Componentes auxiliares
-function InfoBox({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className={cn("bg-white px-4 py-3", highlight && "bg-amber-50")}>
-      <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">{label}</div>
-      <div className={cn("font-semibold text-slate-800", highlight && "text-amber-700")}>{value}</div>
-    </div>
-  );
-}
-
-function SectionBlock({ 
-  numero, 
-  titulo, 
-  subtitulo, 
-  corBorda = "border-l-slate-500",
-  corFundo = "bg-slate-50",
-  children 
-}: { 
-  numero: number; 
-  titulo: string; 
-  subtitulo?: string;
-  corBorda?: string;
-  corFundo?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-      <div className={cn("px-4 py-3 border-l-4", corBorda, corFundo)}>
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center justify-center w-7 h-7 bg-slate-700 text-white rounded-full text-sm font-bold">
-            {numero}
-          </span>
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{titulo}</h3>
-            {subtitulo && <p className="text-xs text-slate-500 mt-0.5">{subtitulo}</p>}
-          </div>
-        </div>
-      </div>
-      <div className="p-4 bg-white">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function SignatureBlock({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="text-center">
-      <div className="h-12 border-b-2 border-slate-400 mb-2" />
-      <div className="text-sm font-semibold text-slate-700">{title}</div>
-      <div className="text-xs text-slate-500">{subtitle}</div>
-    </div>
-  );
-}
-
-// Função auxiliar para calcular embalagens padrão
 function calcularEmbalagensPadrao(op: any) {
   const qtdFrascos = op.quantidade_frascos || 100;
   const qtdComReserva = Math.ceil(qtdFrascos * 1.05);
@@ -398,19 +327,19 @@ function calcularEmbalagensPadrao(op: any) {
   
   if (op.tipo_apresentacao === 'CAPSULA' || !op.tipo_apresentacao) {
     embalagens.push({
-      tipo: 'CÁPSULA VAZIA',
-      descricao: op.capsula_item_nome || `Cápsula Gelatinosa ${op.tipo_capsula || '00'}`,
+      tipo: 'CAPSULA_VAZIA',
+      descricao: `Cápsula Gelatinosa ${op.tipo_capsula || '00'}`,
       quantidade_necessaria: capsulasMaisReserva,
       unidade: 'un'
     });
   }
 
   embalagens.push(
-    { tipo: 'POTE', descricao: op.pote_item_nome || 'Pote PEAD Branco c/ Tampa', quantidade_necessaria: qtdComReserva, unidade: 'un' },
-    { tipo: 'TAMPA', descricao: op.tampa_item_nome || 'Tampa Rosca c/ Lacre Indução', quantidade_necessaria: qtdComReserva, unidade: 'un' },
-    { tipo: 'RÓTULO', descricao: 'Rótulo Adesivo Personalizado', quantidade_necessaria: qtdComReserva, unidade: 'un' },
+    { tipo: 'POTE', descricao: 'Pote PEAD Branco c/ Tampa', quantidade_necessaria: qtdComReserva, unidade: 'un' },
+    { tipo: 'TAMPA', descricao: 'Tampa Rosca c/ Lacre Indução', quantidade_necessaria: qtdComReserva, unidade: 'un' },
+    { tipo: 'ROTULO', descricao: 'Rótulo Adesivo Personalizado', quantidade_necessaria: qtdComReserva, unidade: 'un' },
     { tipo: 'LACRE', descricao: 'Lacre Termoencolhível', quantidade_necessaria: qtdComReserva, unidade: 'un' },
-    { tipo: 'SÍLICA', descricao: op.silica_item_nome || 'Sachê Sílica Gel 1g', quantidade_necessaria: qtdComReserva, unidade: 'un' }
+    { tipo: 'SILICA_SACHE', descricao: 'Sachê Sílica Gel 1g', quantidade_necessaria: qtdComReserva, unidade: 'un' }
   );
 
   return embalagens;

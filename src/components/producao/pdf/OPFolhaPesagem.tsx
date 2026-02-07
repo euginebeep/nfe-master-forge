@@ -1,49 +1,12 @@
 // ============================================================
-// FOLHA DE PESAGEM DE MATÉRIAS-PRIMAS - FORMATO A4 PROFISSIONAL
-// Inclui distribuição geométrica junto com pesagem
+// FOLHA DE PESAGEM - PADRÃO INDUSTRIAL PROFISSIONAL A4
+// Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
-
-import { OPCabecalhoPDF, OPRodapePDF, OPAssinaturasPDF } from './OPCabecalhoPDF';
 
 interface OPFolhaPesagemProps {
   op: any;
   materiasPrimas: any[];
 }
-
-// Componentes auxiliares para layout consistente
-const SectionHeader = ({ 
-  numero, 
-  titulo, 
-  subtitulo, 
-  corBg, 
-  corBorda 
-}: { 
-  numero: number; 
-  titulo: string; 
-  subtitulo?: string; 
-  corBg: string; 
-  corBorda: string; 
-}) => (
-  <div 
-    className={`flex items-center gap-3 p-3 border-l-4 mb-3 ${corBg} ${corBorda}`}
-    style={{ pageBreakInside: 'avoid' }}
-  >
-    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-white font-bold text-sm">
-      {numero}
-    </div>
-    <div>
-      <div className="font-bold text-sm uppercase tracking-wide">{titulo}</div>
-      {subtitulo && <div className="text-xs text-slate-600">{subtitulo}</div>}
-    </div>
-  </div>
-);
-
-const InfoBox = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
-  <div className={`border rounded p-2 ${highlight ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
-    <div className="text-[9px] text-slate-500 uppercase tracking-wide">{label}</div>
-    <div className={`text-sm font-semibold ${highlight ? 'text-amber-700' : 'text-slate-800'}`}>{value}</div>
-  </div>
-);
 
 export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
   const mpOrdenadas = [...materiasPrimas].sort((a, b) => 
@@ -55,6 +18,7 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
   const excipientes = mpOrdenadas.filter(mp => mp.categoria !== 'ATIVO');
 
   const formatarQuantidade = (valorG: number) => {
+    if (!valorG) return { valor: '-', unidade: '', balanca: '-' };
     if (valorG >= 1000) return { valor: (valorG / 1000).toFixed(4), unidade: 'kg', balanca: '2 casas decimais' };
     if (valorG >= 1) return { valor: valorG.toFixed(4), unidade: 'g', balanca: '3 ou 4 casas' };
     if (valorG >= 0.001) return { valor: (valorG * 1000).toFixed(4), unidade: 'mg', balanca: '4 ou 5 casas (analítica)' };
@@ -67,168 +31,163 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
     return `${minFmt.valor} - ${maxFmt.valor} ${maxFmt.unidade}`;
   };
 
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
   return (
-    <div id="section-pesagem" className="bg-white p-6 text-sm print:p-0 print:text-[10px]">
-      {/* Cabeçalho com visual profissional */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-4 rounded-t-lg mb-4 print:rounded-none">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">FOLHA DE PESAGEM</h1>
-            <p className="text-slate-300 text-xs">Fase 2 - Pesagem Industrial de Matérias-Primas</p>
+    <div id="section-pesagem" className="bg-white print:text-[9px]">
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 1: IDENTIFICAÇÃO DO PRODUTO                              */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mb-4">
+        <div className="bg-slate-100 px-4 py-2 border-b border-slate-800">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">
+            1. IDENTIFICAÇÃO DO PRODUTO E LOTE
+          </h2>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Produto</div>
+            <div className="text-sm font-bold text-slate-800">{op.produto_nome || '-'}</div>
           </div>
-          <div className="text-right">
-            <div className="text-xl font-mono font-bold">{op.codigo}</div>
-            <div className="text-xs text-slate-300">Lote: {op.lote_produto_acabado || '-'}</div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Lote do Produto</div>
+            <div className="text-sm font-bold text-slate-800 font-mono">{op.lote_produto_acabado || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Total de Cápsulas</div>
+            <div className="text-sm font-bold text-orange-600">{(op.total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Fabricação</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_fabricacao)}</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300 border-t border-slate-300">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Fórmula</div>
+            <div className="text-sm font-bold text-slate-800">{op.formula_codigo || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Data Validade</div>
+            <div className="text-sm font-bold text-slate-800">{formatDate(op.data_validade)}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Responsável Técnico</div>
+            <div className="text-sm font-bold text-slate-800">{op.rt_nome || '-'}</div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Conselho/Registro</div>
+            <div className="text-sm font-bold text-slate-800">{op.rt_tipo_conselho || ''} {op.rt_numero_registro || '-'}</div>
           </div>
         </div>
       </div>
 
-      {/* Grid de informações */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
-        <InfoBox label="Produto" value={op.produto_nome || '-'} />
-        <InfoBox label="Total Cápsulas" value={`${op.total_capsulas_com_acrescimo?.toLocaleString() || 0} un`} />
-        <InfoBox label="RT Responsável" value={op.rt_nome || '-'} />
-        <InfoBox label="Data Fabricação" value={op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'} highlight />
-      </div>
-
-      {/* ALERTA DE ATIVOS CRÍTICOS */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 2: ALERTA DE ATIVOS CRÍTICOS                             */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       {itensCriticos.length > 0 && (
-        <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-2 text-red-800 font-bold mb-2">
-            <span className="text-lg">⚠️</span>
-            <span className="uppercase tracking-wide">
-              ATENÇÃO: {itensCriticos.length} ATIVO(S) CRÍTICO(S)
-            </span>
+        <div className="border-2 border-red-600 bg-red-50 mb-4">
+          <div className="bg-red-600 px-4 py-2">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
+              <span>⚠️</span> 2. ATENÇÃO: {itensCriticos.length} ATIVO(S) CRÍTICO(S)
+            </h2>
           </div>
-          <div className="text-red-700 text-xs">
-            Itens marcados como <strong>CRÍTICOS</strong> exigem <strong>DUPLA CONFERÊNCIA</strong>.
-            <br />
-            <strong>PROIBIDA A PESAGEM DIRETA NO LOTE FINAL.</strong> Seguir procedimento de PRÉ-MIX obrigatório.
+          <div className="p-4 text-xs text-red-800">
+            <p className="mb-2"><strong>Itens marcados como CRÍTICOS exigem DUPLA CONFERÊNCIA.</strong></p>
+            <p className="font-bold text-red-900">⛔ PROIBIDA A PESAGEM DIRETA NO LOTE FINAL — Seguir procedimento de PRÉ-MIX obrigatório.</p>
           </div>
-        </div>
-      )}
-
-      {/* DISTRIBUIÇÃO GEOMÉTRICA (se houver ativos críticos) */}
-      {itensCriticos.length > 0 && (
-        <div className="mb-4">
-          <SectionHeader 
-            numero={0} 
-            titulo="PROCEDIMENTO DE DISTRIBUIÇÃO GEOMÉTRICA" 
-            subtitulo="Obrigatório para ativos críticos"
-            corBg="bg-blue-50"
-            corBorda="border-l-blue-500"
-          />
           
-          {itensCriticos.map((mp, idx) => {
-            const qtd = formatarQuantidade(mp.quantidade_teorica_g);
-            return (
-              <div key={mp.id || idx} className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
-                <div className="font-bold text-blue-800 mb-2 text-sm">
-                  🔬 {mp.insumo_nome} - {qtd.valor} {qtd.unidade}
-                </div>
-                
-                <div className="grid grid-cols-1 gap-1 text-xs">
-                  {[
-                    { passo: 1, texto: `Pesar ${qtd.valor} ${qtd.unidade} do ativo em balança ${qtd.balanca}`, prop: '1:0' },
-                    { passo: 2, texto: 'Adicionar quantidade IGUAL de Excipiente Base (diluente)', prop: '1:1' },
-                    { passo: 3, texto: 'Homogeneizar por 2 minutos com movimentos circulares', prop: '-' },
-                    { passo: 4, texto: 'Dobrar o volume com mais Excipiente Base, homogeneizar 2 min', prop: '1:2' },
-                    { passo: 5, texto: 'Repetir passo 4 até completar volume total do Excipiente Base', prop: 'Prog.' },
-                    { passo: 6, texto: 'Homogeneização final por 5 minutos', prop: 'Final' },
-                  ].map(step => (
-                    <div key={step.passo} className="flex items-center gap-2 py-1 border-b border-blue-100 last:border-0">
-                      <span className="flex items-center justify-center w-5 h-5 bg-blue-600 text-white rounded-full text-[10px] font-bold">
-                        {step.passo}
-                      </span>
-                      <span className="flex-1">{step.texto}</span>
-                      <span className="text-blue-600 font-semibold w-12 text-right">{step.prop}</span>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 mt-3 pt-2 border-t border-blue-200">
-                  <div className="text-xs">
-                    <span className="font-semibold">Conferente 1:</span>
-                    <span className="inline-block ml-2 border-b border-slate-400 min-w-[100px]">&nbsp;</span>
-                  </div>
-                  <div className="text-xs">
-                    <span className="font-semibold">Conferente 2:</span>
-                    <span className="inline-block ml-2 border-b border-slate-400 min-w-[100px]">&nbsp;</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {/* DISTRIBUIÇÃO GEOMÉTRICA */}
+          <div className="border-t border-red-300 p-4">
+            <h3 className="font-bold text-sm text-red-800 mb-3">PROCEDIMENTO DE DISTRIBUIÇÃO GEOMÉTRICA:</h3>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-red-100">
+                  <th className="border border-red-300 px-2 py-2 text-center w-[8%]">Passo</th>
+                  <th className="border border-red-300 px-2 py-2 text-left w-[62%]">Descrição</th>
+                  <th className="border border-red-300 px-2 py-2 text-center w-[15%]">Proporção</th>
+                  <th className="border border-red-300 px-2 py-2 text-center w-[15%]">Conforme</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { passo: 1, texto: 'Pesar o ativo em balança analítica (4-5 casas)', prop: '1:0' },
+                  { passo: 2, texto: 'Adicionar quantidade IGUAL de Excipiente Base', prop: '1:1' },
+                  { passo: 3, texto: 'Homogeneizar por 2 minutos com movimentos circulares', prop: '-' },
+                  { passo: 4, texto: 'Dobrar o volume com mais Excipiente Base, homogeneizar 2 min', prop: '1:2' },
+                  { passo: 5, texto: 'Repetir passo 4 até completar volume total do Excipiente Base', prop: 'Progressivo' },
+                  { passo: 6, texto: 'Homogeneização final por 5 minutos', prop: 'Final' },
+                ].map(step => (
+                  <tr key={step.passo} className="bg-white">
+                    <td className="border border-red-200 px-2 py-2 text-center font-bold">{step.passo}</td>
+                    <td className="border border-red-200 px-2 py-2">{step.texto}</td>
+                    <td className="border border-red-200 px-2 py-2 text-center font-mono text-red-600">{step.prop}</td>
+                    <td className="border border-red-200 px-2 py-2 text-center">☐</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* SEÇÃO 1: ATIVOS */}
-      <SectionHeader 
-        numero={1} 
-        titulo="PESAGEM DE ATIVOS" 
-        subtitulo={`${ativos.length} insumo(s) ativo(s)`}
-        corBg="bg-red-50"
-        corBorda="border-l-red-500"
-      />
-      
-      <div className="mb-4 overflow-hidden rounded border border-slate-200">
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 3: PESAGEM DE ATIVOS                                     */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-red-600 mb-4">
+        <div className="bg-red-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-red-600 rounded-full font-bold text-sm">{itensCriticos.length > 0 ? 3 : 2}</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">PESAGEM DE ATIVOS</h2>
+          <span className="ml-auto text-white text-xs">{ativos.length} item(ns)</span>
+        </div>
         <table className="w-full text-xs">
-          <thead className="bg-red-100">
-            <tr>
-              <th className="p-2 text-left w-[4%]">Ord.</th>
-              <th className="p-2 text-left w-[24%]">Insumo</th>
-              <th className="p-2 text-left w-[8%]">Tipo</th>
-              <th className="p-2 text-right w-[14%]">Qtd. Teórica</th>
-              <th className="p-2 text-right w-[14%]">Tolerância ±10%</th>
-              <th className="p-2 text-center w-[10%]">Lote MP</th>
-              <th className="p-2 text-center w-[13%]">Peso Real</th>
-              <th className="p-2 text-center w-[13%]">Pesado Por</th>
+          <thead>
+            <tr className="bg-red-100">
+              <th className="border border-red-200 px-2 py-2 text-center w-[5%]">Ord.</th>
+              <th className="border border-red-200 px-2 py-2 text-left w-[22%]">Insumo</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[8%]">Tipo</th>
+              <th className="border border-red-200 px-2 py-2 text-right w-[12%]">Qtd. Teórica</th>
+              <th className="border border-red-200 px-2 py-2 text-right w-[14%]">Tolerância ±10%</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[10%]">Lote MP</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[12%]">Peso Real</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[10%]">Pesado Por</th>
+              <th className="border border-red-200 px-2 py-2 text-center w-[7%]">☑</th>
             </tr>
           </thead>
           <tbody>
             {ativos.length === 0 ? (
-              <tr><td colSpan={8} className="p-3 text-center text-slate-400 italic">Nenhum ativo cadastrado</td></tr>
+              <tr><td colSpan={9} className="border border-red-200 p-3 text-center text-slate-400 italic">Nenhum ativo cadastrado</td></tr>
             ) : (
               ativos.map((mp, idx) => {
                 const qtd = formatarQuantidade(mp.quantidade_teorica_g);
                 return (
-                  <tr key={mp.id || idx} className={`border-t ${mp.pesagem_critica ? 'bg-amber-50' : 'bg-white'}`}>
-                    <td className="p-2 text-center">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-slate-800 text-white rounded-full text-[10px] font-bold">
-                        {mp.ordem_mistura || idx + 1}
-                      </span>
+                  <tr key={mp.id || idx} className={mp.pesagem_critica ? 'bg-amber-50' : 'bg-white'}>
+                    <td className="border border-red-200 px-2 py-3 text-center">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-red-600 text-white rounded-full text-[10px] font-bold">{mp.ordem_mistura || idx + 1}</span>
                     </td>
-                    <td className="p-2">
+                    <td className="border border-red-200 px-2 py-3">
                       <div className="font-semibold">{mp.insumo_nome}</div>
-                      {mp.pesagem_critica && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-red-600 text-white rounded text-[9px] font-bold">
-                          CRÍTICO
-                        </span>
-                      )}
+                      {mp.pesagem_critica && <span className="inline-block mt-1 px-2 py-0.5 bg-red-600 text-white rounded text-[9px] font-bold">CRÍTICO</span>}
                     </td>
-                    <td className="p-2">
+                    <td className="border border-red-200 px-2 py-3 text-center">
                       {mp.pesagem_critica ? (
                         <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px]">Crítica</span>
                       ) : (
                         <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px]">Padrão</span>
                       )}
                     </td>
-                    <td className="p-2 text-right font-mono font-semibold">
-                      {qtd.valor} {qtd.unidade}
+                    <td className="border border-red-200 px-2 py-3 text-right font-mono font-semibold">{qtd.valor} {qtd.unidade}</td>
+                    <td className="border border-red-200 px-2 py-3 text-right text-[9px] text-slate-500">{formatarTolerancia(mp.quantidade_minima_g, mp.quantidade_maxima_g)}</td>
+                    <td className="border border-red-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                    <td className="border border-red-200 px-2 py-3">
+                      <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                      <div className="text-[8px] text-slate-400 mt-0.5 text-center">{qtd.unidade}</div>
                     </td>
-                    <td className="p-2 text-right text-[9px] text-slate-500">
-                      {formatarTolerancia(mp.quantidade_minima_g, mp.quantidade_maxima_g)}
-                    </td>
-                    <td className="p-2">
-                      <div className="border-b border-slate-300 min-h-[18px]">&nbsp;</div>
-                    </td>
-                    <td className="p-2">
-                      <div className="border-b border-slate-300 min-h-[18px]">&nbsp;</div>
-                      <div className="text-[8px] text-slate-400 mt-0.5">{qtd.unidade}</div>
-                    </td>
-                    <td className="p-2">
-                      <div className="border-b border-slate-300 min-h-[18px]">&nbsp;</div>
-                    </td>
+                    <td className="border border-red-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                    <td className="border border-red-200 px-2 py-3 text-center text-xl">☐</td>
                   </tr>
                 );
               })
@@ -237,69 +196,56 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
         </table>
       </div>
 
-      {/* SEÇÃO 2: EXCIPIENTES */}
-      <SectionHeader 
-        numero={2} 
-        titulo="PESAGEM DE EXCIPIENTES" 
-        subtitulo={`${excipientes.length} insumo(s)`}
-        corBg="bg-green-50"
-        corBorda="border-l-green-500"
-      />
-      
-      <div className="mb-4 overflow-hidden rounded border border-slate-200">
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 4: PESAGEM DE EXCIPIENTES                                */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-green-600 mb-4">
+        <div className="bg-green-600 px-4 py-2 flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 bg-white text-green-600 rounded-full font-bold text-sm">{itensCriticos.length > 0 ? 4 : 3}</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">PESAGEM DE EXCIPIENTES</h2>
+          <span className="ml-auto text-white text-xs">{excipientes.length} item(ns)</span>
+        </div>
         <table className="w-full text-xs">
-          <thead className="bg-green-100">
-            <tr>
-              <th className="p-2 text-left w-[4%]">Ord.</th>
-              <th className="p-2 text-left w-[24%]">Insumo</th>
-              <th className="p-2 text-left w-[10%]">Categoria</th>
-              <th className="p-2 text-right w-[14%]">Qtd. Teórica</th>
-              <th className="p-2 text-right w-[14%]">Tolerância ±10%</th>
-              <th className="p-2 text-center w-[10%]">Lote MP</th>
-              <th className="p-2 text-center w-[12%]">Peso Real</th>
-              <th className="p-2 text-center w-[12%]">Pesado Por</th>
+          <thead>
+            <tr className="bg-green-100">
+              <th className="border border-green-200 px-2 py-2 text-center w-[5%]">Ord.</th>
+              <th className="border border-green-200 px-2 py-2 text-left w-[22%]">Insumo</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[10%]">Categoria</th>
+              <th className="border border-green-200 px-2 py-2 text-right w-[12%]">Qtd. Teórica</th>
+              <th className="border border-green-200 px-2 py-2 text-right w-[14%]">Tolerância ±10%</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[10%]">Lote MP</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[12%]">Peso Real</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[10%]">Pesado Por</th>
+              <th className="border border-green-200 px-2 py-2 text-center w-[5%]">☑</th>
             </tr>
           </thead>
           <tbody>
             {excipientes.length === 0 ? (
-              <tr><td colSpan={8} className="p-3 text-center text-slate-400 italic">Nenhum excipiente cadastrado</td></tr>
+              <tr><td colSpan={9} className="border border-green-200 p-3 text-center text-slate-400 italic">Nenhum excipiente cadastrado</td></tr>
             ) : (
               excipientes.map((mp, idx) => {
                 const qtd = formatarQuantidade(mp.quantidade_teorica_g);
                 const catLabel = mp.categoria === 'EXCIPIENTE_BASE' ? 'Base (QSP)' : 'Tecnológico';
                 return (
-                  <tr key={mp.id || idx} className="border-t bg-white">
-                    <td className="p-2 text-center">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-green-600 text-white rounded-full text-[10px] font-bold">
-                        {mp.ordem_mistura || ativos.length + idx + 1}
-                      </span>
+                  <tr key={mp.id || idx} className="bg-white">
+                    <td className="border border-green-200 px-2 py-3 text-center">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-green-600 text-white rounded-full text-[10px] font-bold">{mp.ordem_mistura || ativos.length + idx + 1}</span>
                     </td>
-                    <td className="p-2 font-semibold">{mp.insumo_nome}</td>
-                    <td className="p-2">
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] ${
-                        mp.categoria === 'EXCIPIENTE_BASE' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-blue-100 text-blue-700'
-                      }`}>
+                    <td className="border border-green-200 px-2 py-3 font-semibold">{mp.insumo_nome}</td>
+                    <td className="border border-green-200 px-2 py-3 text-center">
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] ${mp.categoria === 'EXCIPIENTE_BASE' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                         {catLabel}
                       </span>
                     </td>
-                    <td className="p-2 text-right font-mono font-semibold">
-                      {qtd.valor} {qtd.unidade}
+                    <td className="border border-green-200 px-2 py-3 text-right font-mono font-semibold">{qtd.valor} {qtd.unidade}</td>
+                    <td className="border border-green-200 px-2 py-3 text-right text-[9px] text-slate-500">{formatarTolerancia(mp.quantidade_minima_g, mp.quantidade_maxima_g)}</td>
+                    <td className="border border-green-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                    <td className="border border-green-200 px-2 py-3">
+                      <div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div>
+                      <div className="text-[8px] text-slate-400 mt-0.5 text-center">{qtd.unidade}</div>
                     </td>
-                    <td className="p-2 text-right text-[9px] text-slate-500">
-                      {formatarTolerancia(mp.quantidade_minima_g, mp.quantidade_maxima_g)}
-                    </td>
-                    <td className="p-2">
-                      <div className="border-b border-slate-300 min-h-[18px]">&nbsp;</div>
-                    </td>
-                    <td className="p-2">
-                      <div className="border-b border-slate-300 min-h-[18px]">&nbsp;</div>
-                      <div className="text-[8px] text-slate-400 mt-0.5">{qtd.unidade}</div>
-                    </td>
-                    <td className="p-2">
-                      <div className="border-b border-slate-300 min-h-[18px]">&nbsp;</div>
-                    </td>
+                    <td className="border border-green-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
+                    <td className="border border-green-200 px-2 py-3 text-center text-xl">☐</td>
                   </tr>
                 );
               })
@@ -308,77 +254,89 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
         </table>
       </div>
 
-      {/* Nota sobre balança */}
-      <div className="bg-slate-100 border border-slate-300 rounded p-3 mb-4 text-[9px]">
-        <div className="font-bold text-slate-700 mb-1">📋 NOTA SOBRE BALANÇAS:</div>
-        <div className="grid grid-cols-3 gap-2 text-slate-600">
-          <div>• <strong>≥ 1g:</strong> Semi-analítica (3-4 casas)</div>
-          <div>• <strong>1mg a 1g:</strong> Analítica (4-5 casas)</div>
-          <div>• <strong>&lt; 1mg:</strong> Ultra-analítica (5+ casas)</div>
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 5: REFERÊNCIA DE BALANÇAS                                */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-600 bg-slate-50 mb-4">
+        <div className="bg-slate-600 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            📋 REFERÊNCIA DE BALANÇAS
+          </h2>
+        </div>
+        <div className="p-4">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-200">
+                <th className="border border-slate-300 px-3 py-2 text-left">Faixa de Peso</th>
+                <th className="border border-slate-300 px-3 py-2 text-left">Tipo de Balança</th>
+                <th className="border border-slate-300 px-3 py-2 text-center">Precisão</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="bg-white">
+                <td className="border border-slate-300 px-3 py-2 font-semibold">≥ 1 kg</td>
+                <td className="border border-slate-300 px-3 py-2">Semi-analítica</td>
+                <td className="border border-slate-300 px-3 py-2 text-center font-mono">2 casas decimais</td>
+              </tr>
+              <tr className="bg-slate-50">
+                <td className="border border-slate-300 px-3 py-2 font-semibold">1g a 1kg</td>
+                <td className="border border-slate-300 px-3 py-2">Semi-analítica</td>
+                <td className="border border-slate-300 px-3 py-2 text-center font-mono">3 ou 4 casas</td>
+              </tr>
+              <tr className="bg-white">
+                <td className="border border-slate-300 px-3 py-2 font-semibold">1mg a 1g</td>
+                <td className="border border-slate-300 px-3 py-2">Analítica</td>
+                <td className="border border-slate-300 px-3 py-2 text-center font-mono">4 ou 5 casas</td>
+              </tr>
+              <tr className="bg-amber-50">
+                <td className="border border-slate-300 px-3 py-2 font-bold text-amber-700">&lt; 1mg</td>
+                <td className="border border-slate-300 px-3 py-2 font-bold text-amber-700">Ultra-analítica</td>
+                <td className="border border-slate-300 px-3 py-2 text-center font-mono font-bold text-amber-700">5+ casas</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Conferência de Pesagem para Críticos */}
-      {itensCriticos.length > 0 && (
-        <>
-          <SectionHeader 
-            numero={3} 
-            titulo="REGISTRO DE DUPLA CONFERÊNCIA - ATIVOS CRÍTICOS" 
-            subtitulo="Obrigatório para liberação"
-            corBg="bg-amber-50"
-            corBorda="border-l-amber-500"
-          />
-          
-          <div className="mb-4 overflow-hidden rounded border border-amber-300">
-            <table className="w-full text-xs">
-              <thead className="bg-amber-100">
-                <tr>
-                  <th className="p-2 text-left w-[25%]">Ativo</th>
-                  <th className="p-2 text-right w-[15%]">Peso Teórico</th>
-                  <th className="p-2 text-center w-[15%]">Peso Real</th>
-                  <th className="p-2 text-center w-[15%]">Conferente 1</th>
-                  <th className="p-2 text-center w-[15%]">Conferente 2</th>
-                  <th className="p-2 text-center w-[15%]">Hora</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itensCriticos.map((mp, idx) => {
-                  const qtd = formatarQuantidade(mp.quantidade_teorica_g);
-                  return (
-                    <tr key={mp.id || idx} className="border-t bg-amber-50">
-                      <td className="p-2 font-semibold">{mp.insumo_nome}</td>
-                      <td className="p-2 text-right font-mono">{qtd.valor} {qtd.unidade}</td>
-                      <td className="p-2"><div className="border-b border-slate-400 min-h-[18px]">&nbsp;</div></td>
-                      <td className="p-2"><div className="border-b border-slate-400 min-h-[18px]">&nbsp;</div></td>
-                      <td className="p-2"><div className="border-b border-slate-400 min-h-[18px]">&nbsp;</div></td>
-                      <td className="p-2"><div className="border-b border-slate-400 min-h-[18px]">&nbsp;</div></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {/* Assinaturas */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t-2 border-slate-800">
-        {[
-          { cargo: 'Operador de Pesagem', subtitulo: 'Nome / Data / Hora' },
-          { cargo: 'Conferente', subtitulo: 'Nome / Data / Hora' },
-          { cargo: 'Responsável Técnico', subtitulo: 'Liberação da Pesagem' },
-        ].map((ass, idx) => (
-          <div key={idx} className="text-center">
-            <div className="border-b border-slate-800 h-8 mb-1">&nbsp;</div>
-            <div className="text-xs font-semibold">{ass.cargo}</div>
-            <div className="text-[9px] text-slate-500">{ass.subtitulo}</div>
-          </div>
-        ))}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO 6: ASSINATURAS                                           */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-slate-800 mt-6">
+        <div className="bg-slate-800 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            ASSINATURAS E APROVAÇÕES
+          </h2>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-slate-300">
+          {[
+            { cargo: 'Operador de Pesagem', funcao: 'Execução' },
+            { cargo: 'Conferente', funcao: 'Verificação' },
+            { cargo: 'Responsável Técnico', funcao: 'Liberação da Pesagem' },
+          ].map((ass, idx) => (
+            <div key={idx} className="p-4 text-center">
+              <div className="border-b-2 border-slate-800 h-12 mb-2">&nbsp;</div>
+              <div className="text-xs font-bold text-slate-800 uppercase">{ass.cargo}</div>
+              <div className="text-[9px] text-slate-500">{ass.funcao}</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[9px]">
+                <div>
+                  <span className="text-slate-500">Nome:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+                <div>
+                  <span className="text-slate-500">Data/Hora:</span>
+                  <div className="border-b border-slate-400 min-h-[14px]">&nbsp;</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Rodapé */}
-      <div className="mt-4 pt-2 border-t border-slate-300 text-center text-[8px] text-slate-500">
-        Documento gerado em {new Date().toLocaleString('pt-BR')} | {op.codigo} | Controle de produção e rastreabilidade ANVISA
+      {/* RODAPÉ */}
+      <div className="mt-4 pt-2 border-t-2 border-slate-400 flex justify-between text-[8px] text-slate-500">
+        <div>Vitalnow Industria Ltda | Documento de Produção Industrial</div>
+        <div>{op.codigo} | Gerado em {new Date().toLocaleString('pt-BR')}</div>
+        <div>Controle ANVISA/BPF</div>
       </div>
     </div>
   );
