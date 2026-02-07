@@ -143,27 +143,8 @@ export function OPDocumentoCompleto({
       if (section && section.innerHTML.trim()) {
         sectionsFound++;
         
-        // Extrair apenas o conteúdo sem os cabeçalhos duplicados das folhas
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = section.innerHTML;
-        
-        // Remover cabeçalhos internos das folhas (primeiro elemento que contém "ORDEM DE PRODUÇÃO")
-        const headerElements = tempDiv.querySelectorAll('[class*="bg-gradient-to-r"], [class*="from-slate-800"]');
-        headerElements.forEach(el => el.remove());
-        
-        // Remover grids de info duplicados (os primeiros grids com label/value)
-        const firstInfoGrids = tempDiv.querySelectorAll('.grid.grid-cols-4.gap-px');
-        firstInfoGrids.forEach(el => el.remove());
-        
-        // Remover rodapés internos das folhas
-        const footerElements = tempDiv.querySelectorAll('[class*="border-t"][class*="text-center"][class*="text-xs"][class*="text-slate"]');
-        footerElements.forEach(el => {
-          if (el.textContent?.includes('Documento gerado') || el.textContent?.includes('ANVISA')) {
-            el.remove();
-          }
-        });
-        
-        const cleanContent = tempDiv.innerHTML;
+        // Usar conteúdo original completo (com grids de identificação de cada folha)
+        const sectionContent = section.innerHTML;
         
         allSections += `
           <div class="section-page">
@@ -182,45 +163,9 @@ export function OPDocumentoCompleto({
               </div>
             </header>
             
-            <!-- GRID DE METADADOS - 2 LINHAS × 4 COLUNAS -->
-            <div class="metadata-grid">
-              <div class="meta-cell">
-                <div class="meta-label">PRODUTO</div>
-                <div class="meta-value">${op.produto_nome || '-'}</div>
-              </div>
-              <div class="meta-cell">
-                <div class="meta-label">QUANTIDADE</div>
-                <div class="meta-value">${op.quantidade_frascos || 0} frascos × ${op.capsulas_por_frasco || 60} un</div>
-              </div>
-              <div class="meta-cell">
-                <div class="meta-label">TOTAL C/ ACRÉSCIMO</div>
-                <div class="meta-value meta-highlight">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()} unidades</div>
-              </div>
-              <div class="meta-cell">
-                <div class="meta-label">DATA FABRICAÇÃO</div>
-                <div class="meta-value">${op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'}</div>
-              </div>
-              <div class="meta-cell">
-                <div class="meta-label">RESPONSÁVEL TÉCNICO</div>
-                <div class="meta-value">${op.rt_nome || op.responsavel_producao_nome || '-'}</div>
-              </div>
-              <div class="meta-cell">
-                <div class="meta-label">CONSELHO/REGISTRO</div>
-                <div class="meta-value">${op.rt_tipo_conselho || 'CRQ'} ${op.rt_numero_registro || '-'}</div>
-              </div>
-              <div class="meta-cell">
-                <div class="meta-label">FÓRMULA</div>
-                <div class="meta-value">${op.formula_codigo || '-'}</div>
-              </div>
-              <div class="meta-cell">
-                <div class="meta-label">DATA VALIDADE</div>
-                <div class="meta-value">${op.data_validade ? new Date(op.data_validade).toLocaleDateString('pt-BR') : '-'}</div>
-              </div>
-            </div>
-            
-            <!-- CONTEÚDO DA SEÇÃO (LIMPO) -->
+            <!-- CONTEÚDO DA SEÇÃO COM GRID INTERNO PRESERVADO -->
             <div class="section-content-area">
-              ${cleanContent}
+              ${sectionContent}
             </div>
             
             <!-- RODAPÉ FIXO -->
