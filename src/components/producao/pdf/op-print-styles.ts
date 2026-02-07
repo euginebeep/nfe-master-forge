@@ -24,6 +24,7 @@ export function getOPPrintStyles(): string {
     
     .page-break {
       page-break-after: always;
+      break-after: page;
     }
     
     /* CAPA DA OP COMPLETA */
@@ -479,98 +480,83 @@ export function getOPPrintStyles(): string {
 
 // ============================================================
 // ESTILOS PARA IMPRESSÃO TERMINAL P&B (Preto e Branco)
-// Otimizado para caber em UMA folha A4
+// ULTRA-COMPACTO - CABE EM UMA FOLHA A4
 // ============================================================
 
 export function getTerminalPrintStyles(): string {
   return `
     @page { 
       size: A4; 
-      margin: 5mm 8mm; 
+      margin: 4mm 5mm; 
     }
     
     * {
       box-sizing: border-box;
-    }
-    
-    body.terminal-mode { 
-      font-family: 'Courier New', Courier, monospace; 
-      font-size: 7px; 
-      line-height: 1.15;
-      color: #000;
-      background: #fff;
       margin: 0;
       padding: 0;
     }
     
-    /* Remove cores - tudo P&B */
-    body.terminal-mode * {
+    body.terminal-mode { 
+      font-family: 'Courier New', Courier, monospace; 
+      font-size: 6.5px !important; 
+      line-height: 1.1 !important;
+      color: #000 !important;
+      background: #fff !important;
+    }
+    
+    /* Remove TODAS as cores - tudo P&B */
+    body.terminal-mode *,
+    body.terminal-mode *::before,
+    body.terminal-mode *::after {
       background-color: transparent !important;
+      background-image: none !important;
+      background: transparent !important;
       color: #000 !important;
       border-color: #000 !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
     }
     
     .terminal-header {
       font-family: 'Courier New', monospace;
-      font-size: 8px;
-      margin-bottom: 6px;
+      font-size: 7px;
+      margin-bottom: 3px;
       border-bottom: 1px solid #000;
-      padding-bottom: 4px;
+      padding-bottom: 2px;
+      text-align: center;
     }
     
     .terminal-title {
-      text-align: center;
       font-weight: bold;
+      line-height: 1.2;
     }
     
     .terminal-footer {
-      margin-top: 8px;
+      margin-top: 4px;
       font-family: 'Courier New', monospace;
-      font-size: 6px;
+      font-size: 5px;
       text-align: center;
       border-top: 1px solid #000;
-      padding-top: 4px;
+      padding-top: 2px;
     }
     
     .page-break {
       page-break-after: always;
+      break-after: page;
     }
     
-    /* Tabelas compactas em modo terminal */
-    body.terminal-mode table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 6px;
-      margin-bottom: 4px;
-      border: 1px solid #000;
+    /* CABEÇALHOS */
+    body.terminal-mode h1,
+    body.terminal-mode .text-lg {
+      font-size: 8px !important;
+      font-weight: bold !important;
+      margin: 0 0 2px 0 !important;
     }
     
-    body.terminal-mode th,
-    body.terminal-mode td {
-      border: 1px solid #000;
-      padding: 1px 2px;
-      text-align: left;
-      vertical-align: middle;
-      line-height: 1.1;
-    }
-    
-    body.terminal-mode th {
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 5px;
-    }
-    
-    /* Headers compactos */
-    body.terminal-mode .bg-gradient-to-r,
-    body.terminal-mode [class*="bg-"] {
-      background: transparent !important;
-      border: 1px solid #000 !important;
-      padding: 2px 4px;
-      margin-bottom: 3px;
-    }
-    
-    body.terminal-mode h1 {
-      font-size: 9px !important;
+    body.terminal-mode h2,
+    body.terminal-mode h3 {
+      font-size: 7px !important;
+      font-weight: bold !important;
       margin: 0 !important;
     }
     
@@ -579,10 +565,55 @@ export function getTerminalPrintStyles(): string {
       margin: 0 !important;
     }
     
-    /* Grid de informações compacto */
+    /* Headers - remover gradients e deixar compacto */
+    body.terminal-mode .bg-gradient-to-r,
+    body.terminal-mode [class*="bg-gradient"],
+    body.terminal-mode [class*="from-slate"],
+    body.terminal-mode [class*="to-slate"] {
+      background: transparent !important;
+      border: 1px solid #000 !important;
+      padding: 2px 3px !important;
+      margin-bottom: 2px !important;
+      border-radius: 0 !important;
+    }
+    
+    /* TABELAS - Ultra compactas */
+    body.terminal-mode table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+      font-size: 5.5px !important;
+      margin-bottom: 2px !important;
+      border: 1px solid #000 !important;
+    }
+    
+    body.terminal-mode th,
+    body.terminal-mode td {
+      border: 1px solid #000 !important;
+      padding: 1px 2px !important;
+      text-align: left !important;
+      vertical-align: middle !important;
+      line-height: 1.05 !important;
+      font-size: 5.5px !important;
+    }
+    
+    body.terminal-mode th {
+      font-weight: 700 !important;
+      text-transform: uppercase !important;
+      font-size: 5px !important;
+    }
+    
+    body.terminal-mode thead {
+      display: table-header-group !important;
+    }
+    
+    body.terminal-mode tbody tr {
+      page-break-inside: avoid !important;
+    }
+    
+    /* Grid de informações - ultra compacto */
     body.terminal-mode .grid {
       display: grid !important;
-      gap: 2px !important;
+      gap: 1px !important;
     }
     
     body.terminal-mode .grid-cols-4 {
@@ -597,122 +628,173 @@ export function getTerminalPrintStyles(): string {
       grid-template-columns: repeat(2, 1fr) !important;
     }
     
-    body.terminal-mode .grid > div {
+    body.terminal-mode .grid > div,
+    body.terminal-mode .border {
       padding: 1px 2px !important;
-      border: 1px solid #000;
-      font-size: 6px;
+      border: 1px solid #000 !important;
+      font-size: 5.5px !important;
+      border-radius: 0 !important;
     }
     
-    /* Badges compactos */
-    body.terminal-mode .badge,
-    body.terminal-mode [class*="rounded"] {
-      border: 1px solid #000 !important;
-      padding: 0 2px;
-      font-weight: bold;
-      font-size: 5px;
+    /* Labels e valores */
+    body.terminal-mode .text-xs,
+    body.terminal-mode .text-sm,
+    body.terminal-mode .text-\\[9px\\],
+    body.terminal-mode .text-\\[10px\\],
+    body.terminal-mode [class*="text-slate"],
+    body.terminal-mode [class*="uppercase"] {
+      font-size: 5px !important;
     }
     
-    /* Números de ordem menores */
-    body.terminal-mode .ordem-num,
-    body.terminal-mode [class*="rounded-full"] {
-      border: 1px solid #000 !important;
-      background: transparent !important;
-      width: 12px !important;
-      height: 12px !important;
+    body.terminal-mode .font-semibold,
+    body.terminal-mode .font-bold {
+      font-weight: 700 !important;
       font-size: 6px !important;
     }
     
-    /* Campos de preenchimento menores */
-    body.terminal-mode .campo-vazio,
-    body.terminal-mode [class*="border-b"] {
-      border-bottom: 1px solid #000 !important;
-      min-height: 8px;
+    body.terminal-mode .font-mono {
+      font-family: 'Courier New', monospace !important;
     }
     
-    /* Seções compactas */
+    /* Seções e blocos */
     body.terminal-mode .section-title,
-    body.terminal-mode [class*="border-l-4"] {
+    body.terminal-mode [class*="border-l-4"],
+    body.terminal-mode [class*="border-l-"] {
       border-left: 2px solid #000 !important;
       background: transparent !important;
-      padding: 2px 4px;
-      font-weight: bold;
-      text-transform: uppercase;
-      font-size: 7px;
-      margin-bottom: 2px;
+      padding: 1px 3px !important;
+      font-weight: bold !important;
+      text-transform: uppercase !important;
+      font-size: 6px !important;
+      margin-bottom: 1px !important;
+      border-radius: 0 !important;
     }
     
-    /* Assinaturas compactas */
-    body.terminal-mode .assinatura-linha {
-      border-bottom: 1px solid #000;
-      height: 12px;
+    /* Badges e números */
+    body.terminal-mode .badge,
+    body.terminal-mode [class*="rounded-full"],
+    body.terminal-mode .ordem-num {
+      border: 1px solid #000 !important;
+      background: transparent !important;
+      width: 10px !important;
+      height: 10px !important;
+      min-width: 10px !important;
+      min-height: 10px !important;
+      font-size: 5px !important;
+      border-radius: 50% !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0 !important;
     }
     
-    /* Espaçamentos reduzidos */
+    /* Campos de preenchimento */
+    body.terminal-mode .campo-vazio,
+    body.terminal-mode [class*="border-b-"] {
+      border-bottom: 1px solid #000 !important;
+      min-height: 6px !important;
+    }
+    
+    /* Assinaturas */
+    body.terminal-mode .assinatura-linha,
+    body.terminal-mode .h-12,
+    body.terminal-mode .h-6 {
+      height: 10px !important;
+      border-bottom: 1px solid #000 !important;
+    }
+    
+    /* Padding e margins - reduzir ao máximo */
     body.terminal-mode .p-2, 
     body.terminal-mode .p-3, 
     body.terminal-mode .p-4,
-    body.terminal-mode .p-6 {
-      padding: 2px !important;
+    body.terminal-mode .p-6,
+    body.terminal-mode .px-2,
+    body.terminal-mode .px-3,
+    body.terminal-mode .px-4,
+    body.terminal-mode .py-2,
+    body.terminal-mode .py-3,
+    body.terminal-mode .py-4 {
+      padding: 1px 2px !important;
     }
     
     body.terminal-mode .mb-2,
     body.terminal-mode .mb-3,
     body.terminal-mode .mb-4,
     body.terminal-mode .mb-6 {
-      margin-bottom: 3px !important;
+      margin-bottom: 2px !important;
     }
     
+    body.terminal-mode .mt-2,
     body.terminal-mode .mt-4,
-    body.terminal-mode .mt-6 {
-      margin-top: 4px !important;
+    body.terminal-mode .mt-6,
+    body.terminal-mode .mt-8 {
+      margin-top: 2px !important;
     }
     
     body.terminal-mode .gap-2,
     body.terminal-mode .gap-3,
-    body.terminal-mode .gap-4 {
-      gap: 2px !important;
+    body.terminal-mode .gap-4,
+    body.terminal-mode .gap-8 {
+      gap: 1px !important;
     }
     
-    /* Texto menor para labels */
-    body.terminal-mode .text-xs,
-    body.terminal-mode .text-sm,
-    body.terminal-mode .text-\\[9px\\],
-    body.terminal-mode .text-\\[10px\\] {
-      font-size: 6px !important;
+    body.terminal-mode .space-y-2 > * + *,
+    body.terminal-mode .space-y-4 > * + *,
+    body.terminal-mode .space-y-6 > * + * {
+      margin-top: 1px !important;
     }
     
-    body.terminal-mode .font-semibold,
-    body.terminal-mode .font-bold {
-      font-weight: 700 !important;
+    /* Rounded - remover */
+    body.terminal-mode [class*="rounded"],
+    body.terminal-mode .rounded-lg,
+    body.terminal-mode .rounded-t-lg {
+      border-radius: 0 !important;
     }
     
-    /* Esconder elementos decorativos */
+    /* Esconder ícones SVG */
     body.terminal-mode svg,
-    body.terminal-mode .lucide {
+    body.terminal-mode .lucide,
+    body.terminal-mode [class*="lucide-"] {
       display: none !important;
     }
     
-    /* Checkboxes compactos */
+    /* Checkboxes - usar símbolo */
     body.terminal-mode input[type="checkbox"] {
       -webkit-appearance: none;
       appearance: none;
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border: 1px solid #000;
       display: inline-block;
       vertical-align: middle;
     }
     
-    /* Min heights reduzidos */
-    body.terminal-mode [class*="min-h-"] {
-      min-height: 8px !important;
+    /* Min/max heights reduzidos */
+    body.terminal-mode [class*="min-h-"],
+    body.terminal-mode [class*="h-"] {
+      min-height: 6px !important;
+    }
+    
+    /* Overflow hidden para caber na página */
+    body.terminal-mode .overflow-hidden {
+      overflow: hidden !important;
+    }
+    
+    /* Alertas - compactos */
+    body.terminal-mode [class*="bg-red"],
+    body.terminal-mode [class*="bg-amber"],
+    body.terminal-mode [class*="bg-yellow"] {
+      border: 1px solid #000 !important;
+      background: transparent !important;
+      padding: 1px 2px !important;
     }
     
     @media print {
       .no-print { display: none !important; }
       body.terminal-mode { 
-        -webkit-print-color-adjust: exact; 
-        print-color-adjust: exact; 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
       }
       body.terminal-mode * { 
         background: transparent !important; 
