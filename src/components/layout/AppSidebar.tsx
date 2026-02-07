@@ -23,6 +23,7 @@ import {
   FileArchive,
   Database,
   UserCheck,
+  Map,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,6 +62,7 @@ const menuGroups: MenuGroup[] = [
     label: "Principal",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Roadmap", url: "/roadmap", icon: Map },
     ],
   },
   {

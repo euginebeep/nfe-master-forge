@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import Index from "./pages/Index";
+import RoadmapPage from "./pages/RoadmapPage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./components/auth/AuthPage";
 import EmpresaSettingsPage from "./pages/settings/EmpresaSettingsPage";
@@ -66,6 +67,7 @@ const App = () => (
           
           <Route element={<MainLayout />}>
             <Route path="/" element={<Index />} />
+            <Route path="/roadmap" element={<RoadmapPage />} />
             {/* Settings */}
             <Route path="/settings/empresa" element={<EmpresaSettingsPage />} />
             <Route path="/settings/company" element={<CompanySettingsPage />} />
