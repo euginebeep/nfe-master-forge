@@ -6,7 +6,7 @@
 import { useRef, useState } from 'react';
 import { 
   Printer, FileText, Package, Scale, FlaskConical, 
-  Factory, Pill, Tag, ClipboardCheck
+  Factory, Pill, Tag, ClipboardCheck, Terminal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,10 +16,10 @@ import { OPFolhaMistura } from './OPFolhaMistura';
 import { OPFolhaEncapsulamento } from './OPFolhaEncapsulamento';
 import { OPFolhaEmbalagem } from './OPFolhaEmbalagem';
 import { OPFolhaChecklist } from './OPFolhaChecklist';
-import { getOPPrintStyles } from './op-print-styles';
+import { getOPPrintStyles, getTerminalPrintStyles } from './op-print-styles';
 
 interface OPDocumentoCompletoProps {
-  op: any; // OrdemProducaoIndustrial com dados completos
+  op: any;
   materiasPrimas?: any[];
   embalagens?: any[];
   checklist?: any[];
@@ -50,6 +50,44 @@ export function OPDocumentoCompleto({
         </head>
         <body>
           ${section.innerHTML}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  // Impressão Terminal P&B - Versão detalhada sem cores
+  const handlePrintTerminal = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>OP ${op.codigo} - ${getSectionTitle(sectionId)} [TERMINAL]</title>
+          <style>${getTerminalPrintStyles()}</style>
+        </head>
+        <body class="terminal-mode">
+          <div class="terminal-header">
+            <div class="terminal-title">═══════════════════════════════════════════════════════════════</div>
+            <div class="terminal-title">  ORDEM DE PRODUÇÃO: ${op.codigo}</div>
+            <div class="terminal-title">  SEÇÃO: ${getSectionTitle(sectionId).toUpperCase()}</div>
+            <div class="terminal-title">  LOTE: ${op.lote_produto_acabado || '-'}</div>
+            <div class="terminal-title">  DATA: ${new Date().toLocaleString('pt-BR')}</div>
+            <div class="terminal-title">═══════════════════════════════════════════════════════════════</div>
+          </div>
+          ${section.innerHTML}
+          <div class="terminal-footer">
+            <div>───────────────────────────────────────────────────────────────</div>
+            <div>DOCUMENTO GERADO PARA IMPRESSÃO EM TERMINAL P&B</div>
+            <div>RASTREABILIDADE ANVISA - ${op.codigo}</div>
+            <div>───────────────────────────────────────────────────────────────</div>
+          </div>
         </body>
       </html>
     `);
@@ -109,6 +147,10 @@ export function OPDocumentoCompleto({
     return titles[sectionId] || 'Documento';
   };
 
+  const getSectionId = (tab: string): string => {
+    return `section-${tab}`;
+  };
+
   return (
     <div className="space-y-4">
       {/* Barra de ações */}
@@ -152,8 +194,18 @@ export function OPDocumentoCompleto({
           </TabsTrigger>
         </TabsList>
 
+        {/* Separação */}
         <TabsContent value="separacao" className="mt-4">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePrintTerminal('section-separacao')}
+              className="gap-2"
+            >
+              <Terminal className="h-4 w-4" />
+              Imprimir Terminal P&B
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -171,8 +223,18 @@ export function OPDocumentoCompleto({
           />
         </TabsContent>
 
+        {/* Pesagem */}
         <TabsContent value="pesagem" className="mt-4">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePrintTerminal('section-pesagem')}
+              className="gap-2"
+            >
+              <Terminal className="h-4 w-4" />
+              Imprimir Terminal P&B
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -186,8 +248,18 @@ export function OPDocumentoCompleto({
           <OPFolhaPesagem op={op} materiasPrimas={materiasPrimas} />
         </TabsContent>
 
+        {/* Mistura */}
         <TabsContent value="mistura" className="mt-4">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePrintTerminal('section-mistura')}
+              className="gap-2"
+            >
+              <Terminal className="h-4 w-4" />
+              Imprimir Terminal P&B
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -201,8 +273,18 @@ export function OPDocumentoCompleto({
           <OPFolhaMistura op={op} materiasPrimas={materiasPrimas} />
         </TabsContent>
 
+        {/* Encapsulamento */}
         <TabsContent value="encapsulamento" className="mt-4">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePrintTerminal('section-encapsulamento')}
+              className="gap-2"
+            >
+              <Terminal className="h-4 w-4" />
+              Imprimir Terminal P&B
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -216,8 +298,18 @@ export function OPDocumentoCompleto({
           <OPFolhaEncapsulamento op={op} />
         </TabsContent>
 
+        {/* Embalagem */}
         <TabsContent value="embalagem" className="mt-4">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePrintTerminal('section-embalagem')}
+              className="gap-2"
+            >
+              <Terminal className="h-4 w-4" />
+              Imprimir Terminal P&B
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -231,8 +323,18 @@ export function OPDocumentoCompleto({
           <OPFolhaEmbalagem op={op} embalagens={embalagens} />
         </TabsContent>
 
+        {/* Checklist */}
         <TabsContent value="checklist" className="mt-4">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePrintTerminal('section-checklist')}
+              className="gap-2"
+            >
+              <Terminal className="h-4 w-4" />
+              Imprimir Terminal P&B
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
