@@ -104,61 +104,86 @@ export function OPDocumentoCompleto({
     if (!printWindow) return;
 
     const sections = [
-      { id: 'section-separacao', titulo: 'SEPARAÇÃO DE MATERIAIS', fase: 'Fase 1', cor: '#ef4444', corLight: '#fef2f2' },
-      { id: 'section-pesagem', titulo: 'PESAGEM DE MATÉRIAS-PRIMAS', fase: 'Fase 2', cor: '#f97316', corLight: '#fff7ed' },
-      { id: 'section-mistura', titulo: 'ORDEM DE MISTURA', fase: 'Fase 3', cor: '#22c55e', corLight: '#f0fdf4' },
-      { id: 'section-encapsulamento', titulo: 'ENCAPSULAMENTO', fase: 'Fase 4', cor: '#3b82f6', corLight: '#eff6ff' },
-      { id: 'section-embalagem', titulo: 'EMBALAGEM E ROTULAGEM', fase: 'Fase 5', cor: '#a855f7', corLight: '#faf5ff' },
-      { id: 'section-checklist', titulo: 'CHECKLIST OPERACIONAL', fase: 'Verificações', cor: '#06b6d4', corLight: '#ecfeff' }
+      { id: 'section-separacao', titulo: 'SEPARAÇÃO DE MATERIAIS', fase: 'Fase 1', cor: '#dc2626', corLight: '#fef2f2', icon: '📦' },
+      { id: 'section-pesagem', titulo: 'PESAGEM DE MATÉRIAS-PRIMAS', fase: 'Fase 2', cor: '#ea580c', corLight: '#fff7ed', icon: '⚖️' },
+      { id: 'section-mistura', titulo: 'ORDEM DE MISTURA', fase: 'Fase 3', cor: '#16a34a', corLight: '#f0fdf4', icon: '🔬' },
+      { id: 'section-encapsulamento', titulo: 'ENCAPSULAMENTO', fase: 'Fase 4', cor: '#2563eb', corLight: '#eff6ff', icon: '💊' },
+      { id: 'section-embalagem', titulo: 'EMBALAGEM E ROTULAGEM', fase: 'Fase 5', cor: '#9333ea', corLight: '#faf5ff', icon: '🏷️' },
+      { id: 'section-checklist', titulo: 'CHECKLIST OPERACIONAL', fase: 'Verificações', cor: '#0891b2', corLight: '#ecfeff', icon: '✅' }
     ];
 
     // Coletar conteúdo de todas as seções
-    let allContent = '';
+    let allSections = '';
     let sectionsFound = 0;
+    let pageNumber = 2; // Página 1 é a capa
     
     sections.forEach((sec, idx) => {
       const section = document.getElementById(sec.id);
       if (section && section.innerHTML.trim()) {
         sectionsFound++;
-        allContent += `
-          <div class="section-page" style="page-break-inside: avoid;">
-            <div class="section-header" style="
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              padding: 10px 15px;
-              border-left: 5px solid ${sec.cor};
-              background: linear-gradient(135deg, ${sec.corLight} 0%, white 100%);
-              border-radius: 6px;
-              margin-bottom: 12px;
-            ">
-              <div class="section-badge" style="
-                width: 36px;
-                height: 36px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                font-size: 16px;
-                font-weight: 700;
-                color: white;
-                background: ${sec.cor};
-              ">${idx + 1}</div>
-              <div class="section-info" style="flex: 1;">
-                <div class="section-fase" style="font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #64748b;">${sec.fase}</div>
-                <div class="section-titulo" style="font-size: 14px; font-weight: 700; color: #1e293b;">${sec.titulo}</div>
+        allSections += `
+          <div class="section-page">
+            <!-- CABEÇALHO PROFISSIONAL DA SEÇÃO -->
+            <header class="section-header-pro">
+              <div class="header-left">
+                <div class="header-badge" style="background: ${sec.cor};">
+                  <span class="header-badge-num">${idx + 1}</span>
+                </div>
+                <div class="header-info">
+                  <div class="header-fase">${sec.fase}</div>
+                  <div class="header-titulo">${sec.titulo}</div>
+                </div>
               </div>
-              <div class="section-op" style="text-align: right;">
-                <div class="section-op-codigo" style="font-size: 14px; font-family: 'Consolas', monospace; font-weight: 700; color: #1e293b;">${op.codigo}</div>
-                <div class="section-op-lote" style="font-size: 9px; color: #64748b;">Lote: ${op.lote_produto_acabado || '-'}</div>
+              <div class="header-right">
+                <div class="header-op">${op.codigo}</div>
+                <div class="header-lote">Lote: ${op.lote_produto_acabado || '-'}</div>
+                <div class="header-produto">${op.produto_nome || '-'}</div>
+              </div>
+            </header>
+            
+            <!-- GRID DE INFORMAÇÕES COMPACTO -->
+            <div class="info-grid-compact">
+              <div class="info-item">
+                <span class="info-label">Total Cápsulas</span>
+                <span class="info-value">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Frascos</span>
+                <span class="info-value">${op.quantidade_frascos || 0} × ${op.capsulas_por_frasco || 60}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Data Fab.</span>
+                <span class="info-value">${op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Validade</span>
+                <span class="info-value">${op.data_validade ? new Date(op.data_validade).toLocaleDateString('pt-BR') : '-'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">RT</span>
+                <span class="info-value">${op.rt_nome || '-'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Registro</span>
+                <span class="info-value">${op.rt_tipo_conselho || ''} ${op.rt_numero_registro || '-'}</span>
               </div>
             </div>
-            <div class="section-content">
+            
+            <!-- CONTEÚDO DA SEÇÃO -->
+            <div class="section-content-area">
               ${section.innerHTML}
             </div>
+            
+            <!-- RODAPÉ COM PAGINAÇÃO -->
+            <footer class="page-footer">
+              <div class="footer-left">Vitalnow Industria Ltda</div>
+              <div class="footer-center">${op.codigo} | ${sec.fase} - ${sec.titulo}</div>
+              <div class="footer-right">Página ${pageNumber}</div>
+            </footer>
           </div>
-          ${idx < sections.length - 1 ? '<div class="page-break" style="page-break-after: always; break-after: page;"></div>' : ''}
+          ${idx < sections.length - 1 ? '<div class="page-break"></div>' : ''}
         `;
+        pageNumber++;
       }
     });
 
@@ -167,27 +192,35 @@ export function OPDocumentoCompleto({
       return;
     }
 
+    const totalPages = pageNumber - 1;
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>OP ${op.codigo} - Documento Completo</title>
           <style>
-            ${getOPPrintStyles()}
+            /* ============================================ */
+            /* ESTILOS PROFISSIONAIS - OP COMPLETA A4      */
+            /* ============================================ */
             
-            /* ============ ESTILOS OP COMPLETA COLORIDA ============ */
             @page { 
               size: A4; 
-              margin: 8mm 10mm; 
+              margin: 10mm 12mm 15mm 12mm; 
+            }
+            
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
             }
             
             body {
-              font-family: 'Segoe UI', Arial, sans-serif;
+              font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
               font-size: 9px;
-              line-height: 1.3;
+              line-height: 1.35;
               color: #1a1a1a;
-              margin: 0;
-              padding: 0;
+              background: white;
             }
             
             .page-break {
@@ -198,235 +231,466 @@ export function OPDocumentoCompleto({
               padding: 0;
             }
             
-            /* CAPA PROFISSIONAL */
+            /* ============ CAPA PROFISSIONAL ============ */
             .op-capa {
-              padding: 15mm 10mm;
-              min-height: 100vh;
+              padding: 20mm 15mm;
+              min-height: calc(100vh - 30mm);
               display: flex;
               flex-direction: column;
+              position: relative;
             }
             
-            .op-capa-header {
+            .capa-header {
               text-align: center;
-              padding: 30px 20px;
-              border: 3px solid #1e293b;
-              margin-bottom: 25px;
+              padding: 35px 30px;
+              border: 4px solid #1e293b;
+              margin-bottom: 30px;
               background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-              border-radius: 12px;
+              border-radius: 16px;
+              position: relative;
             }
             
-            .op-capa-header h1 {
-              font-size: 26px;
-              font-weight: 800;
-              color: #1e293b;
-              margin: 0 0 12px 0;
+            .capa-empresa {
+              font-size: 11px;
+              color: #64748b;
+              text-transform: uppercase;
               letter-spacing: 3px;
+              margin-bottom: 15px;
+              font-weight: 600;
+            }
+            
+            .capa-header h1 {
+              font-size: 28px;
+              font-weight: 800;
+              color: #0f172a;
+              margin: 0 0 15px 0;
+              letter-spacing: 4px;
               text-transform: uppercase;
             }
             
-            .op-capa-codigo {
-              font-size: 42px;
-              font-family: 'Consolas', monospace;
+            .capa-codigo {
+              font-size: 48px;
+              font-family: 'Consolas', 'Monaco', monospace;
               font-weight: 700;
               color: #0f766e;
-              margin: 15px 0;
+              margin: 20px 0;
+              letter-spacing: 2px;
             }
             
-            .op-capa-produto {
-              font-size: 16px;
-              color: #475569;
-              margin: 8px 0;
+            .capa-produto {
+              font-size: 18px;
+              color: #334155;
+              font-weight: 600;
+              margin: 12px 0;
             }
             
-            .op-capa-grid {
+            .capa-lote {
+              font-size: 14px;
+              color: #64748b;
+              font-weight: 500;
+            }
+            
+            /* GRID DE INFORMAÇÕES DA CAPA */
+            .capa-grid {
               display: grid;
               grid-template-columns: repeat(4, 1fr);
-              gap: 12px;
-              margin: 25px 0;
+              gap: 15px;
+              margin: 30px 0;
             }
             
-            .op-capa-box {
+            .capa-box {
               border: 2px solid #e2e8f0;
-              padding: 15px;
+              padding: 18px 15px;
               text-align: center;
-              border-radius: 10px;
+              border-radius: 12px;
               background: white;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.03);
             }
             
-            .op-capa-box-label {
+            .capa-box-label {
               font-size: 9px;
               color: #64748b;
               text-transform: uppercase;
               letter-spacing: 1px;
-              margin-bottom: 6px;
+              margin-bottom: 8px;
+              font-weight: 600;
             }
             
-            .op-capa-box-valor {
-              font-size: 16px;
+            .capa-box-valor {
+              font-size: 17px;
               font-weight: 700;
               color: #1e293b;
             }
             
             /* ÍNDICE COLORIDO */
-            .op-capa-indice {
-              background: #f8fafc;
-              padding: 25px;
-              border-radius: 12px;
+            .capa-indice {
+              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+              padding: 30px;
+              border-radius: 16px;
               margin-top: 25px;
               border: 2px solid #e2e8f0;
               flex: 1;
             }
             
-            .op-capa-indice-titulo {
-              font-size: 14px;
+            .capa-indice-titulo {
+              font-size: 15px;
               font-weight: 700;
-              color: #334155;
-              margin-bottom: 20px;
+              color: #0f172a;
+              margin-bottom: 25px;
               text-transform: uppercase;
-              letter-spacing: 2px;
+              letter-spacing: 3px;
               text-align: center;
+              padding-bottom: 12px;
+              border-bottom: 2px solid #cbd5e1;
             }
             
-            .op-capa-indice-grid {
+            .capa-indice-grid {
               display: grid;
               grid-template-columns: repeat(3, 1fr);
-              gap: 12px;
+              gap: 15px;
             }
             
-            .op-capa-indice-item {
+            .capa-indice-item {
               display: flex;
               align-items: center;
-              gap: 12px;
-              padding: 12px 15px;
+              gap: 14px;
+              padding: 15px 18px;
               background: white;
-              border-radius: 10px;
-              border-left: 5px solid;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+              border-radius: 12px;
+              border-left: 6px solid;
+              box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+              transition: transform 0.2s;
             }
             
-            .op-capa-indice-num {
-              width: 32px;
-              height: 32px;
+            .capa-indice-num {
+              width: 38px;
+              height: 38px;
               display: flex;
               align-items: center;
               justify-content: center;
               border-radius: 50%;
-              font-size: 14px;
+              font-size: 16px;
               font-weight: 700;
               color: white;
+              flex-shrink: 0;
             }
             
-            .op-capa-indice-text {
+            .capa-indice-text {
               flex: 1;
             }
             
-            .op-capa-indice-fase {
+            .capa-indice-fase {
               font-size: 9px;
               color: #94a3b8;
               text-transform: uppercase;
+              letter-spacing: 1px;
+              font-weight: 600;
             }
             
-            .op-capa-indice-nome {
+            .capa-indice-nome {
+              font-size: 12px;
+              font-weight: 600;
+              color: #1e293b;
+              margin-top: 3px;
+            }
+            
+            /* RODAPÉ DA CAPA */
+            .capa-footer {
+              margin-top: 30px;
+              padding-top: 20px;
+              border-top: 2px solid #e2e8f0;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            
+            .capa-footer-left {
               font-size: 11px;
               font-weight: 600;
               color: #334155;
             }
             
-            /* SEÇÕES */
-            .section-page {
-              margin-bottom: 0;
+            .capa-footer-right {
+              font-size: 10px;
+              color: #64748b;
+              text-align: right;
             }
             
-            .section-content {
+            /* ============ CABEÇALHO DAS SEÇÕES ============ */
+            .section-page {
+              min-height: calc(100vh - 30mm);
+              display: flex;
+              flex-direction: column;
+              padding: 0 0 20px 0;
+            }
+            
+            .section-header-pro {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 18px 20px;
+              background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+              border-bottom: 4px solid #1e293b;
+              margin-bottom: 15px;
+            }
+            
+            .header-left {
+              display: flex;
+              align-items: center;
+              gap: 18px;
+            }
+            
+            .header-badge {
+              width: 52px;
+              height: 52px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 50%;
+              box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            }
+            
+            .header-badge-num {
+              font-size: 24px;
+              font-weight: 800;
+              color: white;
+            }
+            
+            .header-info {
+              display: flex;
+              flex-direction: column;
+            }
+            
+            .header-fase {
+              font-size: 10px;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              color: #64748b;
+              font-weight: 600;
+              margin-bottom: 4px;
+            }
+            
+            .header-titulo {
+              font-size: 20px;
+              font-weight: 800;
+              color: #0f172a;
+              letter-spacing: 1px;
+            }
+            
+            .header-right {
+              text-align: right;
+            }
+            
+            .header-op {
+              font-size: 20px;
+              font-family: 'Consolas', 'Monaco', monospace;
+              font-weight: 700;
+              color: #0f172a;
+              letter-spacing: 1px;
+            }
+            
+            .header-lote {
+              font-size: 11px;
+              color: #475569;
+              margin-top: 4px;
+              font-weight: 500;
+            }
+            
+            .header-produto {
+              font-size: 12px;
+              color: #64748b;
+              margin-top: 2px;
+              font-style: italic;
+            }
+            
+            /* GRID DE INFORMAÇÕES COMPACTO */
+            .info-grid-compact {
+              display: grid;
+              grid-template-columns: repeat(6, 1fr);
+              gap: 8px;
+              padding: 0 8px;
+              margin-bottom: 15px;
+            }
+            
+            .info-item {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              padding: 8px 10px;
+              text-align: center;
+            }
+            
+            .info-label {
+              display: block;
+              font-size: 7px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #64748b;
+              margin-bottom: 3px;
+              font-weight: 600;
+            }
+            
+            .info-value {
+              display: block;
+              font-size: 10px;
+              font-weight: 700;
+              color: #1e293b;
+            }
+            
+            /* CONTEÚDO DA SEÇÃO */
+            .section-content-area {
+              flex: 1;
+              padding: 0 8px;
               font-size: 9px;
             }
             
-            /* Remove headers duplicados */
-            .section-content > div > .bg-gradient-to-r:first-child,
-            .section-content > .bg-gradient-to-r:first-child {
+            /* Remove headers duplicados das folhas individuais */
+            .section-content-area > div > .bg-gradient-to-r:first-child,
+            .section-content-area .bg-gradient-to-r.from-slate-800,
+            .section-content-area > div:first-child > div:first-child[class*="bg-gradient"] {
               display: none !important;
             }
             
-            /* RODAPÉ FINAL */
-            .op-footer-final {
-              margin-top: 25px;
-              padding: 15px;
-              border-top: 3px solid #1e293b;
-              text-align: center;
+            /* RODAPÉ DAS PÁGINAS */
+            .page-footer {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 12px 15px;
+              margin-top: auto;
+              border-top: 2px solid #1e293b;
               background: #f8fafc;
-              border-radius: 0 0 8px 8px;
+              font-size: 9px;
             }
             
+            .footer-left {
+              font-weight: 700;
+              color: #0f172a;
+              font-size: 10px;
+            }
+            
+            .footer-center {
+              color: #64748b;
+              font-size: 8px;
+            }
+            
+            .footer-right {
+              font-weight: 600;
+              color: #334155;
+              font-size: 10px;
+            }
+            
+            /* ============ TABELAS ============ */
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 8px;
+              margin-bottom: 10px;
+            }
+            
+            th, td {
+              border: 1px solid #cbd5e1;
+              padding: 5px 6px;
+              text-align: left;
+              vertical-align: middle;
+            }
+            
+            th {
+              background: #f1f5f9;
+              font-weight: 600;
+              font-size: 7px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #475569;
+            }
+            
+            /* ============ IMPRESSÃO ============ */
             @media print {
-              body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-              .op-capa-header { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important; }
-              .section-header { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-              .page-break { height: 0 !important; visibility: hidden !important; }
+              body { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important;
+              }
+              
+              .section-header-pro {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              
+              .header-badge {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              
+              .page-break { 
+                height: 0 !important; 
+                visibility: hidden !important; 
+              }
+              
+              .page-footer {
+                position: relative;
+                bottom: 0;
+              }
             }
           </style>
         </head>
         <body>
-          <!-- CAPA -->
+          <!-- ========== CAPA ========== -->
           <div class="op-capa">
-            <div class="op-capa-header">
-              <h1>📋 ORDEM DE PRODUÇÃO INDUSTRIAL</h1>
-              <div class="op-capa-codigo">${op.codigo}</div>
-              <div class="op-capa-produto">${op.produto_nome || 'Produto não especificado'}</div>
-              <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
-                Documento gerado em: ${new Date().toLocaleString('pt-BR')}
+            <div class="capa-header">
+              <div class="capa-empresa">Vitalnow Industria Ltda</div>
+              <h1>📋 Ordem de Produção Industrial</h1>
+              <div class="capa-codigo">${op.codigo}</div>
+              <div class="capa-produto">${op.produto_nome || 'Produto não especificado'}</div>
+              <div class="capa-lote">Lote: ${op.lote_produto_acabado || '-'}</div>
+            </div>
+            
+            <div class="capa-grid">
+              <div class="capa-box">
+                <div class="capa-box-label">Total Cápsulas</div>
+                <div class="capa-box-valor">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()}</div>
+              </div>
+              <div class="capa-box">
+                <div class="capa-box-label">Frascos</div>
+                <div class="capa-box-valor">${op.quantidade_frascos || 0} × ${op.capsulas_por_frasco || 60}</div>
+              </div>
+              <div class="capa-box">
+                <div class="capa-box-label">Data Fabricação</div>
+                <div class="capa-box-valor">${op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'}</div>
+              </div>
+              <div class="capa-box">
+                <div class="capa-box-label">RT Responsável</div>
+                <div class="capa-box-valor" style="font-size: 13px;">${op.rt_nome || '-'}</div>
               </div>
             </div>
             
-            <div class="op-capa-grid">
-              <div class="op-capa-box">
-                <div class="op-capa-box-label">Total Cápsulas</div>
-                <div class="op-capa-box-valor">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()}</div>
-              </div>
-              <div class="op-capa-box">
-                <div class="op-capa-box-label">Frascos</div>
-                <div class="op-capa-box-valor">${op.quantidade_frascos || 0} × ${op.capsulas_por_frasco || 60}</div>
-              </div>
-              <div class="op-capa-box">
-                <div class="op-capa-box-label">Lote Produto</div>
-                <div class="op-capa-box-valor">${op.lote_produto_acabado || '-'}</div>
-              </div>
-              <div class="op-capa-box">
-                <div class="op-capa-box-label">RT Responsável</div>
-                <div class="op-capa-box-valor" style="font-size: 12px;">${op.rt_nome || '-'}</div>
-              </div>
-            </div>
-            
-            <div class="op-capa-indice">
-              <div class="op-capa-indice-titulo">📑 ÍNDICE DO DOCUMENTO</div>
-              <div class="op-capa-indice-grid">
+            <div class="capa-indice">
+              <div class="capa-indice-titulo">📑 Índice do Documento</div>
+              <div class="capa-indice-grid">
                 ${sections.map((s, i) => `
-                  <div class="op-capa-indice-item" style="border-left-color: ${s.cor};">
-                    <div class="op-capa-indice-num" style="background: ${s.cor};">${i + 1}</div>
-                    <div class="op-capa-indice-text">
-                      <div class="op-capa-indice-fase">${s.fase}</div>
-                      <div class="op-capa-indice-nome">${s.titulo}</div>
+                  <div class="capa-indice-item" style="border-left-color: ${s.cor};">
+                    <div class="capa-indice-num" style="background: ${s.cor};">${i + 1}</div>
+                    <div class="capa-indice-text">
+                      <div class="capa-indice-fase">${s.fase}</div>
+                      <div class="capa-indice-nome">${s.titulo}</div>
                     </div>
                   </div>
                 `).join('')}
+              </div>
+            </div>
+            
+            <div class="capa-footer">
+              <div class="capa-footer-left">Vitalnow Industria Ltda</div>
+              <div class="capa-footer-right">
+                <div>Documento gerado em: ${new Date().toLocaleString('pt-BR')}</div>
+                <div>Total de páginas: ${totalPages} | Rastreabilidade ANVISA</div>
               </div>
             </div>
           </div>
           
           <div class="page-break"></div>
           
-          <!-- CONTEÚDO DAS SEÇÕES -->
-          ${allContent}
-          
-          <!-- RODAPÉ FINAL -->
-          <div class="op-footer-final">
-            <div style="font-size: 10px; color: #64748b; font-weight: 600;">
-              ✅ DOCUMENTO COMPLETO - ${sectionsFound} SEÇÕES
-            </div>
-            <div style="font-size: 9px; color: #94a3b8; margin-top: 5px;">
-              OP: ${op.codigo} | Lote: ${op.lote_produto_acabado || '-'} | 
-              Gerado: ${new Date().toLocaleString('pt-BR')} | Rastreabilidade ANVISA
-            </div>
-          </div>
+          <!-- ========== SEÇÕES ========== -->
+          ${allSections}
         </body>
       </html>
     `);
@@ -435,7 +699,7 @@ export function OPDocumentoCompleto({
     // Pequeno delay para garantir renderização antes de imprimir
     setTimeout(() => {
       printWindow.print();
-    }, 250);
+    }, 300);
   };
 
   const getSectionTitle = (sectionId: string): string => {
