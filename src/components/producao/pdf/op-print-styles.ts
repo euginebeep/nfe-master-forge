@@ -376,3 +376,171 @@ export function getOPPrintStyles(): string {
     }
   `;
 }
+
+// ============================================================
+// ESTILOS PARA IMPRESSÃO TERMINAL P&B (Preto e Branco)
+// ============================================================
+
+export function getTerminalPrintStyles(): string {
+  return `
+    @page { 
+      size: A4; 
+      margin: 10mm 12mm; 
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    body.terminal-mode { 
+      font-family: 'Courier New', Courier, monospace; 
+      font-size: 10px; 
+      line-height: 1.4;
+      color: #000;
+      background: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Remove cores - tudo P&B */
+    body.terminal-mode * {
+      background-color: transparent !important;
+      color: #000 !important;
+      border-color: #000 !important;
+    }
+    
+    .terminal-header {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      margin-bottom: 15px;
+    }
+    
+    .terminal-title {
+      text-align: center;
+      font-weight: bold;
+    }
+    
+    .terminal-footer {
+      margin-top: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      text-align: center;
+    }
+    
+    .page-break {
+      page-break-after: always;
+    }
+    
+    /* Tabelas em modo terminal */
+    body.terminal-mode table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+      margin-bottom: 10px;
+      border: 1px solid #000;
+    }
+    
+    body.terminal-mode th,
+    body.terminal-mode td {
+      border: 1px solid #000;
+      padding: 4px 5px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    
+    body.terminal-mode th {
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    
+    /* Headers em modo terminal */
+    body.terminal-mode .bg-gradient-to-r,
+    body.terminal-mode [class*="bg-"] {
+      background: transparent !important;
+      border: 2px solid #000 !important;
+      padding: 8px;
+    }
+    
+    /* Badges em modo terminal */
+    body.terminal-mode .badge,
+    body.terminal-mode [class*="rounded"] {
+      border: 1px solid #000 !important;
+      padding: 1px 4px;
+      font-weight: bold;
+    }
+    
+    /* Números de ordem */
+    body.terminal-mode .ordem-num,
+    body.terminal-mode [class*="rounded-full"] {
+      border: 2px solid #000 !important;
+      background: transparent !important;
+    }
+    
+    /* Campos de preenchimento */
+    body.terminal-mode .campo-vazio,
+    body.terminal-mode [class*="border-b"] {
+      border-bottom: 1px solid #000 !important;
+      min-height: 14px;
+    }
+    
+    /* Seções */
+    body.terminal-mode .section-title,
+    body.terminal-mode [class*="border-l-4"] {
+      border-left: 4px solid #000 !important;
+      background: transparent !important;
+      padding: 5px 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    
+    /* Assinaturas */
+    body.terminal-mode .assinatura-linha {
+      border-bottom: 1px solid #000;
+      height: 25px;
+    }
+    
+    /* Grid layout */
+    body.terminal-mode .grid {
+      display: block !important;
+    }
+    
+    body.terminal-mode .grid > div {
+      margin-bottom: 8px;
+      padding: 4px;
+      border: 1px solid #000;
+    }
+    
+    /* Texto em negrito para destaques */
+    body.terminal-mode .font-bold,
+    body.terminal-mode .font-semibold,
+    body.terminal-mode strong {
+      font-weight: 700 !important;
+    }
+    
+    /* Esconder elementos decorativos */
+    body.terminal-mode svg,
+    body.terminal-mode .lucide {
+      display: none !important;
+    }
+    
+    /* Checkboxes em modo terminal */
+    body.terminal-mode input[type="checkbox"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border: 1px solid #000;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    
+    @media print {
+      .no-print { display: none !important; }
+      body.terminal-mode { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body.terminal-mode * { 
+        background: transparent !important; 
+        color: #000 !important; 
+      }
+    }
+  `;
+}
