@@ -100,18 +100,28 @@ export function OPDocumentoCompleto({
     if (!printWindow) return;
 
     const sections = [
-      'section-separacao',
-      'section-pesagem', 
-      'section-mistura',
-      'section-encapsulamento',
-      'section-embalagem',
-      'section-checklist'
+      { id: 'section-separacao', titulo: 'SEPARAÇÃO DE MATERIAIS', fase: 'Fase 1' },
+      { id: 'section-pesagem', titulo: 'PESAGEM DE MATÉRIAS-PRIMAS', fase: 'Fase 2' },
+      { id: 'section-mistura', titulo: 'ORDEM DE MISTURA', fase: 'Fase 3' },
+      { id: 'section-encapsulamento', titulo: 'ENCAPSULAMENTO', fase: 'Fase 4' },
+      { id: 'section-embalagem', titulo: 'EMBALAGEM E ROTULAGEM', fase: 'Fase 5' },
+      { id: 'section-checklist', titulo: 'CHECKLIST OPERACIONAL', fase: 'Verificações' }
     ];
 
     let allContent = '';
-    sections.forEach((sectionId, idx) => {
-      const section = document.getElementById(sectionId);
+    sections.forEach((sec, idx) => {
+      const section = document.getElementById(sec.id);
       if (section) {
+        // Adiciona cabeçalho de seção para a OP completa
+        allContent += `
+          <div class="section-cover">
+            <div class="section-cover-header">
+              <div class="section-cover-fase">${sec.fase}</div>
+              <div class="section-cover-titulo">${sec.titulo}</div>
+              <div class="section-cover-op">OP: ${op.codigo} | Lote: ${op.lote_produto_acabado || '-'}</div>
+            </div>
+          </div>
+        `;
         allContent += section.innerHTML;
         if (idx < sections.length - 1) {
           allContent += '<div class="page-break"></div>';
@@ -124,10 +134,92 @@ export function OPDocumentoCompleto({
       <html>
         <head>
           <title>OP ${op.codigo} - Documento Completo</title>
-          <style>${getOPPrintStyles()}</style>
+          <style>
+            ${getOPPrintStyles()}
+            
+            /* Estilos adicionais para OP completa */
+            .section-cover {
+              margin-bottom: 15px;
+              page-break-inside: avoid;
+            }
+            .section-cover-header {
+              background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+              color: white;
+              padding: 12px 20px;
+              border-radius: 6px;
+              margin-bottom: 10px;
+            }
+            .section-cover-fase {
+              font-size: 9px;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              opacity: 0.8;
+              margin-bottom: 4px;
+            }
+            .section-cover-titulo {
+              font-size: 16px;
+              font-weight: 700;
+              letter-spacing: 1px;
+            }
+            .section-cover-op {
+              font-size: 10px;
+              margin-top: 6px;
+              font-family: 'Consolas', monospace;
+              opacity: 0.9;
+            }
+            
+            @media print {
+              .section-cover-header {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                background: #1e293b !important;
+              }
+            }
+          </style>
         </head>
         <body>
+          <div class="op-completa-capa">
+            <div style="text-align: center; padding: 30px 0; border-bottom: 3px solid #333; margin-bottom: 20px;">
+              <h1 style="font-size: 22px; margin: 0 0 8px 0; font-weight: 700;">ORDEM DE PRODUÇÃO INDUSTRIAL</h1>
+              <div style="font-size: 28px; font-family: 'Consolas', monospace; font-weight: 700;">${op.codigo}</div>
+              <div style="font-size: 12px; margin-top: 10px; color: #555;">
+                Produto: ${op.produto_nome || '-'} | Lote: ${op.lote_produto_acabado || '-'}
+              </div>
+              <div style="font-size: 10px; margin-top: 6px; color: #777;">
+                Gerado em: ${new Date().toLocaleString('pt-BR')}
+              </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
+              <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
+                <div style="font-size: 9px; color: #666; text-transform: uppercase;">Total Cápsulas</div>
+                <div style="font-size: 14px; font-weight: 700;">${op.total_capsulas_com_acrescimo?.toLocaleString() || 0}</div>
+              </div>
+              <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
+                <div style="font-size: 9px; color: #666; text-transform: uppercase;">Frascos</div>
+                <div style="font-size: 14px; font-weight: 700;">${op.quantidade_frascos || 0} × ${op.capsulas_por_frasco || 60}</div>
+              </div>
+              <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
+                <div style="font-size: 9px; color: #666; text-transform: uppercase;">RT Responsável</div>
+                <div style="font-size: 11px; font-weight: 600;">${op.rt_nome || '-'}</div>
+              </div>
+            </div>
+            
+            <div style="font-size: 10px; color: #555; text-align: center; margin-bottom: 15px;">
+              <strong>ÍNDICE:</strong> 1. Separação | 2. Pesagem | 3. Mistura | 4. Encapsulamento | 5. Embalagem | 6. Checklist
+            </div>
+          </div>
+          
+          <div class="page-break"></div>
+          
           ${allContent}
+          
+          <div class="op-footer-final" style="margin-top: 30px; padding-top: 15px; border-top: 2px solid #333; text-align: center;">
+            <div style="font-size: 9px; color: #666;">
+              Documento completo gerado em ${new Date().toLocaleString('pt-BR')} | ${op.codigo} | 
+              Rastreabilidade ANVISA - Controle de Produção Industrial
+            </div>
+          </div>
         </body>
       </html>
     `);
