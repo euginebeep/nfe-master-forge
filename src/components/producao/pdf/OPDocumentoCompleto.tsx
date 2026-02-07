@@ -100,29 +100,34 @@ export function OPDocumentoCompleto({
     if (!printWindow) return;
 
     const sections = [
-      { id: 'section-separacao', titulo: 'SEPARAÇÃO DE MATERIAIS', fase: 'Fase 1' },
-      { id: 'section-pesagem', titulo: 'PESAGEM DE MATÉRIAS-PRIMAS', fase: 'Fase 2' },
-      { id: 'section-mistura', titulo: 'ORDEM DE MISTURA', fase: 'Fase 3' },
-      { id: 'section-encapsulamento', titulo: 'ENCAPSULAMENTO', fase: 'Fase 4' },
-      { id: 'section-embalagem', titulo: 'EMBALAGEM E ROTULAGEM', fase: 'Fase 5' },
-      { id: 'section-checklist', titulo: 'CHECKLIST OPERACIONAL', fase: 'Verificações' }
+      { id: 'section-separacao', titulo: 'SEPARAÇÃO DE MATERIAIS', fase: 'Fase 1', cor: '#ef4444' },
+      { id: 'section-pesagem', titulo: 'PESAGEM DE MATÉRIAS-PRIMAS', fase: 'Fase 2', cor: '#f59e0b' },
+      { id: 'section-mistura', titulo: 'ORDEM DE MISTURA', fase: 'Fase 3', cor: '#10b981' },
+      { id: 'section-encapsulamento', titulo: 'ENCAPSULAMENTO', fase: 'Fase 4', cor: '#3b82f6' },
+      { id: 'section-embalagem', titulo: 'EMBALAGEM E ROTULAGEM', fase: 'Fase 5', cor: '#8b5cf6' },
+      { id: 'section-checklist', titulo: 'CHECKLIST OPERACIONAL', fase: 'Verificações', cor: '#06b6d4' }
     ];
 
     let allContent = '';
     sections.forEach((sec, idx) => {
       const section = document.getElementById(sec.id);
       if (section) {
-        // Adiciona cabeçalho de seção para a OP completa
         allContent += `
-          <div class="section-cover">
-            <div class="section-cover-header">
-              <div class="section-cover-fase">${sec.fase}</div>
-              <div class="section-cover-titulo">${sec.titulo}</div>
-              <div class="section-cover-op">OP: ${op.codigo} | Lote: ${op.lote_produto_acabado || '-'}</div>
+          <div class="section-page">
+            <div class="section-header" style="border-left-color: ${sec.cor}; background: linear-gradient(135deg, ${sec.cor}10 0%, ${sec.cor}05 100%);">
+              <div class="section-badge" style="background: ${sec.cor};">${idx + 1}</div>
+              <div class="section-info">
+                <div class="section-fase">${sec.fase}</div>
+                <div class="section-titulo">${sec.titulo}</div>
+              </div>
+              <div class="section-op">
+                <div class="section-op-codigo">${op.codigo}</div>
+                <div class="section-op-lote">Lote: ${op.lote_produto_acabado || '-'}</div>
+              </div>
             </div>
+            ${section.innerHTML}
           </div>
         `;
-        allContent += section.innerHTML;
         if (idx < sections.length - 1) {
           allContent += '<div class="page-break"></div>';
         }
@@ -137,76 +142,277 @@ export function OPDocumentoCompleto({
           <style>
             ${getOPPrintStyles()}
             
-            /* Estilos adicionais para OP completa */
-            .section-cover {
-              margin-bottom: 15px;
-              page-break-inside: avoid;
+            /* ============ ESTILOS OP COMPLETA COLORIDA ============ */
+            @page { 
+              size: A4; 
+              margin: 8mm 10mm; 
             }
-            .section-cover-header {
-              background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-              color: white;
-              padding: 12px 20px;
-              border-radius: 6px;
-              margin-bottom: 10px;
-            }
-            .section-cover-fase {
+            
+            body {
+              font-family: 'Segoe UI', Arial, sans-serif;
               font-size: 9px;
+              line-height: 1.3;
+              color: #1a1a1a;
+              margin: 0;
+              padding: 0;
+            }
+            
+            /* CAPA PROFISSIONAL */
+            .op-capa {
+              padding: 15mm 10mm;
+              display: flex;
+              flex-direction: column;
+              min-height: 100vh;
+            }
+            
+            .op-capa-header {
+              text-align: center;
+              padding: 25px 0;
+              border-bottom: 4px solid #1e293b;
+              margin-bottom: 20px;
+              background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+              border-radius: 8px;
+            }
+            
+            .op-capa-header h1 {
+              font-size: 24px;
+              font-weight: 800;
+              color: #1e293b;
+              margin: 0 0 8px 0;
+              letter-spacing: 3px;
               text-transform: uppercase;
-              letter-spacing: 2px;
-              opacity: 0.8;
+            }
+            
+            .op-capa-codigo {
+              font-size: 36px;
+              font-family: 'Consolas', monospace;
+              font-weight: 700;
+              color: #0f766e;
+              margin: 10px 0;
+            }
+            
+            .op-capa-produto {
+              font-size: 14px;
+              color: #475569;
+              margin: 5px 0;
+            }
+            
+            .op-capa-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 10px;
+              margin: 20px 0;
+            }
+            
+            .op-capa-box {
+              border: 2px solid #e2e8f0;
+              padding: 12px;
+              text-align: center;
+              border-radius: 8px;
+              background: white;
+            }
+            
+            .op-capa-box-label {
+              font-size: 8px;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 1px;
               margin-bottom: 4px;
             }
-            .section-cover-titulo {
-              font-size: 16px;
+            
+            .op-capa-box-valor {
+              font-size: 14px;
               font-weight: 700;
-              letter-spacing: 1px;
+              color: #1e293b;
             }
-            .section-cover-op {
+            
+            /* ÍNDICE COLORIDO */
+            .op-capa-indice {
+              background: #f8fafc;
+              padding: 20px;
+              border-radius: 12px;
+              margin-top: 20px;
+              border: 1px solid #e2e8f0;
+            }
+            
+            .op-capa-indice-titulo {
+              font-size: 12px;
+              font-weight: 700;
+              color: #334155;
+              margin-bottom: 15px;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              text-align: center;
+            }
+            
+            .op-capa-indice-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 10px;
+            }
+            
+            .op-capa-indice-item {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              background: white;
+              border-radius: 8px;
+              border-left: 4px solid;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .op-capa-indice-num {
+              width: 26px;
+              height: 26px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 50%;
+              font-size: 11px;
+              font-weight: 700;
+              color: white;
+            }
+            
+            .op-capa-indice-text {
+              flex: 1;
+            }
+            
+            .op-capa-indice-fase {
+              font-size: 8px;
+              color: #94a3b8;
+              text-transform: uppercase;
+            }
+            
+            .op-capa-indice-nome {
               font-size: 10px;
-              margin-top: 6px;
+              font-weight: 600;
+              color: #334155;
+            }
+            
+            /* CABEÇALHO DE SEÇÃO */
+            .section-page {
+              margin-bottom: 0;
+            }
+            
+            .section-header {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 10px 15px;
+              border-left: 5px solid;
+              border-radius: 6px;
+              margin-bottom: 12px;
+            }
+            
+            .section-badge {
+              width: 32px;
+              height: 32px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 50%;
+              font-size: 14px;
+              font-weight: 700;
+              color: white;
+            }
+            
+            .section-info {
+              flex: 1;
+            }
+            
+            .section-fase {
+              font-size: 9px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: #64748b;
+            }
+            
+            .section-titulo {
+              font-size: 14px;
+              font-weight: 700;
+              color: #1e293b;
+            }
+            
+            .section-op {
+              text-align: right;
+            }
+            
+            .section-op-codigo {
+              font-size: 14px;
               font-family: 'Consolas', monospace;
-              opacity: 0.9;
+              font-weight: 700;
+              color: #1e293b;
+            }
+            
+            .section-op-lote {
+              font-size: 9px;
+              color: #64748b;
+            }
+            
+            /* Remove headers duplicados do conteúdo original */
+            .section-page > div > .bg-gradient-to-r {
+              display: none !important;
+            }
+            
+            /* RODAPÉ FINAL */
+            .op-footer-final {
+              margin-top: 20px;
+              padding-top: 12px;
+              border-top: 2px solid #1e293b;
+              text-align: center;
             }
             
             @media print {
-              .section-cover-header {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                background: #1e293b !important;
-              }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .op-capa-header { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important; }
+              .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
           </style>
         </head>
         <body>
-          <div class="op-completa-capa">
-            <div style="text-align: center; padding: 30px 0; border-bottom: 3px solid #333; margin-bottom: 20px;">
-              <h1 style="font-size: 22px; margin: 0 0 8px 0; font-weight: 700;">ORDEM DE PRODUÇÃO INDUSTRIAL</h1>
-              <div style="font-size: 28px; font-family: 'Consolas', monospace; font-weight: 700;">${op.codigo}</div>
-              <div style="font-size: 12px; margin-top: 10px; color: #555;">
-                Produto: ${op.produto_nome || '-'} | Lote: ${op.lote_produto_acabado || '-'}
-              </div>
-              <div style="font-size: 10px; margin-top: 6px; color: #777;">
+          <div class="op-capa">
+            <div class="op-capa-header">
+              <h1>ORDEM DE PRODUÇÃO INDUSTRIAL</h1>
+              <div class="op-capa-codigo">${op.codigo}</div>
+              <div class="op-capa-produto">${op.produto_nome || 'Produto não especificado'}</div>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 8px;">
                 Gerado em: ${new Date().toLocaleString('pt-BR')}
               </div>
             </div>
             
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
-              <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
-                <div style="font-size: 9px; color: #666; text-transform: uppercase;">Total Cápsulas</div>
-                <div style="font-size: 14px; font-weight: 700;">${op.total_capsulas_com_acrescimo?.toLocaleString() || 0}</div>
+            <div class="op-capa-grid">
+              <div class="op-capa-box">
+                <div class="op-capa-box-label">Total Cápsulas</div>
+                <div class="op-capa-box-valor">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()}</div>
               </div>
-              <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
-                <div style="font-size: 9px; color: #666; text-transform: uppercase;">Frascos</div>
-                <div style="font-size: 14px; font-weight: 700;">${op.quantidade_frascos || 0} × ${op.capsulas_por_frasco || 60}</div>
+              <div class="op-capa-box">
+                <div class="op-capa-box-label">Frascos</div>
+                <div class="op-capa-box-valor">${op.quantidade_frascos || 0} × ${op.capsulas_por_frasco || 60}</div>
               </div>
-              <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
-                <div style="font-size: 9px; color: #666; text-transform: uppercase;">RT Responsável</div>
-                <div style="font-size: 11px; font-weight: 600;">${op.rt_nome || '-'}</div>
+              <div class="op-capa-box">
+                <div class="op-capa-box-label">Lote</div>
+                <div class="op-capa-box-valor">${op.lote_produto_acabado || '-'}</div>
+              </div>
+              <div class="op-capa-box">
+                <div class="op-capa-box-label">RT Responsável</div>
+                <div class="op-capa-box-valor" style="font-size: 11px;">${op.rt_nome || '-'}</div>
               </div>
             </div>
             
-            <div style="font-size: 10px; color: #555; text-align: center; margin-bottom: 15px;">
-              <strong>ÍNDICE:</strong> 1. Separação | 2. Pesagem | 3. Mistura | 4. Encapsulamento | 5. Embalagem | 6. Checklist
+            <div class="op-capa-indice">
+              <div class="op-capa-indice-titulo">📋 Índice do Documento</div>
+              <div class="op-capa-indice-grid">
+                ${sections.map((s, i) => `
+                  <div class="op-capa-indice-item" style="border-left-color: ${s.cor};">
+                    <div class="op-capa-indice-num" style="background: ${s.cor};">${i + 1}</div>
+                    <div class="op-capa-indice-text">
+                      <div class="op-capa-indice-fase">${s.fase}</div>
+                      <div class="op-capa-indice-nome">${s.titulo}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
             </div>
           </div>
           
@@ -214,10 +420,10 @@ export function OPDocumentoCompleto({
           
           ${allContent}
           
-          <div class="op-footer-final" style="margin-top: 30px; padding-top: 15px; border-top: 2px solid #333; text-align: center;">
-            <div style="font-size: 9px; color: #666;">
-              Documento completo gerado em ${new Date().toLocaleString('pt-BR')} | ${op.codigo} | 
-              Rastreabilidade ANVISA - Controle de Produção Industrial
+          <div class="op-footer-final">
+            <div style="font-size: 9px; color: #64748b;">
+              Documento completo gerado em ${new Date().toLocaleString('pt-BR')} | OP: ${op.codigo} | 
+              Lote: ${op.lote_produto_acabado || '-'} | Rastreabilidade ANVISA
             </div>
           </div>
         </body>

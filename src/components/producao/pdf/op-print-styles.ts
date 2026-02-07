@@ -6,7 +6,7 @@ export function getOPPrintStyles(): string {
   return `
     @page { 
       size: A4; 
-      margin: 12mm 15mm; 
+      margin: 8mm 10mm; 
     }
     
     * {
@@ -15,8 +15,8 @@ export function getOPPrintStyles(): string {
     
     body { 
       font-family: 'Segoe UI', Arial, sans-serif; 
-      font-size: 10px; 
-      line-height: 1.3;
+      font-size: 9px; 
+      line-height: 1.25;
       color: #1a1a1a;
       margin: 0;
       padding: 0;
@@ -26,24 +26,124 @@ export function getOPPrintStyles(): string {
       page-break-after: always;
     }
     
+    /* CAPA DA OP COMPLETA */
+    .op-capa {
+      page-break-after: always;
+      padding: 20px;
+    }
+    
+    .op-capa-titulo {
+      text-align: center;
+      border-bottom: 3px solid #1e293b;
+      padding-bottom: 20px;
+      margin-bottom: 25px;
+    }
+    
+    .op-capa-titulo h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 0 0 10px 0;
+      letter-spacing: 2px;
+    }
+    
+    .op-capa-codigo {
+      font-size: 32px;
+      font-family: 'Consolas', monospace;
+      font-weight: 700;
+      color: #0f766e;
+    }
+    
+    .op-capa-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 20px 0;
+    }
+    
+    .op-capa-box {
+      border: 2px solid #e2e8f0;
+      padding: 12px;
+      text-align: center;
+      border-radius: 6px;
+    }
+    
+    .op-capa-box-label {
+      font-size: 9px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    
+    .op-capa-box-valor {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .op-capa-indice {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 25px;
+    }
+    
+    .op-capa-indice-titulo {
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .op-capa-indice-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    
+    .op-capa-indice-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: white;
+      border-radius: 4px;
+      border-left: 4px solid;
+    }
+    
+    .op-capa-indice-num {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+    }
+    
     /* CABEÇALHO DA OP */
     .op-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       border-bottom: 2px solid #333;
-      padding-bottom: 8px;
-      margin-bottom: 12px;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
     }
     
     .op-header-left h1 {
-      font-size: 14px;
-      margin: 0 0 4px 0;
+      font-size: 13px;
+      margin: 0 0 3px 0;
       font-weight: 700;
     }
     
     .op-header-left .subtitle {
-      font-size: 10px;
+      font-size: 9px;
       color: #666;
     }
     
@@ -52,14 +152,14 @@ export function getOPPrintStyles(): string {
     }
     
     .op-codigo {
-      font-size: 16px;
+      font-size: 15px;
       font-family: 'Consolas', monospace;
       font-weight: 700;
       color: #000;
     }
     
     .op-lote {
-      font-size: 11px;
+      font-size: 10px;
       color: #333;
       margin-top: 2px;
     }
@@ -68,48 +168,48 @@ export function getOPPrintStyles(): string {
     .op-info-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 12px;
+      gap: 6px;
+      margin-bottom: 10px;
     }
     
     .op-info-box {
       border: 1px solid #ddd;
-      padding: 6px 8px;
+      padding: 5px 7px;
       background: #fafafa;
     }
     
     .op-info-box label {
-      font-size: 8px;
+      font-size: 7px;
       color: #666;
       text-transform: uppercase;
       display: block;
-      margin-bottom: 2px;
+      margin-bottom: 1px;
     }
     
     .op-info-box .value {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
     }
     
     /* SEÇÃO */
     .section {
-      margin-bottom: 15px;
+      margin-bottom: 12px;
     }
     
     .section-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       background: #e8e8e8;
-      padding: 5px 10px;
-      margin-bottom: 8px;
+      padding: 4px 8px;
+      margin-bottom: 6px;
       border-left: 4px solid #333;
       text-transform: uppercase;
     }
     
     .section-subtitle {
-      font-size: 9px;
+      font-size: 8px;
       color: #666;
-      margin-top: 2px;
+      margin-top: 1px;
       font-weight: 400;
     }
     
@@ -117,13 +217,13 @@ export function getOPPrintStyles(): string {
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9px;
-      margin-bottom: 10px;
+      font-size: 8px;
+      margin-bottom: 8px;
     }
     
     th, td {
       border: 1px solid #ccc;
-      padding: 5px 6px;
+      padding: 4px 5px;
       text-align: left;
       vertical-align: middle;
     }
@@ -131,7 +231,7 @@ export function getOPPrintStyles(): string {
     th {
       background: #f0f0f0;
       font-weight: 600;
-      font-size: 8px;
+      font-size: 7px;
       text-transform: uppercase;
     }
     
@@ -149,9 +249,9 @@ export function getOPPrintStyles(): string {
     /* BADGE */
     .badge {
       display: inline-block;
-      padding: 2px 6px;
+      padding: 1px 5px;
       border-radius: 3px;
-      font-size: 8px;
+      font-size: 7px;
       font-weight: 600;
     }
     
@@ -175,55 +275,55 @@ export function getOPPrintStyles(): string {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 22px;
-      height: 22px;
+      width: 18px;
+      height: 18px;
       background: #333;
       color: white;
       border-radius: 50%;
       font-weight: 700;
-      font-size: 10px;
+      font-size: 9px;
     }
     
     /* ALERTA */
     .alert-critico {
       background: #f8d7da;
       border: 2px solid #dc3545;
-      padding: 10px;
-      margin-bottom: 12px;
+      padding: 8px;
+      margin-bottom: 10px;
     }
     
     .alert-critico-title {
       font-weight: 700;
       color: #721c24;
-      font-size: 11px;
-      margin-bottom: 4px;
+      font-size: 10px;
+      margin-bottom: 3px;
     }
     
     .alert-critico-text {
       color: #721c24;
-      font-size: 9px;
+      font-size: 8px;
     }
     
     /* DISTRIBUIÇÃO GEOMÉTRICA */
     .diluicao-box {
       background: #e3f2fd;
       border: 1px solid #2196f3;
-      padding: 8px;
-      margin-bottom: 8px;
+      padding: 6px;
+      margin-bottom: 6px;
     }
     
     .diluicao-title {
       font-weight: 700;
       color: #1565c0;
-      font-size: 10px;
-      margin-bottom: 6px;
+      font-size: 9px;
+      margin-bottom: 4px;
     }
     
     .diluicao-passo {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 4px 0;
+      gap: 6px;
+      padding: 2px 0;
       border-bottom: 1px dotted #90caf9;
     }
     
@@ -235,13 +335,13 @@ export function getOPPrintStyles(): string {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 18px;
-      height: 18px;
+      width: 14px;
+      height: 14px;
       background: #1565c0;
       color: white;
       border-radius: 50%;
       font-weight: 700;
-      font-size: 9px;
+      font-size: 8px;
     }
     
     .passo-texto {
@@ -257,9 +357,9 @@ export function getOPPrintStyles(): string {
     .assinatura-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
-      margin-top: 20px;
-      padding-top: 15px;
+      gap: 12px;
+      margin-top: 15px;
+      padding-top: 10px;
       border-top: 1px solid #333;
     }
     
@@ -269,43 +369,43 @@ export function getOPPrintStyles(): string {
     
     .assinatura-linha {
       border-bottom: 1px solid #333;
-      height: 30px;
-      margin-bottom: 4px;
+      height: 22px;
+      margin-bottom: 3px;
     }
     
     .assinatura-label {
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 600;
     }
     
     .assinatura-sublabel {
-      font-size: 8px;
+      font-size: 7px;
       color: #666;
     }
     
     /* CAMPO VAZIO */
     .campo-vazio {
       display: inline-block;
-      min-width: 80px;
+      min-width: 60px;
       border-bottom: 1px solid #333;
     }
     
     .campo-vazio-lg {
-      min-width: 150px;
+      min-width: 120px;
     }
     
     /* CHECKLIST */
     .checklist-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 4px 0;
+      gap: 6px;
+      padding: 3px 0;
       border-bottom: 1px dotted #ddd;
     }
     
     .checklist-box {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       border: 1px solid #333;
       display: inline-block;
     }
@@ -316,11 +416,11 @@ export function getOPPrintStyles(): string {
     
     /* RODAPÉ */
     .op-footer {
-      margin-top: 15px;
-      padding-top: 8px;
+      margin-top: 10px;
+      padding-top: 6px;
       border-top: 1px solid #ddd;
       text-align: center;
-      font-size: 8px;
+      font-size: 7px;
       color: #666;
     }
     
@@ -328,23 +428,23 @@ export function getOPPrintStyles(): string {
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 8px;
     }
     
     /* ETAPAS DE MISTURA */
     .etapa-mistura {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 8px;
+      gap: 8px;
+      padding: 5px 6px;
       background: #f5f5f5;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       border-left: 3px solid #333;
     }
     
     .etapa-num {
       font-weight: 700;
-      font-size: 12px;
+      font-size: 11px;
       color: #333;
     }
     
@@ -359,13 +459,13 @@ export function getOPPrintStyles(): string {
     
     /* QR CODE PLACEHOLDER */
     .qr-placeholder {
-      width: 60px;
-      height: 60px;
+      width: 50px;
+      height: 50px;
       border: 2px solid #333;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 7px;
+      font-size: 6px;
       text-align: center;
       color: #666;
     }
