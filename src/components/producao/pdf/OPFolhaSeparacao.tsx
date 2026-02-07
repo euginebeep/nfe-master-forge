@@ -34,7 +34,7 @@ export function OPFolhaSeparacao({ op, materiasPrimas, embalagens = [] }: OPFolh
   };
 
   return (
-    <div className="bg-white border border-border rounded-lg shadow-sm overflow-hidden print:border-0 print:shadow-none print:rounded-none">
+    <div id="section-separacao" className="bg-white border border-border rounded-lg shadow-sm overflow-hidden print:border-0 print:shadow-none print:rounded-none">
       {/* CABEÇALHO PRINCIPAL */}
       <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-6 py-4 print:bg-slate-800">
         <div className="flex justify-between items-start">
