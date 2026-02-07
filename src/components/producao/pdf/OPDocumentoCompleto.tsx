@@ -142,6 +142,29 @@ export function OPDocumentoCompleto({
       const section = document.getElementById(sec.id);
       if (section && section.innerHTML.trim()) {
         sectionsFound++;
+        
+        // Extrair apenas o conteúdo sem os cabeçalhos duplicados das folhas
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = section.innerHTML;
+        
+        // Remover cabeçalhos internos das folhas (primeiro elemento que contém "ORDEM DE PRODUÇÃO")
+        const headerElements = tempDiv.querySelectorAll('[class*="bg-gradient-to-r"], [class*="from-slate-800"]');
+        headerElements.forEach(el => el.remove());
+        
+        // Remover grids de info duplicados (os primeiros grids com label/value)
+        const firstInfoGrids = tempDiv.querySelectorAll('.grid.grid-cols-4.gap-px');
+        firstInfoGrids.forEach(el => el.remove());
+        
+        // Remover rodapés internos das folhas
+        const footerElements = tempDiv.querySelectorAll('[class*="border-t"][class*="text-center"][class*="text-xs"][class*="text-slate"]');
+        footerElements.forEach(el => {
+          if (el.textContent?.includes('Documento gerado') || el.textContent?.includes('ANVISA')) {
+            el.remove();
+          }
+        });
+        
+        const cleanContent = tempDiv.innerHTML;
+        
         allSections += `
           <div class="section-page">
             <!-- CABEÇALHO PROFISSIONAL - PADRÃO ANVISA -->
@@ -195,9 +218,9 @@ export function OPDocumentoCompleto({
               </div>
             </div>
             
-            <!-- CONTEÚDO DA SEÇÃO -->
+            <!-- CONTEÚDO DA SEÇÃO (LIMPO) -->
             <div class="section-content-area">
-              ${section.innerHTML}
+              ${cleanContent}
             </div>
             
             <!-- RODAPÉ FIXO -->
