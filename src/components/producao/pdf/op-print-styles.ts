@@ -379,13 +379,14 @@ export function getOPPrintStyles(): string {
 
 // ============================================================
 // ESTILOS PARA IMPRESSÃO TERMINAL P&B (Preto e Branco)
+// Otimizado para caber em UMA folha A4
 // ============================================================
 
 export function getTerminalPrintStyles(): string {
   return `
     @page { 
       size: A4; 
-      margin: 10mm 12mm; 
+      margin: 5mm 8mm; 
     }
     
     * {
@@ -394,8 +395,8 @@ export function getTerminalPrintStyles(): string {
     
     body.terminal-mode { 
       font-family: 'Courier New', Courier, monospace; 
-      font-size: 10px; 
-      line-height: 1.4;
+      font-size: 7px; 
+      line-height: 1.15;
       color: #000;
       background: #fff;
       margin: 0;
@@ -411,8 +412,10 @@ export function getTerminalPrintStyles(): string {
     
     .terminal-header {
       font-family: 'Courier New', monospace;
-      font-size: 11px;
-      margin-bottom: 15px;
+      font-size: 8px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #000;
+      padding-bottom: 4px;
     }
     
     .terminal-title {
@@ -421,99 +424,165 @@ export function getTerminalPrintStyles(): string {
     }
     
     .terminal-footer {
-      margin-top: 20px;
+      margin-top: 8px;
       font-family: 'Courier New', monospace;
-      font-size: 9px;
+      font-size: 6px;
       text-align: center;
+      border-top: 1px solid #000;
+      padding-top: 4px;
     }
     
     .page-break {
       page-break-after: always;
     }
     
-    /* Tabelas em modo terminal */
+    /* Tabelas compactas em modo terminal */
     body.terminal-mode table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9px;
-      margin-bottom: 10px;
+      font-size: 6px;
+      margin-bottom: 4px;
       border: 1px solid #000;
     }
     
     body.terminal-mode th,
     body.terminal-mode td {
       border: 1px solid #000;
-      padding: 4px 5px;
+      padding: 1px 2px;
       text-align: left;
       vertical-align: middle;
+      line-height: 1.1;
     }
     
     body.terminal-mode th {
       font-weight: 700;
       text-transform: uppercase;
+      font-size: 5px;
     }
     
-    /* Headers em modo terminal */
+    /* Headers compactos */
     body.terminal-mode .bg-gradient-to-r,
     body.terminal-mode [class*="bg-"] {
       background: transparent !important;
-      border: 2px solid #000 !important;
-      padding: 8px;
-    }
-    
-    /* Badges em modo terminal */
-    body.terminal-mode .badge,
-    body.terminal-mode [class*="rounded"] {
       border: 1px solid #000 !important;
-      padding: 1px 4px;
-      font-weight: bold;
+      padding: 2px 4px;
+      margin-bottom: 3px;
     }
     
-    /* Números de ordem */
-    body.terminal-mode .ordem-num,
-    body.terminal-mode [class*="rounded-full"] {
-      border: 2px solid #000 !important;
-      background: transparent !important;
+    body.terminal-mode h1 {
+      font-size: 9px !important;
+      margin: 0 !important;
     }
     
-    /* Campos de preenchimento */
-    body.terminal-mode .campo-vazio,
-    body.terminal-mode [class*="border-b"] {
-      border-bottom: 1px solid #000 !important;
-      min-height: 14px;
+    body.terminal-mode p {
+      font-size: 6px !important;
+      margin: 0 !important;
     }
     
-    /* Seções */
-    body.terminal-mode .section-title,
-    body.terminal-mode [class*="border-l-4"] {
-      border-left: 4px solid #000 !important;
-      background: transparent !important;
-      padding: 5px 10px;
-      font-weight: bold;
-      text-transform: uppercase;
-    }
-    
-    /* Assinaturas */
-    body.terminal-mode .assinatura-linha {
-      border-bottom: 1px solid #000;
-      height: 25px;
-    }
-    
-    /* Grid layout */
+    /* Grid de informações compacto */
     body.terminal-mode .grid {
-      display: block !important;
+      display: grid !important;
+      gap: 2px !important;
+    }
+    
+    body.terminal-mode .grid-cols-4 {
+      grid-template-columns: repeat(4, 1fr) !important;
+    }
+    
+    body.terminal-mode .grid-cols-3 {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+    
+    body.terminal-mode .grid-cols-2 {
+      grid-template-columns: repeat(2, 1fr) !important;
     }
     
     body.terminal-mode .grid > div {
-      margin-bottom: 8px;
-      padding: 4px;
+      padding: 1px 2px !important;
       border: 1px solid #000;
+      font-size: 6px;
     }
     
-    /* Texto em negrito para destaques */
-    body.terminal-mode .font-bold,
+    /* Badges compactos */
+    body.terminal-mode .badge,
+    body.terminal-mode [class*="rounded"] {
+      border: 1px solid #000 !important;
+      padding: 0 2px;
+      font-weight: bold;
+      font-size: 5px;
+    }
+    
+    /* Números de ordem menores */
+    body.terminal-mode .ordem-num,
+    body.terminal-mode [class*="rounded-full"] {
+      border: 1px solid #000 !important;
+      background: transparent !important;
+      width: 12px !important;
+      height: 12px !important;
+      font-size: 6px !important;
+    }
+    
+    /* Campos de preenchimento menores */
+    body.terminal-mode .campo-vazio,
+    body.terminal-mode [class*="border-b"] {
+      border-bottom: 1px solid #000 !important;
+      min-height: 8px;
+    }
+    
+    /* Seções compactas */
+    body.terminal-mode .section-title,
+    body.terminal-mode [class*="border-l-4"] {
+      border-left: 2px solid #000 !important;
+      background: transparent !important;
+      padding: 2px 4px;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 7px;
+      margin-bottom: 2px;
+    }
+    
+    /* Assinaturas compactas */
+    body.terminal-mode .assinatura-linha {
+      border-bottom: 1px solid #000;
+      height: 12px;
+    }
+    
+    /* Espaçamentos reduzidos */
+    body.terminal-mode .p-2, 
+    body.terminal-mode .p-3, 
+    body.terminal-mode .p-4,
+    body.terminal-mode .p-6 {
+      padding: 2px !important;
+    }
+    
+    body.terminal-mode .mb-2,
+    body.terminal-mode .mb-3,
+    body.terminal-mode .mb-4,
+    body.terminal-mode .mb-6 {
+      margin-bottom: 3px !important;
+    }
+    
+    body.terminal-mode .mt-4,
+    body.terminal-mode .mt-6 {
+      margin-top: 4px !important;
+    }
+    
+    body.terminal-mode .gap-2,
+    body.terminal-mode .gap-3,
+    body.terminal-mode .gap-4 {
+      gap: 2px !important;
+    }
+    
+    /* Texto menor para labels */
+    body.terminal-mode .text-xs,
+    body.terminal-mode .text-sm,
+    body.terminal-mode .text-\\[9px\\],
+    body.terminal-mode .text-\\[10px\\] {
+      font-size: 6px !important;
+    }
+    
     body.terminal-mode .font-semibold,
-    body.terminal-mode strong {
+    body.terminal-mode .font-bold {
       font-weight: 700 !important;
     }
     
@@ -523,20 +592,28 @@ export function getTerminalPrintStyles(): string {
       display: none !important;
     }
     
-    /* Checkboxes em modo terminal */
+    /* Checkboxes compactos */
     body.terminal-mode input[type="checkbox"] {
       -webkit-appearance: none;
       appearance: none;
-      width: 12px;
-      height: 12px;
+      width: 8px;
+      height: 8px;
       border: 1px solid #000;
       display: inline-block;
       vertical-align: middle;
     }
     
+    /* Min heights reduzidos */
+    body.terminal-mode [class*="min-h-"] {
+      min-height: 8px !important;
+    }
+    
     @media print {
       .no-print { display: none !important; }
-      body.terminal-mode { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body.terminal-mode { 
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact; 
+      }
       body.terminal-mode * { 
         background: transparent !important; 
         color: #000 !important; 
