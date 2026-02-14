@@ -15,6 +15,7 @@ import { LocalDb } from "@/lib/local-db";
 import type { LocalEstoqueLote, LocalItem, LocalLoteDocumento } from "@/hooks/use-local-itens";
 import { useLoteDocumentos } from "@/hooks/use-local-itens";
 import { COAParserButton } from "@/components/lotes/COAParserButton";
+import { QRCodeAuditoria } from "@/components/shared/QRCodeAuditoria";
 
 type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
 
@@ -140,7 +141,18 @@ export default function LoteDetailPage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* QR Code de Rastreabilidade */}
+        <div className="lg:col-span-1 flex justify-center">
+          <QRCodeAuditoria
+            tipo="LOTE_MP"
+            id={lote.id}
+            hash={lote.id}
+            codigo={lote.numero_lote}
+            label={`Lote ${lote.numero_lote}`}
+            size={120}
+          />
+        </div>
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Resumo</CardTitle>
