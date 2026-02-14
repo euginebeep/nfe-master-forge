@@ -1,78 +1,73 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { maskCEP, maskPhone } from "@/lib/masks";
-import { maskIE, getIEPlaceholder, validateIE, maskIM, validateIM } from "@/lib/ie-validation";
+import {
+  maskCEP, maskPhone, maskCPF, maskCNPJ, maskCPFCNPJ,
+  maskMoeda, maskNCM, maskChaveNFe, maskIE, cleanMask
+} from "@/lib/masks";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
-export type MaskType = 'cep' | 'phone' | 'ie' | 'im';
+export type MaskType = 'cep' | 'phone' | 'cpf' | 'cnpj' | 'cpfcnpj' | 'moeda' | 'ncm' | 'chave_nfe' | 'ie' | 'im';
 
 interface MaskedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
   mask: MaskType;
   value: string;
   onChange: (value: string) => void;
-  uf?: string; // Required for IE validation
+  uf?: string;
   showValidation?: boolean;
+  error?: string;
 }
 
+const maskFns: Record<MaskType, (val: string, uf?: string) => string> = {
+  cep: maskCEP,
+  phone: maskPhone,
+  cpf: maskCPF,
+  cnpj: maskCNPJ,
+  cpfcnpj: maskCPFCNPJ,
+  moeda: maskMoeda,
+  ncm: maskNCM,
+  chave_nfe: maskChaveNFe,
+  ie: (val) => maskIE(val),
+  im: (val) => val.replace(/\D/g, ''),
+};
+
+const placeholders: Record<MaskType, string> = {
+  cep: '00000-000',
+  phone: '(00) 00000-0000',
+  cpf: '000.000.000-00',
+  cnpj: '00.000.000/0000-00',
+  cpfcnpj: 'CPF ou CNPJ',
+  moeda: 'R$ 0,00',
+  ncm: '0000.00.00',
+  chave_nfe: '0000 0000 0000 ...',
+  ie: 'Inscrição Estadual',
+  im: 'Inscrição Municipal',
+};
+
+const validators: Record<MaskType, (val: string) => boolean> = {
+  cep: (v) => cleanMask(v).length === 8,
+  phone: (v) => { const d = cleanMask(v); return d.length >= 10 && d.length <= 11; },
+  cpf: (v) => cleanMask(v).length === 11,
+  cnpj: (v) => cleanMask(v).length === 14,
+  cpfcnpj: (v) => { const d = cleanMask(v); return d.length === 11 || d.length === 14; },
+  moeda: () => true,
+  ncm: (v) => cleanMask(v).length === 8,
+  chave_nfe: (v) => cleanMask(v).length === 44,
+  ie: (v) => v === 'ISENTO' || cleanMask(v).length >= 2,
+  im: (v) => cleanMask(v).length >= 2,
+};
+
 const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
-  ({ mask, value, onChange, uf, showValidation = true, className, ...props }, ref) => {
+  ({ mask, value, onChange, uf, showValidation = true, error, className, ...props }, ref) => {
     const [isTouched, setIsTouched] = React.useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const rawValue = e.target.value;
-      let maskedValue: string;
-
-      switch (mask) {
-        case 'cep':
-          maskedValue = maskCEP(rawValue);
-          break;
-        case 'phone':
-          maskedValue = maskPhone(rawValue);
-          break;
-        case 'ie':
-          maskedValue = maskIE(rawValue, uf || '');
-          break;
-        case 'im':
-          maskedValue = maskIM(rawValue);
-          break;
-        default:
-          maskedValue = rawValue;
-      }
-
-      onChange(maskedValue);
+      const fn = maskFns[mask];
+      onChange(fn ? fn(e.target.value, uf) : e.target.value);
     };
 
-    const getPlaceholder = (): string => {
-      switch (mask) {
-        case 'cep': return '00000-000';
-        case 'phone': return '(00) 00000-0000';
-        case 'ie': return uf ? getIEPlaceholder(uf) : 'Selecione UF primeiro';
-        case 'im': return 'Inscrição Municipal';
-        default: return '';
-      }
-    };
-
-    const isValid = (): boolean => {
-      if (!value || value.trim() === '') return true;
-      
-      switch (mask) {
-        case 'cep':
-          return value.replace(/\D/g, '').length === 8;
-        case 'phone':
-          const phoneDigits = value.replace(/\D/g, '');
-          return phoneDigits.length >= 10 && phoneDigits.length <= 11;
-        case 'ie':
-          return validateIE(value, uf || '');
-        case 'im':
-          return validateIM(value);
-        default:
-          return true;
-      }
-    };
-
+    const valid = !value || !value.trim() ? true : (validators[mask]?.(value) ?? true);
     const showStatus = showValidation && isTouched && value && value.trim() !== '';
-    const valid = isValid();
 
     return (
       <div className="relative">
@@ -82,10 +77,11 @@ const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
           value={value}
           onChange={handleChange}
           onBlur={() => setIsTouched(true)}
-          placeholder={getPlaceholder()}
+          placeholder={placeholders[mask] || ''}
           className={cn(
             showStatus && valid && "pr-10 border-primary",
             showStatus && !valid && "pr-10 border-destructive",
+            error && "border-destructive",
             className
           )}
           {...props}
@@ -98,6 +94,9 @@ const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
               <AlertCircle className="h-4 w-4 text-destructive" />
             )}
           </div>
+        )}
+        {error && (
+          <p className="text-xs text-destructive mt-1">{error}</p>
         )}
       </div>
     );

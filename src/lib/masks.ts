@@ -31,6 +31,35 @@ export function maskCNPJ(value: string): string {
   return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
 }
 
+export function maskCPFCNPJ(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length <= 11) return maskCPF(value);
+  return maskCNPJ(value);
+}
+
+export function maskMoeda(value: string): string {
+  const nums = value.replace(/\D/g, '');
+  if (!nums) return '';
+  const valor = (parseInt(nums) / 100).toFixed(2);
+  return 'R$ ' + valor.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+export function maskNCM(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}.${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6)}`;
+}
+
+export function maskChaveNFe(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 44);
+  return digits.replace(/(\d{4})/g, '$1 ').trim();
+}
+
+export function maskIE(value: string): string {
+  return value.replace(/[^\dISENTO]/gi, '').toUpperCase();
+}
+
 // Clean masks - remove non-digits
 export function cleanMask(value: string): string {
   return value.replace(/\D/g, '');
