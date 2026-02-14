@@ -16,15 +16,21 @@ import { FACTORY_ROLES } from "@/hooks/use-users";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function AppHeader() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('axioma-theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const { profile, role, isAuthenticated, signOut } = useAuth();
 
   useEffect(() => {
     const root = window.document.documentElement;
     if (isDark) {
       root.classList.add("dark");
+      localStorage.setItem('axioma-theme', 'dark');
     } else {
       root.classList.remove("dark");
+      localStorage.setItem('axioma-theme', 'light');
     }
   }, [isDark]);
 
