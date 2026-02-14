@@ -51,7 +51,7 @@ import AuditoriaPage from "./pages/auditoria/AuditoriaPage";
 import UsuariosPage from "./pages/usuarios/UsuariosPage";
 import LoteAuditoriaPublicaPage from "./pages/audit/LoteAuditoriaPublicaPage";
 import VerificarOPPage from "./pages/producao/VerificarOPPage";
-
+import NotificacoesPage from "./pages/notificacoes/NotificacoesPage";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -119,6 +119,8 @@ const App = () => (
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/relatorios/capsulas" element={<RelatorioCapsulasPage />} />
             <Route path="/auditoria" element={<AuditoriaPage />} />
+            {/* Notificações */}
+            <Route path="/notificacoes" element={<NotificacoesPage />} />
             {/* Usuarios */}
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/settings/usuarios" element={<UsuariosPage />} />
