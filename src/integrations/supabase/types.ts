@@ -339,6 +339,50 @@ export type Database = {
           },
         ]
       }
+      catalogo_precos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          id: string
+          item_id: string
+          margem_contribuicao: number | null
+          preco_minimo: number | null
+          preco_venda: number
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          item_id: string
+          margem_contribuicao?: number | null
+          preco_minimo?: number | null
+          preco_venda: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          item_id?: string
+          margem_contribuicao?: number | null
+          preco_minimo?: number | null
+          preco_venda?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalogo_precos_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company: {
         Row: {
           certificado_a1_file_id: string | null
@@ -560,6 +604,68 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      contas_receber: {
+        Row: {
+          cliente_id: string | null
+          created_at: string | null
+          data_emissao: string
+          data_pagamento: string | null
+          data_vencimento: string
+          descricao: string
+          forma_pagamento: string | null
+          id: string
+          numero_documento: string | null
+          observacoes: string | null
+          pedido_venda_id: string | null
+          status: string | null
+          updated_at: string | null
+          valor: number
+          valor_pago: number | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string | null
+          data_emissao?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          descricao: string
+          forma_pagamento?: string | null
+          id?: string
+          numero_documento?: string | null
+          observacoes?: string | null
+          pedido_venda_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor: number
+          valor_pago?: number | null
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string | null
+          data_emissao?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          descricao?: string
+          forma_pagamento?: string | null
+          id?: string
+          numero_documento?: string | null
+          observacoes?: string | null
+          pedido_venda_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor?: number
+          valor_pago?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_receber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversoes_unidades: {
         Row: {
@@ -1297,6 +1403,72 @@ export type Database = {
             columns: ["nota_entrada_item_id"]
             isOneToOne: false
             referencedRelation: "notas_entrada_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_movimentacoes: {
+        Row: {
+          created_at: string | null
+          custo_unitario: number | null
+          documento_ref: string | null
+          documento_ref_id: string | null
+          id: string
+          item_id: string
+          lote_id: string | null
+          motivo: string
+          observacoes: string | null
+          origem: string | null
+          quantidade: number
+          tipo: string
+          unidade: string
+          usuario_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custo_unitario?: number | null
+          documento_ref?: string | null
+          documento_ref_id?: string | null
+          id?: string
+          item_id: string
+          lote_id?: string | null
+          motivo: string
+          observacoes?: string | null
+          origem?: string | null
+          quantidade: number
+          tipo?: string
+          unidade?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custo_unitario?: number | null
+          documento_ref?: string | null
+          documento_ref_id?: string | null
+          id?: string
+          item_id?: string
+          lote_id?: string | null
+          motivo?: string
+          observacoes?: string | null
+          origem?: string | null
+          quantidade?: number
+          tipo?: string
+          unidade?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_movimentacoes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentacoes_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
         ]
@@ -2161,6 +2333,156 @@ export type Database = {
             columns: ["nota_entrada_id"]
             isOneToOne: false
             referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_saida: {
+        Row: {
+          chave_acesso: string | null
+          cliente_id: string
+          created_at: string | null
+          data_emissao: string | null
+          id: string
+          natureza_operacao: string | null
+          numero: number | null
+          pedido_venda_id: string | null
+          protocolo_autorizacao: string | null
+          serie: string | null
+          status: string | null
+          valor_cofins: number | null
+          valor_icms: number | null
+          valor_ipi: number | null
+          valor_pis: number | null
+          valor_total: number
+          xml_autorizado: string | null
+        }
+        Insert: {
+          chave_acesso?: string | null
+          cliente_id: string
+          created_at?: string | null
+          data_emissao?: string | null
+          id?: string
+          natureza_operacao?: string | null
+          numero?: number | null
+          pedido_venda_id?: string | null
+          protocolo_autorizacao?: string | null
+          serie?: string | null
+          status?: string | null
+          valor_cofins?: number | null
+          valor_icms?: number | null
+          valor_ipi?: number | null
+          valor_pis?: number | null
+          valor_total?: number
+          xml_autorizado?: string | null
+        }
+        Update: {
+          chave_acesso?: string | null
+          cliente_id?: string
+          created_at?: string | null
+          data_emissao?: string | null
+          id?: string
+          natureza_operacao?: string | null
+          numero?: number | null
+          pedido_venda_id?: string | null
+          protocolo_autorizacao?: string | null
+          serie?: string | null
+          status?: string | null
+          valor_cofins?: number | null
+          valor_icms?: number | null
+          valor_ipi?: number | null
+          valor_pis?: number | null
+          valor_total?: number
+          xml_autorizado?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_saida_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_saida_itens: {
+        Row: {
+          cfop: string | null
+          cofins_aliquota: number | null
+          cofins_valor: number | null
+          descricao: string
+          icms_aliquota: number | null
+          icms_valor: number | null
+          id: string
+          item_id: string
+          lote_id: string | null
+          ncm: string | null
+          nota_saida_id: string | null
+          pis_aliquota: number | null
+          pis_valor: number | null
+          quantidade: number
+          unidade: string | null
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          cfop?: string | null
+          cofins_aliquota?: number | null
+          cofins_valor?: number | null
+          descricao: string
+          icms_aliquota?: number | null
+          icms_valor?: number | null
+          id?: string
+          item_id: string
+          lote_id?: string | null
+          ncm?: string | null
+          nota_saida_id?: string | null
+          pis_aliquota?: number | null
+          pis_valor?: number | null
+          quantidade: number
+          unidade?: string | null
+          valor_total: number
+          valor_unitario: number
+        }
+        Update: {
+          cfop?: string | null
+          cofins_aliquota?: number | null
+          cofins_valor?: number | null
+          descricao?: string
+          icms_aliquota?: number | null
+          icms_valor?: number | null
+          id?: string
+          item_id?: string
+          lote_id?: string | null
+          ncm?: string | null
+          nota_saida_id?: string | null
+          pis_aliquota?: number | null
+          pis_valor?: number | null
+          quantidade?: number
+          unidade?: string | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_saida_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_saida_itens_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_saida_itens_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "notas_saida"
             referencedColumns: ["id"]
           },
         ]
@@ -3699,6 +4021,154 @@ export type Database = {
         }
         Relationships: []
       }
+      qc_analises: {
+        Row: {
+          analista_id: string | null
+          created_at: string | null
+          data_analise: string | null
+          especificacao: string
+          id: string
+          lote_id: string
+          observacoes: string | null
+          parametro: string
+          resultado: string | null
+          status: string | null
+          tipo_analise: string
+        }
+        Insert: {
+          analista_id?: string | null
+          created_at?: string | null
+          data_analise?: string | null
+          especificacao: string
+          id?: string
+          lote_id: string
+          observacoes?: string | null
+          parametro: string
+          resultado?: string | null
+          status?: string | null
+          tipo_analise?: string
+        }
+        Update: {
+          analista_id?: string | null
+          created_at?: string | null
+          data_analise?: string | null
+          especificacao?: string
+          id?: string
+          lote_id?: string
+          observacoes?: string | null
+          parametro?: string
+          resultado?: string | null
+          status?: string | null
+          tipo_analise?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qc_analises_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qc_calibracoes: {
+        Row: {
+          certificado_url: string | null
+          codigo_equipamento: string
+          created_at: string | null
+          data_calibracao: string
+          equipamento: string
+          id: string
+          proxima_calibracao: string
+          responsavel: string | null
+          status: string | null
+          tipo_calibracao: string
+        }
+        Insert: {
+          certificado_url?: string | null
+          codigo_equipamento: string
+          created_at?: string | null
+          data_calibracao: string
+          equipamento: string
+          id?: string
+          proxima_calibracao: string
+          responsavel?: string | null
+          status?: string | null
+          tipo_calibracao: string
+        }
+        Update: {
+          certificado_url?: string | null
+          codigo_equipamento?: string
+          created_at?: string | null
+          data_calibracao?: string
+          equipamento?: string
+          id?: string
+          proxima_calibracao?: string
+          responsavel?: string | null
+          status?: string | null
+          tipo_calibracao?: string
+        }
+        Relationships: []
+      }
+      qc_desvios: {
+        Row: {
+          acao_corretiva: string | null
+          acao_preventiva: string | null
+          causa_raiz: string | null
+          codigo: string
+          created_at: string | null
+          descricao: string
+          id: string
+          lote_id: string | null
+          op_id: string | null
+          prazo: string | null
+          responsavel_id: string | null
+          severidade: string
+          status: string | null
+          tipo: string
+        }
+        Insert: {
+          acao_corretiva?: string | null
+          acao_preventiva?: string | null
+          causa_raiz?: string | null
+          codigo: string
+          created_at?: string | null
+          descricao: string
+          id?: string
+          lote_id?: string | null
+          op_id?: string | null
+          prazo?: string | null
+          responsavel_id?: string | null
+          severidade?: string
+          status?: string | null
+          tipo?: string
+        }
+        Update: {
+          acao_corretiva?: string | null
+          acao_preventiva?: string | null
+          causa_raiz?: string | null
+          codigo?: string
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          lote_id?: string | null
+          op_id?: string | null
+          prazo?: string | null
+          responsavel_id?: string | null
+          severidade?: string
+          status?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qc_desvios_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ranking_fornecedores: {
         Row: {
           classificacao: string | null
@@ -3763,6 +4233,61 @@ export type Database = {
             columns: ["fornecedor_id"]
             isOneToOne: true
             referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rastreabilidade_lote_mp: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_mp_id: string
+          lote_mp_id: string
+          lote_produto_acabado_id: string
+          op_id: string
+          quantidade_utilizada: number
+          unidade: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_mp_id: string
+          lote_mp_id: string
+          lote_produto_acabado_id: string
+          op_id: string
+          quantidade_utilizada: number
+          unidade?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_mp_id?: string
+          lote_mp_id?: string
+          lote_produto_acabado_id?: string
+          op_id?: string
+          quantidade_utilizada?: number
+          unidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rastreabilidade_lote_mp_item_mp_id_fkey"
+            columns: ["item_mp_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rastreabilidade_lote_mp_lote_mp_id_fkey"
+            columns: ["lote_mp_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rastreabilidade_lote_mp_lote_produto_acabado_id_fkey"
+            columns: ["lote_produto_acabado_id"]
+            isOneToOne: false
+            referencedRelation: "lotes_produto_acabado"
             referencedColumns: ["id"]
           },
         ]
