@@ -4226,6 +4226,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      notify_expiring_lots: { Args: never; Returns: undefined }
+      notify_low_stock: { Args: never; Returns: undefined }
       registrar_evento_auditoria: {
         Args: {
           p_dados_anteriores?: Json

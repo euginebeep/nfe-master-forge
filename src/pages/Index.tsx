@@ -11,6 +11,7 @@ import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
 import { MarketIndicesCard } from "@/components/dashboard/MarketIndicesCard";
 import { ExpiringLotsCard } from "@/components/dashboard/ExpiringLotsCard";
 import { ConsultaANVISACard } from "@/components/dashboard/ConsultaANVISACard";
+import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
 import { useAuth } from "@/hooks/use-auth";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
@@ -127,37 +128,20 @@ const Index = () => {
         />
       )}
 
-      {/* Alerts Row - Expiring Lots */}
+      {/* Real KPIs */}
+      {isAuthenticated && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Indicadores em Tempo Real</h3>
+          <DashboardKPIsGrid />
+        </div>
+      )}
+
+      {/* Alerts Row */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <ExpiringLotsCard />
         <ExchangeRateCard />
         <MarketIndicesCard />
         <ConsultaANVISACard />
-      </div>
-
-      {/* Quick Stats Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Sistema</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <p className="text-2xl font-bold">LEGACY ERP</p>
-                <p className="text-sm text-muted-foreground">
-                  Módulo 01: Cadastros Base
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Acesso Rápido</p>
-                <p className="text-lg font-semibold text-primary">
-                  {accessibleModules.length} módulos
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Modules Grid */}
