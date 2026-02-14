@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  useRealtimeNotifications();
 
   return (
     <SidebarProvider defaultOpen={true}>
