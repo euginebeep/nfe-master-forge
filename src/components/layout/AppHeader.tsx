@@ -13,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { FACTORY_ROLES } from "@/hooks/use-users";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function AppHeader() {
   const [isDark, setIsDark] = useState(false);
@@ -40,11 +41,14 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-2">
+        {isAuthenticated && <NotificationBell />}
+        
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsDark(!isDark)}
           className="h-9 w-9"
+          aria-label={isDark ? "Modo claro" : "Modo escuro"}
         >
           {isDark ? (
             <Sun className="h-5 w-5" />
