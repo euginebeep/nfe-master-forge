@@ -123,13 +123,13 @@ const App = () => (
               }>
                 <Route path="/" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><Index /></ErrorBoundary></Suspense>} />
                 <Route path="/roadmap" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RoadmapPage /></ErrorBoundary></Suspense>} />
-                {/* Settings */}
-                <Route path="/settings/empresa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><EmpresaSettingsPage /></ErrorBoundary></Suspense>} />
-                <Route path="/settings/company" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><CompanySettingsPage /></ErrorBoundary></Suspense>} />
-                <Route path="/settings/clear-data" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ClearDataPage /></ErrorBoundary></Suspense>} />
-                <Route path="/settings/migrar-dados" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MigrarDadosPage /></ErrorBoundary></Suspense>} />
-                <Route path="/settings/admin-master" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AdminMasterPage /></ErrorBoundary></Suspense>} />
-                <Route path="/settings/xml-backup" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><XmlBackupPage /></ErrorBoundary></Suspense>} />
+                {/* Settings — admin only */}
+                <Route path="/settings/empresa" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><EmpresaSettingsPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/company" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><CompanySettingsPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/clear-data" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><ClearDataPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/migrar-dados" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><MigrarDadosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/admin-master" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AdminMasterPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/xml-backup" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><XmlBackupPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Cadastros */}
                 <Route path="/cadastros/entidades" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><EntidadesListPageComplete /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/fornecedores" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><FornecedoresListPage /></ErrorBoundary></Suspense>} />
@@ -141,36 +141,36 @@ const App = () => (
                 <Route path="/cadastros/itens/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ProdutoDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/produtos/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ProdutoDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/responsaveis-tecnicos" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ResponsaveisTecnicosPage /></ErrorBoundary></Suspense>} />
-                {/* Produção */}
-                <Route path="/producao/formulas" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><FormuladorIndustrialPage /></ErrorBoundary></Suspense>} />
-                <Route path="/producao/formulas/nova" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NovaFormulaPage /></ErrorBoundary></Suspense>} />
-                <Route path="/producao/formulas/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><VisualizarFormulaPage /></ErrorBoundary></Suspense>} />
-                <Route path="/producao/formulas/:id/editar" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><EditarFormulaPage /></ErrorBoundary></Suspense>} />
-                <Route path="/producao/ordens" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><OrdensProducaoIndustrialPage /></ErrorBoundary></Suspense>} />
-                <Route path="/producao/ordens/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><OrdemProducaoDetailPage /></ErrorBoundary></Suspense>} />
-                <Route path="/producao/dashboard" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DashboardIndustrialPage /></ErrorBoundary></Suspense>} />
-                <Route path="/producao/executivo" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DashboardExecutivoPage /></ErrorBoundary></Suspense>} />
+                {/* Produção — supervisor+ */}
+                <Route path="/producao/formulas" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><FormuladorIndustrialPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/formulas/nova" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><NovaFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/formulas/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><VisualizarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/formulas/:id/editar" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><EditarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/ordens" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrdensProducaoIndustrialPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/ordens/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrdemProducaoDetailPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/dashboard" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><DashboardIndustrialPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/executivo" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><DashboardExecutivoPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Estoque */}
                 <Route path="/estoque/quarentena" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><QuarentenaPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesListPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LoteDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/movimentacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MovimentacoesPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/rastreabilidade" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RastreabilidadePage /></ErrorBoundary></Suspense>} />
-                {/* Compras */}
-                <Route path="/compras/importar-nfe" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense>} />
-                <Route path="/compras/nfe-import" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense>} />
-                <Route path="/compras/notas-entrada" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotasEntradaPage /></ErrorBoundary></Suspense>} />
-                {/* Financeiro */}
-                <Route path="/financeiro/pagar" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense>} />
-                <Route path="/financeiro/contas-pagar" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense>} />
-                <Route path="/financeiro/receber" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ContasReceberPage /></ErrorBoundary></Suspense>} />
-                <Route path="/financeiro/fluxo" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><FluxoCaixaPage /></ErrorBoundary></Suspense>} />
-                {/* Vendas */}
-                <Route path="/vendas/crm" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><CRMPage /></ErrorBoundary></Suspense>} />
-                <Route path="/vendas/orcamentos" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><OrcamentosPage /></ErrorBoundary></Suspense>} />
-                <Route path="/vendas/pedidos" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><PedidosVendaPage /></ErrorBoundary></Suspense>} />
-                <Route path="/vendas/marketplace" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MarketplacePage /></ErrorBoundary></Suspense>} />
-                <Route path="/vendas/notas-saida" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotasSaidaPage /></ErrorBoundary></Suspense>} />
+                {/* Compras — operador+ */}
+                <Route path="/compras/importar-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/nfe-import" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasEntradaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                {/* Financeiro — gerente+ */}
+                <Route path="/financeiro/pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/financeiro/contas-pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/financeiro/receber" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasReceberPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/financeiro/fluxo" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><FluxoCaixaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                {/* Vendas — operador+ */}
+                <Route path="/vendas/crm" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><CRMPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/vendas/orcamentos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrcamentosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/vendas/pedidos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><PedidosVendaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/vendas/marketplace" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><MarketplacePage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/vendas/notas-saida" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasSaidaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Relatórios */}
                 <Route path="/relatorios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatoriosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/relatorios/capsulas" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatorioCapsulasPage /></ErrorBoundary></Suspense>} />
@@ -181,9 +181,9 @@ const App = () => (
                 <Route path="/qualidade/calibracoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><CalibracoesPage /></ErrorBoundary></Suspense>} />
                 {/* Notificações */}
                 <Route path="/notificacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotificacoesPage /></ErrorBoundary></Suspense>} />
-                {/* Usuários */}
-                <Route path="/usuarios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense>} />
-                <Route path="/settings/usuarios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense>} />
+                {/* Usuários — admin only */}
+                <Route path="/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />
