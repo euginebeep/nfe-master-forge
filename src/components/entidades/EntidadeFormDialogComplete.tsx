@@ -291,7 +291,11 @@ export function EntidadeFormDialogComplete({ open, onOpenChange, entidade, initi
       onSuccess?.();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error("Erro ao salvar: " + error.message);
+      if (error?.code === '23505' || error?.message?.includes('entidades_documento_key') || error?.message?.includes('duplicate key')) {
+        toast.error("Já existe uma entidade cadastrada com este CPF/CNPJ. Verifique o documento informado.");
+      } else {
+        toast.error("Erro ao salvar: " + error.message);
+      }
     } finally {
       setSaving(false);
     }
