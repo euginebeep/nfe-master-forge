@@ -41,16 +41,30 @@ export function AppHeader() {
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 shrink-0">
       <div className="flex items-center gap-2">
-        <SidebarTrigger className="h-9 w-9">
+        <SidebarTrigger className="h-9 w-9" aria-label="Abrir/fechar menu lateral">
           <Menu className="h-5 w-5" />
         </SidebarTrigger>
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Mobile search button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="sm:hidden h-9 w-9"
+          aria-label="Buscar"
+          onClick={() => {
+            document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+          }}
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+
         <Button
           variant="outline"
           size="sm"
           className="hidden sm:flex items-center gap-2 text-muted-foreground h-9 px-3"
+          aria-label="Busca global (Ctrl+K)"
           onClick={() => {
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
           }}

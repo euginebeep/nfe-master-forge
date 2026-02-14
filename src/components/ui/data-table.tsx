@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Inbox } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -139,21 +140,27 @@ export function DataTable<T extends object>({
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Carregando...
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, rowIdx) => (
+                  <tr key={`skel-${rowIdx}`} className="border-b">
+                    {columns.map((col) => (
+                      <td key={col.key} className={cn("px-4 py-3", col.className)}>
+                        <Skeleton className="h-4 w-full max-w-[120px]" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : paginatedData.length === 0 ? (
                 <tr>
                   <td
                     colSpan={columns.length}
-                    className="px-4 py-8 text-center text-muted-foreground"
+                    className="px-4 py-12 text-center"
                   >
-                    {emptyMessage}
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="rounded-full bg-muted p-3">
+                        <Inbox className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
