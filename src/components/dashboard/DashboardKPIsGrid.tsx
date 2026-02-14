@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import {
   Users, Package, Boxes, Factory, FileText, FlaskConical,
   AlertTriangle, CheckCircle2, Clock, TrendingUp
@@ -15,30 +16,33 @@ interface KPIItemProps {
   suffix?: string;
 }
 
-function KPIItem({ label, value, icon: Icon, variant = "default", suffix }: KPIItemProps) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 py-4">
-        <div className={cn(
-          "p-2.5 rounded-lg",
-          variant === "success" && "bg-green-500/10 text-green-600",
-          variant === "warning" && "bg-yellow-500/10 text-yellow-600",
-          variant === "danger" && "bg-destructive/10 text-destructive",
-          variant === "default" && "bg-primary/10 text-primary",
-        )}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
-          <p className="text-xl font-bold mt-0.5">
-            {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
-            {suffix && <span className="text-sm font-normal text-muted-foreground ml-1">{suffix}</span>}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+const KPIItem = forwardRef<HTMLDivElement, KPIItemProps>(
+  ({ label, value, icon: Icon, variant = "default", suffix }, ref) => {
+    return (
+      <Card ref={ref}>
+        <CardContent className="flex items-center gap-4 py-4">
+          <div className={cn(
+            "p-2.5 rounded-lg",
+            variant === "success" && "bg-green-500/10 text-green-600",
+            variant === "warning" && "bg-yellow-500/10 text-yellow-600",
+            variant === "danger" && "bg-destructive/10 text-destructive",
+            variant === "default" && "bg-primary/10 text-primary",
+          )}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+            <p className="text-xl font-bold mt-0.5">
+              {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
+              {suffix && <span className="text-sm font-normal text-muted-foreground ml-1">{suffix}</span>}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+);
+KPIItem.displayName = "KPIItem";
 
 export function DashboardKPIsGrid() {
   const { data: kpis, isLoading } = useDashboardKPIs();
