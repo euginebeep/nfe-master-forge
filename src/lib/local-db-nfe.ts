@@ -3,6 +3,7 @@
 // ============================================
 
 import { LocalDb } from './local-db';
+import { generateUUID } from './utils';
 import { saveXmlBackup } from './xml-backup';
 import type {
   NotaFiscalCompleta,
@@ -60,13 +61,7 @@ function setCollection<T>(collection: NFeCollection, data: T[]): void {
   localStorage.setItem(getStorageKey(collection), JSON.stringify(data));
 }
 
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+// generateUUID imported from utils
 
 function insert<T>(collection: NFeCollection, item: Omit<T, 'id' | 'created_at'>): T {
   const items = getCollection<T>(collection);

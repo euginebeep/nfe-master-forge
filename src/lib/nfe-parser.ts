@@ -156,15 +156,8 @@ export function parseNFeXML(xmlString: string): NFeXMLParsed | null {
   }
 }
 
-// Helper to format CNPJ
-export function formatCNPJ(cnpj: string): string {
-  const cleaned = cnpj.replace(/\D/g, '');
-  if (cleaned.length !== 14) return cnpj;
-  return cleaned.replace(
-    /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
-    '$1.$2.$3/$4-$5'
-  );
-}
+// Re-export from canonical source to avoid duplication
+export { formatCNPJ } from './formatters';
 
 // Helper to format currency
 export function formatCurrency(value: number): string {
