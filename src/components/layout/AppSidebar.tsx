@@ -81,6 +81,8 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Formulador", url: "/producao/formulas", icon: FlaskConical, badge: "ANVISA" },
       { title: "Ordens de Producao", url: "/producao/ordens", icon: Factory },
+      { title: "Dashboard Industrial", url: "/producao/dashboard", icon: BarChart3 },
+      { title: "Dashboard Executivo", url: "/producao/executivo", icon: BarChart3, badge: "KPI" },
     ],
   },
   {
@@ -89,6 +91,7 @@ const menuGroups: MenuGroup[] = [
       { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert },
       { title: "Lotes", url: "/estoque/lotes", icon: Boxes },
       { title: "Movimentacoes", url: "/estoque/movimentacoes", icon: ClipboardList },
+      { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP" },
     ],
   },
   {
@@ -114,6 +117,14 @@ const menuGroups: MenuGroup[] = [
       { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart },
       { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput },
       { title: "Marketplace", url: "/vendas/marketplace", icon: Store },
+    ],
+  },
+  {
+    label: "Qualidade",
+    items: [
+      { title: "Desvios / CAPA", url: "/qualidade/desvios", icon: ShieldAlert, badge: "QC" },
+      { title: "Análises", url: "/qualidade/analises", icon: FlaskConical },
+      { title: "Calibrações", url: "/qualidade/calibracoes", icon: Settings },
     ],
   },
   {
