@@ -3,6 +3,7 @@
 // ============================================
 
 import { LocalDb } from './local-db';
+import { generateUUID } from './utils';
 
 export interface XmlBackup {
   id: string;
@@ -36,13 +37,7 @@ function hashString(str: string): string {
   return Math.abs(hash).toString(16).padStart(8, '0');
 }
 
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+// generateUUID imported from utils
 
 // ============================================
 // CRUD OPERATIONS

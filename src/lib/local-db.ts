@@ -1,5 +1,5 @@
 // LocalDb - localStorage-based persistence layer
-
+import { generateUUID } from './utils';
 type CollectionName = 
   | 'entidades'
   | 'entidade_contatos'
@@ -16,13 +16,8 @@ type CollectionName =
 
 const STORAGE_PREFIX = 'legacy_erp_';
 
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+
+
 
 function getStorageKey(collection: CollectionName): string {
   return `${STORAGE_PREFIX}${collection}`;
