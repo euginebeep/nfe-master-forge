@@ -45,6 +45,7 @@ const QuarentenaPage = lazy(() => import("./pages/estoque/QuarentenaPage"));
 const LotesListPage = lazy(() => import("./pages/estoque/LotesListPage"));
 const LoteDetailPage = lazy(() => import("./pages/estoque/LoteDetailPage"));
 const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage"));
+const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
 const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
 const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
 const ContasPagarPage = lazy(() => import("./pages/financeiro/ContasPagarPage"));
@@ -62,6 +63,9 @@ const UsuariosPage = lazy(() => import("./pages/usuarios/UsuariosPage"));
 const LoteAuditoriaPublicaPage = lazy(() => import("./pages/audit/LoteAuditoriaPublicaPage"));
 const VerificarOPPage = lazy(() => import("./pages/producao/VerificarOPPage"));
 const NotificacoesPage = lazy(() => import("./pages/notificacoes/NotificacoesPage"));
+const DesviosPage = lazy(() => import("./pages/qualidade/DesviosPage"));
+const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
+const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -151,6 +155,7 @@ const App = () => (
                 <Route path="/estoque/lotes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesListPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LoteDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/movimentacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MovimentacoesPage /></ErrorBoundary></Suspense>} />
+                <Route path="/estoque/rastreabilidade" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RastreabilidadePage /></ErrorBoundary></Suspense>} />
                 {/* Compras */}
                 <Route path="/compras/importar-nfe" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense>} />
                 <Route path="/compras/nfe-import" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense>} />
@@ -170,6 +175,10 @@ const App = () => (
                 <Route path="/relatorios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatoriosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/relatorios/capsulas" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatorioCapsulasPage /></ErrorBoundary></Suspense>} />
                 <Route path="/auditoria" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AuditoriaPage /></ErrorBoundary></Suspense>} />
+                {/* Qualidade */}
+                <Route path="/qualidade/desvios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DesviosPage /></ErrorBoundary></Suspense>} />
+                <Route path="/qualidade/analises" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AnalisesPage /></ErrorBoundary></Suspense>} />
+                <Route path="/qualidade/calibracoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><CalibracoesPage /></ErrorBoundary></Suspense>} />
                 {/* Notificações */}
                 <Route path="/notificacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotificacoesPage /></ErrorBoundary></Suspense>} />
                 {/* Usuários */}
