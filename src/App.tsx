@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
+import { GlobalSearchDialog } from "./components/search/GlobalSearchDialog";
 import Index from "./pages/Index";
 import RoadmapPage from "./pages/RoadmapPage";
 import NotFound from "./pages/NotFound";
@@ -61,6 +62,7 @@ const App = () => (
       <Sonner />
       <CentralToastProvider />
       <BrowserRouter>
+        <GlobalSearchDialog />
         <Routes>
           {/* Auth */}
           <Route path="/auth" element={<AuthPage />} />
@@ -86,7 +88,7 @@ const App = () => (
             <Route path="/cadastros/itens/:id" element={<ProdutoDetailPage />} />
             <Route path="/cadastros/produtos/:id" element={<ProdutoDetailPage />} />
             <Route path="/cadastros/responsaveis-tecnicos" element={<ResponsaveisTecnicosPage />} />
-            {/* Producao - Formulador Industrial */}
+            {/* Producao */}
             <Route path="/producao/formulas" element={<FormuladorIndustrialPage />} />
             <Route path="/producao/formulas/nova" element={<NovaFormulaPage />} />
             <Route path="/producao/formulas/:id" element={<VisualizarFormulaPage />} />
@@ -125,7 +127,7 @@ const App = () => (
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/settings/usuarios" element={<UsuariosPage />} />
           </Route>
-          {/* Páginas Públicas de Auditoria (sem layout) */}
+          {/* Páginas Públicas */}
           <Route path="/audit/lote/:hash" element={<LoteAuditoriaPublicaPage />} />
           <Route path="/op/verify/:opId" element={<VerificarOPPage />} />
           <Route path="*" element={<NotFound />} />
