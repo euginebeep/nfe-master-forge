@@ -45,6 +45,7 @@ import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { StatusOP, OPMateriaPrima, OPChecklist, OPPesagemCritica } from '@/types/op-industrial';
+import { QRCodeAuditoria } from '@/components/shared/QRCodeAuditoria';
 
 export default function OrdemProducaoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -323,6 +324,20 @@ export default function OrdemProducaoDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* QR Code de rastreabilidade */}
+      {(currentOP as any).qr_code_hash && (
+        <div className="mb-6 flex justify-center">
+          <QRCodeAuditoria
+            tipo="OP"
+            id={id!}
+            hash={(currentOP as any).qr_code_hash}
+            codigo={currentOP.codigo}
+            label={`OP ${currentOP.codigo}`}
+            size={100}
+          />
+        </div>
+      )}
 
       {/* Tracker de Etapas - Sempre visível */}
       <Card className="mb-6">
