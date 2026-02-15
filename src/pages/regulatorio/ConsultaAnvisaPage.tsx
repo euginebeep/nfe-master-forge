@@ -77,12 +77,15 @@ function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte }) {
       <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col gap-1">
               <CardTitle className="text-lg">
-                {constituinte.nome_tecnico}
+                {constituinte.nome_rotulo || constituinte.nome_tecnico}
               </CardTitle>
-              {constituinte.nome_generico && (
-                <span className="text-muted-foreground">({constituinte.nome_generico})</span>
+              {constituinte.nome_rotulo && (
+                <span className="text-sm text-muted-foreground">Nome técnico: {constituinte.nome_tecnico}</span>
+              )}
+              {!constituinte.nome_rotulo && constituinte.nome_generico && (
+                <span className="text-sm text-muted-foreground">{constituinte.nome_generico}</span>
               )}
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -247,12 +250,17 @@ export default function ConsultaAnvisaPage() {
       const { data: ilike } = await supabase
         .from('anvisa_constituintes')
         .select('*')
-        .or(`nome_tecnico.ilike.%${termoDebounced}%,nome_generico.ilike.%${termoDebounced}%`)
+        .or(`nome_tecnico.ilike.%${termoDebounced}%,nome_generico.ilike.%${termoDebounced}%,nome_rotulo.ilike.%${termoDebounced}%`)
         .eq('ativo', true)
         .limit(20);
 
+      // Array fields search (nome_popular, sinonimos)
+      const { data: arraySearch } = await supabase
+        .rpc('buscar_constituinte_por_nome_popular', { termo_busca: termoDebounced })
+        .limit(20);
+
       const mapa = new Map<string, AnvisaConstituinte>();
-      [...(fullText || []), ...(ilike || [])].forEach((r) => {
+      [...(fullText || []), ...(ilike || []), ...(arraySearch || [])].forEach((r) => {
         const item = r as unknown as AnvisaConstituinte;
         mapa.set(item.id, item);
       });

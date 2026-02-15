@@ -35,6 +35,7 @@ export interface AnvisaConstituinte {
   referencias_especificacao: string[] | null;
   is_proibido: boolean;
   motivo_proibicao: string | null;
+  nome_rotulo: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;
