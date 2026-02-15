@@ -2,10 +2,11 @@
 // FOLHA DE MISTURA - PADRÃO INDUSTRIAL PROFISSIONAL A4
 // Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
+import type { OPDadosPDF, OPMateriaPrimaPDF } from '@/types/op-pdf';
 
 interface OPFolhaMisturaProps {
-  op: any;
-  materiasPrimas: any[];
+  op: OPDadosPDF;
+  materiasPrimas: OPMateriaPrimaPDF[];
 }
 
 export function OPFolhaMistura({ op, materiasPrimas }: OPFolhaMisturaProps) {

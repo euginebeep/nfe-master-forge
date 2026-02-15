@@ -4,11 +4,12 @@
 // ============================================================
 
 import { cn } from '@/lib/utils';
+import type { OPDadosPDF, OPMateriaPrimaPDF, OPEmbalagemPDF } from '@/types/op-pdf';
 
 interface OPFolhaSeparacaoProps {
-  op: any;
-  materiasPrimas: any[];
-  embalagens?: any[];
+  op: OPDadosPDF;
+  materiasPrimas: OPMateriaPrimaPDF[];
+  embalagens?: OPEmbalagemPDF[];
 }
 
 export function OPFolhaSeparacao({ op, materiasPrimas, embalagens = [] }: OPFolhaSeparacaoProps) {

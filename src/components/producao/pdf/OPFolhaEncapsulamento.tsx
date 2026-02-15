@@ -2,9 +2,10 @@
 // FOLHA DE ENCAPSULAMENTO - PADRÃO INDUSTRIAL PROFISSIONAL A4
 // Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
+import type { OPDadosPDF } from '@/types/op-pdf';
 
 interface OPFolhaEncapsulamentoProps {
-  op: any;
+  op: OPDadosPDF;
 }
 
 export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {

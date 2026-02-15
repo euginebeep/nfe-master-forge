@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { CentralToastProvider } from "@/components/ui/central-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { GlobalSearchDialog } from "./components/search/GlobalSearchDialog";
@@ -70,18 +70,7 @@ const DesviosPage = lazy(() => import("./pages/qualidade/DesviosPage"));
 const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
 const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,
-      retry: 2,
-      refetchOnWindowFocus: false,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
+import { queryClient } from "./lib/query-client";
 
 const PageFallback = () => (
   <div className="flex-1 flex items-center justify-center p-6">
