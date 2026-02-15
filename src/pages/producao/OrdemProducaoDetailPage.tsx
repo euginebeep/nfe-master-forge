@@ -326,12 +326,12 @@ export default function OrdemProducaoDetailPage() {
       </div>
 
       {/* QR Code de rastreabilidade */}
-      {(currentOP as any).qr_code_hash && (
+      {'qr_code_hash' in currentOP && (currentOP as unknown as Record<string, unknown>).qr_code_hash && (
         <div className="mb-6 flex justify-center">
           <QRCodeAuditoria
             tipo="OP"
             id={id!}
-            hash={(currentOP as any).qr_code_hash}
+            hash={String((currentOP as unknown as Record<string, unknown>).qr_code_hash)}
             codigo={currentOP.codigo}
             label={`OP ${currentOP.codigo}`}
             size={100}
@@ -459,7 +459,7 @@ export default function OrdemProducaoDetailPage() {
 
         {/* Tab: Resumo & Auditoria */}
         <TabsContent value="resumo">
-          <OPTabResumoAuditoria op={currentOP as any} />
+          <OPTabResumoAuditoria op={currentOP as unknown as React.ComponentProps<typeof OPTabResumoAuditoria>['op']} />
         </TabsContent>
 
         {/* Tab: Matérias-Primas - Formato Industrial Profissional */}

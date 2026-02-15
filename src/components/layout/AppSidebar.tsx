@@ -3,6 +3,8 @@ import {
   Building2,
   Users,
   Package,
+  FileSearch,
+  PieChart,
   Truck,
   Settings,
   ChevronDown,
@@ -107,6 +109,8 @@ const menuGroups: MenuGroup[] = [
       { title: "Contas a Pagar", url: "/financeiro/pagar", icon: DollarSign },
       { title: "Contas a Receber", url: "/financeiro/receber", icon: DollarSign },
       { title: "Fluxo de Caixa", url: "/financeiro/fluxo", icon: BarChart3 },
+      { title: "Conciliação", url: "/financeiro/conciliacao", icon: FileSearch },
+      { title: "DRE Gerencial", url: "/financeiro/dre", icon: PieChart, badge: "DRE" },
     ],
   },
   {

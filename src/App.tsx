@@ -52,6 +52,8 @@ const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
 const ContasPagarPage = lazy(() => import("./pages/financeiro/ContasPagarPage"));
 const ContasReceberPage = lazy(() => import("./pages/financeiro/ContasReceberPage"));
 const FluxoCaixaPage = lazy(() => import("./pages/financeiro/FluxoCaixaPage"));
+const ConciliacaoPage = lazy(() => import("./pages/financeiro/ConciliacaoPage"));
+const DREPage = lazy(() => import("./pages/financeiro/DREPage"));
 const CRMPage = lazy(() => import("./pages/vendas/CRMPage"));
 const OrcamentosPage = lazy(() => import("./pages/vendas/OrcamentosPage"));
 const PedidosVendaPage = lazy(() => import("./pages/vendas/PedidosVendaPage"));
@@ -167,6 +169,8 @@ const App = () => (
                 <Route path="/financeiro/contas-pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/receber" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasReceberPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/fluxo" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><FluxoCaixaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/financeiro/conciliacao" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ConciliacaoPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/financeiro/dre" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><DREPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Vendas — operador+ */}
                 <Route path="/vendas/crm" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><CRMPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/orcamentos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrcamentosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
