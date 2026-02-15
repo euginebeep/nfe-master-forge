@@ -49,7 +49,7 @@ export function useDashboardKPIs() {
         supabase.from("formulas").select("id", { count: "exact", head: true }),
       ]);
 
-      const valorTotal = (notas.data || []).reduce((sum, n: any) => sum + (Number(n.total_nota) || 0), 0);
+      const valorTotal = (notas.data || []).reduce((sum, n) => sum + (Number((n as { total_nota?: number }).total_nota) || 0), 0);
 
       return {
         totalEntidades: entidades.count || 0,

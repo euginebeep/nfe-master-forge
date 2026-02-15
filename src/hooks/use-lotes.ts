@@ -58,9 +58,9 @@ export function useLote(id: string | undefined) {
 
       if (error) throw error;
       return data as EstoqueLote & {
-        item: any;
-        fornecedor: any;
-        lote_documentos: (LoteDocumento & { arquivo: any })[];
+        item: Record<string, unknown> | null;
+        fornecedor: Record<string, unknown> | null;
+        lote_documentos: (LoteDocumento & { arquivo: Record<string, unknown> | null })[];
       };
     },
   });

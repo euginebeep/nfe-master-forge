@@ -184,7 +184,7 @@ export function useHybridEntidades(filters?: { papel?: string; status?: string }
         let result = supabaseData.map(ent => ({
           ...ent,
           papeis: ent.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
-          _primaryContact: ent.entidade_contatos?.find((c: any) => c.preferencial) || ent.entidade_contatos?.[0],
+          _primaryContact: ent.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || ent.entidade_contatos?.[0],
         })) as HybridEntidade[];
 
         // Filter by papel if needed
@@ -250,7 +250,7 @@ export function useHybridEntidade(id: string | undefined) {
         return {
           ...supabaseData,
           papeis: supabaseData.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
-          _primaryContact: supabaseData.entidade_contatos?.find((c: any) => c.preferencial) || supabaseData.entidade_contatos?.[0],
+          _primaryContact: supabaseData.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || supabaseData.entidade_contatos?.[0],
         } as HybridEntidade;
       }
 
