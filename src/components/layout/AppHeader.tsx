@@ -17,7 +17,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function AppHeader() {
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('axioma-theme');
+    const saved = localStorage.getItem('brainx-theme');
     if (saved) return saved === 'dark';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
@@ -27,10 +27,10 @@ export function AppHeader() {
     const root = window.document.documentElement;
     if (isDark) {
       root.classList.add("dark");
-      localStorage.setItem('axioma-theme', 'dark');
+      localStorage.setItem('brainx-theme', 'dark');
     } else {
       root.classList.remove("dark");
-      localStorage.setItem('axioma-theme', 'light');
+      localStorage.setItem('brainx-theme', 'light');
     }
   }, [isDark]);
 
