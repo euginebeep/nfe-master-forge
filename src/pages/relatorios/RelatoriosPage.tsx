@@ -9,15 +9,19 @@ import { centralToast } from "@/components/ui/central-toast";
 
 type ReportGenerator = () => Promise<{ headers: string[]; rows: string[][]; title: string }>;
 
+interface ReportRow {
+  [key: string]: string | number | boolean | null | undefined;
+}
+
 const reportGenerators: Record<string, ReportGenerator> = {
   "Posicao de Estoque": async () => {
     const { data } = await supabase
       .from("estoque_lotes")
       .select("numero_lote, status, quantidade_original, quantidade_interna, unidade_original, data_fab, data_val, item_id")
       .order("created_at", { ascending: false }).limit(500);
-    const rows = (data || []).map((l: any) => [
-      l.numero_lote, l.status, String(l.quantidade_original), String(l.quantidade_interna),
-      l.unidade_original, l.data_fab || "", l.data_val || "",
+    const rows = (data || []).map((l: ReportRow) => [
+      String(l.numero_lote || ''), String(l.status || ''), String(l.quantidade_original), String(l.quantidade_interna),
+      String(l.unidade_original || ''), String(l.data_fab || ''), String(l.data_val || ''),
     ]);
     return { headers: ["Lote", "Status", "Qtd Original", "Qtd Interna", "Unidade", "Fabricação", "Validade"], rows, title: "Posição de Estoque" };
   },
@@ -26,9 +30,9 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("estoque_movimentacoes")
       .select("tipo, quantidade, unidade, motivo, origem, documento_ref, created_at")
       .order("created_at", { ascending: false }).limit(500);
-    const rows = (data || []).map((m: any) => [
-      m.tipo, String(m.quantidade), m.unidade, m.motivo, m.origem || "",
-      m.documento_ref || "", new Date(m.created_at).toLocaleDateString("pt-BR"),
+    const rows = (data || []).map((m: ReportRow) => [
+      String(m.tipo || ''), String(m.quantidade), String(m.unidade || ''), String(m.motivo || ''), String(m.origem || ''),
+      String(m.documento_ref || ''), new Date(String(m.created_at)).toLocaleDateString("pt-BR"),
     ]);
     return { headers: ["Tipo", "Qtd", "Unid.", "Motivo", "Origem", "Doc. Ref.", "Data"], rows, title: "Movimentações de Estoque" };
   },
@@ -38,9 +42,9 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .select("numero_lote, status, quantidade_interna, unidade_original, data_val")
       .eq("status", "APROVADO").not("data_val", "is", null)
       .order("data_val", { ascending: true }).limit(500);
-    const rows = (data || []).map((l: any) => {
-      const dias = Math.ceil((new Date(l.data_val).getTime() - Date.now()) / 86400000);
-      return [l.numero_lote, String(l.quantidade_interna), l.unidade_original, l.data_val, String(dias)];
+    const rows = (data || []).map((l: ReportRow) => {
+      const dias = Math.ceil((new Date(String(l.data_val)).getTime() - Date.now()) / 86400000);
+      return [String(l.numero_lote || ''), String(l.quantidade_interna), String(l.unidade_original || ''), String(l.data_val || ''), String(dias)];
     });
     return { headers: ["Lote", "Qtd", "Unidade", "Validade", "Dias Restantes"], rows, title: "Validade de Lotes" };
   },
@@ -49,12 +53,12 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("notas_entrada")
       .select("chave_nfe, numero, serie, dh_emissao, total_nota, total_produtos, status")
       .order("dh_emissao", { ascending: false }).limit(500);
-    const rows = (data || []).map((n: any) => [
-      n.numero || "", n.serie || "",
-      n.dh_emissao ? new Date(n.dh_emissao).toLocaleDateString("pt-BR") : "",
+    const rows = (data || []).map((n: ReportRow) => [
+      String(n.numero || ''), String(n.serie || ''),
+      n.dh_emissao ? new Date(String(n.dh_emissao)).toLocaleDateString("pt-BR") : "",
       n.total_produtos ? Number(n.total_produtos).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0",
       n.total_nota ? Number(n.total_nota).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0",
-      n.status, n.chave_nfe || "",
+      String(n.status || ''), String(n.chave_nfe || ''),
     ]);
     return { headers: ["Número", "Série", "Emissão", "Total Produtos", "Total Nota", "Status", "Chave NF-e"], rows, title: "Livro de Entradas" };
   },
@@ -63,10 +67,10 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("ordens_producao_industrial" as any)
       .select("codigo_op, status, quantidade_planejada, quantidade_produzida, lote_produto_acabado, created_at")
       .order("created_at", { ascending: false }).limit(500);
-    const rows = (data || []).map((op: any) => [
-      op.codigo_op, op.status, String(op.quantidade_planejada || 0),
-      String(op.quantidade_produzida || 0), op.lote_produto_acabado || "",
-      new Date(op.created_at).toLocaleDateString("pt-BR"),
+    const rows = ((data || []) as unknown as Record<string, unknown>[]).map((op) => [
+      String(op.codigo_op || ''), String(op.status || ''), String(op.quantidade_planejada || 0),
+      String(op.quantidade_produzida || 0), String(op.lote_produto_acabado || ''),
+      new Date(String(op.created_at)).toLocaleDateString("pt-BR"),
     ]);
     return { headers: ["Código OP", "Status", "Qtd Planejada", "Qtd Produzida", "Lote PA", "Data"], rows, title: "Produção por Período" };
   },
@@ -75,10 +79,10 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("lote_materias_primas")
       .select("insumo_nome, insumo_lote, fornecedor_nome, quantidade_utilizada_g, created_at")
       .order("created_at", { ascending: false }).limit(500);
-    const rows = (data || []).map((mp: any) => [
-      mp.insumo_nome, mp.insumo_lote, mp.fornecedor_nome,
+    const rows = (data || []).map((mp: ReportRow) => [
+      String(mp.insumo_nome || ''), String(mp.insumo_lote || ''), String(mp.fornecedor_nome || ''),
       `${Number(mp.quantidade_utilizada_g).toFixed(2)} g`,
-      new Date(mp.created_at).toLocaleDateString("pt-BR"),
+      new Date(String(mp.created_at)).toLocaleDateString("pt-BR"),
     ]);
     return { headers: ["Insumo", "Lote MP", "Fornecedor", "Qtd Utilizada", "Data"], rows, title: "Consumo de Matérias-Primas" };
   },
@@ -87,10 +91,10 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("qc_desvios")
       .select("codigo, tipo, severidade, descricao, status, causa_raiz, acao_corretiva, prazo, created_at")
       .order("created_at", { ascending: false }).limit(500);
-    const rows = (data || []).map((d: any) => [
-      d.codigo, d.tipo, d.severidade, d.descricao?.substring(0, 80) || "",
-      d.status, d.causa_raiz?.substring(0, 60) || "",
-      d.prazo || "", new Date(d.created_at).toLocaleDateString("pt-BR"),
+    const rows = (data || []).map((d: ReportRow) => [
+      String(d.codigo || ''), String(d.tipo || ''), String(d.severidade || ''), String(d.descricao || '').substring(0, 80),
+      String(d.status || ''), String(d.causa_raiz || '').substring(0, 60),
+      String(d.prazo || ''), new Date(String(d.created_at)).toLocaleDateString("pt-BR"),
     ]);
     return { headers: ["Código", "Tipo", "Severidade", "Descrição", "Status", "Causa Raiz", "Prazo", "Data"], rows, title: "Desvios e CAPAs" };
   },
@@ -99,9 +103,9 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("qc_calibracoes")
       .select("equipamento, codigo_equipamento, tipo_calibracao, data_calibracao, proxima_calibracao, status, responsavel")
       .order("proxima_calibracao", { ascending: true }).limit(500);
-    const rows = (data || []).map((c: any) => [
-      c.equipamento, c.codigo_equipamento, c.tipo_calibracao,
-      c.data_calibracao, c.proxima_calibracao, c.status, c.responsavel || "",
+    const rows = (data || []).map((c: ReportRow) => [
+      String(c.equipamento || ''), String(c.codigo_equipamento || ''), String(c.tipo_calibracao || ''),
+      String(c.data_calibracao || ''), String(c.proxima_calibracao || ''), String(c.status || ''), String(c.responsavel || ''),
     ]);
     return { headers: ["Equipamento", "Código", "Tipo", "Última Calibração", "Próxima", "Status", "Responsável"], rows, title: "Calibrações de Equipamentos" };
   },
@@ -110,11 +114,11 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("estoque_lotes")
       .select("numero_lote, quantidade_interna, unidade_original, custo_unitario_interno, status")
       .eq("status", "APROVADO").limit(500);
-    const rows = (data || []).map((l: any) => {
+    const rows = (data || []).map((l: ReportRow) => {
       const custo = Number(l.custo_unitario_interno || 0);
       const qtd = Number(l.quantidade_interna || 0);
       return [
-        l.numero_lote, String(qtd), l.unidade_original,
+        String(l.numero_lote || ''), String(qtd), String(l.unidade_original || ''),
         `R$ ${custo.toFixed(4)}`, `R$ ${(custo * qtd).toFixed(2)}`,
       ];
     });
@@ -126,8 +130,8 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .select("codigo_interno, razao_social, documento, status, classificacao, score_risco")
       .order("razao_social").limit(500);
     const fornecedores = (data || []);
-    const rows = fornecedores.map((f: any) => [
-      f.codigo_interno || "", f.razao_social, f.documento,
+    const rows = fornecedores.map((f) => [
+      String(f.codigo_interno || ''), f.razao_social, f.documento,
       f.status, f.classificacao || "REGULAR", String(f.score_risco || 0),
     ]);
     return { headers: ["Código", "Razão Social", "Documento", "Status", "Classificação", "Score Risco"], rows, title: "Fornecedores Qualificados" };
@@ -137,7 +141,7 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("custos_op")
       .select("op_codigo, custo_materia_prima_real, custo_mao_obra, custo_embalagem, custo_overhead, custo_total_real, custo_unitario_real, quantidade_produzida, status")
       .order("created_at", { ascending: false }).limit(500);
-    const rows = (data || []).map((c: any) => [
+    const rows = (data || []).map((c) => [
       c.op_codigo, `R$ ${Number(c.custo_materia_prima_real).toFixed(2)}`,
       `R$ ${Number(c.custo_mao_obra).toFixed(2)}`, `R$ ${Number(c.custo_embalagem).toFixed(2)}`,
       `R$ ${Number(c.custo_overhead).toFixed(2)}`, `R$ ${Number(c.custo_total_real).toFixed(2)}`,
@@ -150,7 +154,7 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("entidades")
       .select("codigo_interno, razao_social, nome_fantasia, documento, tipo_pessoa, status")
       .order("razao_social").limit(500);
-    const rows = (data || []).map((e: any) => [
+    const rows = (data || []).map((e) => [
       e.codigo_interno || "", e.razao_social, e.nome_fantasia || "", e.documento, e.tipo_pessoa, e.status,
     ]);
     return { headers: ["Código", "Razão Social", "Fantasia", "Documento", "Tipo", "Status"], rows, title: "Entidades Cadastradas" };
@@ -160,7 +164,7 @@ const reportGenerators: Record<string, ReportGenerator> = {
       .from("itens")
       .select("sku_interno, descricao_interna, tipo_item, unidade_interna, ncm, ativo")
       .order("descricao_interna").limit(500);
-    const rows = (data || []).map((i: any) => [
+    const rows = (data || []).map((i) => [
       i.sku_interno || "", i.descricao_interna, i.tipo_item, i.unidade_interna, i.ncm || "", i.ativo ? "Ativo" : "Inativo",
     ]);
     return { headers: ["SKU", "Descrição", "Tipo", "Unidade", "NCM", "Status"], rows, title: "Itens Cadastrados" };

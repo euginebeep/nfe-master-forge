@@ -111,15 +111,19 @@ export function useGeradorSugestoes() {
         return;
       }
 
-      const itens = formula.formula_itens || [];
+      interface FormulaItem {
+        nome_insumo?: string;
+        quantidade_convertida_mg?: number;
+      }
+      const itens: FormulaItem[] = formula.formula_itens || [];
       const sugestoesCriadas: string[] = [];
 
       // Análise 1: Verificar distribuição de excipientes
-      const pesoTotal = itens.reduce((sum: number, i: any) => sum + (i.quantidade_convertida_mg || 0), 0);
+      const pesoTotal = itens.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
       const pesoAtivos = itens
-        .filter((i: any) => !i.nome_insumo?.toLowerCase().includes('amido') && 
+        .filter((i) => !i.nome_insumo?.toLowerCase().includes('amido') && 
                           !i.nome_insumo?.toLowerCase().includes('celulose'))
-        .reduce((sum: number, i: any) => sum + (i.quantidade_convertida_mg || 0), 0);
+        .reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
       
       const percentExcipiente = ((pesoTotal - pesoAtivos) / pesoTotal) * 100;
       
@@ -139,7 +143,7 @@ export function useGeradorSugestoes() {
       }
 
       // Análise 2: Verificar se há ativos higroscópicos juntos
-      const itensHigroscopicos = itens.filter((i: any) => 
+      const itensHigroscopicos = itens.filter((i) => 
         i.nome_insumo?.toLowerCase().includes('vitamina c') ||
         i.nome_insumo?.toLowerCase().includes('cloreto')
       );
@@ -160,9 +164,9 @@ export function useGeradorSugestoes() {
       }
 
       // Análise 3: Verificar ordem de mistura otimizada
-      const temTalco = itens.some((i: any) => i.nome_insumo?.toLowerCase().includes('talco'));
-      const temSilicio = itens.some((i: any) => i.nome_insumo?.toLowerCase().includes('silício'));
-      const temEstearato = itens.some((i: any) => i.nome_insumo?.toLowerCase().includes('estearato'));
+      const temTalco = itens.some((i) => i.nome_insumo?.toLowerCase().includes('talco'));
+      const temSilicio = itens.some((i) => i.nome_insumo?.toLowerCase().includes('silício'));
+      const temEstearato = itens.some((i) => i.nome_insumo?.toLowerCase().includes('estearato'));
 
       if (temTalco && temSilicio && temEstearato) {
         // Fórmula completa com deslizantes

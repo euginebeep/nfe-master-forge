@@ -95,7 +95,7 @@ export function useCreateEntidade() {
       queryClient.invalidateQueries({ queryKey: ["entidades"] });
       toast.success("Entidade criada com sucesso");
     },
-    onError: (error: any) => {
+    onError: (error: Error & { code?: string }) => {
       if (error?.code === '23505' || error?.message?.includes('entidades_documento_key')) {
         toast.error("Já existe uma entidade cadastrada com este CPF/CNPJ.");
       } else {
