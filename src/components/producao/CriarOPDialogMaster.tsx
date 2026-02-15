@@ -303,15 +303,30 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-4"><UserCheck className="h-5 w-5 text-primary" /><h3 className="text-lg font-semibold">Configuração Técnica</h3></div>
       <div className="grid grid-cols-2 gap-4">
-        <FormField control={form.control} name="tipo_capsula" render={({ field }) => (
-          <FormItem><FormLabel>Tamanho da Cápsula</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-              <SelectContent>
-                <SelectItem value="000">000 (1.37 mL)</SelectItem><SelectItem value="00">00 (0.91 mL)</SelectItem>
-                <SelectItem value="0">0 (0.68 mL)</SelectItem><SelectItem value="1">1 (0.50 mL)</SelectItem>
-                <SelectItem value="2">2 (0.37 mL)</SelectItem><SelectItem value="3">3 (0.30 mL)</SelectItem>
-              </SelectContent></Select></FormItem>
-        )} />
+        {tipoProduto === "PO" ? (
+          <FormField control={form.control} name="tipo_capsula" render={({ field }) => (
+            <FormItem><FormLabel>Tamanho do Pote (g)</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="100">100 g</SelectItem><SelectItem value="200">200 g</SelectItem>
+                  <SelectItem value="300">300 g</SelectItem><SelectItem value="500">500 g</SelectItem>
+                  <SelectItem value="1000">1.000 g (1 kg)</SelectItem><SelectItem value="2500">2.500 g (2,5 kg)</SelectItem>
+                  <SelectItem value="5000">5.000 g (5 kg)</SelectItem>
+                </SelectContent></Select></FormItem>
+          )} />
+        ) : tipoProduto === "LIQUIDO" ? (
+          <div /> /* Líquido não tem seleção de cápsula/pote */
+        ) : (
+          <FormField control={form.control} name="tipo_capsula" render={({ field }) => (
+            <FormItem><FormLabel>Tamanho da Cápsula</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="000">000 (1.37 mL)</SelectItem><SelectItem value="00">00 (0.91 mL)</SelectItem>
+                  <SelectItem value="0">0 (0.68 mL)</SelectItem><SelectItem value="1">1 (0.50 mL)</SelectItem>
+                  <SelectItem value="2">2 (0.37 mL)</SelectItem><SelectItem value="3">3 (0.30 mL)</SelectItem>
+                </SelectContent></Select></FormItem>
+          )} />
+        )}
         <FormField control={form.control} name="excipiente_base" render={({ field }) => (
           <FormItem><FormLabel>Excipiente Base (Q.S.P.)</FormLabel>
             <Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
