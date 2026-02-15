@@ -69,6 +69,7 @@ const NotificacoesPage = lazy(() => import("./pages/notificacoes/NotificacoesPag
 const DesviosPage = lazy(() => import("./pages/qualidade/DesviosPage"));
 const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
 const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
+const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
 
 import { queryClient } from "./lib/query-client";
 
@@ -174,6 +175,8 @@ const App = () => (
                 <Route path="/qualidade/desvios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DesviosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/analises" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AnalisesPage /></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/calibracoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><CalibracoesPage /></ErrorBoundary></Suspense>} />
+                {/* Regulatório */}
+                <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ConsultaAnvisaPage /></ErrorBoundary></Suspense>} />
                 {/* Notificações */}
                 <Route path="/notificacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotificacoesPage /></ErrorBoundary></Suspense>} />
                 {/* Usuários — admin only */}
