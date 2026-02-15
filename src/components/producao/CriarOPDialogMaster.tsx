@@ -207,18 +207,18 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
 
       <div className="grid grid-cols-3 gap-4">
         <FormField control={form.control} name="quantidade_frascos" render={({ field }) => (
-          <FormItem><FormLabel>Quantidade de Frascos *</FormLabel><FormControl><Input type="number" min={1} {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+          <FormItem><FormLabel>{tipoProduto === "PO" ? "Quantidade de Potes *" : "Quantidade de Frascos *"}</FormLabel><FormControl><Input type="number" min={1} {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
         )} />
         <FormField control={form.control} name="unidades_por_frasco" render={({ field }) => (
-          <FormItem><FormLabel>{tipoProduto === "CAPSULA" ? "Cápsulas/Frasco *" : tipoProduto === "LIQUIDO" ? "mL/Frasco *" : "Doses/Frasco *"}</FormLabel><FormControl><Input type="number" min={1} {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+          <FormItem><FormLabel>{tipoProduto === "CAPSULA" ? "Cápsulas/Frasco *" : tipoProduto === "LIQUIDO" ? "mL/Frasco *" : "g/Pote *"}</FormLabel><FormControl><Input type="number" min={1} {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
         )} />
-        <div className="space-y-2"><FormLabel>Total Produzido</FormLabel><div className="h-10 flex items-center px-3 bg-muted rounded-md"><span className="font-mono font-bold">{totalUnidades.toLocaleString()}</span></div></div>
+        <div className="space-y-2"><FormLabel>Total Produzido</FormLabel><div className="h-10 flex items-center px-3 bg-muted rounded-md"><span className="font-mono font-bold">{tipoProduto === "LIQUIDO" ? `${(totalUnidades / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalUnidades / 1000).toFixed(2)} kg` : totalUnidades.toLocaleString()}</span></div></div>
       </div>
 
       <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4">
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /><span>Acréscimo Industrial (+{ACRESCIMO_INDUSTRIAL}%):</span></div>
-          <span className="font-mono font-bold text-primary">{totalComAcrescimo.toLocaleString()} {tipoProduto === "CAPSULA" ? "cápsulas" : "unidades"}</span>
+          <span className="font-mono font-bold text-primary">{tipoProduto === "LIQUIDO" ? `${(totalComAcrescimo / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalComAcrescimo / 1000).toFixed(2)} kg` : `${totalComAcrescimo.toLocaleString()} cápsulas`}</span>
         </div>
       </CardContent></Card>
 
