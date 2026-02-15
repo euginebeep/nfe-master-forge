@@ -6,6 +6,7 @@ import type { AnvisaConstituinte } from '@/types/anvisa';
 async function buscarConstituintes(termo: string): Promise<AnvisaConstituinte[]> {
   if (!termo || termo.length < 2) return [];
 
+  // Full-text search (covers nome_tecnico, nome_generico, nome_popular, sinonimos via tsvector)
   const { data: fullText } = await supabase
     .from('anvisa_constituintes')
     .select('*')
@@ -13,15 +14,21 @@ async function buscarConstituintes(termo: string): Promise<AnvisaConstituinte[]>
     .eq('ativo', true)
     .limit(20);
 
+  // ILIKE fallback on text columns
   const { data: ilike } = await supabase
     .from('anvisa_constituintes')
     .select('*')
-    .or(`nome_tecnico.ilike.%${termo}%,nome_generico.ilike.%${termo}%`)
+    .or(`nome_tecnico.ilike.%${termo}%,nome_generico.ilike.%${termo}%,nome_rotulo.ilike.%${termo}%`)
     .eq('ativo', true)
     .limit(20);
 
+  // RPC search for array fields (nome_popular, sinonimos) with unaccent
+  const { data: arraySearch } = await supabase
+    .rpc('buscar_constituinte_por_nome_popular', { termo_busca: termo })
+    .limit(20);
+
   const mapa = new Map<string, AnvisaConstituinte>();
-  [...(fullText || []), ...(ilike || [])].forEach((r) => {
+  [...(fullText || []), ...(ilike || []), ...(arraySearch || [])].forEach((r) => {
     const item = r as unknown as AnvisaConstituinte;
     mapa.set(item.id, item);
   });
