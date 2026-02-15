@@ -1,11 +1,11 @@
 {
-  "name": "AXIOMA Labs - ERP Industrial",
-  "short_name": "AXIOMA Labs",
+  "name": "BrainX - ERP Industrial",
+  "short_name": "BrainX ERP",
   "description": "Sistema de Gestão Empresarial e Industrial",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
+  "background_color": "#0F2A44",
+  "theme_color": "#0F2A44",
   "orientation": "any",
   "categories": ["business", "productivity"],
   "icons": [

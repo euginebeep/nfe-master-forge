@@ -1,5 +1,5 @@
 /**
- * Atalhos de teclado globais do ERP AXIOMA Labs
+ * Atalhos de teclado globais do BrainX ERP
  * - Ctrl+K: Busca global (já implementado no GlobalSearchDialog)
  * - Ctrl+/: Exibir lista de atalhos
  */

@@ -20,6 +20,6 @@ export const useAppStore = create<AppState>()(
       theme: 'system',
       setTheme: (theme) => set({ theme }),
     }),
-    { name: 'axioma-app-store' }
+    { name: 'brainx-app-store' }
   )
 );
