@@ -23,6 +23,7 @@ const EmpresaSettingsPage = lazy(() => import("./pages/settings/EmpresaSettingsP
 const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettingsPage"));
 const ClearDataPage = lazy(() => import("./pages/settings/ClearDataPage"));
 const MigrarDadosPage = lazy(() => import("./pages/settings/MigrarDadosPage"));
+const ImportarDadosPage = lazy(() => import("./pages/settings/ImportarDadosPage"));
 const AdminMasterPage = lazy(() => import("./pages/settings/AdminMasterPage"));
 const XmlBackupPage = lazy(() => import("./pages/settings/XmlBackupPage"));
 const FornecedoresListPage = lazy(() => import("./pages/cadastros/FornecedoresListPage"));
@@ -128,6 +129,7 @@ const App = () => (
                 <Route path="/settings/company" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><CompanySettingsPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/clear-data" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><ClearDataPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/migrar-dados" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><MigrarDadosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/importar-dados" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><ImportarDadosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/admin-master" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AdminMasterPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/xml-backup" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><XmlBackupPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Cadastros */}
