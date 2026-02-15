@@ -3,7 +3,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { downloadCSV, printHTMLReport, generateTableHTML } from "@/lib/export-utils";
+import { downloadCSV } from "@/lib/export-utils";
+import { exportToPDF } from "@/lib/pdf-export";
 import { centralToast } from "@/components/ui/central-toast";
 
 type ReportGenerator = () => Promise<{ headers: string[]; rows: string[][]; title: string }>;
@@ -185,7 +186,13 @@ export default function RelatoriosPage() {
     if (!gen) { showError("Relatório ainda não implementado"); return; }
     try {
       const { headers, rows, title } = await gen();
-      printHTMLReport(title, generateTableHTML(headers, rows));
+      exportToPDF({
+        title,
+        headers,
+        rows,
+        orientation: headers.length > 6 ? 'landscape' : 'portrait',
+        subtitle: `Relatório gerencial — ${new Date().toLocaleDateString('pt-BR')}`,
+      });
     } catch { showError("Erro ao gerar relatório"); }
   };
 
