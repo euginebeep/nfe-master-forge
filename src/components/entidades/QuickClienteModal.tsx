@@ -173,9 +173,10 @@ export function QuickClienteModal({
       reset();
       setSelectedPapeis(["CLIENTE"]);
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error("Erro ao cadastrar cliente:", error);
-      toast.error("Erro ao cadastrar: " + error.message);
+      toast.error("Erro ao cadastrar: " + msg);
     } finally {
       setIsLoading(false);
     }

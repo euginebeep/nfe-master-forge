@@ -38,13 +38,14 @@ async function checkHttp(label: string, url: string): Promise<HealthCheckItem> {
       status: "ok",
       details: `OK (${ms}ms)`,
     };
-  } catch (e: any) {
+  } catch (e: unknown) {
     const ms = Math.round(performance.now() - started);
+    const msg = e instanceof Error ? e.message : "Falha";
     return {
       id: `http:${label}`,
       label,
       status: "error",
-      details: `${e?.message || "Falha"} (${ms}ms)`,
+      details: `${msg} (${ms}ms)`,
     };
   }
 }
@@ -96,12 +97,13 @@ export function useSystemHealth() {
             details: r.details,
             value: r.value,
           });
-        } catch (e: any) {
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "Erro";
           items.push({
             id,
             label,
             status: "error",
-            details: e?.message || "Erro",
+            details: msg,
           });
         }
       };

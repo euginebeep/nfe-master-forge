@@ -53,9 +53,10 @@ export function useCapsulePhoto() {
         url: urlData.publicUrl,
         storageKey,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error('Upload error:', error);
-      toast.error('Erro ao enviar foto: ' + error.message);
+      toast.error('Erro ao enviar foto: ' + msg);
       return null;
     } finally {
       setUploading(false);
@@ -72,9 +73,10 @@ export function useCapsulePhoto() {
 
       toast.success('Foto removida');
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error('Delete error:', error);
-      toast.error('Erro ao remover foto: ' + error.message);
+      toast.error('Erro ao remover foto: ' + msg);
       return false;
     }
   }, []);

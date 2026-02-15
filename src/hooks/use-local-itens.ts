@@ -367,14 +367,14 @@ export function useDeleteItem() {
 
 // Item Fornecedores CRUD
 export function useItemFornecedores(itemId: string | undefined) {
-  const [fornecedores, setFornecedores] = useState<(LocalItemFornecedor & { fornecedor?: any })[]>([]);
+  const [fornecedores, setFornecedores] = useState<(LocalItemFornecedor & { fornecedor?: Record<string, unknown> })[]>([]);
 
   const refresh = useCallback(() => {
     if (!itemId) return;
     const data = LocalDb.query<LocalItemFornecedor>('item_fornecedores', f => f.item_id === itemId);
     
     // Enrich with fornecedor data
-    const entidades = LocalDb.getCollection<any>('entidades');
+    const entidades = LocalDb.getCollection<Record<string, unknown>>('entidades');
     const enriched = data.map(f => ({
       ...f,
       fornecedor: entidades.find(e => e.id === f.fornecedor_id),
@@ -455,14 +455,14 @@ export function useItemAliases(itemId: string | undefined) {
 
 // Estoque Lotes CRUD
 export function useEstoqueLotes(itemId: string | undefined) {
-  const [lotes, setLotes] = useState<(LocalEstoqueLote & { fornecedor?: any })[]>([]);
+  const [lotes, setLotes] = useState<(LocalEstoqueLote & { fornecedor?: Record<string, unknown> })[]>([]);
 
   const refresh = useCallback(() => {
     if (!itemId) return;
     const data = LocalDb.query<LocalEstoqueLote>('estoque_lotes', l => l.item_id === itemId);
     
     // Enrich with fornecedor data
-    const entidades = LocalDb.getCollection<any>('entidades');
+    const entidades = LocalDb.getCollection<Record<string, unknown>>('entidades');
     const enriched = data.map(l => ({
       ...l,
       fornecedor: entidades.find(e => e.id === l.fornecedor_id),
