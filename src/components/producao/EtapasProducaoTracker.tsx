@@ -20,19 +20,23 @@ export type EtapaProducao =
   | 'EMISSAO_NF'
   | 'COLETA';
 
+export type TipoApresentacao = 'CAPSULA' | 'LIQUIDO' | 'PO';
+
 interface EtapaConfig {
   key: EtapaProducao;
   label: string;
   icon: React.ElementType;
+  /** Tipos de apresentação onde esta etapa NÃO aparece */
+  excluirPara?: TipoApresentacao[];
 }
 
 const ETAPAS: EtapaConfig[] = [
   { key: 'SEPARACAO_MP', label: 'Separação MP', icon: Package },
   { key: 'PESAGEM', label: 'Pesagem', icon: Scale },
   { key: 'MISTURA', label: 'Mistura', icon: Blend },
-  { key: 'ENCAPSULAMENTO', label: 'Encapsulamento', icon: Pill },
+  { key: 'ENCAPSULAMENTO', label: 'Encapsulamento', icon: Pill, excluirPara: ['LIQUIDO', 'PO'] },
   { key: 'ENVASE', label: 'Envase', icon: FlaskConical },
-  { key: 'FECHAMENTO_INDUCAO', label: 'Fechamento Indução', icon: Flame },
+  { key: 'FECHAMENTO_INDUCAO', label: 'Fechamento Indução', icon: Flame, excluirPara: ['LIQUIDO'] },
   { key: 'ROTULACAO', label: 'Rotulação', icon: Tag },
   { key: 'MARCACAO_VALIDADE', label: 'Data/Validade', icon: Calendar },
   { key: 'CONTAGEM', label: 'Contagem', icon: Hash },
@@ -42,18 +46,25 @@ const ETAPAS: EtapaConfig[] = [
   { key: 'COLETA', label: 'Coleta', icon: Truck },
 ];
 
+function getEtapasParaTipo(tipo?: TipoApresentacao | null): EtapaConfig[] {
+  if (!tipo) return ETAPAS;
+  return ETAPAS.filter(e => !e.excluirPara?.includes(tipo));
+}
+
 interface EtapasProducaoTrackerProps {
   etapaAtual?: EtapaProducao | null;
+  tipoApresentacao?: TipoApresentacao | null;
   className?: string;
 }
 
-export function EtapasProducaoTracker({ etapaAtual, className }: EtapasProducaoTrackerProps) {
-  const indiceAtual = etapaAtual ? ETAPAS.findIndex(e => e.key === etapaAtual) : -1;
+export function EtapasProducaoTracker({ etapaAtual, tipoApresentacao, className }: EtapasProducaoTrackerProps) {
+  const etapasFiltradas = getEtapasParaTipo(tipoApresentacao);
+  const indiceAtual = etapaAtual ? etapasFiltradas.findIndex(e => e.key === etapaAtual) : -1;
 
   return (
     <div className={cn("w-full", className)}>
       <div className="flex items-center gap-1 overflow-x-auto pb-2">
-        {ETAPAS.map((etapa, index) => {
+        {etapasFiltradas.map((etapa, index) => {
           const Icon = etapa.icon;
           const isConcluida = indiceAtual > index;
           const isAtual = indiceAtual === index;
@@ -95,7 +106,7 @@ export function EtapasProducaoTracker({ etapaAtual, className }: EtapasProducaoT
               </div>
               
               {/* Linha conectora */}
-              {index < ETAPAS.length - 1 && (
+              {index < etapasFiltradas.length - 1 && (
                 <div 
                   className={cn(
                     "w-4 h-0.5 transition-all",
@@ -111,5 +122,5 @@ export function EtapasProducaoTracker({ etapaAtual, className }: EtapasProducaoT
   );
 }
 
-export { ETAPAS };
+export { ETAPAS, getEtapasParaTipo };
 export type { EtapaConfig };

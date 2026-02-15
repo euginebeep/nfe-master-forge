@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { EtapasProducaoTracker, type EtapaProducao } from '@/components/producao/EtapasProducaoTracker';
+import { EtapasProducaoTracker, type EtapaProducao, type TipoApresentacao, ETAPAS } from '@/components/producao/EtapasProducaoTracker';
 import { OPTabResumoAuditoria } from '@/components/producao/OPTabResumoAuditoria';
 import { OPTabEmbalagens } from '@/components/producao/OPTabEmbalagens';
 import { OPTabPesagemIndustrial } from '@/components/producao/OPTabPesagemIndustrial';
@@ -348,32 +348,32 @@ export default function OrdemProducaoDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
-          <EtapasProducaoTracker etapaAtual={etapaAtual} />
+          <EtapasProducaoTracker etapaAtual={etapaAtual} tipoApresentacao={(currentOP.tipo_apresentacao as TipoApresentacao) || 'CAPSULA'} />
           
           {/* Seletor de etapa (para operador atualizar) - Apenas quando Em Produção */}
-          {currentOP.status === 'EM_PRODUCAO' && (
+          {currentOP.status === 'EM_PRODUCAO' && (() => {
+            const tipo = (currentOP.tipo_apresentacao as TipoApresentacao) || 'CAPSULA';
+            const etapasFiltradas = ETAPAS.filter(e => !e.excluirPara?.includes(tipo));
+            return (
             <div className="mt-4 flex flex-wrap gap-2">
-              {(['SEPARACAO_MP', 'PESAGEM', 'MISTURA', 'ENCAPSULAMENTO', 'ENVASE', 
-                'FECHAMENTO_INDUCAO', 'ROTULACAO', 'MARCACAO_VALIDADE', 'CONTAGEM', 
-                'EMPACOTAMENTO', 'CONFERENCIA', 'EMISSAO_NF', 'COLETA'] as EtapaProducao[]).map((etapa, idx) => {
-                const labels = ['Separação', 'Pesagem', 'Mistura', 'Encapsular', 'Envase', 
-                  'Indução', 'Rótulo', 'Validade', 'Contagem', 'Empacot.', 'Conferir', 'NF', 'Coleta'];
-                const isActive = etapaAtual === etapa;
+              {etapasFiltradas.map((etapa) => {
+                const isActive = etapaAtual === etapa.key;
                 
                 return (
                   <Button
-                    key={etapa}
+                    key={etapa.key}
                     variant={isActive ? "default" : "outline"}
                     size="sm"
                     className={isActive ? "bg-success hover:bg-success/90" : ""}
-                    onClick={() => setEtapaAtual(etapa)}
+                    onClick={() => setEtapaAtual(etapa.key)}
                   >
-                    {labels[idx]}
+                    {etapa.label}
                   </Button>
                 );
               })}
             </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
 
