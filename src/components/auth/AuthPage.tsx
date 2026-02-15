@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, Loader2, ArrowRight, Shield, BarChart3, Package, Beaker, ChevronRight } from 'lucide-react';
+import { Mail, Lock, User, Loader2, ArrowRight, Shield, BarChart3, Package, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 const FEATURES = [
   { icon: Package, title: 'Gestão de Estoque', desc: 'Controle de lotes, rastreabilidade e FEFO automático' },
-  { icon: Beaker, title: 'Produção Industrial', desc: 'Fórmulas, ordens de produção e controle de qualidade' },
+  { icon: Brain, title: 'Produção Industrial', desc: 'Fórmulas, ordens de produção e controle de qualidade' },
   { icon: BarChart3, title: 'Dashboard Executivo', desc: 'KPIs em tempo real, alertas e inteligência operacional' },
   { icon: Shield, title: 'Conformidade ANVISA', desc: 'Validações regulatórias e auditoria imutável' },
 ];
@@ -77,11 +77,11 @@ export default function AuthPage() {
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[hsl(153,64%,34%)] flex items-center justify-center shadow-lg shadow-[hsl(153,64%,34%)]/20">
-                <Beaker className="h-5 w-5 text-white" />
+                <Brain className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">AXIOMA</h2>
-                <p className="text-[11px] text-white/50 font-medium tracking-[0.2em] uppercase -mt-0.5">Labs ERP</p>
+                <h2 className="text-xl font-bold text-white tracking-tight">BrainX</h2>
+                <p className="text-[11px] text-white/50 font-medium tracking-[0.2em] uppercase -mt-0.5">ERP Industrial</p>
               </div>
             </div>
           </motion.div>
@@ -131,7 +131,7 @@ export default function AuthPage() {
             transition={{ delay: 1 }}
             className="text-white/30 text-xs"
           >
-            © 2026 AXIOMA Labs · Plataforma ERP Industrial
+            © 2026 BrainX · Plataforma ERP Industrial
           </motion.p>
         </div>
       </div>
@@ -147,9 +147,9 @@ export default function AuthPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-10">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary mb-4 shadow-lg shadow-primary/20">
-              <Beaker className="h-7 w-7 text-primary-foreground" />
+              <Brain className="h-7 w-7 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">AXIOMA Labs</h1>
+            <h1 className="text-2xl font-bold tracking-tight">BrainX ERP</h1>
             <p className="text-muted-foreground text-sm mt-1">Sistema de Gestão Empresarial</p>
           </div>
 

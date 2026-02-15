@@ -94,7 +94,7 @@ export default function LoteAuditoriaPublicaPage() {
             <Shield className="w-8 h-8" />
             <div>
               <h1 className="text-xl font-bold">Certificado de Rastreabilidade</h1>
-              <p className="text-sm opacity-80">AXIOMA Labs — Auditoria Pública</p>
+              <p className="text-sm opacity-80">BrainX — Auditoria Pública</p>
             </div>
           </div>
           {/* Selo de verificação animado */}

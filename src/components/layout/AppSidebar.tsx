@@ -165,7 +165,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-bold text-lg text-sidebar-foreground tracking-tight">AXIOMA Labs</span>
+              <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX</span>
               <span className="text-xs text-sidebar-foreground/60 font-medium">ERP Industrial</span>
             </div>
           )}
