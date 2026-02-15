@@ -3,12 +3,23 @@
 // Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
 
-interface OPFolhaChecklistProps {
-  op: any;
-  checklist?: any[];
+import React from "react";
+
+interface ChecklistItem {
+  id?: string;
+  categoria?: string;
+  item?: string;
+  descricao?: string;
+  obrigatorio?: boolean;
 }
 
-export function OPFolhaChecklist({ op, checklist = [] }: OPFolhaChecklistProps) {
+interface OPFolhaChecklistProps {
+  op: Record<string, string | number | boolean | null | undefined>;
+  checklist?: ChecklistItem[];
+}
+
+export const OPFolhaChecklist = React.forwardRef<HTMLDivElement, OPFolhaChecklistProps>(
+  function OPFolhaChecklist({ op, checklist = [] }, ref) {
   const checklistFinal = checklist.length > 0 ? checklist : gerarChecklistPadrao();
   
   const checklistAgrupado: Record<string, any[]> = {};
@@ -28,13 +39,13 @@ export function OPFolhaChecklist({ op, checklist = [] }: OPFolhaChecklistProps) 
     { key: 'OUTROS', nome: 'OUTROS', cor: 'slate' },
   ];
 
-  const formatDate = (dateStr: string | undefined) => {
-    if (!dateStr) return '-';
+  const formatDate = (dateStr: unknown) => {
+    if (!dateStr || typeof dateStr !== 'string') return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
   return (
-    <div id="section-checklist" className="bg-white print:text-[9px]">
+    <div ref={ref} id="section-checklist" className="bg-white print:text-[9px]">
       {/* ═══════════════════════════════════════════════════════════════ */}
       {/* BLOCO 1: IDENTIFICAÇÃO DO PRODUTO                              */}
       {/* ═══════════════════════════════════════════════════════════════ */}
@@ -279,7 +290,8 @@ export function OPFolhaChecklist({ op, checklist = [] }: OPFolhaChecklistProps) 
       </div>
     </div>
   );
-}
+  }
+);
 
 function gerarChecklistPadrao() {
   return [
