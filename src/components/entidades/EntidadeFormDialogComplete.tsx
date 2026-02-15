@@ -290,11 +290,12 @@ export function EntidadeFormDialogComplete({ open, onOpenChange, entidade, initi
       toast.success(isEditing ? "Entidade atualizada" : "Entidade criada");
       onSuccess?.();
       onOpenChange(false);
-    } catch (error: any) {
-      if (error?.code === '23505' || error?.message?.includes('entidades_documento_key') || error?.message?.includes('duplicate key')) {
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      if (err?.code === '23505' || err?.message?.includes('entidades_documento_key') || err?.message?.includes('duplicate key')) {
         toast.error("Já existe uma entidade cadastrada com este CPF/CNPJ. Verifique o documento informado.");
       } else {
-        toast.error("Erro ao salvar: " + error.message);
+        toast.error("Erro ao salvar: " + (err?.message || 'Erro desconhecido'));
       }
     } finally {
       setSaving(false);

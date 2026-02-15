@@ -268,8 +268,8 @@ export function useTransportadorasDisponiveis() {
       if (error) throw error;
       
       // Filter to only transportadoras
-      return (data || []).filter((e: any) => 
-        e.entidade_papeis?.some((p: any) => p.papel === 'TRANSPORTADORA')
+      return (data || []).filter((e: { entidade_papeis?: { papel: string }[] }) => 
+        e.entidade_papeis?.some((p) => p.papel === 'TRANSPORTADORA')
       );
     },
   });

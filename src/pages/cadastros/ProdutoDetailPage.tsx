@@ -733,7 +733,7 @@ export default function ProdutoDetailPage() {
                         <div className="flex items-center gap-4">
                           {f.fornecedor_preferencial && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
                           <div>
-                            <p className="font-medium">{f.fornecedor?.razao_social || "Fornecedor"}</p>
+                            <p className="font-medium">{String(f.fornecedor?.razao_social ?? "Fornecedor")}</p>
                             <p className="text-sm text-muted-foreground">
                               Codigo: {f.codigo_fornecedor || "-"} | 
                               Unidade: {f.unidade_compra_padrao} | 
@@ -909,7 +909,7 @@ export default function ProdutoDetailPage() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Fornecedor</p>
-                            <p>{l.fornecedor?.razao_social || "-"}</p>
+                            <p>{String(l.fornecedor?.razao_social ?? "-")}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Qtd Original (Nota)</p>
