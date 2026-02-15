@@ -67,7 +67,7 @@ export default function DesviosPage() {
     if (editDesvio) {
       atualizar.mutate({ id: editDesvio.id, ...form });
     } else {
-      criar.mutate(form as any);
+      criar.mutate(form as Omit<QCDesvio, 'id' | 'created_at'>);
     }
     setDialogOpen(false);
     resetForm();

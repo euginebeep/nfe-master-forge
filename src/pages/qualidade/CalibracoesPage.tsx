@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQCCalibracoes } from "@/hooks/use-qc";
+import { useQCCalibracoes, type QCCalibracao } from "@/hooks/use-qc";
 import { format, differenceInDays } from "date-fns";
 
 export default function CalibracoesPage() {
@@ -28,7 +28,7 @@ export default function CalibracoesPage() {
 
   const handleSave = () => {
     if (!form.equipamento || !form.proxima_calibracao) return;
-    criar.mutate(form as any);
+    criar.mutate(form as Omit<QCCalibracao, 'id' | 'created_at'>);
     setDialogOpen(false);
     setForm({ equipamento: "", codigo_equipamento: "", tipo_calibracao: "INTERNA", data_calibracao: format(new Date(), "yyyy-MM-dd"), proxima_calibracao: "", responsavel: "", status: "CALIBRADO" });
   };

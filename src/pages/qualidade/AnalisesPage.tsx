@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQCAnalises } from "@/hooks/use-qc";
+import { useQCAnalises, type QCAnalise } from "@/hooks/use-qc";
 import { format } from "date-fns";
 
 export default function AnalisesPage() {
@@ -29,7 +29,7 @@ export default function AnalisesPage() {
 
   const handleSave = () => {
     if (!form.parametro || !form.especificacao) return;
-    criar.mutate(form as any);
+    criar.mutate(form as Omit<QCAnalise, 'id' | 'created_at'>);
     setDialogOpen(false);
     setForm({ lote_id: "", tipo_analise: "FISICO_QUIMICA", parametro: "", especificacao: "", resultado: "", status: "PENDENTE", observacoes: "" });
   };
