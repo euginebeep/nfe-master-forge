@@ -17,12 +17,13 @@ import { OPFolhaEncapsulamento } from './OPFolhaEncapsulamento';
 import { OPFolhaEmbalagem } from './OPFolhaEmbalagem';
 import { OPFolhaChecklist } from './OPFolhaChecklist';
 import { getOPPrintStyles, getTerminalPrintStyles } from './op-print-styles';
+import type { OPDadosPDF, OPMateriaPrimaPDF, OPEmbalagemPDF, ChecklistItemPDF } from '@/types/op-pdf';
 
 interface OPDocumentoCompletoProps {
-  op: any;
-  materiasPrimas?: any[];
-  embalagens?: any[];
-  checklist?: any[];
+  op: OPDadosPDF;
+  materiasPrimas?: OPMateriaPrimaPDF[];
+  embalagens?: OPEmbalagemPDF[];
+  checklist?: ChecklistItemPDF[];
 }
 
 export function OPDocumentoCompleto({ 

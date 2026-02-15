@@ -1,9 +1,10 @@
 // ============================================================
 // CABEÇALHO PADRÃO PARA TODAS AS FOLHAS DA OP
 // ============================================================
+import type { OPDadosPDF } from '@/types/op-pdf';
 
 interface OPCabecalhoPDFProps {
-  op: any;
+  op: OPDadosPDF;
   tituloSecao: string;
   subtitulo?: string;
 }
@@ -78,7 +79,7 @@ export function OPCabecalhoPDF({ op, tituloSecao, subtitulo }: OPCabecalhoPDFPro
 }
 
 // Rodapé padrão
-export function OPRodapePDF({ op }: { op: any }) {
+export function OPRodapePDF({ op }: { op: OPDadosPDF }) {
   return (
     <div className="op-footer">
       <p>Documento gerado em {new Date().toLocaleString('pt-BR')} | {op.codigo} | Este documento é parte integrante do controle de produção e rastreabilidade ANVISA</p>

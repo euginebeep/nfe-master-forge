@@ -4,25 +4,18 @@
 // ============================================================
 
 import React from "react";
-
-interface ChecklistItem {
-  id?: string;
-  categoria?: string;
-  item?: string;
-  descricao?: string;
-  obrigatorio?: boolean;
-}
+import type { OPDadosPDF, ChecklistItemPDF } from '@/types/op-pdf';
 
 interface OPFolhaChecklistProps {
-  op: Record<string, string | number | boolean | null | undefined>;
-  checklist?: ChecklistItem[];
+  op: OPDadosPDF;
+  checklist?: ChecklistItemPDF[];
 }
 
 export const OPFolhaChecklist = React.forwardRef<HTMLDivElement, OPFolhaChecklistProps>(
   function OPFolhaChecklist({ op, checklist = [] }, ref) {
   const checklistFinal = checklist.length > 0 ? checklist : gerarChecklistPadrao();
   
-  const checklistAgrupado: Record<string, any[]> = {};
+  const checklistAgrupado: Record<string, ChecklistItemPDF[]> = {};
   checklistFinal.forEach(item => {
     const cat = item.categoria || 'OUTROS';
     if (!checklistAgrupado[cat]) {

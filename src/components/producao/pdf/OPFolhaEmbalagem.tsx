@@ -2,10 +2,11 @@
 // FOLHA DE EMBALAGEM E ROTULAGEM - PADRÃO INDUSTRIAL A4
 // Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
+import type { OPDadosPDF, OPEmbalagemPDF } from '@/types/op-pdf';
 
 interface OPFolhaEmbalagemProps {
-  op: any;
-  embalagens?: any[];
+  op: OPDadosPDF;
+  embalagens?: OPEmbalagemPDF[];
 }
 
 export function OPFolhaEmbalagem({ op, embalagens = [] }: OPFolhaEmbalagemProps) {
