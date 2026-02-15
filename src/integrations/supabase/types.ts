@@ -175,6 +175,210 @@ export type Database = {
         }
         Relationships: []
       }
+      anvisa_alegacoes_detalhadas: {
+        Row: {
+          ativo: boolean | null
+          constituinte_id: string | null
+          created_at: string | null
+          grupo_populacional: string[] | null
+          id: string
+          norma_aprovacao: string | null
+          requisitos_composicao: string | null
+          requisitos_rotulagem: string | null
+          texto_alegacao: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          constituinte_id?: string | null
+          created_at?: string | null
+          grupo_populacional?: string[] | null
+          id?: string
+          norma_aprovacao?: string | null
+          requisitos_composicao?: string | null
+          requisitos_rotulagem?: string | null
+          texto_alegacao: string
+        }
+        Update: {
+          ativo?: boolean | null
+          constituinte_id?: string | null
+          created_at?: string | null
+          grupo_populacional?: string[] | null
+          id?: string
+          norma_aprovacao?: string | null
+          requisitos_composicao?: string | null
+          requisitos_rotulagem?: string | null
+          texto_alegacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anvisa_alegacoes_detalhadas_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_alegacoes_detalhadas_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anvisa_constituintes: {
+        Row: {
+          advertencias: string[] | null
+          alegacoes: string[] | null
+          anexo_origem: string
+          ativo: boolean | null
+          cas_number: string | null
+          categoria: string
+          created_at: string | null
+          data_inclusao: string | null
+          fonte_de: string | null
+          grupos_nao_autorizados: string[] | null
+          grupos_permitidos: string[] | null
+          id: string
+          is_proibido: boolean | null
+          limites_0_6_meses: Json | null
+          limites_1_3_anos: Json | null
+          limites_19_mais: Json | null
+          limites_4_8_anos: Json | null
+          limites_7_11_meses: Json | null
+          limites_9_18_anos: Json | null
+          limites_gestantes: Json | null
+          limites_lactantes: Json | null
+          motivo_proibicao: string | null
+          nome_generico: string | null
+          nome_popular: string[] | null
+          nome_tecnico: string
+          norma_inclusao: string
+          norma_ultima_alteracao: string | null
+          referencias_especificacao: string[] | null
+          restricoes_uso: string | null
+          rotulagem_complementar: string[] | null
+          search_vector: unknown
+          sinonimos: string[] | null
+          subcategoria: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          advertencias?: string[] | null
+          alegacoes?: string[] | null
+          anexo_origem?: string
+          ativo?: boolean | null
+          cas_number?: string | null
+          categoria: string
+          created_at?: string | null
+          data_inclusao?: string | null
+          fonte_de?: string | null
+          grupos_nao_autorizados?: string[] | null
+          grupos_permitidos?: string[] | null
+          id?: string
+          is_proibido?: boolean | null
+          limites_0_6_meses?: Json | null
+          limites_1_3_anos?: Json | null
+          limites_19_mais?: Json | null
+          limites_4_8_anos?: Json | null
+          limites_7_11_meses?: Json | null
+          limites_9_18_anos?: Json | null
+          limites_gestantes?: Json | null
+          limites_lactantes?: Json | null
+          motivo_proibicao?: string | null
+          nome_generico?: string | null
+          nome_popular?: string[] | null
+          nome_tecnico: string
+          norma_inclusao?: string
+          norma_ultima_alteracao?: string | null
+          referencias_especificacao?: string[] | null
+          restricoes_uso?: string | null
+          rotulagem_complementar?: string[] | null
+          search_vector?: unknown
+          sinonimos?: string[] | null
+          subcategoria?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          advertencias?: string[] | null
+          alegacoes?: string[] | null
+          anexo_origem?: string
+          ativo?: boolean | null
+          cas_number?: string | null
+          categoria?: string
+          created_at?: string | null
+          data_inclusao?: string | null
+          fonte_de?: string | null
+          grupos_nao_autorizados?: string[] | null
+          grupos_permitidos?: string[] | null
+          id?: string
+          is_proibido?: boolean | null
+          limites_0_6_meses?: Json | null
+          limites_1_3_anos?: Json | null
+          limites_19_mais?: Json | null
+          limites_4_8_anos?: Json | null
+          limites_7_11_meses?: Json | null
+          limites_9_18_anos?: Json | null
+          limites_gestantes?: Json | null
+          limites_lactantes?: Json | null
+          motivo_proibicao?: string | null
+          nome_generico?: string | null
+          nome_popular?: string[] | null
+          nome_tecnico?: string
+          norma_inclusao?: string
+          norma_ultima_alteracao?: string | null
+          referencias_especificacao?: string[] | null
+          restricoes_uso?: string | null
+          rotulagem_complementar?: string[] | null
+          search_vector?: unknown
+          sinonimos?: string[] | null
+          subcategoria?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      anvisa_consultas_log: {
+        Row: {
+          constituinte_encontrado_id: string | null
+          created_at: string | null
+          id: string
+          resultado_encontrado: boolean | null
+          termo_buscado: string
+          user_id: string | null
+        }
+        Insert: {
+          constituinte_encontrado_id?: string | null
+          created_at?: string | null
+          id?: string
+          resultado_encontrado?: boolean | null
+          termo_buscado: string
+          user_id?: string | null
+        }
+        Update: {
+          constituinte_encontrado_id?: string | null
+          created_at?: string | null
+          id?: string
+          resultado_encontrado?: boolean | null
+          termo_buscado?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anvisa_consultas_log_constituinte_encontrado_id_fkey"
+            columns: ["constituinte_encontrado_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_consultas_log_constituinte_encontrado_id_fkey"
+            columns: ["constituinte_encontrado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       arquivos: {
         Row: {
           checksum_sha256: string | null
@@ -4718,7 +4922,90 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_anvisa_constituintes_completo: {
+        Row: {
+          advertencias: string | null
+          alegacoes: string | null
+          anexo_origem: string | null
+          ativo: boolean | null
+          cas_number: string | null
+          categoria: string | null
+          dose_max_adulto: string | null
+          dose_max_gestante: string | null
+          dose_min_adulto: string | null
+          dose_min_gestante: string | null
+          fonte_de: string | null
+          grupos_nao_autorizados: string | null
+          grupos_permitidos: string | null
+          id: string | null
+          is_proibido: boolean | null
+          motivo_proibicao: string | null
+          nome_generico: string | null
+          nome_tecnico: string | null
+          nomes_populares: string | null
+          norma_inclusao: string | null
+          norma_ultima_alteracao: string | null
+          restricoes_uso: string | null
+          rotulagem: string | null
+          subcategoria: string | null
+          unidade_adulto: string | null
+        }
+        Insert: {
+          advertencias?: never
+          alegacoes?: never
+          anexo_origem?: string | null
+          ativo?: boolean | null
+          cas_number?: string | null
+          categoria?: string | null
+          dose_max_adulto?: never
+          dose_max_gestante?: never
+          dose_min_adulto?: never
+          dose_min_gestante?: never
+          fonte_de?: string | null
+          grupos_nao_autorizados?: never
+          grupos_permitidos?: never
+          id?: string | null
+          is_proibido?: boolean | null
+          motivo_proibicao?: string | null
+          nome_generico?: string | null
+          nome_tecnico?: string | null
+          nomes_populares?: never
+          norma_inclusao?: string | null
+          norma_ultima_alteracao?: string | null
+          restricoes_uso?: string | null
+          rotulagem?: never
+          subcategoria?: string | null
+          unidade_adulto?: never
+        }
+        Update: {
+          advertencias?: never
+          alegacoes?: never
+          anexo_origem?: string | null
+          ativo?: boolean | null
+          cas_number?: string | null
+          categoria?: string | null
+          dose_max_adulto?: never
+          dose_max_gestante?: never
+          dose_min_adulto?: never
+          dose_min_gestante?: never
+          fonte_de?: string | null
+          grupos_nao_autorizados?: never
+          grupos_permitidos?: never
+          id?: string | null
+          is_proibido?: boolean | null
+          motivo_proibicao?: string | null
+          nome_generico?: string | null
+          nome_tecnico?: string | null
+          nomes_populares?: never
+          norma_inclusao?: string | null
+          norma_ultima_alteracao?: string | null
+          restricoes_uso?: string | null
+          rotulagem?: never
+          subcategoria?: string | null
+          unidade_adulto?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       baixar_estoque_op_embalagens: {
@@ -4728,6 +5015,51 @@ export type Database = {
       baixar_estoque_op_materias_primas: {
         Args: { p_op_id: string }
         Returns: undefined
+      }
+      buscar_constituinte_por_nome_popular: {
+        Args: { termo_busca: string }
+        Returns: {
+          advertencias: string[] | null
+          alegacoes: string[] | null
+          anexo_origem: string
+          ativo: boolean | null
+          cas_number: string | null
+          categoria: string
+          created_at: string | null
+          data_inclusao: string | null
+          fonte_de: string | null
+          grupos_nao_autorizados: string[] | null
+          grupos_permitidos: string[] | null
+          id: string
+          is_proibido: boolean | null
+          limites_0_6_meses: Json | null
+          limites_1_3_anos: Json | null
+          limites_19_mais: Json | null
+          limites_4_8_anos: Json | null
+          limites_7_11_meses: Json | null
+          limites_9_18_anos: Json | null
+          limites_gestantes: Json | null
+          limites_lactantes: Json | null
+          motivo_proibicao: string | null
+          nome_generico: string | null
+          nome_popular: string[] | null
+          nome_tecnico: string
+          norma_inclusao: string
+          norma_ultima_alteracao: string | null
+          referencias_especificacao: string[] | null
+          restricoes_uso: string | null
+          rotulagem_complementar: string[] | null
+          search_vector: unknown
+          sinonimos: string[] | null
+          subcategoria: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "anvisa_constituintes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       gerar_codigo_orcamento: { Args: never; Returns: string }
       gerar_codigo_pedido: { Args: never; Returns: string }
@@ -4771,6 +5103,7 @@ export type Database = {
         Returns: string
       }
       rt_valido_para_producao: { Args: { p_rt_id: string }; Returns: boolean }
+      unaccent: { Args: { "": string }; Returns: string }
       validar_compatibilidade_rt: {
         Args: {
           p_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]

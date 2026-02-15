@@ -132,6 +132,12 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
+    label: "Regulatorio",
+    items: [
+      { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, badge: "IN28" },
+    ],
+  },
+  {
     label: "Relatorios",
     items: [
       { title: "Relatorios", url: "/relatorios", icon: BarChart3 },
