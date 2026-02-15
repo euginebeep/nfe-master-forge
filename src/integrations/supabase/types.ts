@@ -252,6 +252,7 @@ export type Database = {
           motivo_proibicao: string | null
           nome_generico: string | null
           nome_popular: string[] | null
+          nome_rotulo: string | null
           nome_tecnico: string
           norma_inclusao: string
           norma_ultima_alteracao: string | null
@@ -288,6 +289,7 @@ export type Database = {
           motivo_proibicao?: string | null
           nome_generico?: string | null
           nome_popular?: string[] | null
+          nome_rotulo?: string | null
           nome_tecnico: string
           norma_inclusao?: string
           norma_ultima_alteracao?: string | null
@@ -324,6 +326,7 @@ export type Database = {
           motivo_proibicao?: string | null
           nome_generico?: string | null
           nome_popular?: string[] | null
+          nome_rotulo?: string | null
           nome_tecnico?: string
           norma_inclusao?: string
           norma_ultima_alteracao?: string | null
@@ -5043,6 +5046,7 @@ export type Database = {
           motivo_proibicao: string | null
           nome_generico: string | null
           nome_popular: string[] | null
+          nome_rotulo: string | null
           nome_tecnico: string
           norma_inclusao: string
           norma_ultima_alteracao: string | null
