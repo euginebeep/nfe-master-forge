@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils";
 interface MenuItem {
   title: string;
   url: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   badge?: string;
 }
 
