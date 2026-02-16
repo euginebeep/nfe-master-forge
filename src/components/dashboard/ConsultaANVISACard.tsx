@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, BookOpen, ExternalLink, Scale, 
-  CheckCircle, AlertTriangle, XCircle, Loader2, Sparkles
+  CheckCircle, AlertTriangle, XCircle, Loader2, Sparkles, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
+import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 
 const LINKS_UTEIS = [
   { titulo: 'IN 28/2018 - Alegações de Propriedade', url: 'https://www.in.gov.br/materia/-/asset_publisher/Kujrw0TZC2Mb/content/id/34380639' },
@@ -27,6 +29,20 @@ const LINKS_UTEIS = [
 export function ConsultaANVISACard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
+  const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
+
+  const handleVerificarPowerBI = (nomeTecnico: string) => {
+    sincronizarSubstancia(nomeTecnico, {
+      onSuccess: (data: Record<string, unknown>) => {
+        toast.success('Verificação Power BI concluída', {
+          description: (data?.analise as Record<string, string>)?.resumo_geral || 'Dados atualizados.',
+        });
+      },
+      onError: (err: Error) => {
+        toast.error('Erro ao verificar no Power BI', { description: err.message });
+      },
+    });
+  };
 
   const handleSearch = () => {
     if (termo.trim().length >= 2) {
@@ -160,22 +176,53 @@ export function ConsultaANVISACard() {
                   <p className="text-sm text-muted-foreground">
                     {resultados.length} resultado(s) encontrado(s)
                   </p>
-                  {resultados.slice(0, 5).map((c) => (
-                    <div key={c.id} className="p-3 rounded-lg border space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-green-600">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          AUTORIZADO
-                        </Badge>
-                        {c.categoria && (
-                          <span className="text-xs text-muted-foreground">{c.categoria}</span>
-                        )}
+                  {resultados
+                    .sort((a, b) => (b.is_proibido ? 1 : 0) - (a.is_proibido ? 1 : 0))
+                    .slice(0, 5).map((c) => (
+                    <div key={c.id} className={`p-3 rounded-lg border space-y-2 ${c.is_proibido ? 'border-destructive/50 bg-destructive/5' : ''}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {c.is_proibido ? (
+                            <Badge variant="destructive">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              PROIBIDO
+                            </Badge>
+                          ) : !c.ativo ? (
+                            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              INATIVO
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-green-600">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              AUTORIZADO
+                            </Badge>
+                          )}
+                          {c.categoria && (
+                            <span className="text-xs text-muted-foreground">{c.categoria}</span>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs px-2"
+                          disabled={sincronizandoSubstancia}
+                          onClick={() => handleVerificarPowerBI(c.nome_tecnico)}
+                        >
+                          <RefreshCw className={`w-3 h-3 mr-1 ${sincronizandoSubstancia ? 'animate-spin' : ''}`} />
+                          Verificar
+                        </Button>
                       </div>
                       <p className="font-medium text-sm">{c.nome_tecnico}</p>
                       {c.nome_generico && (
                         <p className="text-xs text-muted-foreground">{c.nome_generico}</p>
                       )}
-                      {c.alegacoes && c.alegacoes.length > 0 && (
+                      {c.is_proibido && c.motivo_proibicao && (
+                        <div className="p-2 rounded bg-destructive/10 border border-destructive/20">
+                          <p className="text-xs font-medium text-destructive">Motivo: {c.motivo_proibicao}</p>
+                        </div>
+                      )}
+                      {!c.is_proibido && c.alegacoes && c.alegacoes.length > 0 && (
                         <div className="space-y-1">
                           <p className="text-xs font-medium">Alegações:</p>
                           {c.alegacoes.slice(0, 2).map((a, i) => (
