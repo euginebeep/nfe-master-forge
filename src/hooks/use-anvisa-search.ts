@@ -40,16 +40,27 @@ async function buscarPorTermo(termo: string): Promise<AnvisaConstituinte[]> {
   return [...(fullText || []), ...(ilike || []), ...(arraySearch || [])] as unknown as AnvisaConstituinte[];
 }
 
+async function buscarFuzzy(termo: string): Promise<AnvisaConstituinte[]> {
+  if (!termo || termo.length < 2) return [];
+
+  const { data } = await supabase
+    .rpc('buscar_constituinte_fuzzy', { termo_busca: termo })
+    .limit(20);
+
+  return (data || []) as unknown as AnvisaConstituinte[];
+}
+
 async function buscarConstituintes(termo: string): Promise<AnvisaConstituinte[]> {
   if (!termo || termo.length < 2) return [];
 
   // Step 1: Use AI to resolve popular/abbreviated names to scientific names
   const termosExpandidos = await resolverNomesCientificos(termo);
 
-  // Step 2: Search for ALL resolved terms in parallel
-  const resultadosPorTermo = await Promise.all(
-    termosExpandidos.map((t) => buscarPorTermo(t))
-  );
+  // Step 2: Search for ALL resolved terms in parallel (text search + fuzzy)
+  const resultadosPorTermo = await Promise.all([
+    ...termosExpandidos.map((t) => buscarPorTermo(t)),
+    ...termosExpandidos.map((t) => buscarFuzzy(t)),
+  ]);
 
   // Step 3: Deduplicate results by ID
   const mapa = new Map<string, AnvisaConstituinte>();

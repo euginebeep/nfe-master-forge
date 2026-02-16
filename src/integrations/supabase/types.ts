@@ -5087,6 +5087,50 @@ export type Database = {
         Args: { p_op_id: string }
         Returns: undefined
       }
+      buscar_constituinte_fuzzy: {
+        Args: { termo_busca: string }
+        Returns: {
+          advertencias: string[]
+          alegacoes: string[]
+          anexo_origem: string
+          ativo: boolean
+          cas_number: string
+          categoria: string
+          created_at: string
+          data_inclusao: string
+          fonte_de: string
+          fonte_url: string
+          grupos_nao_autorizados: string[]
+          grupos_permitidos: string[]
+          id: string
+          is_proibido: boolean
+          limites_0_6_meses: Json
+          limites_1_3_anos: Json
+          limites_19_mais: Json
+          limites_4_8_anos: Json
+          limites_7_11_meses: Json
+          limites_9_18_anos: Json
+          limites_gestantes: Json
+          limites_lactantes: Json
+          motivo_proibicao: string
+          nome_generico: string
+          nome_popular: string[]
+          nome_rotulo: string
+          nome_tecnico: string
+          norma_inclusao: string
+          norma_ultima_alteracao: string
+          referencias_especificacao: string[]
+          restricoes_uso: string
+          rotulagem_complementar: string[]
+          search_vector: unknown
+          similaridade: number
+          sinonimos: string[]
+          subcategoria: string
+          sync_id: string
+          updated_at: string
+          verificado_em: string
+        }[]
+      }
       buscar_constituinte_por_nome_popular: {
         Args: { termo_busca: string }
         Returns: {
@@ -5178,6 +5222,8 @@ export type Database = {
         Returns: string
       }
       rt_valido_para_producao: { Args: { p_rt_id: string }; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       unaccent: { Args: { "": string }; Returns: string }
       validar_compatibilidade_rt: {
         Args: {
