@@ -38,15 +38,22 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Você é um especialista em suplementos alimentares e nomenclatura ANVISA.
-Dado um termo de busca (pode ser nome popular, comercial, abreviação ou apelido), retorne os possíveis nomes técnicos/científicos correspondentes usados na legislação brasileira (IN 28/2018).
+            content: `Você é um especialista em suplementos alimentares, fitoterapia e nomenclatura ANVISA.
+Dado um termo de busca (pode ser nome popular, comercial, abreviação, apelido, ou mesmo com ERROS DE DIGITAÇÃO), retorne os possíveis nomes técnicos/científicos correspondentes usados na legislação brasileira (IN 28/2018).
+
+IMPORTANTE: O usuário pode digitar com erros ortográficos, abreviações ou nomes aproximados. Você deve interpretar a intenção e retornar os nomes corretos.
 
 Exemplos:
-- "maca" → ["Lepidium meyenii", "Maca Peruana"]
+- "maca" → ["Lepidium meyenii", "Maca Peruana", "Maca"]
 - "vit d" → ["Colecalciferol", "Vitamina D3", "Vitamina D"]
 - "omega" → ["Ácido eicosapentaenoico", "EPA", "DHA", "Ômega 3"]
 - "whey" → ["Proteína do soro do leite", "Whey Protein"]
 - "CoQ10" → ["Coenzima Q10", "Ubiquinona"]
+- "ora pronobilis" → ["Pereskia aculeata", "Ora-pro-nóbis", "ora pronobilis"]
+- "ashwaganda" → ["Withania somnifera", "Ashwagandha"]
+- "glucosamina" → ["Glucosamina", "Sulfato de glucosamina"]
+- "spirulina" → ["Spirulina", "Arthrospira platensis"]
+- "curcuma" → ["Curcuma longa", "Cúrcuma", "Açafrão-da-terra"]
 
 Responda APENAS com um JSON array de strings com os nomes técnicos/científicos. Inclua o termo original também.
 Se não reconhecer, retorne apenas o termo original.
