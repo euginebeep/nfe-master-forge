@@ -73,7 +73,7 @@ function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <Card className={constituinte.is_proibido ? 'border-destructive' : 'border-border'}>
+    <Card className={constituinte.is_proibido ? 'border-destructive border-2 bg-red-50/50 dark:bg-red-950/20 shadow-destructive/20 shadow-lg' : 'border-border'}>
       <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
@@ -334,16 +334,32 @@ export default function ConsultaAnvisaPage() {
       {isLoading && <LoadingSpinner text="Buscando constituintes..." />}
 
       {!isLoading && termoDebounced.length >= 2 && resultados && resultados.length === 0 && (
-        <Card className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+        <Card className="border-destructive bg-red-50 dark:bg-red-950/30 shadow-lg">
           <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-bold text-amber-700 dark:text-amber-400">ATENÇÃO</h3>
-                <p className="text-sm mt-1">
-                  <strong>"{termoDebounced}"</strong> NÃO consta na lista de constituintes autorizados pela ANVISA (IN 28/2018).
-                  Constituintes não autorizados NÃO podem ser utilizados em suplementos alimentares.
-                  A responsabilidade de submissão para aprovação é da empresa fabricante.
+            <div className="flex items-start gap-4">
+              <div className="rounded-full bg-destructive/10 p-3">
+                <XCircle className="w-8 h-8 text-destructive shrink-0" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-destructive text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  SUBSTÂNCIA NÃO AUTORIZADA PARA SUPLEMENTOS
+                </h3>
+                <p className="text-sm mt-2 text-destructive/90 dark:text-red-300">
+                  <strong>"{termoDebounced}"</strong> <strong>NÃO consta</strong> na lista de constituintes autorizados pela ANVISA
+                  conforme IN 28/2018 e RDC 243/2018.
+                </p>
+                <div className="mt-3 p-3 bg-destructive/5 rounded-md border border-destructive/20">
+                  <p className="text-sm font-semibold text-destructive">⚠ Consequências legais:</p>
+                  <ul className="text-xs mt-1 space-y-1 text-destructive/80">
+                    <li>• Constituintes não listados na IN 28/2018 <strong>NÃO podem</strong> ser utilizados em suplementos alimentares</li>
+                    <li>• O uso configura infração sanitária sujeita a apreensão do produto e multa</li>
+                    <li>• A empresa fabricante é responsável pela regularização junto à ANVISA</li>
+                  </ul>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Se esta substância deveria constar na base, verifique a grafia ou consulte diretamente
+                  a <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
                 </p>
               </div>
             </div>
