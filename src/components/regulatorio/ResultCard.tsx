@@ -1,13 +1,31 @@
 import { useState } from 'react';
-import { Shield, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Pill } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Pill, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 import type { AnvisaConstituinte } from '@/types/anvisa';
 import { DoseTable } from './DoseTable';
+import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 
 export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte }) {
   const [expanded, setExpanded] = useState(false);
+  const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
+
+  const handleVerificarPowerBI = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    sincronizarSubstancia(constituinte.nome_tecnico, {
+      onSuccess: (data: Record<string, unknown>) => {
+        toast.success('Verificação concluída via Power BI ANVISA', {
+          description: (data?.analise as Record<string, string>)?.resumo_geral || 'Dados atualizados.',
+        });
+      },
+      onError: (err: Error) => {
+        toast.error('Erro ao verificar no Power BI', { description: err.message });
+      },
+    });
+  };
 
   return (
     <Card className={constituinte.is_proibido ? 'border-destructive border-2 bg-red-50/50 dark:bg-red-950/20 shadow-destructive/20 shadow-lg' : 'border-border'}>
@@ -34,6 +52,16 @@ export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte 
                 <Badge className="bg-green-600 text-white"><CheckCircle2 className="w-3 h-3 mr-1" />AUTORIZADO</Badge>
               )}
               <Badge variant="outline">{constituinte.norma_inclusao}</Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-6 px-2"
+                disabled={sincronizandoSubstancia}
+                onClick={handleVerificarPowerBI}
+              >
+                <RefreshCw className={`w-3 h-3 mr-1 ${sincronizandoSubstancia ? 'animate-spin' : ''}`} />
+                Verificar Power BI
+              </Button>
             </div>
           </div>
           {expanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}

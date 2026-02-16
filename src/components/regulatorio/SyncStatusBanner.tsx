@@ -65,7 +65,7 @@ export function SyncStatusBanner({ ultimoSync, sincronizando, onSync }: SyncStat
             className="shrink-0"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${sincronizando ? 'animate-spin' : ''}`} />
-            {sincronizando ? 'Verificando...' : 'Sincronizar com ANVISA'}
+            {sincronizando ? 'Verificando Power BI...' : 'Sincronizar via Power BI'}
           </Button>
         </div>
       </CardContent>
