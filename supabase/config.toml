@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.anvisa-sync]
 verify_jwt = false
+
+[functions.anvisa-powerbi-sync]
+verify_jwt = false
+
+[functions.anvisa-resolve-name]
+verify_jwt = false

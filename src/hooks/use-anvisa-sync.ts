@@ -37,7 +37,21 @@ export function useAnvisaSync() {
 
   const { mutate: sincronizar, isPending: sincronizando } = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('anvisa-sync');
+      const { data, error } = await supabase.functions.invoke('anvisa-powerbi-sync');
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['anvisa-sync-history'] });
+      queryClient.invalidateQueries({ queryKey: ['anvisa-search'] });
+    },
+  });
+
+  const { mutate: sincronizarSubstancia, isPending: sincronizandoSubstancia } = useMutation({
+    mutationFn: async (substancia: string) => {
+      const { data, error } = await supabase.functions.invoke('anvisa-powerbi-sync', {
+        body: { substancia },
+      });
       if (error) throw new Error(error.message);
       return data;
     },
@@ -52,5 +66,7 @@ export function useAnvisaSync() {
     loadingSync,
     sincronizar,
     sincronizando,
+    sincronizarSubstancia,
+    sincronizandoSubstancia,
   };
 }
