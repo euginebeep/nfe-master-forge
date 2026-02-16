@@ -1,18 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Search, Shield, AlertTriangle, CheckCircle2, XCircle, BookOpen, ExternalLink, ChevronDown, ChevronUp, Pill, RefreshCw, Clock } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
+import { Search, Shield, XCircle, BookOpen, ExternalLink, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { PageHeader } from '@/components/ui/page-header';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
-import type { AnvisaConstituinte, LimiteDose } from '@/types/anvisa';
+import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { DoseTable } from '@/components/regulatorio/DoseTable';
 import { ResultCard } from '@/components/regulatorio/ResultCard';
 import { SyncStatusBanner } from '@/components/regulatorio/SyncStatusBanner';
@@ -30,49 +26,8 @@ const LINKS_LEGISLACAO = [
 ];
 
 export default function ConsultaAnvisaPage() {
-  const [termo, setTermo] = useState('');
-  const [termoDebounced, setTermoDebounced] = useState('');
+  const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
   const { ultimoSync, sincronizar, sincronizando } = useAnvisaSync();
-
-  useEffect(() => {
-    const t = setTimeout(() => setTermoDebounced(termo), 300);
-    return () => clearTimeout(t);
-  }, [termo]);
-
-  const { data: resultados, isLoading } = useQuery({
-    queryKey: ['anvisa-search', termoDebounced],
-    queryFn: async () => {
-      if (!termoDebounced || termoDebounced.length < 2) return [];
-
-      const { data: fullText } = await supabase
-        .from('anvisa_constituintes')
-        .select('*')
-        .textSearch('search_vector', termoDebounced, { type: 'websearch', config: 'portuguese' })
-        .eq('ativo', true)
-        .limit(20);
-
-      const { data: ilike } = await supabase
-        .from('anvisa_constituintes')
-        .select('*')
-        .or(`nome_tecnico.ilike.%${termoDebounced}%,nome_generico.ilike.%${termoDebounced}%,nome_rotulo.ilike.%${termoDebounced}%`)
-        .eq('ativo', true)
-        .limit(20);
-
-      const { data: arraySearch } = await supabase
-        .rpc('buscar_constituinte_por_nome_popular', { termo_busca: termoDebounced })
-        .limit(20);
-
-      const mapa = new Map<string, AnvisaConstituinte>();
-      [...(fullText || []), ...(ilike || []), ...(arraySearch || [])].forEach((r) => {
-        const item = r as unknown as AnvisaConstituinte;
-        mapa.set(item.id, item);
-      });
-
-      return Array.from(mapa.values());
-    },
-    enabled: termoDebounced.length >= 2,
-    staleTime: 10 * 60 * 1000,
-  });
 
   const handleSync = () => {
     sincronizar(undefined, {
@@ -112,12 +67,12 @@ export default function ConsultaAnvisaPage() {
               <Input
                 placeholder="Busque por nome técnico, popular ou sinônimo... Ex: D3, Maca, Ômega 3, Melatonina"
                 value={termo}
-                onChange={(e) => setTermo(e.target.value)}
+                onChange={(e) => buscar(e.target.value)}
                 className="pl-10"
               />
             </div>
             {termo && (
-              <Button variant="ghost" onClick={() => setTermo('')}>Limpar</Button>
+              <Button variant="ghost" onClick={() => limpar()}>Limpar</Button>
             )}
           </div>
 
@@ -128,7 +83,7 @@ export default function ConsultaAnvisaPage() {
                 key={tag}
                 variant={termo === tag ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setTermo(tag)}
+                onClick={() => buscar(tag)}
                 className="text-xs"
               >
                 {tag}
@@ -156,9 +111,17 @@ export default function ConsultaAnvisaPage() {
       </div>
 
       {/* Resultados */}
-      {isLoading && <LoadingSpinner text="Buscando constituintes..." />}
+      {isLoading && (
+        <div className="space-y-2">
+          <LoadingSpinner text="Buscando constituintes..." />
+          <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            Resolvendo nomes científicos via IA...
+          </p>
+        </div>
+      )}
 
-      {!isLoading && termoDebounced.length >= 2 && resultados && resultados.length === 0 && (
+      {!isLoading && termo.length >= 2 && resultados && resultados.length === 0 && (
         <Card className="border-destructive bg-red-50 dark:bg-red-950/30 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
@@ -171,7 +134,7 @@ export default function ConsultaAnvisaPage() {
                   SUBSTÂNCIA NÃO AUTORIZADA PARA SUPLEMENTOS
                 </h3>
                 <p className="text-sm mt-2 text-destructive/90 dark:text-red-300">
-                  <strong>"{termoDebounced}"</strong> <strong>NÃO consta</strong> na lista de constituintes autorizados pela ANVISA
+                  <strong>"{termo}"</strong> <strong>NÃO consta</strong> na lista de constituintes autorizados pela ANVISA
                   conforme IN 28/2018 e RDC 243/2018.
                 </p>
                 <div className="mt-3 p-3 bg-destructive/5 rounded-md border border-destructive/20">
@@ -195,14 +158,14 @@ export default function ConsultaAnvisaPage() {
       {resultados && resultados.length > 0 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {resultados.length} resultado(s) encontrado(s) para "{termoDebounced}"
+            {resultados.length} resultado(s) encontrado(s) para "{termo}"
           </p>
           {resultados.map(c => <ResultCard key={c.id} constituinte={c} />)}
         </div>
       )}
 
       {/* Empty state inicial */}
-      {!termoDebounced && (
+      {!termo && (
         <Card className="border-dashed">
           <CardContent className="pt-6 text-center py-16">
             <Shield className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
