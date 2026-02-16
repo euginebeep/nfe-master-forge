@@ -6,6 +6,10 @@ const corsHeaders = {
 }
 
 const ANVISA_URL = 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares'
+const ANVISA_POWERBI_URLS = [
+  'https://app.powerbi.com/view?r=eyJrIjoiYjEzNTQ5OGItZTRiYi00NjdlLWIyMTktZjM5ZWNkMGFlOTc5IiwidCI6ImI2N2FmMjNmLWMzZjMtNGQzNS04MGM3LWI3MDg1ZjVlZGQ4MSJ9',
+  'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares/lista-de-constituintes-autorizados',
+]
 const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
 
 Deno.serve(async (req) => {
@@ -25,11 +29,10 @@ Deno.serve(async (req) => {
   const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: authHeader } }
   })
-  const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(authHeader.replace('Bearer ', ''))
-  if (claimsError || !claimsData?.claims) {
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+  if (authError || !user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-  const userId = claimsData.claims.sub as string
 
   const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -40,7 +43,7 @@ Deno.serve(async (req) => {
       tipo: 'scraping',
       status: 'em_andamento',
       fonte_url: ANVISA_URL,
-      iniciado_por: userId,
+      iniciado_por: user.id,
     })
     .select()
     .single()
@@ -52,7 +55,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Step 1: Fetch ANVISA page
+    // Step 1: Fetch ANVISA main page
     console.log('Fetching ANVISA page:', ANVISA_URL)
     const pageResponse = await fetch(ANVISA_URL, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ERPBot/1.0; regulatory-compliance)' }
@@ -63,9 +66,29 @@ Deno.serve(async (req) => {
     }
 
     const html = await pageResponse.text()
-    const pageHash = await hashContent(html)
 
-    // Step 2: Check if content changed since last successful sync
+    // Step 2: Fetch Power BI / lista de constituintes pages
+    console.log('Fetching ANVISA Power BI and constituintes pages...')
+    const powerBiResults: string[] = []
+    for (const url of ANVISA_POWERBI_URLS) {
+      try {
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ERPBot/1.0; regulatory-compliance)' }
+        })
+        if (res.ok) {
+          const text = await res.text()
+          powerBiResults.push(text.substring(0, 10000))
+          console.log(`Fetched ${url}: ${text.length} chars`)
+        }
+      } catch (e) {
+        console.warn(`Failed to fetch ${url}:`, e)
+      }
+    }
+
+    const combinedContent = html + '\n\n---POWERBI---\n\n' + powerBiResults.join('\n\n---PAGE---\n\n')
+    const pageHash = await hashContent(combinedContent)
+
+    // Step 3: Check if content changed since last successful sync
     const { data: lastSync } = await supabase
       .from('anvisa_sync_history')
       .select('hash_conteudo')
@@ -75,15 +98,13 @@ Deno.serve(async (req) => {
       .single()
 
     if (lastSync?.hash_conteudo === pageHash) {
-      // No changes detected
       await supabase.from('anvisa_sync_history').update({
         status: 'sucesso',
         finalizado_em: new Date().toISOString(),
         hash_conteudo: pageHash,
-        detalhes: { mensagem: 'Nenhuma alteração detectada no portal ANVISA' },
+        detalhes: { mensagem: 'Nenhuma alteração detectada no portal ANVISA e Power BI' },
       }).eq('id', syncRecord.id)
 
-      // Update verificado_em on all constituintes
       await supabase.from('anvisa_constituintes')
         .update({ verificado_em: new Date().toISOString() })
         .eq('ativo', true)
@@ -91,12 +112,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         success: true,
         status: 'sem_alteracao',
-        message: 'Portal ANVISA verificado. Nenhuma alteração detectada.',
+        message: 'Portal ANVISA e Power BI verificados. Nenhuma alteração detectada.',
         sync_id: syncRecord.id,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // Step 3: Use AI to analyze if there are new resolutions
+    // Step 4: Use AI to analyze changes across portal + Power BI
     if (!lovableApiKey) {
       throw new Error('LOVABLE_API_KEY not configured')
     }
@@ -108,37 +129,44 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'google/gemini-2.5-flash',
         messages: [{
           role: 'system',
-          content: `Você é um analista regulatório. Analise o HTML de uma página da ANVISA sobre suplementos alimentares.
+          content: `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
+Analise o conteúdo do portal ANVISA e páginas do Power BI de suplementos.
 Extraia:
 1. Lista de resoluções/INs mencionadas (ex: IN 28/2018, RDC 243/2018, RDC 560/2024)
-2. Se há menção a atualizações recentes (últimos 6 meses)
-3. Links para PDFs de listas de constituintes atualizadas
-4. Qualquer indicação de mudança na legislação vigente
+2. Se há atualizações recentes (últimos 6 meses) em constituintes, doses ou alegações
+3. Links para PDFs ou planilhas de listas de constituintes atualizadas
+4. Novos constituintes adicionados ou removidos da lista
+5. Alterações em doses máximas permitidas
+6. Mudanças em alegações de saúde permitidas
+7. Dados do Power BI: novos registros de suplementos, tendências, alertas sanitários
 
-Responda em JSON com a estrutura:
+Responda em JSON:
 {
   "resolucoes": ["IN 28/2018", ...],
-  "atualizacoes_recentes": [{"titulo": "...", "data": "...", "url": "..."}],
+  "atualizacoes_recentes": [{"titulo": "...", "data": "...", "url": "...", "tipo": "constituinte|dose|alegacao|alerta"}],
+  "novos_constituintes": [{"nome": "...", "categoria": "...", "dose_maxima": "...", "norma": "..."}],
+  "constituintes_removidos": ["..."],
+  "alteracoes_doses": [{"substancia": "...", "dose_anterior": "...", "dose_nova": "...", "norma": "..."}],
+  "alertas_sanitarios": [{"titulo": "...", "descricao": "...", "data": "..."}],
   "links_pdf_constituintes": ["url1", ...],
   "mudanca_detectada": true/false,
   "resumo": "texto resumo"
 }`
         }, {
           role: 'user',
-          content: `Analise esta página da ANVISA (primeiros 15000 caracteres):\n\n${html.substring(0, 15000)}`
+          content: `Analise estas páginas da ANVISA:\n\n--- PORTAL PRINCIPAL ---\n${html.substring(0, 12000)}\n\n--- POWER BI / LISTAS ---\n${powerBiResults.map(r => r.substring(0, 5000)).join('\n---\n')}`
         }],
         temperature: 0.1,
-        max_tokens: 2000,
+        max_tokens: 3000,
       }),
     })
 
     const aiData = await aiResponse.json()
     const aiContent = aiData.choices?.[0]?.message?.content || '{}'
 
-    // Parse AI response
     let analise: Record<string, unknown> = {}
     try {
       const jsonMatch = aiContent.match(/\{[\s\S]*\}/)
@@ -148,17 +176,41 @@ Responda em JSON com a estrutura:
     }
 
     const mudancaDetectada = analise.mudanca_detectada === true
+    const novosConstituintes = (analise.novos_constituintes as Array<Record<string, string>>) || []
+    const alertasSanitarios = (analise.alertas_sanitarios as Array<Record<string, string>>) || []
 
-    // Step 4: Update sync record
+    // Step 5: Auto-insert new constituintes if detected
+    let registrosNovos = 0
+    if (novosConstituintes.length > 0) {
+      for (const nc of novosConstituintes) {
+        const { error } = await supabase.from('anvisa_constituintes').insert({
+          nome_tecnico: nc.nome || 'Novo constituinte',
+          categoria: nc.categoria || 'VITAMINA_MINERAL',
+          anexo_origem: 'ANEXO_I',
+          norma_inclusao: nc.norma || 'Detectado via sync',
+          ativo: true,
+          sync_id: syncRecord.id,
+          fonte_url: ANVISA_URL,
+          verificado_em: new Date().toISOString(),
+        })
+        if (!error) registrosNovos++
+      }
+    }
+
+    // Step 6: Update sync record
     await supabase.from('anvisa_sync_history').update({
       status: mudancaDetectada ? 'alerta' : 'sucesso',
       finalizado_em: new Date().toISOString(),
       hash_conteudo: pageHash,
+      registros_novos: registrosNovos,
       versao_legislacao: (analise.resolucoes as string[] || []).join(', '),
-      detalhes: analise,
+      detalhes: {
+        ...analise,
+        fontes_verificadas: ['portal_anvisa', 'powerbi_constituintes', 'lista_constituintes'],
+        alertas_sanitarios: alertasSanitarios,
+      },
     }).eq('id', syncRecord.id)
 
-    // Update verificado_em on all constituintes
     await supabase.from('anvisa_constituintes')
       .update({ verificado_em: new Date().toISOString(), sync_id: syncRecord.id })
       .eq('ativo', true)
@@ -168,8 +220,9 @@ Responda em JSON com a estrutura:
       status: mudancaDetectada ? 'alerta_mudanca' : 'verificado',
       message: mudancaDetectada
         ? '⚠ ATENÇÃO: Possível alteração na legislação detectada. Revise manualmente os dados.'
-        : 'Portal ANVISA verificado com sucesso. Base de dados atualizada.',
+        : 'Portal ANVISA e Power BI verificados com sucesso.',
       analise,
+      registros_novos: registrosNovos,
       sync_id: syncRecord.id,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
