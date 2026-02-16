@@ -160,7 +160,10 @@ export default function ConsultaAnvisaPage() {
           <p className="text-sm text-muted-foreground">
             {resultados.length} resultado(s) encontrado(s) para "{termo}"
           </p>
-          {resultados.map(c => <ResultCard key={c.id} constituinte={c} />)}
+          {/* Show prohibited substances first */}
+          {resultados
+            .sort((a, b) => (b.is_proibido ? 1 : 0) - (a.is_proibido ? 1 : 0))
+            .map(c => <ResultCard key={c.id} constituinte={c} />)}
         </div>
       )}
 

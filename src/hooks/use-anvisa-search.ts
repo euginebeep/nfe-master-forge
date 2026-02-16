@@ -25,14 +25,12 @@ async function buscarPorTermo(termo: string): Promise<AnvisaConstituinte[]> {
     .from('anvisa_constituintes')
     .select('*')
     .textSearch('search_vector', termo, { type: 'websearch', config: 'portuguese' })
-    .eq('ativo', true)
     .limit(20);
 
   const { data: ilike } = await supabase
     .from('anvisa_constituintes')
     .select('*')
     .or(`nome_tecnico.ilike.%${termo}%,nome_generico.ilike.%${termo}%,nome_rotulo.ilike.%${termo}%`)
-    .eq('ativo', true)
     .limit(20);
 
   const { data: arraySearch } = await supabase
