@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Search, Shield, AlertTriangle, CheckCircle2, XCircle, BookOpen, ExternalLink, ChevronDown, ChevronUp, Pill } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Shield, AlertTriangle, CheckCircle2, XCircle, BookOpen, ExternalLink, ChevronDown, ChevronUp, Pill, RefreshCw, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,12 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader } from '@/components/ui/page-header';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from 'sonner';
+import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 import type { AnvisaConstituinte, LimiteDose } from '@/types/anvisa';
+import { DoseTable } from '@/components/regulatorio/DoseTable';
+import { ResultCard } from '@/components/regulatorio/ResultCard';
+import { SyncStatusBanner } from '@/components/regulatorio/SyncStatusBanner';
 
 const TAGS_RAPIDAS = [
   'Vitamina D', 'Melatonina', 'Ômega 3', 'Maca Peruana', 'Creatina',
@@ -24,211 +29,10 @@ const LINKS_LEGISLACAO = [
   { label: 'Biblioteca ANVISA', url: 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares' },
 ];
 
-function formatDose(dose: LimiteDose | null): string {
-  if (!dose) return '—';
-  const min = dose.min === 'NE' || dose.min === 'NA' ? dose.min : dose.min;
-  const max = dose.max === 'NE' || dose.max === 'NA' ? dose.max : dose.max;
-  return `${min} – ${max} ${dose.unidade || ''}`;
-}
-
-function DoseTable({ constituinte }: { constituinte: AnvisaConstituinte }) {
-  const grupos = [
-    { label: '0–6 meses', data: constituinte.limites_0_6_meses },
-    { label: '7–11 meses', data: constituinte.limites_7_11_meses },
-    { label: '1–3 anos', data: constituinte.limites_1_3_anos },
-    { label: '4–8 anos', data: constituinte.limites_4_8_anos },
-    { label: '9–18 anos', data: constituinte.limites_9_18_anos },
-    { label: '≥19 anos', data: constituinte.limites_19_mais },
-    { label: 'Gestantes', data: constituinte.limites_gestantes },
-    { label: 'Lactantes', data: constituinte.limites_lactantes },
-  ].filter(g => g.data);
-
-  if (grupos.length === 0) return <p className="text-sm text-muted-foreground">Limites não estabelecidos</p>;
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Grupo</TableHead>
-          <TableHead>Mínimo</TableHead>
-          <TableHead>Máximo</TableHead>
-          <TableHead>Unidade</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {grupos.map(g => (
-          <TableRow key={g.label}>
-            <TableCell className="font-medium">{g.label}</TableCell>
-            <TableCell>{g.data?.min ?? '—'}</TableCell>
-            <TableCell>{g.data?.max ?? '—'}</TableCell>
-            <TableCell>{g.data?.unidade ?? '—'}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
-function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <Card className={constituinte.is_proibido ? 'border-destructive border-2 bg-red-50/50 dark:bg-red-950/20 shadow-destructive/20 shadow-lg' : 'border-border'}>
-      <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex flex-col gap-1">
-              <CardTitle className="text-lg">
-                {constituinte.nome_rotulo || constituinte.nome_tecnico}
-              </CardTitle>
-              {constituinte.nome_rotulo && (
-                <span className="text-sm text-muted-foreground">Nome técnico: {constituinte.nome_tecnico}</span>
-              )}
-              {!constituinte.nome_rotulo && constituinte.nome_generico && (
-                <span className="text-sm text-muted-foreground">{constituinte.nome_generico}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <Badge variant="outline">{constituinte.categoria}</Badge>
-              {constituinte.subcategoria && <Badge variant="secondary">{constituinte.subcategoria}</Badge>}
-              {constituinte.is_proibido ? (
-                <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />PROIBIDO</Badge>
-              ) : (
-                <Badge className="bg-green-600 text-white"><CheckCircle2 className="w-3 h-3 mr-1" />AUTORIZADO</Badge>
-              )}
-              <Badge variant="outline">{constituinte.norma_inclusao}</Badge>
-            </div>
-          </div>
-          {expanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-        </div>
-      </CardHeader>
-
-      {expanded && (
-        <CardContent className="space-y-6">
-          {/* Info básica */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            {constituinte.cas_number && (
-              <div><span className="text-muted-foreground">CAS:</span> <strong>{constituinte.cas_number}</strong></div>
-            )}
-            {constituinte.fonte_de && (
-              <div><span className="text-muted-foreground">Fornece:</span> <strong>{constituinte.fonte_de}</strong></div>
-            )}
-            <div><span className="text-muted-foreground">Anexo:</span> <strong>{constituinte.anexo_origem}</strong></div>
-          </div>
-
-          {constituinte.nome_popular && constituinte.nome_popular.length > 0 && (
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Nomes populares:</p>
-              <div className="flex flex-wrap gap-1">
-                {constituinte.nome_popular.map((n, i) => <Badge key={i} variant="outline" className="text-xs">{n}</Badge>)}
-              </div>
-            </div>
-          )}
-
-          <Separator />
-
-          {/* Doses */}
-          <div>
-            <h4 className="font-semibold mb-3 flex items-center gap-2"><Pill className="w-4 h-4" /> Doses Diárias Autorizadas</h4>
-            <DoseTable constituinte={constituinte} />
-          </div>
-
-          {/* Alegações */}
-          {constituinte.alegacoes && constituinte.alegacoes.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="font-semibold mb-2 flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-600" /> Alegações Permitidas</h4>
-                <ul className="space-y-1">
-                  {constituinte.alegacoes.map((a, i) => (
-                    <li key={i} className="text-sm flex items-start gap-2">
-                      <span className="text-green-600 mt-0.5">•</span> {a}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          )}
-
-          {/* Advertências */}
-          {constituinte.advertencias && constituinte.advertencias.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="font-semibold mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Advertências Obrigatórias</h4>
-                <ul className="space-y-1">
-                  {constituinte.advertencias.map((a, i) => (
-                    <li key={i} className="text-sm flex items-start gap-2">
-                      <span className="text-amber-500 mt-0.5">⚠</span> {a}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          )}
-
-          {/* Grupos não autorizados */}
-          {constituinte.grupos_nao_autorizados && constituinte.grupos_nao_autorizados.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="font-semibold mb-2 flex items-center gap-2"><XCircle className="w-4 h-4 text-destructive" /> Grupos Não Autorizados</h4>
-                <div className="flex flex-wrap gap-1">
-                  {constituinte.grupos_nao_autorizados.map((g, i) => (
-                    <Badge key={i} variant="destructive" className="text-xs">{g}</Badge>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Referências */}
-          {constituinte.referencias_especificacao && constituinte.referencias_especificacao.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="font-semibold mb-2 text-sm">Referências de Especificação (Art. 8º RDC 243/2018)</h4>
-                <div className="flex flex-wrap gap-1">
-                  {constituinte.referencias_especificacao.map((r, i) => (
-                    <Badge key={i} variant="outline" className="text-xs">{r}</Badge>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Card de Fiscalização */}
-          <Separator />
-          <Card className="bg-muted/50">
-            <CardContent className="pt-4">
-              <h4 className="font-bold mb-3 flex items-center gap-2"><Shield className="w-4 h-4" /> Dados para Fiscalização</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Base legal:</span><br /><strong>{constituinte.norma_inclusao}, {constituinte.anexo_origem}</strong></div>
-                {constituinte.limites_19_mais && (
-                  <>
-                    <div><span className="text-muted-foreground">Dose máx. adulto:</span><br /><strong>{constituinte.limites_19_mais.max} {constituinte.limites_19_mais.unidade}/dia</strong></div>
-                    <div><span className="text-muted-foreground">Dose mín. adulto:</span><br /><strong>{constituinte.limites_19_mais.min} {constituinte.limites_19_mais.unidade}/dia</strong></div>
-                  </>
-                )}
-                <div><span className="text-muted-foreground">Advertências:</span><br /><strong>{constituinte.advertencias?.length || 0}</strong></div>
-                <div><span className="text-muted-foreground">Alegações:</span><br /><strong>{constituinte.alegacoes?.length || 0}</strong></div>
-                <div><span className="text-muted-foreground">Status:</span><br />
-                  {constituinte.is_proibido 
-                    ? <span className="text-destructive font-bold">PROIBIDO</span> 
-                    : <span className="text-green-600 font-bold">AUTORIZADO</span>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-
 export default function ConsultaAnvisaPage() {
   const [termo, setTermo] = useState('');
   const [termoDebounced, setTermoDebounced] = useState('');
+  const { ultimoSync, sincronizar, sincronizando } = useAnvisaSync();
 
   useEffect(() => {
     const t = setTimeout(() => setTermoDebounced(termo), 300);
@@ -254,7 +58,6 @@ export default function ConsultaAnvisaPage() {
         .eq('ativo', true)
         .limit(20);
 
-      // Array fields search (nome_popular, sinonimos)
       const { data: arraySearch } = await supabase
         .rpc('buscar_constituinte_por_nome_popular', { termo_busca: termoDebounced })
         .limit(20);
@@ -271,11 +74,33 @@ export default function ConsultaAnvisaPage() {
     staleTime: 10 * 60 * 1000,
   });
 
+  const handleSync = () => {
+    sincronizar(undefined, {
+      onSuccess: (data: Record<string, unknown>) => {
+        if (data?.status === 'alerta_mudanca') {
+          toast.warning('Possível alteração na legislação detectada!', { description: 'Revise manualmente os dados.' });
+        } else {
+          toast.success('Base verificada com sucesso junto ao portal ANVISA.');
+        }
+      },
+      onError: (err: Error) => {
+        toast.error('Erro ao sincronizar com a ANVISA', { description: err.message });
+      },
+    });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Consulta ANVISA – Suplementos Alimentares"
         description="Consulte substâncias, doses máximas, alegações permitidas e dados para fiscalização conforme RDC 243/2018 e IN 28/2018"
+      />
+
+      {/* Status de sincronização */}
+      <SyncStatusBanner
+        ultimoSync={ultimoSync}
+        sincronizando={sincronizando}
+        onSync={handleSync}
       />
 
       {/* Barra de busca */}
