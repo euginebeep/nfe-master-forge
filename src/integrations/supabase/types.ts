@@ -237,6 +237,7 @@ export type Database = {
           created_at: string | null
           data_inclusao: string | null
           fonte_de: string | null
+          fonte_url: string | null
           grupos_nao_autorizados: string[] | null
           grupos_permitidos: string[] | null
           id: string
@@ -262,7 +263,9 @@ export type Database = {
           search_vector: unknown
           sinonimos: string[] | null
           subcategoria: string | null
+          sync_id: string | null
           updated_at: string | null
+          verificado_em: string | null
         }
         Insert: {
           advertencias?: string[] | null
@@ -274,6 +277,7 @@ export type Database = {
           created_at?: string | null
           data_inclusao?: string | null
           fonte_de?: string | null
+          fonte_url?: string | null
           grupos_nao_autorizados?: string[] | null
           grupos_permitidos?: string[] | null
           id?: string
@@ -299,7 +303,9 @@ export type Database = {
           search_vector?: unknown
           sinonimos?: string[] | null
           subcategoria?: string | null
+          sync_id?: string | null
           updated_at?: string | null
+          verificado_em?: string | null
         }
         Update: {
           advertencias?: string[] | null
@@ -311,6 +317,7 @@ export type Database = {
           created_at?: string | null
           data_inclusao?: string | null
           fonte_de?: string | null
+          fonte_url?: string | null
           grupos_nao_autorizados?: string[] | null
           grupos_permitidos?: string[] | null
           id?: string
@@ -336,9 +343,19 @@ export type Database = {
           search_vector?: unknown
           sinonimos?: string[] | null
           subcategoria?: string | null
+          sync_id?: string | null
           updated_at?: string | null
+          verificado_em?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "anvisa_constituintes_sync_id_fkey"
+            columns: ["sync_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_sync_history"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       anvisa_consultas_log: {
         Row: {
@@ -381,6 +398,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      anvisa_sync_history: {
+        Row: {
+          detalhes: Json | null
+          erro_mensagem: string | null
+          finalizado_em: string | null
+          fonte_url: string | null
+          hash_conteudo: string | null
+          id: string
+          iniciado_em: string
+          iniciado_por: string | null
+          registros_atualizados: number | null
+          registros_novos: number | null
+          registros_removidos: number | null
+          status: string
+          tipo: string
+          versao_legislacao: string | null
+        }
+        Insert: {
+          detalhes?: Json | null
+          erro_mensagem?: string | null
+          finalizado_em?: string | null
+          fonte_url?: string | null
+          hash_conteudo?: string | null
+          id?: string
+          iniciado_em?: string
+          iniciado_por?: string | null
+          registros_atualizados?: number | null
+          registros_novos?: number | null
+          registros_removidos?: number | null
+          status?: string
+          tipo?: string
+          versao_legislacao?: string | null
+        }
+        Update: {
+          detalhes?: Json | null
+          erro_mensagem?: string | null
+          finalizado_em?: string | null
+          fonte_url?: string | null
+          hash_conteudo?: string | null
+          id?: string
+          iniciado_em?: string
+          iniciado_por?: string | null
+          registros_atualizados?: number | null
+          registros_novos?: number | null
+          registros_removidos?: number | null
+          status?: string
+          tipo?: string
+          versao_legislacao?: string | null
+        }
+        Relationships: []
       }
       arquivos: {
         Row: {
@@ -5031,6 +5099,7 @@ export type Database = {
           created_at: string | null
           data_inclusao: string | null
           fonte_de: string | null
+          fonte_url: string | null
           grupos_nao_autorizados: string[] | null
           grupos_permitidos: string[] | null
           id: string
@@ -5056,7 +5125,9 @@ export type Database = {
           search_vector: unknown
           sinonimos: string[] | null
           subcategoria: string | null
+          sync_id: string | null
           updated_at: string | null
+          verificado_em: string | null
         }[]
         SetofOptions: {
           from: "*"
