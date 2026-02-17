@@ -146,9 +146,7 @@ const Index = () => {
       </div>
 
       {/* News Feed */}
-      <div className="grid gap-4 lg:grid-cols-1">
-        <NewsFeedCard />
-      </div>
+      <NewsFeedCard />
 
       {/* Modules Grid */}
       <div>
