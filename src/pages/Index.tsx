@@ -11,6 +11,7 @@ import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
 import { MarketIndicesCard } from "@/components/dashboard/MarketIndicesCard";
 import { ExpiringLotsCard } from "@/components/dashboard/ExpiringLotsCard";
 import { ConsultaANVISACard } from "@/components/dashboard/ConsultaANVISACard";
+import { NewsFeedCard } from "@/components/dashboard/NewsFeedCard";
 import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -142,6 +143,11 @@ const Index = () => {
         <ExchangeRateCard />
         <MarketIndicesCard />
         <ConsultaANVISACard />
+      </div>
+
+      {/* News Feed */}
+      <div className="grid gap-4 lg:grid-cols-1">
+        <NewsFeedCard />
       </div>
 
       {/* Modules Grid */}
