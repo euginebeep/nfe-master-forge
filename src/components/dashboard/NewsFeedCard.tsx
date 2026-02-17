@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink, RefreshCw, Clock, TrendingUp } from 'lucide-react';
+import { Newspaper, ExternalLink, RefreshCw, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ function formatTimeAgo(dateStr: string): string {
     const diffMin = Math.floor(diffMs / 60000);
     const diffHrs = Math.floor(diffMin / 60);
     if (diffMin < 1) return 'agora';
-    if (diffMin < 60) return `${diffMin} min`;
+    if (diffMin < 60) return `${diffMin}min`;
     if (diffHrs < 24) return `${diffHrs}h`;
     return `${Math.floor(diffHrs / 24)}d`;
   } catch {
@@ -42,11 +42,11 @@ function formatTimeAgo(dateStr: string): string {
 function getSourceStyle(source: string) {
   switch (source) {
     case 'CNN Brasil':
-      return { dot: 'bg-destructive', badge: 'border-destructive/20 text-destructive bg-destructive/5' };
+      return { dot: 'bg-destructive', badge: 'border-destructive/20 text-destructive bg-destructive/5', short: 'CNN' };
     case 'Jovem Pan':
-      return { dot: 'bg-emerald-500', badge: 'border-emerald-500/20 text-emerald-700 bg-emerald-500/5 dark:text-emerald-400' };
+      return { dot: 'bg-emerald-500', badge: 'border-emerald-500/20 text-emerald-700 bg-emerald-500/5 dark:text-emerald-400', short: 'JP' };
     default:
-      return { dot: 'bg-muted-foreground', badge: 'border-border text-muted-foreground bg-muted' };
+      return { dot: 'bg-muted-foreground', badge: 'border-border text-muted-foreground bg-muted', short: '?' };
   }
 }
 
@@ -60,130 +60,86 @@ export function NewsFeedCard() {
     retry: 1,
   });
 
-  const topNews = news?.slice(0, 1)[0];
-  const restNews = news?.slice(1, 8);
-
   return (
     <>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.4 }}
+        className="w-fit min-w-[240px] max-w-sm"
       >
         <Card className="overflow-hidden border-border/60 shadow-sm">
-          {/* Header */}
-          <CardHeader className="pb-0 pt-4 px-5">
+          <CardHeader className="pb-0 pt-3 px-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2.5 text-foreground">
-                <div className="p-1.5 rounded-md bg-primary/10">
-                  <TrendingUp className="h-3.5 w-3.5 text-primary" />
+              <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                <div className="p-1 rounded-md bg-primary/10">
+                  <TrendingUp className="h-3 w-3 text-primary" />
                 </div>
-                Notícias em Destaque
-                <Badge variant="outline" className="text-[9px] font-medium px-1.5 py-0 h-4 border-border/50 text-muted-foreground">
+                Notícias
+                <Badge variant="outline" className="text-[8px] font-medium px-1 py-0 h-3.5 border-border/50 text-muted-foreground">
                   LIVE
                 </Badge>
               </CardTitle>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-md"
+                className="h-6 w-6 rounded-md"
                 onClick={() => refetch()}
                 disabled={isFetching}
               >
-                <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3 w-3 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </CardHeader>
 
-          <CardContent className="p-4 pt-3">
+          <CardContent className="p-2 pt-1.5">
             {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-16 w-full rounded-lg" />
-                <div className="grid grid-cols-2 gap-2">
-                  {[...Array(4)].map((_, i) => (
-                    <Skeleton key={i} className="h-12 rounded-md" />
-                  ))}
-                </div>
+              <div className="space-y-1.5">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-7 rounded-md" />
+                ))}
               </div>
             ) : error || !news?.length ? (
-              <div className="py-8 text-center">
-                <Newspaper className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
+              <div className="py-4 text-center">
+                <Newspaper className="h-5 w-5 text-muted-foreground/30 mx-auto mb-1" />
+                <p className="text-[11px] text-muted-foreground">
                   {error ? 'Erro ao carregar' : 'Sem notícias'}
                 </p>
-                <Button variant="link" size="sm" onClick={() => refetch()} className="mt-1 text-xs">
+                <Button variant="link" size="sm" onClick={() => refetch()} className="mt-0.5 text-[10px] h-auto p-0">
                   Tentar novamente
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {/* Featured / top news */}
-                {topNews && (
-                  <button
-                    onClick={() => setSelectedNews(topNews)}
-                    className="w-full text-left group"
-                  >
-                    <div className="p-3.5 rounded-lg bg-muted/40 border border-border/40 hover:border-primary/30 hover:bg-muted/60 transition-all duration-200">
-                      <p className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                        {topNews.title}
-                      </p>
-                      {topNews.description && (
-                        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-1">
-                          {topNews.description}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getSourceStyle(topNews.source).badge}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${getSourceStyle(topNews.source).dot}`} />
-                          {topNews.source}
+              <div className="space-y-px">
+                {news.slice(0, 8).map((item, idx) => {
+                  const style = getSourceStyle(item.source);
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedNews(item)}
+                      className="w-full flex items-start gap-1.5 px-1.5 py-1.5 rounded hover:bg-muted/50 transition-colors group text-left"
+                    >
+                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[8px] font-bold border flex-shrink-0 mt-[3px] ${style.badge}`}>
+                        <span className={`w-1 h-1 rounded-full ${style.dot}`} />
+                        {style.short}
+                      </span>
+                      <span className="flex-1 text-[11px] leading-[1.4] text-foreground/80 group-hover:text-primary transition-colors">
+                        {item.title}
+                      </span>
+                      {item.pubDate && (
+                        <span className="text-[9px] text-muted-foreground/40 flex-shrink-0 mt-[2px]">
+                          {formatTimeAgo(item.pubDate)}
                         </span>
-                        {topNews.pubDate && (
-                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
-                            <Clock className="h-2.5 w-2.5" />
-                            {formatTimeAgo(topNews.pubDate)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                )}
-
-                {/* Rest of the news in compact list */}
-                <div className="space-y-0.5">
-                  {restNews?.map((item, idx) => {
-                    const style = getSourceStyle(item.source);
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedNews(item)}
-                        className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-muted/50 transition-colors group text-left"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
-                        <p className="flex-1 text-[13px] leading-snug line-clamp-1 text-foreground/80 group-hover:text-primary transition-colors">
-                          {item.title}
-                        </p>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
-                            {item.source}
-                          </span>
-                          {item.pubDate && (
-                            <span className="text-[10px] text-muted-foreground/50">
-                              {formatTimeAgo(item.pubDate)}
-                            </span>
-                          )}
-                          <ExternalLink className="h-3 w-3 text-muted-foreground/30 group-hover:text-primary/60 transition-colors" />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* News iframe dialog */}
       <Dialog open={!!selectedNews} onOpenChange={(open) => !open && setSelectedNews(null)}>
         <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-4 pt-4 pb-2 border-b flex-shrink-0">
