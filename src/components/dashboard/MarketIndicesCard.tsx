@@ -18,109 +18,30 @@ interface IbovespaData {
   change: number;
 }
 
-// Fetch crypto prices from CoinGecko public API
-async function fetchCryptoPrices(): Promise<CryptoPrice[]> {
+import { supabase } from '@/integrations/supabase/client';
+
+interface MarketData {
+  ibovespa?: IbovespaData;
+  crypto?: Record<string, { usd: number; usd_24h_change: number }>;
+}
+
+async function fetchMarketData(): Promise<MarketData> {
   try {
-    const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd&include_24hr_change=true'
-    );
-    
-    if (!response.ok) {
-      throw new Error('Erro ao buscar preços');
-    }
-    
-    const data = await response.json();
-    
-    return [
-      {
-        symbol: 'BTC',
-        name: 'Bitcoin',
-        price: data.bitcoin?.usd || 0,
-        change24h: data.bitcoin?.usd_24h_change || 0,
-        iconColor: 'text-amber-500',
-        bgColor: 'bg-amber-100 dark:bg-amber-900/30',
-      },
-      {
-        symbol: 'ETH',
-        name: 'Ethereum',
-        price: data.ethereum?.usd || 0,
-        change24h: data.ethereum?.usd_24h_change || 0,
-        iconColor: 'text-indigo-500',
-        bgColor: 'bg-indigo-100 dark:bg-indigo-900/30',
-      },
-      {
-        symbol: 'USDT',
-        name: 'Tether',
-        price: data.tether?.usd || 0,
-        change24h: data.tether?.usd_24h_change || 0,
-        iconColor: 'text-emerald-500',
-        bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
-      },
-    ];
+    const { data, error } = await supabase.functions.invoke('market-indices');
+    if (error) throw error;
+    return data as MarketData;
   } catch (error) {
-    console.error('Erro ao buscar crypto:', error);
+    console.error('Erro ao buscar dados de mercado:', error);
     throw error;
   }
 }
 
-// Fetch Ibovespa from brapi.dev (free, reliable Brazilian stock API)
-async function fetchIbovespa(): Promise<IbovespaData | null> {
-  try {
-    // Try brapi.dev first (more reliable for Brazilian market)
-    const response = await fetch(
-      'https://brapi.dev/api/quote/%5EBVSP?token=demo'
-    );
-    
-    if (response.ok) {
-      const data = await response.json();
-      const result = data.results?.[0];
-      
-      if (result) {
-        return {
-          price: result.regularMarketPrice || 0,
-          change: result.regularMarketChangePercent || 0,
-        };
-      }
-    }
-    
-    // Fallback: try AwesomeAPI
-    const altResponse = await fetch(
-      'https://economia.awesomeapi.com.br/json/daily/BVSP/1'
-    );
-    
-    if (altResponse.ok) {
-      const altData = await altResponse.json();
-      if (altData && altData[0]) {
-        return {
-          price: parseFloat(altData[0].bid) || 0,
-          change: parseFloat(altData[0].pctChange) || 0,
-        };
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Erro ao buscar Ibovespa:', error);
-    return null;
-  }
-}
-
-function useCryptoPrices() {
+function useMarketData() {
   return useQuery({
-    queryKey: ['crypto-prices'],
-    queryFn: fetchCryptoPrices,
+    queryKey: ['market-data'],
+    queryFn: fetchMarketData,
     staleTime: 2 * 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
-    retry: 2,
-  });
-}
-
-function useIbovespa() {
-  return useQuery({
-    queryKey: ['ibovespa'],
-    queryFn: fetchIbovespa,
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: 3 * 60 * 1000,
     retry: 2,
   });
 }
@@ -178,11 +99,37 @@ function getCryptoIcon(symbol: string, className: string) {
 }
 
 export function MarketIndicesCard() {
-  const { data: cryptos, isLoading: cryptoLoading, error: cryptoError } = useCryptoPrices();
-  const { data: ibovespa, isLoading: ibovespaLoading } = useIbovespa();
+  const { data: marketData, isLoading, error } = useMarketData();
 
-  const isLoading = cryptoLoading || ibovespaLoading;
-  const hasError = cryptoError && !ibovespa;
+  const ibovespa = marketData?.ibovespa || null;
+  const cryptos: CryptoPrice[] | undefined = marketData?.crypto ? [
+    {
+      symbol: 'BTC',
+      name: 'Bitcoin',
+      price: marketData.crypto.bitcoin?.usd || 0,
+      change24h: marketData.crypto.bitcoin?.usd_24h_change || 0,
+      iconColor: 'text-amber-500',
+      bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+    },
+    {
+      symbol: 'ETH',
+      name: 'Ethereum',
+      price: marketData.crypto.ethereum?.usd || 0,
+      change24h: marketData.crypto.ethereum?.usd_24h_change || 0,
+      iconColor: 'text-indigo-500',
+      bgColor: 'bg-indigo-100 dark:bg-indigo-900/30',
+    },
+    {
+      symbol: 'USDT',
+      name: 'Tether',
+      price: marketData.crypto.tether?.usd || 0,
+      change24h: marketData.crypto.tether?.usd_24h_change || 0,
+      iconColor: 'text-emerald-500',
+      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+    },
+  ] : undefined;
+
+  const hasError = error && !marketData;
 
   if (hasError) {
     return (
@@ -226,7 +173,7 @@ export function MarketIndicesCard() {
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">IBOVESPA</p>
-                {ibovespaLoading ? (
+                {isLoading ? (
                   <Skeleton className="h-6 w-24" />
                 ) : (
                   <p className="text-xl font-bold tracking-tight">
@@ -254,7 +201,7 @@ export function MarketIndicesCard() {
                   {getCryptoIcon(crypto.symbol, `h-5 w-5 ${crypto.iconColor}`)}
                 </div>
                 <p className="text-[10px] font-medium text-muted-foreground">{crypto.symbol}</p>
-                {cryptoLoading ? (
+                {isLoading ? (
                   <Skeleton className="h-4 w-14 mt-1" />
                 ) : (
                   <p className="text-sm font-bold">
