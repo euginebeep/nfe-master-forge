@@ -45,9 +45,13 @@ async function buscarFuzzy(termo: string): Promise<AnvisaConstituinte[]> {
 
   const { data } = await supabase
     .rpc('buscar_constituinte_fuzzy', { termo_busca: termo })
-    .limit(20);
+    .limit(10);
 
-  return (data || []) as unknown as AnvisaConstituinte[];
+  // Filter low-relevance fuzzy results
+  return ((data || []) as any[]).filter((d) => {
+    if (d.similaridade !== undefined) return d.similaridade > 0.25;
+    return true;
+  }) as unknown as AnvisaConstituinte[];
 }
 
 async function buscarConstituintes(termo: string): Promise<AnvisaConstituinte[]> {
