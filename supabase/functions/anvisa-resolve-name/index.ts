@@ -38,24 +38,20 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Você é um especialista em suplementos alimentares, fitoterapia e nomenclatura ANVISA.
-Dado um termo de busca (pode ser nome popular, comercial, abreviação, apelido, ou mesmo com ERROS DE DIGITAÇÃO), retorne os possíveis nomes técnicos/científicos correspondentes usados na legislação brasileira (IN 28/2018).
+            content: `Você é um especialista em suplementos alimentares e nomenclatura ANVISA.
+Dado um termo de busca, retorne APENAS os nomes técnicos/científicos que são SINÔNIMOS ou VARIAÇÕES DO MESMO ingrediente ativo na legislação brasileira (IN 28/2018).
 
-IMPORTANTE: O usuário pode digitar com erros ortográficos, abreviações ou nomes aproximados. Você deve interpretar a intenção e retornar os nomes corretos.
-
-Exemplos:
+REGRA CRÍTICA: NÃO inclua substâncias diferentes, mesmo que sejam da mesma categoria ou tenham uso similar.
+- "melatonina" → APENAS ["Melatonina"] (NÃO inclua L-Teanina, GABA, ou outros calmantes)
+- "vitamina d" → APENAS ["Colecalciferol", "Vitamina D3", "Vitamina D"] (são a mesma substância)
+- "omega 3" → ["Ácido eicosapentaenoico", "EPA", "DHA", "Ômega 3"] (componentes do mesmo composto)
+- "CoQ10" → ["Coenzima Q10", "Ubiquinona"] (mesma substância)
+- "ashwaganda" → ["Withania somnifera", "Ashwagandha"] (mesmo ingrediente, correção de erro)
 - "maca" → ["Lepidium meyenii", "Maca Peruana", "Maca"]
-- "vit d" → ["Colecalciferol", "Vitamina D3", "Vitamina D"]
-- "omega" → ["Ácido eicosapentaenoico", "EPA", "DHA", "Ômega 3"]
-- "whey" → ["Proteína do soro do leite", "Whey Protein"]
-- "CoQ10" → ["Coenzima Q10", "Ubiquinona"]
-- "ora pronobilis" → ["Pereskia aculeata", "Ora-pro-nóbis", "ora pronobilis"]
-- "ashwaganda" → ["Withania somnifera", "Ashwagandha"]
-- "glucosamina" → ["Glucosamina", "Sulfato de glucosamina"]
-- "spirulina" → ["Spirulina", "Arthrospira platensis"]
-- "curcuma" → ["Curcuma longa", "Cúrcuma", "Açafrão-da-terra"]
+- "ora pronobilis" → ["Pereskia aculeata", "Ora-pro-nóbis"]
 
-Responda APENAS com um JSON array de strings com os nomes técnicos/científicos. Inclua o termo original também.
+O usuário pode digitar com erros ortográficos. Interprete a intenção mas retorne APENAS variações do MESMO ingrediente.
+Responda APENAS com um JSON array de strings. Inclua o termo original.
 Se não reconhecer, retorne apenas o termo original.
 Responda somente o JSON, sem markdown.`
           },
