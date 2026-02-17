@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
+import { getConversaoUI, formatUI } from '@/components/regulatorio/DoseTable';
 import type { AnvisaConstituinte } from '@/types/anvisa';
 
 const LINKS_UTEIS = [
@@ -42,6 +43,11 @@ function MiniDoseTable({ constituinte }: { constituinte: AnvisaConstituinte }) {
 
   if (grupos.length === 0) return null;
 
+  const conversao = getConversaoUI(constituinte.nome_tecnico, constituinte.nome_generico);
+  const mostrarUI = conversao && grupos.some(g => 
+    g.data?.unidade?.toLowerCase() === conversao.unidadeOrigem
+  );
+
   return (
     <div className="mt-2">
       <p className="text-xs font-medium mb-1 flex items-center gap-1">
@@ -54,17 +60,27 @@ function MiniDoseTable({ constituinte }: { constituinte: AnvisaConstituinte }) {
             <TableHead className="text-xs py-1 h-auto">Mín.</TableHead>
             <TableHead className="text-xs py-1 h-auto">Máx.</TableHead>
             <TableHead className="text-xs py-1 h-auto">Un.</TableHead>
+            {mostrarUI && <TableHead className="text-xs py-1 h-auto">Equiv. UI</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {grupos.map(g => (
-            <TableRow key={g.label}>
-              <TableCell className="text-xs py-1 font-medium">{g.label}</TableCell>
-              <TableCell className="text-xs py-1">{g.data?.min ?? '—'}</TableCell>
-              <TableCell className="text-xs py-1">{g.data?.max ?? '—'}</TableCell>
-              <TableCell className="text-xs py-1">{g.data?.unidade ?? '—'}</TableCell>
-            </TableRow>
-          ))}
+          {grupos.map(g => {
+            const minUI = conversao ? formatUI(g.data?.min as number, conversao.fator, conversao.unidadeOrigem, g.data?.unidade || '') : null;
+            const maxUI = conversao ? formatUI(g.data?.max as number, conversao.fator, conversao.unidadeOrigem, g.data?.unidade || '') : null;
+            return (
+              <TableRow key={g.label}>
+                <TableCell className="text-xs py-1 font-medium">{g.label}</TableCell>
+                <TableCell className="text-xs py-1">{g.data?.min ?? '—'}</TableCell>
+                <TableCell className="text-xs py-1">{g.data?.max ?? '—'}</TableCell>
+                <TableCell className="text-xs py-1">{g.data?.unidade ?? '—'}</TableCell>
+                {mostrarUI && (
+                  <TableCell className="text-xs py-1 text-muted-foreground">
+                    {minUI && maxUI ? `${minUI}–${maxUI}` : minUI || maxUI || '—'}
+                  </TableCell>
+                )}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
