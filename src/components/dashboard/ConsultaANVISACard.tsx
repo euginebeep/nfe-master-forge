@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, BookOpen, ExternalLink, Scale, 
-  CheckCircle, AlertTriangle, XCircle, Loader2, Sparkles, RefreshCw
+  CheckCircle, AlertTriangle, XCircle, Loader2, Sparkles, RefreshCw, Pill
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,15 +16,60 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
+import type { AnvisaConstituinte } from '@/types/anvisa';
 
 const LINKS_UTEIS = [
   { titulo: 'IN 28/2018 - Alegações de Propriedade', url: 'https://www.in.gov.br/materia/-/asset_publisher/Kujrw0TZC2Mb/content/id/34380639' },
   { titulo: 'RDC 243/2018 - Suplementos Alimentares', url: 'https://www.in.gov.br/materia/-/asset_publisher/Kujrw0TZC2Mb/content/id/34379969/do1-2018-07-27-resolucao-da-diretoria-colegiada-rdc-n-243-de-26-de-julho-de-2018-34379917' },
   { titulo: 'Biblioteca ANVISA - Suplementos', url: 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares' },
 ];
+
+function MiniDoseTable({ constituinte }: { constituinte: AnvisaConstituinte }) {
+  const grupos = [
+    { label: '0–6 meses', data: constituinte.limites_0_6_meses },
+    { label: '7–11 meses', data: constituinte.limites_7_11_meses },
+    { label: '1–3 anos', data: constituinte.limites_1_3_anos },
+    { label: '4–8 anos', data: constituinte.limites_4_8_anos },
+    { label: '9–18 anos', data: constituinte.limites_9_18_anos },
+    { label: '≥19 anos', data: constituinte.limites_19_mais },
+    { label: 'Gestantes', data: constituinte.limites_gestantes },
+    { label: 'Lactantes', data: constituinte.limites_lactantes },
+  ].filter(g => g.data);
+
+  if (grupos.length === 0) return null;
+
+  return (
+    <div className="mt-2">
+      <p className="text-xs font-medium mb-1 flex items-center gap-1">
+        <Pill className="w-3 h-3" /> Doses diárias autorizadas:
+      </p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="text-xs py-1 h-auto">Faixa etária</TableHead>
+            <TableHead className="text-xs py-1 h-auto">Mín.</TableHead>
+            <TableHead className="text-xs py-1 h-auto">Máx.</TableHead>
+            <TableHead className="text-xs py-1 h-auto">Un.</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {grupos.map(g => (
+            <TableRow key={g.label}>
+              <TableCell className="text-xs py-1 font-medium">{g.label}</TableCell>
+              <TableCell className="text-xs py-1">{g.data?.min ?? '—'}</TableCell>
+              <TableCell className="text-xs py-1">{g.data?.max ?? '—'}</TableCell>
+              <TableCell className="text-xs py-1">{g.data?.unidade ?? '—'}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
 export function ConsultaANVISACard() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -222,26 +267,41 @@ export function ConsultaANVISACard() {
                           <p className="text-xs font-medium text-destructive">Motivo: {c.motivo_proibicao}</p>
                         </div>
                       )}
+
+                      {/* Doses por faixa etária */}
+                      <MiniDoseTable constituinte={c} />
+
+                      {/* Alegações */}
                       {!c.is_proibido && c.alegacoes && c.alegacoes.length > 0 && (
                         <div className="space-y-1">
-                          <p className="text-xs font-medium">Alegações:</p>
-                          {c.alegacoes.slice(0, 2).map((a, i) => (
-                            <p key={i} className="text-xs text-muted-foreground flex items-start gap-1">
-                              <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 shrink-0" />
-                              {a}
+                          <p className="text-xs font-medium flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3 text-green-500" /> Alegações permitidas:
+                          </p>
+                          {c.alegacoes.map((a, i) => (
+                            <p key={i} className="text-xs text-muted-foreground flex items-start gap-1 ml-4">
+                              • {a}
                             </p>
                           ))}
                         </div>
                       )}
+
+                      {/* Advertências */}
                       {c.advertencias && c.advertencias.length > 0 && (
                         <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20">
                           <p className="text-xs font-medium text-amber-600 flex items-center gap-1">
                             <AlertTriangle className="h-3 w-3" /> Advertências
                           </p>
-                          {c.advertencias.slice(0, 2).map((adv, i) => (
+                          {c.advertencias.map((adv, i) => (
                             <p key={i} className="text-xs text-amber-600/80 mt-1">• {adv}</p>
                           ))}
                         </div>
+                      )}
+
+                      {/* Grupos não autorizados */}
+                      {c.grupos_nao_autorizados && c.grupos_nao_autorizados.length > 0 && (
+                        <p className="text-xs text-destructive font-medium">
+                          ⚠ Não autorizado para: {c.grupos_nao_autorizados.join(', ')}
+                        </p>
                       )}
                     </div>
                   ))}
