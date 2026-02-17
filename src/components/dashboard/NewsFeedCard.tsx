@@ -141,10 +141,10 @@ export function NewsFeedCard() {
         </Card>
       </motion.div>
 
-      {/* News popup dialog */}
+      {/* News popup dialog with embedded iframe */}
       <Dialog open={!!selectedNews} onOpenChange={(open) => !open && setSelectedNews(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b flex-shrink-0">
             <div className="flex items-center gap-2 mb-1">
               {selectedNews && (
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${getSourceColor(selectedNews.source)}`}>
@@ -157,25 +157,28 @@ export function NewsFeedCard() {
                 </span>
               )}
             </div>
-            <DialogTitle className="text-base leading-snug">
+            <DialogTitle className="text-sm leading-snug line-clamp-1 pr-6">
               {selectedNews?.title}
             </DialogTitle>
-            <DialogDescription className="sr-only">Detalhes da notícia</DialogDescription>
+            <DialogDescription className="sr-only">Visualização da notícia</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {selectedNews?.description && (
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {selectedNews.description}
-              </p>
+          <div className="flex-1 min-h-0">
+            {selectedNews?.link && (
+              <iframe
+                src={selectedNews.link}
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin allow-popups"
+                title={selectedNews.title}
+              />
             )}
-            <div className="flex justify-end">
-              <Button asChild variant="outline" size="sm">
-                <a href={selectedNews?.link} target="_blank" rel="noopener noreferrer" className="gap-2">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Ler matéria completa
-                </a>
-              </Button>
-            </div>
+          </div>
+          <div className="px-4 py-2 border-t flex-shrink-0 flex justify-end">
+            <Button asChild variant="outline" size="sm">
+              <a href={selectedNews?.link} target="_blank" rel="noopener noreferrer" className="gap-2">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Abrir em nova aba
+              </a>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
