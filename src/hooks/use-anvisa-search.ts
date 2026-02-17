@@ -37,11 +37,33 @@ async function buscarPorTermo(termo: string): Promise<AnvisaConstituinte[]> {
     .rpc('buscar_constituinte_por_nome_popular', { termo_busca: termo })
     .limit(20);
 
-  return [...(fullText || []), ...(ilike || []), ...(arraySearch || [])] as unknown as AnvisaConstituinte[];
+  const all = [...(fullText || []), ...(ilike || []), ...(arraySearch || [])] as unknown as AnvisaConstituinte[];
+  
+  // Post-filter: if a term looks like "vitamina X", only keep results matching that specific vitamin
+  const vitaminMatch = termo.trim().toLowerCase().match(/^vitamina\s+([a-z]\d*)\s*$/i);
+  if (vitaminMatch) {
+    const vitLetter = vitaminMatch[1].toLowerCase();
+    const filtered = all.filter((item) => {
+      const names = [item.nome_tecnico, item.nome_generico || '', item.nome_rotulo || '', ...(item.nome_popular || []), ...(item.sinonimos || [])];
+      return names.some((n) => {
+        const lower = n.toLowerCase();
+        // Match "vitamina E" but not "vitamina E..." or other vitamins
+        return lower.includes(`vitamina ${vitLetter}`) && 
+          !new RegExp(`vitamina ${vitLetter}[a-z0-9]`, 'i').test(lower);
+      });
+    });
+    if (filtered.length > 0) return filtered;
+  }
+  
+  return all;
 }
 
 async function buscarFuzzy(termo: string): Promise<AnvisaConstituinte[]> {
   if (!termo || termo.length < 2) return [];
+
+  // Skip fuzzy for very common generic terms like "vitamina e" to avoid noise
+  const vitaminMatch = termo.trim().toLowerCase().match(/^vitamina\s+[a-z]\d?\s*$/i);
+  if (vitaminMatch) return [];
 
   const { data } = await supabase
     .rpc('buscar_constituinte_fuzzy', { termo_busca: termo })
