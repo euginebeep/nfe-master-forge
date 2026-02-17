@@ -61,9 +61,7 @@ function parseRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
 
 const RSS_SOURCES = [
   { url: "https://www.cnnbrasil.com.br/feed/", name: "CNN Brasil" },
-  { url: "https://g1.globo.com/rss/g1/", name: "G1" },
-  { url: "https://rss.uol.com.br/feed/noticias.xml", name: "UOL" },
-  { url: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", name: "Folha" },
+  { url: "https://jovempan.com.br/feed", name: "Jovem Pan" },
 ];
 
 serve(async (req) => {

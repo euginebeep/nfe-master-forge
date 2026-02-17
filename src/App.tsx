@@ -70,6 +70,7 @@ const DesviosPage = lazy(() => import("./pages/qualidade/DesviosPage"));
 const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
 const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
+const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
 
 import { queryClient } from "./lib/query-client";
 
@@ -179,6 +180,8 @@ const App = () => (
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ConsultaAnvisaPage /></ErrorBoundary></Suspense>} />
                 {/* Notificações */}
                 <Route path="/notificacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotificacoesPage /></ErrorBoundary></Suspense>} />
+                {/* Chat Interno */}
+                <Route path="/chat" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ChatInternoPage /></ErrorBoundary></Suspense>} />
                 {/* Usuários — admin only */}
                 <Route path="/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />

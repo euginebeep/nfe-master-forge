@@ -20,6 +20,7 @@ import {
   BarChart3,
   Shield,
   MessageSquare,
+  MessageCircle,
   Store,
   ShieldAlert,
   FileArchive,
@@ -64,6 +65,7 @@ const menuGroups: MenuGroup[] = [
     label: "Principal",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Chat Interno", url: "/chat", icon: MessageCircle },
       { title: "Roadmap", url: "/roadmap", icon: Map },
     ],
   },
