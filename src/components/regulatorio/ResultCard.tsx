@@ -64,7 +64,39 @@ export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte 
               </Button>
             </div>
           </div>
-          {expanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+      {expanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+        </div>
+
+        {/* Always show doses summary and alegações */}
+        <div className="mt-3 space-y-2">
+          <DoseTable constituinte={constituinte} />
+          {constituinte.alegacoes && constituinte.alegacoes.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-1">Alegações:</p>
+              <ul className="space-y-0.5">
+                {constituinte.alegacoes.map((a, i) => (
+                  <li key={i} className="text-sm flex items-start gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600 mt-0.5 shrink-0" /> {a}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {constituinte.advertencias && constituinte.advertencias.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-md p-2 border border-amber-200 dark:border-amber-800">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Advertências</p>
+              <ul className="mt-1 space-y-0.5">
+                {constituinte.advertencias.map((a, i) => (
+                  <li key={i} className="text-xs text-amber-700 dark:text-amber-300">• {a}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {constituinte.grupos_nao_autorizados && constituinte.grupos_nao_autorizados.length > 0 && (
+            <div>
+              <p className="text-xs text-destructive font-medium">Não autorizado para: {constituinte.grupos_nao_autorizados.join(', ')}</p>
+            </div>
+          )}
         </div>
       </CardHeader>
 
