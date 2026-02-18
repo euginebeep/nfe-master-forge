@@ -4307,9 +4307,11 @@ export type Database = {
           avatar_url: string | null
           cargo: string | null
           created_at: string
+          data_nascimento: string | null
           departamento: Database["public"]["Enums"]["app_departamento"] | null
           id: string
           nome_completo: string
+          sexo: string | null
           status: string | null
           telefone: string | null
           ultimo_acesso: string | null
@@ -4319,9 +4321,11 @@ export type Database = {
           avatar_url?: string | null
           cargo?: string | null
           created_at?: string
+          data_nascimento?: string | null
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
           id: string
           nome_completo: string
+          sexo?: string | null
           status?: string | null
           telefone?: string | null
           ultimo_acesso?: string | null
@@ -4331,9 +4335,11 @@ export type Database = {
           avatar_url?: string | null
           cargo?: string | null
           created_at?: string
+          data_nascimento?: string | null
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
           id?: string
           nome_completo?: string
+          sexo?: string | null
           status?: string | null
           telefone?: string | null
           ultimo_acesso?: string | null

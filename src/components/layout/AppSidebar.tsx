@@ -46,6 +46,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface MenuItem {
@@ -53,6 +59,7 @@ interface MenuItem {
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  tooltip: string;
 }
 
 interface MenuGroup {
@@ -64,86 +71,86 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Principal",
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard },
-      { title: "Chat Interno", url: "/chat", icon: MessageCircle },
-      { title: "Roadmap", url: "/roadmap", icon: Map },
+      { title: "Dashboard", url: "/", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
+      { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" },
+      { title: "Roadmap", url: "/roadmap", icon: Map, tooltip: "Mapa de evolução e próximas funcionalidades do BrainX" },
     ],
   },
   {
     label: "Cadastros",
     items: [
-      { title: "Entidades", url: "/cadastros/entidades", icon: Building2 },
-      { title: "Fornecedores", url: "/cadastros/fornecedores", icon: Truck },
-      { title: "Clientes", url: "/cadastros/clientes", icon: Users },
-      { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart },
-      { title: "Produtos/Insumos", url: "/cadastros/produtos", icon: Package },
-      { title: "Responsáveis Técnicos", url: "/cadastros/responsaveis-tecnicos", icon: UserCheck, badge: "RT" },
+      { title: "Entidades", url: "/cadastros/entidades", icon: Building2, tooltip: "Cadastro completo de fornecedores, clientes e parceiros" },
+      { title: "Fornecedores", url: "/cadastros/fornecedores", icon: Truck, tooltip: "Gestão de fornecedores e condições comerciais" },
+      { title: "Clientes", url: "/cadastros/clientes", icon: Users, tooltip: "Cadastro e histórico de clientes da empresa" },
+      { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart, tooltip: "Cadastro de transportadoras e meios de envio do BrainX" },
+      { title: "Produtos/Insumos", url: "/cadastros/produtos", icon: Package, tooltip: "Cadastro de matérias-primas, insumos e produtos acabados" },
+      { title: "Responsáveis Técnicos", url: "/cadastros/responsaveis-tecnicos", icon: UserCheck, badge: "RT", tooltip: "Gestão de responsáveis técnicos habilitados para produção" },
     ],
   },
   {
     label: "Producao",
     items: [
-      { title: "Formulador", url: "/producao/formulas", icon: FlaskConical, badge: "ANVISA" },
-      { title: "Ordens de Producao", url: "/producao/ordens", icon: Factory },
-      { title: "Dashboard Industrial", url: "/producao/dashboard", icon: BarChart3 },
-      { title: "Dashboard Executivo", url: "/producao/executivo", icon: BarChart3, badge: "KPI" },
+      { title: "Formulador", url: "/producao/formulas", icon: FlaskConical, badge: "ANVISA", tooltip: "Formulador industrial com validação ANVISA para cápsulas e produtos" },
+      { title: "Ordens de Producao", url: "/producao/ordens", icon: Factory, tooltip: "Criação e acompanhamento de ordens de produção industriais" },
+      { title: "Dashboard Industrial", url: "/producao/dashboard", icon: BarChart3, tooltip: "Indicadores operacionais e análise de anomalias da produção" },
+      { title: "Dashboard Executivo", url: "/producao/executivo", icon: BarChart3, badge: "KPI", tooltip: "KPIs executivos e alertas estratégicos da operação" },
     ],
   },
   {
     label: "Estoque",
     items: [
-      { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert },
-      { title: "Lotes", url: "/estoque/lotes", icon: Boxes },
-      { title: "Movimentacoes", url: "/estoque/movimentacoes", icon: ClipboardList },
-      { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP" },
+      { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação pelo controle de qualidade" },
+      { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos" },
+      { title: "Movimentacoes", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque" },
+      { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Rastreabilidade completa conforme exigências GMP e ANVISA" },
     ],
   },
   {
     label: "Compras",
     items: [
-      { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText },
-      { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText },
+      { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText, tooltip: "Importação de notas fiscais de entrada via XML" },
+      { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas" },
     ],
   },
   {
     label: "Financeiro",
     items: [
-      { title: "Contas a Pagar", url: "/financeiro/pagar", icon: DollarSign },
-      { title: "Contas a Receber", url: "/financeiro/receber", icon: DollarSign },
-      { title: "Fluxo de Caixa", url: "/financeiro/fluxo", icon: BarChart3 },
-      { title: "Conciliação", url: "/financeiro/conciliacao", icon: FileSearch },
-      { title: "DRE Gerencial", url: "/financeiro/dre", icon: PieChart, badge: "DRE" },
+      { title: "Contas a Pagar", url: "/financeiro/pagar", icon: DollarSign, tooltip: "Gestão de contas a pagar e vencimentos futuros" },
+      { title: "Contas a Receber", url: "/financeiro/receber", icon: DollarSign, tooltip: "Controle de recebimentos e inadimplência de clientes" },
+      { title: "Fluxo de Caixa", url: "/financeiro/fluxo", icon: BarChart3, tooltip: "Projeção e análise de fluxo de caixa da empresa" },
+      { title: "Conciliação", url: "/financeiro/conciliacao", icon: FileSearch, tooltip: "Conciliação bancária e financeira" },
+      { title: "DRE Gerencial", url: "/financeiro/dre", icon: PieChart, badge: "DRE", tooltip: "Demonstrativo de resultados gerencial da empresa" },
     ],
   },
   {
     label: "Vendas",
     items: [
-      { title: "CRM", url: "/vendas/crm", icon: MessageSquare },
-      { title: "Orçamentos", url: "/vendas/orcamentos", icon: FileText },
-      { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart },
-      { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput },
-      { title: "Marketplace", url: "/vendas/marketplace", icon: Store },
+      { title: "CRM", url: "/vendas/crm", icon: MessageSquare, tooltip: "Gestão de relacionamento e pipeline de vendas" },
+      { title: "Orçamentos", url: "/vendas/orcamentos", icon: FileText, tooltip: "Criação e acompanhamento de orçamentos para clientes" },
+      { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart, tooltip: "Controle de pedidos de venda e status de entrega" },
+      { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput, tooltip: "Emissão e gestão de notas fiscais de saída (NF-e)" },
+      { title: "Marketplace", url: "/vendas/marketplace", icon: Store, tooltip: "Catálogo de produtos para venda online e marketplace" },
     ],
   },
   {
     label: "Qualidade",
     items: [
-      { title: "Desvios / CAPA", url: "/qualidade/desvios", icon: ShieldAlert, badge: "QC" },
-      { title: "Análises", url: "/qualidade/analises", icon: FlaskConical },
-      { title: "Calibrações", url: "/qualidade/calibracoes", icon: Settings },
+      { title: "Desvios / CAPA", url: "/qualidade/desvios", icon: ShieldAlert, badge: "QC", tooltip: "Registro e tratamento de desvios e ações corretivas (CAPA)" },
+      { title: "Análises", url: "/qualidade/analises", icon: FlaskConical, tooltip: "Análises laboratoriais e resultados de controle de qualidade" },
+      { title: "Calibrações", url: "/qualidade/calibracoes", icon: Settings, tooltip: "Controle de calibração de instrumentos e equipamentos" },
     ],
   },
   {
     label: "Regulatorio",
     items: [
-      { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, badge: "IN28" },
+      { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, badge: "IN28", tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018" },
     ],
   },
   {
     label: "Relatorios",
     items: [
-      { title: "Relatorios", url: "/relatorios", icon: BarChart3 },
-      { title: "Auditoria", url: "/auditoria", icon: Shield },
+      { title: "Relatorios", url: "/relatorios", icon: BarChart3, tooltip: "Relatórios gerenciais de produção, estoque e vendas" },
+      { title: "Auditoria", url: "/auditoria", icon: Shield, tooltip: "Trilha de auditoria imutável de todas as operações do sistema" },
     ],
   },
 ];
@@ -159,151 +166,121 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar
-      className={cn(
-        "border-r border-sidebar-border transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
-      )}
-      collapsible="icon"
-    >
-      <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
-        <Link to="/" className="flex items-center gap-3 px-4 py-4">
-          <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shadow-lg">
-            <Factory className="w-6 h-6 text-secondary-foreground" />
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX</span>
-              <span className="text-xs text-sidebar-foreground/60 font-medium">ERP Industrial</span>
+    <TooltipProvider delayDuration={400}>
+      <Sidebar
+        className={cn(
+          "border-r border-sidebar-border transition-all duration-300",
+          collapsed ? "w-16" : "w-64"
+        )}
+        collapsible="icon"
+      >
+        <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
+          <Link to="/" className="flex items-center gap-3 px-4 py-4">
+            <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shadow-lg">
+              <Factory className="w-6 h-6 text-secondary-foreground" />
             </div>
-          )}
-        </Link>
-      </SidebarHeader>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX</span>
+                <span className="text-xs text-sidebar-foreground/60 font-medium">ERP Industrial</span>
+              </div>
+            )}
+          </Link>
+        </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4 bg-sidebar overflow-y-auto">
-        {menuGroups.map((group) => (
-          <Collapsible key={group.label} defaultOpen className="mb-1">
-            <SidebarGroup>
-              <CollapsibleTrigger className="w-full">
-                <SidebarGroupLabel className="flex items-center justify-between px-3 py-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors">
-                  {!collapsed && group.label}
-                  {!collapsed && <ChevronDown className="w-3 h-3" />}
-                </SidebarGroupLabel>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {group.items.map((item) => (
-                      <SidebarMenuItem key={item.url}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive(item.url)}
-                          tooltip={collapsed ? item.title : undefined}
-                        >
-                          <Link
-                            to={item.url}
-                            className={cn(
-                              "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-                              isActive(item.url)
-                                ? "bg-secondary text-secondary-foreground shadow-md"
-                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                            )}
-                          >
-                            <item.icon className="w-5 h-5 shrink-0" />
-                            {!collapsed && (
-                              <span className="flex-1 text-sm font-medium">{item.title}</span>
-                            )}
-                            {!collapsed && item.badge && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/20 text-secondary-foreground">
-                                {item.badge}
-                              </span>
-                            )}
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
-        ))}
-      </SidebarContent>
+        <SidebarContent className="px-2 py-4 bg-sidebar overflow-y-auto">
+          {menuGroups.map((group) => (
+            <Collapsible key={group.label} defaultOpen className="mb-1">
+              <SidebarGroup>
+                <CollapsibleTrigger className="w-full">
+                  <SidebarGroupLabel className="flex items-center justify-between px-3 py-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors">
+                    {!collapsed && group.label}
+                    {!collapsed && <ChevronDown className="w-3 h-3" />}
+                  </SidebarGroupLabel>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {group.items.map((item) => (
+                        <SidebarMenuItem key={item.url}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <SidebarMenuButton
+                                asChild
+                                isActive={isActive(item.url)}
+                              >
+                                <Link
+                                  to={item.url}
+                                  className={cn(
+                                    "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
+                                    isActive(item.url)
+                                      ? "bg-secondary text-secondary-foreground shadow-md"
+                                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                  )}
+                                >
+                                  <item.icon className="w-5 h-5 shrink-0" />
+                                  {!collapsed && (
+                                    <span className="flex-1 text-sm font-medium">{item.title}</span>
+                                  )}
+                                  {!collapsed && item.badge && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary/20 text-secondary-foreground">
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                </Link>
+                              </SidebarMenuButton>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-[220px] text-xs">
+                              <p className="font-semibold">{item.title}</p>
+                              <p className="text-muted-foreground mt-0.5">{item.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          ))}
+        </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-3 bg-sidebar">
-        <Link
-          to="/settings/empresa"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-            isActive("/settings/empresa")
-              ? "bg-secondary text-secondary-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          )}
-        >
-          <Settings className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Configuracoes</span>}
-        </Link>
-        <Link
-          to="/settings/admin-master"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-            isActive("/settings/admin-master")
-              ? "bg-destructive text-destructive-foreground"
-              : "text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
-          )}
-        >
-          <ShieldAlert className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Admin Master</span>}
-        </Link>
-        <Link
-          to="/settings/xml-backup"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-            isActive("/settings/xml-backup")
-              ? "bg-secondary text-secondary-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          )}
-        >
-          <FileArchive className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Backup XMLs</span>}
-        </Link>
-        <Link
-          to="/settings/migrar-dados"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-            isActive("/settings/migrar-dados")
-              ? "bg-secondary text-secondary-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          )}
-        >
-          <Database className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Migrar p/ Nuvem</span>}
-        </Link>
-        <Link
-          to="/settings/importar-dados"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-            isActive("/settings/importar-dados")
-              ? "bg-secondary text-secondary-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          )}
-        >
-          <FileOutput className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Importar CSV</span>}
-        </Link>
-        <Link
-          to="/usuarios"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
-            isActive("/usuarios")
-              ? "bg-secondary text-secondary-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          )}
-        >
-          <Shield className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Usuarios</span>}
-        </Link>
-      </SidebarFooter>
-    </Sidebar>
+        <SidebarFooter className="border-t border-sidebar-border p-3 bg-sidebar">
+          {[
+            { to: "/settings/empresa", icon: Settings, label: "Configuracoes", tooltip: "Configurações gerais da empresa e sistema" },
+            { to: "/settings/admin-master", icon: ShieldAlert, label: "Admin Master", tooltip: "Painel administrativo master — operações críticas do sistema", danger: true },
+            { to: "/settings/xml-backup", icon: FileArchive, label: "Backup XMLs", tooltip: "Backup e restauração de arquivos XML de notas fiscais" },
+            { to: "/settings/migrar-dados", icon: Database, label: "Migrar p/ Nuvem", tooltip: "Migração de dados locais para o ambiente Lovable Cloud" },
+            { to: "/settings/importar-dados", icon: FileOutput, label: "Importar CSV", tooltip: "Importação de dados via planilha CSV para o sistema" },
+            { to: "/usuarios", icon: Shield, label: "Usuarios", tooltip: "Gestão de usuários, permissões e acessos ao sistema" },
+          ].map(({ to, icon: Icon, label, tooltip, danger }) => (
+            <Tooltip key={to}>
+              <TooltipTrigger asChild>
+                <Link
+                  to={to}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
+                    danger
+                      ? isActive(to)
+                        ? "bg-destructive text-destructive-foreground"
+                        : "text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                      : isActive(to)
+                        ? "bg-secondary text-secondary-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  )}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  {!collapsed && <span className="text-sm font-medium">{label}</span>}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[220px] text-xs">
+                <p className="font-semibold">{label}</p>
+                <p className="text-muted-foreground mt-0.5">{tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </SidebarFooter>
+      </Sidebar>
+    </TooltipProvider>
   );
 }
