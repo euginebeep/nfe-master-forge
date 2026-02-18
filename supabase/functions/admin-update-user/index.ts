@@ -65,7 +65,11 @@ Deno.serve(async (req) => {
     }
 
     if (role) {
-      await supabaseAdmin.from('user_roles').update({ role }).eq('user_id', user_id)
+      // Use upsert to handle cases where the role row may not exist
+      await supabaseAdmin.from('user_roles').upsert(
+        { user_id, role },
+        { onConflict: 'user_id' }
+      )
     }
 
     if (permissions && Array.isArray(permissions)) {

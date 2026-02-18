@@ -54,16 +54,18 @@ function isoToDisplay(iso: string | null | undefined): string {
 }
 
 // Converte "20/05/1990" → "1990-05-20" ou undefined se inválido
+// Usa validação sem Date() para evitar bugs de timezone
 function displayToIso(texto: string): string | undefined {
   const cleaned = texto.replace(/\D/g, '');
   if (cleaned.length !== 8) return undefined;
-  const dia = cleaned.slice(0, 2);
-  const mes = cleaned.slice(2, 4);
-  const ano = cleaned.slice(4, 8);
-  const iso = `${ano}-${mes}-${dia}`;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return undefined;
-  return iso;
+  const dia = parseInt(cleaned.slice(0, 2), 10);
+  const mes = parseInt(cleaned.slice(2, 4), 10);
+  const ano = parseInt(cleaned.slice(4, 8), 10);
+  // Validação básica sem usar Date() (evita bugs de timezone)
+  if (mes < 1 || mes > 12) return undefined;
+  if (dia < 1 || dia > 31) return undefined;
+  if (ano < 1900 || ano > new Date().getFullYear()) return undefined;
+  return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
 
 // Aplica máscara dd/mm/aaaa
