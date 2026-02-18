@@ -5276,6 +5276,7 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       unaccent: { Args: { "": string }; Returns: string }
+      update_ultimo_acesso: { Args: { p_user_id: string }; Returns: undefined }
       validar_compatibilidade_rt: {
         Args: {
           p_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]

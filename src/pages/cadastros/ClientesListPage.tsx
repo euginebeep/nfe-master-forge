@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Plus, Eye, Trash2, Filter } from "lucide-react";
+import { Users, Plus, Eye, Trash2, Filter, Download, AlertTriangle } from "lucide-react";
 import { ModuleGuard } from "@/components/auth/ModuleGuard";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocalEntidades, useDeleteEntidade, LocalEntidade } from "@/hooks/use-local-entidades";
 import { formatDocument } from "@/lib/formatters";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EntidadeWizardDialog } from "@/components/entidades/EntidadeWizardDialog";
+import { downloadCSV } from "@/lib/export-utils";
+import { toast } from "sonner";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
@@ -36,10 +39,12 @@ const CLASSIFICACAO_VARIANTS: Record<string, "info" | "muted" | "error"> = {
 
 export default function ClientesListPage() {
   const navigate = useNavigate();
-  const { canCreate, canDelete } = useAuth();
+  const { canCreate, canDelete, role } = useAuth();
+  const isAdmin = role === 'admin';
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showExportWarning, setShowExportWarning] = useState(false);
 
   const { data: entidades, isLoading, refresh } = useLocalEntidades({
     papel: "CLIENTE",
@@ -54,6 +59,27 @@ export default function ClientesListPage() {
       setDeleteId(null);
       refresh();
     }
+  };
+
+  const handleExport = () => {
+    if (!isAdmin) {
+      setShowExportWarning(true);
+      return;
+    }
+    doExport();
+  };
+
+  const doExport = () => {
+    const headers = ["CNPJ/CPF", "Razão Social", "Nome Fantasia", "Status", "Classificação"];
+    const rows = entidades.map(e => [
+      formatDocument(e.documento),
+      e.razao_social,
+      e.nome_fantasia || "",
+      e.status,
+      e.classificacao || "REGULAR",
+    ]);
+    downloadCSV("clientes", headers, rows);
+    toast.success("Exportação concluída. Esta ação foi registrada no log de auditoria.");
   };
 
   const columns = [
@@ -161,73 +187,110 @@ export default function ClientesListPage() {
   return (
     <ModuleGuard modulo="entidades" moduloLabel="Clientes">
       <div>
-      <PageHeader
-        title="Clientes"
-        description="Gestao de clientes e compradores"
-        icon={Users}
-        actions={
-          canCreate('entidades') ? (
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Cliente
-            </Button>
-          ) : undefined
-        }
-      />
+        {/* Aviso de exportação para não-admins */}
+        {showExportWarning && (
+          <Alert variant="destructive" className="mb-4 border-destructive bg-destructive/10">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <AlertTitle className="text-destructive font-bold text-base">
+              ⚠️ Advertência de Segurança — Exportação de Dados Sigilosos
+            </AlertTitle>
+            <AlertDescription className="space-y-2 mt-1">
+              <p className="text-destructive/90">
+                Você está prestes a exportar a <strong>lista completa de clientes</strong>. Esta ação <strong>não é permitida</strong> para usuários sem perfil de Administrador.
+              </p>
+              <p className="text-destructive/80 text-sm font-semibold">
+                🔴 Todo acesso e tentativa de exportação fica gravado permanentemente no log de auditoria do sistema com seu usuário, IP e horário exato.
+              </p>
+              <p className="text-destructive/70 text-sm">
+                Caso precise desta informação, solicite ao Administrador do sistema.
+              </p>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={() => setShowExportWarning(false)}
+                >
+                  Entendido, cancelar
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
-      <DataTable
-        data={entidades}
-        columns={columns}
-        loading={isLoading}
-        searchable
-        searchPlaceholder="Buscar por documento ou razao social..."
-        searchKeys={["documento", "razao_social", "nome_fantasia"]}
-        onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
-        emptyMessage="Nenhum cliente cadastrado"
-        actions={
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="ATIVO">Ativo</SelectItem>
-                <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
-                <SelectItem value="HOMOLOGACAO">Homologacao</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        }
-      />
+        <PageHeader
+          title="Clientes"
+          description="Gestao de clientes e compradores"
+          icon={Users}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </Button>
+              {canCreate('entidades') && (
+                <Button onClick={() => setShowForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Cliente
+                </Button>
+              )}
+            </div>
+          }
+        />
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir este cliente? Esta acao nao pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <DataTable
+          data={entidades}
+          columns={columns}
+          loading={isLoading}
+          searchable
+          searchPlaceholder="Buscar por documento ou razao social..."
+          searchKeys={["documento", "razao_social", "nome_fantasia"]}
+          onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
+          emptyMessage="Nenhum cliente cadastrado"
+          actions={
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="ATIVO">Ativo</SelectItem>
+                  <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
+                  <SelectItem value="HOMOLOGACAO">Homologacao</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
 
-      <EntidadeWizardDialog
-        open={showForm}
-        onOpenChange={setShowForm}
-        initialPapel="CLIENTE"
-        onSuccess={() => {
-          setShowForm(false);
-          refresh();
-        }}
-      />
+        <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir este cliente? Esta acao nao pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <EntidadeWizardDialog
+          open={showForm}
+          onOpenChange={setShowForm}
+          initialPapel="CLIENTE"
+          onSuccess={() => {
+            setShowForm(false);
+            refresh();
+          }}
+        />
       </div>
     </ModuleGuard>
   );

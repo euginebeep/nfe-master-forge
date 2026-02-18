@@ -20,8 +20,7 @@ export default function UsuariosPage() {
   const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<ModulePermission[]>([]);
 
-  // Temporariamente liberado para configuração inicial
-  const isAdmin = true; // hasRole('admin');
+  const isAdmin = hasRole('admin');
 
   const handleNewUser = () => {
     setSelectedUser(null);
