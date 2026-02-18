@@ -8,7 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Shield, Eye, Plus, Edit, Trash2, Upload, Loader2 } from 'lucide-react';
+import { User, Shield, Eye, Plus, Edit, Trash2, Upload, Loader2, AlertCircle, X } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
@@ -29,7 +30,7 @@ interface UserFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user?: UserWithProfile | null;
-  onSave: (data: CreateUserData | UpdateUserData) => Promise<{ success: boolean }>;
+  onSave: (data: CreateUserData | UpdateUserData) => Promise<{ success: boolean; error?: string }>;
   existingPermissions?: ModulePermission[];
 }
 
@@ -102,6 +103,7 @@ export function UserFormDialog({
 
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{ title: string; message: string; tip?: string } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -133,6 +135,7 @@ export function UserFormDialog({
       });
       setPermissions([]);
     }
+    setErrorInfo(null);
   }, [user, existingPermissions, open]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,9 +216,62 @@ export function UserFormDialog({
     };
   };
 
+  const parseErrorMessage = (rawError: string): { title: string; message: string; tip?: string } => {
+    const msg = rawError.toLowerCase();
+
+    if (msg.includes('user already registered') || msg.includes('already been registered') || msg.includes('already exists')) {
+      return {
+        title: 'E-mail já cadastrado',
+        message: `O e-mail "${formData.email}" já está sendo usado por outro usuário no sistema.`,
+        tip: 'Use um endereço de e-mail diferente ou edite o usuário existente.',
+      };
+    }
+    if (msg.includes('invalid email') || msg.includes('e-mail inválido')) {
+      return {
+        title: 'E-mail inválido',
+        message: 'O endereço de e-mail informado não é válido.',
+        tip: 'Verifique se o e-mail está correto (ex: nome@empresa.com).',
+      };
+    }
+    if (msg.includes('password') && (msg.includes('short') || msg.includes('weak') || msg.includes('6'))) {
+      return {
+        title: 'Senha muito curta',
+        message: 'A senha precisa ter no mínimo 6 caracteres.',
+        tip: 'Escolha uma senha mais longa com letras e números.',
+      };
+    }
+    if (msg.includes('not authenticated') || msg.includes('unauthorized') || msg.includes('401')) {
+      return {
+        title: 'Sessão expirada',
+        message: 'Sua sessão de administrador expirou.',
+        tip: 'Faça logout e entre novamente para continuar.',
+      };
+    }
+    if (msg.includes('permission') || msg.includes('forbidden') || msg.includes('403')) {
+      return {
+        title: 'Sem permissão',
+        message: 'Você não tem permissão para realizar esta ação.',
+        tip: 'Apenas administradores podem criar ou editar usuários.',
+      };
+    }
+    if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed to fetch')) {
+      return {
+        title: 'Erro de conexão',
+        message: 'Não foi possível se conectar ao servidor.',
+        tip: 'Verifique sua conexão com a internet e tente novamente.',
+      };
+    }
+    return {
+      title: 'Erro ao salvar usuário',
+      message: rawError || 'Ocorreu um erro inesperado.',
+      tip: 'Tente novamente. Se o problema persistir, contate o suporte.',
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorInfo(null);
 
     try {
       const extraFields = {
@@ -237,7 +293,11 @@ export function UserFormDialog({
           ...extraFields,
         };
         const result = await onSave(updateData);
-        if (result.success) onOpenChange(false);
+        if (result.success) {
+          onOpenChange(false);
+        } else {
+          setErrorInfo(parseErrorMessage(result.error || 'Erro ao atualizar usuário'));
+        }
       } else {
         const createData: CreateUserData = {
           email: formData.email,
@@ -251,7 +311,11 @@ export function UserFormDialog({
           ...extraFields,
         };
         const result = await onSave(createData);
-        if (result.success) onOpenChange(false);
+        if (result.success) {
+          onOpenChange(false);
+        } else {
+          setErrorInfo(parseErrorMessage(result.error || 'Erro ao criar usuário'));
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -541,12 +605,43 @@ export function UserFormDialog({
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          {errorInfo && (
+            <div className="mt-4">
+              <Alert variant="destructive" className="relative">
+                <AlertCircle className="h-5 w-5" />
+                <button
+                  type="button"
+                  onClick={() => setErrorInfo(null)}
+                  className="absolute top-3 right-3 text-destructive/70 hover:text-destructive transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <AlertTitle className="font-semibold text-base pr-6">
+                  {errorInfo.title}
+                </AlertTitle>
+                <AlertDescription className="mt-1 space-y-1">
+                  <p>{errorInfo.message}</p>
+                  {errorInfo.tip && (
+                    <p className="text-sm font-medium opacity-80">
+                      💡 {errorInfo.tip}
+                    </p>
+                  )}
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Salvando...' : (isEditing ? 'Salvar' : 'Criar Usuário')}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (isEditing ? 'Salvar Alterações' : 'Criar Usuário')}
             </Button>
           </div>
         </form>
