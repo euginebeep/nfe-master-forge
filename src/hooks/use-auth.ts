@@ -85,17 +85,30 @@ export function useAuth() {
     }
   }, []);
 
-  // Initialize auth state
+  // Atualiza ultimo_acesso no banco ao fazer login
+  const updateLastAccess = async (userId: string) => {
+    try {
+      await supabase.rpc('update_ultimo_acesso', { p_user_id: userId });
+    } catch (e) {
+      // silencioso — não deve interromper o fluxo de auth
+    }
+  };
+
+  // Initialize auth state — separamos carga inicial (controla isLoading) de mudanças contínuas
   useEffect(() => {
     let mounted = true;
 
+    // Listener para mudanças CONTÍNUAS de auth (NÃO controla isLoading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mounted) return;
 
         if (session?.user) {
           setTimeout(async () => {
             if (!mounted) return;
+            if (event === 'SIGNED_IN') {
+              await updateLastAccess(session.user.id);
+            }
             const { profile, role, permissions } = await fetchUserData(session.user.id);
             setState({
               user: session.user,
@@ -121,24 +134,33 @@ export function useAuth() {
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return;
+    // CARGA INICIAL — aguarda busca de dados antes de liberar isLoading
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
 
-      if (session?.user) {
-        const { profile, role, permissions } = await fetchUserData(session.user.id);
-        setState({
-          user: session.user,
-          session,
-          profile,
-          role,
-          permissions,
-          isLoading: false,
-          isAuthenticated: true,
-        });
-      } else {
-        setState(prev => ({ ...prev, isLoading: false }));
+        if (session?.user) {
+          const { profile, role, permissions } = await fetchUserData(session.user.id);
+          if (!mounted) return;
+          setState({
+            user: session.user,
+            session,
+            profile,
+            role,
+            permissions,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+        } else {
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      } catch {
+        if (mounted) setState(prev => ({ ...prev, isLoading: false }));
       }
-    });
+    };
+
+    initializeAuth();
 
     return () => {
       mounted = false;
@@ -226,7 +248,10 @@ export function useAuth() {
    */
   const canView = (modulo: string): boolean => {
     if (state.role === 'admin') return true;
+    // Enquanto carrega, não bloqueia
+    if (state.isLoading) return true;
     const perm = state.permissions.find(p => p.modulo === modulo);
+    // Se não há permissão registrada para o módulo, nega acesso
     return perm?.pode_visualizar ?? false;
   };
 
