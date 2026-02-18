@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck, Plus, Eye, Trash2, Filter } from "lucide-react";
+import { ModuleGuard } from "@/components/auth/ModuleGuard";
+import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -34,6 +36,7 @@ const CLASSIFICACAO_VARIANTS: Record<string, "info" | "muted" | "error"> = {
 
 export default function FornecedoresListPage() {
   const navigate = useNavigate();
+  const { canCreate, canDelete } = useAuth();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -138,32 +141,37 @@ export default function FornecedoresListPage() {
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteId(item.id);
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {canDelete('entidades') && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteId(item.id);
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
         </div>
       ),
     },
   ];
 
   return (
-    <div>
+    <ModuleGuard modulo="entidades" moduloLabel="Fornecedores">
+      <div>
       <PageHeader
         title="Fornecedores"
         description="Gestao de fornecedores e parceiros de compra"
         icon={Truck}
         actions={
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Fornecedor
-          </Button>
+          canCreate('entidades') ? (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Fornecedor
+            </Button>
+          ) : undefined
         }
       />
 
@@ -220,6 +228,7 @@ export default function FornecedoresListPage() {
           refresh();
         }}
       />
-    </div>
+      </div>
+    </ModuleGuard>
   );
 }
