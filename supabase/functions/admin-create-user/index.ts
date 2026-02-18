@@ -88,9 +88,11 @@ Deno.serve(async (req) => {
       ...(data_nascimento && { data_nascimento }),
     }).eq('id', newUser.user.id)
 
-    if (role && role !== 'visualizador') {
-      await supabaseAdmin.from('user_roles').update({ role }).eq('user_id', newUser.user.id)
-    }
+    // Always upsert role (trigger creates 'visualizador' by default, but may race)
+    await supabaseAdmin.from('user_roles').upsert(
+      { user_id: newUser.user.id, role: role || 'visualizador' },
+      { onConflict: 'user_id' }
+    )
 
     if (permissions && Array.isArray(permissions)) {
       for (const perm of permissions) {
