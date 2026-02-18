@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Shield, Settings, Eye, Plus, Edit, Trash2 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { User, Shield, Eye, Plus, Edit, Trash2, Upload, CalendarIcon, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { 
   type UserWithProfile, 
   type ModulePermission, 
@@ -21,6 +28,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 type AppDepartamento = Database['public']['Enums']['app_departamento'];
+type Sexo = 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO';
 
 interface UserFormDialogProps {
   open: boolean;
@@ -50,6 +58,8 @@ export function UserFormDialog({
   existingPermissions = []
 }: UserFormDialogProps) {
   const isEditing = !!user;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   const [formData, setFormData] = useState({
     email: '',
@@ -60,6 +70,8 @@ export function UserFormDialog({
     role: 'visualizador' as AppRole,
     avatar_url: '',
     status: 'ATIVO',
+    sexo: 'NAO_INFORMADO' as Sexo,
+    data_nascimento: null as Date | null,
   });
 
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
@@ -76,6 +88,10 @@ export function UserFormDialog({
         role: user.role,
         avatar_url: user.avatar_url || '',
         status: user.status,
+        sexo: ((user as any).sexo as Sexo) || 'NAO_INFORMADO',
+        data_nascimento: (user as any).data_nascimento 
+          ? new Date((user as any).data_nascimento) 
+          : null,
       });
       setPermissions(existingPermissions);
     } else {
@@ -88,17 +104,51 @@ export function UserFormDialog({
         role: 'visualizador',
         avatar_url: '',
         status: 'ATIVO',
+        sexo: 'NAO_INFORMADO',
+        data_nascimento: null,
       });
       setPermissions([]);
     }
   }, [user, existingPermissions, open]);
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Foto deve ter no máximo 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `avatar-${Date.now()}.${ext}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+      toast.success('Foto enviada com sucesso!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao enviar foto');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleRoleChange = (role: AppRole) => {
     setFormData(prev => ({ ...prev, role }));
-    
-    // Apply default permissions for the role
     if (role === 'admin') {
-      // Admin has full access, no need for specific permissions
       setPermissions([]);
     } else {
       const roleConfig = FACTORY_ROLES[role];
@@ -117,9 +167,7 @@ export function UserFormDialog({
     setPermissions(prev => {
       const existing = prev.find(p => p.modulo === modulo);
       if (existing) {
-        return prev.map(p => 
-          p.modulo === modulo ? { ...p, [field]: value } : p
-        );
+        return prev.map(p => p.modulo === modulo ? { ...p, [field]: value } : p);
       } else {
         return [...prev, {
           modulo,
@@ -147,6 +195,13 @@ export function UserFormDialog({
     setIsSubmitting(true);
 
     try {
+      const extraFields = {
+        sexo: formData.sexo,
+        data_nascimento: formData.data_nascimento 
+          ? format(formData.data_nascimento, 'yyyy-MM-dd') 
+          : undefined,
+      };
+
       if (isEditing) {
         const updateData: UpdateUserData = {
           user_id: user.id,
@@ -158,11 +213,10 @@ export function UserFormDialog({
           status: formData.status,
           permissions: formData.role !== 'admin' ? permissions : undefined,
           new_password: formData.password || undefined,
+          ...extraFields,
         };
         const result = await onSave(updateData);
-        if (result.success) {
-          onOpenChange(false);
-        }
+        if (result.success) onOpenChange(false);
       } else {
         const createData: CreateUserData = {
           email: formData.email,
@@ -173,11 +227,10 @@ export function UserFormDialog({
           role: formData.role,
           avatar_url: formData.avatar_url || undefined,
           permissions: formData.role !== 'admin' ? permissions : undefined,
+          ...extraFields,
         };
         const result = await onSave(createData);
-        if (result.success) {
-          onOpenChange(false);
-        }
+        if (result.success) onOpenChange(false);
       }
     } finally {
       setIsSubmitting(false);
@@ -212,24 +265,56 @@ export function UserFormDialog({
             </TabsList>
 
             <TabsContent value="dados" className="space-y-4 mt-4">
+              {/* Foto do colaborador */}
               <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20">
-                  {formData.avatar_url ? (
-                    <AvatarImage src={formData.avatar_url} />
-                  ) : (
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                      {formData.nome_completo ? getInitials(formData.nome_completo) : 'U'}
-                    </AvatarFallback>
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border-2 border-border">
+                    {formData.avatar_url ? (
+                      <AvatarImage src={formData.avatar_url} />
+                    ) : (
+                      <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                        {formData.nome_completo ? getInitials(formData.nome_completo) : 'U'}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  {uploadingPhoto && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
+                      <Loader2 className="h-6 w-6 text-white animate-spin" />
+                    </div>
                   )}
-                </Avatar>
-                <div className="flex-1">
-                  <Label htmlFor="avatar_url">URL da Foto</Label>
-                  <Input
-                    id="avatar_url"
-                    value={formData.avatar_url}
-                    onChange={e => setFormData(prev => ({ ...prev, avatar_url: e.target.value }))}
-                    placeholder="https://..."
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>Foto do Colaborador</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadingPhoto ? 'Enviando...' : 'Enviar Foto'}
+                    </Button>
+                    {formData.avatar_url && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFormData(prev => ({ ...prev, avatar_url: '' }))}
+                      >
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
                   />
+                  <p className="text-xs text-muted-foreground">JPG, PNG ou WEBP. Máx 5MB.</p>
                 </div>
               </div>
 
@@ -280,11 +365,64 @@ export function UserFormDialog({
                   />
                 </div>
 
+                {/* Sexo */}
+                <div className="space-y-2">
+                  <Label>Sexo</Label>
+                  <Select
+                    value={formData.sexo}
+                    onValueChange={(value: Sexo) => setFormData(prev => ({ ...prev, sexo: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NAO_INFORMADO">Não informado</SelectItem>
+                      <SelectItem value="MASCULINO">Masculino</SelectItem>
+                      <SelectItem value="FEMININO">Feminino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Data de Nascimento */}
+                <div className="space-y-2">
+                  <Label>Data de Nascimento</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.data_nascimento && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.data_nascimento
+                          ? format(formData.data_nascimento, 'dd/MM/yyyy', { locale: ptBR })
+                          : 'Selecione a data'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.data_nascimento || undefined}
+                        onSelect={(date) => setFormData(prev => ({ ...prev, data_nascimento: date || null }))}
+                        disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                        captionLayout="dropdown-buttons"
+                        fromYear={1940}
+                        toYear={new Date().getFullYear()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Departamento</Label>
                   <Select
                     value={formData.departamento}
-                    onValueChange={(value: AppDepartamento) => 
+                    onValueChange={(value: AppDepartamento) =>
                       setFormData(prev => ({ ...prev, departamento: value }))
                     }
                   >
@@ -368,22 +506,10 @@ export function UserFormDialog({
                     <div className="space-y-3">
                       <div className="grid grid-cols-5 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
                         <div>Módulo</div>
-                        <div className="text-center">
-                          <Eye className="h-4 w-4 mx-auto" />
-                          Ver
-                        </div>
-                        <div className="text-center">
-                          <Plus className="h-4 w-4 mx-auto" />
-                          Criar
-                        </div>
-                        <div className="text-center">
-                          <Edit className="h-4 w-4 mx-auto" />
-                          Editar
-                        </div>
-                        <div className="text-center">
-                          <Trash2 className="h-4 w-4 mx-auto" />
-                          Excluir
-                        </div>
+                        <div className="text-center"><Eye className="h-4 w-4 mx-auto" />Ver</div>
+                        <div className="text-center"><Plus className="h-4 w-4 mx-auto" />Criar</div>
+                        <div className="text-center"><Edit className="h-4 w-4 mx-auto" />Editar</div>
+                        <div className="text-center"><Trash2 className="h-4 w-4 mx-auto" />Excluir</div>
                       </div>
 
                       {SYSTEM_MODULES.map(mod => {
@@ -394,38 +520,16 @@ export function UserFormDialog({
                               <p className="font-medium text-sm">{mod.label}</p>
                               <p className="text-xs text-muted-foreground">{mod.description}</p>
                             </div>
-                            <div className="flex justify-center">
-                              <Checkbox
-                                checked={perm.pode_visualizar}
-                                onCheckedChange={(checked) => 
-                                  updatePermission(mod.id, 'pode_visualizar', checked as boolean)
-                                }
-                              />
-                            </div>
-                            <div className="flex justify-center">
-                              <Checkbox
-                                checked={perm.pode_criar}
-                                onCheckedChange={(checked) => 
-                                  updatePermission(mod.id, 'pode_criar', checked as boolean)
-                                }
-                              />
-                            </div>
-                            <div className="flex justify-center">
-                              <Checkbox
-                                checked={perm.pode_editar}
-                                onCheckedChange={(checked) => 
-                                  updatePermission(mod.id, 'pode_editar', checked as boolean)
-                                }
-                              />
-                            </div>
-                            <div className="flex justify-center">
-                              <Checkbox
-                                checked={perm.pode_excluir}
-                                onCheckedChange={(checked) => 
-                                  updatePermission(mod.id, 'pode_excluir', checked as boolean)
-                                }
-                              />
-                            </div>
+                            {(['pode_visualizar', 'pode_criar', 'pode_editar', 'pode_excluir'] as const).map(field => (
+                              <div key={field} className="flex justify-center">
+                                <Checkbox
+                                  checked={perm[field]}
+                                  onCheckedChange={(checked) =>
+                                    updatePermission(mod.id, field, checked as boolean)
+                                  }
+                                />
+                              </div>
+                            ))}
                           </div>
                         );
                       })}

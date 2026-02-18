@@ -13,6 +13,7 @@ import { ExpiringLotsCard } from "@/components/dashboard/ExpiringLotsCard";
 import { ConsultaANVISACard } from "@/components/dashboard/ConsultaANVISACard";
 import { NewsFeedCard } from "@/components/dashboard/NewsFeedCard";
 import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
+import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import { useAuth } from "@/hooks/use-auth";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
@@ -125,6 +126,7 @@ const Index = () => {
           role={role}
           cargo={profile?.cargo || null}
           avatarUrl={profile?.avatar_url || null}
+          sexo={profile?.sexo || null}
           isLoading={isLoading}
         />
       )}
@@ -144,6 +146,9 @@ const Index = () => {
         <MarketIndicesCard />
         <ConsultaANVISACard />
       </div>
+
+      {/* Aniversariantes */}
+      {isAuthenticated && <BirthdayCard />}
 
       {/* News Feed */}
       <NewsFeedCard />

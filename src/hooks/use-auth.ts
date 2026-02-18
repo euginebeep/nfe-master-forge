@@ -14,6 +14,8 @@ export interface UserProfile {
   departamento: AppDepartamento | null;
   avatar_url: string | null;
   telefone: string | null;
+  sexo: 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO' | null;
+  data_nascimento: string | null;
 }
 
 export interface AuthState {
