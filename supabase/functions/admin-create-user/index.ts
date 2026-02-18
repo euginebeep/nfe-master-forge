@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json()
-    const { email, password, nome_completo, cargo, departamento, role, avatar_url, permissions } = body
+    const { email, password, nome_completo, cargo, departamento, role, avatar_url, permissions, sexo, data_nascimento } = body
 
     if (!email || !password || !nome_completo) {
       return new Response(
@@ -83,7 +83,9 @@ Deno.serve(async (req) => {
     }
 
     await supabaseAdmin.from('profiles').update({
-      nome_completo, cargo, departamento, avatar_url, status: 'ATIVO'
+      nome_completo, cargo, departamento, avatar_url, status: 'ATIVO',
+      ...(sexo && { sexo }),
+      ...(data_nascimento && { data_nascimento }),
     }).eq('id', newUser.user.id)
 
     if (role && role !== 'visualizador') {

@@ -8,12 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { User, Shield, Eye, Plus, Edit, Trash2, Upload, CalendarIcon, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { User, Shield, Eye, Plus, Edit, Trash2, Upload, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
@@ -50,6 +45,35 @@ const DEPARTAMENTOS: { value: AppDepartamento; label: string }[] = [
   { value: 'TI', label: 'TI' },
 ];
 
+// Converte "1990-05-20" → "20/05/1990"
+function isoToDisplay(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const parts = iso.split('-');
+  if (parts.length !== 3) return '';
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+// Converte "20/05/1990" → "1990-05-20" ou undefined se inválido
+function displayToIso(texto: string): string | undefined {
+  const cleaned = texto.replace(/\D/g, '');
+  if (cleaned.length !== 8) return undefined;
+  const dia = cleaned.slice(0, 2);
+  const mes = cleaned.slice(2, 4);
+  const ano = cleaned.slice(4, 8);
+  const iso = `${ano}-${mes}-${dia}`;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return undefined;
+  return iso;
+}
+
+// Aplica máscara dd/mm/aaaa
+function maskDate(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 export function UserFormDialog({ 
   open, 
   onOpenChange, 
@@ -71,7 +95,7 @@ export function UserFormDialog({
     avatar_url: '',
     status: 'ATIVO',
     sexo: 'NAO_INFORMADO' as Sexo,
-    data_nascimento: null as Date | null,
+    data_nascimento_texto: '',
   });
 
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
@@ -89,9 +113,7 @@ export function UserFormDialog({
         avatar_url: user.avatar_url || '',
         status: user.status,
         sexo: ((user as any).sexo as Sexo) || 'NAO_INFORMADO',
-        data_nascimento: (user as any).data_nascimento 
-          ? new Date((user as any).data_nascimento) 
-          : null,
+        data_nascimento_texto: isoToDisplay((user as any).data_nascimento),
       });
       setPermissions(existingPermissions);
     } else {
@@ -105,7 +127,7 @@ export function UserFormDialog({
         avatar_url: '',
         status: 'ATIVO',
         sexo: 'NAO_INFORMADO',
-        data_nascimento: null,
+        data_nascimento_texto: '',
       });
       setPermissions([]);
     }
@@ -124,17 +146,16 @@ export function UserFormDialog({
     try {
       const ext = file.name.split('.').pop();
       const fileName = `avatar-${Date.now()}.${ext}`;
-      const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true });
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
       toast.success('Foto enviada com sucesso!');
@@ -197,9 +218,7 @@ export function UserFormDialog({
     try {
       const extraFields = {
         sexo: formData.sexo,
-        data_nascimento: formData.data_nascimento 
-          ? format(formData.data_nascimento, 'yyyy-MM-dd') 
-          : undefined,
+        data_nascimento: displayToIso(formData.data_nascimento_texto),
       };
 
       if (isEditing) {
@@ -383,39 +402,19 @@ export function UserFormDialog({
                   </Select>
                 </div>
 
-                {/* Data de Nascimento */}
+                {/* Data de Nascimento - Input simples com máscara */}
                 <div className="space-y-2">
-                  <Label>Data de Nascimento</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.data_nascimento && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.data_nascimento
-                          ? format(formData.data_nascimento, 'dd/MM/yyyy', { locale: ptBR })
-                          : 'Selecione a data'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.data_nascimento || undefined}
-                        onSelect={(date) => setFormData(prev => ({ ...prev, data_nascimento: date || null }))}
-                        disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                        captionLayout="dropdown-buttons"
-                        fromYear={1940}
-                        toYear={new Date().getFullYear()}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="data_nascimento">Data de Nascimento</Label>
+                  <Input
+                    id="data_nascimento"
+                    value={formData.data_nascimento_texto}
+                    onChange={e => setFormData(prev => ({
+                      ...prev,
+                      data_nascimento_texto: maskDate(e.target.value)
+                    }))}
+                    placeholder="dd/mm/aaaa"
+                    maxLength={10}
+                  />
                 </div>
 
                 <div className="space-y-2">
