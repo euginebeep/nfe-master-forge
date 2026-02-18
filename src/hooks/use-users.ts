@@ -177,14 +177,11 @@ export function useUsers() {
         body: data,
       });
 
-      if (response.error) {
-        toast.error(response.error.message || 'Erro ao criar usuário');
-        return { success: false, error: response.error.message };
-      }
-
-      if (response.data?.error) {
-        toast.error(response.data.error);
-        return { success: false, error: response.data.error };
+      // Prefer the specific error from the response body over the generic HTTP error
+      const errorMsg = response.data?.error || response.error?.message || 'Erro ao criar usuário';
+      if (response.error || response.data?.error) {
+        toast.error(errorMsg);
+        return { success: false, error: errorMsg };
       }
 
       toast.success('Usuário criado com sucesso!');
@@ -209,14 +206,11 @@ export function useUsers() {
         body: data,
       });
 
-      if (response.error) {
-        toast.error(response.error.message || 'Erro ao atualizar usuário');
-        return { success: false, error: response.error.message };
-      }
-
-      if (response.data?.error) {
-        toast.error(response.data.error);
-        return { success: false, error: response.data.error };
+      // Prefer the specific error from the response body over the generic HTTP error
+      const errorMsg = response.data?.error || response.error?.message || 'Erro ao atualizar usuário';
+      if (response.error || response.data?.error) {
+        toast.error(errorMsg);
+        return { success: false, error: errorMsg };
       }
 
       toast.success('Usuário atualizado com sucesso!');
