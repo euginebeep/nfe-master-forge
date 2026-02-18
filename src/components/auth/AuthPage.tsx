@@ -3,161 +3,134 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
-/* ─── Design tokens ─── */
-const T = {
-  bg:      '#0B0F14',
-  bg2:     '#11161D',
-  surface: '#151C24',
-  border:  '#1F2933',
-  text:    '#E6EDF3',
-  muted:   '#9BA3AF',
-  neon:    '#00E58E',
-  blue:    '#2F6BFF',
-  error:   '#FF3B3B',
+/* ─── Tokens ─── */
+const C = {
+  bg:       '#080C10',
+  panel:    '#0C1118',
+  surface:  '#111820',
+  card:     '#141D27',
+  border:   '#1A2434',
+  border2:  '#243044',
+  text:     '#EDF2F7',
+  sub:      '#94A3B8',
+  dim:      '#4A6070',
+  neon:     '#00E58E',
+  blue:     '#3B82F6',
+  indigo:   '#6366F1',
+  error:    '#F43F5E',
 } as const;
 
 /* ══════════════════════════════════════
-   CUSTOM INDUSTRIAL SVG ICONS
-   Únicos por projeto — sem Lucide genérico
+   CUSTOM SVG ICONS
 ══════════════════════════════════════ */
-
-/** Módulo de produção: reator batelada com agitador */
-const IconProducao = ({ size = 15, color = T.neon }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="6" y="3.5" width="12" height="2.5" rx="1"/>
-    <path d="M7.5 6v8.5c0 2.2 2 3.5 4.5 3.5s4.5-1.3 4.5-3.5V6"/>
-    <line x1="10" y1="10" x2="14" y2="10" strokeOpacity="0.45"/>
-    <line x1="10" y1="12.5" x2="14" y2="12.5" strokeOpacity="0.45"/>
-    {/* agitador central */}
-    <line x1="12" y1="6" x2="12" y2="14.5" strokeWidth="1.1" strokeOpacity="0.7"/>
-    <line x1="10" y1="8.5" x2="14" y2="8.5" strokeWidth="1.1" strokeOpacity="0.7"/>
-    {/* válvulas laterais */}
-    <line x1="3" y1="4.75" x2="6" y2="4.75"/>
-    <circle cx="2.5" cy="4.75" r="0.9" fill={color} fillOpacity="0.2" stroke={color}/>
-    <line x1="18" y1="4.75" x2="21" y2="4.75"/>
-    <circle cx="21.5" cy="4.75" r="0.9" fill={color} fillOpacity="0.2" stroke={color}/>
-    {/* saída */}
-    <line x1="12" y1="18" x2="12" y2="21"/>
-    <path d="M10 20.5 h4" strokeOpacity="0.5"/>
+const IconBrainX = ({ size = 22, color = '#fff' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 5.5C9.2 5.5 6.5 7.5 6.5 10.5c0 1.8.9 3.3 2.2 4.2-.2.7-.3 1.3-.3 1.8 0 1.3.7 1.8 1.6 1.8.4 0 .9-.2 1.3-.5"/>
+    <path d="M12 5.5c2.8 0 5.5 2 5.5 5 0 1.8-.9 3.3-2.2 4.2.2.7.3 1.3.3 1.8 0 1.3-.7 1.8-1.6 1.8-.4 0-.9-.2-1.3-.5"/>
+    <line x1="12" y1="5.5" x2="12" y2="18.8"/>
+    <circle cx="9" cy="9.5" r=".9" fill={color} stroke="none"/>
+    <circle cx="15" cy="9.5" r=".9" fill={color} stroke="none"/>
+    <circle cx="12" cy="13" r=".9" fill={color} fillOpacity=".9" stroke="none"/>
+    <line x1="6.5" y1="10" x2="4.5" y2="8.5" strokeOpacity=".4" strokeWidth="1"/>
+    <line x1="6.8" y1="12.5" x2="5" y2="13.5" strokeOpacity=".4" strokeWidth="1"/>
+    <line x1="17.5" y1="10" x2="19.5" y2="8.5" strokeOpacity=".4" strokeWidth="1"/>
+    <line x1="17.2" y1="12.5" x2="19" y2="13.5" strokeOpacity=".4" strokeWidth="1"/>
   </svg>
 );
 
-/** Estoque: matriz de lotes com rastreio FEFO */
-const IconEstoque = ({ size = 15, color = T.neon }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.35" strokeLinecap="round">
-    {/* três camadas de prateleira */}
-    <rect x="2" y="4" width="9" height="4.5" rx="1" fill={color} fillOpacity="0.07"/>
-    <rect x="13" y="4" width="9" height="4.5" rx="1" fill={color} fillOpacity="0.07"/>
-    <rect x="2" y="10.5" width="9" height="4.5" rx="1" fill={color} fillOpacity="0.07"/>
-    <rect x="13" y="10.5" width="9" height="4.5" rx="1" fill={color} fillOpacity="0.07"/>
-    {/* indicador de validade (FEFO) */}
-    <rect x="2" y="17" width="20" height="2.5" rx="1" fill={color} fillOpacity="0.12"/>
-    <line x1="8" y1="17" x2="8" y2="19.5" strokeOpacity="0.3"/>
-    <line x1="16" y1="17" x2="16" y2="19.5" strokeOpacity="0.3"/>
-    {/* tick de rastreio */}
-    <circle cx="5.5" cy="6.25" r="0.8" fill={color} fillOpacity="0.5"/>
-    <circle cx="16.5" cy="12.75" r="0.8" fill={color} fillOpacity="0.5"/>
+const IconProducao = ({ size = 18, color = C.neon }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.3" strokeLinecap="round">
+    <rect x="7" y="3" width="10" height="2.5" rx=".8"/>
+    <path d="M8 5.5v9c0 2 1.8 3.2 4 3.2s4-1.2 4-3.2v-9"/>
+    <line x1="10.5" y1="9.5" x2="13.5" y2="9.5" strokeOpacity=".4"/>
+    <line x1="10.5" y1="12" x2="13.5" y2="12" strokeOpacity=".4"/>
+    <line x1="12" y1="5.5" x2="12" y2="14.5" strokeOpacity=".6"/>
+    <line x1="10" y1="8" x2="14" y2="8" strokeOpacity=".6"/>
+    <line x1="3" y1="4.75" x2="7" y2="4.75"/>
+    <circle cx="2.5" cy="4.75" r="1" fill={color} fillOpacity=".2"/>
+    <line x1="17" y1="4.75" x2="21" y2="4.75"/>
+    <circle cx="21.5" cy="4.75" r="1" fill={color} fillOpacity=".2"/>
+    <line x1="12" y1="17.7" x2="12" y2="21"/>
+    <line x1="10" y1="20.5" x2="14" y2="20.5" strokeOpacity=".4"/>
   </svg>
 );
 
-/** KPI executivo: dial de performance */
-const IconKPI = ({ size = 15, color = T.neon }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.35" strokeLinecap="round">
-    {/* arco de dial */}
-    <path d="M4.5 17A9 9 0 0 1 12 3a9 9 0 0 1 7.5 14" strokeOpacity="0.3"/>
-    <path d="M4.5 17A9 9 0 0 1 12 3a9 9 0 0 1 5.5 11.5" strokeWidth="1.6"/>
-    {/* ponteiro */}
-    <line x1="12" y1="12" x2="17" y2="8" strokeWidth="1.8"/>
-    <circle cx="12" cy="12" r="1.6" fill={color} fillOpacity="0.2" strokeWidth="1.2"/>
-    {/* marcações */}
-    <line x1="4.5" y1="17" x2="5.5" y2="15.5" strokeOpacity="0.4"/>
-    <line x1="12" y1="3" x2="12" y2="4.5" strokeOpacity="0.4"/>
-    <line x1="19.5" y1="17" x2="18.5" y2="15.5" strokeOpacity="0.4"/>
-    {/* barras abaixo */}
-    <line x1="7" y1="20" x2="7" y2="22" strokeWidth="2"/>
-    <line x1="10" y1="19" x2="10" y2="22" strokeWidth="2"/>
-    <line x1="13" y1="19.5" x2="13" y2="22" strokeWidth="2"/>
-    <line x1="16" y1="20.5" x2="16" y2="22" strokeWidth="2" strokeOpacity="0.35"/>
+const IconEstoque = ({ size = 18, color = C.neon }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.3" strokeLinecap="round">
+    <rect x="2" y="3.5" width="9.5" height="5" rx="1" fill={color} fillOpacity=".06"/>
+    <rect x="12.5" y="3.5" width="9.5" height="5" rx="1" fill={color} fillOpacity=".06"/>
+    <rect x="2" y="10.5" width="9.5" height="5" rx="1" fill={color} fillOpacity=".06"/>
+    <rect x="12.5" y="10.5" width="9.5" height="5" rx="1" fill={color} fillOpacity=".06"/>
+    <rect x="2" y="17.5" width="20" height="3" rx="1" fill={color} fillOpacity=".1"/>
+    <line x1="8.5" y1="17.5" x2="8.5" y2="20.5" strokeOpacity=".3"/>
+    <line x1="15.5" y1="17.5" x2="15.5" y2="20.5" strokeOpacity=".3"/>
+    <circle cx="5.5" cy="6" r=".9" fill={color} fillOpacity=".6" stroke="none"/>
+    <circle cx="16" cy="13" r=".9" fill={color} fillOpacity=".6" stroke="none"/>
   </svg>
 );
 
-/** Conformidade ANVISA: escudo com sinal de verificação técnico */
-const IconAnvisa = ({ size = 15, color = T.neon }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2.5L4.5 6v5.8c0 4.8 3.3 8.8 7.5 9.7 4.2-.9 7.5-4.9 7.5-9.7V6L12 2.5z" fill={color} fillOpacity="0.07"/>
-    {/* check segmentado — estilo técnico */}
-    <polyline points="8,12 10.5,14.5 16,9" strokeWidth="1.7"/>
-    {/* linhas de scan regulatório */}
-    <line x1="8" y1="7.5" x2="16" y2="7.5" strokeOpacity="0.25" strokeDasharray="1.5 1.5"/>
-    <line x1="8" y1="16.5" x2="14" y2="16.5" strokeOpacity="0.2" strokeDasharray="1.5 1.5"/>
+const IconKPI = ({ size = 18, color = C.neon }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.3" strokeLinecap="round">
+    <path d="M4 17.5A9 9 0 0 1 12 2.5a9 9 0 0 1 8 14" strokeOpacity=".25"/>
+    <path d="M4 17.5A9 9 0 0 1 12 2.5a9 9 0 0 1 6 11.8" strokeWidth="1.6"/>
+    <line x1="12" y1="12" x2="17.5" y2="7.5" strokeWidth="1.8"/>
+    <circle cx="12" cy="12" r="1.8" fill={color} fillOpacity=".15" strokeWidth="1.2"/>
+    <circle cx="12" cy="12" r=".7" fill={color} stroke="none"/>
+    <line x1="4" y1="17.5" x2="5.2" y2="15.8" strokeOpacity=".4"/>
+    <line x1="12" y1="2.5" x2="12" y2="4.2" strokeOpacity=".4"/>
+    <line x1="20" y1="17.5" x2="18.8" y2="15.8" strokeOpacity=".4"/>
+    <line x1="7" y1="20" x2="7" y2="22.5" strokeWidth="2.2"/>
+    <line x1="10" y1="19" x2="10" y2="22.5" strokeWidth="2.2"/>
+    <line x1="13" y1="19.5" x2="13" y2="22.5" strokeWidth="2.2"/>
+    <line x1="16" y1="20.5" x2="16" y2="22.5" strokeWidth="2.2" strokeOpacity=".3"/>
   </svg>
 );
 
-/** Atividade / sistema online */
-const IconActivity = ({ size = 12, color = T.neon }: { size?: number; color?: string }) => (
+const IconAnvisa = ({ size = 18, color = C.neon }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6L12 2z" fill={color} fillOpacity=".06"/>
+    <polyline points="8,12.5 11,15.5 16.5,9" strokeWidth="1.9"/>
+    <line x1="8" y1="7.5" x2="16" y2="7.5" strokeOpacity=".2" strokeDasharray="1.5 1.5"/>
+  </svg>
+);
+
+const IconActivity = ({ size = 13, color = C.neon }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="2,12 6,12 8,5 10,19 13,9 15,15 17,12 22,12"/>
+    <polyline points="2,12 6,12 8,4 10,20 13,8 15,16 17,12 22,12"/>
   </svg>
 );
 
-/** Sessão criptografada */
-const IconShieldCheck = ({ size = 11, color = T.muted }: { size?: number; color?: string }) => (
+const IconShieldLock = ({ size = 12, color = C.dim }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2.5L4.5 6v5.8c0 4.8 3.3 8.8 7.5 9.7 4.2-.9 7.5-4.9 7.5-9.7V6L12 2.5z"/>
-    <polyline points="9,12 11,14 15,10"/>
+    <path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6L12 2z"/>
+    <rect x="9" y="11" width="6" height="5" rx="1"/>
+    <path d="M10 11V9a2 2 0 0 1 4 0v2"/>
   </svg>
 );
 
-/** Rede / acesso global */
-const IconGlobe = ({ size = 11, color = T.muted }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round">
+const IconCheckCircle = ({ size = 12, color = C.dim }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="9.5"/>
-    <ellipse cx="12" cy="12" rx="3.8" ry="9.5"/>
-    <line x1="2.5" y1="9" x2="21.5" y2="9"/>
-    <line x1="2.5" y1="15" x2="21.5" y2="15"/>
+    <polyline points="8,12 11,15 16,9"/>
   </svg>
 );
 
-/** Logo mark: cérebro industrial / circuito neural */
-const IconBrainX = ({ size = 20, color = '#fff' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    {/* hemisfério esquerdo */}
-    <path d="M12 6C9 6 6 8.2 6 11.5c0 1.8.8 3.3 2 4.3-.2.6-.3 1.2-.3 1.7 0 1.4.8 2 1.8 2 .5 0 1-.2 1.5-.5"/>
-    {/* hemisfério direito */}
-    <path d="M12 6c3 0 6 2.2 6 5.5 0 1.8-.8 3.3-2 4.3.2.6.3 1.2.3 1.7 0 1.4-.8 2-1.8 2-.5 0-1-.2-1.5-.5"/>
-    {/* corpus callosum */}
-    <line x1="12" y1="6" x2="12" y2="19"/>
-    {/* sinapses */}
-    <circle cx="8.5" cy="10" r="1" fill={color} fillOpacity="0.6" stroke="none"/>
-    <circle cx="15.5" cy="10" r="1" fill={color} fillOpacity="0.6" stroke="none"/>
-    <circle cx="12" cy="13.5" r="1" fill={color} fillOpacity="0.8" stroke="none"/>
-    {/* dendritos externos */}
-    <line x1="6" y1="10.5" x2="4" y2="9" strokeOpacity="0.5" strokeWidth="1"/>
-    <line x1="6.2" y1="13" x2="4.5" y2="14" strokeOpacity="0.5" strokeWidth="1"/>
-    <line x1="18" y1="10.5" x2="20" y2="9" strokeOpacity="0.5" strokeWidth="1"/>
-    <line x1="17.8" y1="13" x2="19.5" y2="14" strokeOpacity="0.5" strokeWidth="1"/>
-  </svg>
-);
-
-/** Input icon: email */
-const IconMail = ({ size = 16, color = T.muted }: { size?: number; color?: string }) => (
+const IconMail = ({ size = 15, color = C.dim }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="5" width="20" height="14" rx="2"/>
     <polyline points="2,5 12,13 22,5"/>
   </svg>
 );
 
-/** Input icon: senha */
-const IconLock = ({ size = 16, color = T.muted }: { size?: number; color?: string }) => (
+const IconLock = ({ size = 15, color = C.dim }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <rect x="5" y="11" width="14" height="10" rx="2"/>
     <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
-    <circle cx="12" cy="16" r="1" fill={color}/>
+    <circle cx="12" cy="16" r="1.1" fill={color}/>
   </svg>
 );
 
-/** Input icon: usuário */
-const IconUser = ({ size = 16, color = T.muted }: { size?: number; color?: string }) => (
+const IconUser = ({ size = 15, color = C.dim }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="8" r="4"/>
     <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
@@ -166,89 +139,94 @@ const IconUser = ({ size = 16, color = T.muted }: { size?: number; color?: strin
 
 /* ─── Bullets ─── */
 const BULLETS = [
-  { Icon: IconProducao, label: 'Controle de Produção',   sub: 'Ordens, fórmulas e rastreabilidade industrial' },
-  { Icon: IconEstoque,  label: 'Gestão de Estoque',      sub: 'Lotes, FEFO automático e alertas críticos' },
-  { Icon: IconKPI,      label: 'Dashboard Executivo',    sub: 'KPIs em tempo real e inteligência operacional' },
-  { Icon: IconAnvisa,   label: 'Conformidade ANVISA',    sub: 'Validações regulatórias e auditoria imutável' },
+  { Icon: IconProducao, label: 'Controle de Produção',  sub: 'Ordens de produção, fórmulas magistrais e rastreabilidade industrial completa' },
+  { Icon: IconEstoque,  label: 'Gestão de Estoque',     sub: 'Lotes com critério FEFO automático, quarentena e alertas de validade' },
+  { Icon: IconKPI,      label: 'Dashboard Executivo',   sub: 'Indicadores industriais em tempo real e inteligência operacional avançada' },
+  { Icon: IconAnvisa,   label: 'Conformidade ANVISA',   sub: 'Validações regulatórias automatizadas e trilha de auditoria imutável' },
 ];
 
-/* ─── Reusable styled input ─── */
-function OSInput({
-  id, type, placeholder, value, onChange, icon: Icon, required, minLength,
-}: {
-  id: string; type: string; placeholder: string; value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  icon: ({ size, color }: { size?: number; color?: string }) => JSX.Element;
-  required?: boolean; minLength?: number;
-}) {
-  const [focused, setFocused] = useState(false);
+/* ─── Feature stat ─── */
+function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="relative">
-      <span
-        className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center"
-        style={{ color: focused ? T.neon : T.muted, transition: 'color 0.2s' }}
-      >
-        <Icon size={15} color={focused ? T.neon : T.muted} />
-      </span>
-      <input
-        id={id} type={type} placeholder={placeholder}
-        value={value} onChange={onChange}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        required={required} minLength={minLength}
-        style={{
-          background: T.bg,
-          border: `1px solid ${focused ? T.neon : T.border}`,
-          color: T.text,
-          boxShadow: focused ? `0 0 0 2px ${T.neon}18` : 'none',
-          outline: 'none',
-        }}
-        className="w-full h-11 pl-10 pr-4 rounded-lg text-sm placeholder:text-[#9BA3AF] placeholder:opacity-30 transition-all duration-200"
-      />
+    <div className="flex flex-col items-center gap-0.5">
+      <span style={{ color: C.text, fontWeight: 800, fontSize: 20, letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</span>
+      <span style={{ color: C.dim, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500 }}>{label}</span>
     </div>
   );
 }
 
-/* ─── Label ─── */
-function OSLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+/* ─── Input ─── */
+function Field({
+  id, label, type, placeholder, value, onChange, Icon, required, minLength,
+}: {
+  id: string; label: string; type: string; placeholder: string; value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  Icon: ({ size, color }: { size?: number; color?: string }) => JSX.Element;
+  required?: boolean; minLength?: number;
+}) {
+  const [focused, setFocused] = useState(false);
   return (
-    <label
-      htmlFor={htmlFor}
-      style={{ color: T.muted, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}
-    >
-      {children}
-    </label>
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} style={{ color: C.sub, fontSize: 12, fontWeight: 600, letterSpacing: '0.01em' }}>
+        {label}
+      </label>
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+          <Icon size={15} color={focused ? C.neon : C.dim} />
+        </span>
+        <input
+          id={id} type={type} placeholder={placeholder}
+          value={value} onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          required={required} minLength={minLength}
+          style={{
+            width: '100%', height: 44,
+            paddingLeft: 42, paddingRight: 14,
+            background: focused ? '#0A1018' : C.surface,
+            border: `1.5px solid ${focused ? C.neon + '70' : C.border2}`,
+            borderRadius: 8,
+            color: C.text,
+            fontSize: 14,
+            outline: 'none',
+            boxShadow: focused ? `0 0 0 3px ${C.neon}10` : 'none',
+            transition: 'all 0.18s ease',
+          }}
+          className="placeholder:text-[#243044]"
+        />
+      </div>
+    </div>
   );
 }
 
-/* ─── Submit button ─── */
-function SubmitButton({ isLoading, disabled, loadingText, text }: {
-  isLoading: boolean; disabled?: boolean; loadingText: string; text: string;
+/* ─── Primary Button ─── */
+function PrimaryBtn({ loading, loadText, text, disabled }: {
+  loading: boolean; loadText: string; text: string; disabled?: boolean;
 }) {
   return (
-    <button
+    <motion.button
       type="submit"
-      disabled={isLoading || disabled}
+      disabled={loading || disabled}
+      whileHover={!loading && !disabled ? { scale: 1.008, boxShadow: `0 0 32px ${C.neon}30` } : {}}
+      whileTap={!loading && !disabled ? { scale: 0.996 } : {}}
       style={{
-        marginTop: 4, width: '100%', height: 44,
-        borderRadius: 8, border: 'none',
-        cursor: (isLoading || disabled) ? 'not-allowed' : 'pointer',
-        background: `linear-gradient(135deg, ${T.neon}, ${T.blue})`,
-        color: '#fff', fontWeight: 700, fontSize: 13,
-        letterSpacing: '0.06em', textTransform: 'uppercase',
+        width: '100%', height: 46,
+        border: 'none', borderRadius: 9, cursor: loading || disabled ? 'not-allowed' : 'pointer',
+        background: loading || disabled
+          ? `${C.neon}25`
+          : `linear-gradient(135deg, ${C.neon} 0%, #00C97A 50%, ${C.blue} 100%)`,
+        color: loading || disabled ? C.neon : '#fff',
+        fontWeight: 700, fontSize: 13.5, letterSpacing: '0.04em',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        opacity: (isLoading || disabled) ? 0.5 : 1,
-        boxShadow: `0 0 18px ${T.neon}22`,
-        transition: 'opacity 0.2s, box-shadow 0.2s',
+        boxShadow: loading || disabled ? 'none' : `0 0 20px ${C.neon}20`,
+        transition: 'all 0.2s ease',
       }}
-      onMouseEnter={e => { if (!isLoading && !disabled) e.currentTarget.style.boxShadow = `0 0 28px ${T.neon}38`; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = `0 0 18px ${T.neon}22`; }}
     >
-      {isLoading
-        ? <><Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />{loadingText}</>
-        : <><ArrowRight style={{ width: 15, height: 15 }} />{text}</>
+      {loading
+        ? <><Loader2 style={{ width: 16, height: 16, animation: 'spin 0.9s linear infinite' }} /> {loadText}</>
+        : <><ArrowRight style={{ width: 16, height: 16 }} /> {text}</>
       }
-    </button>
+    </motion.button>
   );
 }
 
@@ -256,313 +234,379 @@ function SubmitButton({ isLoading, disabled, loadingText, text }: {
    PAGE
 ══════════════════════════════════════ */
 export default function AuthPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [tab, setTab] = useState<'login' | 'register'>('login');
+  const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
 
   const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [registerName, setRegisterName] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPass, setRegPass] = useState('');
+  const [regConfirm, setRegConfirm] = useState('');
+
+  const mismatch = !!regConfirm && regPass !== regConfirm;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    await signIn(loginEmail, loginPassword);
-    setIsLoading(false);
+    setLoading(true);
+    await signIn(loginEmail, loginPass);
+    setLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (registerPassword !== registerConfirmPassword) return;
-    setIsLoading(true);
-    await signUp(registerEmail, registerPassword, registerName);
-    setIsLoading(false);
+    if (mismatch) return;
+    setLoading(true);
+    await signUp(regEmail, regPass, regName);
+    setLoading(false);
   };
 
-  const passwordMismatch = !!registerConfirmPassword && registerPassword !== registerConfirmPassword;
-
   return (
-    <div style={{ background: T.bg, minHeight: '100vh', display: 'flex', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif', background: C.bg }}>
 
-      {/* ══ LEFT PANEL ══ */}
-      <div
-        style={{ background: T.bg2, borderRight: `1px solid ${T.border}` }}
-        className="hidden lg:flex lg:w-[60%] relative overflow-hidden flex-col"
-      >
-        {/* Grid pattern */}
+      {/* ═══════════════════════════════════════
+          LEFT — brand / product panel
+      ═══════════════════════════════════════ */}
+      <div className="hidden lg:flex flex-col" style={{
+        width: '55%', background: C.panel,
+        borderRight: `1px solid ${C.border}`,
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* subtle grid */}
         <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: `
-            linear-gradient(${T.border}55 1px, transparent 1px),
-            linear-gradient(90deg, ${T.border}55 1px, transparent 1px)
-          `,
-          backgroundSize: '48px 48px',
-          opacity: 0.6,
+          backgroundImage: `linear-gradient(${C.border}50 1px, transparent 1px),linear-gradient(90deg, ${C.border}50 1px, transparent 1px)`,
+          backgroundSize: '52px 52px',
         }} />
-
-        {/* Neon glow — top right */}
+        {/* glows */}
         <div className="absolute pointer-events-none" style={{
-          top: '-80px', right: '-80px',
-          width: 400, height: 400, borderRadius: '50%',
-          background: `radial-gradient(circle, ${T.neon}12 0%, transparent 70%)`,
-        }} />
-        {/* Blue glow — bottom left */}
+          top: -160, right: -100, width: 500, height: 500, borderRadius: '50%',
+          background: `radial-gradient(circle, ${C.neon}0E 0%, transparent 65%)`,
+        }}/>
         <div className="absolute pointer-events-none" style={{
-          bottom: '-100px', left: '-100px',
-          width: 500, height: 500, borderRadius: '50%',
-          background: `radial-gradient(circle, ${T.blue}10 0%, transparent 70%)`,
-        }} />
+          bottom: -140, left: -120, width: 560, height: 560, borderRadius: '50%',
+          background: `radial-gradient(circle, ${C.blue}0C 0%, transparent 65%)`,
+        }}/>
+        <div className="absolute pointer-events-none" style={{
+          top: '45%', left: '50%', transform: 'translate(-50%,-50%)',
+          width: 320, height: 320, borderRadius: '50%',
+          background: `radial-gradient(circle, ${C.indigo}06 0%, transparent 60%)`,
+        }}/>
 
-        <div className="relative z-10 flex flex-col h-full p-12 xl:p-16">
+        <div className="relative z-10 flex flex-col h-full" style={{ padding: '52px 60px' }}>
 
-          {/* Logo */}
-          <motion.div
-            initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
-            className="flex items-center gap-3"
-          >
+          {/* Brand */}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+            className="flex items-center gap-3.5">
             <div style={{
-              background: `linear-gradient(135deg, ${T.neon}, ${T.blue})`,
-              borderRadius: 10, width: 40, height: 40,
+              width: 46, height: 46, borderRadius: 12,
+              background: `linear-gradient(140deg, ${C.neon} 0%, ${C.blue} 100%)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 0 20px ${T.neon}30`,
+              boxShadow: `0 4px 24px ${C.neon}28, 0 0 0 1px ${C.neon}20`,
             }}>
-              <IconBrainX size={20} color="#fff" />
+              <IconBrainX size={22} color="#fff" />
             </div>
             <div>
-              <div style={{ color: T.text, fontWeight: 700, fontSize: 16, letterSpacing: '-0.01em' }}>BrainX</div>
-              <div style={{ color: T.muted, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: -2 }}>
+              <div style={{ color: C.text, fontWeight: 800, fontSize: 18, letterSpacing: '-0.025em', lineHeight: 1 }}>BrainX</div>
+              <div style={{ color: C.dim, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 2 }}>
                 Industrial OS
               </div>
             </div>
+
+            {/* right of brand: version pill */}
+            <div className="ml-auto" style={{
+              border: `1px solid ${C.border2}`, borderRadius: 6, padding: '4px 10px',
+            }}>
+              <span style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.08em' }}>v 4.2 · Enterprise</span>
+            </div>
           </motion.div>
 
-          {/* Hero */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="mt-auto mb-10"
-          >
+          {/* Hero block */}
+          <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.12 }}
+            style={{ marginTop: 'auto', marginBottom: 48 }}>
+
+            {/* Status chip */}
             <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              border: `1px solid ${T.neon}30`, background: `${T.neon}0A`,
-              borderRadius: 20, padding: '4px 12px', marginBottom: 20,
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              border: `1px solid ${C.neon}28`, background: `${C.neon}08`,
+              borderRadius: 100, padding: '5px 14px', marginBottom: 24,
             }}>
-              <IconActivity size={12} color={T.neon} />
-              <span style={{ color: T.neon, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em' }}>
-                SISTEMA OPERACIONAL INDUSTRIAL
+              <IconActivity size={13} color={C.neon} />
+              <span style={{ color: C.neon, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Sistema Operacional Industrial
               </span>
             </div>
 
             <h1 style={{
-              color: T.text, fontWeight: 800, fontSize: 'clamp(28px, 3.5vw, 42px)',
-              lineHeight: 1.1, letterSpacing: '-0.03em', marginBottom: 14,
+              color: C.text, fontWeight: 900,
+              fontSize: 'clamp(30px, 3.2vw, 48px)',
+              lineHeight: 1.07, letterSpacing: '-0.04em', marginBottom: 18,
             }}>
               Gestão industrial<br />
-              <span style={{ color: T.neon }}>inteligente</span>{' '}
-              <span style={{ color: T.blue }}>&</span> integrada.
+              <span style={{ background: `linear-gradient(90deg, ${C.neon}, ${C.blue})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                inteligente
+              </span>
+              {' '}
+              <span style={{ color: C.border2 }}>&amp;</span>
+              {' '}
+              <span style={{ color: C.text }}>integrada.</span>
             </h1>
-            <p style={{ color: T.muted, fontSize: 14, lineHeight: 1.6, maxWidth: 400 }}>
-              Controle total da produção farmacêutica com rastreabilidade,
-              qualidade e conformidade regulatória.
+
+            <p style={{ color: C.sub, fontSize: 15, lineHeight: 1.7, maxWidth: 440 }}>
+              Controle total da produção farmacêutica com rastreabilidade completa,
+              qualidade rigorosa e conformidade regulatória automatizada.
             </p>
           </motion.div>
 
-          {/* Bullets */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Feature bullets */}
+          <div className="grid grid-cols-2 gap-3" style={{ marginBottom: 40 }}>
             {BULLETS.map((b, i) => (
-              <motion.div
-                key={b.label}
-                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.3 + i * 0.08 }}
+              <motion.div key={b.label}
+                initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.42, delay: 0.28 + i * 0.07 }}
                 style={{
-                  background: `${T.surface}CC`,
-                  border: `1px solid ${T.border}`,
-                  borderRadius: 8, padding: '14px 14px',
-                  backdropFilter: 'blur(6px)',
+                  background: `${C.surface}DD`,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 10, padding: '18px 16px',
+                  backdropFilter: 'blur(8px)',
+                  position: 'relative', overflow: 'hidden',
+                  transition: 'border-color 0.25s',
                 }}
-                className="hover:border-[#2F6BFF44] transition-colors duration-300"
+                whileHover={{ borderColor: C.neon + '30' }}
               >
-                <b.Icon size={15} color={T.neon} />
-                <div style={{ color: T.text, fontSize: 12, fontWeight: 600, marginBottom: 3, marginTop: 8 }}>{b.label}</div>
-                <div style={{ color: T.muted, fontSize: 11, lineHeight: 1.45 }}>{b.sub}</div>
+                {/* top accent */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+                  background: `linear-gradient(90deg, ${C.neon}30, transparent)`,
+                }}/>
+                <div style={{ marginBottom: 12 }}>
+                  <b.Icon size={18} color={C.neon} />
+                </div>
+                <div style={{ color: C.text, fontSize: 13, fontWeight: 700, marginBottom: 5, letterSpacing: '-0.01em' }}>
+                  {b.label}
+                </div>
+                <div style={{ color: C.sub, fontSize: 11.5, lineHeight: 1.55 }}>
+                  {b.sub}
+                </div>
               </motion.div>
             ))}
           </div>
 
-          {/* Footer */}
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
-            className="mt-8 flex items-center gap-4"
-          >
-            <span style={{ color: `${T.muted}60`, fontSize: 11 }}>© 2026 BrainX · ERP Industrial</span>
-            <span style={{ flex: 1, height: 1, background: T.border }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.neon, boxShadow: `0 0 8px ${T.neon}` }} />
-              <span style={{ color: T.neon, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em' }}>ONLINE</span>
+          {/* Bottom bar: stats + online */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+            style={{
+              display: 'flex', alignItems: 'center',
+              padding: '16px 20px',
+              background: `${C.surface}88`,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10, gap: 8,
+            }}>
+            <Stat value="99.9%" label="Uptime SLA" />
+            <div style={{ width: 1, height: 32, background: C.border, margin: '0 8px' }}/>
+            <Stat value="ISO" label="22716 / GMP" />
+            <div style={{ width: 1, height: 32, background: C.border, margin: '0 8px' }}/>
+            <Stat value="21 CFR" label="Part 11" />
+            <div style={{ flex: 1 }}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+                background: C.neon,
+                boxShadow: `0 0 10px ${C.neon}`,
+              }}/>
+              <span style={{ color: C.neon, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                Online
+              </span>
             </div>
           </motion.div>
+
+          {/* copyright */}
+          <div style={{ marginTop: 20 }}>
+            <span style={{ color: C.dim, fontSize: 11 }}>© 2026 BrainX · ERP Industrial</span>
+          </div>
         </div>
       </div>
 
-      {/* ══ RIGHT PANEL ══ */}
-      <div style={{ background: T.bg, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      {/* ═══════════════════════════════════════
+          RIGHT — auth card
+      ═══════════════════════════════════════ */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '32px 24px', background: C.bg, position: 'relative',
+      }}>
+        {/* subtle top accent line */}
+        <div className="absolute top-0 left-0 right-0 h-px" style={{
+          background: `linear-gradient(90deg, transparent, ${C.neon}18, ${C.blue}18, transparent)`,
+        }}/>
+
         <motion.div
-          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
-          style={{
-            width: '100%', maxWidth: 400,
-            background: T.surface,
-            border: `1px solid ${T.border}`,
-            borderRadius: 10,
-            padding: '32px 28px',
-          }}
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42 }}
+          style={{ width: '100%', maxWidth: 440 }}
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div style={{
-              background: `linear-gradient(135deg, ${T.neon}, ${T.blue})`,
-              borderRadius: 8, width: 36, height: 36,
+              width: 40, height: 40, borderRadius: 10,
+              background: `linear-gradient(140deg, ${C.neon}, ${C.blue})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 0 16px ${T.neon}25`,
+              boxShadow: `0 0 20px ${C.neon}25`,
             }}>
-              <IconBrainX size={18} color="#fff" />
+              <IconBrainX size={20} color="#fff" />
             </div>
             <div>
-              <div style={{ color: T.text, fontWeight: 700, fontSize: 15 }}>BrainX Industrial OS</div>
-              <div style={{ color: T.muted, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Sistema de Gestão</div>
+              <div style={{ color: C.text, fontWeight: 800, fontSize: 16 }}>BrainX Industrial OS</div>
+              <div style={{ color: C.dim, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Sistema de Gestão</div>
             </div>
           </div>
 
-          {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <h2 style={{ color: T.text, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>
-                {activeTab === 'login' ? 'Acesso ao Sistema' : 'Criar Conta'}
-              </h2>
-              {/* Secure badge */}
+          {/* Card */}
+          <div style={{
+            background: C.card,
+            border: `1px solid ${C.border2}`,
+            borderRadius: 14,
+            overflow: 'hidden',
+            boxShadow: `0 0 0 1px ${C.border}40, 0 24px 60px -16px ${C.bg}`,
+          }}>
+            {/* Card top stripe */}
+            <div style={{
+              height: 3,
+              background: `linear-gradient(90deg, ${C.neon}, ${C.blue}, ${C.indigo})`,
+            }}/>
+
+            <div style={{ padding: '32px 32px 28px' }}>
+
+              {/* Header */}
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div>
+                    <h2 style={{ color: C.text, fontWeight: 800, fontSize: 22, letterSpacing: '-0.03em', margin: 0 }}>
+                      {tab === 'login' ? 'Acesso ao Sistema' : 'Criar Conta'}
+                    </h2>
+                    <p style={{ color: C.sub, fontSize: 13.5, margin: '6px 0 0', lineHeight: 1.5 }}>
+                      {tab === 'login'
+                        ? 'Autentique-se para acessar o painel industrial'
+                        : 'Preencha os dados para se cadastrar no sistema'}
+                    </p>
+                  </div>
+                  {/* Encrypted badge */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    border: `1px solid ${C.neon}22`, background: `${C.neon}08`,
+                    borderRadius: 6, padding: '5px 9px', flexShrink: 0, marginLeft: 12,
+                  }}>
+                    <IconShieldLock size={11} color={C.neon} />
+                    <span style={{ color: C.neon, fontSize: 9.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                      TLS 1.3
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tab */}
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                border: `1px solid ${T.neon}25`, background: `${T.neon}08`,
-                borderRadius: 20, padding: '3px 8px',
+                display: 'flex', gap: 0,
+                background: C.surface,
+                border: `1px solid ${C.border}`,
+                borderRadius: 9, padding: 3, marginBottom: 28,
               }}>
-                <IconShieldCheck size={10} color={T.neon} />
-                <span style={{ color: T.neon, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  Encrypted
-                </span>
+                {(['login', 'register'] as const).map(t => (
+                  <button key={t} onClick={() => setTab(t)} style={{
+                    flex: 1, padding: '8px 0', borderRadius: 7,
+                    border: 'none', cursor: 'pointer',
+                    fontSize: 12.5, fontWeight: 700, letterSpacing: '0.03em',
+                    transition: 'all 0.2s',
+                    background: tab === t
+                      ? `linear-gradient(135deg, ${C.neon}14, ${C.blue}14)`
+                      : 'transparent',
+                    color: tab === t ? C.text : C.dim,
+                    boxShadow: tab === t ? `inset 0 0 0 1px ${C.border2}` : 'none',
+                  }}>
+                    {t === 'login' ? 'Entrar' : 'Cadastrar'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Forms */}
+              <AnimatePresence mode="wait">
+                {tab === 'login' ? (
+                  <motion.form key="login"
+                    initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 6 }} transition={{ duration: 0.16 }}
+                    onSubmit={handleLogin}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
+                  >
+                    <Field id="login-email" label="E-mail" type="email" placeholder="usuario@empresa.com.br"
+                      value={loginEmail} onChange={e => setLoginEmail(e.target.value)} Icon={IconMail} required />
+                    <Field id="login-pass" label="Senha" type="password" placeholder="••••••••"
+                      value={loginPass} onChange={e => setLoginPass(e.target.value)} Icon={IconLock} required />
+                    <PrimaryBtn loading={loading} loadText="Autenticando..." text="Acessar Sistema" />
+                  </motion.form>
+                ) : (
+                  <motion.form key="register"
+                    initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -6 }} transition={{ duration: 0.16 }}
+                    onSubmit={handleRegister}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+                  >
+                    <Field id="reg-name" label="Nome Completo" type="text" placeholder="Seu nome completo"
+                      value={regName} onChange={e => setRegName(e.target.value)} Icon={IconUser} required />
+                    <Field id="reg-email" label="E-mail Corporativo" type="email" placeholder="usuario@empresa.com.br"
+                      value={regEmail} onChange={e => setRegEmail(e.target.value)} Icon={IconMail} required />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                      <Field id="reg-pass" label="Senha" type="password" placeholder="Mínimo 6 dígitos"
+                        value={regPass} onChange={e => setRegPass(e.target.value)} Icon={IconLock} required minLength={6} />
+                      <Field id="reg-confirm" label="Confirmar Senha" type="password" placeholder="Repita a senha"
+                        value={regConfirm} onChange={e => setRegConfirm(e.target.value)} Icon={IconLock} required minLength={6} />
+                    </div>
+                    {mismatch && (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '10px 12px', borderRadius: 7,
+                        border: `1px solid ${C.error}30`, background: `${C.error}08`,
+                      }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.error} strokeWidth="2" strokeLinecap="round">
+                          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill={C.error}/>
+                        </svg>
+                        <span style={{ color: C.error, fontSize: 12, fontWeight: 500 }}>As senhas não coincidem</span>
+                      </div>
+                    )}
+                    <PrimaryBtn loading={loading} disabled={mismatch} loadText="Cadastrando..." text="Criar Conta" />
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
+              {/* Footer badges */}
+              <div style={{
+                marginTop: 24, paddingTop: 20,
+                borderTop: `1px solid ${C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconShieldLock size={12} color={C.dim} />
+                  <span style={{ color: C.dim, fontSize: 11 }}>Sessão criptografada</span>
+                </div>
+                <div style={{ width: 1, height: 13, background: C.border }}/>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconCheckCircle size={12} color={C.dim} />
+                  <span style={{ color: C.dim, fontSize: 11 }}>Acesso auditado</span>
+                </div>
+                <div style={{ width: 1, height: 13, background: C.border }}/>
+                <span style={{ color: C.dim, fontSize: 11 }}>ANVISA RDC</span>
               </div>
             </div>
-            <p style={{ color: T.muted, fontSize: 12 }}>
-              {activeTab === 'login'
-                ? 'Autentique-se para acessar o painel industrial'
-                : 'Preencha os dados para se cadastrar'}
-            </p>
           </div>
 
-          {/* Tab switcher */}
-          <div style={{
-            display: 'flex', gap: 2,
-            background: T.bg, border: `1px solid ${T.border}`,
-            borderRadius: 8, padding: 3, marginBottom: 24,
-          }}>
-            {(['login', 'register'] as const).map((tab) => (
-              <button
-                key={tab} onClick={() => setActiveTab(tab)}
-                style={{
-                  flex: 1, padding: '7px 0',
-                  borderRadius: 6, border: 'none', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 600, letterSpacing: '0.04em',
-                  transition: 'all 0.2s',
-                  background: activeTab === tab
-                    ? `linear-gradient(135deg, ${T.neon}15, ${T.blue}15)`
-                    : 'transparent',
-                  color: activeTab === tab ? T.text : T.muted,
-                  boxShadow: activeTab === tab ? `inset 0 0 0 1px ${T.border}` : 'none',
-                }}
-              >
-                {tab === 'login' ? 'ENTRAR' : 'CADASTRAR'}
-              </button>
-            ))}
-          </div>
-
-          {/* Forms */}
-          <AnimatePresence mode="wait">
-            {activeTab === 'login' ? (
-              <motion.form
-                key="login"
-                initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.18 }}
-                onSubmit={handleLogin}
-                style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <OSLabel htmlFor="login-email">E-mail</OSLabel>
-                  <OSInput id="login-email" type="email" placeholder="usuario@empresa.com"
-                    value={loginEmail} onChange={e => setLoginEmail(e.target.value)} icon={IconMail} required />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <OSLabel htmlFor="login-password">Senha</OSLabel>
-                  <OSInput id="login-password" type="password" placeholder="••••••••"
-                    value={loginPassword} onChange={e => setLoginPassword(e.target.value)} icon={IconLock} required />
-                </div>
-                <SubmitButton isLoading={isLoading} loadingText="Autenticando..." text="Acessar Sistema" />
-              </motion.form>
-            ) : (
-              <motion.form
-                key="register"
-                initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.18 }}
-                onSubmit={handleRegister}
-                style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <OSLabel htmlFor="register-name">Nome Completo</OSLabel>
-                  <OSInput id="register-name" type="text" placeholder="Seu nome completo"
-                    value={registerName} onChange={e => setRegisterName(e.target.value)} icon={IconUser} required />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <OSLabel htmlFor="register-email">E-mail</OSLabel>
-                  <OSInput id="register-email" type="email" placeholder="usuario@empresa.com"
-                    value={registerEmail} onChange={e => setRegisterEmail(e.target.value)} icon={IconMail} required />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <OSLabel htmlFor="register-password">Senha</OSLabel>
-                    <OSInput id="register-password" type="password" placeholder="••••••"
-                      value={registerPassword} onChange={e => setRegisterPassword(e.target.value)} icon={IconLock} required minLength={6} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <OSLabel htmlFor="register-confirm">Confirmar</OSLabel>
-                    <OSInput id="register-confirm" type="password" placeholder="••••••"
-                      value={registerConfirmPassword} onChange={e => setRegisterConfirmPassword(e.target.value)} icon={IconLock} required minLength={6} />
-                  </div>
-                </div>
-                {passwordMismatch && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.error, fontSize: 11 }}>
-                    <span>⚠</span> As senhas não coincidem
-                  </div>
-                )}
-                <SubmitButton isLoading={isLoading} disabled={passwordMismatch} loadingText="Cadastrando..." text="Criar Conta" />
-              </motion.form>
-            )}
-          </AnimatePresence>
-
-          {/* Footer badges */}
-          <div style={{ marginTop: 24, paddingTop: 18, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <IconShieldCheck size={11} color={T.muted} />
-              <span style={{ color: `${T.muted}80`, fontSize: 10, letterSpacing: '0.06em' }}>Sessão criptografada</span>
-            </div>
-            <span style={{ width: 1, height: 12, background: T.border }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <IconGlobe size={11} color={T.muted} />
-              <span style={{ color: `${T.muted}80`, fontSize: 10, letterSpacing: '0.06em' }}>Acesso seguro</span>
-            </div>
+          {/* Below card */}
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <span style={{ color: C.dim, fontSize: 11 }}>
+              © 2026 BrainX Industrial OS · Acesso restrito a operadores autorizados
+            </span>
           </div>
         </motion.div>
       </div>
 
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
