@@ -7,6 +7,7 @@ import { useCreateEntidade, useUpdateEntidade, useUpsertEntidadePapeis, useCreat
 import { useUpsertFiscalConfig, useUpsertFinanceiroConfig, useUpsertComercialCRM, useUpsertLogisticaConfig, useUploadDocumentoEntidade, useDeleteDocumentoEntidade, useAuditoriaEntidade } from "@/hooks/use-entidades-extended";
 import { supabase } from "@/integrations/supabase/client";
 import { IdentificacaoTab } from "./tabs/IdentificacaoTab";
+import { isEstrangeiro } from "@/types/entidades";
 import { FiscalTab } from "./tabs/FiscalTab";
 import { EnderecosTab } from "./tabs/EnderecosTab";
 import { ContatosTab } from "./tabs/ContatosTab";
@@ -250,7 +251,7 @@ export function EntidadeFormDialogComplete({ open, onOpenChange, entidade, initi
       // Prepare entidade data
       const entidadeData = {
         tipo_pessoa: formData.tipo_pessoa as 'PJ' | 'PF',
-        documento: formData.documento.replace(/\D/g, ""),
+        documento: isEstrangeiro(formData.tipo_pessoa) ? formData.documento.trim() : formData.documento.replace(/\D/g, ""),
         razao_social: formData.razao_social,
         nome_fantasia: formData.nome_fantasia || null,
         status: formData.status as 'ATIVO' | 'BLOQUEADO' | 'HOMOLOGACAO',
