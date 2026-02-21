@@ -140,12 +140,6 @@ export default function AuthPage() {
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
             style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src={brainxLogo} alt="BrainX" style={{ width: 112, height: 112, objectFit: 'contain' }} />
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1 }}>BrainX</div>
-              <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: 2 }}>
-                ERP Industrial
-              </div>
-            </div>
           </motion.div>
 
           {/* Hero text */}
@@ -162,7 +156,7 @@ export default function AuthPage() {
               {' e integrada.'}
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.65, maxWidth: 420 }}>
-              Controle total da produção farmacêutica com
+              Controle total da produção com
               rastreabilidade, qualidade e conformidade regulatória.
             </p>
           </motion.div>
