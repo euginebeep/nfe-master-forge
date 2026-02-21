@@ -429,6 +429,7 @@ export function EntidadeFormDialogComplete({ open, onOpenChange, entidade, initi
             <TabsContent value="enderecos" className="mt-0">
               <EnderecosTab
                 enderecos={entidade?.entidade_enderecos as any || enderecos}
+                tipoPessoa={formData.tipo_pessoa}
                 onAdd={handleAddEndereco}
                 onUpdate={handleUpdateEndereco}
                 onDelete={handleDeleteEndereco}
