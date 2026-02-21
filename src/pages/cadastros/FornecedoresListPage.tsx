@@ -77,8 +77,9 @@ export default function FornecedoresListPage() {
   };
 
   const doExport = () => {
-    const headers = ["CNPJ/CPF", "Razão Social", "Nome Fantasia", "Status", "Classificação"];
+    const headers = ["Código", "CNPJ/CPF", "Razão Social", "Nome Fantasia", "Status", "Classificação"];
     const rows = entidades.map(e => [
+      (e as any).codigo_interno || '',
       formatDocument(e.documento),
       e.razao_social,
       e.nome_fantasia || "",
@@ -90,6 +91,14 @@ export default function FornecedoresListPage() {
   };
 
   const columns = [
+    {
+      key: "codigo_interno",
+      header: "Código",
+      sortable: true,
+      render: (item: HybridEntidade) => (
+        <span className="font-mono text-sm">{(item as any).codigo_interno || '-'}</span>
+      ),
+    },
     {
       key: "documento",
       header: "CNPJ/CPF",
@@ -253,7 +262,7 @@ export default function FornecedoresListPage() {
           loading={isLoading}
           searchable
           searchPlaceholder="Buscar por documento ou razão social..."
-          searchKeys={["documento", "razao_social", "nome_fantasia"]}
+          searchKeys={["codigo_interno", "documento", "razao_social", "nome_fantasia"]}
           onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
           emptyMessage="Nenhum fornecedor cadastrado"
           actions={

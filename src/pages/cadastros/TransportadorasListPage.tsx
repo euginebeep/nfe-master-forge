@@ -57,6 +57,14 @@ export default function TransportadorasListPage() {
 
   const columns = [
     {
+      key: "codigo_interno",
+      header: "Código",
+      sortable: true,
+      render: (item: HybridEntidade) => (
+        <span className="font-mono text-sm">{(item as any).codigo_interno || '-'}</span>
+      ),
+    },
+    {
       key: "documento",
       header: "CNPJ/CPF",
       sortable: true,
@@ -155,7 +163,7 @@ export default function TransportadorasListPage() {
           loading={isLoading}
           searchable
           searchPlaceholder="Buscar por documento ou razão social..."
-          searchKeys={["documento", "razao_social", "nome_fantasia"]}
+          searchKeys={["codigo_interno", "documento", "razao_social", "nome_fantasia"]}
           onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
           emptyMessage="Nenhuma transportadora cadastrada"
           actions={
