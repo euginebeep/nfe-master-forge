@@ -1,0 +1,2 @@
+ALTER TABLE public.entidades DROP CONSTRAINT entidades_tipo_pessoa_check;
+ALTER TABLE public.entidades ADD CONSTRAINT entidades_tipo_pessoa_check CHECK (tipo_pessoa = ANY (ARRAY['PJ'::text, 'PF'::text, 'ESTRANGEIRO'::text]));
