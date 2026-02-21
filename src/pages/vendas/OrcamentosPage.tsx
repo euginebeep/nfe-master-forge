@@ -226,6 +226,22 @@ export default function OrcamentosPage() {
     },
   });
 
+  // Buscar itens do orçamento selecionado
+  const { data: orcamentoItens } = useQuery({
+    queryKey: ["orcamento-itens", selectedOrcamento?.id],
+    queryFn: async () => {
+      if (!selectedOrcamento?.id) return [];
+      const { data, error } = await supabase
+        .from("orcamento_itens")
+        .select("*")
+        .eq("orcamento_id", selectedOrcamento.id)
+        .order("ordem");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedOrcamento?.id && viewDialogOpen,
+  });
+
   // Buscar clientes com dados completos (contatos e endereços)
   const { data: clientes } = useQuery({
     queryKey: ["clientes-orcamento-completo"],
@@ -1147,85 +1163,195 @@ export default function OrcamentosPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Visualizar */}
+      {/* Dialog Visualizar Completo */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Orçamento {selectedOrcamento?.codigo}
+              {selectedOrcamento && (
+                <StatusBadge variant={getStatusVariant(selectedOrcamento.status)} className="ml-2">
+                  {selectedOrcamento.status}
+                </StatusBadge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
           {selectedOrcamento && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6">
+              {/* Cabeçalho: Datas e Vendedor */}
+              <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Cliente</p>
-                  <p className="font-medium">{selectedOrcamento.cliente_nome}</p>
-                  {selectedOrcamento.cliente_documento && (
-                    <p className="text-xs text-muted-foreground">{selectedOrcamento.cliente_documento}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">Data do Orçamento</p>
+                  <p className="font-medium">
+                    {selectedOrcamento.data_orcamento && format(new Date(selectedOrcamento.data_orcamento), "dd/MM/yyyy")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Validade</p>
+                  <p className="font-medium">
+                    {selectedOrcamento.data_validade && format(new Date(selectedOrcamento.data_validade), "dd/MM/yyyy")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Vendedor</p>
+                  <p className="font-medium">{(selectedOrcamento as any).vendedor_nome || "—"}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Valor Total</p>
+                  <p className="text-xs text-muted-foreground">Valor Total</p>
                   <p className="text-2xl font-bold text-secondary">
                     R$ {Number(selectedOrcamento.valor_final || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
 
-              {/* Dados adicionais do cliente */}
-              {(selectedOrcamento.cliente_endereco || selectedOrcamento.cliente_telefone || selectedOrcamento.cliente_email) && (
-                <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-                  {selectedOrcamento.cliente_endereco && (
-                    <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                      <p className="text-sm">{selectedOrcamento.cliente_endereco}</p>
+              {/* Dados do Cliente */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Dados do Cliente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Razão Social</p>
+                      <p className="font-medium">{selectedOrcamento.cliente_nome}</p>
                     </div>
-                  )}
-                  <div className="flex gap-4 text-sm">
+                    {selectedOrcamento.cliente_documento && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">CNPJ/CPF</p>
+                        <p className="font-medium font-mono">{selectedOrcamento.cliente_documento}</p>
+                      </div>
+                    )}
+                    {selectedOrcamento.cliente_endereco && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> Endereço
+                        </p>
+                        <p className="text-sm">{selectedOrcamento.cliente_endereco}</p>
+                      </div>
+                    )}
                     {selectedOrcamento.cliente_telefone && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" /> {selectedOrcamento.cliente_telefone}
-                      </span>
+                      <div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-3 w-3" /> Telefone
+                        </p>
+                        <p className="text-sm">{maskPhone(selectedOrcamento.cliente_telefone)}</p>
+                      </div>
                     )}
                     {selectedOrcamento.cliente_email && (
-                      <span className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" /> {selectedOrcamento.cliente_email}
-                      </span>
+                      <div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Mail className="h-3 w-3" /> E-mail
+                        </p>
+                        <p className="text-sm">{selectedOrcamento.cliente_email}</p>
+                      </div>
                     )}
                     {selectedOrcamento.cliente_whatsapp && (
-                      <span className="text-primary font-medium">WhatsApp: {selectedOrcamento.cliente_whatsapp}</span>
+                      <div>
+                        <p className="text-xs text-muted-foreground">WhatsApp</p>
+                        <p className="text-sm">{maskPhone(selectedOrcamento.cliente_whatsapp)}</p>
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Data</p>
-                  <p className="font-medium">
-                    {selectedOrcamento.data_orcamento && format(new Date(selectedOrcamento.data_orcamento), "dd/MM/yyyy")}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Validade</p>
-                  <p className="font-medium">
-                    {selectedOrcamento.data_validade && format(new Date(selectedOrcamento.data_validade), "dd/MM/yyyy")}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <StatusBadge variant={getStatusVariant(selectedOrcamento.status)}>{selectedOrcamento.status}</StatusBadge>
-                </div>
-              </div>
+              {/* Itens do Orçamento */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Palette className="h-4 w-4" />
+                    Produtos e Embalagem ({orcamentoItens?.length || 0} {(orcamentoItens?.length || 0) === 1 ? 'item' : 'itens'})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!orcamentoItens || orcamentoItens.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum item registrado</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {orcamentoItens.map((item: any, idx: number) => (
+                        <div key={item.id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold">Item {idx + 1}: {item.produto_nome}</span>
+                            <span className="font-bold text-secondary">
+                              R$ {Number(item.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Quantidade</p>
+                              <p className="font-medium">{item.quantidade} potes</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Caps/Pote</p>
+                              <p className="font-medium">{item.unidades_por_frasco || 60}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Preço Unitário</p>
+                              <p className="font-medium">
+                                R$ {Number(item.preco_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Preço Final</p>
+                              <p className="font-medium">
+                                R$ {Number(item.preco_final || item.preco_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                          </div>
+                          {/* Dados de Embalagem */}
+                          <div className="grid grid-cols-5 gap-3 text-sm pt-2 border-t">
+                            {item.rotulo && (
+                              <div>
+                                <p className="text-xs text-muted-foreground">Rótulo</p>
+                                <p className="font-medium">{item.rotulo}</p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-xs text-muted-foreground">Cor Cápsula</p>
+                              <p className="font-medium">{item.capsula_cor || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Cor Pote</p>
+                              <p className="font-medium">{item.pote_cor || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Cor Tampa</p>
+                              <p className="font-medium">{item.tampa_cor || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Sílica</p>
+                              <p className="font-medium">{item.incluir_silica ? "Sim" : "Não"}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
 
+                      {/* Total geral */}
+                      <div className="text-right pt-2 border-t">
+                        <span className="text-lg font-bold">
+                          Total: R$ {Number(selectedOrcamento.valor_final || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Observações */}
               {selectedOrcamento.observacoes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Observações</p>
-                  <p>{selectedOrcamento.observacoes}</p>
-                </div>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Observações</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm whitespace-pre-wrap">{selectedOrcamento.observacoes}</p>
+                  </CardContent>
+                </Card>
               )}
             </div>
           )}
