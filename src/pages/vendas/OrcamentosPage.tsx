@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { 
   FileText, Plus, Search, Eye, CheckCircle, X, ArrowRight, 
-  Calendar, User, Building2, DollarSign, Clock, UserPlus, Phone, Mail, MapPin, Palette, Hash
+  Calendar, User, Building2, DollarSign, Clock, UserPlus, Phone, Mail, MapPin, Palette, Hash,
+  FileSignature
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -57,6 +58,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { maskCNPJ, maskCPF, maskPhone } from "@/lib/masks";
+import { ContratoWorkflowDialog } from "@/components/orcamentos/ContratoWorkflowDialog";
 
 interface Orcamento {
   id: string;
@@ -151,6 +153,7 @@ export default function OrcamentosPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [contratoDialogOpen, setContratoDialogOpen] = useState(false);
   
   // Auth & profile
   const { profile } = useAuth();
@@ -759,10 +762,23 @@ export default function OrcamentosPage() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {(orcamento.status === "RASCUNHO" || orcamento.status === "APROVADO") && (
+                      {orcamento.status !== "CONVERTIDO" && orcamento.status !== "RECUSADO" && orcamento.status !== "EXPIRADO" && (
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => {
+                            setSelectedOrcamento(orcamento);
+                            setContratoDialogOpen(true);
+                          }}
+                        >
+                          <FileSignature className="h-4 w-4 mr-1" />
+                          Contrato
+                        </Button>
+                      )}
+                      {(orcamento as any).contrato_status === "ASSINADO" && orcamento.status !== "CONVERTIDO" && (
+                        <Button
+                          size="sm"
+                          variant="default"
                           onClick={() => converterEmPedido.mutate(orcamento)}
                           disabled={converterEmPedido.isPending}
                         >
@@ -1451,7 +1467,19 @@ export default function OrcamentosPage() {
             <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
               Fechar
             </Button>
-            {selectedOrcamento && (selectedOrcamento.status === "RASCUNHO" || selectedOrcamento.status === "APROVADO") && (
+            {selectedOrcamento && selectedOrcamento.status !== "CONVERTIDO" && selectedOrcamento.status !== "RECUSADO" && selectedOrcamento.status !== "EXPIRADO" && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setViewDialogOpen(false);
+                  setContratoDialogOpen(true);
+                }}
+              >
+                <FileSignature className="h-4 w-4 mr-2" />
+                Abrir Contrato
+              </Button>
+            )}
+            {selectedOrcamento && (selectedOrcamento as any).contrato_status === "ASSINADO" && selectedOrcamento.status !== "CONVERTIDO" && (
               <Button 
                 onClick={() => converterEmPedido.mutate(selectedOrcamento)}
                 disabled={converterEmPedido.isPending}
@@ -1471,6 +1499,15 @@ export default function OrcamentosPage() {
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["clientes-orcamento-completo"] });
           setShowCadastroClienteDialog(false);
+        }}
+      />
+      {/* Dialog Contrato Workflow */}
+      <ContratoWorkflowDialog
+        open={contratoDialogOpen}
+        onOpenChange={setContratoDialogOpen}
+        orcamento={selectedOrcamento as any}
+        onUpdate={() => {
+          queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
         }}
       />
     </div>
