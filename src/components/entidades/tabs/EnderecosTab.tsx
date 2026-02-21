@@ -8,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { TIPO_ENDERECO_LABELS, type TipoEnderecoExtended, type EntidadeEnderecoExtended } from "@/types/entidades";
+import { TIPO_ENDERECO_LABELS, type TipoEnderecoExtended, type EntidadeEnderecoExtended, isEstrangeiro } from "@/types/entidades";
 
 interface EnderecosTabProps {
   enderecos: EntidadeEnderecoExtended[];
+  tipoPessoa?: string;
   onAdd: (endereco: Omit<EntidadeEnderecoExtended, 'id' | 'entidade_id' | 'created_at'>) => void;
   onUpdate: (id: string, endereco: Partial<EntidadeEnderecoExtended>) => void;
   onDelete: (id: string) => void;
@@ -35,7 +36,8 @@ const emptyEndereco = {
   principal: false,
 };
 
-export function EnderecosTab({ enderecos, onAdd, onUpdate, onDelete }: EnderecosTabProps) {
+export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete }: EnderecosTabProps) {
+  const isForeign = isEstrangeiro(tipoPessoa || 'PJ');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyEndereco);
@@ -152,8 +154,12 @@ export function EnderecosTab({ enderecos, onAdd, onUpdate, onDelete }: Enderecos
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>CEP</Label>
-                <Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" />
+                <Label>CEP {!isForeign && "*"}</Label>
+                {isForeign ? (
+                  <Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="Código postal (opcional)" />
+                ) : (
+                  <Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" />
+                )}
               </div>
               <div className="flex items-center gap-2 pt-8">
                 <Switch checked={form.principal} onCheckedChange={(v) => setForm({ ...form, principal: v })} />
@@ -190,20 +196,24 @@ export function EnderecosTab({ enderecos, onAdd, onUpdate, onDelete }: Enderecos
               </div>
               <div className="space-y-2">
                 <Label>UF</Label>
-                <Select value={form.uf} onValueChange={(v) => setForm({ ...form, uf: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UF_OPTIONS.map((uf) => (
-                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isForeign ? (
+                  <Input value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} placeholder="Estado/Província" />
+                ) : (
+                  <Select value={form.uf} onValueChange={(v) => setForm({ ...form, uf: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UF_OPTIONS.map((uf) => (
+                        <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
-                <Label>País</Label>
-                <Input value={form.pais} onChange={(e) => setForm({ ...form, pais: e.target.value })} />
+                <Label>País {isForeign && <span className="text-destructive">*</span>}</Label>
+                <Input value={form.pais} onChange={(e) => setForm({ ...form, pais: e.target.value })} placeholder={isForeign ? "Digite o país" : "Brasil"} />
               </div>
             </div>
 
