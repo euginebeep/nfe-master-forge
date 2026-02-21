@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/use-auth';
+import brainxLogo from '@/assets/brainx-logo.jpg';
 
 /* Load Bootstrap Icons CSS */
 const BI_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css';
@@ -138,13 +139,7 @@ export default function AuthPage() {
           {/* Logo */}
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
             style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 10,
-              background: '#0d6efd',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <BI name="cpu-fill" size={22} color="#fff" />
-            </div>
+            <img src={brainxLogo} alt="BrainX" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover' }} />
             <div>
               <div style={{ color: '#fff', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1 }}>BrainX</div>
               <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: 2 }}>
@@ -222,13 +217,7 @@ export default function AuthPage() {
 
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-8">
-          <div style={{
-            width: 38, height: 38, borderRadius: 8,
-            background: '#0d6efd',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <BI name="cpu-fill" size={20} color="#fff" />
-          </div>
+          <img src={brainxLogo} alt="BrainX" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
           <div style={{ color: '#212529', fontWeight: 700, fontSize: 16 }}>BrainX Industrial</div>
         </div>
 
