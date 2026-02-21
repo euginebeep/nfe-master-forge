@@ -139,7 +139,7 @@ export default function AuthPage() {
           {/* Logo */}
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
             style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <img src={brainxLogo} alt="BrainX" style={{ width: 72, height: 72, objectFit: 'contain' }} />
+            <img src={brainxLogo} alt="BrainX" style={{ width: 86, height: 86, objectFit: 'contain' }} />
             <div>
               <div style={{ color: '#fff', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1 }}>BrainX</div>
               <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: 2 }}>
@@ -217,7 +217,7 @@ export default function AuthPage() {
 
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-8">
-          <img src={brainxLogo} alt="BrainX" style={{ width: 60, height: 60, objectFit: 'contain' }} />
+          <img src={brainxLogo} alt="BrainX" style={{ width: 72, height: 72, objectFit: 'contain' }} />
           <div style={{ color: '#212529', fontWeight: 700, fontSize: 16 }}>BrainX Industrial</div>
         </div>
 

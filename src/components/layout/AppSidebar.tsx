@@ -259,7 +259,7 @@ export function AppSidebar() {
       >
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
           <Link to="/" className="flex items-center gap-3 px-4 py-4">
-            <img src="/brainx-logo.png" alt="BrainX" className="w-10 h-10 object-contain" />
+            <img src="/brainx-logo.png" alt="BrainX" className="w-12 h-12 object-contain" />
             {!collapsed && (
               <div className="flex flex-col">
                 <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX</span>
