@@ -139,7 +139,7 @@ export default function AuthPage() {
           {/* Logo */}
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
             style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <img src={brainxLogo} alt="BrainX" style={{ width: 112, height: 112, objectFit: 'contain' }} />
+            <img src={brainxLogo} alt="BrainX" style={{ width: 224, height: 224, objectFit: 'contain' }} />
           </motion.div>
 
           {/* Hero text */}
