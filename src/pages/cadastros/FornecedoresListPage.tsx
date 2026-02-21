@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLocalEntidades, useDeleteEntidade, LocalEntidade } from "@/hooks/use-local-entidades";
+import { useHybridEntidades, type HybridEntidade } from "@/hooks/use-hybrid-data";
+import { useDeleteEntidade } from "@/hooks/use-entidades";
 import { formatDocument } from "@/lib/formatters";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -21,19 +22,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EntidadeWizardDialog } from "@/components/entidades/EntidadeWizardDialog";
+import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { downloadCSV } from "@/lib/export-utils";
 import { toast } from "sonner";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
   BLOQUEADO: "error",
+  INATIVO: "warning",
   HOMOLOGACAO: "warning",
 };
 
-const CLASSIFICACAO_VARIANTS: Record<string, "info" | "muted" | "error"> = {
+const CLASSIFICACAO_VARIANTS: Record<string, "success" | "info" | "error" | "warning" | "muted"> = {
   VIP: "info",
   REGULAR: "muted",
+  RISCO: "warning",
+  RESTRITO: "error",
   PROBLEMA: "error",
 };
 
@@ -43,21 +47,24 @@ export default function FornecedoresListPage() {
   const isAdmin = role === 'admin';
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [showExportWarning, setShowExportWarning] = useState(false);
 
-  const { data: entidades, isLoading, refresh } = useLocalEntidades({
+  const { data: entidades = [], isLoading, refetch } = useHybridEntidades({
     papel: "FORNECEDOR",
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
 
-  const { deleteEntidade } = useDeleteEntidade();
+  const deleteEntidade = useDeleteEntidade();
 
   const handleDelete = () => {
     if (deleteId) {
-      deleteEntidade(deleteId);
-      setDeleteId(null);
-      refresh();
+      deleteEntidade.mutate(deleteId, {
+        onSuccess: () => {
+          setDeleteId(null);
+          refetch();
+        },
+      });
     }
   };
 
@@ -87,15 +94,15 @@ export default function FornecedoresListPage() {
       key: "documento",
       header: "CNPJ/CPF",
       sortable: true,
-      render: (item: LocalEntidade) => (
+      render: (item: HybridEntidade) => (
         <span className="font-mono text-sm">{formatDocument(item.documento)}</span>
       ),
     },
     {
       key: "razao_social",
-      header: "Razao Social",
+      header: "Razão Social",
       sortable: true,
-      render: (item: LocalEntidade) => (
+      render: (item: HybridEntidade) => (
         <div>
           <p className="font-medium">{item.razao_social}</p>
           {item.nome_fantasia && (
@@ -107,17 +114,17 @@ export default function FornecedoresListPage() {
     {
       key: "status",
       header: "Status",
-      render: (item: LocalEntidade) => (
-        <StatusBadge variant={STATUS_VARIANTS[item.status]}>
+      render: (item: HybridEntidade) => (
+        <StatusBadge variant={STATUS_VARIANTS[item.status] || "muted"}>
           {item.status}
         </StatusBadge>
       ),
     },
     {
       key: "classificacao",
-      header: "Classificacao",
-      render: (item: LocalEntidade) => (
-        <StatusBadge variant={CLASSIFICACAO_VARIANTS[item.classificacao || "REGULAR"]}>
+      header: "Classificação",
+      render: (item: HybridEntidade) => (
+        <StatusBadge variant={CLASSIFICACAO_VARIANTS[item.classificacao || "REGULAR"] || "muted"}>
           {item.classificacao || "REGULAR"}
         </StatusBadge>
       ),
@@ -125,8 +132,8 @@ export default function FornecedoresListPage() {
     {
       key: "contato",
       header: "Contato Principal",
-      render: (item: LocalEntidade) => {
-        const contact = (item as any)._primaryContact;
+      render: (item: HybridEntidade) => {
+        const contact = item._primaryContact;
         if (!contact) return <span className="text-muted-foreground">-</span>;
         return (
           <div className="text-sm">
@@ -140,22 +147,25 @@ export default function FornecedoresListPage() {
     {
       key: "tags",
       header: "Tags",
-      render: (item: LocalEntidade) => (
-        <div className="flex flex-wrap gap-1">
-          {item.tags?.slice(0, 3).map((tag, i) => (
-            <StatusBadge key={i} variant="muted">{tag}</StatusBadge>
-          ))}
-          {item.tags?.length > 3 && (
-            <StatusBadge variant="muted">+{item.tags.length - 3}</StatusBadge>
-          )}
-        </div>
-      ),
+      render: (item: HybridEntidade) => {
+        const tags = (item.tags as string[]) || [];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.slice(0, 3).map((tag, i) => (
+              <StatusBadge key={i} variant="muted">{tag}</StatusBadge>
+            ))}
+            {tags.length > 3 && (
+              <StatusBadge variant="muted">+{tags.length - 3}</StatusBadge>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "actions",
       header: "",
       className: "w-24",
-      render: (item: LocalEntidade) => (
+      render: (item: HybridEntidade) => (
         <div className="flex gap-1">
           <Button
             variant="ghost"
@@ -187,7 +197,6 @@ export default function FornecedoresListPage() {
   return (
     <ModuleGuard modulo="entidades" moduloLabel="Fornecedores">
       <div>
-        {/* Aviso de exportação para não-admins */}
         {showExportWarning && (
           <Alert variant="destructive" className="mb-4 border-destructive bg-destructive/10">
             <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -220,7 +229,7 @@ export default function FornecedoresListPage() {
 
         <PageHeader
           title="Fornecedores"
-          description="Gestao de fornecedores e parceiros de compra"
+          description="Gestão de fornecedores e parceiros de compra"
           icon={Truck}
           actions={
             <div className="flex gap-2">
@@ -229,7 +238,7 @@ export default function FornecedoresListPage() {
                 Exportar
               </Button>
               {canCreate('entidades') && (
-                <Button onClick={() => setShowForm(true)}>
+                <Button onClick={() => setDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Fornecedor
                 </Button>
@@ -243,7 +252,7 @@ export default function FornecedoresListPage() {
           columns={columns}
           loading={isLoading}
           searchable
-          searchPlaceholder="Buscar por documento ou razao social..."
+          searchPlaceholder="Buscar por documento ou razão social..."
           searchKeys={["documento", "razao_social", "nome_fantasia"]}
           onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
           emptyMessage="Nenhum fornecedor cadastrado"
@@ -258,7 +267,7 @@ export default function FornecedoresListPage() {
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="ATIVO">Ativo</SelectItem>
                   <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
-                  <SelectItem value="HOMOLOGACAO">Homologacao</SelectItem>
+                  <SelectItem value="HOMOLOGACAO">Homologação</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -270,7 +279,7 @@ export default function FornecedoresListPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir Fornecedor</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja excluir este fornecedor? Esta acao nao pode ser desfeita.
+                Tem certeza que deseja excluir este fornecedor? Esta ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -282,14 +291,11 @@ export default function FornecedoresListPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <EntidadeWizardDialog
-          open={showForm}
-          onOpenChange={setShowForm}
+        <EntidadeFormDialogComplete
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
           initialPapel="FORNECEDOR"
-          onSuccess={() => {
-            setShowForm(false);
-            refresh();
-          }}
+          onSuccess={() => refetch()}
         />
       </div>
     </ModuleGuard>

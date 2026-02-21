@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck, Plus, Eye, Trash2, Filter } from "lucide-react";
+import { ModuleGuard } from "@/components/auth/ModuleGuard";
+import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLocalEntidades, useDeleteEntidade, LocalEntidade } from "@/hooks/use-local-entidades";
+import { useHybridEntidades, type HybridEntidade } from "@/hooks/use-hybrid-data";
+import { useDeleteEntidade } from "@/hooks/use-entidades";
 import { formatDocument } from "@/lib/formatters";
 import {
   AlertDialog,
@@ -18,32 +21,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EntidadeFormDialog } from "@/components/entidades/EntidadeFormDialog";
+import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
   BLOQUEADO: "error",
+  INATIVO: "warning",
   HOMOLOGACAO: "warning",
 };
 
 export default function TransportadorasListPage() {
   const navigate = useNavigate();
+  const { canDelete } = useAuth();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data: entidades, isLoading, refresh } = useLocalEntidades({
+  const { data: entidades = [], isLoading, refetch } = useHybridEntidades({
     papel: "TRANSPORTADORA",
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
 
-  const { deleteEntidade } = useDeleteEntidade();
+  const deleteEntidade = useDeleteEntidade();
 
   const handleDelete = () => {
     if (deleteId) {
-      deleteEntidade(deleteId);
-      setDeleteId(null);
-      refresh();
+      deleteEntidade.mutate(deleteId, {
+        onSuccess: () => {
+          setDeleteId(null);
+          refetch();
+        },
+      });
     }
   };
 
@@ -52,15 +60,15 @@ export default function TransportadorasListPage() {
       key: "documento",
       header: "CNPJ/CPF",
       sortable: true,
-      render: (item: LocalEntidade) => (
+      render: (item: HybridEntidade) => (
         <span className="font-mono text-sm">{formatDocument(item.documento)}</span>
       ),
     },
     {
       key: "razao_social",
-      header: "Razao Social",
+      header: "Razão Social",
       sortable: true,
-      render: (item: LocalEntidade) => (
+      render: (item: HybridEntidade) => (
         <div>
           <p className="font-medium">{item.razao_social}</p>
           {item.nome_fantasia && (
@@ -72,8 +80,8 @@ export default function TransportadorasListPage() {
     {
       key: "status",
       header: "Status",
-      render: (item: LocalEntidade) => (
-        <StatusBadge variant={STATUS_VARIANTS[item.status]}>
+      render: (item: HybridEntidade) => (
+        <StatusBadge variant={STATUS_VARIANTS[item.status] || "muted"}>
           {item.status}
         </StatusBadge>
       ),
@@ -81,8 +89,8 @@ export default function TransportadorasListPage() {
     {
       key: "contato",
       header: "Contato Principal",
-      render: (item: LocalEntidade) => {
-        const contact = (item as any)._primaryContact;
+      render: (item: HybridEntidade) => {
+        const contact = item._primaryContact;
         if (!contact) return <span className="text-muted-foreground">-</span>;
         return (
           <div className="text-sm">
@@ -97,7 +105,7 @@ export default function TransportadorasListPage() {
       key: "actions",
       header: "",
       className: "w-24",
-      render: (item: LocalEntidade) => (
+      render: (item: HybridEntidade) => (
         <div className="flex gap-1">
           <Button
             variant="ghost"
@@ -109,88 +117,89 @@ export default function TransportadorasListPage() {
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteId(item.id);
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {canDelete('entidades') && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteId(item.id);
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
         </div>
       ),
     },
   ];
 
   return (
-    <div>
-      <PageHeader
-        title="Transportadoras"
-        description="Gestao de transportadoras e parceiros logisticos"
-        icon={Truck}
-        actions={
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Transportadora
-          </Button>
-        }
-      />
+    <ModuleGuard modulo="entidades" moduloLabel="Transportadoras">
+      <div>
+        <PageHeader
+          title="Transportadoras"
+          description="Gestão de transportadoras e parceiros logísticos"
+          icon={Truck}
+          actions={
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Transportadora
+            </Button>
+          }
+        />
 
-      <DataTable
-        data={entidades}
-        columns={columns}
-        loading={isLoading}
-        searchable
-        searchPlaceholder="Buscar por documento ou razao social..."
-        searchKeys={["documento", "razao_social", "nome_fantasia"]}
-        onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
-        emptyMessage="Nenhuma transportadora cadastrada"
-        actions={
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="ATIVO">Ativo</SelectItem>
-                <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
-                <SelectItem value="HOMOLOGACAO">Homologacao</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        }
-      />
+        <DataTable
+          data={entidades}
+          columns={columns}
+          loading={isLoading}
+          searchable
+          searchPlaceholder="Buscar por documento ou razão social..."
+          searchKeys={["documento", "razao_social", "nome_fantasia"]}
+          onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
+          emptyMessage="Nenhuma transportadora cadastrada"
+          actions={
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="ATIVO">Ativo</SelectItem>
+                  <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
+                  <SelectItem value="HOMOLOGACAO">Homologação</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Transportadora</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir esta transportadora? Esta acao nao pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Transportadora</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta transportadora? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <EntidadeFormDialog
-        open={showForm}
-        onOpenChange={setShowForm}
-        initialPapel="TRANSPORTADORA"
-        onSuccess={() => {
-          setShowForm(false);
-          refresh();
-        }}
-      />
-    </div>
+        <EntidadeFormDialogComplete
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          initialPapel="TRANSPORTADORA"
+          onSuccess={() => refetch()}
+        />
+      </div>
+    </ModuleGuard>
   );
 }
