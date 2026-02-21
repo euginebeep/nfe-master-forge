@@ -3568,7 +3568,15 @@ export type Database = {
           cliente_telefone: string | null
           cliente_whatsapp: string | null
           codigo: string
+          comprovante_pagamento_em: string | null
+          comprovante_pagamento_obs: string | null
           condicao_pagamento: string | null
+          contrato_assinado_em: string | null
+          contrato_conferido_em: string | null
+          contrato_conferido_por: string | null
+          contrato_enviado_em: string | null
+          contrato_enviado_via: string | null
+          contrato_status: string | null
           created_at: string
           created_by: string | null
           data_orcamento: string
@@ -3576,6 +3584,9 @@ export type Database = {
           desconto_percentual: number | null
           desconto_valor: number | null
           forma_pagamento: string | null
+          gerencia_aprovado_em: string | null
+          gerencia_aprovado_por: string | null
+          gerencia_observacoes: string | null
           id: string
           observacoes: string | null
           prazo_entrega_dias: number | null
@@ -3583,6 +3594,7 @@ export type Database = {
           updated_at: string
           validade_dias: number | null
           valor_final: number
+          valor_limite_aprovacao_simples: number | null
           valor_total: number
           vendedor_id: string | null
           vendedor_nome: string | null
@@ -3598,7 +3610,15 @@ export type Database = {
           cliente_telefone?: string | null
           cliente_whatsapp?: string | null
           codigo: string
+          comprovante_pagamento_em?: string | null
+          comprovante_pagamento_obs?: string | null
           condicao_pagamento?: string | null
+          contrato_assinado_em?: string | null
+          contrato_conferido_em?: string | null
+          contrato_conferido_por?: string | null
+          contrato_enviado_em?: string | null
+          contrato_enviado_via?: string | null
+          contrato_status?: string | null
           created_at?: string
           created_by?: string | null
           data_orcamento?: string
@@ -3606,6 +3626,9 @@ export type Database = {
           desconto_percentual?: number | null
           desconto_valor?: number | null
           forma_pagamento?: string | null
+          gerencia_aprovado_em?: string | null
+          gerencia_aprovado_por?: string | null
+          gerencia_observacoes?: string | null
           id?: string
           observacoes?: string | null
           prazo_entrega_dias?: number | null
@@ -3613,6 +3636,7 @@ export type Database = {
           updated_at?: string
           validade_dias?: number | null
           valor_final?: number
+          valor_limite_aprovacao_simples?: number | null
           valor_total?: number
           vendedor_id?: string | null
           vendedor_nome?: string | null
@@ -3628,7 +3652,15 @@ export type Database = {
           cliente_telefone?: string | null
           cliente_whatsapp?: string | null
           codigo?: string
+          comprovante_pagamento_em?: string | null
+          comprovante_pagamento_obs?: string | null
           condicao_pagamento?: string | null
+          contrato_assinado_em?: string | null
+          contrato_conferido_em?: string | null
+          contrato_conferido_por?: string | null
+          contrato_enviado_em?: string | null
+          contrato_enviado_via?: string | null
+          contrato_status?: string | null
           created_at?: string
           created_by?: string | null
           data_orcamento?: string
@@ -3636,6 +3668,9 @@ export type Database = {
           desconto_percentual?: number | null
           desconto_valor?: number | null
           forma_pagamento?: string | null
+          gerencia_aprovado_em?: string | null
+          gerencia_aprovado_por?: string | null
+          gerencia_observacoes?: string | null
           id?: string
           observacoes?: string | null
           prazo_entrega_dias?: number | null
@@ -3643,6 +3678,7 @@ export type Database = {
           updated_at?: string
           validade_dias?: number | null
           valor_final?: number
+          valor_limite_aprovacao_simples?: number | null
           valor_total?: number
           vendedor_id?: string | null
           vendedor_nome?: string | null
