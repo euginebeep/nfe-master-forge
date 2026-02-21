@@ -63,80 +63,84 @@ export function NewsFeedCard() {
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.4 }}
-        className="w-fit min-w-[240px] max-w-sm"
+        className="w-full"
       >
         <Card className="overflow-hidden border-border/60 shadow-sm">
-          <CardHeader className="pb-0 pt-3 px-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                <div className="p-1 rounded-md bg-primary/10">
-                  <TrendingUp className="h-3 w-3 text-primary" />
-                </div>
-                Notícias
-                <Badge variant="outline" className="text-[8px] font-medium px-1 py-0 h-3.5 border-border/50 text-muted-foreground">
-                  LIVE
-                </Badge>
-              </CardTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-md"
-                onClick={() => refetch()}
-                disabled={isFetching}
-              >
-                <RefreshCw className={`h-3 w-3 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
-              </Button>
+          <div className="flex items-center gap-2 px-3 py-2">
+            {/* Label */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="p-1 rounded-md bg-primary/10">
+                <TrendingUp className="h-3 w-3 text-primary" />
+              </div>
+              <span className="text-xs font-semibold text-foreground">Notícias</span>
+              <Badge variant="outline" className="text-[8px] font-medium px-1 py-0 h-3.5 border-border/50 text-muted-foreground">
+                LIVE
+              </Badge>
             </div>
-          </CardHeader>
 
-          <CardContent className="p-2 pt-1.5">
-            {isLoading ? (
-              <div className="space-y-1.5">
-                {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="h-7 rounded-md" />
-                ))}
-              </div>
-            ) : error || !news?.length ? (
-              <div className="py-4 text-center">
-                <Newspaper className="h-5 w-5 text-muted-foreground/30 mx-auto mb-1" />
-                <p className="text-[11px] text-muted-foreground">
-                  {error ? 'Erro ao carregar' : 'Sem notícias'}
-                </p>
-                <Button variant="link" size="sm" onClick={() => refetch()} className="mt-0.5 text-[10px] h-auto p-0">
-                  Tentar novamente
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-px">
-                {news.slice(0, 8).map((item, idx) => {
-                  const style = getSourceStyle(item.source);
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedNews(item)}
-                      className="w-full flex items-start gap-1.5 px-1.5 py-1.5 rounded hover:bg-muted/50 transition-colors group text-left"
-                    >
-                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[8px] font-bold border flex-shrink-0 mt-[3px] ${style.badge}`}>
-                        <span className={`w-1 h-1 rounded-full ${style.dot}`} />
-                        {style.short}
-                      </span>
-                      <span className="flex-1 text-[11px] leading-[1.4] text-foreground/80 group-hover:text-primary transition-colors">
-                        {item.title}
-                      </span>
-                      {item.pubDate && (
-                        <span className="text-[9px] text-muted-foreground/40 flex-shrink-0 mt-[2px]">
-                          {formatTimeAgo(item.pubDate)}
+            <div className="h-4 w-px bg-border/60 flex-shrink-0" />
+
+            {/* News items horizontal */}
+            <div className="flex-1 overflow-x-auto scrollbar-hide">
+              {isLoading ? (
+                <div className="flex gap-3">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-5 w-48 rounded-md flex-shrink-0" />
+                  ))}
+                </div>
+              ) : error || !news?.length ? (
+                <div className="flex items-center gap-2">
+                  <Newspaper className="h-3.5 w-3.5 text-muted-foreground/30" />
+                  <span className="text-[11px] text-muted-foreground">
+                    {error ? 'Erro ao carregar' : 'Sem notícias'}
+                  </span>
+                  <Button variant="link" size="sm" onClick={() => refetch()} className="text-[10px] h-auto p-0">
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  {news.slice(0, 8).map((item, idx) => {
+                    const style = getSourceStyle(item.source);
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedNews(item)}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 transition-colors group flex-shrink-0 text-left"
+                      >
+                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[8px] font-bold border ${style.badge}`}>
+                          <span className={`w-1 h-1 rounded-full ${style.dot}`} />
+                          {style.short}
                         </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
+                        <span className="text-[11px] leading-tight text-foreground/80 group-hover:text-primary transition-colors max-w-[220px] truncate">
+                          {item.title}
+                        </span>
+                        {item.pubDate && (
+                          <span className="text-[9px] text-muted-foreground/40 flex-shrink-0">
+                            {formatTimeAgo(item.pubDate)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Refresh */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-md flex-shrink-0"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw className={`h-3 w-3 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </Card>
       </motion.div>
 
