@@ -810,28 +810,29 @@ export default function OrcamentosPage() {
                           onValueChange={setClienteSearch}
                         />
                         <CommandList>
-                          {clienteNaoEncontrado ? (
+                          {clientesFiltrados.length === 0 && (!clienteSearch || clienteSearch.length < 2) ? (
+                            <CommandEmpty>
+                              <p className="text-sm text-muted-foreground py-2">
+                                Digite ao menos 2 caracteres...
+                              </p>
+                            </CommandEmpty>
+                          ) : clientesFiltrados.length === 0 ? (
                             <CommandEmpty className="py-4">
                               <div className="text-center space-y-3">
-                                <p className="text-sm text-muted-foreground">Cliente não encontrado</p>
+                                <p className="text-sm text-muted-foreground">Nenhum cliente encontrado para "{clienteSearch}"</p>
                                 <Button
                                   size="sm"
                                   variant="secondary"
                                   onClick={() => {
                                     setClienteComboOpen(false);
-                                    navigate("/cadastros/entidades");
+                                    setDialogOpen(false);
+                                    navigate("/cadastros/clientes");
                                   }}
                                 >
                                   <UserPlus className="h-4 w-4 mr-2" />
                                   Cadastrar Novo Cliente
                                 </Button>
                               </div>
-                            </CommandEmpty>
-                          ) : clientesFiltrados.length === 0 ? (
-                            <CommandEmpty>
-                              <p className="text-sm text-muted-foreground py-2">
-                                Digite ao menos 2 caracteres...
-                              </p>
                             </CommandEmpty>
                           ) : (
                             <CommandGroup>
@@ -851,6 +852,21 @@ export default function OrcamentosPage() {
                                   </div>
                                 </CommandItem>
                               ))}
+                              {/* Botão cadastrar sempre visível no final da lista */}
+                              {clienteSearch && clienteSearch.length >= 2 && (
+                                <CommandItem
+                                  value="__cadastrar_novo__"
+                                  onSelect={() => {
+                                    setClienteComboOpen(false);
+                                    setDialogOpen(false);
+                                    navigate("/cadastros/clientes");
+                                  }}
+                                  className="cursor-pointer border-t mt-1 pt-2"
+                                >
+                                  <UserPlus className="h-4 w-4 mr-2 text-primary" />
+                                  <span className="text-primary font-medium">Cadastrar Novo Cliente</span>
+                                </CommandItem>
+                              )}
                             </CommandGroup>
                           )}
                         </CommandList>
