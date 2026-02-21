@@ -69,19 +69,19 @@ export function NewsFeedCard() {
         className="w-full"
       >
         <Card className="overflow-hidden border-border/60 shadow-sm">
-          <div className="flex items-center gap-2 px-3 py-2">
+          <div className="flex items-center gap-3 px-4 py-3">
             {/* Label */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <div className="p-1 rounded-md bg-primary/10">
-                <TrendingUp className="h-3 w-3 text-primary" />
+                <TrendingUp className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-xs font-semibold text-foreground">Notícias</span>
-              <Badge variant="outline" className="text-[8px] font-medium px-1 py-0 h-3.5 border-border/50 text-muted-foreground">
+              <span className="text-sm font-semibold text-foreground">Notícias</span>
+              <Badge variant="outline" className="text-[9px] font-medium px-1.5 py-0 h-4 border-border/50 text-muted-foreground">
                 LIVE
               </Badge>
             </div>
 
-            <div className="h-4 w-px bg-border/60 flex-shrink-0" />
+            <div className="h-5 w-px bg-border/60 flex-shrink-0" />
 
             {/* News items horizontal */}
             <div className="flex-1 overflow-x-auto scrollbar-hide">
@@ -109,17 +109,17 @@ export function NewsFeedCard() {
                       <button
                         key={idx}
                         onClick={() => setSelectedNews(item)}
-                        className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 transition-colors group flex-shrink-0 text-left"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-muted/50 transition-colors group flex-shrink-0 text-left"
                       >
-                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[8px] font-bold border ${style.badge}`}>
+                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${style.badge}`}>
                           <span className={`w-1 h-1 rounded-full ${style.dot}`} />
                           {style.short}
                         </span>
-                        <span className="text-[11px] leading-tight text-foreground/80 group-hover:text-primary transition-colors max-w-[220px] truncate">
+                        <span className="text-[13px] leading-snug text-foreground/80 group-hover:text-primary transition-colors max-w-[260px] truncate">
                           {item.title}
                         </span>
                         {item.pubDate && (
-                          <span className="text-[9px] text-muted-foreground/40 flex-shrink-0">
+                          <span className="text-[10px] text-muted-foreground/40 flex-shrink-0">
                             {formatTimeAgo(item.pubDate)}
                           </span>
                         )}
@@ -134,11 +134,11 @@ export function NewsFeedCard() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 rounded-md flex-shrink-0"
+              className="h-7 w-7 rounded-md flex-shrink-0"
               onClick={() => refetch()}
               disabled={isFetching}
             >
-              <RefreshCw className={`h-3 w-3 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </Card>
