@@ -3575,6 +3575,7 @@ export type Database = {
           data_validade: string | null
           desconto_percentual: number | null
           desconto_valor: number | null
+          forma_pagamento: string | null
           id: string
           observacoes: string | null
           prazo_entrega_dias: number | null
@@ -3604,6 +3605,7 @@ export type Database = {
           data_validade?: string | null
           desconto_percentual?: number | null
           desconto_valor?: number | null
+          forma_pagamento?: string | null
           id?: string
           observacoes?: string | null
           prazo_entrega_dias?: number | null
@@ -3633,6 +3635,7 @@ export type Database = {
           data_validade?: string | null
           desconto_percentual?: number | null
           desconto_valor?: number | null
+          forma_pagamento?: string | null
           id?: string
           observacoes?: string | null
           prazo_entrega_dias?: number | null

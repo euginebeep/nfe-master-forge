@@ -164,6 +164,8 @@ export default function OrcamentosPage() {
   const [showCadastroClienteDialog, setShowCadastroClienteDialog] = useState(false);
   const [vendedorNome, setVendedorNome] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [formaPagamento, setFormaPagamento] = useState("A_VISTA");
+  const [descontoPercentual, setDescontoPercentual] = useState(0);
   const [itens, setItens] = useState<ItemOrcamento[]>([
     { 
       produto_nome: "", 
@@ -336,6 +338,8 @@ export default function OrcamentosPage() {
       const vendedor = vendedores?.find(v => v.nome_completo === vendedorNome);
 
       const valorTotal = itens.reduce((sum, item) => sum + item.valor_total, 0);
+      const valorDesconto = valorTotal * (descontoPercentual / 100);
+      const valorFinal = valorTotal - valorDesconto;
 
       const { data, error } = await supabase
         .from("orcamentos")
@@ -351,7 +355,9 @@ export default function OrcamentosPage() {
           vendedor_id: vendedor?.id || null,
           vendedor_nome: vendedorNome || null,
           valor_total: valorTotal,
-          valor_final: valorTotal,
+          valor_final: valorFinal,
+          forma_pagamento: formaPagamento,
+          desconto_percentual: descontoPercentual,
           data_orcamento: format(new Date(), "yyyy-MM-dd"),
           data_validade: format(addDays(new Date(), 30), "yyyy-MM-dd"),
           status: "RASCUNHO",
@@ -499,6 +505,8 @@ export default function OrcamentosPage() {
     setShowClienteNotFound(false);
     setVendedorNome(profile?.nome_completo || "");
     setObservacoes("");
+    setFormaPagamento("A_VISTA");
+    setDescontoPercentual(0);
     setItens([{ 
       produto_nome: "", 
       quantidade: 1, 
@@ -588,6 +596,20 @@ export default function OrcamentosPage() {
   );
 
   const valorTotalItens = itens.reduce((sum, item) => sum + item.valor_total, 0);
+  const valorDescontoItens = valorTotalItens * (descontoPercentual / 100);
+  const valorFinalItens = valorTotalItens - valorDescontoItens;
+
+  const FORMAS_PAGAMENTO = [
+    { value: "A_VISTA", label: "À Vista" },
+    { value: "50_50", label: "50/50" },
+    { value: "CARTAO", label: "Cartão" },
+    { value: "BOLETO", label: "Boleto" },
+    { value: "30_60_90", label: "30/60/90" },
+  ];
+
+  const getFormaPagamentoLabel = (value: string) => {
+    return FORMAS_PAGAMENTO.find(f => f.value === value)?.label || value;
+  };
 
   return (
     <div>
@@ -1130,10 +1152,46 @@ export default function OrcamentosPage() {
                   </div>
                 ))}
 
-                <div className="text-right pt-2 border-t">
-                  <span className="text-lg font-bold">
-                    Total: R$ {valorTotalItens.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </span>
+                <div className="pt-4 border-t space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Forma de Pagamento</Label>
+                      <Select value={formaPagamento} onValueChange={setFormaPagamento}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FORMAS_PAGAMENTO.map((fp) => (
+                            <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Desconto (%)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        value={descontoPercentual}
+                        onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <div className="text-sm text-muted-foreground">
+                      Subtotal: R$ {valorTotalItens.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </div>
+                    {descontoPercentual > 0 && (
+                      <div className="text-sm text-destructive">
+                        Desconto ({descontoPercentual}%): - R$ {valorDescontoItens.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </div>
+                    )}
+                    <div className="text-lg font-bold">
+                      Total Final: R$ {valorFinalItens.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1181,7 +1239,7 @@ export default function OrcamentosPage() {
           {selectedOrcamento && (
             <div className="space-y-6">
               {/* Cabeçalho: Datas e Vendedor */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Data do Orçamento</p>
                   <p className="font-medium">
@@ -1198,8 +1256,33 @@ export default function OrcamentosPage() {
                   <p className="text-xs text-muted-foreground">Vendedor</p>
                   <p className="font-medium">{(selectedOrcamento as any).vendedor_nome || "—"}</p>
                 </div>
+              </div>
+
+              {/* Pagamento e Valores */}
+              <div className="grid grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground">Forma de Pagamento</p>
+                  <p className="font-semibold">{getFormaPagamentoLabel((selectedOrcamento as any).forma_pagamento || "A_VISTA")}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Subtotal</p>
+                  <p className="font-medium">
+                    R$ {Number(selectedOrcamento.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Desconto</p>
+                  <p className="font-medium text-destructive">
+                    {Number((selectedOrcamento as any).desconto_percentual || 0)}%
+                    {Number((selectedOrcamento as any).desconto_percentual || 0) > 0 && (
+                      <span className="text-xs ml-1">
+                        (- R$ {(Number(selectedOrcamento.valor_total || 0) * Number((selectedOrcamento as any).desconto_percentual || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})
+                      </span>
+                    )}
+                  </p>
+                </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Valor Total</p>
+                  <p className="text-xs text-muted-foreground">Valor Final</p>
                   <p className="text-2xl font-bold text-secondary">
                     R$ {Number(selectedOrcamento.valor_final || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </p>
@@ -1332,10 +1415,18 @@ export default function OrcamentosPage() {
                       ))}
 
                       {/* Total geral */}
-                      <div className="text-right pt-2 border-t">
-                        <span className="text-lg font-bold">
-                          Total: R$ {Number(selectedOrcamento.valor_final || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </span>
+                      <div className="text-right pt-2 border-t space-y-1">
+                        <div className="text-sm text-muted-foreground">
+                          Subtotal: R$ {Number(selectedOrcamento.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </div>
+                        {Number((selectedOrcamento as any).desconto_percentual || 0) > 0 && (
+                          <div className="text-sm text-destructive">
+                            Desconto ({(selectedOrcamento as any).desconto_percentual}%): - R$ {(Number(selectedOrcamento.valor_total || 0) * Number((selectedOrcamento as any).desconto_percentual || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </div>
+                        )}
+                        <div className="text-lg font-bold">
+                          Total Final: R$ {Number(selectedOrcamento.valor_final || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </div>
                       </div>
                     </div>
                   )}
