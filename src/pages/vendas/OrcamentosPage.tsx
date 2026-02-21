@@ -7,6 +7,7 @@ import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,7 @@ export default function OrcamentosPage() {
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteCompleto | null>(null);
   const [showClienteNotFound, setShowClienteNotFound] = useState(false);
   const [clienteComboOpen, setClienteComboOpen] = useState(false);
+  const [showCadastroClienteDialog, setShowCadastroClienteDialog] = useState(false);
   const [vendedorNome, setVendedorNome] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [itens, setItens] = useState<ItemOrcamento[]>([
@@ -825,8 +827,7 @@ export default function OrcamentosPage() {
                                   variant="secondary"
                                   onClick={() => {
                                     setClienteComboOpen(false);
-                                    setDialogOpen(false);
-                                    navigate("/cadastros/clientes");
+                                    setShowCadastroClienteDialog(true);
                                   }}
                                 >
                                   <UserPlus className="h-4 w-4 mr-2" />
@@ -858,8 +859,7 @@ export default function OrcamentosPage() {
                                   value="__cadastrar_novo__"
                                   onSelect={() => {
                                     setClienteComboOpen(false);
-                                    setDialogOpen(false);
-                                    navigate("/cadastros/clientes");
+                                    setShowCadastroClienteDialog(true);
                                   }}
                                   className="cursor-pointer border-t mt-1 pt-2"
                                 >
@@ -1246,6 +1246,16 @@ export default function OrcamentosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Dialog Cadastrar Cliente inline */}
+      <EntidadeFormDialogComplete
+        open={showCadastroClienteDialog}
+        onOpenChange={setShowCadastroClienteDialog}
+        initialPapel="CLIENTE"
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["clientes-orcamento-completo"] });
+          setShowCadastroClienteDialog(false);
+        }}
+      />
     </div>
   );
 }
