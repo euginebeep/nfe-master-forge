@@ -102,28 +102,33 @@ export function NewsFeedCard() {
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
                   {news.slice(0, 8).map((item, idx) => {
                     const style = getSourceStyle(item.source);
                     return (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedNews(item)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-muted/50 transition-colors group flex-shrink-0 text-left"
-                      >
-                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${style.badge}`}>
-                          <span className={`w-1 h-1 rounded-full ${style.dot}`} />
-                          {style.short}
-                        </span>
-                        <span className="text-[13px] leading-snug text-foreground/80 group-hover:text-primary transition-colors max-w-[260px] truncate">
-                          {item.title}
-                        </span>
-                        {item.pubDate && (
-                          <span className="text-[10px] text-muted-foreground/40 flex-shrink-0">
-                            {formatTimeAgo(item.pubDate)}
-                          </span>
+                      <>
+                        {idx > 0 && (
+                          <span className="text-muted-foreground/20 text-[10px] flex-shrink-0 mx-1">•</span>
                         )}
-                      </button>
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedNews(item)}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors group flex-shrink-0 text-left"
+                        >
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold border ${style.badge}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${style.dot} animate-pulse`} />
+                            {style.short}
+                          </span>
+                          <span className="text-[13px] leading-snug text-foreground/85 group-hover:text-primary font-medium transition-colors max-w-[280px] truncate">
+                            {item.title}
+                          </span>
+                          {item.pubDate && (
+                            <span className="text-[10px] text-muted-foreground/50 flex-shrink-0 tabular-nums">
+                              {formatTimeAgo(item.pubDate)}
+                            </span>
+                          )}
+                        </button>
+                      </>
                     );
                   })}
                 </div>
