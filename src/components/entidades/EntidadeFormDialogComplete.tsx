@@ -280,11 +280,21 @@ export function EntidadeFormDialogComplete({ open, onOpenChange, entidade, initi
 
       // Upsert configs
       if (entidadeId) {
+        // Sanitize UUID fields: convert empty strings to null
+        const sanitizedLogistica = {
+          ...logisticaConfig,
+          transportadora_preferencial_entidade_id: logisticaConfig.transportadora_preferencial_entidade_id || null,
+        };
+        const sanitizedComercial = {
+          ...comercialCRM,
+          responsavel_usuario_id: (comercialCRM as Record<string, unknown>).responsavel_usuario_id || null,
+        };
+
         await Promise.all([
           upsertFiscal.mutateAsync({ entidade_id: entidadeId, ...fiscalConfig } as any),
           upsertFinanceiro.mutateAsync({ entidade_id: entidadeId, ...financeiroConfig } as any),
-          upsertComercial.mutateAsync({ entidade_id: entidadeId, ...comercialCRM } as any),
-          upsertLogistica.mutateAsync({ entidade_id: entidadeId, ...logisticaConfig } as any),
+          upsertComercial.mutateAsync({ entidade_id: entidadeId, ...sanitizedComercial } as any),
+          upsertLogistica.mutateAsync({ entidade_id: entidadeId, ...sanitizedLogistica } as any),
         ]);
       }
 
