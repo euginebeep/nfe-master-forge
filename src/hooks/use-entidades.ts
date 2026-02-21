@@ -137,6 +137,34 @@ export function useUpdateEntidade() {
   });
 }
 
+export function useDeleteEntidade() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Delete related records first
+      await supabase.from("entidade_contatos").delete().eq("entidade_id", id);
+      await supabase.from("entidade_enderecos").delete().eq("entidade_id", id);
+      await supabase.from("entidade_papeis").delete().eq("entidade_id", id);
+      await supabase.from("entidade_fiscal_config").delete().eq("entidade_id", id);
+      await supabase.from("entidade_financeiro_config").delete().eq("entidade_id", id);
+      await supabase.from("entidade_comercial_crm").delete().eq("entidade_id", id);
+      await supabase.from("entidade_logistica_config").delete().eq("entidade_id", id);
+
+      const { error } = await supabase.from("entidades").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["entidades"] });
+      queryClient.invalidateQueries({ queryKey: ["hybrid-entidades"] });
+      toast.success("Entidade excluída com sucesso");
+    },
+    onError: (error) => {
+      toast.error("Erro ao excluir entidade: " + error.message);
+    },
+  });
+}
+
 export function useUpsertEntidadePapeis() {
   const queryClient = useQueryClient();
 
