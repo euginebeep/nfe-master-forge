@@ -3583,6 +3583,8 @@ export type Database = {
           validade_dias: number | null
           valor_final: number
           valor_total: number
+          vendedor_id: string | null
+          vendedor_nome: string | null
         }
         Insert: {
           aprovado_em?: string | null
@@ -3610,6 +3612,8 @@ export type Database = {
           validade_dias?: number | null
           valor_final?: number
           valor_total?: number
+          vendedor_id?: string | null
+          vendedor_nome?: string | null
         }
         Update: {
           aprovado_em?: string | null
@@ -3637,6 +3641,8 @@ export type Database = {
           validade_dias?: number | null
           valor_final?: number
           valor_total?: number
+          vendedor_id?: string | null
+          vendedor_nome?: string | null
         }
         Relationships: [
           {

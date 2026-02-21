@@ -1,12 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   FileText, Plus, Search, Eye, CheckCircle, X, ArrowRight, 
-  Calendar, User, Building2, DollarSign, Clock, UserPlus, Phone, Mail, MapPin, Palette
+  Calendar, User, Building2, DollarSign, Clock, UserPlus, Phone, Mail, MapPin, Palette, Hash
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +67,8 @@ interface Orcamento {
   cliente_telefone?: string;
   cliente_email?: string;
   cliente_whatsapp?: string;
+  vendedor_id?: string;
+  vendedor_nome?: string;
   valor_total: number;
   valor_final: number;
   data_orcamento: string;
@@ -148,12 +151,16 @@ export default function OrcamentosPage() {
   const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   
+  // Auth & profile
+  const { profile } = useAuth();
+  
   // Form state
   const [clienteSearch, setClienteSearch] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteCompleto | null>(null);
   const [showClienteNotFound, setShowClienteNotFound] = useState(false);
   const [clienteComboOpen, setClienteComboOpen] = useState(false);
+  const [vendedorNome, setVendedorNome] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [itens, setItens] = useState<ItemOrcamento[]>([
     { 
@@ -171,6 +178,37 @@ export default function OrcamentosPage() {
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  // Set vendedor name from profile when dialog opens
+  useEffect(() => {
+    if (dialogOpen && profile?.nome_completo) {
+      setVendedorNome(profile.nome_completo);
+    }
+  }, [dialogOpen, profile]);
+
+  // Auto-generate next code preview
+  const { data: nextCodigo } = useQuery({
+    queryKey: ["next-orcamento-codigo"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("gerar_codigo_orcamento");
+      if (error) throw error;
+      return data as string;
+    },
+    enabled: dialogOpen,
+  });
+
+  // Buscar vendedores (profiles)
+  const { data: vendedores } = useQuery({
+    queryKey: ["vendedores-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome_completo")
+        .order("nome_completo");
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   // Buscar orçamentos
   const { data: orcamentos, isLoading } = useQuery({
@@ -268,22 +306,16 @@ export default function OrcamentosPage() {
   // Criar orçamento
   const criarOrcamento = useMutation({
     mutationFn: async () => {
-      // Gerar código
-      const { data: lastOrc } = await supabase
-        .from("orcamentos")
-        .select("codigo")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      const ano = new Date().getFullYear();
-      let seq = 1;
-      if (lastOrc && lastOrc.length > 0) {
-        const partes = lastOrc[0].codigo.split("-");
-        if (partes[1] === String(ano)) {
-          seq = parseInt(partes[2] || "0", 10) + 1;
-        }
+      if (!clienteSelecionado) {
+        throw new Error("Selecione um cliente cadastrado");
       }
-      const codigo = `ORC-${ano}-${String(seq).padStart(4, "0")}`;
+
+      // Gerar código via DB function
+      const { data: codigo, error: codeError } = await supabase.rpc("gerar_codigo_orcamento");
+      if (codeError || !codigo) throw codeError || new Error("Erro ao gerar código");
+
+      // Encontrar vendedor_id pelo nome
+      const vendedor = vendedores?.find(v => v.nome_completo === vendedorNome);
 
       const valorTotal = itens.reduce((sum, item) => sum + item.valor_total, 0);
 
@@ -291,20 +323,22 @@ export default function OrcamentosPage() {
         .from("orcamentos")
         .insert({
           codigo,
-          cliente_id: clienteSelecionado?.id || null,
-          cliente_nome: clienteSelecionado?.razao_social || clienteSearch || "Cliente não informado",
-          cliente_documento: clienteSelecionado?.documento || null,
-          cliente_endereco: clienteSelecionado?.endereco_completo || null,
-          cliente_telefone: clienteSelecionado?.telefone || null,
-          cliente_email: clienteSelecionado?.email || null,
-          cliente_whatsapp: clienteSelecionado?.whatsapp || null,
+          cliente_id: clienteSelecionado.id,
+          cliente_nome: clienteSelecionado.razao_social,
+          cliente_documento: clienteSelecionado.documento || null,
+          cliente_endereco: clienteSelecionado.endereco_completo || null,
+          cliente_telefone: clienteSelecionado.telefone || null,
+          cliente_email: clienteSelecionado.email || null,
+          cliente_whatsapp: clienteSelecionado.whatsapp || null,
+          vendedor_id: vendedor?.id || null,
+          vendedor_nome: vendedorNome || null,
           valor_total: valorTotal,
           valor_final: valorTotal,
           data_orcamento: format(new Date(), "yyyy-MM-dd"),
           data_validade: format(addDays(new Date(), 30), "yyyy-MM-dd"),
           status: "RASCUNHO",
           observacoes,
-        })
+        } as any)
         .select()
         .single();
 
@@ -339,11 +373,12 @@ export default function OrcamentosPage() {
     onSuccess: () => {
       toast.success("Orçamento criado com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["next-orcamento-codigo"] });
       setDialogOpen(false);
       resetForm();
     },
-    onError: (error) => {
-      toast.error("Erro ao criar orçamento");
+    onError: (error: any) => {
+      toast.error(error?.message || "Erro ao criar orçamento");
       console.error(error);
     },
   });
@@ -444,6 +479,7 @@ export default function OrcamentosPage() {
     setClienteSearch("");
     setClienteSelecionado(null);
     setShowClienteNotFound(false);
+    setVendedorNome(profile?.nome_completo || "");
     setObservacoes("");
     setItens([{ 
       produto_nome: "", 
@@ -623,6 +659,7 @@ export default function OrcamentosPage() {
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Cliente</TableHead>
+              <TableHead>Vendedor</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Validade</TableHead>
               <TableHead className="text-right">Valor</TableHead>
@@ -633,13 +670,13 @@ export default function OrcamentosPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : filteredOrcamentos?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Nenhum orçamento encontrado
                 </TableCell>
               </TableRow>
@@ -654,6 +691,9 @@ export default function OrcamentosPage() {
                         <p className="text-xs text-muted-foreground">{orcamento.cliente_documento}</p>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm">{(orcamento as any).vendedor_nome || "—"}</span>
                   </TableCell>
                   <TableCell>
                     {orcamento.data_orcamento && format(new Date(orcamento.data_orcamento), "dd/MM/yyyy")}
@@ -706,10 +746,39 @@ export default function OrcamentosPage() {
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Novo Orçamento
+              {nextCodigo && (
+                <Badge variant="outline" className="ml-2 font-mono text-xs">
+                  <Hash className="h-3 w-3 mr-1" />
+                  {nextCodigo}
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Vendedor */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Vendedor</Label>
+                <Select value={vendedorNome} onValueChange={setVendedorNome}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendedores?.map((v) => (
+                      <SelectItem key={v.id} value={v.nome_completo}>
+                        {v.nome_completo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input value={format(new Date(), "dd/MM/yyyy")} disabled />
+              </div>
+            </div>
+
             {/* Seção Cliente */}
             <Card>
               <CardHeader className="pb-3">
@@ -1054,7 +1123,7 @@ export default function OrcamentosPage() {
             </Button>
             <Button 
               onClick={() => criarOrcamento.mutate()} 
-              disabled={criarOrcamento.isPending || !itens.some(i => i.produto_nome)}
+              disabled={criarOrcamento.isPending || !clienteSelecionado || !itens.some(i => i.produto_nome)}
             >
               {criarOrcamento.isPending ? "Salvando..." : "Criar Orçamento"}
             </Button>
