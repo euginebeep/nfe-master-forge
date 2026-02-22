@@ -3611,6 +3611,7 @@ export type Database = {
           contrato_conferido_em: string | null
           contrato_conferido_por: string | null
           contrato_enviado_em: string | null
+          contrato_enviado_por: string | null
           contrato_enviado_via: string | null
           contrato_status: string | null
           created_at: string
@@ -3653,6 +3654,7 @@ export type Database = {
           contrato_conferido_em?: string | null
           contrato_conferido_por?: string | null
           contrato_enviado_em?: string | null
+          contrato_enviado_por?: string | null
           contrato_enviado_via?: string | null
           contrato_status?: string | null
           created_at?: string
@@ -3695,6 +3697,7 @@ export type Database = {
           contrato_conferido_em?: string | null
           contrato_conferido_por?: string | null
           contrato_enviado_em?: string | null
+          contrato_enviado_por?: string | null
           contrato_enviado_via?: string | null
           contrato_status?: string | null
           created_at?: string
