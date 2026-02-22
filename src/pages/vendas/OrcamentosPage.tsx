@@ -562,7 +562,7 @@ export default function OrcamentosPage() {
       const valorDesconto = valorTotal * (descontoPercentual / 100);
       const valorFinal = valorTotal - valorDesconto;
 
-      // Atualizar orçamento
+      // Atualizar orçamento e resetar workflow do contrato
       const { error } = await supabase
         .from("orcamentos")
         .update({
@@ -582,6 +582,19 @@ export default function OrcamentosPage() {
           data_orcamento: format(new Date(), "yyyy-MM-dd"),
           data_validade: format(addDays(new Date(), 30), "yyyy-MM-dd"),
           observacoes,
+          // Resetar todo o workflow do contrato para forçar nova geração
+          contrato_status: null,
+          contrato_enviado_em: null,
+          contrato_enviado_via: null,
+          contrato_enviado_por: null,
+          comprovante_pagamento_em: null,
+          comprovante_pagamento_obs: null,
+          gerencia_aprovado_por: null,
+          gerencia_aprovado_em: null,
+          gerencia_observacoes: null,
+          contrato_assinado_em: null,
+          contrato_conferido_por: null,
+          contrato_conferido_em: null,
         } as any)
         .eq("id", editingOrcamentoId);
 
