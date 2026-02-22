@@ -2,8 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { 
   FileText, Plus, Search, Eye, CheckCircle, X, ArrowRight, 
   Calendar, User, Building2, DollarSign, Clock, UserPlus, Phone, Mail, MapPin, Palette, Hash,
-  FileSignature
+  FileSignature, Pencil, AlertTriangle
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -154,6 +155,9 @@ export default function OrcamentosPage() {
   const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [contratoDialogOpen, setContratoDialogOpen] = useState(false);
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
+  const [orcamentoParaEditar, setOrcamentoParaEditar] = useState<Orcamento | null>(null);
+  const [editingOrcamentoId, setEditingOrcamentoId] = useState<string | null>(null);
   
   // Auth & profile
   const { profile } = useAuth();
@@ -501,6 +505,125 @@ export default function OrcamentosPage() {
     },
   });
 
+  // Carregar orçamento para edição
+  const carregarOrcamentoParaEdicao = async (orcamento: Orcamento) => {
+    // Buscar itens do orçamento
+    const { data: itensOrc } = await supabase
+      .from("orcamento_itens")
+      .select("*")
+      .eq("orcamento_id", orcamento.id)
+      .order("ordem");
+
+    // Buscar cliente completo
+    const clienteEncontrado = clientes?.find(c => c.id === orcamento.cliente_id);
+    if (clienteEncontrado) {
+      setClienteId(clienteEncontrado.id);
+      setClienteSelecionado(clienteEncontrado);
+      setClienteSearch(clienteEncontrado.razao_social);
+    } else {
+      setClienteSearch(orcamento.cliente_nome);
+    }
+
+    setVendedorNome((orcamento as any).vendedor_nome || "");
+    setObservacoes(orcamento.observacoes || "");
+    setFormaPagamento((orcamento as any).forma_pagamento || "A_VISTA");
+    setDescontoPercentual(Number((orcamento as any).desconto_percentual || 0));
+
+    if (itensOrc && itensOrc.length > 0) {
+      setItens(itensOrc.map((item: any) => ({
+        id: item.id,
+        formula_id: item.formula_id || undefined,
+        produto_nome: item.produto_nome,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario,
+        valor_total: item.valor_total,
+        unidades_por_frasco: item.unidades_por_frasco || 60,
+        rotulo: item.rotulo || "",
+        tampa_cor: item.tampa_cor || "Preta",
+        capsula_cor: item.capsula_cor || "Transparente",
+        pote_cor: item.pote_cor || "Âmbar",
+        incluir_silica: item.incluir_silica ?? true,
+      })));
+    }
+
+    setEditingOrcamentoId(orcamento.id);
+    setDialogOpen(true);
+  };
+
+  // Editar (sobrescrever) orçamento
+  const editarOrcamento = useMutation({
+    mutationFn: async () => {
+      if (!editingOrcamentoId || !clienteSelecionado) {
+        throw new Error("Dados inválidos para edição");
+      }
+
+      const vendedor = vendedores?.find(v => v.nome_completo === vendedorNome);
+      const valorTotal = itens.reduce((sum, item) => sum + item.valor_total, 0);
+      const valorDesconto = valorTotal * (descontoPercentual / 100);
+      const valorFinal = valorTotal - valorDesconto;
+
+      // Atualizar orçamento
+      const { error } = await supabase
+        .from("orcamentos")
+        .update({
+          cliente_id: clienteSelecionado.id,
+          cliente_nome: clienteSelecionado.razao_social,
+          cliente_documento: clienteSelecionado.documento || null,
+          cliente_endereco: clienteSelecionado.endereco_completo || null,
+          cliente_telefone: clienteSelecionado.telefone || null,
+          cliente_email: clienteSelecionado.email || null,
+          cliente_whatsapp: clienteSelecionado.whatsapp || null,
+          vendedor_id: vendedor?.id || null,
+          vendedor_nome: vendedorNome || null,
+          valor_total: valorTotal,
+          valor_final: valorFinal,
+          forma_pagamento: formaPagamento,
+          desconto_percentual: descontoPercentual,
+          data_orcamento: format(new Date(), "yyyy-MM-dd"),
+          data_validade: format(addDays(new Date(), 30), "yyyy-MM-dd"),
+          observacoes,
+        } as any)
+        .eq("id", editingOrcamentoId);
+
+      if (error) throw error;
+
+      // Deletar itens antigos
+      await supabase.from("orcamento_itens").delete().eq("orcamento_id", editingOrcamentoId);
+
+      // Inserir novos itens
+      const itensData = itens.filter(i => i.produto_nome).map((item, idx) => ({
+        orcamento_id: editingOrcamentoId,
+        formula_id: item.formula_id || null,
+        produto_nome: item.produto_nome,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario,
+        preco_final: item.preco_unitario,
+        valor_total: item.valor_total,
+        unidades_por_frasco: item.unidades_por_frasco,
+        rotulo: item.rotulo || null,
+        tampa_cor: item.tampa_cor || null,
+        capsula_cor: item.capsula_cor || null,
+        pote_cor: item.pote_cor || null,
+        incluir_silica: item.incluir_silica,
+        ordem: idx + 1,
+      }));
+
+      if (itensData.length > 0) {
+        await supabase.from("orcamento_itens").insert(itensData);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Orçamento atualizado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
+      setDialogOpen(false);
+      setEditingOrcamentoId(null);
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Erro ao atualizar orçamento");
+    },
+  });
+
   const resetForm = () => {
     setClienteId("");
     setClienteSearch("");
@@ -510,6 +633,7 @@ export default function OrcamentosPage() {
     setObservacoes("");
     setFormaPagamento("A_VISTA");
     setDescontoPercentual(0);
+    setEditingOrcamentoId(null);
     setItens([{ 
       produto_nome: "", 
       quantidade: 1, 
@@ -521,6 +645,20 @@ export default function OrcamentosPage() {
       pote_cor: "Âmbar",
       tampa_cor: "Preta",
     }]);
+  };
+
+  const handleEditClick = (orcamento: Orcamento) => {
+    setOrcamentoParaEditar(orcamento);
+    setEditConfirmOpen(true);
+  };
+
+  const confirmarEdicao = async () => {
+    if (orcamentoParaEditar) {
+      setEditConfirmOpen(false);
+      setViewDialogOpen(false);
+      await carregarOrcamentoParaEdicao(orcamentoParaEditar);
+      setOrcamentoParaEditar(null);
+    }
   };
 
   const addItem = () => {
@@ -763,17 +901,26 @@ export default function OrcamentosPage() {
                         <Eye className="h-4 w-4" />
                       </Button>
                       {orcamento.status !== "CONVERTIDO" && orcamento.status !== "RECUSADO" && orcamento.status !== "EXPIRADO" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedOrcamento(orcamento);
-                            setContratoDialogOpen(true);
-                          }}
-                        >
-                          <FileSignature className="h-4 w-4 mr-1" />
-                          Contrato
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditClick(orcamento)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedOrcamento(orcamento);
+                              setContratoDialogOpen(true);
+                            }}
+                          >
+                            <FileSignature className="h-4 w-4 mr-1" />
+                            Contrato
+                          </Button>
+                        </>
                       )}
                       {(orcamento as any).contrato_status === "ASSINADO" && orcamento.status !== "CONVERTIDO" && (
                         <Button
@@ -801,8 +948,8 @@ export default function OrcamentosPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Novo Orçamento
-              {nextCodigo && (
+              {editingOrcamentoId ? "Editar Orçamento" : "Novo Orçamento"}
+              {!editingOrcamentoId && nextCodigo && (
                 <Badge variant="outline" className="ml-2 font-mono text-xs">
                   <Hash className="h-3 w-3 mr-1" />
                   {nextCodigo}
@@ -1224,14 +1371,16 @@ export default function OrcamentosPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingOrcamentoId(null); resetForm(); }}>
               Cancelar
             </Button>
             <Button 
-              onClick={() => criarOrcamento.mutate()} 
-              disabled={criarOrcamento.isPending || !clienteSelecionado || !itens.some(i => i.produto_nome)}
+              onClick={() => editingOrcamentoId ? editarOrcamento.mutate() : criarOrcamento.mutate()} 
+              disabled={(editingOrcamentoId ? editarOrcamento.isPending : criarOrcamento.isPending) || !clienteSelecionado || !itens.some(i => i.produto_nome)}
             >
-              {criarOrcamento.isPending ? "Salvando..." : "Criar Orçamento"}
+              {(editingOrcamentoId ? editarOrcamento.isPending : criarOrcamento.isPending) 
+                ? "Salvando..." 
+                : editingOrcamentoId ? "Salvar Alterações" : "Criar Orçamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1468,16 +1617,25 @@ export default function OrcamentosPage() {
               Fechar
             </Button>
             {selectedOrcamento && selectedOrcamento.status !== "CONVERTIDO" && selectedOrcamento.status !== "RECUSADO" && selectedOrcamento.status !== "EXPIRADO" && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setViewDialogOpen(false);
-                  setContratoDialogOpen(true);
-                }}
-              >
-                <FileSignature className="h-4 w-4 mr-2" />
-                Abrir Contrato
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => handleEditClick(selectedOrcamento)}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    setContratoDialogOpen(true);
+                  }}
+                >
+                  <FileSignature className="h-4 w-4 mr-2" />
+                  Abrir Contrato
+                </Button>
+              </>
             )}
             {selectedOrcamento && (selectedOrcamento as any).contrato_status === "ASSINADO" && selectedOrcamento.status !== "CONVERTIDO" && (
               <Button 
@@ -1509,6 +1667,17 @@ export default function OrcamentosPage() {
         onUpdate={() => {
           queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
         }}
+      />
+      {/* Dialog Confirmar Edição */}
+      <ConfirmDialog
+        open={editConfirmOpen}
+        onOpenChange={setEditConfirmOpen}
+        title="⚠️ Editar Orçamento"
+        description={`Tem certeza que deseja editar o orçamento ${orcamentoParaEditar?.codigo}? Todos os dados atuais serão sobrescritos com as novas informações. Esta ação não pode ser desfeita.`}
+        confirmLabel="Sim, Editar"
+        cancelLabel="Cancelar"
+        variant="destructive"
+        onConfirm={confirmarEdicao}
       />
     </div>
   );
