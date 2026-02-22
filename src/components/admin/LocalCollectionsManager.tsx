@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Download, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { AlertTriangle, Download, RefreshCw, Trash2, Loader2, Database, HardDrive } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -27,6 +27,44 @@ type CollectionRow = {
   exists: boolean;
   count: number;
   isExtra?: boolean;
+  /** Whether this collection is actively used in the ERP code */
+  inUse: boolean;
+  /** Which module uses this collection */
+  module?: string;
+};
+
+/**
+ * Collections actively used by the ERP codebase.
+ * Mapped to the module that uses them.
+ */
+const ACTIVE_COLLECTIONS: Record<string, string> = {
+  company: "Configurações",
+  entidades: "Cadastros (local-legacy)",
+  entidade_contatos: "Cadastros (local-legacy)",
+  entidade_enderecos: "Cadastros (local-legacy)",
+  itens: "Cadastros / Estoque",
+  item_fornecedores: "Cadastros / Compras",
+  item_alias: "Cadastros / NF-e",
+  estoque_lotes: "Estoque / Produção",
+  lote_documentos: "Estoque / QC",
+  notas_entrada: "Compras",
+  notas_entrada_itens: "Compras",
+  notas_fiscais: "NF-e Importação",
+  notas_fiscais_observacoes: "NF-e Importação",
+  notas_fiscais_itens: "NF-e Importação",
+  notas_fiscais_itens_impostos: "NF-e / Fiscal",
+  notas_fiscais_itens_rastros: "NF-e / Rastreabilidade",
+  notas_fiscais_totais: "NF-e / Fiscal",
+  notas_fiscais_transporte: "NF-e / Logística",
+  notas_fiscais_volumes: "NF-e / Logística",
+  notas_fiscais_faturas: "NF-e / Financeiro",
+  notas_fiscais_duplicatas: "NF-e / Financeiro",
+  notas_fiscais_pagamentos: "NF-e / Financeiro",
+  contas_pagar: "Financeiro",
+  importacao_logs: "NF-e Importação",
+  arquivos: "Documentos / Anexos",
+  audit_log: "Auditoria",
+  xml_backups: "Backup XML",
 };
 
 function getCountFromStorage(storageKey: string): number {
@@ -61,6 +99,7 @@ export function LocalCollectionsManager({
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [exporting, setExporting] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const confirmRow = useMemo(
     () => (confirmKey ? rows.find((r) => r.key === confirmKey) : undefined),
@@ -97,18 +136,23 @@ export function LocalCollectionsManager({
 
   const canConfirm = confirmText.trim().toUpperCase() === "APAGAR";
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    
     const definedKeys = new Set(collections.map((c) => c.key));
 
     const definedRows: CollectionRow[] = collections.map((c) => {
       const storageKey = `${storagePrefix}${c.key}`;
       const count = getCountFromStorage(storageKey);
+      const inUse = c.key in ACTIVE_COLLECTIONS;
       return {
         key: c.key,
         label: c.label,
         storageKey,
         exists: localStorage.getItem(storageKey) !== null,
         count,
+        inUse,
+        module: ACTIVE_COLLECTIONS[c.key],
       };
     });
 
@@ -121,6 +165,7 @@ export function LocalCollectionsManager({
       const suffix = k.slice(storagePrefix.length);
       if (definedKeys.has(suffix)) continue;
 
+      const inUse = suffix in ACTIVE_COLLECTIONS;
       extraRows.push({
         key: suffix,
         label: `Chave extra: ${suffix}`,
@@ -128,49 +173,81 @@ export function LocalCollectionsManager({
         exists: true,
         count: getCountFromStorage(k),
         isExtra: true,
+        inUse,
+        module: ACTIVE_COLLECTIONS[suffix],
       });
     }
 
     extraRows.sort((a, b) => a.key.localeCompare(b.key));
 
     setRows([...definedRows, ...extraRows]);
-  };
+    
+    // Visual feedback
+    setTimeout(() => {
+      setRefreshing(false);
+      toast.success("Coleções atualizadas com sucesso!");
+    }, 300);
+  }, [collections, storagePrefix]);
 
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for localdb:change events to auto-refresh
+  useEffect(() => {
+    const handler = () => refresh();
+    window.addEventListener("localdb:change", handler);
+    return () => window.removeEventListener("localdb:change", handler);
+  }, [refresh]);
+
   const deleteOne = (row: CollectionRow) => {
     localStorage.removeItem(row.storageKey);
 
-    // Recriar empresa mínima se apagou company
     if (row.key === "company") {
       seedInitialData();
     }
 
-    // Notificar listeners (listas, páginas, etc.)
     window.dispatchEvent(
       new CustomEvent("localdb:change", {
         detail: { collection: row.key },
       })
     );
 
-    refresh();
+    toast.success(`${row.label} apagada com sucesso`);
   };
+
+  // Summary stats
+  const totalCollections = rows.length;
+  const withData = rows.filter(r => r.count > 0).length;
+  const totalRecords = rows.reduce((sum, r) => sum + r.count, 0);
+  const inUseCount = rows.filter(r => r.inUse).length;
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle>Coleções do ERP</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Coleções do ERP (localStorage)
+            </CardTitle>
             <CardDescription>
               Verifique se todas as coleções locais existem e apague dados por coleção.
             </CardDescription>
+            <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+              <span>{totalCollections} coleções</span>
+              <span>{withData} com dados</span>
+              <span>{totalRecords} registros total</span>
+              <span>{inUseCount} em uso ativo</span>
+            </div>
           </div>
-          <Button variant="outline" onClick={refresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={refresh} disabled={refreshing}>
+            {refreshing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
             Atualizar
           </Button>
         </div>
@@ -187,6 +264,16 @@ export function LocalCollectionsManager({
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{r.label}</span>
                     {r.isExtra && <StatusBadge variant="warning">Extra</StatusBadge>}
+                    {r.inUse && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                        {r.module}
+                      </span>
+                    )}
+                    {!r.inUse && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                        Sem uso
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground font-mono truncate">{r.storageKey}</p>
                 </div>
@@ -230,7 +317,7 @@ export function LocalCollectionsManager({
           <div className="text-sm">
             <p className="font-semibold">Atenção</p>
             <p className="text-muted-foreground">
-              “Apagar” remove os dados somente deste navegador (armazenamento local). Para apagar dados do backend,
+              "Apagar" remove os dados somente deste navegador (armazenamento local). Para apagar dados do backend,
               use a ferramenta de migração/limpeza do backend (se necessário).
             </p>
           </div>
