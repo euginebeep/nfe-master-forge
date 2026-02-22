@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CONTRATO_INDUSTRIALIZACAO_TEMPLATE, substituirTags } from "@/lib/contrato-template";
 import {
   Dialog,
   DialogContent,
@@ -163,8 +164,7 @@ export function ContratoWorkflowDialog({
       tabelaProdutos += `<tr><td colspan="4"><strong>Total</strong></td><td><strong>${totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></td></tr></tbody></table>`;
     }
 
-    // Importa e usa o template completo
-    const { CONTRATO_INDUSTRIALIZACAO_TEMPLATE, substituirTags } = require("@/lib/contrato-template");
+    // Usa o template completo (importado no topo)
 
     const valores: Record<string, string> = {
       EMPRESA_RAZAO_SOCIAL: empresaNome,
