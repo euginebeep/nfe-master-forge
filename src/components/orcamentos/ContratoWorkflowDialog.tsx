@@ -33,6 +33,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { valorPorExtenso } from "@/lib/valor-extenso";
 
 interface Orcamento {
   id: string;
@@ -124,8 +125,10 @@ export function ContratoWorkflowDialog({
         .eq("id", company.logo_file_id)
         .single();
       if (!arquivo?.storage_key) return null;
-      const { data } = supabase.storage.from("erp-files").getPublicUrl(arquivo.storage_key);
-      return data?.publicUrl || null;
+      // Bucket é privado, usar URL assinada
+      const { data, error } = await supabase.storage.from("erp-files").createSignedUrl(arquivo.storage_key, 3600);
+      if (error || !data?.signedUrl) return null;
+      return data.signedUrl;
     },
     enabled: !!company?.logo_file_id && open,
   });
@@ -215,8 +218,9 @@ export function ContratoWorkflowDialog({
       TABELA_PRODUTOS: tabelaProdutos,
       VALOR_SUBTOTAL: `R$ ${Number(orc.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
       DESCONTO_PERCENTUAL: desconto > 0 ? `${desconto}%` : "0%",
+      VALOR_DESCONTO: desconto > 0 ? `R$ ${(Number(orc.valor_total || 0) - valorFinal).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "R$ 0,00",
       VALOR_FINAL: `R$ ${valorFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-      VALOR_FINAL_EXTENSO: "",
+      VALOR_FINAL_EXTENSO: valorPorExtenso(valorFinal),
       FORMA_PAGAMENTO: fp,
       FORMA_PAGAMENTO_DETALHES: "",
       PRAZO_ENTREGA: "",

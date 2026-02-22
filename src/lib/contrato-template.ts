@@ -35,6 +35,7 @@ export const TAGS_DISPONIVEIS = [
   { tag: "TABELA_PRODUTOS", descricao: "Tabela HTML dos produtos do pedido (gerada automaticamente)", exemplo: "<table>...</table>" },
   { tag: "VALOR_SUBTOTAL", descricao: "Subtotal do pedido", exemplo: "R$ 90.925,00" },
   { tag: "DESCONTO_PERCENTUAL", descricao: "Desconto em percentual", exemplo: "5%" },
+  { tag: "VALOR_DESCONTO", descricao: "Valor do desconto em reais", exemplo: "R$ 4.546,25" },
   { tag: "VALOR_FINAL", descricao: "Valor final do pedido", exemplo: "R$ 86.378,75" },
   { tag: "VALOR_FINAL_EXTENSO", descricao: "Valor final por extenso", exemplo: "OITENTA E SEIS MIL..." },
   { tag: "FORMA_PAGAMENTO", descricao: "Forma de pagamento acordada", exemplo: "50% na confirmação, 50% na NF" },
@@ -384,6 +385,8 @@ A CONTRATANTE solicita à CONTRATADA a industrialização por encomenda dos segu
 
 2. PREÇO E CONDIÇÕES DE PAGAMENTO
 
+Valor Bruto: {{VALOR_SUBTOTAL}}
+Desconto: {{DESCONTO_PERCENTUAL}} ({{VALOR_DESCONTO}})
 Valor Total: {{VALOR_FINAL}} ({{VALOR_FINAL_EXTENSO}})
 
 3. Forma de Pagamento: {{FORMA_PAGAMENTO}}
