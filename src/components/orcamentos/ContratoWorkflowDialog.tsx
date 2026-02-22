@@ -28,6 +28,7 @@ import {
   Pencil, Lock, Unlock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -46,6 +47,7 @@ interface Orcamento {
   contrato_status?: string;
   contrato_enviado_em?: string;
   contrato_enviado_via?: string;
+  contrato_enviado_por?: string;
   comprovante_pagamento_em?: string;
   comprovante_pagamento_obs?: string;
   gerencia_aprovado_por?: string;
@@ -96,6 +98,9 @@ export function ContratoWorkflowDialog({
   const [senhaInput, setSenhaInput] = useState("");
   const [pedindoSenha, setPedindoSenha] = useState(false);
   const [contratoRevisado, setContratoRevisado] = useState(false);
+
+  const { profile } = useAuth();
+  const nomeUsuario = profile?.nome_completo || "Usuário";
 
   const { data: company } = useQuery({
     queryKey: ["company-contrato"],
@@ -287,6 +292,7 @@ export function ContratoWorkflowDialog({
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
       contrato_enviado_via: "EMAIL",
+      contrato_enviado_por: nomeUsuario,
       contrato_status: "ENVIADO",
     });
   };
@@ -298,6 +304,7 @@ export function ContratoWorkflowDialog({
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
       contrato_enviado_via: "WHATSAPP",
+      contrato_enviado_por: nomeUsuario,
       contrato_status: "ENVIADO",
     });
   };
@@ -317,6 +324,7 @@ export function ContratoWorkflowDialog({
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
       contrato_enviado_via: "DOWNLOAD_PDF",
+      contrato_enviado_por: nomeUsuario,
       contrato_status: "ENVIADO",
     });
   };
@@ -460,11 +468,31 @@ export function ContratoWorkflowDialog({
             {/* Ações de envio — só aparecem após aprovação */}
             {contratoEnviado ? (
               <Card>
-                <CardContent className="pt-4">
+                <CardContent className="pt-4 space-y-3">
                   <div className="text-sm text-muted-foreground flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
                     Contrato enviado via <strong>{orc.contrato_enviado_via}</strong> em{" "}
                     {format(new Date(orc.contrato_enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                    {orc.contrato_enviado_por && (
+                      <span>por <strong>{orc.contrato_enviado_por}</strong></span>
+                    )}
+                  </div>
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-muted-foreground mb-2">Reenviar contrato:</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={handleEnviarEmail} disabled={saving}>
+                        <Mail className="h-4 w-4 mr-1" />
+                        Reenviar por Email
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving}>
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        Reenviar por WhatsApp
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving}>
+                        <Download className="h-4 w-4 mr-1" />
+                        Baixar PDF
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -549,6 +577,9 @@ export function ContratoWorkflowDialog({
                   <div className="text-sm text-muted-foreground">
                     ✅ Enviado via <strong>{orc.contrato_enviado_via}</strong> em{" "}
                     {format(new Date(orc.contrato_enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                    {orc.contrato_enviado_por && (
+                      <span> por <strong>{orc.contrato_enviado_por}</strong></span>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
