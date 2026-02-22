@@ -113,6 +113,23 @@ export function ContratoWorkflowDialog({
     enabled: open,
   });
 
+  // Busca URL do logo da empresa
+  const { data: logoUrl } = useQuery({
+    queryKey: ["company-logo-url", company?.logo_file_id],
+    queryFn: async () => {
+      if (!company?.logo_file_id) return null;
+      const { data: arquivo } = await supabase
+        .from("arquivos")
+        .select("storage_key")
+        .eq("id", company.logo_file_id)
+        .single();
+      if (!arquivo?.storage_key) return null;
+      const { data } = supabase.storage.from("erp-files").getPublicUrl(arquivo.storage_key);
+      return data?.publicUrl || null;
+    },
+    enabled: !!company?.logo_file_id && open,
+  });
+
   const { data: orcamentoItens } = useQuery({
     queryKey: ["contrato-orcamento-itens", orcamento?.id],
     queryFn: async () => {
@@ -300,8 +317,8 @@ export function ContratoWorkflowDialog({
     const paragrafos = contratoTexto.split("\n").map((line: string) => {
       const trimmed = line.trim();
       if (!trimmed) return "<br/>";
-      if (trimmed.startsWith("CONTRATO DE INDUSTRIALIZAÇÃO")) return `<h1 style="text-align:center;font-size:14pt;font-weight:bold;margin:20px 0 15px;text-transform:uppercase;">${trimmed}</h1>`;
-      if (trimmed.startsWith("--- PEDIDO DE COMPRA")) return `<div style="page-break-before:always;"></div><h1 style="text-align:center;font-size:14pt;font-weight:bold;margin:20px 0 15px;text-transform:uppercase;">PEDIDO DE COMPRA - ANEXO I</h1>`;
+      if (trimmed.startsWith("CONTRATO DE INDUSTRIALIZAÇÃO")) return `<h1 style="text-align:center;font-size:16pt;font-weight:bold;margin:25px 0 20px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #333;padding-bottom:10px;">${trimmed}</h1>`;
+      if (trimmed.startsWith("--- PEDIDO DE COMPRA")) return `<div style="page-break-before:always;"></div><h1 style="text-align:center;font-size:16pt;font-weight:bold;margin:25px 0 20px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #333;padding-bottom:10px;">PEDIDO DE COMPRA - ANEXO I</h1>`;
       if (/^\d+\.\s+(DO|DA|DAS|DOS|PARTES|E,)/.test(trimmed)) return `<h2 style="font-size:11pt;font-weight:bold;margin:18px 0 8px;text-transform:uppercase;">${trimmed}</h2>`;
       if (/^\d+\.\d+/.test(trimmed)) return `<p style="text-align:justify;margin:6px 0;">${trimmed}</p>`;
       if (/^[ivx]+\)/.test(trimmed)) return `<p style="text-align:justify;margin:3px 0 3px 30px;">${trimmed}</p>`;
@@ -315,15 +332,19 @@ export function ContratoWorkflowDialog({
     const empresaCnpj = company?.cnpj || "";
     const empresaEndereco = [company?.endereco_logradouro, company?.endereco_nro && `nº ${company.endereco_nro}`, company?.endereco_bairro, company?.endereco_cidade, company?.endereco_uf, company?.endereco_cep].filter(Boolean).join(", ");
     const rodapeInfo = [empresaNome, empresaEndereco, company?.telefone && `Fone: ${company.telefone}`, (company?.email_financeiro || company?.email_fiscal) && `E-mail: ${company.email_financeiro || company.email_fiscal}`].filter(Boolean).join(" — ");
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Logo" style="max-height:70px;max-width:220px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;" />` : "";
 
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Contrato - ${orcamento.codigo}</title>
-<style>@page{size:A4;margin:20mm;}*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.5;color:#1a1a1a;}
-.header{text-align:center;margin-bottom:15px;border-bottom:2px solid #333;padding-bottom:10px;}
+<style>@page{size:A4;margin:20mm 20mm 25mm 20mm;}*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.5;color:#1a1a1a;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.header{text-align:center;margin-bottom:20px;border-bottom:2px solid #333;padding-bottom:12px;}
 table{width:100%;border-collapse:collapse;font-size:9pt;margin:10px 0;}th{background:#e8e8e8;font-weight:bold;text-align:left;padding:5px 6px;border:1px solid #999;}td{padding:4px 6px;border:1px solid #ccc;}tr:nth-child(even){background:#f7f7f7;}
-.footer{text-align:center;font-size:8pt;color:#888;padding:5px;border-top:1px solid #ddd;margin-top:40px;}</style></head>
-<body><div class="header">${empresaNome ? `<div style="font-size:9pt;color:#555;"><strong>${empresaNome}</strong></div>` : ""}${empresaCnpj ? `<div style="font-size:9pt;color:#555;">CNPJ: ${empresaCnpj}</div>` : ""}</div>
+.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:7.5pt;color:#888;padding:8px 20mm;border-top:1px solid #ccc;background:#fafafa;}
+.footer .compliance{font-size:7pt;color:#999;margin-top:3px;font-style:italic;}
+@media screen{body{max-width:800px;margin:20px auto;padding:30px;border:1px solid #ddd;}.footer{position:relative;margin-top:40px;}}</style></head>
+<body><div class="header">${logoHtml}${empresaNome ? `<div style="font-size:10pt;color:#333;font-weight:bold;">${empresaNome}</div>` : ""}${empresaCnpj ? `<div style="font-size:9pt;color:#555;">CNPJ: ${empresaCnpj}</div>` : ""}${empresaEndereco ? `<div style="font-size:8pt;color:#666;">${empresaEndereco}</div>` : ""}</div>
 ${paragrafos}
-<div class="footer">${rodapeInfo}</div></body></html>`;
+<div class="footer"><div>${rodapeInfo}</div><div class="compliance">Este documento é confidencial e protegido por sigilo contratual. A reprodução, distribuição ou uso não autorizado é proibida. Emitido eletronicamente — válido sem assinatura física conforme Art. 784, §3º do CPC. Documento gerado em ${new Date().toLocaleString("pt-BR")}.</div></div></body></html>`;
+  };
   };
 
   const handleEnviarEmail = async (e?: React.MouseEvent) => {
@@ -533,10 +554,38 @@ ${paragrafos}
                     className="min-h-[400px] font-mono text-xs leading-relaxed"
                   />
                 ) : (
-                  <div
-                    className="whitespace-pre-wrap text-xs leading-relaxed text-foreground max-h-[400px] overflow-y-auto p-3 bg-muted/30 rounded-md prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:text-[9px] [&_table]:my-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left [&_th]:p-1.5 [&_th]:border [&_th]:border-border [&_td]:p-1.5 [&_td]:border [&_td]:border-border [&_tr:nth-child(even)]:bg-muted/30 [&_strong]:font-bold"
-                    dangerouslySetInnerHTML={{ __html: contratoTexto.replace(/\n/g, '<br/>') }}
-                  />
+                  <div className="max-h-[400px] overflow-y-auto p-4 bg-muted/30 rounded-md">
+                    {/* Logo da empresa */}
+                    {logoUrl && (
+                      <div className="text-center mb-3 pb-3 border-b border-border">
+                        <img src={logoUrl} alt="Logo" className="h-16 max-w-[200px] mx-auto object-contain" />
+                        {company?.razao_social && <p className="text-[10px] text-muted-foreground font-semibold mt-1">{company.razao_social}</p>}
+                        {company?.cnpj && <p className="text-[9px] text-muted-foreground">CNPJ: {company.cnpj}</p>}
+                      </div>
+                    )}
+                    <div
+                      className="whitespace-pre-wrap text-xs leading-relaxed text-foreground prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:text-[9px] [&_table]:my-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left [&_th]:p-1.5 [&_th]:border [&_th]:border-border [&_td]:p-1.5 [&_td]:border [&_td]:border-border [&_tr:nth-child(even)]:bg-muted/30 [&_strong]:font-bold"
+                      dangerouslySetInnerHTML={{
+                        __html: contratoTexto
+                          .replace(/\n/g, '<br/>')
+                          .replace(
+                            /CONTRATO DE INDUSTRIALIZAÇÃO POR ENCOMENDA/g,
+                            '<div style="text-align:center;font-size:14px;font-weight:bold;margin:12px 0;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid currentColor;padding-bottom:8px;">CONTRATO DE INDUSTRIALIZAÇÃO POR ENCOMENDA</div>'
+                          )
+                          .replace(
+                            /--- PEDIDO DE COMPRA - ANEXO I ---/g,
+                            '<div style="text-align:center;font-size:14px;font-weight:bold;margin:16px 0 12px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid currentColor;padding-bottom:8px;">PEDIDO DE COMPRA - ANEXO I</div>'
+                          )
+                      }}
+                    />
+                    {/* Rodapé de compliance */}
+                    <div className="mt-6 pt-3 border-t border-border text-center">
+                      <p className="text-[8px] text-muted-foreground italic">
+                        Este documento é confidencial e protegido por sigilo contratual. A reprodução, distribuição ou uso não autorizado é proibida.
+                        Emitido eletronicamente — válido sem assinatura física conforme Art. 784, §3º do CPC.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
