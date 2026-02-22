@@ -628,6 +628,7 @@ export default function OrcamentosPage() {
     onSuccess: () => {
       toast.success("Orçamento atualizado com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-orcamento-itens"] });
       setDialogOpen(false);
       setEditingOrcamentoId(null);
       resetForm();
