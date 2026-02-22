@@ -240,15 +240,24 @@ CONTRATADA
 
   // Gera o texto quando os dados carregam
   useEffect(() => {
-    if (open && orcamento && company) {
+    if (open && orcamento) {
       const texto = gerarTextoContrato();
-      setContratoTexto(texto);
+      if (texto.trim()) {
+        setContratoTexto(texto);
+      }
+      // Só reseta estados de edição quando abre pela primeira vez
+    }
+  }, [open, orcamento?.id, company?.id, orcamentoItens]);
+
+  // Reset estados ao abrir
+  useEffect(() => {
+    if (open) {
       setContratoRevisado(false);
       setEditando(false);
       setPedindoSenha(false);
       setSenhaInput("");
     }
-  }, [open, orcamento?.id, company, orcamentoItens]);
+  }, [open]);
 
   if (!orcamento) return null;
 
