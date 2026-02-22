@@ -126,6 +126,8 @@ export function ContratoWorkflowDialog({
       return data || [];
     },
     enabled: !!orcamento?.id && open,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Gera texto do contrato usando template completo
