@@ -285,10 +285,19 @@ export function ContratoWorkflowDialog({
     toast.success("Contrato revisado e aprovado para envio!");
   };
 
-  const handleEnviarEmail = async () => {
+  const handleEnviarEmail = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const subject = encodeURIComponent(`Contrato de Industrialização - ${orcamento.codigo}`);
-    const body = encodeURIComponent(contratoTexto);
-    window.open(`mailto:${orcamento.cliente_email || ""}?subject=${subject}&body=${body}`);
+    const body = encodeURIComponent(`Prezado(a) ${orcamento.cliente_nome},\n\nSegue o contrato de industrialização referente ao pedido ${orcamento.codigo}.\n\nEnviado por: ${nomeUsuario}\n\n---\n\n${contratoTexto}`);
+    // Abre mailto sem navegar: cria um link temporário
+    const a = document.createElement("a");
+    a.href = `mailto:${orcamento.cliente_email || ""}?subject=${subject}&body=${body}`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
       contrato_enviado_via: "EMAIL",
@@ -297,10 +306,17 @@ export function ContratoWorkflowDialog({
     });
   };
 
-  const handleEnviarWhatsApp = async () => {
+  const handleEnviarWhatsApp = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const phone = (orcamento.cliente_whatsapp || "").replace(/\D/g, "");
-    const msg = encodeURIComponent(contratoTexto);
-    window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank");
+    if (!phone) {
+      toast.error("WhatsApp do cliente não cadastrado. Cadastre no cadastro de entidades.");
+      return;
+    }
+    const resumoTexto = `*CONTRATO DE INDUSTRIALIZAÇÃO*\n*Pedido:* ${orcamento.codigo}\n*Cliente:* ${orcamento.cliente_nome}\n*Valor:* R$ ${Number(orcamento.valor_final || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n*Enviado por:* ${nomeUsuario}\n\n_O contrato completo será enviado por e-mail ou PDF. Para visualizá-lo, solicite o documento ao vendedor._`;
+    const msg = encodeURIComponent(resumoTexto);
+    window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank", "noopener,noreferrer");
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
       contrato_enviado_via: "WHATSAPP",
@@ -309,12 +325,13 @@ export function ContratoWorkflowDialog({
     });
   };
 
-  const handleDownloadPDF = async () => {
-    // Gera PDF profissional via print
+  const handleDownloadPDF = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const { gerarContratoPDF } = await import("@/lib/contrato-template");
     gerarContratoPDF(
       contratoTexto,
-      company?.logo_file_id ? undefined : undefined,
+      undefined,
       company?.razao_social || "",
       company?.cnpj || "",
       [company?.endereco_logradouro, company?.endereco_nro && `nº ${company.endereco_nro}`, company?.endereco_bairro, company?.endereco_cidade, company?.endereco_uf, company?.endereco_cep].filter(Boolean).join(", "),
