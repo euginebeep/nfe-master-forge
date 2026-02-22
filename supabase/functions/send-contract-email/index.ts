@@ -12,8 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const SMTP_USER = Deno.env.get('SMTP_USER');
-    const SMTP_PASS = Deno.env.get('SMTP_PASS');
+    const SMTP_USER = (Deno.env.get('SMTP_USER') || '').trim();
+    const SMTP_PASS = (Deno.env.get('SMTP_PASS') || '').trim();
+
+    console.log('SMTP_USER length:', SMTP_USER.length, 'chars:', JSON.stringify(SMTP_USER));
 
     if (!SMTP_USER || !SMTP_PASS) {
       throw new Error('Credenciais SMTP não configuradas. Configure em Admin Master.');
@@ -37,8 +39,16 @@ serve(async (req) => {
       },
     });
 
+    // Validate SMTP_USER is a valid email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(SMTP_USER)) {
+      throw new Error(`SMTP_USER não é um email válido: "${SMTP_USER}". Configure um email completo (ex: contato@dominio.com)`);
+    }
+
+    const fromAddress = senderName ? `${senderName} <${SMTP_USER}>` : SMTP_USER;
+
     await client.send({
-      from: `${senderName || 'Sistema'} <${SMTP_USER}>`,
+      from: fromAddress,
       to: to,
       subject: subject,
       content: "Visualize este email em um cliente que suporte HTML.",
