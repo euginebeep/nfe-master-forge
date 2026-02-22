@@ -25,7 +25,7 @@ import {
 import {
   FileSignature, Send, Download, MessageSquare, Upload,
   CheckCircle2, Clock, Shield, AlertTriangle, Mail, Eye,
-  Pencil, Lock, Unlock
+  Pencil, Lock, Unlock, Loader2, FileDown, X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -91,6 +91,8 @@ export function ContratoWorkflowDialog({
   const [gerenciaObs, setGerenciaObs] = useState("");
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("contrato");
+  const [sendStatus, setSendStatus] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
 
   // Edição do contrato
   const [contratoTexto, setContratoTexto] = useState("");
@@ -227,7 +229,13 @@ export function ContratoWorkflowDialog({
       setEditando(false);
       setPedindoSenha(false);
       setSenhaInput("");
+      setSendStatus({ type: "idle", message: "" });
+      setPdfBlobUrl(null);
     }
+    return () => {
+      // Cleanup PDF blob URL
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
   }, [open]);
 
   if (!orcamento) return null;
@@ -249,6 +257,7 @@ export function ContratoWorkflowDialog({
 
   // Pode enviar somente se revisou o contrato (ou já foi enviado antes)
   const podeEnviar = contratoRevisado || contratoEnviado;
+  const isSending = sendStatus.type === "sending";
 
   const updateField = async (fields: Record<string, any>) => {
     setSaving(true);
@@ -285,65 +294,112 @@ export function ContratoWorkflowDialog({
     toast.success("Contrato revisado e aprovado para envio!");
   };
 
+  const gerarContratoHtml = () => {
+    const paragrafos = contratoTexto.split("\n").map((line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed) return "<br/>";
+      if (trimmed.startsWith("CONTRATO DE INDUSTRIALIZAÇÃO")) return `<h1 style="text-align:center;font-size:14pt;font-weight:bold;margin:20px 0 15px;text-transform:uppercase;">${trimmed}</h1>`;
+      if (trimmed.startsWith("--- PEDIDO DE COMPRA")) return `<div style="page-break-before:always;"></div><h1 style="text-align:center;font-size:14pt;font-weight:bold;margin:20px 0 15px;text-transform:uppercase;">PEDIDO DE COMPRA - ANEXO I</h1>`;
+      if (/^\d+\.\s+(DO|DA|DAS|DOS|PARTES|E,)/.test(trimmed)) return `<h2 style="font-size:11pt;font-weight:bold;margin:18px 0 8px;text-transform:uppercase;">${trimmed}</h2>`;
+      if (/^\d+\.\d+/.test(trimmed)) return `<p style="text-align:justify;margin:6px 0;">${trimmed}</p>`;
+      if (/^[ivx]+\)/.test(trimmed)) return `<p style="text-align:justify;margin:3px 0 3px 30px;">${trimmed}</p>`;
+      if (/^[a-z]\)/.test(trimmed)) return `<p style="text-align:justify;margin:3px 0 3px 30px;">${trimmed}</p>`;
+      if (trimmed.startsWith("___")) return `<div style="text-align:center;margin:30px 0 5px;">${trimmed}</div>`;
+      if (trimmed.startsWith("<table")) return trimmed;
+      return `<p style="text-align:justify;margin:4px 0;">${trimmed}</p>`;
+    }).join("\n");
+
+    const empresaNome = company?.razao_social || "";
+    const empresaCnpj = company?.cnpj || "";
+    const empresaEndereco = [company?.endereco_logradouro, company?.endereco_nro && `nº ${company.endereco_nro}`, company?.endereco_bairro, company?.endereco_cidade, company?.endereco_uf, company?.endereco_cep].filter(Boolean).join(", ");
+    const rodapeInfo = [empresaNome, empresaEndereco, company?.telefone && `Fone: ${company.telefone}`, (company?.email_financeiro || company?.email_fiscal) && `E-mail: ${company.email_financeiro || company.email_fiscal}`].filter(Boolean).join(" — ");
+
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Contrato - ${orcamento.codigo}</title>
+<style>@page{size:A4;margin:20mm;}*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.5;color:#1a1a1a;}
+.header{text-align:center;margin-bottom:15px;border-bottom:2px solid #333;padding-bottom:10px;}
+table{width:100%;border-collapse:collapse;font-size:9pt;margin:10px 0;}th{background:#e8e8e8;font-weight:bold;text-align:left;padding:5px 6px;border:1px solid #999;}td{padding:4px 6px;border:1px solid #ccc;}tr:nth-child(even){background:#f7f7f7;}
+.footer{text-align:center;font-size:8pt;color:#888;padding:5px;border-top:1px solid #ddd;margin-top:40px;}</style></head>
+<body><div class="header">${empresaNome ? `<div style="font-size:9pt;color:#555;"><strong>${empresaNome}</strong></div>` : ""}${empresaCnpj ? `<div style="font-size:9pt;color:#555;">CNPJ: ${empresaCnpj}</div>` : ""}</div>
+${paragrafos}
+<div class="footer">${rodapeInfo}</div></body></html>`;
+  };
+
   const handleEnviarEmail = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    const subject = encodeURIComponent(`Contrato de Industrialização - ${orcamento.codigo}`);
-    const body = encodeURIComponent(`Prezado(a) ${orcamento.cliente_nome},\n\nSegue o contrato de industrialização referente ao pedido ${orcamento.codigo}.\n\nEnviado por: ${nomeUsuario}\n\n---\n\n${contratoTexto}`);
-    // Abre mailto sem navegar: cria um link temporário
-    const a = document.createElement("a");
-    a.href = `mailto:${orcamento.cliente_email || ""}?subject=${subject}&body=${body}`;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    await updateField({
-      contrato_enviado_em: new Date().toISOString(),
-      contrato_enviado_via: "EMAIL",
-      contrato_enviado_por: nomeUsuario,
-      contrato_status: "ENVIADO",
-    });
+
+    if (!orcamento.cliente_email) {
+      setSendStatus({ type: "error", message: "Email do cliente não cadastrado. Cadastre no cadastro de entidades." });
+      return;
+    }
+
+    setSendStatus({ type: "sending", message: "Enviando contrato por email..." });
+
+    try {
+      const htmlBody = gerarContratoHtml();
+      const { data, error } = await supabase.functions.invoke("send-contract-email", {
+        body: {
+          to: orcamento.cliente_email,
+          subject: `Contrato de Industrialização - ${orcamento.codigo}`,
+          htmlBody,
+          senderName: nomeUsuario,
+        },
+      });
+
+      if (error) throw new Error(error.message || "Erro ao enviar email");
+      if (data && !data.success) throw new Error(data.error || "Falha no envio");
+
+      await updateField({
+        contrato_enviado_em: new Date().toISOString(),
+        contrato_enviado_via: "EMAIL",
+        contrato_enviado_por: nomeUsuario,
+        contrato_status: "ENVIADO",
+      });
+      setSendStatus({ type: "success", message: `✓ Email enviado para ${orcamento.cliente_email} por ${nomeUsuario}` });
+    } catch (err: any) {
+      console.error("Erro email:", err);
+      setSendStatus({ type: "error", message: `Falha no envio: ${err.message}` });
+    }
   };
 
   const handleEnviarWhatsApp = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    const phone = (orcamento.cliente_whatsapp || "").replace(/\D/g, "");
-    if (!phone) {
-      toast.error("WhatsApp do cliente não cadastrado. Cadastre no cadastro de entidades.");
-      return;
-    }
-    const resumoTexto = `*CONTRATO DE INDUSTRIALIZAÇÃO*\n*Pedido:* ${orcamento.codigo}\n*Cliente:* ${orcamento.cliente_nome}\n*Valor:* R$ ${Number(orcamento.valor_final || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n*Enviado por:* ${nomeUsuario}\n\n_O contrato completo será enviado por e-mail ou PDF. Para visualizá-lo, solicite o documento ao vendedor._`;
-    const msg = encodeURIComponent(resumoTexto);
-    window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank", "noopener,noreferrer");
-    await updateField({
-      contrato_enviado_em: new Date().toISOString(),
-      contrato_enviado_via: "WHATSAPP",
-      contrato_enviado_por: nomeUsuario,
-      contrato_status: "ENVIADO",
-    });
+    setSendStatus({ type: "error", message: "WhatsApp automático será configurado em breve. Use Email ou PDF por enquanto." });
   };
 
   const handleDownloadPDF = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    const { gerarContratoPDF } = await import("@/lib/contrato-template");
-    gerarContratoPDF(
-      contratoTexto,
-      undefined,
-      company?.razao_social || "",
-      company?.cnpj || "",
-      [company?.endereco_logradouro, company?.endereco_nro && `nº ${company.endereco_nro}`, company?.endereco_bairro, company?.endereco_cidade, company?.endereco_uf, company?.endereco_cep].filter(Boolean).join(", "),
-      company?.telefone || "",
-      company?.email_financeiro || company?.email_fiscal || ""
-    );
-    await updateField({
-      contrato_enviado_em: new Date().toISOString(),
-      contrato_enviado_via: "DOWNLOAD_PDF",
-      contrato_enviado_por: nomeUsuario,
-      contrato_status: "ENVIADO",
-    });
+    setSendStatus({ type: "sending", message: "Gerando PDF do contrato..." });
+
+    try {
+      const htmlContent = gerarContratoHtml();
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      setPdfBlobUrl(url);
+      setSendStatus({ type: "success", message: "PDF gerado com sucesso. Visualize abaixo." });
+
+      await updateField({
+        contrato_enviado_em: new Date().toISOString(),
+        contrato_enviado_via: "DOWNLOAD_PDF",
+        contrato_enviado_por: nomeUsuario,
+        contrato_status: "ENVIADO",
+      });
+    } catch (err: any) {
+      setSendStatus({ type: "error", message: `Erro ao gerar PDF: ${err.message}` });
+    }
+  };
+
+  const handleSalvarPDF = () => {
+    if (!pdfBlobUrl) return;
+    const a = document.createElement("a");
+    a.href = pdfBlobUrl;
+    a.download = `Contrato-${orcamento.codigo}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success("Arquivo baixado!");
   };
 
   const handleConfirmarComprovante = async () => {
@@ -497,15 +553,15 @@ export function ContratoWorkflowDialog({
                   <div className="border-t pt-3">
                     <p className="text-xs text-muted-foreground mb-2">Reenviar contrato:</p>
                     <div className="flex gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={handleEnviarEmail} disabled={saving}>
-                        <Mail className="h-4 w-4 mr-1" />
+                      <Button size="sm" variant="outline" onClick={handleEnviarEmail} disabled={saving || isSending}>
+                        {isSending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />}
                         Reenviar por Email
                       </Button>
-                      <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving}>
+                      <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving || isSending}>
                         <MessageSquare className="h-4 w-4 mr-1" />
                         Reenviar por WhatsApp
                       </Button>
-                      <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving}>
+                      <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving || isSending}>
                         <Download className="h-4 w-4 mr-1" />
                         Baixar PDF
                       </Button>
@@ -521,15 +577,15 @@ export function ContratoWorkflowDialog({
                     Contrato aprovado — escolha como enviar:
                   </p>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleEnviarEmail} disabled={saving}>
-                      <Mail className="h-4 w-4 mr-1" />
+                    <Button size="sm" onClick={handleEnviarEmail} disabled={saving || isSending}>
+                      {isSending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />}
                       Enviar por Email
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving}>
+                    <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving || isSending}>
                       <MessageSquare className="h-4 w-4 mr-1" />
                       Enviar por WhatsApp
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving}>
+                    <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving || isSending}>
                       <Download className="h-4 w-4 mr-1" />
                       Baixar Contrato
                     </Button>
@@ -543,6 +599,49 @@ export function ContratoWorkflowDialog({
                   Revise o contrato acima. Se estiver correto, clique em <strong>"Aprovar e Liberar Envio"</strong>. Para corrigir, clique em <strong>"Editar Contrato"</strong> (requer senha de gerência).
                 </AlertDescription>
               </Alert>
+            )}
+
+            {/* Barra de Status de Envio */}
+            {sendStatus.type !== "idle" && (
+              <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+                sendStatus.type === "sending" ? "bg-muted/50 text-muted-foreground" :
+                sendStatus.type === "success" ? "bg-primary/10 text-primary" :
+                "bg-destructive/10 text-destructive"
+              }`}>
+                {sendStatus.type === "sending" && <Loader2 className="h-4 w-4 animate-spin" />}
+                {sendStatus.type === "success" && <CheckCircle2 className="h-4 w-4" />}
+                {sendStatus.type === "error" && <AlertTriangle className="h-4 w-4" />}
+                <span className="flex-1">{sendStatus.message}</span>
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setSendStatus({ type: "idle", message: "" })}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+
+            {/* Visualização inline do PDF */}
+            {pdfBlobUrl && (
+              <Card>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <Eye className="h-4 w-4" /> Pré-visualização do Contrato
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={handleSalvarPDF}>
+                        <FileDown className="h-4 w-4 mr-1" /> Salvar Arquivo
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setPdfBlobUrl(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <iframe
+                    src={pdfBlobUrl}
+                    className="w-full h-[400px] border rounded-md bg-white"
+                    title="Contrato PDF"
+                  />
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
