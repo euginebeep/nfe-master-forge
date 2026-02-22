@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,11 +9,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -24,7 +23,8 @@ import {
 } from "@/components/ui/table";
 import {
   FileSignature, Send, Download, MessageSquare, Upload,
-  CheckCircle2, Clock, Shield, AlertTriangle, Mail, Eye
+  CheckCircle2, Clock, Shield, AlertTriangle, Mail, Eye,
+  Pencil, Lock, Unlock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -68,6 +68,7 @@ interface ContratoWorkflowDialogProps {
 }
 
 const VALOR_LIMITE_SIMPLES = 5000;
+const SENHA_GERENCIA = "ger2026";
 
 const FORMAS_PAGAMENTO_LABELS: Record<string, string> = {
   A_VISTA: "À Vista",
@@ -88,7 +89,13 @@ export function ContratoWorkflowDialog({
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("contrato");
 
-  // Buscar dados da empresa
+  // Edição do contrato
+  const [contratoTexto, setContratoTexto] = useState("");
+  const [editando, setEditando] = useState(false);
+  const [senhaInput, setSenhaInput] = useState("");
+  const [pedindoSenha, setPedindoSenha] = useState(false);
+  const [contratoRevisado, setContratoRevisado] = useState(false);
+
   const { data: company } = useQuery({
     queryKey: ["company-contrato"],
     queryFn: async () => {
@@ -98,7 +105,6 @@ export function ContratoWorkflowDialog({
     enabled: open,
   });
 
-  // Buscar itens do orçamento
   const { data: orcamentoItens } = useQuery({
     queryKey: ["contrato-orcamento-itens", orcamento?.id],
     queryFn: async () => {
@@ -114,43 +120,13 @@ export function ContratoWorkflowDialog({
     enabled: !!orcamento?.id && open,
   });
 
-  if (!orcamento) return null;
-
-  const orc = orcamento as any;
-  const valorFinal = Number(orc.valor_final || 0);
-  const precisaAmbos = valorFinal > VALOR_LIMITE_SIMPLES;
-
-  const contratoEnviado = !!orc.contrato_enviado_em;
-  const comprovantePago = !!orc.comprovante_pagamento_em;
-  const gerenciaAprovada = !!orc.gerencia_aprovado_em;
-  const contratoAssinado = !!orc.contrato_assinado_em;
-
-  const pagamentoOuGerenciaOK = precisaAmbos
-    ? comprovantePago && gerenciaAprovada
-    : comprovantePago || gerenciaAprovada;
-
-  const podeConverter = contratoEnviado && pagamentoOuGerenciaOK && contratoAssinado;
-
-  const updateField = async (fields: Record<string, any>) => {
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("orcamentos")
-        .update(fields as any)
-        .eq("id", orcamento.id);
-      if (error) throw error;
-      toast.success("Atualizado com sucesso!");
-      onUpdate();
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao atualizar");
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  // Gera texto do contrato
   const gerarTextoContrato = () => {
+    if (!orcamento) return "";
+    const orc = orcamento as any;
     const fp = FORMAS_PAGAMENTO_LABELS[orc.forma_pagamento || "A_VISTA"] || orc.forma_pagamento;
     const desconto = Number(orc.desconto_percentual || 0);
+    const valorFinal = Number(orc.valor_final || 0);
     const dataContrato = orc.data_orcamento
       ? format(new Date(orc.data_orcamento), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
       : format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
@@ -166,7 +142,6 @@ export function ContratoWorkflowDialog({
       company?.endereco_cep && `CEP: ${company.endereco_cep}`,
     ].filter(Boolean).join(", ");
 
-    // Tabela de produtos
     let tabelaProdutos = "";
     if (orcamentoItens && orcamentoItens.length > 0) {
       tabelaProdutos = "| Qtd | Produto | Especificação | Valor Unit R$ | Valor Total R$ |\n";
@@ -263,10 +238,76 @@ CONTRATADA
 `;
   };
 
+  // Gera o texto quando os dados carregam
+  useEffect(() => {
+    if (open && orcamento && company) {
+      const texto = gerarTextoContrato();
+      setContratoTexto(texto);
+      setContratoRevisado(false);
+      setEditando(false);
+      setPedindoSenha(false);
+      setSenhaInput("");
+    }
+  }, [open, orcamento?.id, company, orcamentoItens]);
+
+  if (!orcamento) return null;
+
+  const orc = orcamento as any;
+  const valorFinal = Number(orc.valor_final || 0);
+  const precisaAmbos = valorFinal > VALOR_LIMITE_SIMPLES;
+
+  const contratoEnviado = !!orc.contrato_enviado_em;
+  const comprovantePago = !!orc.comprovante_pagamento_em;
+  const gerenciaAprovada = !!orc.gerencia_aprovado_em;
+  const contratoAssinado = !!orc.contrato_assinado_em;
+
+  const pagamentoOuGerenciaOK = precisaAmbos
+    ? comprovantePago && gerenciaAprovada
+    : comprovantePago || gerenciaAprovada;
+
+  const podeConverter = contratoEnviado && pagamentoOuGerenciaOK && contratoAssinado;
+
+  // Pode enviar somente se revisou o contrato (ou já foi enviado antes)
+  const podeEnviar = contratoRevisado || contratoEnviado;
+
+  const updateField = async (fields: Record<string, any>) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("orcamentos")
+        .update(fields as any)
+        .eq("id", orcamento.id);
+      if (error) throw error;
+      toast.success("Atualizado com sucesso!");
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDesbloquearEdicao = () => {
+    if (senhaInput === SENHA_GERENCIA) {
+      setEditando(true);
+      setPedindoSenha(false);
+      setSenhaInput("");
+      toast.success("Edição desbloqueada pela gerência");
+    } else {
+      toast.error("Senha incorreta!");
+      setSenhaInput("");
+    }
+  };
+
+  const handleAprovarContrato = () => {
+    setContratoRevisado(true);
+    setEditando(false);
+    toast.success("Contrato revisado e aprovado para envio!");
+  };
+
   const handleEnviarEmail = async () => {
-    const texto = gerarTextoContrato();
     const subject = encodeURIComponent(`Contrato de Industrialização - ${orcamento.codigo}`);
-    const body = encodeURIComponent(texto);
+    const body = encodeURIComponent(contratoTexto);
     window.open(`mailto:${orcamento.cliente_email || ""}?subject=${subject}&body=${body}`);
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
@@ -276,9 +317,8 @@ CONTRATADA
   };
 
   const handleEnviarWhatsApp = async () => {
-    const texto = gerarTextoContrato();
     const phone = (orcamento.cliente_whatsapp || "").replace(/\D/g, "");
-    const msg = encodeURIComponent(texto);
+    const msg = encodeURIComponent(contratoTexto);
     window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank");
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
@@ -288,8 +328,7 @@ CONTRATADA
   };
 
   const handleDownloadPDF = async () => {
-    const texto = gerarTextoContrato();
-    const blob = new Blob([texto], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([contratoTexto], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -360,125 +399,127 @@ CONTRATADA
 
           {/* Tab Contrato */}
           <TabsContent value="contrato" className="space-y-4">
-            {/* Resumo do pedido com tabela de itens */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Pedido de Compra — {orcamento.codigo}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Contratante</p>
-                    <p className="font-medium">{orcamento.cliente_nome}</p>
-                    {orcamento.cliente_documento && (
-                      <p className="text-xs text-muted-foreground">{orcamento.cliente_documento}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Contratada</p>
-                    <p className="font-medium">{company?.razao_social || "—"}</p>
-                    <p className="text-xs text-muted-foreground">{company?.cnpj || "—"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Vendedor</p>
-                    <p className="font-medium">{orc.vendedor_nome || "—"}</p>
-                  </div>
-                </div>
-
-                {/* Tabela de produtos */}
-                {orcamentoItens && orcamentoItens.length > 0 && (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-16">Qtd</TableHead>
-                        <TableHead>Produto</TableHead>
-                        <TableHead>Especificação</TableHead>
-                        <TableHead className="text-right">V. Unit</TableHead>
-                        <TableHead className="text-right">V. Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {orcamentoItens.map((item: any) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-mono">{item.quantidade}</TableCell>
-                          <TableCell className="font-medium">{item.produto_nome}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {[
-                              item.unidades_por_frasco && `${item.unidades_por_frasco} un`,
-                              item.capsula_cor,
-                              item.pote_cor && `Pote ${item.pote_cor}`,
-                              item.tampa_cor && `Tampa ${item.tampa_cor}`,
-                              item.incluir_silica ? "c/ Sílica" : null,
-                              item.rotulo,
-                            ].filter(Boolean).join(" • ")}
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {Number(item.preco_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-medium">
-                            {Number(item.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+            {/* Barra de ações do contrato */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {editando ? (
+                  <Badge variant="outline" className="gap-1 text-amber-600 border-amber-300">
+                    <Unlock className="h-3 w-3" />
+                    Modo Edição (Gerência)
+                  </Badge>
+                ) : contratoRevisado ? (
+                  <Badge className="gap-1 bg-primary/10 text-primary border-primary/30">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Contrato Aprovado para Envio
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="gap-1">
+                    <Lock className="h-3 w-3" />
+                    Somente Leitura
+                  </Badge>
                 )}
+              </div>
 
-                <div className="flex justify-between items-end pt-2 border-t">
-                  <div className="text-sm">
-                    <p className="text-muted-foreground">
-                      Pagamento: <span className="font-medium text-foreground">{FORMAS_PAGAMENTO_LABELS[orc.forma_pagamento || "A_VISTA"] || orc.forma_pagamento}</span>
-                    </p>
-                  </div>
-                  <div className="text-right space-y-1">
-                    {Number(orc.desconto_percentual || 0) > 0 && (
-                      <>
-                        <p className="text-sm text-muted-foreground">
-                          Subtotal: R$ {Number(orc.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-sm text-destructive">
-                          Desconto: {orc.desconto_percentual}%
-                        </p>
-                      </>
+              <div className="flex items-center gap-2">
+                {!editando && !contratoRevisado && !contratoEnviado && (
+                  <>
+                    {pedindoSenha ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="password"
+                          placeholder="Senha gerência"
+                          value={senhaInput}
+                          onChange={(e) => setSenhaInput(e.target.value)}
+                          className="w-40 h-8 text-sm"
+                          onKeyDown={(e) => e.key === "Enter" && handleDesbloquearEdicao()}
+                        />
+                        <Button size="sm" variant="outline" onClick={handleDesbloquearEdicao}>
+                          <Unlock className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setPedindoSenha(false); setSenhaInput(""); }}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => setPedindoSenha(true)}>
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Editar Contrato
+                      </Button>
                     )}
-                    <p className="text-lg font-bold">
-                      R$ {valorFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </div>
+                    <Button size="sm" onClick={handleAprovarContrato}>
+                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                      Aprovar e Liberar Envio
+                    </Button>
+                  </>
+                )}
+                {editando && (
+                  <Button size="sm" onClick={handleAprovarContrato}>
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                    Salvar e Aprovar
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Texto do contrato */}
+            <Card>
+              <CardContent className="pt-4">
+                {editando ? (
+                  <Textarea
+                    value={contratoTexto}
+                    onChange={(e) => setContratoTexto(e.target.value)}
+                    className="min-h-[400px] font-mono text-xs leading-relaxed"
+                  />
+                ) : (
+                  <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground max-h-[400px] overflow-y-auto p-3 bg-muted/30 rounded-md">
+                    {contratoTexto}
+                  </pre>
+                )}
               </CardContent>
             </Card>
 
-            {/* Ações de envio */}
-            <Card>
-              <CardContent className="pt-4">
-                {contratoEnviado ? (
+            {/* Ações de envio — só aparecem após aprovação */}
+            {contratoEnviado ? (
+              <Card>
+                <CardContent className="pt-4">
                   <div className="text-sm text-muted-foreground flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
                     Contrato enviado via <strong>{orc.contrato_enviado_via}</strong> em{" "}
                     {format(new Date(orc.contrato_enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Enviar contrato ao cliente:</p>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleEnviarEmail} disabled={saving}>
-                        <Mail className="h-4 w-4 mr-1" />
-                        Enviar por Email
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving}>
-                        <MessageSquare className="h-4 w-4 mr-1" />
-                        Enviar por WhatsApp
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving}>
-                        <Download className="h-4 w-4 mr-1" />
-                        Baixar Contrato
-                      </Button>
-                    </div>
+                </CardContent>
+              </Card>
+            ) : podeEnviar ? (
+              <Card>
+                <CardContent className="pt-4 space-y-3">
+                  <p className="text-sm font-medium text-primary flex items-center gap-1">
+                    <Send className="h-4 w-4" />
+                    Contrato aprovado — escolha como enviar:
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleEnviarEmail} disabled={saving}>
+                      <Mail className="h-4 w-4 mr-1" />
+                      Enviar por Email
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving}>
+                      <MessageSquare className="h-4 w-4 mr-1" />
+                      Enviar por WhatsApp
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving}>
+                      <Download className="h-4 w-4 mr-1" />
+                      Baixar Contrato
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Revise o contrato acima. Se estiver correto, clique em <strong>"Aprovar e Liberar Envio"</strong>. Para corrigir, clique em <strong>"Editar Contrato"</strong> (requer senha de gerência).
+                </AlertDescription>
+              </Alert>
+            )}
           </TabsContent>
 
           {/* Tab Workflow */}
@@ -521,7 +562,7 @@ CONTRATADA
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <StepIcon done={contratoEnviado} />
-                  1. Enviar Contrato
+                  1. Contrato Enviado
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -531,20 +572,9 @@ CONTRATADA
                     {format(new Date(orc.contrato_enviado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={handleEnviarEmail} disabled={saving}>
-                      <Mail className="h-4 w-4 mr-1" />
-                      Email
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleEnviarWhatsApp} disabled={saving}>
-                      <MessageSquare className="h-4 w-4 mr-1" />
-                      WhatsApp
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleDownloadPDF} disabled={saving}>
-                      <Download className="h-4 w-4 mr-1" />
-                      Download
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Vá até a aba "Visualizar Contrato", revise e envie.
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -655,7 +685,6 @@ CONTRATADA
               </CardContent>
             </Card>
 
-            {/* Status final */}
             {podeConverter && (
               <Alert className="border-primary bg-primary/5">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
