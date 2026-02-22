@@ -345,7 +345,6 @@ table{width:100%;border-collapse:collapse;font-size:9pt;margin:10px 0;}th{backgr
 ${paragrafos}
 <div class="footer"><div>${rodapeInfo}</div><div class="compliance">Este documento é confidencial e protegido por sigilo contratual. A reprodução, distribuição ou uso não autorizado é proibida. Emitido eletronicamente — válido sem assinatura física conforme Art. 784, §3º do CPC. Documento gerado em ${new Date().toLocaleString("pt-BR")}.</div></div></body></html>`;
   };
-  };
 
   const handleEnviarEmail = async (e?: React.MouseEvent) => {
     e?.preventDefault();
