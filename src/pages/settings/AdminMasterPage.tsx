@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { seedInitialData } from "@/lib/local-db";
 import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsManager";
 import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
+import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
 
 const STORAGE_PREFIX = "legacy_erp_";
 
@@ -156,6 +157,8 @@ export default function AdminMasterPage() {
       />
 
       <LocalCollectionsManager storagePrefix={STORAGE_PREFIX} collections={ALL_COLLECTIONS} />
+
+      <ContratosTemplateManager />
 
       <BackendCleanupManager />
 

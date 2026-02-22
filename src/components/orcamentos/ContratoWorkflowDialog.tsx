@@ -120,7 +120,7 @@ export function ContratoWorkflowDialog({
     enabled: !!orcamento?.id && open,
   });
 
-  // Gera texto do contrato
+  // Gera texto do contrato usando template completo
   const gerarTextoContrato = () => {
     if (!orcamento) return "";
     const orc = orcamento as any;
@@ -142,10 +142,11 @@ export function ContratoWorkflowDialog({
       company?.endereco_cep && `CEP: ${company.endereco_cep}`,
     ].filter(Boolean).join(", ");
 
+    // Gera tabela HTML dos produtos
     let tabelaProdutos = "";
     if (orcamentoItens && orcamentoItens.length > 0) {
-      tabelaProdutos = "| Qtd | Produto | Especificação | Valor Unit R$ | Valor Total R$ |\n";
-      tabelaProdutos += "|-----|---------|---------------|---------------|----------------|\n";
+      tabelaProdutos = `<table><thead><tr><th>Quantidade</th><th>Produto</th><th>Especificação</th><th>Valor Unit R$</th><th>Valor Total R$</th></tr></thead><tbody>`;
+      let totalGeral = 0;
       orcamentoItens.forEach((item: any) => {
         const specs = [
           item.capsula_cor && `Cáps: ${item.capsula_cor}`,
@@ -155,87 +156,52 @@ export function ContratoWorkflowDialog({
           item.incluir_silica ? "c/ Sílica" : "",
           item.rotulo || "",
         ].filter(Boolean).join(" | ");
-        tabelaProdutos += `| ${item.quantidade} | ${item.produto_nome} | ${specs} | ${Number(item.preco_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | ${Number(item.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} |\n`;
+        const vt = Number(item.valor_total || 0);
+        totalGeral += vt;
+        tabelaProdutos += `<tr><td>${item.quantidade}</td><td>${item.produto_nome}</td><td>${specs}</td><td>${Number(item.preco_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td><td>${vt.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td></tr>`;
       });
+      tabelaProdutos += `<tr><td colspan="4"><strong>Total</strong></td><td><strong>${totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></td></tr></tbody></table>`;
     }
 
-    return `CONTRATO DE INDUSTRIALIZAÇÃO POR ENCOMENDA
+    // Importa e usa o template completo
+    const { CONTRATO_INDUSTRIALIZACAO_TEMPLATE, substituirTags } = require("@/lib/contrato-template");
 
-PARTES:
+    const valores: Record<string, string> = {
+      EMPRESA_RAZAO_SOCIAL: empresaNome,
+      EMPRESA_CNPJ: empresaCNPJ,
+      EMPRESA_ENDERECO_COMPLETO: empresaEndereco,
+      EMPRESA_CIDADE: company?.endereco_cidade || "[Cidade]",
+      EMPRESA_UF: company?.endereco_uf || "[UF]",
+      EMPRESA_TELEFONE: company?.telefone || "",
+      EMPRESA_EMAIL: company?.email_financeiro || company?.email_fiscal || "",
+      EMPRESA_REPRESENTANTE: "",
+      EMPRESA_REPRESENTANTE_CPF: "",
+      CLIENTE_NOME: orcamento.cliente_nome,
+      CLIENTE_DOCUMENTO: orcamento.cliente_documento || "",
+      CLIENTE_ENDERECO: orcamento.cliente_endereco || "",
+      CLIENTE_REPRESENTANTE: "",
+      CLIENTE_REPRESENTANTE_CPF: "",
+      CLIENTE_REPRESENTANTE_RG: "",
+      CLIENTE_EMAIL: orcamento.cliente_email || "",
+      CLIENTE_WHATSAPP: orcamento.cliente_whatsapp || "",
+      PEDIDO_NUMERO: orcamento.codigo,
+      PEDIDO_DATA: dataContrato,
+      TABELA_PRODUTOS: tabelaProdutos,
+      VALOR_SUBTOTAL: `R$ ${Number(orc.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      DESCONTO_PERCENTUAL: desconto > 0 ? `${desconto}%` : "0%",
+      VALOR_FINAL: `R$ ${valorFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      VALOR_FINAL_EXTENSO: "",
+      FORMA_PAGAMENTO: fp,
+      FORMA_PAGAMENTO_DETALHES: "",
+      PRAZO_ENTREGA: "",
+      LOCAL_ENTREGA: "",
+      VENDEDOR_NOME: orc.vendedor_nome || "—",
+      OBSERVACOES: orcamento.observacoes || "",
+      DATA_CONTRATO: dataContrato,
+      DATA_CONTRATO_CURTA: orc.data_orcamento ? format(new Date(orc.data_orcamento), "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy"),
+    };
 
-${orcamento.cliente_nome}, ${orcamento.cliente_documento ? `inscrita no CNPJ/CPF sob nº ${orcamento.cliente_documento}` : ""}${orcamento.cliente_endereco ? `, com sede em ${orcamento.cliente_endereco}` : ""}, neste ato denominada CONTRATANTE.
-
-${empresaNome}, com sede em ${empresaEndereco}, inscrita no CNPJ sob o nº ${empresaCNPJ}, neste ato denominada CONTRATADA.
-
-Considerando que:
-1. A CONTRATADA possui todas as licenças e autorizações para fabricação e que atende às Boas Práticas de Fabricação;
-2. A CONTRATANTE é empresa que atua no mercado e que é de seu interesse que a CONTRATADA fabrique produtos sob encomenda;
-
-Têm entre si, de maneira justa e acordada, o presente CONTRATO DE INDUSTRIALIZAÇÃO POR ENCOMENDA, ficando desde já aceito, pelas cláusulas abaixo descritas:
-
-1. DO OBJETO
-1.1. O presente tem como OBJETO a industrialização por encomenda, pela CONTRATADA, de produtos para a CONTRATANTE, segundo especificações e encomendas desta.
-
-2. DO PROCESSO E DAS NORMAS DE INDUSTRIALIZAÇÃO
-2.1. A fabricação dos produtos compreende as etapas da formulação, pesagem e mistura, encapsulamento e/ou compressão, envase, rotulagem, enfardamento e/ou encaixotamento.
-2.2. A industrialização será realizada com atendimento das normas de Boas Práticas de Fabricação de Alimentos.
-
-3. DOS PEDIDOS DE COMPRA
-3.1. Os Pedidos formalizados pela CONTRATANTE deverão conter especificação, quantidade, preços, condições de pagamento e programações de entrega.
-
-PEDIDO DE COMPRA — ANEXO I
-
-Número do Pedido: ${orcamento.codigo}
-Data: ${dataContrato}
-
-CONTRATANTE: ${orcamento.cliente_nome}
-${orcamento.cliente_documento ? `CNPJ/CPF: ${orcamento.cliente_documento}` : ""}
-${orcamento.cliente_endereco ? `Endereço: ${orcamento.cliente_endereco}` : ""}
-
-PRODUTOS:
-
-${tabelaProdutos}
-SUBTOTAL: R$ ${Number(orc.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-${desconto > 0 ? `DESCONTO: ${desconto}%\nVALOR FINAL: R$ ${valorFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : `VALOR TOTAL: R$ ${valorFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-
-FORMA DE PAGAMENTO: ${fp}
-
-${orcamento.observacoes ? `OBSERVAÇÕES: ${orcamento.observacoes}` : ""}
-
-VENDEDOR: ${orc.vendedor_nome || "—"}
-
-4. DA ENTREGA
-4.1. O prazo de fabricação e entrega respeitará o cronograma e capacidade fabril da CONTRATADA.
-
-5. DO PREÇO E PAGAMENTO
-5.1. Em caso de atraso no pagamento, a CONTRATANTE deverá efetuar o pagamento acrescido de multa moratória de 2%, juros de mora de 1% ao mês e correção monetária.
-5.2. Em caso de cancelamento de pedido já confirmado, aplica-se multa de 30% do valor do pedido.
-
-6. DA CONFIDENCIALIDADE
-6.1. As partes comprometem-se a manter a confidencialidade das informações relacionadas ao contrato.
-
-7. DA VIGÊNCIA
-7.1. O presente contrato vigora pelo prazo de 12 meses, renovando-se automaticamente.
-
-8. DO FORO
-8.1. Fica eleito o foro da comarca da sede da CONTRATADA para dirimir quaisquer dúvidas.
-
-E, por estarem justas e convencionadas, as partes assinam o presente contrato.
-
-${company?.endereco_cidade || "[Cidade]"}/${company?.endereco_uf || "[UF]"}, ${dataContrato}.
-
-
-___________________________________________
-${orcamento.cliente_nome}
-${orcamento.cliente_documento ? `CNPJ/CPF: ${orcamento.cliente_documento}` : ""}
-CONTRATANTE
-
-
-___________________________________________
-${empresaNome}
-CNPJ: ${empresaCNPJ}
-CONTRATADA
-`;
+    return substituirTags(CONTRATO_INDUSTRIALIZACAO_TEMPLATE, valores);
   };
 
   // Gera o texto quando os dados carregam
@@ -337,16 +303,20 @@ CONTRATADA
   };
 
   const handleDownloadPDF = async () => {
-    const blob = new Blob([contratoTexto], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Contrato_${orcamento.codigo}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Gera PDF profissional via print
+    const { gerarContratoPDF } = await import("@/lib/contrato-template");
+    gerarContratoPDF(
+      contratoTexto,
+      company?.logo_file_id ? undefined : undefined,
+      company?.razao_social || "",
+      company?.cnpj || "",
+      [company?.endereco_logradouro, company?.endereco_nro && `nº ${company.endereco_nro}`, company?.endereco_bairro, company?.endereco_cidade, company?.endereco_uf, company?.endereco_cep].filter(Boolean).join(", "),
+      company?.telefone || "",
+      company?.email_financeiro || company?.email_fiscal || ""
+    );
     await updateField({
       contrato_enviado_em: new Date().toISOString(),
-      contrato_enviado_via: "DOWNLOAD",
+      contrato_enviado_via: "DOWNLOAD_PDF",
       contrato_status: "ENVIADO",
     });
   };

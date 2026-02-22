@@ -987,6 +987,42 @@ export type Database = {
           },
         ]
       }
+      contratos_templates: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          logo_url: string | null
+          nome: string
+          texto_template: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          logo_url?: string | null
+          nome: string
+          texto_template: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          logo_url?: string | null
+          nome?: string
+          texto_template?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conversoes_unidades: {
         Row: {
           ativo: boolean | null
