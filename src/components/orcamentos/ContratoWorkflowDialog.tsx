@@ -533,9 +533,10 @@ ${paragrafos}
                     className="min-h-[400px] font-mono text-xs leading-relaxed"
                   />
                 ) : (
-                  <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground max-h-[400px] overflow-y-auto p-3 bg-muted/30 rounded-md">
-                    {contratoTexto}
-                  </pre>
+                  <div
+                    className="whitespace-pre-wrap text-xs leading-relaxed text-foreground max-h-[400px] overflow-y-auto p-3 bg-muted/30 rounded-md prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:text-[9px] [&_table]:my-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left [&_th]:p-1.5 [&_th]:border [&_th]:border-border [&_td]:p-1.5 [&_td]:border [&_td]:border-border [&_tr:nth-child(even)]:bg-muted/30 [&_strong]:font-bold"
+                    dangerouslySetInnerHTML={{ __html: contratoTexto.replace(/\n/g, '<br/>') }}
+                  />
                 )}
               </CardContent>
             </Card>
