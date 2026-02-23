@@ -241,23 +241,42 @@ export default function CompanySettingsPage() {
                   <CardTitle className="text-lg">Arquivos</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Logo da Empresa</Label>
+                  <div className="space-y-2">
+                    <Label>Logo da Empresa</Label>
+                    {form.watch("logo_file_id") ? (
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm text-muted-foreground">✓ Logo vinculado</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                          onClick={() => form.setValue("logo_file_id", null)}
+                        >
+                          Excluir Logo
+                        </Button>
+                      </div>
+                    ) : (
                       <div className="flex items-center gap-2">
-                        <Input
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={logoUploading}
+                          onClick={() => document.getElementById("logo-upload-input")?.click()}
+                        >
+                          {logoUploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                          Enviar Logo
+                        </Button>
+                        <input
+                          id="logo-upload-input"
                           type="file"
                           accept="image/*"
                           onChange={handleLogoUpload}
-                          disabled={logoUploading}
-                          className="file:mr-2 file:px-4 file:py-1 file:rounded file:border-0 file:bg-primary/10 file:text-primary file:font-medium"
+                          className="hidden"
                         />
-                        {logoUploading && <Loader2 className="h-4 w-4 animate-spin" />}
                       </div>
-                      {form.watch("logo_file_id") && (
-                        <p className="text-xs text-muted-foreground">Logo vinculado</p>
-                      )}
-                    </div>
+                    )}
                   </div>
 
                   <Separator />
