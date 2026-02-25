@@ -62,19 +62,38 @@ function mapLocalItemToSupabase(item: LocalItem) {
   };
 }
 
-// Map local entidade to Supabase schema
+function normalizeEntidadeDocumento(ent: LocalEntidade): string {
+  const rawDocumento = (ent.documento || '').trim();
+  if (!rawDocumento) {
+    throw new Error('Documento obrigatório ausente na entidade');
+  }
+
+  if (String(ent.tipo_pessoa) === 'ESTRANGEIRO') {
+    return rawDocumento;
+  }
+
+  const numericDocumento = rawDocumento.replace(/\D/g, '');
+  if (!numericDocumento) {
+    throw new Error('Documento inválido para entidade nacional');
+  }
+
+  return numericDocumento;
+}
+
+// Map local entidade to Supabase schema (strict: no placeholder values)
 function mapLocalEntidadeToSupabase(ent: LocalEntidade) {
-  // documento is NOT NULL in Supabase - use a placeholder if empty
-  let documento = (ent.documento || '').replace(/\D/g, '');
-  if (!documento) {
-    documento = `SEM-DOC-${ent.id.substring(0, 8)}`;
+  const documento = normalizeEntidadeDocumento(ent);
+  const razaoSocial = (ent.razao_social || '').trim();
+
+  if (!razaoSocial) {
+    throw new Error('Razão social obrigatória ausente na entidade');
   }
 
   return {
     id: ent.id,
     tipo_pessoa: ent.tipo_pessoa,
     documento,
-    razao_social: ent.razao_social || 'Sem razão social',
+    razao_social: razaoSocial,
     nome_fantasia: ent.nome_fantasia || null,
     ie: ent.ie || null,
     im: ent.im || null,
@@ -88,47 +107,9 @@ function mapLocalEntidadeToSupabase(ent: LocalEntidade) {
   };
 }
 
-// Set to track entidades already migrated on-demand to avoid duplicates
-const migratedEntidadesCache = new Set<string>();
-
-// Try to migrate a single entidade from localStorage if it exists there
-async function ensureEntidadeInSupabase(entidadeId: string, errorLogs: MigrationErrorLog[]): Promise<boolean> {
-  // Already in Supabase?
-  const exists = await existsInSupabase('entidades', entidadeId);
-  if (exists) return true;
-
-  // Already tried and failed?
-  if (migratedEntidadesCache.has(entidadeId)) return false;
-  migratedEntidadesCache.add(entidadeId);
-
-  // Try to find in localStorage
-  const localEnt = LocalDb.getById<LocalEntidade>('entidades', entidadeId);
-  if (!localEnt) return false;
-
-  try {
-    const { error } = await supabase
-      .from('entidades')
-      .insert(mapLocalEntidadeToSupabase(localEnt));
-    if (error) throw error;
-
-    // Also migrate papeis
-    if (localEnt.papeis && localEnt.papeis.length > 0) {
-      await supabase.from('entidade_papeis').insert(
-        localEnt.papeis.map(p => ({ entidade_id: localEnt.id, papel: p }))
-      );
-    }
-    return true;
-  } catch (err: any) {
-    console.error('Error auto-migrating entidade:', entidadeId, err);
-    errorLogs.push({
-      entity: 'Entidade (auto)',
-      id: entidadeId,
-      label: localEnt.razao_social || entidadeId,
-      message: err?.message || 'Erro ao migrar entidade automaticamente',
-      detail: err?.details || undefined,
-    });
-    return false;
-  }
+// Validate if parent entidade already exists in backend (strict mode)
+async function ensureEntidadeInSupabase(entidadeId: string): Promise<boolean> {
+  return existsInSupabase('entidades', entidadeId);
 }
 
 // Helper: check if an ID exists in a Supabase table
@@ -258,7 +239,7 @@ export async function migrateContatos(errorLogs: MigrationErrorLog[]): Promise<{
   for (const contato of localContatos) {
     try {
       // Ensure parent entidade exists (auto-migrate if needed)
-      const entidadeOk = await ensureEntidadeInSupabase(contato.entidade_id, errorLogs);
+      const entidadeOk = await ensureEntidadeInSupabase(contato.entidade_id);
       if (!entidadeOk) {
         throw { 
           message: 'Entidade pai não pôde ser migrada',
@@ -318,7 +299,7 @@ export async function migrateEnderecos(errorLogs: MigrationErrorLog[]): Promise<
 
   for (const endereco of localEnderecos) {
     try {
-      const entidadeOk = await ensureEntidadeInSupabase(endereco.entidade_id, errorLogs);
+      const entidadeOk = await ensureEntidadeInSupabase(endereco.entidade_id);
       if (!entidadeOk) {
         throw { 
           message: 'Entidade pai não pôde ser migrada',
@@ -536,7 +517,6 @@ export async function migrateLotes(errorLogs: MigrationErrorLog[]): Promise<{ mi
 // Full migration from localStorage to Supabase
 export async function migrateAllToSupabase(): Promise<MigrationStats> {
   const errorLogs: MigrationErrorLog[] = [];
-  migratedEntidadesCache.clear(); // Reset cache for new migration run
   const stats: MigrationStats = {
     itens: { total: 0, migrated: 0, errors: 0 },
     entidades: { total: 0, migrated: 0, errors: 0 },
