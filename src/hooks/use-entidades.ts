@@ -7,31 +7,31 @@ export function useEntidades(filters?: { papel?: string; status?: string }) {
   return useQuery({
     queryKey: ["entidades", filters],
     queryFn: async () => {
+      // Se filtramos por papel, usamos inner join (!) para filtrar no SQL
+      const selectClause = filters?.papel
+        ? `*, entidade_papeis!inner(*)`
+        : `*, entidade_papeis(*)`;
+
       let query = supabase
         .from("entidades")
-        .select(`
-          *,
-          entidade_papeis (*)
-        `)
+        .select(selectClause)
         .order("razao_social");
 
       if (filters?.status) {
         query = query.eq("status", filters.status);
       }
 
+      // Filtro por papel diretamente no SQL via inner join
+      if (filters?.papel) {
+        query = query.eq("entidade_papeis.papel", filters.papel);
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
 
-      let result = data as (Entidade & { entidade_papeis: EntidadePapel[] })[];
-
-      if (filters?.papel) {
-        result = result.filter((e) =>
-          e.entidade_papeis?.some((p) => p.papel === filters.papel)
-        );
-      }
-
-      return result;
+      // RLS filtra por company_id automaticamente
+      return data as (Entidade & { entidade_papeis: EntidadePapel[] })[];
     },
   });
 }
