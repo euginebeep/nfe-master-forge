@@ -132,7 +132,17 @@ async function ensureEntidadeInSupabase(entidadeId: string, errorLogs: Migration
 }
 
 // Helper: check if an ID exists in a Supabase table
-async function existsInSupabase(table: 'itens' | 'entidades' | 'entidade_contatos' | 'entidade_enderecos' | 'item_fornecedores' | 'estoque_lotes', id: string): Promise<boolean> {
+async function existsInSupabase(
+  table:
+    | 'itens'
+    | 'entidades'
+    | 'entidade_contatos'
+    | 'entidade_enderecos'
+    | 'item_fornecedores'
+    | 'estoque_lotes'
+    | 'notas_entrada_itens',
+  id: string,
+): Promise<boolean> {
   const { data } = await supabase
     .from(table)
     .select('id')
@@ -462,13 +472,25 @@ export async function migrateLotes(errorLogs: MigrationErrorLog[]): Promise<{ mi
         }
       }
 
+      // Check nota_entrada_item FK - set to null if not found
+      let notaEntradaItemId: string | null = lote.nota_entrada_item_id || null;
+      if (notaEntradaItemId) {
+        const notaEntradaItemExists = await existsInSupabase('notas_entrada_itens', notaEntradaItemId);
+        if (!notaEntradaItemExists) {
+          console.warn(
+            `Nota de entrada item ${notaEntradaItemId} do lote ${lote.numero_lote} não encontrada, definindo como null`,
+          );
+          notaEntradaItemId = null;
+        }
+      }
+
       const existing = await existsInSupabase('estoque_lotes', lote.id);
 
       const loteData = {
         id: lote.id,
         item_id: lote.item_id,
         fornecedor_id: fornecedorId,
-        nota_entrada_item_id: lote.nota_entrada_item_id || null,
+        nota_entrada_item_id: notaEntradaItemId,
         numero_lote: lote.numero_lote,
         data_fab: lote.data_fab || null,
         data_val: lote.data_val || null,
