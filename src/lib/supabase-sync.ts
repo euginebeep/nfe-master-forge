@@ -16,6 +16,16 @@ import type {
   LocalEntidadeEndereco 
 } from "@/hooks/use-local-entidades";
 
+// Error log entry
+export interface MigrationErrorLog {
+  entity: string;
+  id: string;
+  label: string;
+  message: string;
+  detail?: string;
+  hint?: string;
+}
+
 // Stats for migration
 export interface MigrationStats {
   itens: { total: number; migrated: number; errors: number };
@@ -24,6 +34,7 @@ export interface MigrationStats {
   itemFornecedores: { total: number; migrated: number; errors: number };
   contatos: { total: number; migrated: number; errors: number };
   enderecos: { total: number; migrated: number; errors: number };
+  errorLogs: MigrationErrorLog[];
 }
 
 // Map local item to Supabase schema
@@ -71,40 +82,49 @@ function mapLocalEntidadeToSupabase(ent: LocalEntidade) {
   };
 }
 
+// Helper: check if an ID exists in a Supabase table
+async function existsInSupabase(table: 'itens' | 'entidades' | 'entidade_contatos' | 'entidade_enderecos' | 'item_fornecedores' | 'estoque_lotes', id: string): Promise<boolean> {
+  const { data } = await supabase
+    .from(table)
+    .select('id')
+    .eq('id', id)
+    .maybeSingle();
+  return !!data;
+}
+
 // Migrate itens from localStorage to Supabase
-export async function migrateItens(): Promise<{ migrated: number; errors: number }> {
+export async function migrateItens(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
   const localItens = LocalDb.getCollection<LocalItem>('itens');
   let migrated = 0;
   let errors = 0;
 
   for (const item of localItens) {
     try {
-      // Check if item already exists in Supabase
-      const { data: existing } = await supabase
-        .from('itens')
-        .select('id')
-        .eq('id', item.id)
-        .maybeSingle();
+      const existing = await existsInSupabase('itens', item.id);
 
       if (existing) {
-        // Update existing
         const { error } = await supabase
           .from('itens')
           .update(mapLocalItemToSupabase(item))
           .eq('id', item.id);
-
         if (error) throw error;
       } else {
-        // Insert new
         const { error } = await supabase
           .from('itens')
           .insert(mapLocalItemToSupabase(item));
-
         if (error) throw error;
       }
       migrated++;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error migrating item:', item.id, err);
+      errorLogs.push({
+        entity: 'Produto',
+        id: item.id,
+        label: item.descricao_interna || item.sku_interno || item.id,
+        message: err?.message || 'Erro desconhecido',
+        detail: err?.details || undefined,
+        hint: err?.hint || undefined,
+      });
       errors++;
     }
   }
@@ -113,46 +133,35 @@ export async function migrateItens(): Promise<{ migrated: number; errors: number
 }
 
 // Migrate entidades from localStorage to Supabase
-export async function migrateEntidades(): Promise<{ migrated: number; errors: number }> {
+export async function migrateEntidades(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
   const localEntidades = LocalDb.getCollection<LocalEntidade>('entidades');
   let migrated = 0;
   let errors = 0;
 
   for (const ent of localEntidades) {
     try {
-      // Check if entidade already exists in Supabase
-      const { data: existing } = await supabase
-        .from('entidades')
-        .select('id')
-        .eq('id', ent.id)
-        .maybeSingle();
+      const existing = await existsInSupabase('entidades', ent.id);
 
       if (existing) {
-        // Update existing
         const { error } = await supabase
           .from('entidades')
           .update(mapLocalEntidadeToSupabase(ent))
           .eq('id', ent.id);
-
         if (error) throw error;
       } else {
-        // Insert new
         const { error } = await supabase
           .from('entidades')
           .insert(mapLocalEntidadeToSupabase(ent));
-
         if (error) throw error;
       }
 
       // Migrate papeis (roles)
       if (ent.papeis && ent.papeis.length > 0) {
-        // Delete existing papeis
         await supabase
           .from('entidade_papeis')
           .delete()
           .eq('entidade_id', ent.id);
 
-        // Insert new papeis
         const papeisData = ent.papeis.map(papel => ({
           entidade_id: ent.id,
           papel: papel,
@@ -164,8 +173,16 @@ export async function migrateEntidades(): Promise<{ migrated: number; errors: nu
       }
 
       migrated++;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error migrating entidade:', ent.id, err);
+      errorLogs.push({
+        entity: 'Entidade',
+        id: ent.id,
+        label: ent.razao_social || ent.documento || ent.id,
+        message: err?.message || 'Erro desconhecido',
+        detail: err?.details || undefined,
+        hint: err?.hint || undefined,
+      });
       errors++;
     }
   }
@@ -174,18 +191,23 @@ export async function migrateEntidades(): Promise<{ migrated: number; errors: nu
 }
 
 // Migrate contatos from localStorage to Supabase
-export async function migrateContatos(): Promise<{ migrated: number; errors: number }> {
+export async function migrateContatos(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
   const localContatos = LocalDb.getCollection<LocalEntidadeContato>('entidade_contatos');
   let migrated = 0;
   let errors = 0;
 
   for (const contato of localContatos) {
     try {
-      const { data: existing } = await supabase
-        .from('entidade_contatos')
-        .select('id')
-        .eq('id', contato.id)
-        .maybeSingle();
+      // Check if the parent entidade exists in Supabase
+      const entidadeExists = await existsInSupabase('entidades', contato.entidade_id);
+      if (!entidadeExists) {
+        throw { 
+          message: 'Entidade pai não encontrada no banco de dados',
+          details: `entidade_id ${contato.entidade_id} não existe na tabela entidades. Migre as entidades primeiro.`
+        };
+      }
+
+      const existing = await existsInSupabase('entidade_contatos', contato.id);
 
       const contatoData = {
         id: contato.id,
@@ -212,8 +234,16 @@ export async function migrateContatos(): Promise<{ migrated: number; errors: num
         if (error) throw error;
       }
       migrated++;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error migrating contato:', contato.id, err);
+      errorLogs.push({
+        entity: 'Contato',
+        id: contato.id,
+        label: contato.nome || contato.id,
+        message: err?.message || 'Erro desconhecido',
+        detail: err?.details || undefined,
+        hint: err?.hint || undefined,
+      });
       errors++;
     }
   }
@@ -222,18 +252,22 @@ export async function migrateContatos(): Promise<{ migrated: number; errors: num
 }
 
 // Migrate enderecos from localStorage to Supabase
-export async function migrateEnderecos(): Promise<{ migrated: number; errors: number }> {
+export async function migrateEnderecos(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
   const localEnderecos = LocalDb.getCollection<LocalEntidadeEndereco>('entidade_enderecos');
   let migrated = 0;
   let errors = 0;
 
   for (const endereco of localEnderecos) {
     try {
-      const { data: existing } = await supabase
-        .from('entidade_enderecos')
-        .select('id')
-        .eq('id', endereco.id)
-        .maybeSingle();
+      const entidadeExists = await existsInSupabase('entidades', endereco.entidade_id);
+      if (!entidadeExists) {
+        throw { 
+          message: 'Entidade pai não encontrada no banco de dados',
+          details: `entidade_id ${endereco.entidade_id} não existe na tabela entidades.`
+        };
+      }
+
+      const existing = await existsInSupabase('entidade_enderecos', endereco.id);
 
       const enderecoData = {
         id: endereco.id,
@@ -262,8 +296,16 @@ export async function migrateEnderecos(): Promise<{ migrated: number; errors: nu
         if (error) throw error;
       }
       migrated++;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error migrating endereco:', endereco.id, err);
+      errorLogs.push({
+        entity: 'Endereço',
+        id: endereco.id,
+        label: `${endereco.logradouro || ''} ${endereco.numero || ''}`.trim() || endereco.id,
+        message: err?.message || 'Erro desconhecido',
+        detail: err?.details || undefined,
+        hint: err?.hint || undefined,
+      });
       errors++;
     }
   }
@@ -272,23 +314,35 @@ export async function migrateEnderecos(): Promise<{ migrated: number; errors: nu
 }
 
 // Migrate item_fornecedores from localStorage to Supabase
-export async function migrateItemFornecedores(): Promise<{ migrated: number; errors: number }> {
+export async function migrateItemFornecedores(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
   const localFornecedores = LocalDb.getCollection<LocalItemFornecedor>('item_fornecedores');
   let migrated = 0;
   let errors = 0;
 
   for (const forn of localFornecedores) {
     try {
-      const { data: existing } = await supabase
-        .from('item_fornecedores')
-        .select('id')
-        .eq('id', forn.id)
-        .maybeSingle();
+      // Check FK references exist
+      const itemExists = await existsInSupabase('itens', forn.item_id);
+      if (!itemExists) {
+        throw { message: 'Item não encontrado no banco', details: `item_id ${forn.item_id} não existe.` };
+      }
+
+      // Check if fornecedor exists, if not set to null
+      let fornecedorId: string | null = forn.fornecedor_id || null;
+      if (fornecedorId) {
+        const fornExists = await existsInSupabase('entidades', fornecedorId);
+        if (!fornExists) {
+          console.warn(`Fornecedor ${fornecedorId} não existe no Supabase, definindo como null`);
+          fornecedorId = null;
+        }
+      }
+
+      const existing = await existsInSupabase('item_fornecedores', forn.id);
 
       const fornData = {
         id: forn.id,
         item_id: forn.item_id,
-        fornecedor_id: forn.fornecedor_id,
+        fornecedor_id: fornecedorId!,
         codigo_fornecedor: forn.codigo_fornecedor || null,
         descricao_fornecedor: forn.descricao_fornecedor || null,
         unidade_compra_padrao: forn.unidade_compra_padrao,
@@ -296,6 +350,14 @@ export async function migrateItemFornecedores(): Promise<{ migrated: number; err
         fornecedor_preferencial: forn.fornecedor_preferencial,
         preco_referencia: forn.preco_referencia || null,
       };
+
+      // Skip if fornecedor_id is required but null
+      if (!fornecedorId) {
+        throw { 
+          message: 'Fornecedor não encontrado no banco de dados', 
+          details: `fornecedor_id original ${forn.fornecedor_id} não existe na tabela entidades. Migre as entidades primeiro.` 
+        };
+      }
 
       if (existing) {
         const { error } = await supabase
@@ -310,8 +372,16 @@ export async function migrateItemFornecedores(): Promise<{ migrated: number; err
         if (error) throw error;
       }
       migrated++;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error migrating item_fornecedor:', forn.id, err);
+      errorLogs.push({
+        entity: 'Item-Fornecedor',
+        id: forn.id,
+        label: forn.descricao_fornecedor || forn.codigo_fornecedor || forn.id,
+        message: err?.message || 'Erro desconhecido',
+        detail: err?.details || undefined,
+        hint: err?.hint || undefined,
+      });
       errors++;
     }
   }
@@ -320,23 +390,35 @@ export async function migrateItemFornecedores(): Promise<{ migrated: number; err
 }
 
 // Migrate estoque_lotes from localStorage to Supabase
-export async function migrateLotes(): Promise<{ migrated: number; errors: number }> {
+export async function migrateLotes(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
   const localLotes = LocalDb.getCollection<LocalEstoqueLote>('estoque_lotes');
   let migrated = 0;
   let errors = 0;
 
   for (const lote of localLotes) {
     try {
-      const { data: existing } = await supabase
-        .from('estoque_lotes')
-        .select('id')
-        .eq('id', lote.id)
-        .maybeSingle();
+      // Check item FK
+      const itemExists = await existsInSupabase('itens', lote.item_id);
+      if (!itemExists) {
+        throw { message: 'Item não encontrado no banco', details: `item_id ${lote.item_id} não existe na tabela itens.` };
+      }
+
+      // Check fornecedor FK - set to null if not found
+      let fornecedorId: string | null = lote.fornecedor_id || null;
+      if (fornecedorId) {
+        const fornExists = await existsInSupabase('entidades', fornecedorId);
+        if (!fornExists) {
+          console.warn(`Fornecedor ${fornecedorId} do lote ${lote.numero_lote} não encontrado, definindo como null`);
+          fornecedorId = null;
+        }
+      }
+
+      const existing = await existsInSupabase('estoque_lotes', lote.id);
 
       const loteData = {
         id: lote.id,
         item_id: lote.item_id,
-        fornecedor_id: lote.fornecedor_id || null,
+        fornecedor_id: fornecedorId,
         nota_entrada_item_id: lote.nota_entrada_item_id || null,
         numero_lote: lote.numero_lote,
         data_fab: lote.data_fab || null,
@@ -363,8 +445,16 @@ export async function migrateLotes(): Promise<{ migrated: number; errors: number
         if (error) throw error;
       }
       migrated++;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error migrating lote:', lote.id, err);
+      errorLogs.push({
+        entity: 'Lote',
+        id: lote.id,
+        label: lote.numero_lote || lote.id,
+        message: err?.message || 'Erro desconhecido',
+        detail: err?.details || undefined,
+        hint: err?.hint || undefined,
+      });
       errors++;
     }
   }
@@ -374,6 +464,8 @@ export async function migrateLotes(): Promise<{ migrated: number; errors: number
 
 // Full migration from localStorage to Supabase
 export async function migrateAllToSupabase(): Promise<MigrationStats> {
+  const errorLogs: MigrationErrorLog[] = [];
+
   const stats: MigrationStats = {
     itens: { total: 0, migrated: 0, errors: 0 },
     entidades: { total: 0, migrated: 0, errors: 0 },
@@ -381,6 +473,7 @@ export async function migrateAllToSupabase(): Promise<MigrationStats> {
     itemFornecedores: { total: 0, migrated: 0, errors: 0 },
     contatos: { total: 0, migrated: 0, errors: 0 },
     enderecos: { total: 0, migrated: 0, errors: 0 },
+    errorLogs,
   };
 
   // Get totals
@@ -392,27 +485,27 @@ export async function migrateAllToSupabase(): Promise<MigrationStats> {
   stats.enderecos.total = LocalDb.getCollection('entidade_enderecos').length;
 
   // Migrate in order (entidades first, then items, then relations)
-  const entidadesResult = await migrateEntidades();
+  const entidadesResult = await migrateEntidades(errorLogs);
   stats.entidades.migrated = entidadesResult.migrated;
   stats.entidades.errors = entidadesResult.errors;
 
-  const contatosResult = await migrateContatos();
+  const contatosResult = await migrateContatos(errorLogs);
   stats.contatos.migrated = contatosResult.migrated;
   stats.contatos.errors = contatosResult.errors;
 
-  const enderecosResult = await migrateEnderecos();
+  const enderecosResult = await migrateEnderecos(errorLogs);
   stats.enderecos.migrated = enderecosResult.migrated;
   stats.enderecos.errors = enderecosResult.errors;
 
-  const itensResult = await migrateItens();
+  const itensResult = await migrateItens(errorLogs);
   stats.itens.migrated = itensResult.migrated;
   stats.itens.errors = itensResult.errors;
 
-  const itemFornResult = await migrateItemFornecedores();
+  const itemFornResult = await migrateItemFornecedores(errorLogs);
   stats.itemFornecedores.migrated = itemFornResult.migrated;
   stats.itemFornecedores.errors = itemFornResult.errors;
 
-  const lotesResult = await migrateLotes();
+  const lotesResult = await migrateLotes(errorLogs);
   stats.lotes.migrated = lotesResult.migrated;
   stats.lotes.errors = lotesResult.errors;
 
