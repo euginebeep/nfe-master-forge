@@ -82,7 +82,8 @@ export default function OnboardingWizard() {
     }
     setIsLoading(true);
     try {
-      const { error } = await supabase.from('company').insert({
+      // 1. Criar a company
+      const { data: company, error } = await supabase.from('company').insert({
         razao_social: data.razao_social,
         nome_fantasia: data.nome_fantasia || null,
         cnpj: data.cnpj.replace(/\D/g, ''),
@@ -98,8 +99,23 @@ export default function OnboardingWizard() {
         endereco_cmun: data.endereco_cmun || null,
         telefone: data.telefone.replace(/\D/g, '') || null,
         email_fiscal: data.email_fiscal || null,
-      });
+      }).select().single();
+
       if (error) throw error;
+
+      // 2. Vincular company_id ao profile do usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && company) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ company_id: company.id } as any)
+          .eq('id', user.id);
+
+        if (profileError) {
+          console.error('Erro ao vincular empresa ao perfil:', profileError);
+        }
+      }
+
       toast.success('Empresa configurada com sucesso!');
       navigate('/');
     } catch (err: unknown) {

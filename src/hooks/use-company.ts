@@ -7,11 +7,32 @@ export function useCompany() {
   return useQuery({
     queryKey: ["company"],
     queryFn: async () => {
+      // Buscar o company_id do profile do usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        // Fallback: buscar qualquer company (para retrocompatibilidade)
+        const { data, error } = await supabase
+          .from("company")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        return data as Company | null;
+      }
+
       const { data, error } = await supabase
         .from("company")
         .select("*")
-        .limit(1)
-        .maybeSingle();
+        .eq("id", profile.company_id)
+        .single();
 
       if (error) throw error;
       return data as Company | null;
