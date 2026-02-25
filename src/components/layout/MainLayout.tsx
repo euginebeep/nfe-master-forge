@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
+import { useSubscription } from "@/hooks/use-subscription";
+import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -9,6 +11,11 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   useRealtimeNotifications();
+  const { isBlocked, isLoading: subLoading } = useSubscription();
+
+  if (isBlocked && !subLoading) {
+    return <SubscriptionBlocker />;
+  }
 
   return (
     <SidebarProvider defaultOpen={true}>
