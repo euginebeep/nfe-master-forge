@@ -946,7 +946,7 @@ export type Database = {
         }
         Insert: {
           cliente_id?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string | null
           data_emissao?: string
           data_pagamento?: string | null
@@ -1652,7 +1652,7 @@ export type Database = {
           classificacao?: string | null
           cnae?: string | null
           codigo_interno?: string | null
-          company_id: string
+          company_id?: string
           condicao_frete_padrao?: string | null
           contribuinte_icms?: string | null
           created_at?: string
@@ -1728,7 +1728,7 @@ export type Database = {
           unidade_original: string
         }
         Insert: {
-          company_id: string
+          company_id?: string
           created_at?: string
           custo_unitario_interno?: number | null
           custo_unitario_original?: number | null
@@ -1813,7 +1813,7 @@ export type Database = {
           usuario_id: string | null
         }
         Insert: {
-          company_id: string
+          company_id?: string
           created_at?: string | null
           custo_unitario?: number | null
           documento_ref?: string | null
@@ -2015,7 +2015,7 @@ export type Database = {
           aprovado_em?: string | null
           aprovado_por?: string | null
           codigo_formula: string
-          company_id: string
+          company_id?: string
           criado_em?: string | null
           criado_por?: string | null
           densidade_media?: number | null
@@ -2236,7 +2236,7 @@ export type Database = {
           bloquear_entrada_mg_manual?: boolean | null
           categoria_operacional?: string | null
           classificacao_risco?: string | null
-          company_id: string
+          company_id?: string
           controla_lote?: boolean
           controla_validade?: boolean
           controle_especial?: boolean | null
@@ -2647,7 +2647,7 @@ export type Database = {
         }
         Insert: {
           chave_nfe: string
-          company_id: string
+          company_id?: string
           created_at?: string
           dh_emissao?: string | null
           fornecedor_id?: string | null
@@ -2719,7 +2719,7 @@ export type Database = {
         Insert: {
           cfop?: string | null
           codigo_fornecedor?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           descricao?: string | null
           ean?: string | null
@@ -2796,7 +2796,7 @@ export type Database = {
         Insert: {
           chave_acesso?: string | null
           cliente_id: string
-          company_id: string
+          company_id?: string
           created_at?: string | null
           data_emissao?: string | null
           id?: string
@@ -3737,7 +3737,7 @@ export type Database = {
           cliente_telefone?: string | null
           cliente_whatsapp?: string | null
           codigo: string
-          company_id: string
+          company_id?: string
           comprovante_pagamento_em?: string | null
           comprovante_pagamento_obs?: string | null
           condicao_pagamento?: string | null
@@ -3950,7 +3950,7 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome?: string | null
           codigo: string
-          company_id: string
+          company_id?: string
           cor_capsula?: string | null
           cor_tampa?: string | null
           created_at?: string | null
@@ -4346,7 +4346,7 @@ export type Database = {
           cliente_nome: string
           cliente_telefone?: string | null
           codigo: string
-          company_id: string
+          company_id?: string
           condicao_pagamento?: string | null
           confirmado_em?: string | null
           confirmado_por?: string | null
@@ -4578,7 +4578,7 @@ export type Database = {
         }
         Insert: {
           analista_id?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string | null
           data_analise?: string | null
           especificacao: string
@@ -4638,7 +4638,7 @@ export type Database = {
         Insert: {
           certificado_url?: string | null
           codigo_equipamento: string
-          company_id: string
+          company_id?: string
           created_at?: string | null
           data_calibracao: string
           equipamento: string
@@ -4694,7 +4694,7 @@ export type Database = {
           acao_preventiva?: string | null
           causa_raiz?: string | null
           codigo: string
-          company_id: string
+          company_id?: string
           created_at?: string | null
           descricao: string
           id?: string
