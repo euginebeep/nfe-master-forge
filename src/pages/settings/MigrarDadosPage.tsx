@@ -1,22 +1,26 @@
 import { useState } from "react";
-import { Database, Upload, Loader2, CheckCircle, AlertCircle, Package, Building2, Boxes, ArrowRight } from "lucide-react";
+import { Database, Upload, Loader2, CheckCircle, AlertCircle, Package, Building2, Boxes, Bug, ChevronDown, ChevronUp } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { 
   migrateAllToSupabase, 
   hasLocalDataToMigrate, 
   getLocalDataCounts,
-  type MigrationStats 
+  type MigrationStats,
+  type MigrationErrorLog
 } from "@/lib/supabase-sync";
 
 export default function MigrarDadosPage() {
   const [migrating, setMigrating] = useState(false);
   const [stats, setStats] = useState<MigrationStats | null>(null);
   const [progress, setProgress] = useState(0);
+  const [showErrors, setShowErrors] = useState(true);
   
   const localCounts = getLocalDataCounts();
   const hasData = hasLocalDataToMigrate();
@@ -29,6 +33,7 @@ export default function MigrarDadosPage() {
 
     setMigrating(true);
     setProgress(10);
+    setStats(null);
 
     try {
       setProgress(30);
@@ -39,25 +44,27 @@ export default function MigrarDadosPage() {
       const totalMigrated = 
         result.entidades.migrated + 
         result.itens.migrated + 
-        result.lotes.migrated;
+        result.lotes.migrated +
+        result.contatos.migrated +
+        result.enderecos.migrated +
+        result.itemFornecedores.migrated;
 
-      const totalErrors = 
-        result.entidades.errors + 
-        result.itens.errors + 
-        result.lotes.errors;
+      const totalErrors = result.errorLogs.length;
 
       if (totalErrors === 0) {
         toast.success(`Migração concluída! ${totalMigrated} registros sincronizados.`);
       } else {
-        toast.warning(`Migração concluída com ${totalErrors} erros.`);
+        toast.warning(`Migração concluída com ${totalErrors} erros. Veja os detalhes abaixo.`);
       }
     } catch (error) {
       console.error('Migration error:', error);
-      toast.error("Erro durante a migração. Verifique o console.");
+      toast.error("Erro durante a migração. Verifique os detalhes abaixo.");
     } finally {
       setMigrating(false);
     }
   };
+
+  const errorLogs = stats?.errorLogs || [];
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -125,7 +132,7 @@ export default function MigrarDadosPage() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Upload className="h-5 w-5 text-primary" />
-              Migrar para Supabase
+              Migrar para Nuvem
             </CardTitle>
             <CardDescription>
               Envie todos os dados locais para o banco de dados em nuvem.
@@ -212,6 +219,61 @@ export default function MigrarDadosPage() {
                 />
               </div>
             </CardContent>
+          </Card>
+        )}
+
+        {/* Error Logs Card */}
+        {errorLogs.length > 0 && (
+          <Card className="border-destructive/50">
+            <CardHeader className="cursor-pointer" onClick={() => setShowErrors(!showErrors)}>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2 text-destructive">
+                  <Bug className="h-5 w-5" />
+                  Log de Erros
+                  <Badge variant="destructive" className="ml-2">{errorLogs.length}</Badge>
+                </div>
+                {showErrors ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </CardTitle>
+              <CardDescription>
+                Detalhes dos erros encontrados durante a migração
+              </CardDescription>
+            </CardHeader>
+            {showErrors && (
+              <CardContent>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-3">
+                    {errorLogs.map((log, idx) => (
+                      <div key={idx} className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                            {log.entity}
+                          </Badge>
+                          <span className="text-sm font-medium text-foreground truncate max-w-[300px]">
+                            {log.label}
+                          </span>
+                        </div>
+                        <p className="text-sm text-destructive font-medium">
+                          {log.message}
+                        </p>
+                        {log.detail && (
+                          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded font-mono break-all">
+                            {log.detail}
+                          </p>
+                        )}
+                        {log.hint && (
+                          <p className="text-xs text-primary">
+                            💡 {log.hint}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/60 font-mono">
+                          ID: {log.id}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            )}
           </Card>
         )}
       </div>
