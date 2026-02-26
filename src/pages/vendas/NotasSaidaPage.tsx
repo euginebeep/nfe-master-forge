@@ -4,6 +4,7 @@ import {
   Send, Download, Trash2, Printer, AlertTriangle, Package, Truck, CreditCard,
   ChevronDown, ChevronUp, FileX, Edit
 } from "lucide-react";
+import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,8 @@ export default function NotasSaidaPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedNotaId, setSelectedNotaId] = useState<string | null>(null);
   const [justificativa, setJustificativa] = useState("");
+  const [danfePreviewOpen, setDanfePreviewOpen] = useState(false);
+  const [danfeData, setDanfeData] = useState<any>(null);
   const queryClient = useQueryClient();
   const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe } = useNuvemFiscal();
   const { data: company } = useCompany();
@@ -231,6 +234,8 @@ export default function NotasSaidaPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
       toast.success("Nota de saída criada como rascunho");
+      // Auto-open DANFE preview with current form data
+      openDanfeFromForm();
       resetForm();
       setDialogOpen(false);
     },
@@ -300,6 +305,93 @@ export default function NotasSaidaPage() {
     },
     onError: (err: any) => toast.error("Erro: " + err.message),
   });
+
+  const buildDanfeData = (notaData: any, notaItens: any[], comp: any, cliente: any) => ({
+    emit_razao: comp?.razao_social || "—",
+    emit_fantasia: comp?.nome_fantasia || "",
+    emit_logradouro: comp?.endereco_logradouro || "",
+    emit_numero: comp?.endereco_nro || "",
+    emit_bairro: comp?.endereco_bairro || "",
+    emit_cidade: comp?.endereco_cidade || "",
+    emit_uf: comp?.endereco_uf || "",
+    emit_cep: comp?.endereco_cep || "",
+    emit_telefone: comp?.telefone || "",
+    emit_email: comp?.email_fiscal || "",
+    emit_cnpj: comp?.cnpj || "",
+    emit_ie: comp?.ie || "",
+    numero: notaData.numero,
+    serie: notaData.serie || company?.nfe_serie_padrao || "1",
+    natureza_operacao: notaData.natureza_operacao || "Venda de mercadoria",
+    chave_acesso: notaData.chave_acesso || "",
+    protocolo: notaData.protocolo_autorizacao || "",
+    data_emissao: notaData.data_emissao ? new Date(notaData.data_emissao).toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR"),
+    tipo_operacao: "1" as const,
+    dest_razao: cliente?.razao_social || notaData.entidades?.razao_social || "—",
+    dest_cnpj_cpf: cliente?.documento || notaData.entidades?.documento || "",
+    dest_ie: cliente?.ie || "",
+    bc_icms: Number(notaData.valor_produtos || 0),
+    valor_icms: Number(notaData.valor_icms || 0),
+    bc_icms_st: 0,
+    valor_icms_st: 0,
+    valor_produtos: Number(notaData.valor_produtos || 0),
+    valor_frete: 0,
+    valor_seguro: 0,
+    valor_desconto: 0,
+    outras_despesas: 0,
+    valor_ipi: 0,
+    valor_aprox_tributos: Number(notaData.valor_icms || 0) + Number(notaData.valor_pis || 0) + Number(notaData.valor_cofins || 0),
+    valor_total: Number(notaData.valor_total || 0),
+    transp_frete_conta: MODALIDADES_FRETE.find(m => m.value === notaData.modalidade_frete)?.label?.split(" - ")[0] || "9 - Sem transporte",
+    itens: notaItens.map((item: any, idx: number) => ({
+      numero_item: item.numero_item || idx + 1,
+      descricao: item.descricao || "",
+      ncm: item.ncm || "",
+      cst_icms: item.cst_icms || "00",
+      cfop: item.cfop || "5102",
+      unidade: item.unidade || "UN",
+      quantidade: Number(item.quantidade || 0),
+      valor_unitario: Number(item.valor_unitario || 0),
+      valor_total: Number(item.valor_total || 0),
+      icms_aliquota: Number(item.icms_aliquota || 0),
+      icms_valor: Number(item.icms_valor || 0),
+      origem: item.origem || "0",
+    })),
+    info_complementares: notaData.informacoes_adicionais || "",
+    ambiente: (notaData.ambiente || "homologacao") as "homologacao" | "producao",
+  });
+
+  const openDanfeFromForm = () => {
+    const cliente = clientes?.find((c: any) => c.id === clienteId);
+    const fakeNota = {
+      natureza_operacao: naturezaOperacao,
+      valor_produtos: totais.produtos,
+      valor_total: totais.produtos,
+      valor_icms: totais.icms,
+      valor_pis: totais.pis,
+      valor_cofins: totais.cofins,
+      modalidade_frete: modalidadeFrete,
+      informacoes_adicionais: infoAdicionais,
+      ambiente: "homologacao",
+    };
+    setDanfeData(buildDanfeData(fakeNota, itens, company, cliente));
+    setDanfePreviewOpen(true);
+  };
+
+  const openDanfeFromSavedNota = async (notaId: string) => {
+    const { data: nota } = await supabase
+      .from("notas_saida")
+      .select("*, entidades(razao_social, nome_fantasia, documento, ie)")
+      .eq("id", notaId)
+      .single();
+    if (!nota) return;
+    const { data: notaItens } = await supabase
+      .from("notas_saida_itens")
+      .select("*")
+      .eq("nota_saida_id", notaId)
+      .order("numero_item");
+    setDanfeData(buildDanfeData(nota, notaItens || [], company, nota.entidades));
+    setDanfePreviewOpen(true);
+  };
 
   const resetForm = () => {
     setClienteId("");
@@ -531,15 +623,26 @@ export default function NotasSaidaPage() {
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           {nota.status === "RASCUNHO" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => transmitirNota.mutate(nota.id)}
-                              disabled={transmitirNota.isPending}
-                            >
-                              <Send className="h-3.5 w-3.5 mr-1" />
-                              Transmitir
-                            </Button>
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => openDanfeFromSavedNota(nota.id)}
+                                title="Pré-visualizar DANFE"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => transmitirNota.mutate(nota.id)}
+                                disabled={transmitirNota.isPending}
+                              >
+                                <Send className="h-3.5 w-3.5 mr-1" />
+                                Transmitir
+                              </Button>
+                            </>
                           )}
                           {nota.status === "AUTORIZADA" && (
                             <>
@@ -945,6 +1048,12 @@ export default function NotasSaidaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ─── DANFE Preview ─── */}
+      <DANFEPreviewDialog
+        open={danfePreviewOpen}
+        onOpenChange={setDanfePreviewOpen}
+        data={danfeData}
+      />
     </div>
   );
 }
