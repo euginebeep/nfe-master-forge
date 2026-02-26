@@ -118,7 +118,7 @@ const Index = () => {
   const lockedModules = modules.filter(m => !hasAccess(m.minRole));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* User Welcome Section */}
       {isAuthenticated && (
         <UserWelcomeCard
@@ -140,7 +140,7 @@ const Index = () => {
       )}
 
       {/* Alerts Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <ExpiringLotsCard />
         <ExchangeRateCard />
         <MarketIndicesCard />
@@ -156,7 +156,7 @@ const Index = () => {
       {/* Modules Grid */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Módulos Disponíveis</h3>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {accessibleModules.map((module, index) => (
             <motion.div
               key={module.href}
@@ -192,7 +192,7 @@ const Index = () => {
             <Lock className="h-4 w-4" />
             Módulos Restritos
           </h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {lockedModules.map((module, index) => (
               <motion.div
                 key={module.href}

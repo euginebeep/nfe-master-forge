@@ -28,7 +28,7 @@ export function MainLayout() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 p-3 sm:p-6 overflow-auto"
+            className="flex-1 p-2 sm:p-4 md:p-6 overflow-auto"
           >
             <CompanyRequiredGuard>
               <Outlet />
