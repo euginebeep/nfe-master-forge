@@ -56,9 +56,21 @@ export function useSubscription() {
       const { data, error } = await supabase.functions.invoke('check-subscription');
       if (error) {
         console.error('Error checking subscription:', error);
-        // If JWT user doesn't exist, force sign out
-        const errorMsg = typeof error === 'object' && error?.message ? error.message : String(error);
-        if (errorMsg.includes('User from sub claim') || errorMsg.includes('user_not_found')) {
+        // Try to read the response body for detailed error info
+        let bodyText = '';
+        try {
+          if (error?.context?.body) {
+            const reader = error.context.body.getReader();
+            const { value } = await reader.read();
+            bodyText = new TextDecoder().decode(value);
+          } else if (error?.context?.json) {
+            const json = await error.context.json();
+            bodyText = JSON.stringify(json);
+          }
+        } catch (_) { /* ignore */ }
+        
+        const fullError = (error?.message || '') + ' ' + bodyText;
+        if (fullError.includes('User from sub claim') || fullError.includes('user_not_found') || fullError.includes('Authentication error')) {
           console.warn('Stale JWT detected, signing out...');
           await supabase.auth.signOut();
           window.location.href = '/auth';
@@ -70,7 +82,7 @@ export function useSubscription() {
       }
       
       // Also check if data contains an auth error from the edge function
-      if (data?.error && (data.error.includes('User from sub claim') || data.error.includes('Authentication error'))) {
+      if (data?.error && (String(data.error).includes('User from sub claim') || String(data.error).includes('Authentication error'))) {
         console.warn('Auth error from subscription check, signing out...');
         await supabase.auth.signOut();
         window.location.href = '/auth';
