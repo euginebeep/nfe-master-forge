@@ -38,6 +38,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Only admins can update users' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { auth: { autoRefreshToken: false, persistSession: false } })
+
+    // Get admin's company_id for tenant isolation
+    const { data: adminProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('company_id')
+      .eq('id', callingUser.id)
+      .single()
+
+    const adminCompanyId = adminProfile?.company_id
+
     const body = await req.json()
     const { user_id, nome_completo, cargo, departamento, role, avatar_url, status, permissions, new_password, sexo, data_nascimento } = body
 
@@ -45,7 +56,18 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'user_id is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { auth: { autoRefreshToken: false, persistSession: false } })
+    // Verify target user belongs to same company (tenant isolation)
+    if (adminCompanyId) {
+      const { data: targetProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user_id)
+        .single()
+
+      if (targetProfile?.company_id && targetProfile.company_id !== adminCompanyId) {
+        return new Response(JSON.stringify({ error: 'Você não tem permissão para editar este usuário' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+    }
 
     if (new_password) {
       await supabaseAdmin.auth.admin.updateUserById(user_id, { password: new_password })
@@ -65,7 +87,6 @@ Deno.serve(async (req) => {
     }
 
     if (role) {
-      // Use upsert to handle cases where the role row may not exist
       await supabaseAdmin.from('user_roles').upsert(
         { user_id, role },
         { onConflict: 'user_id' }
