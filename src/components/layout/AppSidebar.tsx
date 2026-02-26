@@ -1,4 +1,4 @@
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   Building2,
   Users,
@@ -26,7 +26,8 @@ import {
   FileArchive,
   Database,
   UserCheck,
-  Map } from
+  Map,
+  LogOut } from
 "lucide-react";
 import {
   Sidebar,
@@ -194,11 +195,18 @@ const footerItems: FooterItem[] = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { role, canView, isLoading } = useAuth();
+  const { role, canView, isLoading, signOut } = useAuth();
 
   const isAdmin = role === 'admin';
+
+  const handleSignOut = async () => {
+    await signOut();
+    // Force full page reload to clear all cached state
+    window.location.href = '/auth';
+  };
 
   const isActive = (url: string) => {
     if (url === "/") return location.pathname === "/";
@@ -334,7 +342,7 @@ export function AppSidebar() {
           })}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-sidebar-border p-3 bg-sidebar">
+        <SidebarFooter className="border-t border-sidebar-border p-3 bg-sidebar space-y-1">
           {footerItems.filter(isFooterItemVisible).map(({ to, icon: Icon, label, tooltip, danger }) =>
           <Tooltip key={to}>
               <TooltipTrigger asChild>
@@ -361,6 +369,23 @@ export function AppSidebar() {
               </TooltipContent>
             </Tooltip>
           )}
+
+          {/* Botão Sair do Sistema */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 w-full text-destructive/80 hover:bg-destructive/10 hover:text-destructive"
+              >
+                <LogOut className="w-5 h-5 shrink-0" />
+                {!collapsed && <span className="text-sm font-medium">Sair do Sistema</span>}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[220px] text-xs">
+              <p className="font-semibold">Sair</p>
+              <p className="text-muted-foreground mt-0.5">Encerrar sessão e voltar à tela de login</p>
+            </TooltipContent>
+          </Tooltip>
         </SidebarFooter>
       </Sidebar>
     </TooltipProvider>);
