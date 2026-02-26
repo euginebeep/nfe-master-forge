@@ -61,26 +61,25 @@ export function useUpsertCompany() {
         if (error) throw error;
         return data;
       } else {
-        // Create new company
-        const { data, error } = await supabase
+        // Create new company without RETURNING to avoid SELECT RLS dependency during bootstrap
+        const newCompanyId = crypto.randomUUID();
+        const { error } = await supabase
           .from("company")
-          .insert(company as Company)
-          .select()
-          .single();
+          .insert({ ...(company as Company), id: newCompanyId });
 
         if (error) throw error;
 
-        // Link company to user profile
+        // Ensure profile exists and is linked to the created company
         const { error: profileError } = await supabase
           .from("profiles")
-          .update({ company_id: data.id } as any)
-          .eq("id", user.id);
+          .upsert(
+            { id: user.id, company_id: newCompanyId } as any,
+            { onConflict: "id" }
+          );
 
-        if (profileError) {
-          console.error("Erro ao vincular empresa ao perfil:", profileError);
-        }
+        if (profileError) throw profileError;
 
-        return data;
+        return { ...(company as Company), id: newCompanyId };
       }
     },
     onSuccess: () => {
