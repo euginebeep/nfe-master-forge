@@ -56,8 +56,24 @@ export function useSubscription() {
       const { data, error } = await supabase.functions.invoke('check-subscription');
       if (error) {
         console.error('Error checking subscription:', error);
-        // On error, don't block — assume trial
+        // If JWT user doesn't exist, force sign out
+        const errorMsg = typeof error === 'object' && error?.message ? error.message : String(error);
+        if (errorMsg.includes('User from sub claim') || errorMsg.includes('user_not_found')) {
+          console.warn('Stale JWT detected, signing out...');
+          await supabase.auth.signOut();
+          window.location.href = '/auth';
+          return;
+        }
+        // On other errors, don't block — assume trial
         setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+      
+      // Also check if data contains an auth error from the edge function
+      if (data?.error && (data.error.includes('User from sub claim') || data.error.includes('Authentication error'))) {
+        console.warn('Auth error from subscription check, signing out...');
+        await supabase.auth.signOut();
+        window.location.href = '/auth';
         return;
       }
 
