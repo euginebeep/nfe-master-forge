@@ -14,6 +14,52 @@ const logStep = (step: string, details?: any) => {
 
 const TRIAL_DAYS = 14;
 
+type SubscriptionPayload = {
+  subscribed: boolean;
+  is_in_trial: boolean;
+  trial_days_remaining: number;
+  product_id: string | null;
+  plan_name: string | null;
+  subscription_end: string | null;
+  auth_invalid?: boolean;
+  error?: string;
+};
+
+const createResponse = (payload: SubscriptionPayload, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status,
+  });
+
+const createUnsubscribedPayload = (
+  isInTrial: boolean,
+  trialDaysRemaining: number,
+): SubscriptionPayload => ({
+  subscribed: false,
+  is_in_trial: isInTrial,
+  trial_days_remaining: trialDaysRemaining,
+  product_id: null,
+  plan_name: null,
+  subscription_end: null,
+});
+
+const isAuthError = (message: string) => {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("user from sub claim") ||
+    normalized.includes("user_not_found") ||
+    normalized.includes("no authorization header") ||
+    normalized.includes("not authenticated")
+  );
+};
+
+const createAuthInvalidResponse = (message: string) =>
+  createResponse({
+    ...createUnsubscribedPayload(false, 0),
+    auth_invalid: true,
+    error: message,
+  });
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,16 +78,32 @@ serve(async (req) => {
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      const message = "Authentication error: No authorization header provided";
+      logStep("AUTH_INVALID", { message });
+      return createAuthInvalidResponse(message);
+    }
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError) {
+      const message = `Authentication error: ${userError.message}`;
+      if (isAuthError(userError.message)) {
+        logStep("AUTH_INVALID", { message });
+        return createAuthInvalidResponse(message);
+      }
+      throw new Error(message);
+    }
+
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) {
+      const message = "Authentication error: User not authenticated or email not available";
+      logStep("AUTH_INVALID", { message });
+      return createAuthInvalidResponse(message);
+    }
+
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Check trial period based on user creation date
     const createdAt = new Date(user.created_at);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -54,17 +116,7 @@ serve(async (req) => {
 
     if (customers.data.length === 0) {
       logStep("No Stripe customer found");
-      return new Response(JSON.stringify({
-        subscribed: false,
-        is_in_trial: isInTrial,
-        trial_days_remaining: trialDaysRemaining,
-        product_id: null,
-        plan_name: null,
-        subscription_end: null,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return createResponse(createUnsubscribedPayload(isInTrial, trialDaysRemaining));
     }
 
     const customerId = customers.data[0].id;
@@ -76,7 +128,6 @@ serve(async (req) => {
       limit: 1,
     });
 
-    // Also check trialing subscriptions
     let activeSub = subscriptions.data[0] || null;
     if (!activeSub) {
       const trialingSubs = await stripe.subscriptions.list({
@@ -89,23 +140,12 @@ serve(async (req) => {
 
     if (!activeSub) {
       logStep("No active subscription");
-      return new Response(JSON.stringify({
-        subscribed: false,
-        is_in_trial: isInTrial,
-        trial_days_remaining: trialDaysRemaining,
-        product_id: null,
-        plan_name: null,
-        subscription_end: null,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return createResponse(createUnsubscribedPayload(isInTrial, trialDaysRemaining));
     }
 
     const productId = activeSub.items.data[0].price.product as string;
     const subscriptionEnd = new Date(activeSub.current_period_end * 1000).toISOString();
 
-    // Map product IDs to plan names
     const planMap: Record<string, string> = {
       "prod_U2vuAu7msHlX8l": "Mensal",
       "prod_U2xEoU9GApSWsN": "Semestral",
@@ -115,19 +155,22 @@ serve(async (req) => {
 
     logStep("Active subscription found", { productId, planName, subscriptionEnd });
 
-    return new Response(JSON.stringify({
+    return createResponse({
       subscribed: true,
       is_in_trial: false,
       trial_days_remaining: 0,
       product_id: productId,
       plan_name: planName,
       subscription_end: subscriptionEnd,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (isAuthError(errorMessage)) {
+      logStep("AUTH_INVALID", { message: errorMessage });
+      return createAuthInvalidResponse(errorMessage);
+    }
+
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

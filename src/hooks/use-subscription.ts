@@ -51,41 +51,65 @@ export function useSubscription() {
     isBlocked: false,
   });
 
+  const shouldInvalidateSession = useCallback((errorText: string) => {
+    const normalized = errorText.toLowerCase();
+    return (
+      normalized.includes('user from sub claim') ||
+      normalized.includes('user_not_found') ||
+      normalized.includes('authentication error') ||
+      normalized.includes('auth_invalid')
+    );
+  }, []);
+
+  const clearInvalidSession = useCallback(async () => {
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (signOutError) {
+      console.warn('Local sign out failed, clearing storage fallback...', signOutError);
+    }
+
+    try {
+      const authKeys = Object.keys(localStorage).filter(
+        (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
+      );
+      authKeys.forEach((key) => localStorage.removeItem(key));
+    } catch (_) { /* ignore */ }
+
+    window.location.replace('/auth');
+  }, []);
+
   const checkSubscription = useCallback(async () => {
     try {
       const { data, error } = await supabase.functions.invoke('check-subscription');
       if (error) {
         console.error('Error checking subscription:', error);
-        // Try to read the response body for detailed error info
+
         let bodyText = '';
         try {
-          if (error?.context?.body) {
-            const reader = error.context.body.getReader();
-            const { value } = await reader.read();
-            bodyText = new TextDecoder().decode(value);
-          } else if (error?.context?.json) {
+          if (error?.context?.json) {
             const json = await error.context.json();
             bodyText = JSON.stringify(json);
+          } else if (error?.context?.body) {
+            bodyText = await new Response(error.context.body).text();
           }
         } catch (_) { /* ignore */ }
-        
-        const fullError = (error?.message || '') + ' ' + bodyText;
-        if (fullError.includes('User from sub claim') || fullError.includes('user_not_found') || fullError.includes('Authentication error')) {
-          console.warn('Stale JWT detected, signing out...');
-          await supabase.auth.signOut();
-          window.location.href = '/auth';
+
+        const fullError = `${error?.message || ''} ${bodyText}`;
+        if (shouldInvalidateSession(fullError)) {
+          console.warn('Stale JWT detected, clearing local session...');
+          await clearInvalidSession();
           return;
         }
+
         // On other errors, don't block — assume trial
         setState(prev => ({ ...prev, isLoading: false }));
         return;
       }
-      
+
       // Also check if data contains an auth error from the edge function
-      if (data?.error && (String(data.error).includes('User from sub claim') || String(data.error).includes('Authentication error'))) {
-        console.warn('Auth error from subscription check, signing out...');
-        await supabase.auth.signOut();
-        window.location.href = '/auth';
+      if (data?.auth_invalid || (data?.error && shouldInvalidateSession(String(data.error)))) {
+        console.warn('Auth error from subscription check, clearing local session...');
+        await clearInvalidSession();
         return;
       }
 
@@ -106,9 +130,14 @@ export function useSubscription() {
       });
     } catch (err) {
       console.error('Subscription check failed:', err);
+      const errorText = err instanceof Error ? err.message : String(err);
+      if (shouldInvalidateSession(errorText)) {
+        await clearInvalidSession();
+        return;
+      }
       setState(prev => ({ ...prev, isLoading: false }));
     }
-  }, []);
+  }, [clearInvalidSession, shouldInvalidateSession]);
 
   useEffect(() => {
     checkSubscription();
