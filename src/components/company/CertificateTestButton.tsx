@@ -3,7 +3,6 @@ import { ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface CertificateTestButtonProps {
   certificateFileId?: string | null;
@@ -45,16 +44,21 @@ export function CertificateTestButton({
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('validate-certificate', {
-        body: { 
-          fileId: certificateFileId, 
-          password: certificatePassword 
-        }
+      // Use fetch directly to get the full response even on non-2xx
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/validate-certificate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({ fileId: certificateFileId, password: certificatePassword }),
       });
 
-      if (error) {
-        throw new Error(error.message || "Erro ao chamar função de validação");
-      }
+      const data = await response.json();
 
       const testResult: CertificateTestResult = data;
       setResult(testResult);
