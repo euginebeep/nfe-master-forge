@@ -173,7 +173,7 @@ export function useAuth() {
       email,
       password,
       options: {
-        emailRedirectTo: 'https://nfe-master-forge.lovable.app',
+        emailRedirectTo: window.location.origin,
         data: { full_name: fullName },
       },
     });
@@ -183,7 +183,18 @@ export function useAuth() {
       return { error };
     }
 
-    toast.success('Cadastro realizado! Verifique seu email para confirmar.');
+    // Detect repeated signup — Supabase returns a user with identities = [] 
+    // when the email already exists and is unconfirmed, or a fake_signup
+    const isRepeated = data?.user?.identities?.length === 0;
+    if (isRepeated) {
+      toast.warning(
+        'Este e-mail já está cadastrado. Verifique sua caixa de entrada (inclusive spam) para o link de confirmação. Caso não encontre, tente fazer login ou redefinir a senha.',
+        { duration: 10000 }
+      );
+      return { data, repeated: true };
+    }
+
+    toast.success('Cadastro realizado! Verifique seu email para confirmar.', { duration: 8000 });
     return { data };
   };
 

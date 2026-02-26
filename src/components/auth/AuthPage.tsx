@@ -81,6 +81,7 @@ export default function AuthPage() {
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
+  const [repeatedSignup, setRepeatedSignup] = useState(false);
   const { signIn, signUp } = useAuth();
 
   const [loginEmail, setLoginEmail] = useState('');
@@ -102,7 +103,11 @@ export default function AuthPage() {
     e.preventDefault();
     if (mismatch) return;
     setLoading(true);
-    await signUp(regEmail, regPass, regName);
+    setRepeatedSignup(false);
+    const result = await signUp(regEmail, regPass, regName);
+    if ((result as any)?.repeated) {
+      setRepeatedSignup(true);
+    }
     setLoading(false);
   };
 
@@ -313,6 +318,24 @@ export default function AuthPage() {
                       display: 'flex', alignItems: 'center', gap: 6,
                     }}>
                       <BI name="exclamation-triangle-fill" size={14} /> As senhas não coincidem
+                    </div>
+                  )}
+                  {repeatedSignup && (
+                    <div style={{
+                      color: '#664d03', fontSize: 13, padding: '14px 16px', marginTop: 12,
+                      background: '#fff3cd', border: '2px solid #ffda6a', borderRadius: 8,
+                      lineHeight: 1.6,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 6, fontSize: 14 }}>
+                        <BI name="exclamation-triangle-fill" size={18} color="#ff9800" />
+                        E-mail já cadastrado!
+                      </div>
+                      <p style={{ margin: 0 }}>
+                        Este e-mail já possui uma conta. Verifique sua <strong>caixa de entrada</strong> e <strong>spam</strong> para o link de confirmação.
+                      </p>
+                      <p style={{ margin: '8px 0 0' }}>
+                        Caso já tenha confirmado, tente <button type="button" onClick={() => { setTab('login'); setRepeatedSignup(false); }} style={{ color: '#0d6efd', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: 0, fontSize: 13 }}>fazer login</button>.
+                      </p>
                     </div>
                   )}
                   <button type="submit" disabled={loading || mismatch} style={{
