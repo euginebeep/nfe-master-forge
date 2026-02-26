@@ -7,6 +7,7 @@ import { toast } from "sonner";
 interface CertificateTestButtonProps {
   certificateFileId?: string | null;
   certificatePassword?: string;
+  companyCnpj?: string;
   onTestResult?: (result: CertificateTestResult) => void;
 }
 
@@ -18,12 +19,16 @@ export interface CertificateTestResult {
   validTo?: string;
   daysUntilExpiry?: number;
   serialNumber?: string;
+  certCnpj?: string;
+  cnpjMatch?: boolean;
+  cnpjWarning?: string;
   error?: string;
 }
 
 export function CertificateTestButton({ 
   certificateFileId, 
   certificatePassword,
+  companyCnpj,
   onTestResult 
 }: CertificateTestButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +60,7 @@ export function CertificateTestButton({
           'Authorization': `Bearer ${supabaseKey}`,
           'apikey': supabaseKey,
         },
-        body: JSON.stringify({ fileId: certificateFileId, password: certificatePassword }),
+        body: JSON.stringify({ fileId: certificateFileId, password: certificatePassword, companyCnpj }),
       });
 
       const data = await response.json();
@@ -145,6 +150,12 @@ export function CertificateTestButton({
                 <p><strong>Titular:</strong> {result.subject}</p>
                 <p><strong>Emitido por:</strong> {result.issuer}</p>
                 <p><strong>Válido de:</strong> {result.validFrom} <strong>até</strong> {result.validTo}</p>
+                {result.certCnpj && (
+                  <p><strong>CNPJ do Certificado:</strong> {result.certCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}</p>
+                )}
+                {result.cnpjWarning && (
+                  <p className="text-yellow-600 dark:text-yellow-400 text-xs mt-1">⚠️ {result.cnpjWarning}</p>
+                )}
                 {result.serialNumber && (
                   <p className="text-muted-foreground text-xs"><strong>Nº Série:</strong> {result.serialNumber}</p>
                 )}
