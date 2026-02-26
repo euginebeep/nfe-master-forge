@@ -66,9 +66,12 @@ Deno.serve(async (req) => {
     
     const arquivo = arquivos[0];
 
-    // Download certificate file
-    const fileRes = await fetch(`${supabaseUrl}/storage/v1/object/erp-files/${arquivo.storage_key}`, {
-      headers: { 'Authorization': `Bearer ${supabaseKey}` }
+    // Download certificate file from private bucket using service role
+    const fileRes = await fetch(`${supabaseUrl}/storage/v1/object/authenticated/erp-files/${arquivo.storage_key}`, {
+      headers: { 
+        'Authorization': `Bearer ${supabaseKey}`,
+        'apikey': supabaseKey,
+      }
     });
 
     if (!fileRes.ok) {
