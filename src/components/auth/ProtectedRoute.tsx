@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, ShieldAlert } from 'lucide-react';
+import { useInactivityTimeout } from '@/hooks/use-inactivity-timeout';
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 
@@ -17,6 +18,46 @@ export function ProtectedRoute({ children, minRole }: Props) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const location = useLocation();
+
+  // Prevent browser back/forward from showing cached pages
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) {
+            window.location.href = '/auth';
+          }
+        });
+      }
+    };
+
+    const metaCache = document.createElement('meta');
+    metaCache.httpEquiv = 'Cache-Control';
+    metaCache.content = 'no-cache, no-store, must-revalidate';
+    document.head.appendChild(metaCache);
+
+    const metaPragma = document.createElement('meta');
+    metaPragma.httpEquiv = 'Pragma';
+    metaPragma.content = 'no-cache';
+    document.head.appendChild(metaPragma);
+
+    const metaExpires = document.createElement('meta');
+    metaExpires.httpEquiv = 'Expires';
+    metaExpires.content = '0';
+    document.head.appendChild(metaExpires);
+
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      document.head.removeChild(metaCache);
+      document.head.removeChild(metaPragma);
+      document.head.removeChild(metaExpires);
+    };
+  }, []);
+
+  // Inactivity timeout (2 hours)
+  useInactivityTimeout();
 
   useEffect(() => {
     let mounted = true;
@@ -63,7 +104,6 @@ export function ProtectedRoute({ children, minRole }: Props) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Check role-based access
   if (minRole && userRole) {
     const userLevel = ROLE_HIERARCHY.indexOf(userRole);
     const requiredLevel = ROLE_HIERARCHY.indexOf(minRole);
