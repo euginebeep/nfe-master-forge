@@ -1,135 +1,184 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Users, DollarSign, TrendingUp, Activity, Crown, UserPlus, UserX, Eye,
-  Search, Filter, MoreVertical, ArrowUpRight, ArrowDownRight, RefreshCw
+  Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
+  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2
 } from "lucide-react";
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend
-} from "recharts";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-// ─── Mock Data ───
-const mockClients = [
-  { id: "1", nome: "Pharma Solutions Ltda", cnpj: "12.345.678/0001-90", plano: "Enterprise", status: "ativo", mrr: 2500, usuarios: 15, ultimoAcesso: "2026-02-26", inicioContrato: "2025-06-01" },
-  { id: "2", nome: "NutriVida Labs", cnpj: "98.765.432/0001-10", plano: "Professional", status: "ativo", mrr: 1200, usuarios: 8, ultimoAcesso: "2026-02-25", inicioContrato: "2025-08-15" },
-  { id: "3", nome: "BioFormula Ind.", cnpj: "11.222.333/0001-44", plano: "Starter", status: "ativo", mrr: 499, usuarios: 3, ultimoAcesso: "2026-02-24", inicioContrato: "2025-11-01" },
-  { id: "4", nome: "Caps & Co", cnpj: "55.666.777/0001-88", plano: "Professional", status: "trial", mrr: 0, usuarios: 5, ultimoAcesso: "2026-02-26", inicioContrato: "2026-02-10" },
-  { id: "5", nome: "GreenPharma SA", cnpj: "33.444.555/0001-22", plano: "Enterprise", status: "ativo", mrr: 3800, usuarios: 25, ultimoAcesso: "2026-02-23", inicioContrato: "2025-03-20" },
-  { id: "6", nome: "Manipula Fácil", cnpj: "77.888.999/0001-66", plano: "Starter", status: "cancelado", mrr: 0, usuarios: 0, ultimoAcesso: "2026-01-15", inicioContrato: "2025-09-01" },
-  { id: "7", nome: "Dermacaps", cnpj: "44.333.222/0001-11", plano: "Professional", status: "inadimplente", mrr: 1200, usuarios: 6, ultimoAcesso: "2026-02-20", inicioContrato: "2025-07-10" },
-  { id: "8", nome: "VitaPlus Farmácia", cnpj: "66.555.444/0001-33", plano: "Enterprise", status: "ativo", mrr: 2500, usuarios: 12, ultimoAcesso: "2026-02-26", inicioContrato: "2025-04-05" },
-];
+// ─── Types ───
 
-const revenueData = [
-  { mes: "Set", mrr: 8200, clientes: 12 },
-  { mes: "Out", mrr: 9800, clientes: 15 },
-  { mes: "Nov", mrr: 11500, clientes: 18 },
-  { mes: "Dez", mrr: 13200, clientes: 22 },
-  { mes: "Jan", mrr: 14800, clientes: 26 },
-  { mes: "Fev", mrr: 16400, clientes: 30 },
-];
-
-const planoData = [
-  { name: "Starter", value: 3, color: "hsl(var(--info))" },
-  { name: "Professional", value: 4, color: "hsl(var(--warning))" },
-  { name: "Enterprise", value: 3, color: "hsl(var(--secondary))" },
-];
-
-const churnData = [
-  { mes: "Set", churn: 2.1, novos: 3 },
-  { mes: "Out", churn: 1.8, novos: 4 },
-  { mes: "Nov", churn: 3.2, novos: 5 },
-  { mes: "Dez", churn: 1.5, novos: 6 },
-  { mes: "Jan", churn: 2.0, novos: 5 },
-  { mes: "Fev", churn: 1.2, novos: 4 },
-];
-
-// ─── Components ───
-
-interface MetricCardProps {
-  title: string;
-  value: string;
-  change: number;
-  icon: React.ElementType;
-  variant?: "default" | "success" | "warning" | "danger";
+interface CompanyUser {
+  id: string;
+  nome: string;
+  email: string;
+  status: string;
+  ultimo_acesso: string | null;
+  created_at: string;
 }
 
-function MetricCard({ title, value, change, icon: Icon, variant = "default" }: MetricCardProps) {
-  const isPositive = change >= 0;
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 py-4">
-        <div className={cn(
-          "p-3 rounded-lg",
-          variant === "success" && "bg-success/10 text-success",
-          variant === "warning" && "bg-warning/10 text-warning",
-          variant === "danger" && "bg-destructive/10 text-destructive",
-          variant === "default" && "bg-primary/10 text-primary",
-        )}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">{title}</p>
-          <p className="text-2xl font-bold mt-0.5">{value}</p>
-        </div>
-        <div className={cn(
-          "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
-          isPositive ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-        )}>
-          {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-          {Math.abs(change)}%
-        </div>
-      </CardContent>
-    </Card>
-  );
+interface StripeInfo {
+  status: string;
+  plan?: string | null;
+  current_period_end?: string;
+  cancel_at_period_end?: boolean;
+  trial_end?: string | null;
+  trial_days_remaining?: number;
+  amount?: number;
+  currency?: string;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    ativo: { label: "Ativo", className: "bg-success/10 text-success border-success/20" },
-    trial: { label: "Trial", className: "bg-info/10 text-info border-info/20" },
-    cancelado: { label: "Cancelado", className: "bg-muted text-muted-foreground border-border" },
-    inadimplente: { label: "Inadimplente", className: "bg-destructive/10 text-destructive border-destructive/20" },
+interface SaasCompany {
+  id: string;
+  razao_social: string;
+  nome_fantasia: string | null;
+  cnpj: string;
+  telefone: string | null;
+  created_at: string;
+  email_financeiro: string | null;
+  email_fiscal: string | null;
+  total_usuarios: number;
+  owner_email: string;
+  owner_nome: string;
+  ultimo_acesso: string | null;
+  usuarios: CompanyUser[];
+  stripe?: StripeInfo;
+}
+
+// ─── Helpers ───
+
+function getSubscriptionStatus(stripe?: StripeInfo): { label: string; variant: string } {
+  if (!stripe) return { label: "Sem dados", variant: "muted" };
+  switch (stripe.status) {
+    case "active": return { label: "Ativo", variant: "success" };
+    case "trialing": return { label: `Trial (${stripe.trial_days_remaining ?? '?'}d)`, variant: "info" };
+    case "past_due": return { label: "Inadimplente", variant: "destructive" };
+    case "canceled": return { label: "Cancelado", variant: "muted" };
+    case "expired": return { label: "Expirado", variant: "destructive" };
+    case "unpaid": return { label: "Não pago", variant: "destructive" };
+    default: return { label: stripe.status, variant: "muted" };
+  }
+}
+
+function StatusBadge({ stripe }: { stripe?: StripeInfo }) {
+  const { label, variant } = getSubscriptionStatus(stripe);
+  const classes: Record<string, string> = {
+    success: "bg-success/10 text-success border-success/20",
+    info: "bg-info/10 text-info border-info/20",
+    destructive: "bg-destructive/10 text-destructive border-destructive/20",
+    muted: "bg-muted text-muted-foreground border-border",
   };
-  const s = map[status] || map.ativo;
-  return <Badge variant="outline" className={cn("text-xs font-medium", s.className)}>{s.label}</Badge>;
+  return <Badge variant="outline" className={cn("text-xs font-medium", classes[variant] || classes.muted)}>{label}</Badge>;
 }
 
-function PlanBadge({ plano }: { plano: string }) {
-  const map: Record<string, string> = {
-    Starter: "bg-info/10 text-info border-info/20",
-    Professional: "bg-warning/10 text-warning border-warning/20",
-    Enterprise: "bg-secondary/10 text-secondary border-secondary/20",
-  };
-  return <Badge variant="outline" className={cn("text-xs font-medium", map[plano] || "")}>{plano}</Badge>;
+function formatCNPJ(cnpj: string) {
+  const c = cnpj.replace(/\D/g, "");
+  if (c.length !== 14) return cnpj;
+  return `${c.slice(0, 2)}.${c.slice(2, 5)}.${c.slice(5, 8)}/${c.slice(8, 12)}-${c.slice(12)}`;
 }
 
 // ─── Page ───
 
 export default function SaasDashboardPage() {
+  const [companies, setCompanies] = useState<SaasCompany[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
-  const [planoFilter, setPlanoFilter] = useState("todos");
 
-  const totalMRR = mockClients.filter(c => c.status === "ativo").reduce((s, c) => s + c.mrr, 0);
-  const totalClientes = mockClients.filter(c => c.status !== "cancelado").length;
-  const totalUsuarios = mockClients.reduce((s, c) => s + c.usuarios, 0);
-  const churnRate = 1.2;
+  // Dialogs
+  const [detailCompany, setDetailCompany] = useState<SaasCompany | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete"; company: SaasCompany } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const filtered = mockClients.filter(c => {
-    if (search && !c.nome.toLowerCase().includes(search.toLowerCase()) && !c.cnpj.includes(search)) return false;
-    if (statusFilter !== "todos" && c.status !== statusFilter) return false;
-    if (planoFilter !== "todos" && c.plano !== planoFilter) return false;
+  const fetchCompanies = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("saas-admin", {
+        body: null,
+        headers: {},
+      });
+      
+      // Try with query param approach
+      const response = await supabase.functions.invoke("saas-admin?action=list");
+      
+      if (response.error) {
+        console.error("Error fetching SaaS data:", response.error);
+        toast.error("Erro ao carregar dados SaaS");
+        return;
+      }
+      
+      setCompanies(response.data?.companies || []);
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Erro ao carregar dados");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  const handleAction = async (type: "block" | "unblock" | "delete-company", companyId: string) => {
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(`saas-admin?action=${type}`, {
+        body: { company_id: companyId },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || "Erro na operação");
+        return;
+      }
+      toast.success(
+        type === "block" ? "Empresa bloqueada" :
+        type === "unblock" ? "Empresa desbloqueada" :
+        "Empresa excluída"
+      );
+      setConfirmAction(null);
+      setDetailCompany(null);
+      await fetchCompanies();
+    } catch (err) {
+      toast.error("Erro na operação");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ─── Computed ───
+  const totalActive = companies.filter(c => c.stripe?.status === "active").length;
+  const totalTrialing = companies.filter(c => c.stripe?.status === "trialing").length;
+  const totalUsers = companies.reduce((s, c) => s + c.total_usuarios, 0);
+  const totalExpired = companies.filter(c => ["expired", "canceled", "past_due"].includes(c.stripe?.status || "")).length;
+
+  const filtered = companies.filter(c => {
+    if (search) {
+      const s = search.toLowerCase();
+      if (
+        !c.razao_social.toLowerCase().includes(s) &&
+        !c.cnpj.includes(s) &&
+        !(c.nome_fantasia || "").toLowerCase().includes(s) &&
+        !c.owner_email.toLowerCase().includes(s)
+      ) return false;
+    }
+    if (statusFilter !== "todos") {
+      if (statusFilter === "ativo" && c.stripe?.status !== "active") return false;
+      if (statusFilter === "trial" && c.stripe?.status !== "trialing") return false;
+      if (statusFilter === "inadimplente" && c.stripe?.status !== "past_due") return false;
+      if (statusFilter === "expirado" && c.stripe?.status !== "expired") return false;
+      if (statusFilter === "cancelado" && c.stripe?.status !== "canceled") return false;
+    }
     return true;
   });
 
@@ -140,209 +189,350 @@ export default function SaasDashboardPage() {
         <div>
           <h1 className="page-title flex items-center gap-2">
             <Crown className="h-6 w-6 text-secondary" />
-            Painel SaaS — Clientes
+            Painel SaaS — Gestão de Assinantes
           </h1>
-          <p className="page-description">Controle de assinantes, receita recorrente e métricas do seu SaaS</p>
+          <p className="page-description">Controle de empresas cadastradas, assinaturas e usuários do ERP</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm"><RefreshCw className="h-4 w-4 mr-1" /> Atualizar</Button>
-          <Button size="sm" className="bg-secondary hover:bg-secondary/90 text-secondary-foreground">
-            <UserPlus className="h-4 w-4 mr-1" /> Novo Cliente
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={fetchCompanies} disabled={isLoading}>
+          <RefreshCw className={cn("h-4 w-4 mr-1", isLoading && "animate-spin")} />
+          Atualizar
+        </Button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="MRR Total"
-          value={`R$ ${totalMRR.toLocaleString("pt-BR")}`}
-          change={10.8}
-          icon={DollarSign}
-          variant="success"
-        />
-        <MetricCard
-          title="Clientes Ativos"
-          value={totalClientes.toString()}
-          change={15.4}
-          icon={Users}
-        />
-        <MetricCard
-          title="Usuários Totais"
-          value={totalUsuarios.toString()}
-          change={8.2}
-          icon={Activity}
-        />
-        <MetricCard
-          title="Churn Rate"
-          value={`${churnRate}%`}
-          change={-0.8}
-          icon={UserX}
-          variant={churnRate > 3 ? "danger" : "success"}
-        />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* MRR Evolution */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-secondary" />
-              Evolução MRR
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="mes" className="text-xs fill-muted-foreground" />
-                <YAxis className="text-xs fill-muted-foreground" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                <RechartsTooltip
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`R$ ${v.toLocaleString("pt-BR")}`, "MRR"]}
-                />
-                <Area type="monotone" dataKey="mrr" stroke="hsl(var(--secondary))" fill="url(#mrrGrad)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Distribution by Plan */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Distribuição por Plano</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={planoData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
-                  {planoData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="p-3 rounded-lg bg-success/10 text-success"><DollarSign className="h-5 w-5" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Assinaturas Ativas</p>
+              <p className="text-2xl font-bold">{totalActive}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="p-3 rounded-lg bg-info/10 text-info"><TrendingUp className="h-5 w-5" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Em Trial</p>
+              <p className="text-2xl font-bold">{totalTrialing}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="p-3 rounded-lg bg-primary/10 text-primary"><Users className="h-5 w-5" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Usuários Totais</p>
+              <p className="text-2xl font-bold">{totalUsers}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="p-3 rounded-lg bg-destructive/10 text-destructive"><UserX className="h-5 w-5" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Expirados/Cancelados</p>
+              <p className="text-2xl font-bold">{totalExpired}</p>
+            </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Churn vs Novos */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Churn vs Novos Clientes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={churnData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="mes" className="text-xs fill-muted-foreground" />
-              <YAxis className="text-xs fill-muted-foreground" />
-              <RechartsTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="novos" fill="hsl(var(--secondary))" name="Novos" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="churn" fill="hsl(var(--destructive))" name="Churn %" radius={[4, 4, 0, 0]} />
-              <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
 
       {/* Client List */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base">Clientes SaaS</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Empresas Assinantes ({filtered.length})
+            </CardTitle>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar cliente..."
+                  placeholder="Buscar empresa, CNPJ, email..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9 w-52"
+                  className="pl-9 h-9 w-64"
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36 h-9">
+                <SelectTrigger className="w-40 h-9">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos Status</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="ativo">Ativo</SelectItem>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="inadimplente">Inadimplente</SelectItem>
+                  <SelectItem value="expirado">Expirado</SelectItem>
                   <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={planoFilter} onValueChange={setPlanoFilter}>
-                <SelectTrigger className="w-36 h-9">
-                  <SelectValue placeholder="Plano" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos Planos</SelectItem>
-                  <SelectItem value="Starter">Starter</SelectItem>
-                  <SelectItem value="Professional">Professional</SelectItem>
-                  <SelectItem value="Enterprise">Enterprise</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="table-responsive">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Plano</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">MRR</TableHead>
-                  <TableHead className="text-center">Usuários</TableHead>
-                  <TableHead>Último Acesso</TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.nome}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs font-mono">{c.cnpj}</TableCell>
-                    <TableCell><PlanBadge plano={c.plano} /></TableCell>
-                    <TableCell><StatusBadge status={c.status} /></TableCell>
-                    <TableCell className="text-right font-medium">
-                      {c.mrr > 0 ? `R$ ${c.mrr.toLocaleString("pt-BR")}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-center">{c.usuarios}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {new Date(c.ultimoAcesso).toLocaleDateString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Carregando dados...</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      Nenhum cliente encontrado
-                    </TableCell>
+                    <TableHead>Empresa</TableHead>
+                    <TableHead>CNPJ</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Plano</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Usuários</TableHead>
+                    <TableHead>Cadastro</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell>
+                        <div>
+                          <span className="font-medium text-sm">{c.nome_fantasia || c.razao_social}</span>
+                          {c.nome_fantasia && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.razao_social}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs font-mono">{formatCNPJ(c.cnpj)}</TableCell>
+                      <TableCell className="text-xs">{c.owner_email || "—"}</TableCell>
+                      <TableCell>
+                        {c.stripe?.plan ? (
+                          <Badge variant="outline" className="text-xs">{c.stripe.plan}</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell><StatusBadge stripe={c.stripe} /></TableCell>
+                      <TableCell className="text-center">{c.total_usuarios}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {format(new Date(c.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Detalhes" onClick={() => setDetailCompany(c)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost" size="icon" className="h-8 w-8 text-warning"
+                            title={c.usuarios?.some(u => u.status === "BLOQUEADO") ? "Desbloquear" : "Bloquear"}
+                            onClick={() => setConfirmAction({
+                              type: c.usuarios?.some(u => u.status === "BLOQUEADO") ? "unblock" : "block",
+                              company: c,
+                            })}
+                          >
+                            {c.usuarios?.some(u => u.status === "BLOQUEADO") ? <Unlock className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost" size="icon" className="h-8 w-8 text-destructive"
+                            title="Excluir empresa" onClick={() => setConfirmAction({ type: "delete", company: c })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filtered.length === 0 && !isLoading && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        {companies.length === 0 ? "Nenhuma empresa cadastrada ainda" : "Nenhuma empresa encontrada com os filtros aplicados"}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!detailCompany} onOpenChange={() => setDetailCompany(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          {detailCompany && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  {detailCompany.nome_fantasia || detailCompany.razao_social}
+                </DialogTitle>
+                <DialogDescription>{detailCompany.razao_social}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Company Info */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">CNPJ:</span>
+                    <span className="ml-2 font-mono">{formatCNPJ(detailCompany.cnpj)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Email:</span>
+                    <span className="ml-2">{detailCompany.owner_email || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Telefone:</span>
+                    <span className="ml-2">{detailCompany.telefone || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Cadastro:</span>
+                    <span className="ml-2">{format(new Date(detailCompany.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                  </div>
+                </div>
+
+                {/* Subscription Info */}
+                {detailCompany.stripe && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Assinatura</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Status:</span>
+                        <span className="ml-2"><StatusBadge stripe={detailCompany.stripe} /></span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Plano:</span>
+                        <span className="ml-2">{detailCompany.stripe.plan || "Nenhum"}</span>
+                      </div>
+                      {detailCompany.stripe.current_period_end && (
+                        <div>
+                          <span className="text-muted-foreground">Válido até:</span>
+                          <span className="ml-2">{format(new Date(detailCompany.stripe.current_period_end), "dd/MM/yyyy")}</span>
+                        </div>
+                      )}
+                      {detailCompany.stripe.cancel_at_period_end && (
+                        <div className="col-span-2">
+                          <Badge variant="outline" className="bg-warning/10 text-warning text-xs">Cancelamento programado</Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Users */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Usuários ({detailCompany.usuarios?.length || 0})</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Último Acesso</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(detailCompany.usuarios || []).map(u => (
+                          <TableRow key={u.id}>
+                            <TableCell className="text-sm">{u.nome}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{u.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={cn("text-xs",
+                                u.status === "ATIVO" ? "bg-success/10 text-success" :
+                                u.status === "BLOQUEADO" ? "bg-destructive/10 text-destructive" :
+                                "bg-muted text-muted-foreground"
+                              )}>{u.status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {u.ultimo_acesso ? format(new Date(u.ultimo_acesso), "dd/MM/yy HH:mm") : "Nunca"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                {/* Actions */}
+                <div className="flex gap-2 justify-end">
+                  {detailCompany.owner_email && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`mailto:${detailCompany.owner_email}`}>
+                        <Mail className="h-4 w-4 mr-1" /> Enviar Email
+                      </a>
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => {
+                      setDetailCompany(null);
+                      setConfirmAction({
+                        type: detailCompany.usuarios?.some(u => u.status === "BLOQUEADO") ? "unblock" : "block",
+                        company: detailCompany,
+                      });
+                    }}
+                  >
+                    <Ban className="h-4 w-4 mr-1" />
+                    {detailCompany.usuarios?.some(u => u.status === "BLOQUEADO") ? "Desbloquear" : "Bloquear"}
+                  </Button>
+                  <Button
+                    variant="destructive" size="sm"
+                    onClick={() => {
+                      setDetailCompany(null);
+                      setConfirmAction({ type: "delete", company: detailCompany });
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Excluir
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Action Dialog */}
+      <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <DialogContent>
+          {confirmAction && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className={cn("h-5 w-5", confirmAction.type === "delete" ? "text-destructive" : "text-warning")} />
+                  {confirmAction.type === "block" && "Bloquear Empresa"}
+                  {confirmAction.type === "unblock" && "Desbloquear Empresa"}
+                  {confirmAction.type === "delete" && "Excluir Empresa"}
+                </DialogTitle>
+                <DialogDescription>
+                  {confirmAction.type === "block" && `Todos os ${confirmAction.company.total_usuarios} usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão bloqueados e não poderão acessar o ERP.`}
+                  {confirmAction.type === "unblock" && `Todos os usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão desbloqueados.`}
+                  {confirmAction.type === "delete" && `ATENÇÃO: Esta ação é irreversível! A empresa "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" e todos os seus ${confirmAction.company.total_usuarios} usuários serão permanentemente excluídos.`}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={actionLoading}>Cancelar</Button>
+                <Button
+                  variant={confirmAction.type === "delete" ? "destructive" : "default"}
+                  onClick={() => handleAction(
+                    confirmAction.type === "delete" ? "delete-company" : confirmAction.type,
+                    confirmAction.company.id
+                  )}
+                  disabled={actionLoading}
+                >
+                  {actionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                  Confirmar
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
