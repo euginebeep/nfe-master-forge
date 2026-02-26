@@ -27,6 +27,7 @@ import {
   Database,
   UserCheck,
   Map,
+  Crown,
   LogOut } from
 "lucide-react";
 import {
@@ -169,6 +170,12 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Relatorios", url: "/relatorios", icon: BarChart3, tooltip: "Relatórios gerenciais de produção, estoque e vendas", modulo: "relatorios" },
   { title: "Auditoria", url: "/auditoria", icon: Shield, tooltip: "Trilha de auditoria imutável de todas as operações do sistema", modulo: "relatorios" }]
+
+},
+{
+  label: "SaaS",
+  items: [
+  { title: "Painel SaaS", url: "/saas", icon: Crown, tooltip: "Dashboard de controle de clientes SaaS — MRR, churn e assinaturas", adminOnly: true }]
 
 }];
 
