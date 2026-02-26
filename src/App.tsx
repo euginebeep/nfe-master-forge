@@ -59,6 +59,7 @@ const OrcamentosPage = lazy(() => import("./pages/vendas/OrcamentosPage"));
 const PedidosVendaPage = lazy(() => import("./pages/vendas/PedidosVendaPage"));
 const MarketplacePage = lazy(() => import("./pages/vendas/MarketplacePage"));
 const NotasSaidaPage = lazy(() => import("./pages/vendas/NotasSaidaPage"));
+const EmissorNFePage = lazy(() => import("./pages/vendas/EmissorNFePage"));
 const RelatoriosPage = lazy(() => import("./pages/relatorios/RelatoriosPage"));
 const RelatorioCapsulasPage = lazy(() => import("./pages/relatorios/RelatorioCapsulasPage"));
 const AuditoriaPage = lazy(() => import("./pages/auditoria/AuditoriaPage"));
@@ -169,6 +170,7 @@ const App = () => (
                 <Route path="/vendas/pedidos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><PedidosVendaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/marketplace" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><MarketplacePage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/notas-saida" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasSaidaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/vendas/emissor-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><EmissorNFePage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Relatórios */}
                 <Route path="/relatorios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatoriosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/relatorios/capsulas" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatorioCapsulasPage /></ErrorBoundary></Suspense>} />
