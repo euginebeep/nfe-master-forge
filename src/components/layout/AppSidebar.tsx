@@ -187,9 +187,6 @@ interface FooterItem {
 const footerItems: FooterItem[] = [
 { to: "/settings/empresa", icon: Settings, label: "Configuracoes", tooltip: "Configurações gerais da empresa e sistema", modulo: "configuracoes" },
 { to: "/settings/admin-master", icon: ShieldAlert, label: "Admin Master", tooltip: "Painel administrativo master — operações críticas do sistema", danger: true, adminOnly: true },
-{ to: "/settings/xml-backup", icon: FileArchive, label: "Backup XMLs", tooltip: "Backup e restauração de arquivos XML de notas fiscais", adminOnly: true },
-{ to: "/settings/migrar-dados", icon: Database, label: "Migrar p/ Nuvem", tooltip: "Migração de dados locais para o ambiente Lovable Cloud", adminOnly: true },
-{ to: "/settings/importar-dados", icon: FileOutput, label: "Importar CSV", tooltip: "Importação de dados via planilha CSV para o sistema", adminOnly: true },
 { to: "/usuarios", icon: Shield, label: "Usuarios", tooltip: "Gestão de usuários, permissões e acessos ao sistema", modulo: "usuarios" }];
 
 
