@@ -5654,6 +5654,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      can_create_company: { Args: never; Returns: boolean }
       custo_op_belongs_to_tenant: { Args: { _cid: string }; Returns: boolean }
       entidade_belongs_to_tenant: { Args: { _eid: string }; Returns: boolean }
       formula_belongs_to_tenant: { Args: { _fid: string }; Returns: boolean }
