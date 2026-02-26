@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ShieldAlert, Trash2, AlertTriangle } from "lucide-react";
+import { ShieldAlert, Trash2, AlertTriangle, FileArchive, Database, FileOutput } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,7 @@ interface CleanupStep {
 }
 
 export default function AdminMasterPage() {
+  const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [cleaning, setCleaning] = useState(false);
@@ -155,6 +157,25 @@ export default function AdminMasterPage() {
         description="Área restrita - Operações administrativas avançadas"
         icon={ShieldAlert}
       />
+
+      {/* Ferramentas de Dados */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-base">Ferramentas de Dados</CardTitle>
+          <CardDescription>Backup, migração e importação de dados</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-3">
+          <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/xml-backup')}>
+            <FileArchive className="h-4 w-4" /> Backup XMLs
+          </Button>
+          <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/migrar-dados')}>
+            <Database className="h-4 w-4" /> Migrar p/ Nuvem
+          </Button>
+          <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/importar-dados')}>
+            <FileOutput className="h-4 w-4" /> Importar CSV
+          </Button>
+        </CardContent>
+      </Card>
 
       <LocalCollectionsManager storagePrefix={STORAGE_PREFIX} collections={ALL_COLLECTIONS} />
 
