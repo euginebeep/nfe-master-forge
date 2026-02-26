@@ -224,6 +224,34 @@ export function useUsers() {
     }
   };
 
+  const deleteUser = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await supabase.functions.invoke('admin-delete-user', {
+        body: { user_id: userId },
+      });
+
+      const errorMsg = response.data?.error || response.error?.message || 'Erro ao excluir usuário';
+      if (response.error || response.data?.error) {
+        toast.error(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+
+      toast.success('Usuário excluído com sucesso!');
+      await fetchUsers();
+      return { success: true };
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
@@ -236,5 +264,6 @@ export function useUsers() {
     fetchUserPermissions,
     createUser,
     updateUser,
+    deleteUser,
   };
 }
