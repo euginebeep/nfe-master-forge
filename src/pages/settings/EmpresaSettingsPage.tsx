@@ -11,6 +11,8 @@ import { useLocalCompany, useUpsertLocalCompany, LocalCompany } from "@/hooks/us
 import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
 import { CertificateTestButton } from "@/components/company/CertificateTestButton";
 import { MaskedInput } from "@/components/ui/masked-input";
+import { useUploadFile } from "@/hooks/use-files";
+import { toast } from "sonner";
 
 const UFS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
@@ -24,6 +26,9 @@ export default function EmpresaSettingsPage() {
   const [formData, setFormData] = useState<Partial<LocalCompany>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [certificadoNome, setCertificadoNome] = useState<string | null>(null);
+  const [certificadoFileId, setCertificadoFileId] = useState<string | null>(null);
+  const [certUploading, setCertUploading] = useState(false);
+  const uploadFile = useUploadFile();
 
   useEffect(() => {
     if (company) {
@@ -97,16 +102,28 @@ export default function EmpresaSettingsPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleCertificadoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCertificadoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setCertUploading(true);
     setCertificadoNome(file.name);
     setFormData({
       ...formData,
       certificado_nome: file.name,
       certificado_tipo: file.type,
     });
+
+    try {
+      const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
+      setCertificadoFileId(arquivo.id);
+      toast.success("Certificado enviado com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao enviar certificado para validação");
+      setCertificadoFileId(null);
+    } finally {
+      setCertUploading(false);
+    }
   };
 
   if (isLoading) {
@@ -388,6 +405,7 @@ export default function EmpresaSettingsPage() {
                   {certificadoNome && (
                     <span className="text-sm text-muted-foreground">{certificadoNome}</span>
                   )}
+                  {certUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                   <Label htmlFor="cert-upload" className="cursor-pointer">
                     <div className="border-2 border-dashed rounded-lg px-4 py-2 text-center hover:border-primary transition-colors">
                       <Upload className="h-4 w-4 mx-auto text-muted-foreground" />
@@ -417,7 +435,7 @@ export default function EmpresaSettingsPage() {
             {/* Certificate Test Button */}
             <div className="max-w-sm">
               <CertificateTestButton
-                certificateFileId={certificadoNome ? "local-cert" : undefined}
+                certificateFileId={certificadoFileId}
                 certificatePassword={formData.certificado_senha}
               />
             </div>
