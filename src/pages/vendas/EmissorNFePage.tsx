@@ -354,7 +354,7 @@ export default function EmissorNFePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("itens")
-        .select("id, descricao_interna, sku_interno, ncm, unidade_interna, tipo_item, ean, preco_venda")
+        .select("id, descricao_interna, sku_interno, ncm, unidade_interna, tipo_item, ean, catalogo_precos(preco_venda)")
         .eq("ativo", true).in("tipo_item", ["PA", "ME", "RE"]).order("descricao_interna");
       if (error) throw error;
       return data;
@@ -428,8 +428,8 @@ export default function EmissorNFePage() {
         uTrib: produto.unidade_interna || "UN",
         ean: produto.ean || "SEM GTIN",
         eanTrib: produto.ean || "SEM GTIN",
-        valor_unitario: produto.preco_venda || 0,
-        vUnTrib: produto.preco_venda || 0,
+        valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
+        vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
       };
       return updated;
     });
