@@ -80,6 +80,8 @@ const emptyItem: NotaItem = {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtQtd = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
+const readOnlyClass = "bg-muted/60 border-dashed text-muted-foreground cursor-not-allowed font-medium";
+
 export default function EmissorNFePage() {
   const navigate = useNavigate();
   const { data: company } = useCompany();
@@ -334,23 +336,23 @@ export default function EmissorNFePage() {
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div>
                     <Label className="text-xs">Razão Social</Label>
-                    <Input value={company?.razao_social || ""} readOnly className="bg-muted" />
+                    <Input value={company?.razao_social || ""} readOnly className={readOnlyClass} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">CNPJ</Label><Input value={company?.cnpj || ""} readOnly className="bg-muted" /></div>
-                    <div><Label className="text-xs">Inscrição Estadual</Label><Input value={company?.ie || ""} readOnly className="bg-muted" /></div>
+                    <div><Label className="text-xs">CNPJ</Label><Input value={company?.cnpj || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Inscrição Estadual</Label><Input value={company?.ie || ""} readOnly className={readOnlyClass} /></div>
                   </div>
-                  <div><Label className="text-xs">Logradouro</Label><Input value={[company?.endereco_logradouro, company?.endereco_nro, company?.endereco_compl].filter(Boolean).join(", ")} readOnly className="bg-muted" /></div>
+                  <div><Label className="text-xs">Logradouro</Label><Input value={[company?.endereco_logradouro, company?.endereco_nro, company?.endereco_compl].filter(Boolean).join(", ")} readOnly className={readOnlyClass} /></div>
                   <div className="grid grid-cols-3 gap-3">
-                    <div><Label className="text-xs">Bairro</Label><Input value={company?.endereco_bairro || ""} readOnly className="bg-muted" /></div>
-                    <div><Label className="text-xs">Município</Label><Input value={company?.endereco_cidade || ""} readOnly className="bg-muted" /></div>
-                    <div><Label className="text-xs">UF</Label><Input value={company?.endereco_uf || ""} readOnly className="bg-muted" /></div>
+                    <div><Label className="text-xs">Bairro</Label><Input value={company?.endereco_bairro || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Município</Label><Input value={company?.endereco_cidade || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">UF</Label><Input value={company?.endereco_uf || ""} readOnly className={readOnlyClass} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">CEP</Label><Input value={company?.endereco_cep || ""} readOnly className="bg-muted" /></div>
-                    <div><Label className="text-xs">Telefone</Label><Input value={company?.telefone || ""} readOnly className="bg-muted" /></div>
+                    <div><Label className="text-xs">CEP</Label><Input value={company?.endereco_cep || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Telefone</Label><Input value={company?.telefone || ""} readOnly className={readOnlyClass} /></div>
                   </div>
-                  <div><Label className="text-xs">E-mail</Label><Input value={company?.email_fiscal || ""} readOnly className="bg-muted" /></div>
+                  <div><Label className="text-xs">E-mail</Label><Input value={company?.email_fiscal || ""} readOnly className={readOnlyClass} /></div>
                 </CardContent>
               </Card>
 
@@ -360,16 +362,16 @@ export default function EmissorNFePage() {
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-3 gap-3">
-                    <div><Label className="text-xs">Número</Label><Input value={numero} readOnly className="bg-muted" /></div>
-                    <div><Label className="text-xs">Série</Label><Input value={String(serie)} readOnly className="bg-muted" /></div>
-                    <div><Label className="text-xs">Tipo</Label><Input value="1 – Saída" readOnly className="bg-muted" /></div>
+                    <div><Label className="text-xs">Número</Label><Input value={numero} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Série</Label><Input value={String(serie)} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Tipo</Label><Input value="1 – Saída" readOnly className={readOnlyClass} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">Data Emissão</Label><Input value={dataEmissao} readOnly className="bg-muted" /></div>
-                    <div><Label className="text-xs">Hora</Label><Input value={horaEmissao} readOnly className="bg-muted" /></div>
+                    <div><Label className="text-xs">Data Emissão</Label><Input value={dataEmissao} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Hora</Label><Input value={horaEmissao} readOnly className={readOnlyClass} /></div>
                   </div>
-                  <div><Label className="text-xs">Data Saída</Label><Input value={dataEmissao} readOnly className="bg-muted" /></div>
-                  <div><Label className="text-xs">Ambiente</Label><Input value={isHomolog ? "Homologação (teste)" : "Produção"} readOnly className="bg-muted" /></div>
+                  <div><Label className="text-xs">Data Saída</Label><Input value={dataEmissao} readOnly className={readOnlyClass} /></div>
+                  <div><Label className="text-xs">Ambiente</Label><Input value={isHomolog ? "Homologação (teste)" : "Produção"} readOnly className={readOnlyClass} /></div>
                   <div>
                     <Label className="text-xs">Natureza da Operação</Label>
                     <Select value={naturezaOperacao} onValueChange={setNaturezaOperacao}>
@@ -409,8 +411,8 @@ export default function EmissorNFePage() {
                   {cliente && (
                     <div className="space-y-2 text-sm">
                       <div className="grid grid-cols-2 gap-3">
-                        <div><Label className="text-xs">CNPJ/CPF</Label><Input value={cliente.documento || ""} readOnly className="bg-muted" /></div>
-                        <div><Label className="text-xs">IE</Label><Input value={cliente.ie || ""} readOnly className="bg-muted" /></div>
+                        <div><Label className="text-xs">CNPJ/CPF</Label><Input value={cliente.documento || ""} readOnly className={readOnlyClass} /></div>
+                        <div><Label className="text-xs">IE</Label><Input value={cliente.ie || ""} readOnly className={readOnlyClass} /></div>
                       </div>
                     </div>
                   )}
