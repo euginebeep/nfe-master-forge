@@ -487,6 +487,7 @@ export default function EmpresaSettingsPage() {
               <CertificateTestButton
                 certificateFileId={certificadoFileId}
                 certificatePassword={formData.certificado_senha}
+                companyCnpj={formData.cnpj}
               />
             </div>
           </CardContent>
