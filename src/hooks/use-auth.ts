@@ -173,7 +173,7 @@ export function useAuth() {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: 'https://nfe-master-forge.lovable.app',
         data: { full_name: fullName },
       },
     });
