@@ -183,20 +183,20 @@ export default function EmpresaSettingsPage() {
   }
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-x-hidden">
       <PageHeader
         title="Empresa"
         description="Configuracoes da empresa e dados fiscais"
         icon={Building2}
         actions={
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} className="w-full sm:w-auto">
             <Save className="h-4 w-4 mr-2" />
             Salvar
           </Button>
         }
       />
 
-      <div className="space-y-6 mt-6">
+      <div className="space-y-6 mt-6 w-full min-w-0">
         {/* Dados Gerais */}
         <Card>
           <CardHeader>
@@ -296,15 +296,15 @@ export default function EmpresaSettingsPage() {
             {/* Logo Upload */}
             <div className="space-y-2">
               <Label>Logo da Empresa</Label>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                 {logoPreview && (
                   <img 
                     src={logoPreview} 
                     alt="Logo" 
-                    className="h-16 w-auto object-contain border rounded"
+                    className="h-16 w-auto max-w-[180px] object-contain border rounded"
                   />
                 )}
-                <Label htmlFor="logo-upload" className="cursor-pointer">
+                <Label htmlFor="logo-upload" className="cursor-pointer w-full sm:w-auto">
                   <div className="border-2 border-dashed rounded-lg px-6 py-3 text-center hover:border-primary transition-colors">
                     <Upload className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">Upload Logo</p>
@@ -453,12 +453,12 @@ export default function EmpresaSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Certificado (PFX/P12)</Label>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                   {certificadoNome && (
-                    <span className="text-sm text-muted-foreground">{certificadoNome}</span>
+                    <span className="text-sm text-muted-foreground break-all">{certificadoNome}</span>
                   )}
                   {certUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  <Label htmlFor="cert-upload" className="cursor-pointer">
+                  <Label htmlFor="cert-upload" className="cursor-pointer w-full sm:w-auto">
                     <div className="border-2 border-dashed rounded-lg px-4 py-2 text-center hover:border-primary transition-colors">
                       <Upload className="h-4 w-4 mx-auto text-muted-foreground" />
                       <p className="text-xs text-muted-foreground">Upload</p>
