@@ -1,37 +1,29 @@
 project_id = "lvptvswvqjhvobdvgfws"
 
-[functions.validate-certificate]
-verify_jwt = true
-
-[functions.admin-create-user]
-verify_jwt = false
-
-[functions.admin-update-user]
-verify_jwt = false
-
-[functions.anvisa-sync]
-verify_jwt = false
-
-[functions.anvisa-powerbi-sync]
-verify_jwt = false
-
-[functions.anvisa-resolve-name]
-verify_jwt = false
-
-[functions.send-contract-email]
-verify_jwt = false
-
-[functions.check-subscription]
-verify_jwt = false
-
-[functions.create-checkout]
-verify_jwt = false
-
-[functions.customer-portal]
-verify_jwt = false
-
-[functions.market-indices]
-verify_jwt = false
-
-[functions.news-feed]
-verify_jwt = false
+[functions]
+  [functions.admin-create-user]
+    verify_jwt = false
+  [functions.admin-update-user]
+    verify_jwt = false
+  [functions.anvisa-powerbi-sync]
+    verify_jwt = false
+  [functions.anvisa-resolve-name]
+    verify_jwt = false
+  [functions.anvisa-sync]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.check-subscription]
+    verify_jwt = false
+  [functions.create-checkout]
+    verify_jwt = false
+  [functions.customer-portal]
+    verify_jwt = false
+  [functions.market-indices]
+    verify_jwt = false
+  [functions.news-feed]
+    verify_jwt = false
+  [functions.send-contract-email]
+    verify_jwt = false
+  [functions.validate-certificate]
+    verify_jwt = true
