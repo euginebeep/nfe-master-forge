@@ -2774,63 +2774,141 @@ export type Database = {
       }
       notas_saida: {
         Row: {
+          ambiente: string | null
           chave_acesso: string | null
           cliente_id: string
           company_id: string
+          condicao_pagamento: string | null
           created_at: string | null
+          danfe_url: string | null
+          data_cancelamento: string | null
           data_emissao: string | null
+          finalidade: string | null
+          forma_pagamento: string | null
           id: string
+          informacoes_adicionais: string | null
+          meio_pagamento: string | null
+          modalidade_frete: string | null
+          modelo: string | null
+          motivo_cancelamento: string | null
           natureza_operacao: string | null
           numero: number | null
+          nuvem_fiscal_id: string | null
+          nuvem_fiscal_status: string | null
           pedido_venda_id: string | null
+          placa_veiculo: string | null
           protocolo_autorizacao: string | null
           serie: string | null
           status: string | null
+          tipo_operacao: string | null
+          transportadora_id: string | null
+          updated_at: string | null
           valor_cofins: number | null
+          valor_desconto: number | null
+          valor_frete: number | null
           valor_icms: number | null
           valor_ipi: number | null
+          valor_outras_despesas: number | null
           valor_pis: number | null
+          valor_produtos: number | null
+          valor_seguro: number | null
           valor_total: number
+          volumes_especie: string | null
+          volumes_peso_bruto: number | null
+          volumes_peso_liquido: number | null
+          volumes_quantidade: number | null
           xml_autorizado: string | null
         }
         Insert: {
+          ambiente?: string | null
           chave_acesso?: string | null
           cliente_id: string
           company_id?: string
+          condicao_pagamento?: string | null
           created_at?: string | null
+          danfe_url?: string | null
+          data_cancelamento?: string | null
           data_emissao?: string | null
+          finalidade?: string | null
+          forma_pagamento?: string | null
           id?: string
+          informacoes_adicionais?: string | null
+          meio_pagamento?: string | null
+          modalidade_frete?: string | null
+          modelo?: string | null
+          motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
+          nuvem_fiscal_id?: string | null
+          nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
+          placa_veiculo?: string | null
           protocolo_autorizacao?: string | null
           serie?: string | null
           status?: string | null
+          tipo_operacao?: string | null
+          transportadora_id?: string | null
+          updated_at?: string | null
           valor_cofins?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
           valor_icms?: number | null
           valor_ipi?: number | null
+          valor_outras_despesas?: number | null
           valor_pis?: number | null
+          valor_produtos?: number | null
+          valor_seguro?: number | null
           valor_total?: number
+          volumes_especie?: string | null
+          volumes_peso_bruto?: number | null
+          volumes_peso_liquido?: number | null
+          volumes_quantidade?: number | null
           xml_autorizado?: string | null
         }
         Update: {
+          ambiente?: string | null
           chave_acesso?: string | null
           cliente_id?: string
           company_id?: string
+          condicao_pagamento?: string | null
           created_at?: string | null
+          danfe_url?: string | null
+          data_cancelamento?: string | null
           data_emissao?: string | null
+          finalidade?: string | null
+          forma_pagamento?: string | null
           id?: string
+          informacoes_adicionais?: string | null
+          meio_pagamento?: string | null
+          modalidade_frete?: string | null
+          modelo?: string | null
+          motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
+          nuvem_fiscal_id?: string | null
+          nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
+          placa_veiculo?: string | null
           protocolo_autorizacao?: string | null
           serie?: string | null
           status?: string | null
+          tipo_operacao?: string | null
+          transportadora_id?: string | null
+          updated_at?: string | null
           valor_cofins?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
           valor_icms?: number | null
           valor_ipi?: number | null
+          valor_outras_despesas?: number | null
           valor_pis?: number | null
+          valor_produtos?: number | null
+          valor_seguro?: number | null
           valor_total?: number
+          volumes_especie?: string | null
+          volumes_peso_bruto?: number | null
+          volumes_peso_liquido?: number | null
+          volumes_quantidade?: number | null
           xml_autorizado?: string | null
         }
         Relationships: [
@@ -2848,63 +2926,112 @@ export type Database = {
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notas_saida_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notas_saida_itens: {
         Row: {
+          base_cofins: number | null
+          base_icms: number | null
+          base_pis: number | null
+          cest: string | null
           cfop: string | null
           cofins_aliquota: number | null
           cofins_valor: number | null
+          cst_cofins: string | null
+          cst_icms: string | null
+          cst_pis: string | null
           descricao: string
+          ean: string | null
           icms_aliquota: number | null
           icms_valor: number | null
           id: string
+          informacoes_adicionais: string | null
+          ipi_aliquota: number | null
+          ipi_valor: number | null
           item_id: string
           lote_id: string | null
           ncm: string | null
           nota_saida_id: string | null
+          numero_item: number | null
+          origem: string | null
           pis_aliquota: number | null
           pis_valor: number | null
           quantidade: number
           unidade: string | null
+          valor_desconto: number | null
           valor_total: number
           valor_unitario: number
         }
         Insert: {
+          base_cofins?: number | null
+          base_icms?: number | null
+          base_pis?: number | null
+          cest?: string | null
           cfop?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_pis?: string | null
           descricao: string
+          ean?: string | null
           icms_aliquota?: number | null
           icms_valor?: number | null
           id?: string
+          informacoes_adicionais?: string | null
+          ipi_aliquota?: number | null
+          ipi_valor?: number | null
           item_id: string
           lote_id?: string | null
           ncm?: string | null
           nota_saida_id?: string | null
+          numero_item?: number | null
+          origem?: string | null
           pis_aliquota?: number | null
           pis_valor?: number | null
           quantidade: number
           unidade?: string | null
+          valor_desconto?: number | null
           valor_total: number
           valor_unitario: number
         }
         Update: {
+          base_cofins?: number | null
+          base_icms?: number | null
+          base_pis?: number | null
+          cest?: string | null
           cfop?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_pis?: string | null
           descricao?: string
+          ean?: string | null
           icms_aliquota?: number | null
           icms_valor?: number | null
           id?: string
+          informacoes_adicionais?: string | null
+          ipi_aliquota?: number | null
+          ipi_valor?: number | null
           item_id?: string
           lote_id?: string | null
           ncm?: string | null
           nota_saida_id?: string | null
+          numero_item?: number | null
+          origem?: string | null
           pis_aliquota?: number | null
           pis_valor?: number | null
           quantidade?: number
           unidade?: string | null
+          valor_desconto?: number | null
           valor_total?: number
           valor_unitario?: number
         }
