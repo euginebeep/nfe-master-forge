@@ -298,7 +298,7 @@ export default function EmissorNFePage() {
   const numero = company?.nfe_numero_inicial
     ? String(company.nfe_numero_inicial).padStart(9, "0").replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3")
     : "000.000.001";
-  const serie = company?.nfe_serie_padrao || 1;
+  const [serie, setSerie] = useState(company?.nfe_serie_padrao || 1);
   const isHomolog = company?.nfe_ambiente === "HOMOLOGACAO" || !company?.nfe_ambiente;
 
   const criarNota = useMutation({
@@ -469,7 +469,7 @@ export default function EmissorNFePage() {
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-4 gap-3">
                     <div><Label className="text-xs">Número</Label><Input value={numero} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Série</Label><Input value={String(serie)} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Série</Label><Input type="number" min={1} value={String(serie)} onChange={e => setSerie(Number(e.target.value) || 1)} /></div>
                     <div>
                       <Label className="text-xs">Modelo</Label>
                       <Select value={modelo} onValueChange={setModelo}>
