@@ -55,8 +55,8 @@ export default function EmpresaSettingsPage() {
 
   const handleSave = () => {
     upsert(formData);
-    // Also sync key fields to Supabase company
-    if (supabaseCompany?.id) {
+    // Always sync to database (creates if first time, updates if exists)
+    if (formData.razao_social && formData.cnpj) {
       upsertCompanyMutation.mutate({
         razao_social: formData.razao_social || '',
         cnpj: formData.cnpj?.replace(/\D/g, '') || '',
@@ -79,6 +79,8 @@ export default function EmpresaSettingsPage() {
         site: formData.site,
         certificado_a1_file_id: certificadoFileId,
       });
+    } else {
+      toast.error("Preencha pelo menos Razão Social e CNPJ para salvar no sistema");
     }
     refresh();
   };

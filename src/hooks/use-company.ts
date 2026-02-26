@@ -39,23 +39,29 @@ export function useUpsertCompany() {
 
   return useMutation({
     mutationFn: async (company: Partial<Company>) => {
-      const existing = await supabase
-        .from("company")
-        .select("id")
-        .limit(1)
-        .maybeSingle();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
 
-      if (existing.data?.id) {
+      // Check if user already has a company linked via profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.company_id) {
+        // Update existing company
         const { data, error } = await supabase
           .from("company")
           .update(company)
-          .eq("id", existing.data.id)
+          .eq("id", profile.company_id)
           .select()
           .single();
 
         if (error) throw error;
         return data;
       } else {
+        // Create new company
         const { data, error } = await supabase
           .from("company")
           .insert(company as Company)
@@ -63,11 +69,23 @@ export function useUpsertCompany() {
           .single();
 
         if (error) throw error;
+
+        // Link company to user profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ company_id: data.id } as any)
+          .eq("id", user.id);
+
+        if (profileError) {
+          console.error("Erro ao vincular empresa ao perfil:", profileError);
+        }
+
         return data;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company"] });
+      queryClient.invalidateQueries({ queryKey: ["user-company-id"] });
       toast.success("Empresa salva com sucesso");
     },
     onError: (error) => {
