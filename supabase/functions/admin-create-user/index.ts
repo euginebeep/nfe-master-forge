@@ -54,6 +54,25 @@ Deno.serve(async (req) => {
       )
     }
 
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+
+    // Get admin's company_id for tenant isolation
+    const { data: adminProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('company_id')
+      .eq('id', callingUser.id)
+      .single()
+
+    const adminCompanyId = adminProfile?.company_id
+    if (!adminCompanyId) {
+      return new Response(
+        JSON.stringify({ error: 'Você precisa concluir o onboarding da empresa antes de criar usuários' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const body = await req.json()
     const { email, password, nome_completo, cargo, departamento, role, avatar_url, permissions, sexo, data_nascimento } = body
 
@@ -63,10 +82,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    })
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -82,13 +97,15 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Assign the same company_id as the admin who is creating this user
     await supabaseAdmin.from('profiles').update({
       nome_completo, cargo, departamento, avatar_url, status: 'ATIVO',
+      company_id: adminCompanyId,
       ...(sexo && { sexo }),
       ...(data_nascimento && { data_nascimento }),
     }).eq('id', newUser.user.id)
 
-    // Always upsert role (trigger creates 'visualizador' by default, but may race)
+    // Always upsert role (trigger creates 'admin' by default for self-signup, override here)
     await supabaseAdmin.from('user_roles').upsert(
       { user_id: newUser.user.id, role: role || 'visualizador' },
       { onConflict: 'user_id' }
