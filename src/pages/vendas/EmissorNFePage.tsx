@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
-  Building2, ChevronRight
+  Building2, ChevronRight, Receipt
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { useCompany } from "@/hooks/use-company";
 import { useNavigate } from "react-router-dom";
 
+// ─── Constants ───
+
 const NATUREZA_OPERACOES = [
   { value: "Venda de produto do estabelecimento", label: "Venda de produto do estabelecimento" },
   { value: "Venda de mercadoria adquirida", label: "Venda de mercadoria adquirida" },
@@ -29,6 +31,17 @@ const NATUREZA_OPERACOES = [
   { value: "Remessa em demonstração", label: "Remessa em demonstração" },
   { value: "Bonificação", label: "Bonificação" },
   { value: "Amostra grátis", label: "Amostra grátis" },
+];
+
+const TIPO_NF = [
+  { value: "0", label: "0 – Entrada" },
+  { value: "1", label: "1 – Saída" },
+];
+
+const ID_DESTINO = [
+  { value: "1", label: "1 – Interna (dentro do estado)" },
+  { value: "2", label: "2 – Interestadual" },
+  { value: "3", label: "3 – Exterior" },
 ];
 
 const FINALIDADE_EMISSAO = [
@@ -46,6 +59,34 @@ const INDICADOR_PRESENCA = [
   { value: "4", label: "4 – NFC-e entrega domicílio" },
   { value: "5", label: "5 – Presencial fora do estabelecimento" },
   { value: "9", label: "9 – Outros" },
+];
+
+const IND_CONSUMIDOR_FINAL = [
+  { value: "0", label: "0 – Não" },
+  { value: "1", label: "1 – Consumidor Final" },
+];
+
+const TP_EMISSAO = [
+  { value: "1", label: "1 – Normal" },
+  { value: "2", label: "2 – Contingência FS" },
+  { value: "5", label: "5 – Contingência FSDA" },
+  { value: "6", label: "6 – Contingência SVC-AN" },
+  { value: "7", label: "7 – Contingência SVC-RS" },
+  { value: "9", label: "9 – Contingência off-line NFC-e" },
+];
+
+const TP_IMPRESSAO = [
+  { value: "0", label: "0 – Sem DANFE" },
+  { value: "1", label: "1 – DANFE Retrato" },
+  { value: "2", label: "2 – DANFE Paisagem" },
+  { value: "3", label: "3 – DANFE Simplificado" },
+  { value: "4", label: "4 – DANFE NFC-e" },
+];
+
+const IND_IE_DEST = [
+  { value: "1", label: "1 – Contribuinte ICMS" },
+  { value: "2", label: "2 – Contribuinte isento" },
+  { value: "9", label: "9 – Não Contribuinte" },
 ];
 
 const CFOP_COMUNS = [
@@ -101,8 +142,8 @@ const CST_PIS_COFINS_OPCOES = [
 ];
 
 const MODALIDADES_FRETE = [
-  { value: "0", label: "0 – Remetente" },
-  { value: "1", label: "1 – Destinatário" },
+  { value: "0", label: "0 – Remetente (CIF)" },
+  { value: "1", label: "1 – Destinatário (FOB)" },
   { value: "2", label: "2 – Terceiros" },
   { value: "3", label: "3 – Próprio (remetente)" },
   { value: "4", label: "4 – Próprio (destinatário)" },
@@ -114,27 +155,45 @@ const MEIOS_PAGAMENTO = [
   { value: "02", label: "Cheque" },
   { value: "03", label: "Cartão de Crédito" },
   { value: "04", label: "Cartão de Débito" },
+  { value: "05", label: "Crédito Loja" },
+  { value: "10", label: "Vale Alimentação" },
+  { value: "11", label: "Vale Refeição" },
+  { value: "12", label: "Vale Presente" },
+  { value: "13", label: "Vale Combustível" },
   { value: "15", label: "Boleto Bancário" },
+  { value: "16", label: "Depósito Bancário" },
   { value: "17", label: "PIX" },
+  { value: "18", label: "Transferência bancária" },
+  { value: "19", label: "Programa de fidelidade" },
   { value: "90", label: "Sem Pagamento" },
   { value: "99", label: "Outros" },
 ];
 
+const UFS = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
+
+// ─── Types ───
+
 interface NotaItem {
   item_id: string;
+  cProd: string; // código produto (SKU)
   descricao: string;
   ncm: string;
   cest: string;
   ean: string;
+  eanTrib: string;
   cfop: string;
   unidade: string;
+  uTrib: string;
   quantidade: number;
+  qTrib: number;
   valor_unitario: number;
+  vUnTrib: number;
   valor_total: number;
   valor_desconto: number;
   valor_frete: number;
   valor_seguro: number;
   valor_outros: number;
+  indTot: string;
   icms_base: number;
   icms_aliquota: number;
   icms_valor: number;
@@ -149,17 +208,28 @@ interface NotaItem {
   cofins_valor: number;
   cst_cofins: string;
   info_adicional_item: string;
+  xPed: string;
+  nItemPed: string;
+}
+
+interface Duplicata {
+  nDup: string;
+  dVenc: string;
+  vDup: number;
 }
 
 const emptyItem: NotaItem = {
-  item_id: "", descricao: "", ncm: "", cest: "", ean: "", cfop: "5102", unidade: "UN",
-  quantidade: 1, valor_unitario: 0, valor_total: 0,
+  item_id: "", cProd: "", descricao: "", ncm: "", cest: "", ean: "SEM GTIN", eanTrib: "SEM GTIN",
+  cfop: "5102", unidade: "UN", uTrib: "UN",
+  quantidade: 1, qTrib: 1, valor_unitario: 0, vUnTrib: 0, valor_total: 0,
   valor_desconto: 0, valor_frete: 0, valor_seguro: 0, valor_outros: 0,
+  indTot: "1",
   icms_base: 0, icms_aliquota: 0, icms_valor: 0, cst_icms: "00", origem: "0",
   ipi_aliquota: 0, ipi_valor: 0,
   pis_aliquota: 0, pis_valor: 0, cst_pis: "01",
   cofins_aliquota: 0, cofins_valor: 0, cst_cofins: "01",
   info_adicional_item: "",
+  xPed: "", nItemPed: "",
 };
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -173,37 +243,64 @@ export default function EmissorNFePage() {
   const queryClient = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
 
+  // ─── IDE state ───
   const [activeTab, setActiveTab] = useState("emitente");
-  const [clienteId, setClienteId] = useState("");
   const [naturezaOperacao, setNaturezaOperacao] = useState("Venda de produto do estabelecimento");
+  const [tpNF, setTpNF] = useState("1"); // 0=Entrada, 1=Saída
+  const [idDest, setIdDest] = useState("1"); // 1=Interna, 2=Interestadual, 3=Exterior
   const [finalidadeEmissao, setFinalidadeEmissao] = useState("1");
   const [indicadorPresenca, setIndicadorPresenca] = useState("1");
+  const [indFinal, setIndFinal] = useState("1"); // Consumidor final
   const [modelo, setModelo] = useState("55");
+  const [tpEmis, setTpEmis] = useState("1"); // Forma de emissão
+  const [tpImp, setTpImp] = useState("1"); // Formato impressão
+  const [dataSaida, setDataSaida] = useState(new Date().toISOString().slice(0, 10));
+  const [horaSaida, setHoraSaida] = useState(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+
+  // ─── DEST state ───
+  const [clienteId, setClienteId] = useState("");
+  const [indIEDest, setIndIEDest] = useState("9"); // 1=Contrib, 2=Isento, 9=Não contrib
+  const [emailDest, setEmailDest] = useState("");
+
+  // ─── Itens state ───
+  const [itens, setItens] = useState<NotaItem[]>([]);
+
+  // ─── Transporte state ───
   const [modalidadeFrete, setModalidadeFrete] = useState("9");
+  const [transportadora, setTransportadora] = useState({
+    razao: "", cnpj: "", ie: "", endereco: "", municipio: "", uf: "",
+    placa: "", ufVeiculo: "", rntc: "",
+    qtdVolumes: "", especie: "", marca: "", numeracao: "", pesoLiq: "", pesoBruto: "",
+  });
+
+  // ─── Pagamento state ───
   const [meioPagamento, setMeioPagamento] = useState("17");
+  const [valorPagamento, setValorPagamento] = useState(0);
+  const [vTroco, setVTroco] = useState(0);
   const [infoAdicionais, setInfoAdicionais] = useState("");
   const [infoFisco, setInfoFisco] = useState("");
+
+  // ─── Cobrança / Fatura state ───
+  const [fatNumero, setFatNumero] = useState("");
+  const [fatValorOriginal, setFatValorOriginal] = useState(0);
+  const [fatValorDesconto, setFatValorDesconto] = useState(0);
+  const [fatValorLiquido, setFatValorLiquido] = useState(0);
+  const [duplicatas, setDuplicatas] = useState<Duplicata[]>([]);
+
+  // ─── Valores globais ───
   const [valorFrete, setValorFrete] = useState(0);
   const [valorSeguro, setValorSeguro] = useState(0);
   const [valorDesconto, setValorDesconto] = useState(0);
   const [valorOutros, setValorOutros] = useState(0);
-  const [itens, setItens] = useState<NotaItem[]>([]);
-  const [transportadora, setTransportadora] = useState({ razao: "", cnpj: "", ie: "", placa: "", uf: "", rntc: "", frete: "0", qtdVolumes: "", especie: "", marca: "", pesoLiq: "", pesoBruto: "" });
 
-  // Busca URL do logo da empresa
+  // ─── Queries ───
   const { data: logoUrl } = useQuery({
     queryKey: ["company-logo-url-emissor", company?.logo_file_id],
     queryFn: async () => {
       if (!company?.logo_file_id) return null;
-      const { data: arquivo } = await supabase
-        .from("arquivos")
-        .select("storage_key")
-        .eq("id", company.logo_file_id)
-        .single();
+      const { data: arquivo } = await supabase.from("arquivos").select("storage_key").eq("id", company.logo_file_id).single();
       if (!arquivo?.storage_key) return null;
-      const { data } = await supabase.storage
-        .from("erp-files")
-        .createSignedUrl(arquivo.storage_key, 3600);
+      const { data } = await supabase.storage.from("erp-files").createSignedUrl(arquivo.storage_key, 3600);
       return data?.signedUrl || null;
     },
     enabled: !!company?.logo_file_id,
@@ -214,11 +311,42 @@ export default function EmissorNFePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("entidades")
-        .select("id, razao_social, nome_fantasia, documento, ie, contribuinte_icms")
+        .select("id, razao_social, nome_fantasia, documento, ie, im, contribuinte_icms, tipo_pessoa, site")
         .eq("status", "ATIVO").order("razao_social");
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch full destinatário data (address, contacts) when selected
+  const { data: clienteEndereco } = useQuery({
+    queryKey: ["entidade-endereco-dest", clienteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("entidade_enderecos")
+        .select("*")
+        .eq("entidade_id", clienteId)
+        .eq("principal", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!clienteId,
+  });
+
+  const { data: clienteContato } = useQuery({
+    queryKey: ["entidade-contato-dest", clienteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("entidade_contatos")
+        .select("email, telefone")
+        .eq("entidade_id", clienteId)
+        .eq("preferencial", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!clienteId,
   });
 
   const { data: produtos } = useQuery({
@@ -226,7 +354,7 @@ export default function EmissorNFePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("itens")
-        .select("id, descricao_interna, sku_interno, ncm, unidade_interna, tipo_item")
+        .select("id, descricao_interna, sku_interno, ncm, unidade_interna, tipo_item, ean, preco_venda")
         .eq("ativo", true).in("tipo_item", ["PA", "ME", "RE"]).order("descricao_interna");
       if (error) throw error;
       return data;
@@ -235,6 +363,24 @@ export default function EmissorNFePage() {
 
   const cliente = clientes?.find((c: any) => c.id === clienteId);
 
+  // Auto-set indIEDest when client changes
+  useEffect(() => {
+    if (cliente) {
+      if (cliente.contribuinte_icms === "CONTRIBUINTE") setIndIEDest("1");
+      else if (cliente.contribuinte_icms === "ISENTO") setIndIEDest("2");
+      else setIndIEDest("9");
+      setEmailDest(clienteContato?.email || "");
+    }
+  }, [cliente, clienteContato]);
+
+  // Auto-set idDest based on company UF vs client UF
+  useEffect(() => {
+    if (company?.endereco_uf && clienteEndereco?.uf) {
+      setIdDest(company.endereco_uf === clienteEndereco.uf ? "1" : "2");
+    }
+  }, [company?.endereco_uf, clienteEndereco?.uf]);
+
+  // ─── Item logic ───
   const updateItem = (index: number, field: keyof NotaItem, value: any) => {
     setItens((prev) => {
       const updated = [...prev];
@@ -243,8 +389,10 @@ export default function EmissorNFePage() {
       const recalcFields = ["quantidade", "valor_unitario", "valor_desconto", "valor_frete", "valor_seguro", "valor_outros"];
       if (recalcFields.includes(field)) {
         item.valor_total = Number(item.quantidade) * Number(item.valor_unitario) - Number(item.valor_desconto) + Number(item.valor_frete) + Number(item.valor_seguro) + Number(item.valor_outros);
+        // Sync tributável se iguais
+        if (field === "quantidade") item.qTrib = Number(value);
+        if (field === "valor_unitario") item.vUnTrib = Number(value);
       }
-      // ICMS base = valor_total
       if ([...recalcFields, "icms_aliquota"].some(f => f === field)) {
         item.icms_base = item.valor_total;
         item.icms_valor = item.icms_base * (Number(item.icms_aliquota) / 100);
@@ -273,12 +421,25 @@ export default function EmissorNFePage() {
       updated[index] = {
         ...updated[index],
         item_id: produto.id,
+        cProd: produto.sku_interno || "",
         descricao: produto.descricao_interna,
         ncm: produto.ncm || "",
         unidade: produto.unidade_interna || "UN",
+        uTrib: produto.unidade_interna || "UN",
+        ean: produto.ean || "SEM GTIN",
+        eanTrib: produto.ean || "SEM GTIN",
+        valor_unitario: produto.preco_venda || 0,
+        vUnTrib: produto.preco_venda || 0,
       };
       return updated;
     });
+  };
+
+  // Duplicatas
+  const addDuplicata = () => setDuplicatas(prev => [...prev, { nDup: String(prev.length + 1).padStart(3, "0"), dVenc: "", vDup: 0 }]);
+  const removeDuplicata = (idx: number) => setDuplicatas(prev => prev.filter((_, i) => i !== idx));
+  const updateDuplicata = (idx: number, field: keyof Duplicata, value: any) => {
+    setDuplicatas(prev => { const u = [...prev]; u[idx] = { ...u[idx], [field]: value }; return u; });
   };
 
   const totais = useMemo(() => ({
@@ -294,6 +455,9 @@ export default function EmissorNFePage() {
     cofins: itens.reduce((s, i) => s + (i.cofins_valor || 0), 0),
     get nota() { return this.produtos - this.desconto + this.frete + this.seguro + this.outros + this.ipi; },
   }), [itens, valorDesconto, valorFrete, valorSeguro, valorOutros]);
+
+  // Auto-sync valor pagamento
+  useEffect(() => { setValorPagamento(totais.nota); }, [totais.nota]);
 
   const numero = company?.nfe_numero_inicial
     ? String(company.nfe_numero_inicial).padStart(9, "0").replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3")
@@ -312,7 +476,7 @@ export default function EmissorNFePage() {
           cliente_id: clienteId,
           natureza_operacao: naturezaOperacao,
           valor_produtos: totais.produtos,
-          valor_total: totais.produtos,
+          valor_total: totais.nota,
           valor_icms: totais.icms,
           valor_pis: totais.pis,
           valor_cofins: totais.cofins,
@@ -320,8 +484,8 @@ export default function EmissorNFePage() {
           meio_pagamento: meioPagamento,
           informacoes_adicionais: infoAdicionais || null,
           status: "RASCUNHO",
-          ambiente: "homologacao",
-          modelo: "55",
+          ambiente: isHomolog ? "homologacao" : "producao",
+          modelo: modelo,
         })
         .select().single();
       if (error) throw error;
@@ -352,14 +516,7 @@ export default function EmissorNFePage() {
     if (!printRef.current) return;
     const style = document.createElement("style");
     style.setAttribute("data-danfe-print", "true");
-    style.textContent = `
-      @media print {
-        body > *:not([data-danfe-print-root]) { display: none !important; }
-        [data-danfe-print-root] { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: #fff; }
-        [data-danfe-print-root] * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        @page { size: A4 portrait; margin: 8mm; }
-      }
-    `;
+    style.textContent = `@media print { body > *:not([data-danfe-print-root]) { display: none !important; } [data-danfe-print-root] { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: #fff; } [data-danfe-print-root] * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4 portrait; margin: 8mm; } }`;
     document.head.appendChild(style);
     const wrapper = document.createElement("div");
     wrapper.setAttribute("data-danfe-print-root", "true");
@@ -370,10 +527,12 @@ export default function EmissorNFePage() {
     document.body.removeChild(wrapper);
   };
 
-  // ─── DANFE live data ───
+  // ─── DANFE data ───
   const chaveAcesso = "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000";
   const dataEmissao = new Date().toLocaleDateString("pt-BR");
   const horaEmissao = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const procEmi = "0"; // Emissão com aplicativo do contribuinte
+  const verProc = "ERP-Industrial-1.0";
 
   const cellStyle: React.CSSProperties = { border: "1px solid #000", padding: "1px 4px", verticalAlign: "top", fontSize: "7pt" };
   const thStyle: React.CSSProperties = { border: "1px solid #000", padding: "2px 3px", textAlign: "center", fontWeight: "bold", fontSize: "5.5pt", whiteSpace: "nowrap" };
@@ -422,7 +581,7 @@ export default function EmissorNFePage() {
         {/* ─── LEFT: Form ─── */}
         <div className="space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-5">
+            <TabsList className="w-full grid grid-cols-6">
               <TabsTrigger value="emitente" className="text-xs gap-1"><Building2 className="h-3 w-3" /> Emitente</TabsTrigger>
               <TabsTrigger value="destino" className="text-xs gap-1"><ChevronRight className="h-3 w-3" /> Destino</TabsTrigger>
               <TabsTrigger value="itens" className="text-xs gap-1">
@@ -430,23 +589,23 @@ export default function EmissorNFePage() {
                 {itens.length > 0 && <Badge variant="secondary" className="ml-1 h-5 text-xs">{itens.length}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="transporte" className="text-xs gap-1"><Truck className="h-3 w-3" /> Transp.</TabsTrigger>
+              <TabsTrigger value="cobranca" className="text-xs gap-1"><Receipt className="h-3 w-3" /> Cobr.</TabsTrigger>
               <TabsTrigger value="pagamento" className="text-xs gap-1"><CreditCard className="h-3 w-3" /> Pgto</TabsTrigger>
             </TabsList>
 
-            {/* Emitente Tab */}
+            {/* ════════ Emitente Tab ════════ */}
             <TabsContent value="emitente" className="space-y-4 mt-3">
               <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm text-primary">EMITENTE</CardTitle>
-                </CardHeader>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">EMITENTE</CardTitle></CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
-                  <div>
-                    <Label className="text-xs">Razão Social</Label>
-                    <Input value={company?.razao_social || ""} readOnly className={readOnlyClass} />
-                  </div>
+                  <div><Label className="text-xs">Razão Social</Label><Input value={company?.razao_social || ""} readOnly className={readOnlyClass} /></div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><Label className="text-xs">CNPJ</Label><Input value={company?.cnpj || ""} readOnly className={readOnlyClass} /></div>
                     <div><Label className="text-xs">Inscrição Estadual</Label><Input value={company?.ie || ""} readOnly className={readOnlyClass} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label className="text-xs">Inscrição Municipal</Label><Input value={company?.im || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">CNAE</Label><Input value={company?.cnae || ""} readOnly className={readOnlyClass} /></div>
                   </div>
                   <div><Label className="text-xs">Logradouro</Label><Input value={[company?.endereco_logradouro, company?.endereco_nro, company?.endereco_compl].filter(Boolean).join(", ")} readOnly className={readOnlyClass} /></div>
                   <div className="grid grid-cols-3 gap-3">
@@ -454,18 +613,20 @@ export default function EmissorNFePage() {
                     <div><Label className="text-xs">Município</Label><Input value={company?.endereco_cidade || ""} readOnly className={readOnlyClass} /></div>
                     <div><Label className="text-xs">UF</Label><Input value={company?.endereco_uf || ""} readOnly className={readOnlyClass} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div><Label className="text-xs">CEP</Label><Input value={company?.endereco_cep || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Telefone</Label><Input value={company?.telefone || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Cód. Município (IBGE)</Label><Input value={company?.endereco_cmun || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">CRT</Label><Input value={company?.crt || ""} readOnly className={readOnlyClass} /></div>
                   </div>
-                  <div><Label className="text-xs">E-mail</Label><Input value={company?.email_fiscal || ""} readOnly className={readOnlyClass} /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label className="text-xs">Telefone</Label><Input value={company?.telefone || ""} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">E-mail Fiscal</Label><Input value={company?.email_fiscal || ""} readOnly className={readOnlyClass} /></div>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm text-primary">DADOS DA NOTA</CardTitle>
-                </CardHeader>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">DADOS DA NOTA</CardTitle></CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-4 gap-3">
                     <div><Label className="text-xs">Número</Label><Input value={numero} readOnly className={readOnlyClass} /></div>
@@ -480,43 +641,90 @@ export default function EmissorNFePage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div><Label className="text-xs">Tipo</Label><Input value="1 – Saída" readOnly className={readOnlyClass} /></div>
+                    <div>
+                      <Label className="text-xs">Tipo</Label>
+                      <Select value={tpNF} onValueChange={setTpNF}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{TIPO_NF.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div><Label className="text-xs">Data Emissão</Label><Input value={dataEmissao} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Hora</Label><Input value={horaEmissao} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Data Saída</Label><Input value={dataEmissao} readOnly className={readOnlyClass} /></div>
+
+                  <div className="grid grid-cols-4 gap-3">
+                    <div><Label className="text-xs">Data Emissão <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value={dataEmissao} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Hora <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value={horaEmissao} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Data Saída/Entrada</Label><Input type="date" value={dataSaida} onChange={e => setDataSaida(e.target.value)} /></div>
+                    <div><Label className="text-xs">Hora Saída</Label><Input value={horaSaida} onChange={e => setHoraSaida(e.target.value)} placeholder="HH:MM" /></div>
                   </div>
-                  <div><Label className="text-xs">Ambiente</Label><Input value={isHomolog ? "Homologação (teste)" : "Produção"} readOnly className={readOnlyClass} /></div>
+
+                  <div>
+                    <Label className="text-xs">Ambiente</Label>
+                    <Input value={isHomolog ? "2 – Homologação (teste)" : "1 – Produção"} readOnly className={readOnlyClass} />
+                  </div>
+
                   <div>
                     <Label className="text-xs">Natureza da Operação</Label>
                     <Select value={naturezaOperacao} onValueChange={setNaturezaOperacao}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {NATUREZA_OPERACOES.map(n => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}
-                      </SelectContent>
+                      <SelectContent>{NATUREZA_OPERACOES.map(n => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Finalidade de Emissão</Label>
                       <Select value={finalidadeEmissao} onValueChange={setFinalidadeEmissao}>
                         <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {FINALIDADE_EMISSAO.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                        </SelectContent>
+                        <SelectContent>{FINALIDADE_EMISSAO.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
+                    <div>
+                      <Label className="text-xs">Destino da Operação</Label>
+                      <Select value={idDest} onValueChange={setIdDest}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{ID_DESTINO.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
                     <div>
                       <Label className="text-xs">Indicador de Presença</Label>
                       <Select value={indicadorPresenca} onValueChange={setIndicadorPresenca}>
                         <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {INDICADOR_PRESENCA.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                        </SelectContent>
+                        <SelectContent>{INDICADOR_PRESENCA.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Consumidor Final</Label>
+                      <Select value={indFinal} onValueChange={setIndFinal}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{IND_CONSUMIDOR_FINAL.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Forma de Emissão</Label>
+                      <Select value={tpEmis} onValueChange={setTpEmis}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{TP_EMISSAO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">Formato DANFE</Label>
+                      <Select value={tpImp} onValueChange={setTpImp}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{TP_IMPRESSAO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label className="text-xs">Processo Emissão</Label><Input value={`${procEmi} – Aplicativo contribuinte`} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Versão Processo</Label><Input value={verProc} readOnly className={readOnlyClass} /></div>
+                  </div>
+
+                  <div><Label className="text-xs">Cód. Município Fato Gerador (IBGE)</Label><Input value={company?.endereco_cmun || ""} readOnly className={readOnlyClass} /></div>
+
                   <Separator />
                   <div className="grid grid-cols-2 gap-3">
                     <div><Label className="text-xs text-primary">Chave de Acesso <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value="" placeholder="Gerada automaticamente" readOnly className="bg-muted text-muted-foreground" /></div>
@@ -527,9 +735,7 @@ export default function EmissorNFePage() {
 
               {/* Totalizadores */}
               <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm text-primary">VALORES GLOBAIS</CardTitle>
-                </CardHeader>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">VALORES GLOBAIS</CardTitle></CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-4 gap-3">
                     <div><Label className="text-xs">Frete (R$)</Label><Input type="number" step="0.01" value={valorFrete} onChange={e => setValorFrete(Number(e.target.value))} className="text-xs" /></div>
@@ -558,10 +764,11 @@ export default function EmissorNFePage() {
               </div>
             </TabsContent>
 
-            {/* Destino Tab */}
+            {/* ════════ Destino Tab ════════ */}
             <TabsContent value="destino" className="space-y-4 mt-3">
               <Card>
-                <CardContent className="pt-4 space-y-3">
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">DESTINATÁRIO</CardTitle></CardHeader>
+                <CardContent className="pt-2 pb-4 px-4 space-y-3">
                   <div>
                     <Label>Cliente / Destinatário *</Label>
                     <Select value={clienteId} onValueChange={setClienteId}>
@@ -574,19 +781,53 @@ export default function EmissorNFePage() {
                     </Select>
                   </div>
                   {cliente && (
-                    <div className="space-y-2 text-sm">
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3">
+                      <div><Label className="text-xs">Razão Social</Label><Input value={cliente.razao_social || ""} readOnly className={readOnlyClass} /></div>
+                      <div className="grid grid-cols-3 gap-3">
                         <div><Label className="text-xs">CNPJ/CPF</Label><Input value={cliente.documento || ""} readOnly className={readOnlyClass} /></div>
-                        <div><Label className="text-xs">IE</Label><Input value={cliente.ie || ""} readOnly className={readOnlyClass} /></div>
+                        <div><Label className="text-xs">IE</Label><Input value={cliente.ie || "ISENTO"} readOnly className={readOnlyClass} /></div>
+                        <div>
+                          <Label className="text-xs">Indicador IE Dest.</Label>
+                          <Select value={indIEDest} onValueChange={setIndIEDest}>
+                            <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>{IND_IE_DEST.map(i => <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div><Label className="text-xs">Contrib. ICMS</Label><Input value={cliente.contribuinte_icms || "Não informado"} readOnly className={readOnlyClass} /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><Label className="text-xs">IM (Inscrição Municipal)</Label><Input value={cliente.im || ""} readOnly className={readOnlyClass} /></div>
+                        <div><Label className="text-xs">ISUF (SUFRAMA)</Label><Input placeholder="Opcional" className="text-xs" /></div>
+                      </div>
+
+                      <Separator />
+                      <p className="text-xs font-semibold text-primary">ENDEREÇO DO DESTINATÁRIO</p>
+                      {clienteEndereco ? (
+                        <>
+                          <div><Label className="text-xs">Logradouro</Label><Input value={[clienteEndereco.logradouro, clienteEndereco.nro, clienteEndereco.compl].filter(Boolean).join(", ")} readOnly className={readOnlyClass} /></div>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div><Label className="text-xs">Bairro</Label><Input value={clienteEndereco.bairro || ""} readOnly className={readOnlyClass} /></div>
+                            <div><Label className="text-xs">Município</Label><Input value={clienteEndereco.cidade || ""} readOnly className={readOnlyClass} /></div>
+                            <div><Label className="text-xs">UF</Label><Input value={clienteEndereco.uf || ""} readOnly className={readOnlyClass} /></div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div><Label className="text-xs">CEP</Label><Input value={clienteEndereco.cep || ""} readOnly className={readOnlyClass} /></div>
+                            <div><Label className="text-xs">Cód. Município (IBGE)</Label><Input value={clienteEndereco.cmun || ""} readOnly className={readOnlyClass} /></div>
+                            <div><Label className="text-xs">Cód. País</Label><Input value={clienteEndereco.cpais || "1058"} readOnly className={readOnlyClass} /></div>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">Nenhum endereço principal cadastrado para esta entidade.</p>
+                      )}
+
+                      <Separator />
+                      <div><Label className="text-xs">E-mail do Destinatário</Label><Input value={emailDest} onChange={e => setEmailDest(e.target.value)} placeholder="Email para envio do XML/DANFE" /></div>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Itens Tab */}
+            {/* ════════ Itens Tab ════════ */}
             <TabsContent value="itens" className="space-y-3 mt-3">
               {itens.map((item, idx) => (
                 <Card key={idx}>
@@ -602,11 +843,12 @@ export default function EmissorNFePage() {
                         <SelectContent>{produtos?.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.sku_interno} — {p.descricao_interna}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    {/* Identificação */}
-                    <div className="grid grid-cols-6 gap-2">
+
+                    {/* Códigos e Identificação */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <div><Label className="text-xs">Cód. Produto (cProd)</Label><Input value={item.cProd} onChange={e => updateItem(idx, "cProd", e.target.value)} className="text-xs" /></div>
                       <div><Label className="text-xs">NCM</Label><Input value={item.ncm} onChange={e => updateItem(idx, "ncm", e.target.value)} className="text-xs" /></div>
                       <div><Label className="text-xs">CEST</Label><Input value={item.cest} onChange={e => updateItem(idx, "cest", e.target.value)} className="text-xs" placeholder="Opcional" /></div>
-                      <div><Label className="text-xs">EAN/GTIN</Label><Input value={item.ean} onChange={e => updateItem(idx, "ean", e.target.value)} className="text-xs" placeholder="SEM GTIN" /></div>
                       <div>
                         <Label className="text-xs">CFOP</Label>
                         <Select value={item.cfop} onValueChange={(v) => updateItem(idx, "cfop", v)}>
@@ -614,7 +856,11 @@ export default function EmissorNFePage() {
                           <SelectContent>{CFOP_COMUNS.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
-                      <div><Label className="text-xs">Unid.</Label><Input value={item.unidade} onChange={e => updateItem(idx, "unidade", e.target.value)} className="text-xs" /></div>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2">
+                      <div><Label className="text-xs">EAN/GTIN</Label><Input value={item.ean} onChange={e => updateItem(idx, "ean", e.target.value)} className="text-xs" /></div>
+                      <div><Label className="text-xs">EAN Tributável</Label><Input value={item.eanTrib} onChange={e => updateItem(idx, "eanTrib", e.target.value)} className="text-xs" /></div>
                       <div>
                         <Label className="text-xs">Origem</Label>
                         <Select value={item.origem} onValueChange={(v) => updateItem(idx, "origem", v)}>
@@ -622,17 +868,45 @@ export default function EmissorNFePage() {
                           <SelectContent>{ORIGENS_MERCADORIA.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
+                      <div>
+                        <Label className="text-xs">Compõe Total (indTot)</Label>
+                        <Select value={item.indTot} onValueChange={(v) => updateItem(idx, "indTot", v)}>
+                          <SelectTrigger className="text-xs h-9"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0 – Não compõe</SelectItem>
+                            <SelectItem value="1">1 – Compõe total</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    {/* Quantidades e Valores */}
-                    <div className="grid grid-cols-6 gap-2">
-                      <div><Label className="text-xs">Qtde</Label><Input type="number" step="0.001" value={item.quantidade} onChange={e => updateItem(idx, "quantidade", Number(e.target.value))} className="text-xs" /></div>
-                      <div><Label className="text-xs">V. Unit.</Label><Input type="number" step="0.01" value={item.valor_unitario} onChange={e => updateItem(idx, "valor_unitario", Number(e.target.value))} className="text-xs" /></div>
+
+                    {/* Quantidades Comerciais e Tributáveis */}
+                    <p className="text-xs font-semibold text-muted-foreground mt-1">Comercial</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div><Label className="text-xs">Unid. Com.</Label><Input value={item.unidade} onChange={e => updateItem(idx, "unidade", e.target.value)} className="text-xs" /></div>
+                      <div><Label className="text-xs">Qtde Com.</Label><Input type="number" step="0.0001" value={item.quantidade} onChange={e => updateItem(idx, "quantidade", Number(e.target.value))} className="text-xs" /></div>
+                      <div><Label className="text-xs">V. Unit. Com.</Label><Input type="number" step="0.0000000001" value={item.valor_unitario} onChange={e => updateItem(idx, "valor_unitario", Number(e.target.value))} className="text-xs" /></div>
+                      <div><Label className="text-xs">V. Prod.</Label><Input value={`R$ ${fmt(Number(item.quantidade) * Number(item.valor_unitario))}`} readOnly className="bg-muted text-xs" /></div>
+                    </div>
+                    <p className="text-xs font-semibold text-muted-foreground">Tributável</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><Label className="text-xs">Unid. Trib.</Label><Input value={item.uTrib} onChange={e => updateItem(idx, "uTrib", e.target.value)} className="text-xs" /></div>
+                      <div><Label className="text-xs">Qtde Trib.</Label><Input type="number" step="0.0001" value={item.qTrib} onChange={e => updateItem(idx, "qTrib", Number(e.target.value))} className="text-xs" /></div>
+                      <div><Label className="text-xs">V. Unit. Trib.</Label><Input type="number" step="0.0000000001" value={item.vUnTrib} onChange={e => updateItem(idx, "vUnTrib", Number(e.target.value))} className="text-xs" /></div>
+                    </div>
+
+                    {/* Valores adicionais do item */}
+                    <div className="grid grid-cols-5 gap-2">
                       <div><Label className="text-xs">Desconto</Label><Input type="number" step="0.01" value={item.valor_desconto} onChange={e => updateItem(idx, "valor_desconto", Number(e.target.value))} className="text-xs" /></div>
                       <div><Label className="text-xs">Frete</Label><Input type="number" step="0.01" value={item.valor_frete} onChange={e => updateItem(idx, "valor_frete", Number(e.target.value))} className="text-xs" /></div>
                       <div><Label className="text-xs">Seguro</Label><Input type="number" step="0.01" value={item.valor_seguro} onChange={e => updateItem(idx, "valor_seguro", Number(e.target.value))} className="text-xs" /></div>
-                      <div><Label className="text-xs">V. Total</Label><Input value={`R$ ${fmt(item.valor_total)}`} readOnly className="bg-muted text-xs" /></div>
+                      <div><Label className="text-xs">Outras Desp.</Label><Input type="number" step="0.01" value={item.valor_outros} onChange={e => updateItem(idx, "valor_outros", Number(e.target.value))} className="text-xs" /></div>
+                      <div><Label className="text-xs">V. Total Item</Label><Input value={`R$ ${fmt(item.valor_total)}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
+
                     {/* ICMS */}
+                    <Separator />
+                    <p className="text-xs font-semibold text-muted-foreground">ICMS</p>
                     <div className="grid grid-cols-5 gap-2">
                       <div>
                         <Label className="text-xs">CST ICMS</Label>
@@ -647,6 +921,7 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">IPI %</Label><Input type="number" value={item.ipi_aliquota} onChange={e => updateItem(idx, "ipi_aliquota", Number(e.target.value))} className="text-xs" /></div>
                     </div>
                     {/* PIS / COFINS */}
+                    <p className="text-xs font-semibold text-muted-foreground">PIS / COFINS</p>
                     <div className="grid grid-cols-6 gap-2">
                       <div>
                         <Label className="text-xs">CST PIS</Label>
@@ -667,21 +942,26 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">COFINS %</Label><Input type="number" value={item.cofins_aliquota} onChange={e => updateItem(idx, "cofins_aliquota", Number(e.target.value))} className="text-xs" /></div>
                       <div><Label className="text-xs">V. COFINS</Label><Input value={`R$ ${fmt(item.cofins_valor)}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
-                    {/* Info adicional do item */}
-                    <div><Label className="text-xs">Informações Adicionais do Item</Label><Input value={item.info_adicional_item} onChange={e => updateItem(idx, "info_adicional_item", e.target.value)} className="text-xs" placeholder="Observações fiscais do item" /></div>
+
+                    {/* Pedido / Info Adicional */}
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label className="text-xs">Nº Pedido Compra (xPed)</Label><Input value={item.xPed} onChange={e => updateItem(idx, "xPed", e.target.value)} className="text-xs" placeholder="Opcional" /></div>
+                      <div><Label className="text-xs">Item do Pedido (nItemPed)</Label><Input value={item.nItemPed} onChange={e => updateItem(idx, "nItemPed", e.target.value)} className="text-xs" placeholder="Opcional" /></div>
+                    </div>
+                    <div><Label className="text-xs">Informações Adicionais do Item (infAdProd)</Label><Input value={item.info_adicional_item} onChange={e => updateItem(idx, "info_adicional_item", e.target.value)} className="text-xs" placeholder="Observações fiscais do item" /></div>
                   </CardContent>
                 </Card>
               ))}
               <Button variant="outline" onClick={addItem} className="w-full"><Plus className="h-4 w-4 mr-2" /> Adicionar Item</Button>
-              {itens.length === 0 && (
-                <p className="text-center text-muted-foreground text-sm py-4">— Adicione itens na aba "Itens" —</p>
-              )}
+              {itens.length === 0 && <p className="text-center text-muted-foreground text-sm py-4">— Adicione itens na aba "Itens" —</p>}
             </TabsContent>
 
-            {/* Transporte Tab */}
+            {/* ════════ Transporte Tab ════════ */}
             <TabsContent value="transporte" className="space-y-3 mt-3">
               <Card>
-                <CardContent className="pt-4 space-y-3">
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">TRANSPORTADOR</CardTitle></CardHeader>
+                <CardContent className="pt-2 pb-4 px-4 space-y-3">
                   <div>
                     <Label className="text-xs">Modalidade do Frete</Label>
                     <Select value={modalidadeFrete} onValueChange={setModalidadeFrete}>
@@ -690,33 +970,95 @@ export default function EmissorNFePage() {
                     </Select>
                   </div>
                   <Separator />
+                  <div><Label className="text-xs">Razão Social</Label><Input value={transportadora.razao} onChange={e => setTransportadora(p => ({ ...p, razao: e.target.value }))} /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">Razão Social Transp.</Label><Input value={transportadora.razao} onChange={e => setTransportadora(p => ({ ...p, razao: e.target.value }))} /></div>
-                    <div><Label className="text-xs">CNPJ/CPF</Label><Input value={transportadora.cnpj} onChange={e => setTransportadora(p => ({ ...p, cnpj: e.target.value }))} /></div>
+                    <div><Label className="text-xs">CNPJ / CPF</Label><Input value={transportadora.cnpj} onChange={e => setTransportadora(p => ({ ...p, cnpj: e.target.value }))} /></div>
+                    <div><Label className="text-xs">Inscrição Estadual</Label><Input value={transportadora.ie} onChange={e => setTransportadora(p => ({ ...p, ie: e.target.value }))} placeholder="Opcional" /></div>
+                  </div>
+                  <div><Label className="text-xs">Endereço</Label><Input value={transportadora.endereco} onChange={e => setTransportadora(p => ({ ...p, endereco: e.target.value }))} placeholder="Logradouro, número" /></div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><Label className="text-xs">Município</Label><Input value={transportadora.municipio} onChange={e => setTransportadora(p => ({ ...p, municipio: e.target.value }))} /></div>
+                    <div>
+                      <Label className="text-xs">UF</Label>
+                      <Select value={transportadora.uf} onValueChange={v => setTransportadora(p => ({ ...p, uf: v }))}>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
+                        <SelectContent>{UFS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label className="text-xs">Código ANTT (RNTRC)</Label><Input value={transportadora.rntc} onChange={e => setTransportadora(p => ({ ...p, rntc: e.target.value }))} /></div>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    <div><Label className="text-xs">IE Transportadora</Label><Input value={transportadora.ie} onChange={e => setTransportadora(p => ({ ...p, ie: e.target.value }))} /></div>
-                    <div><Label className="text-xs">Placa do Veíc.</Label><Input value={transportadora.placa} onChange={e => setTransportadora(p => ({ ...p, placa: e.target.value }))} placeholder="ABC1D23" /></div>
-                    <div><Label className="text-xs">UF Veíc.</Label><Input value={transportadora.uf} onChange={e => setTransportadora(p => ({ ...p, uf: e.target.value }))} maxLength={2} /></div>
+                    <div><Label className="text-xs">Placa</Label><Input value={transportadora.placa} onChange={e => setTransportadora(p => ({ ...p, placa: e.target.value }))} placeholder="ABC1D23" /></div>
+                    <div>
+                      <Label className="text-xs">UF Veículo</Label>
+                      <Select value={transportadora.ufVeiculo} onValueChange={v => setTransportadora(p => ({ ...p, ufVeiculo: v }))}>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
+                        <SelectContent>{UFS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Modalidade</Label>
+                      <Select value={modalidadeFrete} onValueChange={setModalidadeFrete}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{MODALIDADES_FRETE.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div><Label className="text-xs">RNTC (ANTT)</Label><Input value={transportadora.rntc} onChange={e => setTransportadora(p => ({ ...p, rntc: e.target.value }))} /></div>
+
                   <Separator />
-                  <p className="text-xs font-semibold text-muted-foreground">VOLUMES</p>
-                  <div className="grid grid-cols-5 gap-2">
-                    <div><Label className="text-xs">Qtd. Volumes</Label><Input value={transportadora.qtdVolumes} onChange={e => setTransportadora(p => ({ ...p, qtdVolumes: e.target.value }))} className="text-xs" /></div>
-                    <div><Label className="text-xs">Espécie</Label><Input value={transportadora.especie} onChange={e => setTransportadora(p => ({ ...p, especie: e.target.value }))} className="text-xs" placeholder="Caixa" /></div>
+                  <p className="text-xs font-semibold text-primary">VOLUMES TRANSPORTADOS</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div><Label className="text-xs">Quantidade</Label><Input value={transportadora.qtdVolumes} onChange={e => setTransportadora(p => ({ ...p, qtdVolumes: e.target.value }))} className="text-xs" /></div>
+                    <div><Label className="text-xs">Espécie</Label><Input value={transportadora.especie} onChange={e => setTransportadora(p => ({ ...p, especie: e.target.value }))} className="text-xs" placeholder="CAIXA" /></div>
                     <div><Label className="text-xs">Marca</Label><Input value={transportadora.marca} onChange={e => setTransportadora(p => ({ ...p, marca: e.target.value }))} className="text-xs" /></div>
-                    <div><Label className="text-xs">Peso Líq. (kg)</Label><Input value={transportadora.pesoLiq} onChange={e => setTransportadora(p => ({ ...p, pesoLiq: e.target.value }))} className="text-xs" /></div>
-                    <div><Label className="text-xs">Peso Bruto (kg)</Label><Input value={transportadora.pesoBruto} onChange={e => setTransportadora(p => ({ ...p, pesoBruto: e.target.value }))} className="text-xs" /></div>
+                    <div><Label className="text-xs">Numeração</Label><Input value={transportadora.numeracao} onChange={e => setTransportadora(p => ({ ...p, numeracao: e.target.value }))} className="text-xs" placeholder="001/002" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label className="text-xs">Peso Bruto (kg)</Label><Input type="number" step="0.001" value={transportadora.pesoBruto} onChange={e => setTransportadora(p => ({ ...p, pesoBruto: e.target.value }))} className="text-xs" /></div>
+                    <div><Label className="text-xs">Peso Líquido (kg)</Label><Input type="number" step="0.001" value={transportadora.pesoLiq} onChange={e => setTransportadora(p => ({ ...p, pesoLiq: e.target.value }))} className="text-xs" /></div>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Pagamento Tab */}
+            {/* ════════ Cobrança Tab ════════ */}
+            <TabsContent value="cobranca" className="space-y-3 mt-3">
+              <Card>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">FATURA</CardTitle></CardHeader>
+                <CardContent className="pt-2 pb-4 px-4 space-y-3">
+                  <div className="grid grid-cols-4 gap-3">
+                    <div><Label className="text-xs">Número da Fatura</Label><Input value={fatNumero} onChange={e => setFatNumero(e.target.value)} className="text-xs" /></div>
+                    <div><Label className="text-xs">Valor Original (R$)</Label><Input type="number" step="0.01" value={fatValorOriginal} onChange={e => setFatValorOriginal(Number(e.target.value))} className="text-xs" /></div>
+                    <div><Label className="text-xs">Desconto (R$)</Label><Input type="number" step="0.01" value={fatValorDesconto} onChange={e => setFatValorDesconto(Number(e.target.value))} className="text-xs" /></div>
+                    <div><Label className="text-xs">Valor Líquido (R$)</Label><Input type="number" step="0.01" value={fatValorLiquido} onChange={e => setFatValorLiquido(Number(e.target.value))} className="text-xs" /></div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm text-primary">DUPLICATAS</CardTitle>
+                  <Button size="sm" variant="outline" onClick={addDuplicata}><Plus className="h-3 w-3 mr-1" /> Adicionar</Button>
+                </CardHeader>
+                <CardContent className="pt-2 pb-4 px-4 space-y-2">
+                  {duplicatas.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhuma duplicata adicionada</p>}
+                  {duplicatas.map((dup, idx) => (
+                    <div key={idx} className="grid grid-cols-4 gap-2 items-end">
+                      <div><Label className="text-xs">Número</Label><Input value={dup.nDup} onChange={e => updateDuplicata(idx, "nDup", e.target.value)} className="text-xs" /></div>
+                      <div><Label className="text-xs">Vencimento</Label><Input type="date" value={dup.dVenc} onChange={e => updateDuplicata(idx, "dVenc", e.target.value)} className="text-xs" /></div>
+                      <div><Label className="text-xs">Valor (R$)</Label><Input type="number" step="0.01" value={dup.vDup} onChange={e => updateDuplicata(idx, "vDup", Number(e.target.value))} className="text-xs" /></div>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeDuplicata(idx)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ════════ Pagamento Tab ════════ */}
             <TabsContent value="pagamento" className="space-y-3 mt-3">
               <Card>
-                <CardContent className="pt-4 space-y-3">
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">PAGAMENTO</CardTitle></CardHeader>
+                <CardContent className="pt-2 pb-4 px-4 space-y-3">
                   <div>
                     <Label className="text-xs">Meio de Pagamento</Label>
                     <Select value={meioPagamento} onValueChange={setMeioPagamento}>
@@ -724,12 +1066,22 @@ export default function EmissorNFePage() {
                       <SelectContent>{MEIOS_PAGAMENTO.map(m => <SelectItem key={m.value} value={m.value}>{m.value} — {m.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label className="text-xs">Valor do Pagamento (R$)</Label><Input type="number" step="0.01" value={valorPagamento} onChange={e => setValorPagamento(Number(e.target.value))} className="text-xs" /></div>
+                    <div><Label className="text-xs">Troco (R$)</Label><Input type="number" step="0.01" value={vTroco} onChange={e => setVTroco(Number(e.target.value))} className="text-xs" /></div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">INFORMAÇÕES ADICIONAIS</CardTitle></CardHeader>
+                <CardContent className="pt-2 pb-4 px-4 space-y-3">
                   <div>
-                    <Label className="text-xs">Informações Complementares (Contribuinte)</Label>
+                    <Label className="text-xs">Informações Complementares (infCpl)</Label>
                     <Textarea value={infoAdicionais} onChange={e => setInfoAdicionais(e.target.value)} rows={3} placeholder="Informações de interesse do contribuinte..." />
                   </div>
                   <div>
-                    <Label className="text-xs">Informações ao Fisco</Label>
+                    <Label className="text-xs">Informações ao Fisco (infAdFisco)</Label>
                     <Textarea value={infoFisco} onChange={e => setInfoFisco(e.target.value)} rows={2} placeholder="Informações de interesse do fisco..." />
                   </div>
                 </CardContent>
@@ -756,7 +1108,6 @@ export default function EmissorNFePage() {
               <div ref={printRef}>
                 <div style={{ fontFamily: "Arial, Helvetica, sans-serif", fontSize: "7.5pt", color: "#000", background: "#fff", maxWidth: "210mm", margin: "0 auto", padding: "3mm", lineHeight: 1.3 }}>
                   
-                  {/* Homologação Banner */}
                   {isHomolog && (
                     <div style={{ background: "#d32f2f", color: "#fff", textAlign: "center", padding: "3px", fontSize: "7pt", fontWeight: "bold", letterSpacing: "2px", marginBottom: "2mm" }}>
                       NF-E EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL
@@ -772,7 +1123,7 @@ export default function EmissorNFePage() {
                         <td style={{ ...cellStyle, fontSize: "6pt" }}>DESTINATÁRIO<br /><b style={{ fontSize: "7pt" }}>{cliente?.razao_social || "—"}</b></td>
                         <td style={{ ...cellStyle, textAlign: "center", width: "130px" }}>
                           <div style={{ fontSize: "6pt" }}>VALOR DA NOTA</div>
-                          <div style={{ fontSize: "9pt", fontWeight: "bold" }}>R$ {fmt(totais.produtos)}</div>
+                          <div style={{ fontSize: "9pt", fontWeight: "bold" }}>R$ {fmt(totais.nota)}</div>
                           <div style={{ fontSize: "7pt" }}>NF-e</div>
                           <div style={{ fontSize: "7pt" }}>Nº {numero}</div>
                           <div style={{ fontSize: "6pt" }}>SÉRIE: {serie}</div>
@@ -787,9 +1138,7 @@ export default function EmissorNFePage() {
                       <tr>
                         <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px 6px" }}>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
-                            {logoUrl && (
-                              <img src={logoUrl} alt="Logo" style={{ maxHeight: "50px", maxWidth: "80px", objectFit: "contain" }} />
-                            )}
+                            {logoUrl && <img src={logoUrl} alt="Logo" style={{ maxHeight: "50px", maxWidth: "80px", objectFit: "contain" }} />}
                             <div>
                               <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "2px" }}>{company?.razao_social || "—"}</div>
                               <div style={{ fontSize: "6.5pt", lineHeight: 1.4 }}>
@@ -804,7 +1153,7 @@ export default function EmissorNFePage() {
                         <td style={{ ...cellStyle, width: "20%", textAlign: "center", verticalAlign: "top", padding: "4px" }}>
                           <div style={{ fontWeight: "bold", fontSize: "14pt", letterSpacing: "2px" }}>DANFE</div>
                           <div style={{ fontSize: "5.5pt", lineHeight: 1.2 }}>DOCUMENTO AUXILIAR<br />DA NOTA FISCAL<br />ELETRÔNICA</div>
-                          <div style={{ fontSize: "7pt", margin: "3px 0" }}>0 - Entrada &nbsp; <b>1 - Saída</b></div>
+                          <div style={{ fontSize: "7pt", margin: "3px 0" }}>{tpNF === "0" ? <><b>0 - Entrada</b> &nbsp; 1 - Saída</> : <>0 - Entrada &nbsp; <b>1 - Saída</b></>}</div>
                           <div style={{ fontSize: "8pt" }}>Nº <b>{numero}</b><br />SÉRIE: <b>{serie}</b><br />FOLHA: 1 de 1</div>
                         </td>
                         <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px" }}>
@@ -848,22 +1197,29 @@ export default function EmissorNFePage() {
                         <td style={cellStyle}><LabelValue label="DATA DA EMISSÃO" value={dataEmissao} /></td>
                       </tr>
                       <tr>
-                        <td style={cellStyle}><LabelValue label="ENDEREÇO" value="—" /></td>
-                        <td style={cellStyle}><LabelValue label="BAIRRO / DISTRITO" value="—" /></td>
-                        <td style={cellStyle}><LabelValue label="CEP" value="—" /></td>
+                        <td style={cellStyle}><LabelValue label="ENDEREÇO" value={clienteEndereco ? [clienteEndereco.logradouro, clienteEndereco.nro].filter(Boolean).join(", ") : "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="BAIRRO / DISTRITO" value={clienteEndereco?.bairro || "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="CEP" value={clienteEndereco?.cep || "—"} /></td>
                       </tr>
                       <tr>
-                        <td style={cellStyle}><LabelValue label="MUNICÍPIO" value="—" /></td>
-                        <td style={cellStyle}><LabelValue label="FONE / FAX" value="—" /></td>
-                        <td style={cellStyle}><LabelValue label="UF" value="—" /></td>
+                        <td style={cellStyle}><LabelValue label="MUNICÍPIO" value={clienteEndereco?.cidade || "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="FONE / FAX" value={clienteContato?.telefone || "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="UF" value={clienteEndereco?.uf || "—"} /></td>
+                      </tr>
+                      <tr>
+                        <td style={cellStyle}><LabelValue label="INSCRIÇÃO ESTADUAL" value={cliente?.ie || "ISENTO"} /></td>
+                        <td style={cellStyle}><LabelValue label="DATA DE SAÍDA / ENTRADA" value={dataSaida ? new Date(dataSaida + "T12:00:00").toLocaleDateString("pt-BR") : "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="HORA DE SAÍDA" value={horaSaida || "—"} /></td>
                       </tr>
                     </tbody>
                   </table>
 
                   {/* Fatura */}
-                  <SectionTitle text="FATURA" />
+                  <SectionTitle text="FATURA / DUPLICATAS" />
                   <div style={{ border: "1px solid #000", borderTop: "none", minHeight: "6mm", padding: "2px 4px", fontSize: "6.5pt" }}>
-                    {meioPagamento !== "90" && `PEDIDO: ${new Date().toISOString().slice(0, 10)} | ${MEIOS_PAGAMENTO.find(m => m.value === meioPagamento)?.label || ""}`}
+                    {fatNumero ? `Fatura: ${fatNumero} | Orig: R$ ${fmt(fatValorOriginal)} | Desc: R$ ${fmt(fatValorDesconto)} | Líq: R$ ${fmt(fatValorLiquido)}` : ""}
+                    {duplicatas.length > 0 && <> | {duplicatas.map(d => `${d.nDup}: R$ ${fmt(d.vDup)} (${d.dVenc ? new Date(d.dVenc + "T12:00:00").toLocaleDateString("pt-BR") : "—"})`).join(" | ")}</>}
+                    {!fatNumero && duplicatas.length === 0 && (meioPagamento !== "90" ? `${MEIOS_PAGAMENTO.find(m => m.value === meioPagamento)?.label || ""}` : "Sem pagamento")}
                   </div>
 
                   {/* Cálculo do Imposto */}
@@ -871,20 +1227,24 @@ export default function EmissorNFePage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
                     <tbody>
                       <tr>
-                        <td style={cellStyle}><LabelValue label="BASE DE CÁLCULO ICMS" value={fmt(totais.produtos)} /></td>
+                        <td style={cellStyle}><LabelValue label="BASE DE CÁLCULO ICMS" value={fmt(totais.icms_base)} /></td>
                         <td style={cellStyle}><LabelValue label="VALOR DO ICMS" value={fmt(totais.icms)} /></td>
                         <td style={cellStyle}><LabelValue label="BASE DE CÁLC. ICMS ST" value={fmt(0)} /></td>
                         <td style={cellStyle}><LabelValue label="VALOR ICMS ST" value={fmt(0)} /></td>
                         <td style={cellStyle}><LabelValue label="V. TOTAL PRODUTOS" value={fmt(totais.produtos)} /></td>
                       </tr>
                       <tr>
-                        <td style={cellStyle}><LabelValue label="FRETE" value={fmt(0)} /></td>
-                        <td style={cellStyle}><LabelValue label="SEGURO" value={fmt(0)} /></td>
-                        <td style={cellStyle}><LabelValue label="DESCONTO" value={fmt(0)} /></td>
-                        <td style={cellStyle}><LabelValue label="OUTRA DESPESAS" value={fmt(0)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR IPI" value={fmt(0)} /></td>
-                        <td style={cellStyle}><LabelValue label="APROX. TRIBUTOS" value={fmt(totais.icms + totais.pis + totais.cofins)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR TOTAL DA NOTA" value={fmt(totais.produtos)} bold /></td>
+                        <td style={cellStyle}><LabelValue label="FRETE" value={fmt(totais.frete)} /></td>
+                        <td style={cellStyle}><LabelValue label="SEGURO" value={fmt(totais.seguro)} /></td>
+                        <td style={cellStyle}><LabelValue label="DESCONTO" value={fmt(totais.desconto)} /></td>
+                        <td style={cellStyle}><LabelValue label="OUTRA DESPESAS" value={fmt(totais.outros)} /></td>
+                        <td style={cellStyle}><LabelValue label="VALOR IPI" value={fmt(totais.ipi)} /></td>
+                      </tr>
+                      <tr>
+                        <td style={cellStyle}><LabelValue label="VALOR PIS" value={fmt(totais.pis)} /></td>
+                        <td style={cellStyle}><LabelValue label="VALOR COFINS" value={fmt(totais.cofins)} /></td>
+                        <td style={cellStyle}><LabelValue label="APROX. TRIBUTOS" value={fmt(totais.icms + totais.pis + totais.cofins + totais.ipi)} /></td>
+                        <td colSpan={2} style={cellStyle}><LabelValue label="VALOR TOTAL DA NOTA" value={`R$ ${fmt(totais.nota)}`} bold /></td>
                       </tr>
                     </tbody>
                   </table>
@@ -894,12 +1254,23 @@ export default function EmissorNFePage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
                     <tbody>
                       <tr>
-                        <td style={{ ...cellStyle, width: "30%" }}><LabelValue label="RAZÃO SOCIAL" value={transportadora.razao || "—"} /></td>
+                        <td style={{ ...cellStyle, width: "25%" }}><LabelValue label="RAZÃO SOCIAL" value={transportadora.razao || "—"} /></td>
                         <td style={cellStyle}><LabelValue label="FRETE POR CONTA" value={MODALIDADES_FRETE.find(m => m.value === modalidadeFrete)?.label || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="CÓDIGO ANTT" value="—" /></td>
+                        <td style={cellStyle}><LabelValue label="CÓDIGO ANTT" value={transportadora.rntc || "—"} /></td>
                         <td style={cellStyle}><LabelValue label="PLACA VEÍC." value={transportadora.placa || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="UF" value={transportadora.uf || "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="UF" value={transportadora.ufVeiculo || "—"} /></td>
                         <td style={cellStyle}><LabelValue label="CNPJ/CPF" value={transportadora.cnpj || "—"} /></td>
+                      </tr>
+                      <tr>
+                        <td style={cellStyle}><LabelValue label="ENDEREÇO" value={transportadora.endereco || "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="MUNICÍPIO" value={transportadora.municipio || "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="UF" value={transportadora.uf || "—"} /></td>
+                        <td style={cellStyle}><LabelValue label="INSCRIÇÃO ESTADUAL" value={transportadora.ie || "—"} /></td>
+                        <td colSpan={2} style={cellStyle}><LabelValue label="QTD. / ESPÉCIE / MARCA / NUMERAÇÃO" value={[transportadora.qtdVolumes, transportadora.especie, transportadora.marca, transportadora.numeracao].filter(Boolean).join(" / ") || "—"} /></td>
+                      </tr>
+                      <tr>
+                        <td colSpan={3} style={cellStyle}><LabelValue label="PESO BRUTO (KG)" value={transportadora.pesoBruto || "—"} /></td>
+                        <td colSpan={3} style={cellStyle}><LabelValue label="PESO LÍQUIDO (KG)" value={transportadora.pesoLiq || "—"} /></td>
                       </tr>
                     </tbody>
                   </table>
@@ -928,7 +1299,7 @@ export default function EmissorNFePage() {
                     <tbody>
                       {itens.map((item, idx) => (
                         <tr key={idx}>
-                          <td style={tdStyle}>{idx + 1}</td>
+                          <td style={tdStyle}>{item.cProd || idx + 1}</td>
                           <td style={{ ...tdStyle, textAlign: "left", fontSize: "6pt" }}>{item.descricao || "—"}</td>
                           <td style={tdStyle}>{item.ncm}</td>
                           <td style={tdStyle}>{item.origem}{item.cst_icms}</td>
@@ -937,11 +1308,11 @@ export default function EmissorNFePage() {
                           <td style={tdStyle}>{fmtQtd(item.quantidade)}</td>
                           <td style={tdStyle}>{fmt(item.valor_unitario)}</td>
                           <td style={tdStyle}>{fmt(item.valor_total)}</td>
-                          <td style={tdStyle}>{fmt(item.valor_total)}</td>
+                          <td style={tdStyle}>{fmt(item.icms_base)}</td>
                           <td style={tdStyle}>{fmt(item.icms_valor)}</td>
-                          <td style={tdStyle}>{fmt(0)}</td>
+                          <td style={tdStyle}>{fmt(item.ipi_valor)}</td>
                           <td style={tdStyle}>{fmt(item.icms_aliquota)}</td>
-                          <td style={tdStyle}>{fmt(0)}</td>
+                          <td style={tdStyle}>{fmt(item.ipi_aliquota)}</td>
                         </tr>
                       ))}
                       {itens.length === 0 && (
@@ -956,8 +1327,8 @@ export default function EmissorNFePage() {
                     <tbody>
                       <tr>
                         <td style={cellStyle}><LabelValue label="FORMA DE PAGAMENTO" value={`${meioPagamento} – ${MEIOS_PAGAMENTO.find(m => m.value === meioPagamento)?.label || ""}`} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR DO PAGAMENTO" value={`R$ ${fmt(totais.produtos)}`} bold /></td>
-                        <td style={cellStyle}><LabelValue label="TROCO" value="R$ 0,00" /></td>
+                        <td style={cellStyle}><LabelValue label="VALOR DO PAGAMENTO" value={`R$ ${fmt(valorPagamento)}`} bold /></td>
+                        <td style={cellStyle}><LabelValue label="TROCO" value={`R$ ${fmt(vTroco)}`} /></td>
                       </tr>
                     </tbody>
                   </table>
@@ -973,12 +1344,12 @@ export default function EmissorNFePage() {
                         </td>
                         <td style={{ ...cellStyle, width: "50%", verticalAlign: "top" }}>
                           <div style={{ fontSize: "5.5pt", fontWeight: "bold" }}>RESERVADO AO FISCO</div>
+                          <div style={{ fontSize: "6pt", whiteSpace: "pre-wrap" }}>{infoFisco}</div>
                         </td>
                       </tr>
                     </tbody>
                   </table>
 
-                  {/* Footer */}
                   <div style={{ fontSize: "5pt", textAlign: "center", color: "#999", marginTop: "3mm" }}>
                     Gerado ERP Industrial | {dataEmissao} | CRT: {company?.crt || "—"} | Ambiente: {isHomolog ? "HOMOLOGAÇÃO" : "PRODUÇÃO"}
                   </div>
