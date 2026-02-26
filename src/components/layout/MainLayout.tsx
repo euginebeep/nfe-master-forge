@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { useSubscription } from "@/hooks/use-subscription";
 import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
+import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -29,7 +30,9 @@ export function MainLayout() {
             transition={{ duration: 0.2 }}
             className="flex-1 p-3 sm:p-6 overflow-auto"
           >
-            <Outlet />
+            <CompanyRequiredGuard>
+              <Outlet />
+            </CompanyRequiredGuard>
           </motion.main>
         </div>
       </div>
