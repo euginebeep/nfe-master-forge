@@ -4,6 +4,7 @@ import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { useSubscription } from "@/hooks/use-subscription";
 import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
+import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -35,6 +36,7 @@ export function MainLayout() {
             </div>
           </motion.main>
         </div>
+        <ChatGlobalProvider />
       </div>
     </SidebarProvider>
   );
