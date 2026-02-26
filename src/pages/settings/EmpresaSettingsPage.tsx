@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useLocalCompany, useUpsertLocalCompany, LocalCompany } from "@/hooks/use-local-company";
+import { useCompany, useUpsertCompany } from "@/hooks/use-company";
 import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
 import { CertificateTestButton } from "@/components/company/CertificateTestButton";
 import { MaskedInput } from "@/components/ui/masked-input";
 import { useUploadFile } from "@/hooks/use-files";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const UFS = [
@@ -22,6 +24,8 @@ const UFS = [
 
 export default function EmpresaSettingsPage() {
   const { data: company, isLoading, refresh } = useLocalCompany();
+  const { data: supabaseCompany } = useCompany();
+  const upsertCompanyMutation = useUpsertCompany();
   const { upsert } = useUpsertLocalCompany();
   const [formData, setFormData] = useState<Partial<LocalCompany>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -42,8 +46,40 @@ export default function EmpresaSettingsPage() {
     }
   }, [company]);
 
+  // Load certificate file ID from Supabase company
+  useEffect(() => {
+    if (supabaseCompany?.certificado_a1_file_id) {
+      setCertificadoFileId(supabaseCompany.certificado_a1_file_id);
+    }
+  }, [supabaseCompany]);
+
   const handleSave = () => {
     upsert(formData);
+    // Also sync key fields to Supabase company
+    if (supabaseCompany?.id) {
+      upsertCompanyMutation.mutate({
+        razao_social: formData.razao_social || '',
+        cnpj: formData.cnpj?.replace(/\D/g, '') || '',
+        nome_fantasia: formData.nome_fantasia,
+        cnae: formData.cnae,
+        crt: formData.crt,
+        regime_tributario: formData.regime_tributario,
+        ie: formData.ie,
+        im: formData.im,
+        endereco_logradouro: formData.endereco_logradouro,
+        endereco_nro: formData.endereco_nro,
+        endereco_compl: formData.endereco_compl,
+        endereco_bairro: formData.endereco_bairro,
+        endereco_cep: formData.endereco_cep,
+        endereco_uf: formData.endereco_uf,
+        endereco_cidade: formData.endereco_cidade,
+        telefone: formData.telefone,
+        email_fiscal: formData.email_fiscal,
+        email_financeiro: formData.email_financeiro,
+        site: formData.site,
+        certificado_a1_file_id: certificadoFileId,
+      });
+    }
     refresh();
   };
 
@@ -84,7 +120,7 @@ export default function EmpresaSettingsPage() {
     }));
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -92,14 +128,24 @@ export default function EmpresaSettingsPage() {
     reader.onload = () => {
       const base64 = reader.result as string;
       setLogoPreview(base64);
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         logo_nome: file.name,
         logo_tipo: file.type,
         logo_data: base64,
-      });
+      }));
     };
     reader.readAsDataURL(file);
+
+    // Also upload to Supabase for use in reports/contracts
+    try {
+      const arquivo = await uploadFile.mutateAsync({ file, sensivel: false });
+      if (supabaseCompany?.id) {
+        upsertCompanyMutation.mutate({ logo_file_id: arquivo.id });
+      }
+    } catch {
+      // Local logo still works, Supabase upload is best-effort
+    }
   };
 
   const handleCertificadoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,6 +163,10 @@ export default function EmpresaSettingsPage() {
     try {
       const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
       setCertificadoFileId(arquivo.id);
+      // Also save to Supabase company
+      if (supabaseCompany?.id) {
+        upsertCompanyMutation.mutate({ certificado_a1_file_id: arquivo.id });
+      }
       toast.success("Certificado enviado com sucesso!");
     } catch (err) {
       toast.error("Erro ao enviar certificado para validação");

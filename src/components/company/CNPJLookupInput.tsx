@@ -11,7 +11,7 @@ import {
   lookupCNPJ, 
   mapToCRT, 
   mapToRegimeTributario,
-  formatCNAE,
+  formatCNAEWithDescription,
   type CNPJData 
 } from "@/lib/cnpj-lookup";
 
@@ -66,7 +66,7 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
         onDataFound({
           razao_social: data.razao_social || "",
           nome_fantasia: data.nome_fantasia || "",
-          cnae: data.cnae_fiscal ? formatCNAE(data.cnae_fiscal) : "",
+          cnae: data.cnae_fiscal ? formatCNAEWithDescription(data.cnae_fiscal, data.cnae_fiscal_descricao) : "",
           crt: mapToCRT(data),
           regime_tributario: mapToRegimeTributario(data),
           endereco_logradouro: data.logradouro || "",

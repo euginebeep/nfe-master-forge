@@ -104,3 +104,9 @@ export function formatCNAE(cnae: number): string {
   const str = cnae.toString().padStart(7, '0');
   return `${str.slice(0, 4)}-${str.slice(4, 5)}/${str.slice(5)}`;
 }
+
+// Format CNAE with description
+export function formatCNAEWithDescription(cnae: number, descricao: string): string {
+  const code = formatCNAE(cnae);
+  return descricao ? `${code} - ${descricao}` : code;
+}
