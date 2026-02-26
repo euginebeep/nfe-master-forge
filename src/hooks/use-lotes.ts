@@ -28,7 +28,7 @@ export function useLotes(filters?: { item_id?: string; status?: StatusLote }) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as (EstoqueLote & {
+      return (data as unknown) as (EstoqueLote & {
         item: { id: string; sku_interno: string; descricao_interna: string; tipo_item: string };
         fornecedor: { id: string; razao_social: string; documento: string } | null;
         lote_documentos: LoteDocumento[];
