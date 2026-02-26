@@ -61,25 +61,44 @@ export function useUpsertCompany() {
         if (error) throw error;
         return data;
       } else {
-        // Create new company without RETURNING to avoid SELECT RLS dependency during bootstrap
+        // Try to create; handle duplicate CNPJ from a previous failed attempt
         const newCompanyId = crypto.randomUUID();
         const { error } = await supabase
           .from("company")
           .insert({ ...(company as Company), id: newCompanyId });
 
-        if (error) throw error;
+        let companyIdToLink: string = newCompanyId;
 
-        // Ensure profile exists and is linked to the created company
+        if (error) {
+          if (error.code === '23505' && error.message.includes('company_cnpj_key')) {
+            // Company already exists (orphaned from previous attempt) — reuse it
+            const cnpj = (company as Company).cnpj?.replace(/\D/g, '');
+            if (!cnpj) throw error;
+            const { data: existing } = await supabase
+              .from("company")
+              .select("id")
+              .eq("cnpj", cnpj)
+              .maybeSingle();
+            if (!existing) throw error;
+            companyIdToLink = existing.id as string;
+            // Update with latest data
+            await supabase.from("company").update(company).eq("id", companyIdToLink);
+          } else {
+            throw error;
+          }
+        }
+
+        // Link profile to the company
         const { error: profileError } = await supabase
           .from("profiles")
           .upsert(
-            { id: user.id, company_id: newCompanyId } as any,
+            { id: user.id, company_id: companyIdToLink } as any,
             { onConflict: "id" }
           );
 
         if (profileError) throw profileError;
 
-        return { ...(company as Company), id: newCompanyId };
+        return { ...(company as Company), id: companyIdToLink };
       }
     },
     onSuccess: () => {
