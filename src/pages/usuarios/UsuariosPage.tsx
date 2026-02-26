@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Shield, Plus, Edit, Key, UserCog } from "lucide-react";
+import { Shield, Plus, Edit, Key, UserCog, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +15,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function UsuariosPage() {
-  const { users, isLoading, createUser, updateUser, fetchUserPermissions } = useUsers();
-  const { hasRole } = useAuth();
+  const { users, isLoading, createUser, updateUser, deleteUser, fetchUserPermissions } = useUsers();
+  const { hasRole, user: currentUser } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithProfile | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<ModulePermission[]>([]);
 
@@ -124,7 +127,7 @@ export default function UsuariosPage() {
     {
       key: "actions",
       header: "",
-      className: "w-24",
+      className: "w-32",
       render: (item: UserWithProfile) => (
         <div className="flex gap-1">
           <Button 
@@ -132,6 +135,7 @@ export default function UsuariosPage() {
             size="icon"
             onClick={() => handleEditUser(item)}
             disabled={!isAdmin}
+            title="Editar"
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -140,8 +144,19 @@ export default function UsuariosPage() {
             size="icon"
             onClick={() => handleEditUser(item)}
             disabled={!isAdmin}
+            title="Alterar senha"
           >
             <Key className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => { setUserToDelete(item); setDeleteDialogOpen(true); }}
+            disabled={!isAdmin || item.id === currentUser?.id}
+            title="Excluir"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       )
@@ -284,6 +299,22 @@ export default function UsuariosPage() {
         user={selectedUser}
         existingPermissions={selectedUserPermissions}
         onSave={handleSave}
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Excluir Usuário"
+        description={`Tem certeza que deseja excluir o usuário "${userToDelete?.nome_completo}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        variant="destructive"
+        onConfirm={async () => {
+          if (userToDelete) {
+            await deleteUser(userToDelete.id);
+            setDeleteDialogOpen(false);
+            setUserToDelete(null);
+          }
+        }}
       />
     </div>
   );
