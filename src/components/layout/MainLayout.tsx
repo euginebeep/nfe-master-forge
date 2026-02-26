@@ -28,9 +28,11 @@ export function MainLayout() {
             transition={{ duration: 0.2 }}
             className="flex-1 min-w-0 p-2 sm:p-4 md:p-6 overflow-auto"
           >
-            <CompanyRequiredGuard>
-              <Outlet />
-            </CompanyRequiredGuard>
+            <div className="max-w-7xl mx-auto w-full">
+              <CompanyRequiredGuard>
+                <Outlet />
+              </CompanyRequiredGuard>
+            </div>
           </motion.main>
         </div>
       </div>
