@@ -92,9 +92,9 @@ export function DataTable<T extends object>({
   return (
     <div className="space-y-4">
       {(searchable || actions) && (
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {searchable && (
-            <div className="relative max-w-sm">
+            <div className="relative w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={searchPlaceholder}
@@ -107,7 +107,7 @@ export function DataTable<T extends object>({
               />
             </div>
           )}
-          {actions}
+          <div className="flex items-center gap-2 flex-wrap">{actions}</div>
         </div>
       )}
 
@@ -192,8 +192,8 @@ export function DataTable<T extends object>({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+          <span className="text-muted-foreground text-center sm:text-left">
             Mostrando {(currentPage - 1) * pageSize + 1} a{" "}
             {Math.min(currentPage * pageSize, sortedData.length)} de{" "}
             {sortedData.length} registros
