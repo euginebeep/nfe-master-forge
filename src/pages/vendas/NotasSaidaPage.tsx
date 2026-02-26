@@ -4,6 +4,7 @@ import {
   Send, Download, Trash2, Printer, AlertTriangle, Package, Truck, CreditCard,
   ChevronDown, ChevronUp, FileX, Edit
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,6 +125,7 @@ export default function NotasSaidaPage() {
   const queryClient = useQueryClient();
   const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe } = useNuvemFiscal();
   const { data: company } = useCompany();
+  const navigate = useNavigate();
 
   // Form state
   const [clienteId, setClienteId] = useState("");
@@ -138,7 +140,7 @@ export default function NotasSaidaPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notas_saida")
-        .select("*, entidades(razao_social, nome_fantasia, documento)")
+        .select("*, entidades!notas_saida_cliente_id_fkey(razao_social, nome_fantasia, documento)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -380,7 +382,7 @@ export default function NotasSaidaPage() {
   const openDanfeFromSavedNota = async (notaId: string) => {
     const { data: nota } = await supabase
       .from("notas_saida")
-      .select("*, entidades(razao_social, nome_fantasia, documento, ie)")
+      .select("*, entidades!notas_saida_cliente_id_fkey(razao_social, nome_fantasia, documento, ie)")
       .eq("id", notaId)
       .single();
     if (!nota) return;
@@ -555,7 +557,7 @@ export default function NotasSaidaPage() {
             <SelectItem value="REJEITADA">Rejeitada</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+        <Button onClick={() => navigate("/vendas/emissor-nfe")}>
           <Plus className="h-4 w-4 mr-2" /> Nova NF-e
         </Button>
       </div>
