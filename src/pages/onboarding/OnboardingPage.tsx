@@ -257,11 +257,9 @@ export default function OnboardingWizard() {
               )}
             </div>
 
-            <div className="text-center mt-4">
-              <Button variant="link" size="sm" className="text-muted-foreground" onClick={() => navigate('/')}>
-                Pular configuração por enquanto
-              </Button>
-            </div>
+            <p className="text-center mt-4 text-xs text-muted-foreground">
+              O cadastro da empresa é obrigatório para utilizar o sistema.
+            </p>
           </CardContent>
         </Card>
       </motion.div>

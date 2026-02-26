@@ -18,14 +18,8 @@ export function useCompany() {
         .single();
 
       if (!profile?.company_id) {
-        // Fallback: buscar qualquer company (para retrocompatibilidade)
-        const { data, error } = await supabase
-          .from("company")
-          .select("*")
-          .limit(1)
-          .maybeSingle();
-        if (error) throw error;
-        return data as Company | null;
+        // Sem company_id vinculado → retorna null (onboarding necessário)
+        return null;
       }
 
       const { data, error } = await supabase
