@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
-  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2
+  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,8 +92,14 @@ function formatCNPJ(cnpj: string) {
 // ─── Page ───
 
 export default function SaasDashboardPage() {
+  const [authed, setAuthed] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+
   const [companies, setCompanies] = useState<SaasCompany[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
 
@@ -101,23 +108,57 @@ export default function SaasDashboardPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete"; company: SaasCompany } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Check if already logged in as admin
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: session.user.id, _role: "admin" as any });
+        if (isAdmin) {
+          setAuthed(true);
+        }
+      }
+      setAuthLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+      if (error) { toast.error(error.message); return; }
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: data.user.id, _role: "admin" as any });
+      if (!isAdmin) {
+        toast.error("Acesso restrito a administradores");
+        await supabase.auth.signOut();
+        return;
+      }
+      setAuthed(true);
+      toast.success("Login realizado!");
+    } catch (err) {
+      toast.error("Erro no login");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setAuthed(false);
+    setCompanies([]);
+  };
+
   const fetchCompanies = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("saas-admin", {
-        body: null,
-        headers: {},
-      });
-      
-      // Try with query param approach
       const response = await supabase.functions.invoke("saas-admin?action=list");
-      
       if (response.error) {
         console.error("Error fetching SaaS data:", response.error);
         toast.error("Erro ao carregar dados SaaS");
         return;
       }
-      
       setCompanies(response.data?.companies || []);
     } catch (err) {
       console.error("Error:", err);
@@ -128,8 +169,9 @@ export default function SaasDashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchCompanies();
-  }, [fetchCompanies]);
+    if (authed) fetchCompanies();
+  }, [authed, fetchCompanies]);
+  
 
   const handleAction = async (type: "block" | "unblock" | "delete-company", companyId: string) => {
     setActionLoading(true);
@@ -182,21 +224,70 @@ export default function SaasDashboardPage() {
     return true;
   });
 
+  // ─── Auth Loading ───
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // ─── Login Screen ───
+  if (!authed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 p-3 rounded-full bg-secondary/10 w-fit">
+              <Lock className="h-6 w-6 text-secondary" />
+            </div>
+            <CardTitle className="text-xl">Painel SaaS — Suporte</CardTitle>
+            <p className="text-sm text-muted-foreground">Acesso restrito a administradores do sistema</p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="saas-email">Email</Label>
+                <Input id="saas-email" type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="admin@empresa.com" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="saas-pass">Senha</Label>
+                <Input id="saas-pass" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" required />
+              </div>
+              <Button type="submit" className="w-full" disabled={loginLoading}>
+                {loginLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
+                Entrar
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ─── Main Panel ───
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="page-header">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="page-title flex items-center gap-2">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
             <Crown className="h-6 w-6 text-secondary" />
             Painel SaaS — Gestão de Assinantes
           </h1>
-          <p className="page-description">Controle de empresas cadastradas, assinaturas e usuários do ERP</p>
+          <p className="text-sm text-muted-foreground">Controle de empresas cadastradas, assinaturas e usuários do ERP</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchCompanies} disabled={isLoading}>
-          <RefreshCw className={cn("h-4 w-4 mr-1", isLoading && "animate-spin")} />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={fetchCompanies} disabled={isLoading}>
+            <RefreshCw className={cn("h-4 w-4 mr-1", isLoading && "animate-spin")} />
+            Atualizar
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 mr-1" /> Sair
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -533,6 +624,7 @@ export default function SaasDashboardPage() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

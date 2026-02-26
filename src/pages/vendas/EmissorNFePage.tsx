@@ -107,7 +107,7 @@ export default function EmissorNFePage() {
         .single();
       if (!arquivo?.storage_key) return null;
       const { data } = await supabase.storage
-        .from("arquivos")
+        .from("erp-files")
         .createSignedUrl(arquivo.storage_key, 3600);
       return data?.signedUrl || null;
     },

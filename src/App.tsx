@@ -112,6 +112,11 @@ const App = () => (
                 <Suspense fallback={<PageFallback />}><VerificarOPPage /></Suspense>
               } />
 
+              {/* SaaS Admin Panel — standalone, fora do layout ERP */}
+              <Route path="/saas" element={
+                <Suspense fallback={<PageFallback />}><ErrorBoundary><SaasDashboardPage /></ErrorBoundary></Suspense>
+              } />
+
               {/* Rotas Protegidas */}
               <Route element={
                 <ProtectedRoute>
@@ -188,8 +193,7 @@ const App = () => (
                 <Route path="/chat" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ChatInternoPage /></ErrorBoundary></Suspense>} />
                 {/* Assinatura */}
                 <Route path="/assinatura" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AssinaturaPage /></ErrorBoundary></Suspense>} />
-                {/* SaaS Dashboard */}
-                <Route path="/saas" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><SaasDashboardPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                {/* Usuários — admin only */}
                 {/* Usuários — admin only */}
                 <Route path="/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
