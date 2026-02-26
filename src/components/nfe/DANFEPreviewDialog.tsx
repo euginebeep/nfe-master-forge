@@ -108,24 +108,24 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
 
   const handlePrint = () => {
     if (!printRef.current) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html>
-        <head><title>DANFE - Rascunho</title>
-        <style>
-          * { margin:0; padding:0; box-sizing:border-box; }
-          body { font-family: Arial, sans-serif; font-size: 8pt; color: #000; background: #fff; }
-          @page { size: A4 portrait; margin: 8mm; }
-          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        </style>
-        </head>
-        <body>${printRef.current.innerHTML}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 400);
+    const style = document.createElement("style");
+    style.setAttribute("data-danfe-print", "true");
+    style.textContent = `
+      @media print {
+        body > *:not([data-danfe-print-root]) { display: none !important; }
+        [data-danfe-print-root] { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: #fff; }
+        [data-danfe-print-root] * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @page { size: A4 portrait; margin: 8mm; }
+      }
+    `;
+    document.head.appendChild(style);
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("data-danfe-print-root", "true");
+    wrapper.innerHTML = printRef.current.innerHTML;
+    document.body.appendChild(wrapper);
+    window.print();
+    document.head.removeChild(style);
+    document.body.removeChild(wrapper);
   };
 
   if (!data) return null;
