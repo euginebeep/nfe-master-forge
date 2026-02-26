@@ -52,6 +52,7 @@ export type Database = {
       alertas_executivos: {
         Row: {
           acao_sugerida: string | null
+          company_id: string | null
           created_at: string | null
           dados_contexto: Json | null
           descricao: string
@@ -75,6 +76,7 @@ export type Database = {
         }
         Insert: {
           acao_sugerida?: string | null
+          company_id?: string | null
           created_at?: string | null
           dados_contexto?: Json | null
           descricao: string
@@ -98,6 +100,7 @@ export type Database = {
         }
         Update: {
           acao_sugerida?: string | null
+          company_id?: string | null
           created_at?: string | null
           dados_contexto?: Json | null
           descricao?: string
@@ -124,6 +127,7 @@ export type Database = {
       anomalias_operacionais: {
         Row: {
           analise_observacoes: string | null
+          company_id: string | null
           created_at: string | null
           descricao: string
           desvio_percentual: number | null
@@ -141,6 +145,7 @@ export type Database = {
         }
         Insert: {
           analise_observacoes?: string | null
+          company_id?: string | null
           created_at?: string | null
           descricao: string
           desvio_percentual?: number | null
@@ -158,6 +163,7 @@ export type Database = {
         }
         Update: {
           analise_observacoes?: string | null
+          company_id?: string | null
           created_at?: string | null
           descricao?: string
           desvio_percentual?: number | null
@@ -453,6 +459,7 @@ export type Database = {
       arquivos: {
         Row: {
           checksum_sha256: string | null
+          company_id: string | null
           created_at: string
           id: string
           mime_type: string
@@ -463,6 +470,7 @@ export type Database = {
         }
         Insert: {
           checksum_sha256?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           mime_type: string
@@ -473,6 +481,7 @@ export type Database = {
         }
         Update: {
           checksum_sha256?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           mime_type?: string
@@ -486,6 +495,7 @@ export type Database = {
       audit_log: {
         Row: {
           acao: string
+          company_id: string | null
           created_at: string
           entidade: string
           entidade_id: string | null
@@ -494,6 +504,7 @@ export type Database = {
         }
         Insert: {
           acao: string
+          company_id?: string | null
           created_at?: string
           entidade: string
           entidade_id?: string | null
@@ -502,6 +513,7 @@ export type Database = {
         }
         Update: {
           acao?: string
+          company_id?: string | null
           created_at?: string
           entidade?: string
           entidade_id?: string | null
@@ -512,6 +524,7 @@ export type Database = {
       }
       audit_trail_imutavel: {
         Row: {
+          company_id: string | null
           created_at: string
           dados_anteriores: Json | null
           dados_evento: Json
@@ -531,6 +544,7 @@ export type Database = {
           usuario_nome: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           dados_anteriores?: Json | null
           dados_evento?: Json
@@ -550,6 +564,7 @@ export type Database = {
           usuario_nome?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           dados_anteriores?: Json | null
           dados_evento?: Json
@@ -831,6 +846,7 @@ export type Database = {
       }
       config_capacidade_producao: {
         Row: {
+          company_id: string | null
           encapsuladora_caps_min: number
           fator_eficiencia: number
           id: string
@@ -848,6 +864,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           encapsuladora_caps_min?: number
           fator_eficiencia?: number
           id?: string
@@ -865,6 +882,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           encapsuladora_caps_min?: number
           fator_eficiencia?: number
           id?: string
@@ -885,6 +903,7 @@ export type Database = {
       }
       config_custos_producao: {
         Row: {
+          company_id: string | null
           custo_capsula_vazia: number
           custo_frasco_padrao: number
           custo_hora_operador: number
@@ -898,6 +917,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           custo_capsula_vazia?: number
           custo_frasco_padrao?: number
           custo_hora_operador?: number
@@ -911,6 +931,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           custo_capsula_vazia?: number
           custo_frasco_padrao?: number
           custo_hora_operador?: number
@@ -1000,6 +1021,7 @@ export type Database = {
       contratos_templates: {
         Row: {
           ativo: boolean
+          company_id: string | null
           created_at: string
           descricao: string | null
           id: string
@@ -1011,6 +1033,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          company_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -1022,6 +1045,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          company_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -2310,6 +2334,7 @@ export type Database = {
         Row: {
           alertas_regulatorios: number | null
           anomalias_criticas: number | null
+          company_id: string | null
           created_at: string | null
           custo_medio_unitario: number | null
           custo_total_producao: number | null
@@ -2329,6 +2354,7 @@ export type Database = {
         Insert: {
           alertas_regulatorios?: number | null
           anomalias_criticas?: number | null
+          company_id?: string | null
           created_at?: string | null
           custo_medio_unitario?: number | null
           custo_total_producao?: number | null
@@ -2348,6 +2374,7 @@ export type Database = {
         Update: {
           alertas_regulatorios?: number | null
           anomalias_criticas?: number | null
+          company_id?: string | null
           created_at?: string | null
           custo_medio_unitario?: number | null
           custo_total_producao?: number | null
@@ -2369,6 +2396,7 @@ export type Database = {
       log_validacoes_anvisa: {
         Row: {
           acao_sistema: string | null
+          company_id: string | null
           created_at: string
           dados_validacao: Json | null
           descricao: string
@@ -2383,6 +2411,7 @@ export type Database = {
         }
         Insert: {
           acao_sistema?: string | null
+          company_id?: string | null
           created_at?: string
           dados_validacao?: Json | null
           descricao: string
@@ -2397,6 +2426,7 @@ export type Database = {
         }
         Update: {
           acao_sistema?: string | null
+          company_id?: string | null
           created_at?: string
           dados_validacao?: Json | null
           descricao?: string
@@ -4579,6 +4609,7 @@ export type Database = {
       previsoes_producao: {
         Row: {
           alerta: string | null
+          company_id: string | null
           confianca_percentual: number | null
           created_at: string | null
           dados_historico: Json | null
@@ -4594,6 +4625,7 @@ export type Database = {
         }
         Insert: {
           alerta?: string | null
+          company_id?: string | null
           confianca_percentual?: number | null
           created_at?: string | null
           dados_historico?: Json | null
@@ -4609,6 +4641,7 @@ export type Database = {
         }
         Update: {
           alerta?: string | null
+          company_id?: string | null
           confianca_percentual?: number | null
           created_at?: string | null
           dados_historico?: Json | null
@@ -4996,6 +5029,7 @@ export type Database = {
           alegacoes_proibidas: string[] | null
           ativo: boolean
           avisos_rotulo: string[] | null
+          company_id: string | null
           created_at: string
           data_publicacao: string | null
           dose_maxima_diaria_mg: number | null
@@ -5012,6 +5046,7 @@ export type Database = {
           alegacoes_proibidas?: string[] | null
           ativo?: boolean
           avisos_rotulo?: string[] | null
+          company_id?: string | null
           created_at?: string
           data_publicacao?: string | null
           dose_maxima_diaria_mg?: number | null
@@ -5028,6 +5063,7 @@ export type Database = {
           alegacoes_proibidas?: string[] | null
           ativo?: boolean
           avisos_rotulo?: string[] | null
+          company_id?: string | null
           created_at?: string
           data_publicacao?: string | null
           dose_maxima_diaria_mg?: number | null
@@ -5043,6 +5079,7 @@ export type Database = {
       }
       responsaveis_tecnicos: {
         Row: {
+          company_id: string | null
           cpf: string
           created_at: string
           created_by: string | null
@@ -5059,6 +5096,7 @@ export type Database = {
           validade_registro: string
         }
         Insert: {
+          company_id?: string | null
           cpf: string
           created_at?: string
           created_by?: string | null
@@ -5075,6 +5113,7 @@ export type Database = {
           validade_registro: string
         }
         Update: {
+          company_id?: string | null
           cpf?: string
           created_at?: string
           created_by?: string | null
@@ -5102,6 +5141,7 @@ export type Database = {
       }
       simulacoes_producao: {
         Row: {
+          company_id: string | null
           created_at: string
           custo_mao_obra_estimado: number
           custo_mp_estimado: number
@@ -5128,6 +5168,7 @@ export type Database = {
           tempo_total_estimado: number
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           custo_mao_obra_estimado: number
           custo_mp_estimado: number
@@ -5154,6 +5195,7 @@ export type Database = {
           tempo_total_estimado: number
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           custo_mao_obra_estimado?: number
           custo_mp_estimado?: number
@@ -5185,6 +5227,7 @@ export type Database = {
         Row: {
           aprovado_em: string | null
           aprovado_por: string | null
+          company_id: string | null
           created_at: string | null
           dados_analise: Json | null
           descricao: string
@@ -5204,6 +5247,7 @@ export type Database = {
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          company_id?: string | null
           created_at?: string | null
           dados_analise?: Json | null
           descricao: string
@@ -5223,6 +5267,7 @@ export type Database = {
         Update: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          company_id?: string | null
           created_at?: string | null
           dados_analise?: Json | null
           descricao?: string
@@ -5279,6 +5324,7 @@ export type Database = {
       trilha_auditoria_tecnica: {
         Row: {
           acao: string
+          company_id: string | null
           dados_anteriores: Json | null
           dados_novos: Json | null
           diff_resumo: string | null
@@ -5295,6 +5341,7 @@ export type Database = {
         }
         Insert: {
           acao: string
+          company_id?: string | null
           dados_anteriores?: Json | null
           dados_novos?: Json | null
           diff_resumo?: string | null
@@ -5311,6 +5358,7 @@ export type Database = {
         }
         Update: {
           acao?: string
+          company_id?: string | null
           dados_anteriores?: Json | null
           dados_novos?: Json | null
           diff_resumo?: string | null
@@ -5386,6 +5434,7 @@ export type Database = {
           alterado_em: string | null
           alterado_por: string | null
           ativo: boolean | null
+          company_id: string | null
           dados: Json
           id: string
           motivo_alteracao: string | null
@@ -5396,6 +5445,7 @@ export type Database = {
           alterado_em?: string | null
           alterado_por?: string | null
           ativo?: boolean | null
+          company_id?: string | null
           dados: Json
           id?: string
           motivo_alteracao?: string | null
@@ -5406,6 +5456,7 @@ export type Database = {
           alterado_em?: string | null
           alterado_por?: string | null
           ativo?: boolean | null
+          company_id?: string | null
           dados?: Json
           id?: string
           motivo_alteracao?: string | null
@@ -5603,6 +5654,9 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      custo_op_belongs_to_tenant: { Args: { _cid: string }; Returns: boolean }
+      entidade_belongs_to_tenant: { Args: { _eid: string }; Returns: boolean }
+      formula_belongs_to_tenant: { Args: { _fid: string }; Returns: boolean }
       gerar_codigo_orcamento: { Args: never; Returns: string }
       gerar_codigo_pedido: { Args: never; Returns: string }
       gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }
@@ -5626,8 +5680,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
+      lote_belongs_to_tenant: { Args: { _lid: string }; Returns: boolean }
+      nota_entrada_belongs_to_tenant: {
+        Args: { _nid: string }
+        Returns: boolean
+      }
+      nota_saida_belongs_to_tenant: { Args: { _nid: string }; Returns: boolean }
       notify_expiring_lots: { Args: never; Returns: undefined }
       notify_low_stock: { Args: never; Returns: undefined }
+      op_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
+      orcamento_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
+      pedido_belongs_to_tenant: { Args: { _pid: string }; Returns: boolean }
       registrar_evento_auditoria: {
         Args: {
           p_dados_anteriores?: Json
