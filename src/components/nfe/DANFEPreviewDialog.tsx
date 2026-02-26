@@ -24,6 +24,8 @@ interface DANFEData {
   // Emitente
   emit_razao: string;
   emit_fantasia?: string;
+  emit_logo_url?: string;
+  emit_site?: string;
   emit_logradouro?: string;
   emit_numero?: string;
   emit_bairro?: string;
@@ -209,19 +211,22 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
                 <tr>
                   {/* Emitente */}
                   <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px 6px" }}>
-                    <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "2px" }}>
-                      {data.emit_razao}
-                    </div>
-                    {data.emit_fantasia && data.emit_fantasia !== data.emit_razao && (
-                      <div style={{ fontSize: "7pt", marginBottom: "1px" }}>{data.emit_fantasia}</div>
-                    )}
-                    <div style={{ fontSize: "6.5pt", lineHeight: 1.4 }}>
-                      {data.emit_logradouro && <>{data.emit_logradouro}{data.emit_numero ? `, ${data.emit_numero}` : ""}<br /></>}
-                      {data.emit_bairro && <>{data.emit_bairro}<br /></>}
-                      {data.emit_cidade && <>{data.emit_cidade} - {data.emit_uf}<br /></>}
-                      {data.emit_cep && <>CEP: {data.emit_cep}<br /></>}
-                      {data.emit_telefone && <>TELEFONE: {data.emit_telefone}<br /></>}
-                      {data.emit_email && <>E-MAIL: {data.emit_email}</>}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+                      {data.emit_logo_url && (
+                        <img src={data.emit_logo_url} alt="Logo" style={{ maxHeight: "50px", maxWidth: "80px", objectFit: "contain" }} />
+                      )}
+                      <div>
+                        <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "2px" }}>
+                          {data.emit_razao}
+                        </div>
+                        <div style={{ fontSize: "6.5pt", lineHeight: 1.4 }}>
+                          {data.emit_logradouro && <>{data.emit_logradouro}{data.emit_numero ? `, ${data.emit_numero}` : ""}<br /></>}
+                          {data.emit_bairro && <>{data.emit_bairro} – {data.emit_cidade} – {data.emit_uf}<br /></>}
+                          {data.emit_cep && <>CEP: {data.emit_cep}<br /></>}
+                          {data.emit_telefone && <>FONE: {data.emit_telefone}<br /></>}
+                          {data.emit_site && <>{data.emit_site}<br /></>}
+                        </div>
+                      </div>
                     </div>
                   </td>
 
