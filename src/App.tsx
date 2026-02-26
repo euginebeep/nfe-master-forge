@@ -73,6 +73,7 @@ const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
 const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
 const AssinaturaPage = lazy(() => import("./pages/assinatura/AssinaturaPage"));
+const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
 
 import { queryClient } from "./lib/query-client";
 
@@ -187,6 +188,8 @@ const App = () => (
                 <Route path="/chat" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ChatInternoPage /></ErrorBoundary></Suspense>} />
                 {/* Assinatura */}
                 <Route path="/assinatura" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AssinaturaPage /></ErrorBoundary></Suspense>} />
+                {/* SaaS Dashboard */}
+                <Route path="/saas" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><SaasDashboardPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Usuários — admin only */}
                 <Route path="/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
