@@ -95,6 +95,25 @@ export default function EmissorNFePage() {
   const [itens, setItens] = useState<NotaItem[]>([]);
   const [transportadora, setTransportadora] = useState({ razao: "", cnpj: "", placa: "", uf: "", frete: "0" });
 
+  // Busca URL do logo da empresa
+  const { data: logoUrl } = useQuery({
+    queryKey: ["company-logo-url-emissor", company?.logo_file_id],
+    queryFn: async () => {
+      if (!company?.logo_file_id) return null;
+      const { data: arquivo } = await supabase
+        .from("arquivos")
+        .select("storage_key")
+        .eq("id", company.logo_file_id)
+        .single();
+      if (!arquivo?.storage_key) return null;
+      const { data } = await supabase.storage
+        .from("arquivos")
+        .createSignedUrl(arquivo.storage_key, 3600);
+      return data?.signedUrl || null;
+    },
+    enabled: !!company?.logo_file_id,
+  });
+
   const { data: clientes } = useQuery({
     queryKey: ["entidades-clientes-emissor"],
     queryFn: async () => {
@@ -524,13 +543,19 @@ export default function EmissorNFePage() {
                     <tbody>
                       <tr>
                         <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px 6px" }}>
-                          <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "2px" }}>{company?.razao_social || "—"}</div>
-                          {company?.nome_fantasia && <div style={{ fontSize: "7pt" }}>{company.nome_fantasia}</div>}
-                          <div style={{ fontSize: "6.5pt", lineHeight: 1.4 }}>
-                            {company?.endereco_logradouro && <>{company.endereco_logradouro}{company.endereco_nro ? `, ${company.endereco_nro}` : ""}<br /></>}
-                            {company?.endereco_bairro && <>{company.endereco_bairro} – {company.endereco_cidade} – {company.endereco_uf}<br /></>}
-                            CEP: {company?.endereco_cep} | FONE: {company?.telefone}<br />
-                            E-MAIL: {company?.email_fiscal}
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+                            {logoUrl && (
+                              <img src={logoUrl} alt="Logo" style={{ maxHeight: "50px", maxWidth: "80px", objectFit: "contain" }} />
+                            )}
+                            <div>
+                              <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "2px" }}>{company?.razao_social || "—"}</div>
+                              <div style={{ fontSize: "6.5pt", lineHeight: 1.4 }}>
+                                {company?.endereco_logradouro && <>{company.endereco_logradouro}{company.endereco_nro ? `, ${company.endereco_nro}` : ""}<br /></>}
+                                {company?.endereco_bairro && <>{company.endereco_bairro} – {company.endereco_cidade} – {company.endereco_uf}<br /></>}
+                                CEP: {company?.endereco_cep} | FONE: {company?.telefone}<br />
+                                {company?.site && <>{company.site}<br /></>}
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td style={{ ...cellStyle, width: "20%", textAlign: "center", verticalAlign: "top", padding: "4px" }}>
