@@ -170,38 +170,38 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2 space-y-2">
                 <Label>Logradouro</Label>
-                <Input value={form.logradouro} onChange={(e) => setForm({ ...form, logradouro: e.target.value })} />
+                <Input value={form.logradouro} onChange={(e) => setForm({ ...form, logradouro: e.target.value })} placeholder="Insira a rua, avenida ou logradouro" />
               </div>
               <div className="space-y-2">
                 <Label>Número</Label>
-                <Input value={form.nro} onChange={(e) => setForm({ ...form, nro: e.target.value })} />
+                <Input value={form.nro} onChange={(e) => setForm({ ...form, nro: e.target.value })} placeholder="Insira o número" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Complemento</Label>
-                <Input value={form.compl} onChange={(e) => setForm({ ...form, compl: e.target.value })} />
+                <Input value={form.compl} onChange={(e) => setForm({ ...form, compl: e.target.value })} placeholder="Insira o complemento (sala, andar, bloco)" />
               </div>
               <div className="space-y-2">
                 <Label>Bairro</Label>
-                <Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+                <Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} placeholder="Insira o bairro" />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Cidade</Label>
-                <Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+                <Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} placeholder="Insira a cidade" />
               </div>
               <div className="space-y-2">
                 <Label>UF</Label>
                 {isForeign ? (
-                  <Input value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} placeholder="Estado/Província" />
+                  <Input value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} placeholder="Insira o estado ou província" />
                 ) : (
                   <Select value={form.uf} onValueChange={(v) => setForm({ ...form, uf: v })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
+                      <SelectValue placeholder="Selecione o estado" />
                     </SelectTrigger>
                     <SelectContent>
                       {UF_OPTIONS.map((uf) => (
@@ -213,23 +213,23 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
               </div>
               <div className="space-y-2">
                 <Label>País {isForeign && <span className="text-destructive">*</span>}</Label>
-                <Input value={form.pais} onChange={(e) => setForm({ ...form, pais: e.target.value })} placeholder={isForeign ? "Digite o país" : "Brasil"} />
+                <Input value={form.pais} onChange={(e) => setForm({ ...form, pais: e.target.value })} placeholder={isForeign ? "Insira o país" : "Brasil"} />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Referência</Label>
-              <Input value={form.referencia} onChange={(e) => setForm({ ...form, referencia: e.target.value })} placeholder="Próximo a..." />
+              <Input value={form.referencia} onChange={(e) => setForm({ ...form, referencia: e.target.value })} placeholder="Insira um ponto de referência (ex: Próximo ao mercado)" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Contato Local (Nome)</Label>
-                <Input value={form.contato_local_nome} onChange={(e) => setForm({ ...form, contato_local_nome: e.target.value })} />
+                <Input value={form.contato_local_nome} onChange={(e) => setForm({ ...form, contato_local_nome: e.target.value })} placeholder="Insira o nome do responsável no local" />
               </div>
               <div className="space-y-2">
                 <Label>Contato Local (Telefone)</Label>
-                <Input value={form.contato_local_fone} onChange={(e) => setForm({ ...form, contato_local_fone: e.target.value })} />
+                <Input value={form.contato_local_fone} onChange={(e) => setForm({ ...form, contato_local_fone: e.target.value })} placeholder="Insira o telefone do contato local" />
               </div>
             </div>
 

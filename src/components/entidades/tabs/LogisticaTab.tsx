@@ -78,6 +78,7 @@ export function LogisticaTab({ data, onChange }: LogisticaTabProps) {
             min="0"
             value={data.prazo_medio_entrega_dias ?? ''}
             onChange={(e) => onChange("prazo_medio_entrega_dias", e.target.value ? parseInt(e.target.value) : null)}
+            placeholder="Insira o prazo médio em dias"
           />
         </div>
         <div className="space-y-2">
@@ -88,6 +89,7 @@ export function LogisticaTab({ data, onChange }: LogisticaTabProps) {
             step="0.01"
             value={data.pedido_minimo ?? ''}
             onChange={(e) => onChange("pedido_minimo", e.target.value ? parseFloat(e.target.value) : null)}
+            placeholder="Insira o valor mínimo do pedido"
           />
         </div>
         <div className="space-y-2">
@@ -97,6 +99,7 @@ export function LogisticaTab({ data, onChange }: LogisticaTabProps) {
             min="0"
             value={data.lead_time_dias ?? ''}
             onChange={(e) => onChange("lead_time_dias", e.target.value ? parseInt(e.target.value) : null)}
+            placeholder="Insira o lead time em dias"
           />
           <p className="text-xs text-muted-foreground">
             Tempo médio entre pedido e entrega

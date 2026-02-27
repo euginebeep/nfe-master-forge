@@ -116,6 +116,7 @@ export function ComercialCRMTab({ data, onChange }: ComercialCRMTabProps) {
             step="0.01"
             value={data.desconto_maximo_percent}
             onChange={(e) => onChange("desconto_maximo_percent", parseFloat(e.target.value) || 0)}
+            placeholder="Insira o desconto máximo permitido"
           />
         </div>
         <div className="space-y-2">
@@ -127,6 +128,7 @@ export function ComercialCRMTab({ data, onChange }: ComercialCRMTabProps) {
             step="0.01"
             value={data.comissao_padrao_percent}
             onChange={(e) => onChange("comissao_padrao_percent", parseFloat(e.target.value) || 0)}
+            placeholder="Insira o percentual de comissão"
           />
         </div>
       </div>
