@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Building2, Save, Upload, Search, Loader2 } from "lucide-react";
+import { Building2, Save, Upload, Search, Loader2, FileCheck, X, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ export default function EmpresaSettingsPage() {
   const [certificadoNome, setCertificadoNome] = useState<string | null>(null);
   const [certificadoFileId, setCertificadoFileId] = useState<string | null>(null);
   const [certUploading, setCertUploading] = useState(false);
+  const [certDaysUntilExpiry, setCertDaysUntilExpiry] = useState<number | null>(null);
   const uploadFile = useUploadFile();
 
   useEffect(() => {
@@ -80,10 +81,22 @@ export default function EmpresaSettingsPage() {
     }
   }, [company, supabaseCompany]);
 
-  // Load certificate file ID from Supabase company
+  // Load certificate file ID and name from Supabase company
   useEffect(() => {
     if (supabaseCompany?.certificado_a1_file_id) {
       setCertificadoFileId(supabaseCompany.certificado_a1_file_id);
+      // Fetch the original file name from arquivos table
+      const fetchCertName = async () => {
+        const { data } = await supabase
+          .from("arquivos")
+          .select("nome_original")
+          .eq("id", supabaseCompany.certificado_a1_file_id!)
+          .single();
+        if (data?.nome_original) {
+          setCertificadoNome(data.nome_original);
+        }
+      };
+      fetchCertName();
     }
   }, [supabaseCompany]);
 
@@ -484,48 +497,113 @@ export default function EmpresaSettingsPage() {
             <CardTitle>Certificado Digital A1</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Certificado (PFX/P12)</Label>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                  {certificadoNome && (
-                    <span className="text-sm text-muted-foreground break-all">{certificadoNome}</span>
-                  )}
-                  {certUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  <Label htmlFor="cert-upload" className="cursor-pointer w-full sm:w-auto">
-                    <div className="border-2 border-dashed rounded-lg px-4 py-2 text-center hover:border-primary transition-colors">
-                      <Upload className="h-4 w-4 mx-auto text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">Upload</p>
-                    </div>
-                  </Label>
-                  <input
-                    id="cert-upload"
-                    type="file"
-                    accept=".pfx,.p12"
-                    className="hidden"
-                    onChange={handleCertificadoUpload}
+            {certificadoFileId ? (
+              /* Certificado vinculado — mostrar nome e opção de remover */
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                  <FileCheck className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{certificadoNome || "Certificado Digital A1"}</p>
+                    <p className="text-xs text-muted-foreground">Certificado vinculado ✓</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0"
+                    onClick={() => {
+                      setCertificadoFileId(null);
+                      setCertificadoNome(null);
+                      setCertDaysUntilExpiry(null);
+                      setFormData(prev => ({ ...prev, certificado_nome: undefined, certificado_tipo: undefined }));
+                      // Also clear from Supabase company
+                      if (supabaseCompany?.id) {
+                        upsertCompanyMutation.mutate({ certificado_a1_file_id: null });
+                      }
+                      toast.success("Certificado removido");
+                    }}
+                    title="Remover certificado"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Alerta de expiração */}
+                {certDaysUntilExpiry !== null && certDaysUntilExpiry <= 30 && (
+                  <div className={`flex items-center gap-2 p-3 rounded-lg border ${
+                    certDaysUntilExpiry < 0
+                      ? "bg-destructive/10 border-destructive/30 text-destructive"
+                      : "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400"
+                  }`}>
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <p className="text-sm font-medium">
+                      {certDaysUntilExpiry < 0
+                        ? `Certificado expirado há ${Math.abs(certDaysUntilExpiry)} dias!`
+                        : `Certificado expira em ${certDaysUntilExpiry} dias — renove em breve!`
+                      }
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Senha do Certificado</Label>
+                    <Input
+                      type="password"
+                      value={formData.certificado_senha || ""}
+                      onChange={(e) => setFormData({ ...formData, certificado_senha: e.target.value })}
+                      placeholder="********"
+                    />
+                  </div>
+                </div>
+
+                {/* Certificate Test Button */}
+                <div className="max-w-sm">
+                  <CertificateTestButton
+                    certificateFileId={certificadoFileId}
+                    certificatePassword={formData.certificado_senha}
+                    companyCnpj={formData.cnpj}
+                    onTestResult={(result) => {
+                      if (result?.daysUntilExpiry !== undefined) {
+                        setCertDaysUntilExpiry(result.daysUntilExpiry);
+                      }
+                    }}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Senha do Certificado</Label>
-                <Input
-                  type="password"
-                  value={formData.certificado_senha || ""}
-                  onChange={(e) => setFormData({ ...formData, certificado_senha: e.target.value })}
-                  placeholder="********"
-                />
+            ) : (
+              /* Sem certificado — mostrar upload */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Senha do Certificado *</Label>
+                  <Input
+                    type="password"
+                    value={formData.certificado_senha || ""}
+                    onChange={(e) => setFormData({ ...formData, certificado_senha: e.target.value })}
+                    placeholder="Informe a senha antes de enviar"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Certificado (PFX/P12)</Label>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    {certUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                    <Label htmlFor="cert-upload" className="cursor-pointer w-full sm:w-auto">
+                      <div className="border-2 border-dashed rounded-lg px-4 py-2 text-center hover:border-primary transition-colors">
+                        <Upload className="h-4 w-4 mx-auto text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">Upload PFX/P12</p>
+                      </div>
+                    </Label>
+                    <input
+                      id="cert-upload"
+                      type="file"
+                      accept=".pfx,.p12"
+                      className="hidden"
+                      onChange={handleCertificadoUpload}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* Certificate Test Button */}
-            <div className="max-w-sm">
-              <CertificateTestButton
-                certificateFileId={certificadoFileId}
-                certificatePassword={formData.certificado_senha}
-                companyCnpj={formData.cnpj}
-              />
-            </div>
+            )}
           </CardContent>
         </Card>
 
