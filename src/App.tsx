@@ -75,6 +75,8 @@ const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
 const AssinaturaPage = lazy(() => import("./pages/assinatura/AssinaturaPage"));
 const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
 const InstallPage = lazy(() => import("./pages/install/InstallPage"));
+const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
+const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
 
 import { queryClient } from "./lib/query-client";
 
@@ -97,6 +99,8 @@ const App = () => (
             <Routes>
               {/* Auth - público */}
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/termos-de-uso" element={<Suspense fallback={<PageFallback />}><TermosUsoPage /></Suspense>} />
+              <Route path="/politica-de-privacidade" element={<Suspense fallback={<PageFallback />}><PoliticaPrivacidadePage /></Suspense>} />
 
               {/* Onboarding */}
               <Route path="/onboarding" element={
