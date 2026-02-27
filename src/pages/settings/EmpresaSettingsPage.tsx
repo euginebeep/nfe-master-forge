@@ -35,7 +35,9 @@ export default function EmpresaSettingsPage() {
   const uploadFile = useUploadFile();
 
   useEffect(() => {
-    if (company) {
+    const localHasData = company && company.cnpj && company.cnpj.trim().length > 0;
+
+    if (localHasData) {
       setFormData(company);
       if (company.logo_data) {
         setLogoPreview(company.logo_data);
@@ -43,8 +45,8 @@ export default function EmpresaSettingsPage() {
       if (company.certificado_nome) {
         setCertificadoNome(company.certificado_nome);
       }
-    } else if (supabaseCompany && Object.keys(formData).length === 0) {
-      // Fallback: populate from database when localStorage is empty (e.g. different device)
+    } else if (supabaseCompany && supabaseCompany.cnpj) {
+      // Fallback: populate from database when localStorage is empty/blank (e.g. different device)
       const dbData: Partial<LocalCompany> = {
         razao_social: supabaseCompany.razao_social || '',
         nome_fantasia: supabaseCompany.nome_fantasia || '',
@@ -74,6 +76,7 @@ export default function EmpresaSettingsPage() {
       setFormData(dbData);
       // Also persist to localStorage for future use on this device
       upsert(dbData);
+      refresh();
     }
   }, [company, supabaseCompany]);
 
