@@ -232,7 +232,7 @@ export function AppSidebar() {
       <Sidebar className={cn("border-r border-sidebar-border", collapsed ? "w-16" : "w-64")} collapsible="icon">
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
           <Link to="/" className="flex items-center gap-3 px-4 py-4">
-            <img src="/brainx-logo.png" alt="BrainX" className="w-10 h-10 object-contain rounded" />
+            <img src="/brainx-logo.png" alt="BrainX" className="w-10 h-10 object-contain rounded" loading="lazy" />
             {!collapsed &&
             <div className="flex flex-col">
                 <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX</span>
@@ -263,7 +263,7 @@ export function AppSidebar() {
 
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
           <Link to="/" className="flex items-center gap-3 px-4 py-4">
-            <img src="/brainx-logo.png" alt="BrainX" className="w-10 h-10 object-contain rounded" />
+            <img src="/brainx-logo.png" alt="BrainX" className="w-10 h-10 object-contain rounded" loading="lazy" />
             {!collapsed &&
             <div className="flex flex-col">
                 <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX</span>

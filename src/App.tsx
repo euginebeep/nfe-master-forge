@@ -10,6 +10,7 @@ import { GlobalSearchDialog } from "./components/search/GlobalSearchDialog";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoadingSpinner } from "./components/ui/loading-spinner";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Auth (not lazy - needed immediately)
 import AuthPage from "./components/auth/AuthPage";
@@ -94,6 +95,7 @@ const App = () => (
         <Sonner />
         <CentralToastProvider />
         <BrowserRouter>
+          <AuthProvider>
           <GlobalSearchDialog />
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>
@@ -210,6 +212,7 @@ const App = () => (
               <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />
             </Routes>
           </Suspense>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
