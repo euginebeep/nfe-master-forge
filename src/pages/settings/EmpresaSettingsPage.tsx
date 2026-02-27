@@ -43,8 +43,39 @@ export default function EmpresaSettingsPage() {
       if (company.certificado_nome) {
         setCertificadoNome(company.certificado_nome);
       }
+    } else if (supabaseCompany && Object.keys(formData).length === 0) {
+      // Fallback: populate from database when localStorage is empty (e.g. different device)
+      const dbData: Partial<LocalCompany> = {
+        razao_social: supabaseCompany.razao_social || '',
+        nome_fantasia: supabaseCompany.nome_fantasia || '',
+        cnpj: supabaseCompany.cnpj || '',
+        ie: supabaseCompany.ie || '',
+        im: supabaseCompany.im || '',
+        cnae: supabaseCompany.cnae || '',
+        crt: supabaseCompany.crt || '',
+        regime_tributario: supabaseCompany.regime_tributario || '',
+        endereco_logradouro: supabaseCompany.endereco_logradouro || '',
+        endereco_nro: supabaseCompany.endereco_nro || '',
+        endereco_compl: supabaseCompany.endereco_compl || '',
+        endereco_bairro: supabaseCompany.endereco_bairro || '',
+        endereco_cidade: supabaseCompany.endereco_cidade || '',
+        endereco_uf: supabaseCompany.endereco_uf || '',
+        endereco_cep: supabaseCompany.endereco_cep || '',
+        telefone: supabaseCompany.telefone || '',
+        email_fiscal: supabaseCompany.email_fiscal || '',
+        email_financeiro: supabaseCompany.email_financeiro || '',
+        site: supabaseCompany.site || '',
+        nfe_ambiente: (supabaseCompany.nfe_ambiente as 'HOMOLOGACAO' | 'PRODUCAO') || undefined,
+        nfe_serie_padrao: supabaseCompany.nfe_serie_padrao || undefined,
+        nfe_numero_inicial: supabaseCompany.nfe_numero_inicial || undefined,
+        csc_idtoken: supabaseCompany.csc_idtoken || '',
+        csc_token: supabaseCompany.csc_token || '',
+      };
+      setFormData(dbData);
+      // Also persist to localStorage for future use on this device
+      upsert(dbData);
     }
-  }, [company]);
+  }, [company, supabaseCompany]);
 
   // Load certificate file ID from Supabase company
   useEffect(() => {
