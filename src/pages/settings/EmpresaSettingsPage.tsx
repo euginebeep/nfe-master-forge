@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Building2, Save, Upload, Search, Loader2, FileCheck, X, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const UFS = [
 ];
 
 export default function EmpresaSettingsPage() {
+  const navigate = useNavigate();
   const { data: company, isLoading, refresh } = useLocalCompany();
   const { data: supabaseCompany } = useCompany();
   const upsertCompanyMutation = useUpsertCompany();
@@ -151,10 +153,14 @@ export default function EmpresaSettingsPage() {
   }, [certificadoFileId, formData.certificado_senha, certAutoValidated, formData.cnpj]);
 
   const handleSave = () => {
+    if (!formData.razao_social || !formData.cnpj) {
+      toast.error("Preencha pelo menos Razão Social e CNPJ para salvar no sistema");
+      return;
+    }
+
     upsert(formData);
-    // Always sync to database (creates if first time, updates if exists)
-    if (formData.razao_social && formData.cnpj) {
-      upsertCompanyMutation.mutate({
+    upsertCompanyMutation.mutate(
+      {
         razao_social: formData.razao_social || '',
         cnpj: formData.cnpj?.replace(/\D/g, '') || '',
         nome_fantasia: formData.nome_fantasia,
@@ -175,10 +181,16 @@ export default function EmpresaSettingsPage() {
         email_financeiro: formData.email_financeiro,
         site: formData.site,
         certificado_a1_file_id: certificadoFileId,
-      });
-    } else {
-      toast.error("Preencha pelo menos Razão Social e CNPJ para salvar no sistema");
-    }
+      },
+      {
+        onSuccess: () => {
+          navigate("/");
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || "Erro ao salvar configurações da empresa");
+        },
+      }
+    );
     refresh();
   };
 
