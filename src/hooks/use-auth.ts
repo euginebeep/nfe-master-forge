@@ -1,309 +1,83 @@
-import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import type { User, Session } from '@supabase/supabase-js';
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
-type AppDepartamento = 'DIRETORIA' | 'COMERCIAL' | 'COMPRAS' | 'FINANCEIRO' | 'ESTOQUE' | 'PRODUCAO' | 'QUALIDADE' | 'RH' | 'TI';
+export type { UserProfile, UserPermission, AuthState } from '@/contexts/AuthContext';
 
-export interface UserProfile {
-  id: string;
-  nome_completo: string;
-  cargo: string | null;
-  departamento: AppDepartamento | null;
-  avatar_url: string | null;
-  telefone: string | null;
-  sexo: 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO' | null;
-  data_nascimento: string | null;
-}
-
-export interface UserPermission {
-  modulo: string;
-  pode_visualizar: boolean;
-  pode_criar: boolean;
-  pode_editar: boolean;
-  pode_excluir: boolean;
-}
-
-export interface AuthState {
-  user: User | null;
-  session: Session | null;
-  profile: UserProfile | null;
-  role: AppRole | null;
-  permissions: UserPermission[];
-  isLoading: boolean;
-  isAuthenticated: boolean;
-}
-
+/**
+ * Hook de autenticação que consome o AuthContext compartilhado.
+ * Todas as chamadas de API são feitas UMA ÚNICA VEZ no AuthProvider,
+ * eliminando fetches duplicados entre componentes.
+ */
 export function useAuth() {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    session: null,
-    profile: null,
-    role: null,
-    permissions: [],
-    isLoading: true,
-    isAuthenticated: false,
-  });
+  const ctx = useAuthContext();
   const navigate = useNavigate();
 
-  // Fetch user profile, role and permissions
-  const fetchUserData = useCallback(async (userId: string) => {
-    try {
-      // Fetch profile, role, and permissions in parallel
-      const [profileRes, roleRes, permissionsRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).single(),
-        supabase.rpc('get_user_role', { _user_id: userId }),
-        supabase.from('user_permissions').select('*').eq('user_id', userId),
-      ]);
-
-      if (profileRes.error && profileRes.error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileRes.error);
-      }
-      if (roleRes.error) {
-        console.error('Error fetching role:', roleRes.error);
-      }
-
-      const role = (roleRes.data as AppRole) || 'visualizador';
-      const permissions: UserPermission[] = (permissionsRes.data || []).map((p: any) => ({
-        modulo: p.modulo,
-        pode_visualizar: p.pode_visualizar ?? false,
-        pode_criar: p.pode_criar ?? false,
-        pode_editar: p.pode_editar ?? false,
-        pode_excluir: p.pode_excluir ?? false,
-      }));
-
-      return {
-        profile: profileRes.data as UserProfile | null,
-        role,
-        permissions,
-      };
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      return { profile: null, role: 'visualizador' as AppRole, permissions: [] };
-    }
-  }, []);
-
-  // Atualiza ultimo_acesso no banco ao fazer login
-  const updateLastAccess = async (userId: string) => {
-    try {
-      await supabase.rpc('update_ultimo_acesso', { p_user_id: userId });
-    } catch (e) {
-      // silencioso — não deve interromper o fluxo de auth
-    }
-  };
-
-  // Initialize auth state — separamos carga inicial (controla isLoading) de mudanças contínuas
-  useEffect(() => {
-    let mounted = true;
-
-    // Listener para mudanças CONTÍNUAS de auth (NÃO controla isLoading)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!mounted) return;
-
-        if (session?.user) {
-          setTimeout(async () => {
-            if (!mounted) return;
-            if (event === 'SIGNED_IN') {
-              await updateLastAccess(session.user.id);
-            }
-            const { profile, role, permissions } = await fetchUserData(session.user.id);
-            setState({
-              user: session.user,
-              session,
-              profile,
-              role,
-              permissions,
-              isLoading: false,
-              isAuthenticated: true,
-            });
-          }, 0);
-        } else {
-          setState({
-            user: null,
-            session: null,
-            profile: null,
-            role: null,
-            permissions: [],
-            isLoading: false,
-            isAuthenticated: false,
-          });
-        }
-      }
-    );
-
-    // CARGA INICIAL — aguarda busca de dados antes de liberar isLoading
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted) return;
-
-        if (session?.user) {
-          const { profile, role, permissions } = await fetchUserData(session.user.id);
-          if (!mounted) return;
-          setState({
-            user: session.user,
-            session,
-            profile,
-            role,
-            permissions,
-            isLoading: false,
-            isAuthenticated: true,
-          });
-        } else {
-          setState(prev => ({ ...prev, isLoading: false }));
-        }
-      } catch {
-        if (mounted) setState(prev => ({ ...prev, isLoading: false }));
-      }
-    };
-
-    initializeAuth();
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [fetchUserData]);
-
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: fullName },
-      },
-    });
-
-    if (error) {
-      toast.error(error.message);
-      return { error };
+    const result = await ctx.signUp(email, password, fullName);
+    if (result.error) {
+      toast.error(result.error.message);
+      return result;
     }
-
-    // Detect repeated signup — Supabase returns a user with identities = [] 
-    // when the email already exists and is unconfirmed, or a fake_signup
-    const isRepeated = data?.user?.identities?.length === 0;
-    if (isRepeated) {
+    if (result.repeated) {
       toast.warning(
-        'Este e-mail já está cadastrado. Verifique sua caixa de entrada (inclusive spam) para o link de confirmação. Caso não encontre, tente fazer login ou redefinir a senha.',
+        'Este e-mail já está cadastrado. Verifique sua caixa de entrada (inclusive spam) para o link de confirmação.',
         { duration: 10000 }
       );
-      return { data, repeated: true };
+      return result;
     }
-
     toast.success('Cadastro realizado! Verifique seu email para confirmar.', { duration: 8000 });
-    return { data };
+    return result;
   };
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      toast.error(error.message);
-      return { error };
+    const result = await ctx.signIn(email, password);
+    if (result.error) {
+      toast.error(result.error.message);
+      return result;
     }
-
     toast.success('Login realizado com sucesso!');
     navigate('/');
-    return { data };
+    return result;
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error(error.message);
-      return { error };
+    const result = await ctx.signOut();
+    if (result.error) {
+      toast.error(result.error.message);
+      return result;
     }
     navigate('/auth');
-    return {};
+    return result;
   };
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!state.user) return { error: new Error('Not authenticated') };
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', state.user.id)
-      .select()
-      .single();
-
-    if (error) {
+  const updateProfile = async (updates: any) => {
+    const result = await ctx.updateProfile(updates);
+    if (result.error) {
       toast.error('Erro ao atualizar perfil');
-      return { error };
+      return result;
     }
-
-    setState(prev => ({ ...prev, profile: data as UserProfile }));
     toast.success('Perfil atualizado!');
-    return { data };
-  };
-
-  const hasRole = (role: AppRole): boolean => {
-    if (!state.role) return false;
-    const roleHierarchy: AppRole[] = ['admin', 'gerente', 'supervisor', 'operador', 'visualizador'];
-    const userRoleIndex = roleHierarchy.indexOf(state.role);
-    const requiredRoleIndex = roleHierarchy.indexOf(role);
-    return userRoleIndex <= requiredRoleIndex;
-  };
-
-  /**
-   * Verifica se o usuário pode visualizar um módulo.
-   * Admin sempre tem acesso total.
-   * Outros roles precisam ter `pode_visualizar = true` nas permissões.
-   */
-  const canView = (modulo: string): boolean => {
-    if (state.role === 'admin') return true;
-    // Enquanto carrega, não bloqueia
-    if (state.isLoading) return true;
-    const perm = state.permissions.find(p => p.modulo === modulo);
-    // Se não há permissão registrada para o módulo, nega acesso
-    return perm?.pode_visualizar ?? false;
-  };
-
-  /**
-   * Verifica se o usuário pode criar registros em um módulo.
-   */
-  const canCreate = (modulo: string): boolean => {
-    if (state.role === 'admin') return true;
-    const perm = state.permissions.find(p => p.modulo === modulo);
-    return perm?.pode_criar ?? false;
-  };
-
-  /**
-   * Verifica se o usuário pode editar registros em um módulo.
-   */
-  const canEdit = (modulo: string): boolean => {
-    if (state.role === 'admin') return true;
-    const perm = state.permissions.find(p => p.modulo === modulo);
-    return perm?.pode_editar ?? false;
-  };
-
-  /**
-   * Verifica se o usuário pode excluir registros em um módulo.
-   */
-  const canDelete = (modulo: string): boolean => {
-    if (state.role === 'admin') return true;
-    const perm = state.permissions.find(p => p.modulo === modulo);
-    return perm?.pode_excluir ?? false;
+    return result;
   };
 
   return {
-    ...state,
+    user: ctx.user,
+    session: ctx.session,
+    profile: ctx.profile,
+    role: ctx.role,
+    permissions: ctx.permissions,
+    isLoading: ctx.isLoading,
+    isAuthenticated: ctx.isAuthenticated,
     signUp,
     signIn,
     signOut,
     updateProfile,
-    hasRole,
-    canView,
-    canCreate,
-    canEdit,
-    canDelete,
-    refetchProfile: () => state.user && fetchUserData(state.user.id),
+    hasRole: ctx.hasRole,
+    canView: ctx.canView,
+    canCreate: ctx.canCreate,
+    canEdit: ctx.canEdit,
+    canDelete: ctx.canDelete,
+    refetchProfile: ctx.refetchProfile,
   };
 }
