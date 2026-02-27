@@ -27,6 +27,7 @@ import {
   Database,
   UserCheck,
   Map,
+  HelpCircle,
   LogOut } from
 "lucide-react";
 import {
@@ -82,6 +83,7 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
   { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" },
+  { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" },
   { title: "Roadmap", url: "/roadmap", icon: Map, tooltip: "Mapa de evolução e próximas funcionalidades do BrainX" }]
 
 },

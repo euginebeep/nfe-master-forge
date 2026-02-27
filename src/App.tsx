@@ -18,6 +18,7 @@ import AuthPage from "./components/auth/AuthPage";
 // Lazy loaded pages
 const Index = lazy(() => import("./pages/Index"));
 const RoadmapPage = lazy(() => import("./pages/RoadmapPage"));
+const FAQPage = lazy(() => import("./pages/faq/FAQPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
 const EmpresaSettingsPage = lazy(() => import("./pages/settings/EmpresaSettingsPage"));
@@ -135,6 +136,7 @@ const App = () => (
               }>
                 <Route path="/" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><Index /></ErrorBoundary></Suspense>} />
                 <Route path="/roadmap" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RoadmapPage /></ErrorBoundary></Suspense>} />
+                <Route path="/faq" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><FAQPage /></ErrorBoundary></Suspense>} />
                 {/* Settings — admin only */}
                 <Route path="/settings/empresa" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><EmpresaSettingsPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/company" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><CompanySettingsPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
