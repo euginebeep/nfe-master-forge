@@ -80,6 +80,12 @@ export function useSubscription() {
 
   const checkSubscription = useCallback(async () => {
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        // No session yet — don't call the edge function, just stop loading
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('check-subscription');
       if (error) {
         console.error('Error checking subscription:', error);
