@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useCompany, useUpsertCompany } from "@/hooks/use-company";
@@ -18,6 +19,7 @@ import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
 import { CertificateTestButton } from "@/components/company/CertificateTestButton";
 import { MaskedInput } from "@/components/ui/masked-input";
 import type { Company, AmbienteNFe } from "@/types/erp";
+import { toast } from "sonner";
 
 const UF_OPTIONS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -41,6 +43,7 @@ export default function CompanySettingsPage() {
   const [certUploading, setCertUploading] = useState(false);
   const [certFileName, setCertFileName] = useState<string | null>(null);
   const [certTestResult, setCertTestResult] = useState<{ daysUntilExpiry?: number } | null>(null);
+  const [certError, setCertError] = useState<string | null>(null);
 
   // Fetch certificate file name when company loads
   useEffect(() => {
@@ -116,11 +119,68 @@ export default function CompanySettingsPage() {
   const handleCertUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    const companyCnpj = form.getValues("cnpj");
+    const certPassword = form.getValues("certificado_senha_encrypted");
+    
+    if (!certPassword) {
+      setCertError("Preencha a senha do certificado antes de enviar o arquivo.");
+      toast.error("Preencha a senha do certificado antes de enviar o arquivo.");
+      return;
+    }
+    
     setCertUploading(true);
+    setCertError(null);
+    
     try {
+      // 1. Upload the file
       const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
+      
+      // 2. Validate certificate CNPJ against company CNPJ
+      if (companyCnpj) {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/validate-certificate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+            'apikey': supabaseKey,
+          },
+          body: JSON.stringify({ 
+            fileId: arquivo.id, 
+            password: certPassword, 
+            companyCnpj 
+          }),
+        });
+        
+        const result = await response.json();
+        
+        if (!result.valid) {
+          // Certificate is invalid or CNPJ doesn't match — reject
+          setCertError(result.error || "Certificado inválido.");
+          toast.error(result.error || "Certificado inválido.");
+          // Don't link the certificate
+          return;
+        }
+        
+        // Store expiry info
+        setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry });
+        
+        if (result.daysUntilExpiry !== undefined && result.daysUntilExpiry <= 30) {
+          toast.warning(`Atenção: certificado expira em ${result.daysUntilExpiry} dias!`);
+        } else {
+          toast.success("Certificado válido e vinculado com sucesso!");
+        }
+      }
+      
+      // 3. Link certificate
       form.setValue("certificado_a1_file_id", arquivo.id);
       setCertFileName(file.name);
+    } catch (err) {
+      setCertError(err instanceof Error ? err.message : "Erro ao processar certificado.");
+      toast.error("Erro ao processar certificado.");
     } finally {
       setCertUploading(false);
     }
@@ -370,6 +430,15 @@ export default function CompanySettingsPage() {
                         {/* Sem certificado - mostrar upload */}
                         <div className="grid gap-4 md:grid-cols-2">
                           <div className="space-y-2">
+                            <Label>Senha do Certificado *</Label>
+                            <Input
+                              type="password"
+                              placeholder="Digite a senha antes de enviar"
+                              onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">Obrigatória para validar o certificado</p>
+                          </div>
+                          <div className="space-y-2">
                             <Label>Arquivo do Certificado (PFX/P12)</Label>
                             <div className="flex items-center gap-2">
                               <Button
@@ -380,7 +449,7 @@ export default function CompanySettingsPage() {
                                 onClick={() => document.getElementById("cert-upload-input")?.click()}
                               >
                                 {certUploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-                                Enviar Certificado
+                                {certUploading ? "Validando..." : "Enviar Certificado"}
                               </Button>
                               <input
                                 id="cert-upload-input"
@@ -391,15 +460,16 @@ export default function CompanySettingsPage() {
                               />
                             </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Senha do Certificado</Label>
-                            <Input
-                              type="password"
-                              placeholder="Senha do certificado"
-                              onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
-                            />
-                          </div>
                         </div>
+
+                        {/* Erro de validação do certificado */}
+                        {certError && (
+                          <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Certificado Rejeitado</AlertTitle>
+                            <AlertDescription>{certError}</AlertDescription>
+                          </Alert>
+                        )}
                       </div>
                     )}
                   </div>
