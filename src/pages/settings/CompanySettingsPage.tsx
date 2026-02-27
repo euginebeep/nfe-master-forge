@@ -65,7 +65,12 @@ export default function CompanySettingsPage() {
   });
 
   const onSubmit = async (data: Partial<Company>) => {
-    await upsertCompany.mutateAsync(data);
+    try {
+      await upsertCompany.mutateAsync(data);
+      navigate("/");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao salvar configurações da empresa");
+    }
   };
 
   // Handle CNPJ lookup data
