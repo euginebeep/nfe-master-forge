@@ -33,6 +33,16 @@ export default function EmpresaSettingsPage() {
   const [certificadoFileId, setCertificadoFileId] = useState<string | null>(null);
   const [certUploading, setCertUploading] = useState(false);
   const [certDaysUntilExpiry, setCertDaysUntilExpiry] = useState<number | null>(null);
+  const [certAutoValidated, setCertAutoValidated] = useState(false);
+  const [certLastTestResult, setCertLastTestResult] = useState<{
+    valid?: boolean;
+    subject?: string;
+    issuer?: string;
+    validFrom?: string;
+    validTo?: string;
+    daysUntilExpiry?: number;
+    certCnpj?: string;
+  } | null>(null);
   const uploadFile = useUploadFile();
 
   useEffect(() => {
@@ -99,6 +109,46 @@ export default function EmpresaSettingsPage() {
       fetchCertName();
     }
   }, [supabaseCompany]);
+
+  // Auto-validate certificate on page load when cert + password exist
+  useEffect(() => {
+    if (certAutoValidated || !certificadoFileId || !formData.certificado_senha) return;
+    
+    const autoValidate = async () => {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/validate-certificate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+            'apikey': supabaseKey,
+          },
+          body: JSON.stringify({
+            fileId: certificadoFileId,
+            password: formData.certificado_senha,
+            companyCnpj: formData.cnpj,
+          }),
+        });
+        
+        const result = await response.json();
+        setCertAutoValidated(true);
+        
+        if (result.valid) {
+          setCertLastTestResult(result);
+          if (result.daysUntilExpiry !== undefined) {
+            setCertDaysUntilExpiry(result.daysUntilExpiry);
+          }
+        }
+      } catch {
+        // Silent fail on auto-validate
+      }
+    };
+    
+    autoValidate();
+  }, [certificadoFileId, formData.certificado_senha, certAutoValidated, formData.cnpj]);
 
   const handleSave = () => {
     upsert(formData);
@@ -545,6 +595,23 @@ export default function EmpresaSettingsPage() {
                   </div>
                 )}
 
+                {/* Info persistente do certificado (auto-validação) */}
+                {certLastTestResult?.valid && (
+                  <div className="p-3 rounded-lg border bg-muted/20 space-y-1.5 text-sm">
+                    <p><strong>Titular:</strong> {certLastTestResult.subject}</p>
+                    <p><strong>Emitido por:</strong> {certLastTestResult.issuer}</p>
+                    <p><strong>Válido de:</strong> {certLastTestResult.validFrom} <strong>até</strong> {certLastTestResult.validTo}</p>
+                    {certLastTestResult.certCnpj && (
+                      <p><strong>CNPJ do Certificado:</strong> {certLastTestResult.certCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}</p>
+                    )}
+                    {certDaysUntilExpiry !== null && certDaysUntilExpiry > 30 && (
+                      <div className="flex items-center gap-2 font-medium mt-2 p-2 rounded-md bg-muted/50 text-primary">
+                        <span>✓ {certDaysUntilExpiry} dias até expirar</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Senha do Certificado</Label>
@@ -566,6 +633,9 @@ export default function EmpresaSettingsPage() {
                     onTestResult={(result) => {
                       if (result?.daysUntilExpiry !== undefined) {
                         setCertDaysUntilExpiry(result.daysUntilExpiry);
+                      }
+                      if (result?.valid) {
+                        setCertLastTestResult(result);
                       }
                     }}
                   />
