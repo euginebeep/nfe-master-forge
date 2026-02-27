@@ -20,6 +20,8 @@ export function useDashboardKPIs() {
   return useQuery({
     queryKey: ["dashboard-kpis"],
     queryFn: async (): Promise<DashboardKPIs> => {
+      // Use data-based counting instead of head:true to avoid potential
+      // issues where count returns null with certain Supabase client versions
       const [
         entidades,
         itens,
@@ -33,37 +35,42 @@ export function useDashboardKPIs() {
         notas,
         formulas,
       ] = await Promise.all([
-        supabase.from("entidades").select("id", { count: "exact", head: true }),
-        supabase.from("itens").select("id", { count: "exact", head: true }).eq("ativo", true),
-        supabase.from("estoque_lotes").select("id", { count: "exact", head: true }),
-        supabase.from("estoque_lotes").select("id", { count: "exact", head: true }).eq("status", "QUARENTENA"),
-        supabase.from("estoque_lotes").select("id", { count: "exact", head: true }).eq("status", "APROVADO"),
-        supabase.from("estoque_lotes").select("id", { count: "exact", head: true })
+        supabase.from("entidades").select("id"),
+        supabase.from("itens").select("id").eq("ativo", true),
+        supabase.from("estoque_lotes").select("id"),
+        supabase.from("estoque_lotes").select("id").eq("status", "QUARENTENA"),
+        supabase.from("estoque_lotes").select("id").eq("status", "APROVADO"),
+        supabase.from("estoque_lotes").select("id")
           .eq("status", "APROVADO")
           .lte("data_val", new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0])
           .gte("data_val", new Date().toISOString().split("T")[0]),
-        supabase.from("ordens_producao_industrial" as any).select("id", { count: "exact", head: true }),
-        supabase.from("ordens_producao_industrial" as any).select("id", { count: "exact", head: true }).in("status", ["EM_PRODUCAO", "PESAGEM", "MISTURA", "ENCAPSULAMENTO"]),
-        supabase.from("ordens_producao_industrial" as any).select("id", { count: "exact", head: true }).eq("status", "FINALIZADA"),
+        supabase.from("ordens_producao_industrial" as any).select("id"),
+        supabase.from("ordens_producao_industrial" as any).select("id").in("status", ["EM_PRODUCAO", "PESAGEM", "MISTURA", "ENCAPSULAMENTO"]),
+        supabase.from("ordens_producao_industrial" as any).select("id").eq("status", "FINALIZADA"),
         supabase.from("notas_entrada").select("id, total_nota"),
-        supabase.from("formulas").select("id", { count: "exact", head: true }),
+        supabase.from("formulas").select("id"),
       ]);
+
+      // Log for debugging in production
+      console.log('[Dashboard KPIs] entidades:', entidades.data?.length, 'error:', entidades.error?.message);
+      console.log('[Dashboard KPIs] itens:', itens.data?.length, 'error:', itens.error?.message);
+      console.log('[Dashboard KPIs] lotes:', lotes.data?.length, 'error:', lotes.error?.message);
 
       const valorTotal = (notas.data || []).reduce((sum, n) => sum + (Number((n as { total_nota?: number }).total_nota) || 0), 0);
 
       return {
-        totalEntidades: entidades.count || 0,
-        totalItens: itens.count || 0,
-        totalLotes: lotes.count || 0,
-        lotesQuarentena: lotesQ.count || 0,
-        lotesAprovados: lotesA.count || 0,
-        lotesVencendo30d: lotesV.count || 0,
-        totalOPs: ops.count || 0,
-        opsEmAndamento: opsAnd.count || 0,
-        opsFinalizadas: opsFin.count || 0,
-        totalNotasEntrada: notas.count || (notas.data?.length || 0),
+        totalEntidades: entidades.data?.length || 0,
+        totalItens: itens.data?.length || 0,
+        totalLotes: lotes.data?.length || 0,
+        lotesQuarentena: lotesQ.data?.length || 0,
+        lotesAprovados: lotesA.data?.length || 0,
+        lotesVencendo30d: lotesV.data?.length || 0,
+        totalOPs: ops.data?.length || 0,
+        opsEmAndamento: opsAnd.data?.length || 0,
+        opsFinalizadas: opsFin.data?.length || 0,
+        totalNotasEntrada: notas.data?.length || 0,
         valorTotalNotas: valorTotal,
-        totalFormulas: formulas.count || 0,
+        totalFormulas: formulas.data?.length || 0,
       };
     },
     staleTime: 60_000,
