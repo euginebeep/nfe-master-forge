@@ -74,6 +74,7 @@ const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisa
 const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
 const AssinaturaPage = lazy(() => import("./pages/assinatura/AssinaturaPage"));
 const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
+const InstallPage = lazy(() => import("./pages/install/InstallPage"));
 
 import { queryClient } from "./lib/query-client";
 
@@ -110,6 +111,9 @@ const App = () => (
               } />
               <Route path="/op/verify/:opId" element={
                 <Suspense fallback={<PageFallback />}><VerificarOPPage /></Suspense>
+              } />
+              <Route path="/install" element={
+                <Suspense fallback={<PageFallback />}><InstallPage /></Suspense>
               } />
 
               {/* SaaS Admin Panel — standalone, fora do layout ERP */}
