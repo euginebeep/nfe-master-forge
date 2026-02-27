@@ -290,14 +290,14 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="sku_interno">SKU (auto se vazio)</Label>
-              <Input id="sku_interno" {...register("sku_interno")} placeholder="MP-XXXX" />
+              <Input id="sku_interno" {...register("sku_interno")} placeholder="Insira o código SKU ou deixe vazio para gerar" />
             </div>
             <div className="col-span-2 space-y-2">
               <Label htmlFor="descricao_interna">Nome Técnico *</Label>
               <Input
                 id="descricao_interna"
                 {...register("descricao_interna", { required: "Nome é obrigatório" })}
-                placeholder="Vitamina D3 100.000 UI/g"
+                placeholder="Insira o nome técnico do insumo (ex: Vitamina D3 100.000 UI/g)"
               />
               {errors.descricao_interna && (
                 <p className="text-sm text-destructive">{errors.descricao_interna.message}</p>
@@ -311,7 +311,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
               <Label>Tipo do Item *</Label>
               <Select value={tipoItem} onValueChange={(v) => setTipoItem(v as TipoItemLocal)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione o tipo do item" />
                 </SelectTrigger>
                 <SelectContent>
                   {TIPOS_ITEM.map((tipo) => (
@@ -327,7 +327,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
             </div>
             <div className="space-y-2">
               <Label htmlFor="descricao_comercial">Descrição Comercial</Label>
-              <Input id="descricao_comercial" {...register("descricao_comercial")} />
+              <Input id="descricao_comercial" {...register("descricao_comercial")} placeholder="Insira a descrição comercial do produto" />
             </div>
           </div>
 
@@ -583,11 +583,11 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="ncm">NCM</Label>
-              <Input id="ncm" {...register("ncm")} placeholder="0000.00.00" />
+              <Input id="ncm" {...register("ncm")} placeholder="Insira o código NCM (ex: 2106.90.30)" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ean">EAN/GTIN</Label>
-              <Input id="ean" {...register("ean")} />
+              <Input id="ean" {...register("ean")} placeholder="Insira o código de barras EAN/GTIN" />
             </div>
           </div>
 

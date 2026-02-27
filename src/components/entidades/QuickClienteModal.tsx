@@ -218,7 +218,7 @@ export function QuickClienteModal({
               <Input
                 id="documento"
                 {...register("documento", { required: "Documento é obrigatório" })}
-                placeholder="00.000.000/0000-00"
+                placeholder="Insira o CNPJ ou CPF"
               />
               {errors.documento && (
                 <p className="text-sm text-destructive">{errors.documento.message}</p>
@@ -233,6 +233,7 @@ export function QuickClienteModal({
               <Input
                 id="razao_social"
                 {...register("razao_social", { required: "Razão social é obrigatória" })}
+                placeholder="Insira a razão social da empresa"
               />
               {errors.razao_social && (
                 <p className="text-sm text-destructive">{errors.razao_social.message}</p>
@@ -240,14 +241,14 @@ export function QuickClienteModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
-              <Input id="nome_fantasia" {...register("nome_fantasia")} />
+              <Input id="nome_fantasia" {...register("nome_fantasia")} placeholder="Insira o nome fantasia" />
             </div>
           </div>
 
           {/* IE */}
           <div className="space-y-2">
             <Label htmlFor="ie">Inscrição Estadual</Label>
-            <Input id="ie" {...register("ie")} placeholder="Opcional" />
+            <Input id="ie" {...register("ie")} placeholder="Insira a inscrição estadual (opcional)" />
           </div>
 
           {/* Papéis */}

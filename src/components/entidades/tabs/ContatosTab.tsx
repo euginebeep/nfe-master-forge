@@ -145,7 +145,7 @@ export function ContatosTab({ contatos, onAdd, onUpdate, onDelete }: ContatosTab
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome *</Label>
-              <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+              <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Insira o nome completo do contato" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -153,7 +153,7 @@ export function ContatosTab({ contatos, onAdd, onUpdate, onDelete }: ContatosTab
                 <Label>Departamento</Label>
                 <Select value={form.departamento} onValueChange={(v) => setForm({ ...form, departamento: v as Departamento })}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione o departamento" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(DEPARTAMENTO_LABELS).map(([value, label]) => (
@@ -164,31 +164,31 @@ export function ContatosTab({ contatos, onAdd, onUpdate, onDelete }: ContatosTab
               </div>
               <div className="space-y-2">
                 <Label>Cargo</Label>
-                <Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} />
+                <Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} placeholder="Insira o cargo (ex: Gerente, Comprador)" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 0000-0000" />
+                <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="Insira o telefone fixo (ex: (11) 3000-0000)" />
               </div>
               <div className="space-y-2">
                 <Label>WhatsApp</Label>
-                <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="(00) 00000-0000" />
+                <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="Insira o WhatsApp (ex: (11) 99000-0000)" />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>E-mail</Label>
-              <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} type="email" />
+              <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} type="email" placeholder="Insira o e-mail do contato" />
             </div>
 
             <div className="space-y-2">
               <Label>Preferência de Contato</Label>
               <Select value={form.preferencia_contato} onValueChange={(v) => setForm({ ...form, preferencia_contato: v as PreferenciaContato })}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione a preferência de contato" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
@@ -212,7 +212,7 @@ export function ContatosTab({ contatos, onAdd, onUpdate, onDelete }: ContatosTab
 
             <div className="space-y-2">
               <Label>Observações</Label>
-              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={2} />
+              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={2} placeholder="Insira observações sobre este contato" />
             </div>
 
             <div className="flex justify-end gap-2">

@@ -21,7 +21,7 @@ interface IdentificacaoTabProps {
     observacoes: string;
     tags: string[];
     papeis: string[];
-    pais?: string; // Country for foreign entities
+    pais?: string;
   };
   onChange: (field: string, value: any) => void;
   errors?: Record<string, string>;
@@ -82,13 +82,12 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
           <Label>Tipo Pessoa *</Label>
           <Select value={data.tipo_pessoa} onValueChange={(v) => {
             onChange("tipo_pessoa", v);
-            // Clear fields that don't apply to foreign entities
             if (v === 'ESTRANGEIRO') {
               onChange("contribuinte_icms", "NAO");
             }
           }}>
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Selecione o tipo de pessoa" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
@@ -98,7 +97,6 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
           </Select>
         </div>
         
-        {/* Document field - changes based on type */}
         <div className="space-y-2">
           <Label htmlFor="documento">
             {isForeign ? "Documento (Tax ID / Passport)" : data.tipo_pessoa === "PJ" ? "CNPJ" : "CPF"} 
@@ -108,7 +106,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
             id="documento"
             value={data.documento}
             onChange={(e) => onChange("documento", e.target.value)}
-            placeholder={isForeign ? "Número do documento estrangeiro" : data.tipo_pessoa === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"}
+            placeholder={isForeign ? "Insira o documento estrangeiro (Tax ID, Passport)" : data.tipo_pessoa === "PJ" ? "Insira o CNPJ da empresa" : "Insira o CPF da pessoa"}
             disabled={false}
           />
           {errors?.documento && (
@@ -116,7 +114,6 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
           )}
         </div>
 
-        {/* Country field - required for foreign entities */}
         <div className="space-y-2">
           <Label htmlFor="pais">
             País {isForeign && <span className="text-destructive">*</span>}
@@ -127,7 +124,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
             disabled={!isForeign}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Selecione o país" />
+              <SelectValue placeholder="Selecione o país de origem" />
             </SelectTrigger>
             <SelectContent>
               {PAISES_COMUNS.map((pais) => (
@@ -153,6 +150,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
             id="razao_social"
             value={data.razao_social}
             onChange={(e) => onChange("razao_social", e.target.value)}
+            placeholder={isForeign ? "Insira o nome ou razão social estrangeira" : "Insira a razão social da empresa"}
           />
           {errors?.razao_social && (
             <p className="text-sm text-destructive">{errors.razao_social}</p>
@@ -164,6 +162,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
             id="nome_fantasia"
             value={data.nome_fantasia}
             onChange={(e) => onChange("nome_fantasia", e.target.value)}
+            placeholder="Insira o nome fantasia ou comercial"
           />
         </div>
       </div>
@@ -174,7 +173,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
           <Label>Status</Label>
           <Select value={data.status} onValueChange={(v) => onChange("status", v)}>
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Selecione o status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ATIVO">Ativo</SelectItem>
@@ -187,7 +186,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
           <Label>Classificação</Label>
           <Select value={data.classificacao} onValueChange={(v) => onChange("classificacao", v)}>
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Selecione a classificação" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="REGULAR">Regular</SelectItem>
@@ -205,7 +204,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
             disabled={isForeign}
           >
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="SIM">Sim</SelectItem>
@@ -249,7 +248,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
           id="site"
           value={data.site}
           onChange={(e) => onChange("site", e.target.value)}
-          placeholder="https://"
+          placeholder="Insira o endereço do site (ex: https://empresa.com.br)"
         />
       </div>
 
@@ -261,7 +260,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
             value={newTag}
             onChange={(e) => setNewTag(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-            placeholder="Adicionar tag..."
+            placeholder="Digite uma tag e pressione Enter"
             className="flex-1"
           />
           <button
@@ -292,6 +291,7 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
           value={data.observacoes}
           onChange={(e) => onChange("observacoes", e.target.value)}
           rows={3}
+          placeholder="Insira observações gerais sobre esta entidade"
         />
       </div>
     </div>

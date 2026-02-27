@@ -64,6 +64,7 @@ export function FinanceiroTab({ data, onChange }: FinanceiroTabProps) {
             step="0.01"
             value={data.limite_credito}
             onChange={(e) => onChange("limite_credito", parseFloat(e.target.value) || 0)}
+            placeholder="Insira o limite de crédito em reais"
           />
         </div>
         <div className="space-y-2">
@@ -73,6 +74,7 @@ export function FinanceiroTab({ data, onChange }: FinanceiroTabProps) {
             min="0"
             value={data.dias_tolerancia}
             onChange={(e) => onChange("dias_tolerancia", parseInt(e.target.value) || 0)}
+            placeholder="Insira os dias de tolerância após vencimento"
           />
           <p className="text-xs text-muted-foreground">
             Dias após vencimento antes de bloquear

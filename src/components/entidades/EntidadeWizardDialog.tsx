@@ -695,6 +695,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                       value={observacoes}
                       onChange={(e) => setObservacoes(e.target.value)}
                       rows={2}
+                      placeholder="Insira observações gerais sobre esta entidade"
                     />
                   </div>
                 </CardContent>
@@ -774,6 +775,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={endereco.logradouro}
                           onChange={(e) => updateEndereco(index, 'logradouro', e.target.value)}
+                          placeholder="Insira a rua ou avenida"
                         />
                       </div>
                       <div className="space-y-2">
@@ -781,6 +783,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={endereco.nro}
                           onChange={(e) => updateEndereco(index, 'nro', e.target.value)}
+                          placeholder="Insira o número"
                         />
                       </div>
                       <div className="space-y-2">
@@ -788,6 +791,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={endereco.compl}
                           onChange={(e) => updateEndereco(index, 'compl', e.target.value)}
+                          placeholder="Sala, andar, bloco"
                         />
                       </div>
                     </div>
@@ -798,6 +802,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={endereco.bairro}
                           onChange={(e) => updateEndereco(index, 'bairro', e.target.value)}
+                          placeholder="Insira o bairro"
                         />
                       </div>
                       <div className="space-y-2">
@@ -805,6 +810,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={endereco.cidade}
                           onChange={(e) => updateEndereco(index, 'cidade', e.target.value)}
+                          placeholder="Insira a cidade"
                         />
                       </div>
                       {!isForeign && (
@@ -814,6 +820,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                             value={endereco.uf}
                             onChange={(e) => updateEndereco(index, 'uf', e.target.value.toUpperCase())}
                             maxLength={2}
+                            placeholder="Ex: SP"
                           />
                         </div>
                       )}
@@ -822,6 +829,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={endereco.pais}
                           onChange={(e) => updateEndereco(index, 'pais', e.target.value)}
+                          placeholder="Insira o país"
                         />
                       </div>
                     </div>
@@ -861,6 +869,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={contato.nome}
                           onChange={(e) => updateContato(index, 'nome', e.target.value)}
+                          placeholder="Insira o nome do contato"
                         />
                       </div>
                       <div className="space-y-2">
@@ -870,7 +879,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                           onValueChange={(v) => updateContato(index, 'departamento', v)}
                         >
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Selecione o departamento" />
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(DEPARTAMENTO_LABELS).map(([value, label]) => (
@@ -884,6 +893,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                         <Input
                           value={contato.cargo}
                           onChange={(e) => updateContato(index, 'cargo', e.target.value)}
+                          placeholder="Insira o cargo (ex: Comprador)"
                         />
                       </div>
                     </div>
@@ -911,6 +921,7 @@ export function EntidadeWizardDialog({ open, onOpenChange, initialPapel, onSucce
                           type="email"
                           value={contato.email}
                           onChange={(e) => updateContato(index, 'email', e.target.value)}
+                          placeholder="Insira o e-mail do contato"
                         />
                       </div>
                     </div>
