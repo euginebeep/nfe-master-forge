@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { LocalDb } from "@/lib/local-db";
 import {
   CommandDialog,
   CommandEmpty,
@@ -66,6 +67,7 @@ export function GlobalSearchDialog() {
     setSearching(true);
     try {
       const search = `%${q}%`;
+      const qLower = q.toLowerCase();
       const [entidades, itens, formulas, lotes] = await Promise.all([
         supabase.from("entidades").select("id, razao_social, documento, nome_fantasia").ilike("razao_social", search).limit(5),
         supabase.from("itens").select("id, descricao_interna, sku_interno").ilike("descricao_interna", search).limit(5),
@@ -74,6 +76,8 @@ export function GlobalSearchDialog() {
       ]);
 
       const results: SearchResult[] = [];
+      
+      // Supabase results
       entidades.data?.forEach((e) => results.push({
         id: `ent-${e.id}`, label: e.razao_social, description: e.documento,
         icon: Users, href: `/cadastros/entidades/${e.id}`, group: "Entidades"
@@ -90,6 +94,33 @@ export function GlobalSearchDialog() {
         id: `lote-${l.id}`, label: l.numero_lote,
         icon: Boxes, href: `/estoque/lotes/${l.id}`, group: "Lotes"
       }));
+
+      // LocalDb fallback — add results not already found in Supabase
+      if (!entidades.data?.length) {
+        const localEnts = LocalDb.getCollection<{ id: string; razao_social: string; documento?: string }>('entidades')
+          .filter(e => e.razao_social?.toLowerCase().includes(qLower)).slice(0, 5);
+        localEnts.forEach((e) => results.push({
+          id: `ent-${e.id}`, label: e.razao_social, description: e.documento,
+          icon: Users, href: `/cadastros/entidades/${e.id}`, group: "Entidades"
+        }));
+      }
+      if (!itens.data?.length) {
+        const localItens = LocalDb.getCollection<{ id: string; descricao_interna: string; sku_interno?: string }>('itens')
+          .filter(i => i.descricao_interna?.toLowerCase().includes(qLower)).slice(0, 5);
+        localItens.forEach((i) => results.push({
+          id: `item-${i.id}`, label: i.descricao_interna, description: i.sku_interno || undefined,
+          icon: Package, href: `/cadastros/itens/${i.id}`, group: "Itens"
+        }));
+      }
+      if (!lotes.data?.length) {
+        const localLotes = LocalDb.getCollection<{ id: string; numero_lote: string }>('estoque_lotes')
+          .filter(l => l.numero_lote?.toLowerCase().includes(qLower)).slice(0, 5);
+        localLotes.forEach((l) => results.push({
+          id: `lote-${l.id}`, label: l.numero_lote,
+          icon: Boxes, href: `/estoque/lotes/${l.id}`, group: "Lotes"
+        }));
+      }
+
       setDbResults(results);
     } catch { setDbResults([]); }
     setSearching(false);
