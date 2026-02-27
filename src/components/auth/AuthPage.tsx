@@ -362,9 +362,9 @@ export default function AuthPage() {
           {/* Below card */}
           <p style={{ textAlign: 'center', color: '#6c757d', fontSize: 12.5, marginTop: 16, lineHeight: 1.6 }}>
             Ao continuar, você concorda com os{' '}
-            <a href="#" style={{ color: '#0d6efd', textDecoration: 'none' }}>Termos de Uso</a>
+            <a href="/termos-de-uso" target="_blank" style={{ color: '#0d6efd', textDecoration: 'none' }}>Termos de Uso</a>
             {' '}e{' '}
-            <a href="#" style={{ color: '#0d6efd', textDecoration: 'none' }}>Política de Privacidade</a>.
+            <a href="/politica-de-privacidade" target="_blank" style={{ color: '#0d6efd', textDecoration: 'none' }}>Política de Privacidade</a>.
           </p>
         </motion.div>
       </div>
