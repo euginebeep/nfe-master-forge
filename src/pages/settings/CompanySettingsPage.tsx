@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Save, Loader2, Upload } from "lucide-react";
+import { Building2, Save, Loader2, Upload, X, FileCheck, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,6 +39,23 @@ export default function CompanySettingsPage() {
   const uploadFile = useUploadFile();
   const [logoUploading, setLogoUploading] = useState(false);
   const [certUploading, setCertUploading] = useState(false);
+  const [certFileName, setCertFileName] = useState<string | null>(null);
+  const [certTestResult, setCertTestResult] = useState<{ daysUntilExpiry?: number } | null>(null);
+
+  // Fetch certificate file name when company loads
+  useEffect(() => {
+    const fetchCertName = async () => {
+      const fileId = company?.certificado_a1_file_id;
+      if (!fileId) { setCertFileName(null); return; }
+      const { data } = await supabase
+        .from("arquivos")
+        .select("nome_original")
+        .eq("id", fileId)
+        .single();
+      setCertFileName(data?.nome_original || null);
+    };
+    fetchCertName();
+  }, [company?.certificado_a1_file_id]);
 
   const form = useForm<Partial<Company>>({
     values: company || undefined,
@@ -102,6 +120,7 @@ export default function CompanySettingsPage() {
     try {
       const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
       form.setValue("certificado_a1_file_id", arquivo.id);
+      setCertFileName(file.name);
     } finally {
       setCertUploading(false);
     }
@@ -283,40 +302,106 @@ export default function CompanySettingsPage() {
 
                   <div>
                     <h4 className="text-sm font-medium mb-4">Certificado Digital A1</h4>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Arquivo do Certificado (PFX/P12)</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="file"
-                            accept=".pfx,.p12"
-                            onChange={handleCertUpload}
-                            disabled={certUploading}
-                            className="file:mr-2 file:px-4 file:py-1 file:rounded file:border-0 file:bg-primary/10 file:text-primary file:font-medium"
-                          />
-                          {certUploading && <Loader2 className="h-4 w-4 animate-spin" />}
-                        </div>
-                        {form.watch("certificado_a1_file_id") && (
-                          <p className="text-xs text-muted-foreground">Certificado vinculado ✓</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Senha do Certificado</Label>
-                        <Input
-                          type="password"
-                          placeholder="Atualizar senha"
-                          onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual</p>
-                      </div>
-                    </div>
                     
-                    <div className="mt-4 max-w-sm">
-                      <CertificateTestButton
-                        certificateFileId={form.watch("certificado_a1_file_id")}
-                        certificatePassword={form.watch("certificado_senha_encrypted") || undefined}
-                      />
-                    </div>
+                    {form.watch("certificado_a1_file_id") ? (
+                      <div className="space-y-4">
+                        {/* Certificado vinculado - mostrar info */}
+                        <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                          <FileCheck className="h-5 w-5 text-primary shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{certFileName || "Certificado Digital A1"}</p>
+                            <p className="text-xs text-muted-foreground">Certificado vinculado ✓</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0"
+                            onClick={() => {
+                              form.setValue("certificado_a1_file_id", null);
+                              setCertFileName(null);
+                              setCertTestResult(null);
+                            }}
+                            title="Remover certificado"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* Alerta de expiração */}
+                        {certTestResult?.daysUntilExpiry !== undefined && certTestResult.daysUntilExpiry <= 30 && (
+                          <div className={`flex items-center gap-2 p-3 rounded-lg border ${
+                            certTestResult.daysUntilExpiry < 0 
+                              ? "bg-destructive/10 border-destructive/30 text-destructive" 
+                              : "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400"
+                          }`}>
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <p className="text-sm font-medium">
+                              {certTestResult.daysUntilExpiry < 0
+                                ? `Certificado expirado há ${Math.abs(certTestResult.daysUntilExpiry)} dias!`
+                                : `Certificado expira em ${certTestResult.daysUntilExpiry} dias — renove em breve!`
+                              }
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Senha do Certificado</Label>
+                            <Input
+                              type="password"
+                              placeholder="Atualizar senha"
+                              onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual</p>
+                          </div>
+                        </div>
+                        
+                        <div className="max-w-sm">
+                          <CertificateTestButton
+                            certificateFileId={form.watch("certificado_a1_file_id")}
+                            certificatePassword={form.watch("certificado_senha_encrypted") || undefined}
+                            onTestResult={(result) => setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry })}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Sem certificado - mostrar upload */}
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Arquivo do Certificado (PFX/P12)</Label>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={certUploading}
+                                onClick={() => document.getElementById("cert-upload-input")?.click()}
+                              >
+                                {certUploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                                Enviar Certificado
+                              </Button>
+                              <input
+                                id="cert-upload-input"
+                                type="file"
+                                accept=".pfx,.p12"
+                                onChange={handleCertUpload}
+                                className="hidden"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Senha do Certificado</Label>
+                            <Input
+                              type="password"
+                              placeholder="Senha do certificado"
+                              onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
