@@ -90,6 +90,7 @@ export default function AuthPage() {
   const [regEmail, setRegEmail] = useState('');
   const [regPass, setRegPass] = useState('');
   const [regConfirm, setRegConfirm] = useState('');
+  const [signupSuccess, setSignupSuccess] = useState(false);
   const mismatch = !!regConfirm && regPass !== regConfirm;
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -107,6 +108,8 @@ export default function AuthPage() {
     const result = await signUp(regEmail, regPass, regName);
     if ((result as any)?.repeated) {
       setRepeatedSignup(true);
+    } else {
+      setSignupSuccess(true);
     }
     setLoading(false);
   };
@@ -220,6 +223,64 @@ export default function AuthPage() {
           <div style={{ color: '#212529', fontWeight: 700, fontSize: 16 }}>BrainX Industrial</div>
         </div>
 
+        {signupSuccess ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}
+            style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}
+          >
+            <div style={{
+              background: '#fff',
+              border: '1px solid #dee2e6',
+              borderRadius: 8,
+              padding: '40px 28px',
+              boxShadow: '0 0.125rem 0.25rem rgba(0,0,0,0.075)',
+            }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%',
+                background: 'rgba(13,110,253,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 20px',
+              }}>
+                <BI name="envelope-check-fill" size={28} color="#0d6efd" />
+              </div>
+              <h2 style={{ color: '#212529', fontWeight: 700, fontSize: 22, margin: '0 0 12px' }}>
+                Verifique seu e-mail
+              </h2>
+              <p style={{ color: '#495057', fontSize: 14, lineHeight: 1.7, margin: '0 0 8px' }}>
+                Para acessar o <strong>BrainX ERP</strong>, acesse seu e-mail
+              </p>
+              <p style={{
+                color: '#0d6efd', fontWeight: 600, fontSize: 15,
+                background: 'rgba(13,110,253,0.06)', borderRadius: 6,
+                padding: '10px 16px', margin: '0 0 16px', wordBreak: 'break-all',
+              }}>
+                {regEmail}
+              </p>
+              <p style={{ color: '#495057', fontSize: 14, lineHeight: 1.7, margin: '0 0 24px' }}>
+                e clique no link de confirmação para ativar sua conta.
+              </p>
+              <div style={{
+                background: '#fff3cd', border: '1px solid #ffda6a', borderRadius: 6,
+                padding: '12px 16px', fontSize: 13, color: '#664d03', lineHeight: 1.6,
+                display: 'flex', alignItems: 'flex-start', gap: 8, textAlign: 'left',
+              }}>
+                <BI name="info-circle-fill" size={16} color="#ff9800" className="" />
+                <span>Não encontrou? Verifique a pasta <strong>spam</strong> ou <strong>lixo eletrônico</strong>.</span>
+              </div>
+              <button onClick={() => { setSignupSuccess(false); setTab('login'); }} style={{
+                width: '100%', height: 44, marginTop: 20,
+                background: '#0d6efd', color: '#fff', fontWeight: 600, fontSize: 15,
+                border: 'none', borderRadius: 6, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+                onMouseEnter={e => (e.target as HTMLElement).style.background = '#0b5ed7'}
+                onMouseLeave={e => (e.target as HTMLElement).style.background = '#0d6efd'}
+              >
+                <BI name="box-arrow-in-right" size={16} /> Ir para Login
+              </button>
+            </div>
+          </motion.div>
+        ) : (
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
           style={{ width: '100%', maxWidth: 420 }}
@@ -367,6 +428,7 @@ export default function AuthPage() {
             <a href="/politica-de-privacidade" target="_blank" style={{ color: '#0d6efd', textDecoration: 'none' }}>Política de Privacidade</a>.
           </p>
         </motion.div>
+        )}
       </div>
 
       <style>{`
