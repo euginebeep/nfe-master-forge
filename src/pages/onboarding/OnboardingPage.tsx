@@ -82,11 +82,11 @@ export default function OnboardingWizard() {
     }
     setIsLoading(true);
     try {
-      // 1. Criar a company
-      const { data: company, error } = await supabase.from('company').insert({
+      const cleanCnpj = data.cnpj.replace(/\D/g, '');
+      const companyPayload = {
         razao_social: data.razao_social,
         nome_fantasia: data.nome_fantasia || null,
-        cnpj: data.cnpj.replace(/\D/g, ''),
+        cnpj: cleanCnpj,
         ie: data.ie || null,
         regime_tributario: data.regime_tributario || null,
         endereco_cep: data.endereco_cep.replace(/\D/g, '') || null,
@@ -99,16 +99,37 @@ export default function OnboardingWizard() {
         endereco_cmun: data.endereco_cmun || null,
         telefone: data.telefone.replace(/\D/g, '') || null,
         email_fiscal: data.email_fiscal || null,
-      }).select().single();
+      };
 
-      if (error) throw error;
+      // 1. Tentar criar a company
+      const newId = crypto.randomUUID();
+      const { error } = await supabase.from('company').insert({ ...companyPayload, id: newId });
+
+      let companyIdToLink: string = newId;
+
+      if (error) {
+        // CNPJ duplicado = empresa órfã de tentativa anterior → reutilizar
+        if (error.code === '23505' && error.message.includes('company_cnpj_key')) {
+          const { data: existing } = await supabase
+            .from('company')
+            .select('id')
+            .eq('cnpj', cleanCnpj)
+            .maybeSingle();
+          if (!existing) throw error;
+          companyIdToLink = existing.id as string;
+          // Atualizar com dados mais recentes
+          await supabase.from('company').update(companyPayload).eq('id', companyIdToLink);
+        } else {
+          throw error;
+        }
+      }
 
       // 2. Vincular company_id ao profile do usuário logado
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && company) {
+      if (user) {
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({ company_id: company.id } as any)
+          .update({ company_id: companyIdToLink } as any)
           .eq('id', user.id);
 
         if (profileError) {
