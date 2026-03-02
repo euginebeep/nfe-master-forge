@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useNotasEntrada, NotaEntrada } from "@/hooks/use-notas-entrada";
+import { useNotasEntrada, type NotaEntrada } from "@/hooks/use-notas-entrada";
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 
@@ -18,7 +18,7 @@ const STATUS_VARIANTS: Record<string, "success" | "warning" | "muted"> = {
 
 export default function NotasEntradaPage() {
   const navigate = useNavigate();
-  const { data: notas, isLoading } = useNotasEntrada();
+  const { data: notas = [], isLoading } = useNotasEntrada();
   const [selectedChaveNfe, setSelectedChaveNfe] = useState<string>("");
   const [showNFeDialog, setShowNFeDialog] = useState(false);
 
@@ -35,10 +35,7 @@ export default function NotasEntradaPage() {
       header: "Número",
       sortable: true,
       render: (item: NotaEntrada) => (
-        <button
-          onClick={() => handleViewNota(item)}
-          className="flex items-center gap-2 hover:text-primary transition-colors"
-        >
+        <button onClick={() => handleViewNota(item)} className="flex items-center gap-2 hover:text-primary transition-colors">
           <FileText className="h-4 w-4 text-muted-foreground" />
           <span className="font-mono font-medium hover:underline">{item.numero}</span>
           <span className="text-muted-foreground text-sm">Série {item.serie}</span>
@@ -93,14 +90,7 @@ export default function NotasEntradaPage() {
       header: "",
       className: "w-20",
       render: (item: NotaEntrada) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewNota(item);
-          }}
-        >
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }}>
           <Eye className="h-4 w-4" />
         </Button>
       ),
@@ -109,49 +99,26 @@ export default function NotasEntradaPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Notas de Entrada"
-        description="Histórico de notas fiscais importadas"
-        icon={FileText}
-        actions={
-          <Button onClick={() => navigate("/compras/importar-nfe")}>
-            Importar NF-e
-          </Button>
-        }
-      />
+      <PageHeader title="Notas de Entrada" description="Histórico de notas fiscais importadas" icon={FileText}
+        actions={<Button onClick={() => navigate("/compras/importar-nfe")}>Importar NF-e</Button>} />
 
       {notas.length === 0 && !isLoading ? (
         <Card>
           <CardContent className="p-12 text-center">
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">Nenhuma Nota Importada</h3>
-            <p className="text-muted-foreground mb-4">
-              Importe notas fiscais XML na seção "Importar NF-e" para visualizá-las aqui.
-            </p>
-            <Button onClick={() => navigate("/compras/importar-nfe")}>
-              Importar NF-e
-            </Button>
+            <p className="text-muted-foreground mb-4">Importe notas fiscais XML na seção "Importar NF-e" para visualizá-las aqui.</p>
+            <Button onClick={() => navigate("/compras/importar-nfe")}>Importar NF-e</Button>
           </CardContent>
         </Card>
       ) : (
-        <DataTable
-          data={notas}
-          columns={columns}
-          loading={isLoading}
-          searchable
+        <DataTable data={notas} columns={columns} loading={isLoading} searchable
           searchPlaceholder="Buscar por número, fornecedor ou chave..."
           searchKeys={["numero", "fornecedor_razao", "fornecedor_cnpj", "chave_nfe"]}
-          onRowClick={(item) => handleViewNota(item)}
-          emptyMessage="Nenhuma nota encontrada"
-        />
+          onRowClick={(item) => handleViewNota(item)} emptyMessage="Nenhuma nota encontrada" />
       )}
 
-      {/* NF-e Visualização Dialog Completo */}
-      <NFeVisualizacaoDialog
-        open={showNFeDialog}
-        onOpenChange={setShowNFeDialog}
-        chaveNfe={selectedChaveNfe}
-      />
+      <NFeVisualizacaoDialog open={showNFeDialog} onOpenChange={setShowNFeDialog} chaveNfe={selectedChaveNfe} />
     </div>
   );
 }

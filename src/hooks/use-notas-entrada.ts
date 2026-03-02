@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { LocalDb } from '@/lib/local-db';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface NotaEntrada {
   id: string;
@@ -33,57 +33,67 @@ export interface NotaEntradaItem {
 }
 
 export function useNotasEntrada() {
-  const [notas, setNotas] = useState<NotaEntrada[]>([]);
-  const [loading, setLoading] = useState(true);
+  return useQuery({
+    queryKey: ['notas-entrada'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notas_entrada')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const refresh = useCallback(() => {
-    setLoading(true);
-    const data = LocalDb.getCollection<NotaEntrada>('notas_entrada');
-    // Sort by created_at desc
-    data.sort((a, b) => {
-      const dateA = new Date(a.created_at || 0).getTime();
-      const dateB = new Date(b.created_at || 0).getTime();
-      return dateB - dateA;
-    });
-    setNotas(data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { data: notas, isLoading: loading, refresh };
+      if (error) throw error;
+      return (data || []) as unknown as NotaEntrada[];
+    },
+  });
 }
 
 export function useNotaEntradaItems(notaId: string | undefined) {
-  const [items, setItems] = useState<NotaEntradaItem[]>([]);
+  return useQuery({
+    queryKey: ['nota-entrada-items', notaId],
+    enabled: !!notaId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notas_entrada_itens')
+        .select('*')
+        .eq('nota_entrada_id', notaId!);
 
-  const refresh = useCallback(() => {
-    if (!notaId) return;
-    const data = LocalDb.query<NotaEntradaItem>('notas_entrada_itens', i => i.nota_entrada_id === notaId);
-    setItems(data);
-  }, [notaId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { items, refresh };
+      if (error) throw error;
+      return (data || []) as unknown as NotaEntradaItem[];
+    },
+  });
 }
 
 // Check if NF-e already exists by chave
-export function checkNFeExistsByChave(chave: string): NotaEntrada | null {
-  const notas = LocalDb.getCollection<NotaEntrada>('notas_entrada');
-  return notas.find(n => n.chave_nfe === chave) || null;
+export async function checkNFeExistsByChave(chave: string): Promise<NotaEntrada | null> {
+  const { data } = await supabase
+    .from('notas_entrada')
+    .select('*')
+    .eq('chave_nfe', chave)
+    .maybeSingle();
+
+  return (data as unknown as NotaEntrada) || null;
 }
 
 // Save nota entrada
-export function saveNotaEntrada(data: Omit<NotaEntrada, 'id'>): NotaEntrada {
-  return LocalDb.insert<NotaEntrada>('notas_entrada', data);
+export async function saveNotaEntrada(input: Omit<NotaEntrada, 'id'>): Promise<NotaEntrada> {
+  const { data, error } = await supabase
+    .from('notas_entrada')
+    .insert(input as any)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as unknown as NotaEntrada;
 }
 
 // Save nota entrada item
-export function saveNotaEntradaItem(data: Omit<NotaEntradaItem, 'id'>): NotaEntradaItem {
-  return LocalDb.insert<NotaEntradaItem>('notas_entrada_itens', data);
+export async function saveNotaEntradaItem(input: Omit<NotaEntradaItem, 'id'>): Promise<NotaEntradaItem> {
+  const { data, error } = await supabase
+    .from('notas_entrada_itens')
+    .insert(input as any)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as unknown as NotaEntradaItem;
 }
