@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCreateEntidade, LocalEntidade } from "@/hooks/use-local-entidades";
+import { useCreateEntidade } from "@/hooks/use-entidades";
+import { Loader2 } from "lucide-react";
 
 interface EntidadeFormDialogProps {
   open: boolean;
@@ -26,7 +27,7 @@ const PAPEIS = [
 ];
 
 export function EntidadeFormDialog({ open, onOpenChange, initialPapel, onSuccess }: EntidadeFormDialogProps) {
-  const { create } = useCreateEntidade();
+  const createEntidade = useCreateEntidade();
   const [selectedPapeis, setSelectedPapeis] = useState<string[]>(initialPapel ? [initialPapel] : []);
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
@@ -46,17 +47,20 @@ export function EntidadeFormDialog({ open, onOpenChange, initialPapel, onSuccess
     },
   });
 
-  const onSubmit = (data: any) => {
-    const entidade = create({
-      ...data,
-      papeis: selectedPapeis,
-      tags: [],
-    } as Omit<LocalEntidade, 'id'>, initialPapel);
-
-    if (entidade) {
+  const onSubmit = async (data: any) => {
+    try {
+      await createEntidade.mutateAsync({
+        ...data,
+        documento: data.documento.replace(/\D/g, ""),
+        papeis: selectedPapeis,
+        tags: [],
+      } as any);
+      
       reset();
       setSelectedPapeis(initialPapel ? [initialPapel] : []);
       onSuccess?.();
+    } catch {
+      // Error handled by mutation's onError
     }
   };
 
@@ -208,7 +212,10 @@ export function EntidadeFormDialog({ open, onOpenChange, initialPapel, onSuccess
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit">Salvar</Button>
+            <Button type="submit" disabled={createEntidade.isPending}>
+              {createEntidade.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salvar
+            </Button>
           </div>
         </form>
       </DialogContent>

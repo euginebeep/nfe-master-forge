@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Building2, ArrowLeft, Edit, Phone, Mail, MapPin, Globe, FileText, Wallet, Briefcase, Truck, History } from "lucide-react";
+import { Building2, ArrowLeft, Edit, Phone, Mail, MapPin, Globe, FileText } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useLocalEntidade, LocalEntidade, LocalEntidadeContato, LocalEntidadeEndereco } from "@/hooks/use-local-entidades";
+import { useEntidade } from "@/hooks/use-entidades";
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { formatDocument } from "@/lib/formatters";
-import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const PAPEL_LABELS: Record<string, string> = {
   CLIENTE: "Cliente",
@@ -57,14 +57,21 @@ const CLASSIFICACAO_VARIANTS: Record<string, "success" | "info" | "error" | "war
 export default function EntidadeDetailPageComplete() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { entidade, contatos, enderecos, isLoading, refresh } = useLocalEntidade(id);
+  const { data: entidadeData, isLoading, refetch } = useEntidade(id);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64">Carregando...</div>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
+        </div>
+      </div>
+    );
   }
 
-  if (!entidade) {
+  if (!entidadeData) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-muted-foreground">Entidade não encontrada</p>
@@ -76,8 +83,13 @@ export default function EntidadeDetailPageComplete() {
     );
   }
 
-  const enderecoFiscal = enderecos?.find(e => e.tipo === 'FISCAL') || enderecos?.[0];
-  const contatoPrincipal = contatos?.find(c => c.preferencial) || contatos?.[0];
+  const entidade = entidadeData as typeof entidadeData & { site?: string; contribuinte_icms?: string };
+  const papeis = entidade.entidade_papeis?.map(p => p.papel) || [];
+  const contatos = entidade.entidade_contatos || [];
+  const enderecos = entidade.entidade_enderecos || [];
+
+  const enderecoFiscal = enderecos.find(e => e.tipo === 'FISCAL') || enderecos[0];
+  const contatoPrincipal = contatos.find(c => c.preferencial) || contatos[0];
 
   return (
     <div>
@@ -112,7 +124,7 @@ export default function EntidadeDetailPageComplete() {
               </StatusBadge>
             </div>
             <div className="flex flex-wrap gap-1">
-              {entidade.papeis?.map((papel, idx) => (
+              {papeis.map((papel, idx) => (
                 <StatusBadge key={idx} variant="default" className="text-xs">
                   {PAPEL_LABELS[papel] || papel}
                 </StatusBadge>
@@ -175,8 +187,8 @@ export default function EntidadeDetailPageComplete() {
       <Tabs defaultValue="dados" className="mt-6">
         <TabsList>
           <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
-          <TabsTrigger value="enderecos">Endereços ({enderecos?.length || 0})</TabsTrigger>
-          <TabsTrigger value="contatos">Contatos ({contatos?.length || 0})</TabsTrigger>
+          <TabsTrigger value="enderecos">Endereços ({enderecos.length})</TabsTrigger>
+          <TabsTrigger value="contatos">Contatos ({contatos.length})</TabsTrigger>
         </TabsList>
 
         {/* Dados Gerais Tab */}
@@ -230,13 +242,13 @@ export default function EntidadeDetailPageComplete() {
                 </>
               )}
 
-              {entidade.tags && entidade.tags.length > 0 && (
+              {entidade.tags && (entidade.tags as string[]).length > 0 && (
                 <>
                   <hr className="my-4" />
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Tags</p>
                     <div className="flex flex-wrap gap-1">
-                      {entidade.tags.map((tag, idx) => (
+                      {(entidade.tags as string[]).map((tag, idx) => (
                         <StatusBadge key={idx} variant="muted">{tag}</StatusBadge>
                       ))}
                     </div>
@@ -251,7 +263,7 @@ export default function EntidadeDetailPageComplete() {
         <TabsContent value="enderecos">
           <Card>
             <CardContent className="pt-6">
-              {enderecos?.length ? (
+              {enderecos.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -270,7 +282,7 @@ export default function EntidadeDetailPageComplete() {
                             {TIPO_ENDERECO_LABELS[end.tipo] || end.tipo}
                           </StatusBadge>
                         </TableCell>
-                        <TableCell>{end.logradouro}, {end.numero}</TableCell>
+                        <TableCell>{end.logradouro}, {end.nro}</TableCell>
                         <TableCell>{end.bairro}</TableCell>
                         <TableCell>{end.cidade}/{end.uf}</TableCell>
                         <TableCell className="font-mono">{end.cep}</TableCell>
@@ -289,7 +301,7 @@ export default function EntidadeDetailPageComplete() {
         <TabsContent value="contatos">
           <Card>
             <CardContent className="pt-6">
-              {contatos?.length ? (
+              {contatos.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -306,7 +318,7 @@ export default function EntidadeDetailPageComplete() {
                         <TableCell className="font-medium">{cont.nome}</TableCell>
                         <TableCell>
                           <StatusBadge variant="muted">
-                            {DEPARTAMENTO_LABELS[cont.cargo] || cont.cargo}
+                            {DEPARTAMENTO_LABELS[cont.cargo || ''] || cont.cargo || '-'}
                           </StatusBadge>
                         </TableCell>
                         <TableCell>{cont.whatsapp || cont.telefone || '-'}</TableCell>
@@ -329,10 +341,10 @@ export default function EntidadeDetailPageComplete() {
       <EntidadeFormDialogComplete
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        entidade={entidade as any}
+        entidade={entidadeData as any}
         onSuccess={() => {
           setEditDialogOpen(false);
-          refresh();
+          refetch();
         }}
       />
     </div>
