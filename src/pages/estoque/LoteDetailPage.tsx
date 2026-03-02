@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Beaker, CheckCircle, FileText, Info, Upload, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -11,25 +11,20 @@ import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { LocalDb } from "@/lib/local-db";
-import type { LocalEstoqueLote, LocalItem, LocalLoteDocumento } from "@/hooks/use-local-itens";
-import { useLoteDocumentos } from "@/hooks/use-local-itens";
+import { useLote, useUpdateLoteStatus, useCreateLoteDocumento, useUpdateDocumentoValidacao } from "@/hooks/use-lotes";
+import { supabase } from "@/integrations/supabase/client";
 import { COAParserButton } from "@/components/lotes/COAParserButton";
 import { QRCodeAuditoria } from "@/components/shared/QRCodeAuditoria";
+import { useQueryClient } from "@tanstack/react-query";
 
 type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
 
 function getTipoPotenciaLabel(tipo: TipoPotencia) {
   switch (tipo) {
-    case "UI_POR_GRAMA":
-      return "UI/g";
-    case "MG_POR_GRAMA":
-      return "mg/g";
-    case "PERCENTUAL":
-      return "%";
-    case "NENHUMA":
-    default:
-      return "-";
+    case "UI_POR_GRAMA": return "UI/g";
+    case "MG_POR_GRAMA": return "mg/g";
+    case "PERCENTUAL": return "%";
+    default: return "-";
   }
 }
 
@@ -41,42 +36,45 @@ function formatarPotencia(tipo: TipoPotencia, valor?: number): string {
 export default function LoteDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const queryClient = useQueryClient();
+  const { data: loteData, isLoading } = useLote(id);
+  const updateDocValidacao = useUpdateDocumentoValidacao();
 
-  const [refreshKey, setRefreshKey] = useState(0);
+  const lote = loteData as any;
+  const item = lote?.item;
+  const documentos = lote?.lote_documentos || [];
 
-  const lote = useMemo(() => {
-    if (!id) return null;
-    return LocalDb.getById<LocalEstoqueLote>("estoque_lotes", id);
-  }, [id, refreshKey]);
+  const [tipoPotencia, setTipoPotencia] = useState<TipoPotencia>("NENHUMA");
+  const [potenciaValor, setPotenciaValor] = useState<number>(0);
+  const [initialized, setInitialized] = useState(false);
 
-  const item = useMemo(() => {
-    if (!lote) return null;
-    return LocalDb.getById<LocalItem>("itens", lote.item_id);
-  }, [lote, refreshKey]);
+  // Initialize form state when data loads
+  if (lote && !initialized) {
+    setTipoPotencia((lote.tipo_potencia as TipoPotencia) || "NENHUMA");
+    setPotenciaValor(lote.potencia_valor || 0);
+    setInitialized(true);
+  }
 
-  const { documentos, create, validate } = useLoteDocumentos(id);
+  const hasCOA = documentos.some((d: any) => d.tipo_documento === "COA");
+  const hasCOAValidado = documentos.some((d: any) => d.tipo_documento === "COA" && d.status_validacao === "VALIDADO");
 
-  const [tipoPotencia, setTipoPotencia] = useState<TipoPotencia>((lote?.tipo_potencia as TipoPotencia) || "NENHUMA");
-  const [potenciaValor, setPotenciaValor] = useState<number>(lote?.potencia_valor || 0);
+  const salvarPotencia = async () => {
+    if (!id) return;
+    const { error } = await supabase
+      .from("estoque_lotes")
+      .update({
+        tipo_potencia: tipoPotencia,
+        potencia_valor: tipoPotencia === "NENHUMA" ? null : potenciaValor || null,
+        potencia_unidade: getTipoPotenciaLabel(tipoPotencia) === "-" ? null : getTipoPotenciaLabel(tipoPotencia),
+      } as any)
+      .eq("id", id);
 
-  const hasCOA = useMemo(() => documentos.some(d => d.tipo_documento === "COA"), [documentos]);
-  const hasCOAValidado = useMemo(
-    () => documentos.some(d => d.tipo_documento === "COA" && d.status_validacao === "VALIDADO"),
-    [documentos]
-  );
-
-  const salvarPotencia = () => {
-    if (!lote || !id) return;
-
-    const update: Partial<LocalEstoqueLote> = {
-      tipo_potencia: tipoPotencia,
-      potencia_valor: tipoPotencia === "NENHUMA" ? undefined : potenciaValor || undefined,
-      potencia_unidade: getTipoPotenciaLabel(tipoPotencia) === "-" ? undefined : getTipoPotenciaLabel(tipoPotencia),
-    };
-
-    LocalDb.update("estoque_lotes", id, update);
-    toast.success("Potência do lote salva");
-    setRefreshKey(k => k + 1);
+    if (error) {
+      toast.error("Erro ao salvar potência: " + error.message);
+    } else {
+      toast.success("Potência do lote salva");
+      queryClient.invalidateQueries({ queryKey: ["lote", id] });
+    }
   };
 
   const aplicarPresetVitD = () => {
@@ -88,24 +86,41 @@ export default function LoteDetailPage() {
     const file = e.target.files?.[0];
     if (!file || !id) return;
 
-    // Read file as base64 for LocalDb
-    const reader = new FileReader();
-    reader.onload = () => {
-      create({
+    // Upload to storage
+    const storageKey = `lote-docs/${id}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("erp-files")
+      .upload(storageKey, file);
+
+    if (uploadError) {
+      toast.error("Erro ao fazer upload: " + uploadError.message);
+      return;
+    }
+
+    // Create document record
+    const { error } = await supabase
+      .from("lote_documentos")
+      .insert({
         lote_id: id,
         tipo_documento: "COA",
         arquivo_nome: file.name,
         arquivo_tipo: file.type,
         arquivo_size: file.size,
-        arquivo_data: reader.result as string,
+        storage_key: storageKey,
         status_validacao: "PENDENTE",
-      } as Omit<LocalLoteDocumento, "id">);
+      } as any);
 
-      setRefreshKey(k => k + 1);
-    };
-
-    reader.readAsDataURL(file);
+    if (error) {
+      toast.error("Erro ao registrar documento: " + error.message);
+    } else {
+      toast.success("COA anexado com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["lote", id] });
+    }
   };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-[50vh]"><p className="text-muted-foreground">Carregando...</p></div>;
+  }
 
   if (!lote || !item) {
     return (
@@ -115,8 +130,7 @@ export default function LoteDetailPage() {
           description="Volte para a lista e selecione um lote válido."
           icon={FileText}
           actions={
-            <Button variant="outline" onClick={() => navigate("/estoque/lotes")}
-            >
+            <Button variant="outline" onClick={() => navigate("/estoque/lotes")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
@@ -130,11 +144,10 @@ export default function LoteDetailPage() {
     <div>
       <PageHeader
         title={`Lote ${lote.numero_lote}`}
-        description={`Item: ${item.descricao_interna}`}
+        description={`Item: ${(item as any).descricao_interna}`}
         icon={FileText}
         actions={
-          <Button variant="outline" onClick={() => navigate("/estoque/lotes")}
-          >
+          <Button variant="outline" onClick={() => navigate("/estoque/lotes")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
@@ -142,7 +155,6 @@ export default function LoteDetailPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* QR Code de Rastreabilidade */}
         <div className="lg:col-span-1 flex justify-center">
           <QRCodeAuditoria
             tipo="LOTE_MP"
@@ -160,23 +172,21 @@ export default function LoteDetailPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Status</span>
-              <StatusBadge variant={lote.status === "DISPONIVEL" ? "success" : lote.status === "QUARENTENA" ? "warning" : "muted"}>
+              <StatusBadge variant={lote.status === "DISPONIVEL" || lote.status === "APROVADO" ? "success" : lote.status === "QUARENTENA" ? "warning" : "muted"}>
                 {lote.status}
               </StatusBadge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Quantidade interna</span>
               <span className="font-mono font-medium">
-                {Number(lote.quantidade_interna).toLocaleString("pt-BR")} {item.unidade_interna}
+                {Number(lote.quantidade_interna).toLocaleString("pt-BR")} {(item as any).unidade_interna || 'g'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Validade</span>
               <span className="font-mono font-medium">{lote.data_val || "-"}</span>
             </div>
-
             <Separator />
-
             <Alert className="bg-muted/50">
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
@@ -195,9 +205,7 @@ export default function LoteDetailPage() {
               <div className="space-y-2">
                 <Label>Tipo de potência</Label>
                 <Select value={tipoPotencia} onValueChange={(v) => setTipoPotencia(v as TipoPotencia)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="NENHUMA">Nenhuma</SelectItem>
                     <SelectItem value="UI_POR_GRAMA">UI por grama (UI/g)</SelectItem>
@@ -223,13 +231,12 @@ export default function LoteDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <COAParserButton 
+              <COAParserButton
                 materiasPrimas={[]}
                 onPotenciaEncontrada={(dados) => {
-                  // Map tipo to our format
                   const tipoMap: Record<string, TipoPotencia> = {
                     "UI_POR_GRAMA": "UI_POR_GRAMA",
-                    "MG_POR_GRAMA": "MG_POR_GRAMA", 
+                    "MG_POR_GRAMA": "MG_POR_GRAMA",
                     "PERCENTUAL": "PERCENTUAL",
                   };
                   setTipoPotencia(tipoMap[dados.tipo] || "NENHUMA");
@@ -266,18 +273,10 @@ export default function LoteDetailPage() {
               <Label htmlFor="upload-coa" className="cursor-pointer">
                 <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors">
                   <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Clique para anexar COA (PDF)
-                  </p>
+                  <p className="text-sm text-muted-foreground">Clique para anexar COA (PDF)</p>
                 </div>
               </Label>
-              <input
-                id="upload-coa"
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={handleUploadCOA}
-              />
+              <input id="upload-coa" type="file" accept=".pdf" className="hidden" onChange={handleUploadCOA} />
             </div>
 
             <div className="flex items-center gap-2">
@@ -298,10 +297,13 @@ export default function LoteDetailPage() {
                   size="sm"
                   variant="secondary"
                   onClick={() => {
-                    const pendente = documentos.find(d => d.tipo_documento === "COA" && d.status_validacao === "PENDENTE");
+                    const pendente = documentos.find((d: any) => d.tipo_documento === "COA" && d.status_validacao === "PENDENTE");
                     if (!pendente) return;
-                    validate(pendente.id);
-                    setRefreshKey(k => k + 1);
+                    updateDocValidacao.mutate({
+                      id: pendente.id,
+                      lote_id: id!,
+                      status_validacao: "VALIDADO",
+                    });
                   }}
                 >
                   Marcar como validado
@@ -311,7 +313,7 @@ export default function LoteDetailPage() {
 
             {documentos.length > 0 && (
               <div className="space-y-2">
-                {documentos.map((doc) => (
+                {documentos.map((doc: any) => (
                   <div key={doc.id} className="flex items-center justify-between border rounded-lg p-3">
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5 text-muted-foreground" />

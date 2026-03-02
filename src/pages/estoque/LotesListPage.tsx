@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Boxes, Filter, Eye, CheckCircle, AlertCircle, FileText, Calendar, Building2, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -8,17 +8,16 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { LocalDb } from "@/lib/local-db";
+import { useLotes } from "@/hooks/use-lotes";
 import { formatDate, formatNumber, formatCurrency } from "@/lib/formatters";
 import { differenceInDays, parseISO } from "date-fns";
-import type { LocalEstoqueLote, LocalItem } from "@/hooks/use-local-itens";
-import type { LocalEntidade } from "@/hooks/use-local-entidades";
 
-type StatusLote = 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO';
+type StatusLote = 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO' | 'APROVADO';
 
-const STATUS_VARIANTS: Record<StatusLote, "success" | "warning" | "error" | "muted"> = {
+const STATUS_VARIANTS: Record<string, "success" | "warning" | "error" | "muted"> = {
   QUARENTENA: "warning",
   DISPONIVEL: "success",
+  APROVADO: "success",
   BLOQUEADO: "error",
   VENCIDO: "error",
 };
@@ -29,112 +28,79 @@ export default function LotesListPage() {
   const [notaFilter, setNotaFilter] = useState<string>("");
   const [fornecedorFilter, setFornecedorFilter] = useState<string>("all");
   const [validadeFilter, setValidadeFilter] = useState<string>("all");
-  const [lotes, setLotes] = useState<(LocalEstoqueLote & { item?: LocalItem; fornecedor?: LocalEntidade })[]>([]);
-  const [fornecedores, setFornecedores] = useState<LocalEntidade[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Carregar fornecedores para o filtro
-  useEffect(() => {
-    const entidades = LocalDb.getCollection<LocalEntidade>('entidades');
-    // Pegar apenas fornecedores que tem lotes
-    const lotesData = LocalDb.getCollection<LocalEstoqueLote>('estoque_lotes');
-    const fornecedorIds = [...new Set(lotesData.map(l => l.fornecedor_id).filter(Boolean))];
-    const fornecedoresComLotes = entidades.filter(e => fornecedorIds.includes(e.id));
-    setFornecedores(fornecedoresComLotes);
-  }, []);
+  const { data: allLotes, isLoading } = useLotes();
 
-  useEffect(() => {
-    const loadLotes = () => {
-      setLoading(true);
-      let data = LocalDb.getCollection<LocalEstoqueLote>('estoque_lotes');
-      const itens = LocalDb.getCollection<LocalItem>('itens');
-      const entidades = LocalDb.getCollection<LocalEntidade>('entidades');
-      
-      // Enrich with item and fornecedor data
-      const enriched = data.map(lote => ({
-        ...lote,
-        item: itens.find(i => i.id === lote.item_id),
-        fornecedor: entidades.find(e => e.id === lote.fornecedor_id),
-      }));
-
-      // Apply filters
-      let filtered = enriched;
-      
-      // Filtro por status
-      if (statusFilter !== "all") {
-        filtered = filtered.filter(l => l.status === statusFilter);
+  // Extract unique fornecedores from lotes
+  const fornecedores = useMemo(() => {
+    if (!allLotes) return [];
+    const map = new Map<string, { id: string; nome: string }>();
+    allLotes.forEach(l => {
+      if (l.fornecedor) {
+        map.set(l.fornecedor.id, { id: l.fornecedor.id, nome: l.fornecedor.razao_social });
       }
-      
-      // Filtro por nota fiscal
-      if (notaFilter.trim()) {
-        const search = notaFilter.toLowerCase().trim();
-        filtered = filtered.filter(l => 
-          l.nota_numero?.toLowerCase().includes(search) ||
-          l.nota_chave?.toLowerCase().includes(search)
-        );
-      }
+    });
+    return Array.from(map.values());
+  }, [allLotes]);
 
-      // Filtro por fornecedor
-      if (fornecedorFilter !== "all") {
-        filtered = filtered.filter(l => l.fornecedor_id === fornecedorFilter);
-      }
+  // Filter lotes
+  const lotes = useMemo(() => {
+    if (!allLotes) return [];
+    let filtered = [...allLotes];
 
-      // Filtro por validade
-      if (validadeFilter !== "all") {
-        const today = new Date();
-        filtered = filtered.filter(l => {
-          if (!l.data_val) return validadeFilter === "sem_validade";
-          
-          const dataVal = parseISO(l.data_val);
-          const dias = differenceInDays(dataVal, today);
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(l => l.status === statusFilter);
+    }
 
-          switch (validadeFilter) {
-            case "vencido":
-              return dias < 0;
-            case "30dias":
-              return dias >= 0 && dias <= 30;
-            case "60dias":
-              return dias >= 0 && dias <= 60;
-            case "90dias":
-              return dias >= 0 && dias <= 90;
-            case "ok":
-              return dias > 90;
-            case "sem_validade":
-              return false; // Já tratado acima
-            default:
-              return true;
-          }
-        });
-      }
+    if (notaFilter.trim()) {
+      const search = notaFilter.toLowerCase().trim();
+      filtered = filtered.filter(l =>
+        (l as any).nota_numero?.toLowerCase().includes(search) ||
+        (l as any).nota_chave?.toLowerCase().includes(search)
+      );
+    }
 
-      setLotes(filtered);
-      setLoading(false);
-    };
+    if (fornecedorFilter !== "all") {
+      filtered = filtered.filter(l => l.fornecedor?.id === fornecedorFilter);
+    }
 
-    loadLotes();
+    if (validadeFilter !== "all") {
+      const today = new Date();
+      filtered = filtered.filter(l => {
+        if (!(l as any).data_val) return validadeFilter === "sem_validade";
+        const dataVal = parseISO((l as any).data_val);
+        const dias = differenceInDays(dataVal, today);
+        switch (validadeFilter) {
+          case "vencido": return dias < 0;
+          case "30dias": return dias >= 0 && dias <= 30;
+          case "60dias": return dias >= 0 && dias <= 60;
+          case "90dias": return dias >= 0 && dias <= 90;
+          case "ok": return dias > 90;
+          case "sem_validade": return false;
+          default: return true;
+        }
+      });
+    }
 
-    const handler = () => loadLotes();
-    window.addEventListener('localdb:change', handler);
-    return () => window.removeEventListener('localdb:change', handler);
-  }, [statusFilter, notaFilter, fornecedorFilter, validadeFilter]);
+    return filtered;
+  }, [allLotes, statusFilter, notaFilter, fornecedorFilter, validadeFilter]);
 
-  // Contadores para badges
+  // Counts
   const counts = useMemo(() => {
-    const allLotes = LocalDb.getCollection<LocalEstoqueLote>('estoque_lotes');
+    if (!allLotes) return { total: 0, quarentena: 0, disponivel: 0, bloqueado: 0, vencendo30: 0 };
     const today = new Date();
-    
     return {
       total: allLotes.length,
       quarentena: allLotes.filter(l => l.status === 'QUARENTENA').length,
-      disponivel: allLotes.filter(l => l.status === 'DISPONIVEL').length,
+      disponivel: allLotes.filter(l => l.status === 'DISPONIVEL' || (l.status as string) === 'APROVADO').length,
       bloqueado: allLotes.filter(l => l.status === 'BLOQUEADO').length,
       vencendo30: allLotes.filter(l => {
-        if (!l.data_val) return false;
-        const dias = differenceInDays(parseISO(l.data_val), today);
+        if (!(l as any).data_val) return false;
+        const dias = differenceInDays(parseISO((l as any).data_val), today);
         return dias >= 0 && dias <= 30;
       }).length,
     };
-  }, [lotes]);
+  }, [allLotes]);
 
   const hasActiveFilters = statusFilter !== "all" || notaFilter.trim() || fornecedorFilter !== "all" || validadeFilter !== "all";
 
@@ -170,7 +136,7 @@ export default function LotesListPage() {
       render: (item: any) => item.fornecedor ? (
         <div className="flex items-center gap-1">
           <Building2 className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm truncate max-w-[150px]">{item.fornecedor.nome_fantasia || item.fornecedor.razao_social}</span>
+          <span className="text-sm truncate max-w-[150px]">{item.fornecedor.razao_social}</span>
         </div>
       ) : <span className="text-muted-foreground">-</span>,
     },
@@ -197,7 +163,7 @@ export default function LotesListPage() {
     {
       key: "custo_unitario_original",
       header: "Preço Unit.",
-      render: (item: any) => item.custo_unitario_original ? 
+      render: (item: any) => item.custo_unitario_original ?
         formatCurrency(item.custo_unitario_original) : "-",
     },
     {
@@ -206,14 +172,14 @@ export default function LotesListPage() {
       sortable: true,
       render: (item: any) => {
         if (!item.data_val) return <span className="text-muted-foreground">-</span>;
-        
+
         const today = new Date();
         const dataVal = parseISO(item.data_val);
         const dias = differenceInDays(dataVal, today);
-        
+
         let colorClass = "";
         let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "outline";
-        
+
         if (dias < 0) {
           colorClass = "text-destructive";
           badgeVariant = "destructive";
@@ -225,7 +191,7 @@ export default function LotesListPage() {
         } else if (dias <= 90) {
           colorClass = "text-amber-600";
         }
-        
+
         return (
           <div className="flex items-center gap-2">
             <span className={colorClass}>
@@ -249,7 +215,7 @@ export default function LotesListPage() {
       key: "status",
       header: "Status",
       render: (item: any) => (
-        <StatusBadge variant={STATUS_VARIANTS[item.status as StatusLote]}>
+        <StatusBadge variant={STATUS_VARIANTS[item.status] || "muted"}>
           {item.status}
         </StatusBadge>
       ),
@@ -258,7 +224,7 @@ export default function LotesListPage() {
       key: "coa",
       header: "COA",
       render: (item: any) => {
-        const docs = LocalDb.query<any>('lote_documentos', d => d.lote_id === item.id);
+        const docs = item.lote_documentos || [];
         const hasCOA = docs.some((d: any) => d.tipo_documento === "COA");
         const coaValidado = docs.some(
           (d: any) => d.tipo_documento === "COA" && d.status_validacao === "VALIDADO"
@@ -301,35 +267,35 @@ export default function LotesListPage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-5 gap-3 mb-6">
-        <button 
+        <button
           onClick={() => { clearFilters(); }}
           className={`p-3 rounded-lg border text-center transition-colors ${!hasActiveFilters ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
         >
           <p className="text-2xl font-bold">{counts.total}</p>
           <p className="text-xs text-muted-foreground">Total</p>
         </button>
-        <button 
+        <button
           onClick={() => { setStatusFilter('DISPONIVEL'); setValidadeFilter('all'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${statusFilter === 'DISPONIVEL' ? 'border-emerald-500 bg-emerald-500/5' : 'hover:bg-muted/50'}`}
         >
           <p className="text-2xl font-bold text-emerald-600">{counts.disponivel}</p>
           <p className="text-xs text-muted-foreground">Disponível</p>
         </button>
-        <button 
+        <button
           onClick={() => { setStatusFilter('QUARENTENA'); setValidadeFilter('all'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${statusFilter === 'QUARENTENA' ? 'border-amber-500 bg-amber-500/5' : 'hover:bg-muted/50'}`}
         >
           <p className="text-2xl font-bold text-amber-600">{counts.quarentena}</p>
           <p className="text-xs text-muted-foreground">Quarentena</p>
         </button>
-        <button 
+        <button
           onClick={() => { setStatusFilter('BLOQUEADO'); setValidadeFilter('all'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${statusFilter === 'BLOQUEADO' ? 'border-destructive bg-destructive/5' : 'hover:bg-muted/50'}`}
         >
           <p className="text-2xl font-bold text-destructive">{counts.bloqueado}</p>
           <p className="text-xs text-muted-foreground">Bloqueado</p>
         </button>
-        <button 
+        <button
           onClick={() => { setStatusFilter('all'); setValidadeFilter('30dias'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${validadeFilter === '30dias' ? 'border-destructive bg-destructive/5' : 'hover:bg-muted/50'}`}
         >
@@ -341,7 +307,7 @@ export default function LotesListPage() {
       <DataTable
         data={lotes}
         columns={columns}
-        loading={loading}
+        loading={isLoading}
         searchable
         searchPlaceholder="Buscar por lote ou item..."
         searchKeys={["numero_lote"]}
@@ -349,7 +315,6 @@ export default function LotesListPage() {
         emptyMessage="Nenhum lote encontrado"
         actions={
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Filtro Nota */}
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-muted-foreground" />
               <Input
@@ -359,8 +324,6 @@ export default function LotesListPage() {
                 className="w-32"
               />
             </div>
-
-            {/* Filtro Status */}
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -371,13 +334,12 @@ export default function LotesListPage() {
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="QUARENTENA">Quarentena</SelectItem>
                   <SelectItem value="DISPONIVEL">Disponível</SelectItem>
+                  <SelectItem value="APROVADO">Aprovado</SelectItem>
                   <SelectItem value="BLOQUEADO">Bloqueado</SelectItem>
                   <SelectItem value="VENCIDO">Vencido</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Filtro Fornecedor */}
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
               <Select value={fornecedorFilter} onValueChange={setFornecedorFilter}>
@@ -388,14 +350,12 @@ export default function LotesListPage() {
                   <SelectItem value="all">Todos</SelectItem>
                   {fornecedores.map(f => (
                     <SelectItem key={f.id} value={f.id}>
-                      {f.nome_fantasia || f.razao_social}
+                      {f.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Filtro Validade */}
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <Select value={validadeFilter} onValueChange={setValidadeFilter}>
@@ -413,8 +373,6 @@ export default function LotesListPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Limpar Filtros */}
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 <X className="h-4 w-4 mr-1" />
