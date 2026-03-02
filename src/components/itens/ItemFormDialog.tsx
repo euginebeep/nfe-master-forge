@@ -9,8 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Pill, AlertTriangle, ArrowRight, Calculator, Package, Beaker } from "lucide-react";
-import { useCreateItem, LocalItem, TipoItemLocal, UnidadeInternaLocal, UnidadeFornecedor } from "@/hooks/use-local-itens";
+import { Pill, AlertTriangle, ArrowRight, Calculator, Package, Beaker, Loader2 } from "lucide-react";
+import { useCreateItem as useCreateItemSupabase } from "@/hooks/use-itens";
+import type { TipoItemLocal, UnidadeInternaLocal, UnidadeFornecedor } from "@/hooks/use-local-itens";
 import { CapsulePhotoUpload } from "./CapsulePhotoUpload";
 import { 
   calcularFatorConversaoAutomatico, 
@@ -26,9 +27,6 @@ interface ItemFormDialogProps {
   onSuccess?: () => void;
 }
 
-// ====================================================
-// REGRA MESTRE: TIPOS DE ITEM
-// ====================================================
 const TIPOS_ITEM: { value: TipoItemLocal; label: string; description: string }[] = [
   { value: "MP", label: "Matéria Prima", description: "Insumos para produção" },
   { value: "ATIVO", label: "Ativo", description: "Componente funcional" },
@@ -58,18 +56,12 @@ const ARMAZENAMENTOS = [
   { value: "OUTRO", label: "Outro" },
 ];
 
-// ====================================================
-// REGRA MESTRE: UNIDADES
-// ====================================================
 const UNIDADES_FORNECEDOR: { value: UnidadeFornecedor; label: string; grupo: string }[] = [
-  // Massa
   { value: "kg", label: "Quilograma (kg)", grupo: "Massa" },
   { value: "g", label: "Grama (g)", grupo: "Massa" },
   { value: "mg", label: "Miligrama (mg)", grupo: "Massa" },
-  // Volume
   { value: "l", label: "Litro (L)", grupo: "Volume" },
   { value: "ml", label: "Mililitro (mL)", grupo: "Volume" },
-  // Discretas
   { value: "un", label: "Unidade (un)", grupo: "Contável" },
   { value: "milheiro", label: "Milheiro (1000 un)", grupo: "Contável" },
   { value: "caixa", label: "Caixa", grupo: "Contável" },
@@ -111,20 +103,16 @@ const MARCAS_CAPSULA_SUGERIDAS = [
 ];
 
 export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialogProps) {
-  const { create } = useCreateItem();
+  const createItemMutation = useCreateItemSupabase();
   const [tipoItem, setTipoItem] = useState<TipoItemLocal>("MP");
   const [criticidade, setCriticidade] = useState("NORMAL");
   const [armazenamento, setArmazenamento] = useState("AMBIENTE");
   
-  // ====================================================
-  // REGRA MESTRE: UNIDADES E CONVERSÃO
-  // ====================================================
   const [unidadeFornecedor, setUnidadeFornecedor] = useState<UnidadeFornecedor>("kg");
   const [unidadeInterna, setUnidadeInterna] = useState<UnidadeInternaLocal>("g");
   const [fatorConversao, setFatorConversao] = useState<number>(1000);
   const [fatorManual, setFatorManual] = useState(false);
   
-  // Potência (para ativos)
   const [tipoPotencia, setTipoPotencia] = useState<string>("NENHUMA");
   const [valorPotencia, setValorPotencia] = useState<number | undefined>();
   const [percentualElementar, setPercentualElementar] = useState<number | undefined>();
@@ -135,13 +123,11 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
   const [exigePremix, setExigePremix] = useState(false);
   const [ativo, setAtivo] = useState(true);
 
-  // Campos específicos de cápsula
   const [capsulaMarca, setCapsulaMarca] = useState("");
   const [capsulaTamanho, setCapsulaTamanho] = useState<string>("");
   const [capsulaCor, setCapsulaCor] = useState("");
   const [capsulaMaterial, setCapsulaMaterial] = useState<string>("");
   const [fotoUrl, setFotoUrl] = useState<string | undefined>();
-  const [fotoStorageKey, setFotoStorageKey] = useState<string | undefined>();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: {
@@ -154,17 +140,11 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
     },
   });
 
-  // ====================================================
-  // AUTO-CONFIGURAÇÃO baseada no tipo de item
-  // ====================================================
   useEffect(() => {
     const unidadeIntSugerida = unidadeInternaSugerida(tipoItem);
     const unidadeFornSugerida = unidadeFornecedorSugerida(tipoItem);
-    
     setUnidadeInterna(unidadeIntSugerida);
     setUnidadeFornecedor(unidadeFornSugerida);
-    
-    // Calcular fator automático
     const fatorAuto = calcularFatorConversaoAutomatico(unidadeFornSugerida, unidadeIntSugerida);
     if (fatorAuto !== null) {
       setFatorConversao(fatorAuto);
@@ -173,8 +153,6 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
       setFatorConversao(1);
       setFatorManual(true);
     }
-    
-    // Configurações específicas por tipo
     if (tipoItem === 'CAPSULA' || tipoItem === 'CAPSULA_VAZIA') {
       setControlaLote(true);
       setControlaValidade(true);
@@ -185,7 +163,6 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
     }
   }, [tipoItem]);
 
-  // Recalcular fator quando unidades mudam
   useEffect(() => {
     if (!fatorManual) {
       const fatorAuto = calcularFatorConversaoAutomatico(unidadeFornecedor, unidadeInterna);
@@ -198,12 +175,10 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
   const isCapsule = tipoItem === 'CAPSULA' || tipoItem === 'CAPSULA_VAZIA';
   const isAtivo = tipoItem === 'ATIVO' || tipoItem === 'MP';
 
-  // Validação do fator
   const validacaoFator = useMemo(() => {
     return validarFatorConversao(unidadeFornecedor, unidadeInterna, fatorConversao);
   }, [unidadeFornecedor, unidadeInterna, fatorConversao]);
 
-  // Preview da conversão
   const previewConversao = useMemo(() => {
     const qtdExemplo = 1;
     const custoExemplo = 100;
@@ -212,41 +187,36 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
     return { qtdInterna, custoInterno };
   }, [fatorConversao]);
 
-  const onSubmit = (data: any) => {
-    // Validar fator de conversão
-    if (!validacaoFator.valido) {
-      return;
-    }
+  const onSubmit = async (data: any) => {
+    if (!validacaoFator.valido) return;
 
-    const item = create({
-      ...data,
-      tipo_item: tipoItem,
-      criticidade: criticidade as any,
-      armazenamento: armazenamento as any,
-      unidade_fornecedor: unidadeFornecedor,
-      unidade_interna: unidadeInterna,
-      fator_conversao: fatorConversao,
-      tipo_potencia: tipoPotencia !== 'NENHUMA' ? tipoPotencia : undefined,
-      valor_potencia: valorPotencia,
-      percentual_elementar: percentualElementar,
-      controla_lote: controlaLote,
-      controla_validade: controlaValidade,
-      higroscopico,
-      exige_premix: exigePremix,
-      ativo,
-      // Campos de cápsula
-      ...(isCapsule && {
-        capsula_marca: capsulaMarca || undefined,
-        capsula_tamanho: capsulaTamanho || undefined,
-        capsula_cor: capsulaCor || undefined,
-        capsula_material: capsulaMaterial || undefined,
-        foto_url: fotoUrl || undefined,
-      }),
-    } as Omit<LocalItem, 'id' | 'sku_interno'> & { sku_interno?: string });
+    try {
+      await createItemMutation.mutateAsync({
+        ...data,
+        sku_interno: data.sku_interno || undefined,
+        tipo_item: tipoItem,
+        criticidade,
+        unidade_interna: unidadeInterna,
+        ncm: data.ncm || undefined,
+        ean: data.ean || undefined,
+        controla_lote: controlaLote,
+        controla_validade: controlaValidade,
+        higroscopico,
+        exige_premix: exigePremix,
+        ativo,
+        ...(isCapsule && {
+          capsula_marca: capsulaMarca || undefined,
+          capsula_tamanho: capsulaTamanho || undefined,
+          capsula_cor: capsulaCor || undefined,
+          capsula_material: capsulaMaterial || undefined,
+          foto_url: fotoUrl || undefined,
+        }),
+      } as any);
 
-    if (item) {
       resetForm();
       onSuccess?.();
+    } catch {
+      // Error handled by mutation's onError
     }
   };
 
@@ -272,7 +242,6 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
     setCapsulaCor("");
     setCapsulaMaterial("");
     setFotoUrl(undefined);
-    setFotoStorageKey(undefined);
   };
 
   return (
@@ -331,274 +300,80 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
             </div>
           </div>
 
-          {/* ====================================================
-              REGRA MESTRE: UNIDADES E CONVERSÃO
-              ==================================================== */}
+          {/* Unidades e Conversão */}
           <Card className="border-2 border-primary/30 bg-primary/5">
             <CardHeader className="py-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <ArrowRight className="h-4 w-4" />
-                Unidades e Conversão (REGRA MESTRE)
+                Unidades e Conversão
               </CardTitle>
               <CardDescription>
-                Defina a unidade do fornecedor e a unidade interna de controle. O fator de conversão é OBRIGATÓRIO quando diferem.
+                Defina a unidade do fornecedor e a unidade interna de controle.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-4 items-end">
-                {/* Unidade Fornecedor */}
                 <div className="space-y-2">
                   <Label>Unidade do Fornecedor (Fiscal)</Label>
                   <Select value={unidadeFornecedor} onValueChange={(v) => {
                     setUnidadeFornecedor(v as UnidadeFornecedor);
                     setFatorManual(false);
                   }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {UNIDADES_FORNECEDOR.map((u) => (
-                        <SelectItem key={u.value} value={u.value}>
-                          {u.label}
-                        </SelectItem>
+                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Exatamente como vem na nota fiscal</p>
                 </div>
 
-                {/* Fator de Conversão */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     Fator de Conversão
                     <Calculator className="h-3 w-3" />
                   </Label>
                   <Input
-                    type="number"
-                    step="0.0001"
-                    min="0.0001"
+                    type="number" step="0.0001" min="0.0001"
                     value={fatorConversao}
-                    onChange={(e) => {
-                      setFatorConversao(parseFloat(e.target.value) || 1);
-                      setFatorManual(true);
-                    }}
+                    onChange={(e) => { setFatorConversao(parseFloat(e.target.value) || 1); setFatorManual(true); }}
                   />
                   <p className="text-xs text-muted-foreground">
                     1 {formatarUnidade(unidadeFornecedor)} = {fatorConversao} {formatarUnidade(unidadeInterna)}
                   </p>
                 </div>
 
-                {/* Unidade Interna */}
                 <div className="space-y-2">
                   <Label>Unidade Interna (Controle)</Label>
                   <Select value={unidadeInterna} onValueChange={(v) => {
                     setUnidadeInterna(v as UnidadeInternaLocal);
                     setFatorManual(false);
                   }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {UNIDADES_INTERNAS.map((u) => (
-                        <SelectItem key={u.value} value={u.value}>
-                          {u.label}
-                        </SelectItem>
+                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Unidade padronizada do sistema</p>
                 </div>
               </div>
 
-              {/* Validação do Fator */}
               {!validacaoFator.valido && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>{validacaoFator.erro}</AlertDescription>
                 </Alert>
               )}
-
-              {/* Preview da Conversão */}
-              <div className="p-3 bg-background rounded-lg border">
-                <div className="flex items-center gap-2 text-sm font-medium mb-2">
-                  <Calculator className="h-4 w-4 text-primary" />
-                  Preview da Conversão
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Estoque: </span>
-                    <span className="font-mono">
-                      1 {formatarUnidade(unidadeFornecedor)} → {previewConversao.qtdInterna.toLocaleString('pt-BR')} {formatarUnidade(unidadeInterna)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Custo: </span>
-                    <span className="font-mono">
-                      R$ 100,00/{formatarUnidade(unidadeFornecedor)} → R$ {previewConversao.custoInterno.toFixed(4)}/{formatarUnidade(unidadeInterna)}
-                    </span>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
-          {/* Potência (para ativos) */}
-          {isAtivo && (
-            <Card>
-              <CardHeader className="py-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Beaker className="h-4 w-4" />
-                  Potência / Concentração
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tipo de Potência</Label>
-                    <Select value={tipoPotencia} onValueChange={setTipoPotencia}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIPOS_POTENCIA.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {tipoPotencia !== 'NENHUMA' && (
-                    <div className="space-y-2">
-                      <Label>Valor da Potência</Label>
-                      <Input
-                        type="number"
-                        step="0.0001"
-                        value={valorPotencia || ''}
-                        onChange={(e) => setValorPotencia(parseFloat(e.target.value) || undefined)}
-                        placeholder={tipoPotencia === 'UI_POR_GRAMA' ? '100000' : '0.5'}
-                      />
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label>% Elementar (minerais)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={percentualElementar || ''}
-                      onChange={(e) => setPercentualElementar(parseFloat(e.target.value) || undefined)}
-                      placeholder="Ex: 16 para Citrato de Mg"
-                    />
-                  </div>
-                </div>
-                {tipoPotencia === 'UI_POR_GRAMA' && (
-                  <Alert className="mt-3">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>BLOQUEIO:</strong> Conversão de UI só é permitida se a potência UI/g for informada.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Seção específica de Cápsulas */}
-          {isCapsule && (
-            <Card className="border-primary/50 bg-primary/5">
-              <CardHeader className="py-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Pill className="h-4 w-4" />
-                  Dados da Cápsula
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Marca</Label>
-                    <Input 
-                      value={capsulaMarca}
-                      onChange={(e) => setCapsulaMarca(e.target.value)}
-                      placeholder="Ex: Capsugel, Qualicaps..."
-                      list="marcas-capsula"
-                    />
-                    <datalist id="marcas-capsula">
-                      {MARCAS_CAPSULA_SUGERIDAS.map(m => (
-                        <option key={m} value={m} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Material</Label>
-                    <Select value={capsulaMaterial} onValueChange={setCapsulaMaterial}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MATERIAIS_CAPSULA.map(m => (
-                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tamanho</Label>
-                    <Select value={capsulaTamanho} onValueChange={setCapsulaTamanho}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TAMANHOS_CAPSULA.map(t => (
-                          <SelectItem key={t} value={t}>Tamanho {t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Cor</Label>
-                    <Input 
-                      value={capsulaCor}
-                      onChange={(e) => setCapsulaCor(e.target.value)}
-                      placeholder="Ex: Transparente, Branca..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Foto da Cápsula</Label>
-                    <CapsulePhotoUpload
-                      currentPhotoUrl={fotoUrl}
-                      onPhotoChange={(url, key) => {
-                        setFotoUrl(url);
-                        setFotoStorageKey(key);
-                      }}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Separator />
-
-          {/* NCM e EAN */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="ncm">NCM</Label>
-              <Input id="ncm" {...register("ncm")} placeholder="Insira o código NCM (ex: 2106.90.30)" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ean">EAN/GTIN</Label>
-              <Input id="ean" {...register("ean")} placeholder="Insira o código de barras EAN/GTIN" />
-            </div>
-          </div>
-
           {/* Criticidade e Armazenamento */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Criticidade</Label>
               <Select value={criticidade} onValueChange={setCriticidade}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CRITICIDADES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
@@ -609,9 +384,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
             <div className="space-y-2">
               <Label>Armazenamento</Label>
               <Select value={armazenamento} onValueChange={setArmazenamento}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ARMAZENAMENTOS.map((a) => (
                     <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
@@ -619,59 +392,82 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>NCM</Label>
+              <Input {...register("ncm")} placeholder="00000000" maxLength={8} />
+            </div>
           </div>
 
           {/* Checkboxes */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="flex flex-wrap gap-6">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="controla_lote"
-                checked={controlaLote}
-                onCheckedChange={(checked) => setControlaLote(!!checked)}
-              />
+              <Checkbox id="controla_lote" checked={controlaLote} onCheckedChange={(v) => setControlaLote(!!v)} />
               <label htmlFor="controla_lote" className="text-sm">Controla Lote</label>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="controla_validade"
-                checked={controlaValidade}
-                onCheckedChange={(checked) => setControlaValidade(!!checked)}
-              />
+              <Checkbox id="controla_validade" checked={controlaValidade} onCheckedChange={(v) => setControlaValidade(!!v)} />
               <label htmlFor="controla_validade" className="text-sm">Controla Validade</label>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="higroscopico"
-                checked={higroscopico}
-                onCheckedChange={(checked) => setHigroscopico(!!checked)}
-              />
+              <Checkbox id="higroscopico" checked={higroscopico} onCheckedChange={(v) => setHigroscopico(!!v)} />
               <label htmlFor="higroscopico" className="text-sm">Higroscópico</label>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="exige_premix"
-                checked={exigePremix}
-                onCheckedChange={(checked) => setExigePremix(!!checked)}
-              />
-              <label htmlFor="exige_premix" className="text-sm">Exige Premix</label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="ativo"
-                checked={ativo}
-                onCheckedChange={(checked) => setAtivo(!!checked)}
-              />
-              <label htmlFor="ativo" className="text-sm">Ativo</label>
+              <Checkbox id="exige_premix" checked={exigePremix} onCheckedChange={(v) => setExigePremix(!!v)} />
+              <label htmlFor="exige_premix" className="text-sm">Exige Pré-mix</label>
             </div>
           </div>
 
-          {/* Botões */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={!validacaoFator.valido}>
-              Salvar Produto
+          {/* Capsule fields */}
+          {isCapsule && (
+            <Card>
+              <CardHeader className="py-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Pill className="h-4 w-4" />
+                  Dados da Cápsula
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tamanho *</Label>
+                    <Select value={capsulaTamanho} onValueChange={setCapsulaTamanho}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {TAMANHOS_CAPSULA.map(t => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))
+                        }
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Material *</Label>
+                    <Select value={capsulaMaterial} onValueChange={setCapsulaMaterial}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {MATERIAIS_CAPSULA.map(m => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))
+                        }
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cor</Label>
+                    <Input value={capsulaCor} onChange={e => setCapsulaCor(e.target.value)} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={createItemMutation.isPending}>
+              {createItemMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salvar
             </Button>
           </div>
         </form>

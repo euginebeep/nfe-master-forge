@@ -1,16 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  useCreateItem,
-  LocalItem,
-  LocalItemAlias,
-  LocalItemFornecedor,
-  TipoItemLocal,
-  UnidadeInternaLocal,
-  UnidadeFornecedor,
-} from "@/hooks/use-local-itens";
-import { LocalDb } from "@/lib/local-db";
-import { useLocalEntidades } from "@/hooks/use-local-entidades";
+import { useCreateItem as useCreateItemSupabase, useCreateItemFornecedor, useCreateItemAlias } from "@/hooks/use-itens";
+import { useHybridEntidades } from "@/hooks/use-hybrid-data";
+import type { TipoItemLocal, UnidadeInternaLocal, UnidadeFornecedor } from "@/hooks/use-local-itens";
 import {
   calcularFatorConversaoAutomatico,
   unidadeInternaSugerida,
@@ -19,11 +11,14 @@ import {
 } from "@/lib/erp-validation";
 import type { TempFornecedor, TempAlias } from "./item-wizard-constants";
 import { TOTAL_STEPS } from "./item-wizard-constants";
+import { centralToast } from "@/components/ui/central-toast";
 
 export function useItemWizardState(onSuccess?: () => void) {
   const queryClient = useQueryClient();
-  const { create } = useCreateItem();
-  const { data: entidadesFornecedores } = useLocalEntidades({ papel: "FORNECEDOR" });
+  const createItemMutation = useCreateItemSupabase();
+  const createFornecedorMutation = useCreateItemFornecedor();
+  const createAliasMutation = useCreateItemAlias();
+  const { data: entidadesFornecedores } = useHybridEntidades({ papel: "FORNECEDOR" });
   const [currentStep, setCurrentStep] = useState(1);
 
   // Step 1: Identificação
@@ -230,82 +225,72 @@ export function useItemWizardState(onSuccess?: () => void) {
 
   const handleRemoveAlias = (id: string) => setAliases(aliases.filter(a => a.id !== id));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validacaoFator.valido) return;
-    const item = create({
-      sku_interno: skuInterno || undefined,
-      descricao_interna: descricaoInterna,
-      descricao_comercial: descricaoComercial || undefined,
-      categoria_operacional: categoriaOperacional || undefined,
-      tipo_item: tipoItem,
-      unidade_fornecedor: unidadeFornecedor,
-      unidade_interna: unidadeInterna,
-      fator_conversao: fatorConversao,
-      tipo_potencia: tipoPotencia !== 'NENHUMA' ? tipoPotencia : undefined,
-      valor_potencia: valorPotencia,
-      percentual_elementar: percentualElementar,
-      preco_unitario_fornecedor: precoUnitarioFornecedor,
-      custo_por_unidade_interna: custoInternoCalculado,
-      moq,
-      lead_time_dias: leadTimeDias,
-      observacoes_comerciais: observacoesComerciais || undefined,
-      ncm: ncm || undefined,
-      ean: ean || undefined,
-      cfop_entrada_padrao: cfopEntradaPadrao || undefined,
-      cfop_saida_padrao: cfopSaidaPadrao || undefined,
-      cst_icms: cstIcms || undefined,
-      origem_icms: origemIcms || undefined,
-      aliquota_icms: aliquotaIcms,
-      mva_st: mvaSt,
-      cst_ipi: cstIpi || undefined,
-      aliquota_ipi: aliquotaIpi,
-      cst_pis: cstPis || undefined,
-      aliquota_pis: aliquotaPis,
-      cst_cofins: cstCofins || undefined,
-      aliquota_cofins: aliquotaCofins,
-      cest: cest || undefined,
-      observacoes_fiscais: observacoesFiscais || undefined,
-      criticidade: criticidade as string,
-      armazenamento: armazenamento as string,
-      controla_lote: controlaLote,
-      controla_validade: controlaValidade,
-      higroscopico,
-      exige_premix: exigePremix,
-      ativo,
-      ...(isCapsule && {
-        capsula_marca: capsulaMarca || undefined,
-        capsula_tamanho: capsulaTamanho || undefined,
-        capsula_cor: capsulaCor || undefined,
-        capsula_material: capsulaMaterial || undefined,
-        foto_url: fotoUrl || undefined,
-      }),
-    } as Omit<LocalItem, 'id' | 'sku_interno'> & { sku_interno?: string });
+    
+    try {
+      const itemData: any = {
+        sku_interno: skuInterno || undefined,
+        descricao_interna: descricaoInterna,
+        descricao_comercial: descricaoComercial || undefined,
+        categoria_operacional: categoriaOperacional || undefined,
+        tipo_item: tipoItem,
+        unidade_interna: unidadeInterna,
+        ncm: ncm || undefined,
+        ean: ean || undefined,
+        criticidade: criticidade,
+        controla_lote: controlaLote,
+        controla_validade: controlaValidade,
+        higroscopico,
+        exige_premix: exigePremix,
+        ativo,
+        ...(isCapsule && {
+          capsula_marca: capsulaMarca || undefined,
+          capsula_tamanho: capsulaTamanho || undefined,
+          capsula_cor: capsulaCor || undefined,
+          capsula_material: capsulaMaterial || undefined,
+          foto_url: fotoUrl || undefined,
+        }),
+      };
 
-    if (item) {
+      const item = await createItemMutation.mutateAsync(itemData);
+
+      // Create fornecedor links in Supabase
       const hasPreferencial = fornecedores.some((f) => !!f.fornecedor_preferencial);
-      fornecedores.map((f, idx) => ({
-        ...f,
-        fornecedor_preferencial: hasPreferencial ? !!f.fornecedor_preferencial : idx === 0,
-      })).forEach((f) => {
-        LocalDb.insert<LocalItemFornecedor>("item_fornecedores" as any, {
-          item_id: item.id, fornecedor_id: f.fornecedor_id,
-          codigo_fornecedor: f.codigo_fornecedor || undefined,
-          descricao_fornecedor: f.descricao_fornecedor || undefined,
-          unidade_compra_padrao: (f.unidade_compra_padrao as any) || "kg",
-          fator_para_unidade_interna: f.fator_para_unidade_interna || fatorConversao,
-          fornecedor_preferencial: !!f.fornecedor_preferencial,
-          preco_referencia: f.preco_referencia,
-        } as any);
-      });
-      aliases.forEach((a) => {
-        LocalDb.insert<LocalItemAlias>("item_alias" as any, {
-          item_id: item.id, fornecedor_id: a.fornecedor_id || undefined,
-          tipo: a.tipo as any, texto: a.texto,
-        } as any);
-      });
+      for (const [idx, f] of fornecedores.entries()) {
+        try {
+          await createFornecedorMutation.mutateAsync({
+            item_id: item.id,
+            fornecedor_id: f.fornecedor_id,
+            codigo_fornecedor: f.codigo_fornecedor || undefined,
+            descricao_fornecedor: f.descricao_fornecedor || undefined,
+            fornecedor_preferencial: hasPreferencial ? !!f.fornecedor_preferencial : idx === 0,
+          } as any);
+        } catch (e) {
+          console.warn('Erro ao vincular fornecedor:', e);
+        }
+      }
+
+      // Create aliases in Supabase
+      for (const a of aliases) {
+        try {
+          await createAliasMutation.mutateAsync({
+            item_id: item.id,
+            fornecedor_id: a.fornecedor_id || undefined,
+            tipo: a.tipo,
+            texto: a.texto,
+          } as any);
+        } catch (e) {
+          console.warn('Erro ao criar alias:', e);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["itens"] });
       queryClient.invalidateQueries({ queryKey: ["hybrid-itens"] });
       resetForm();
       onSuccess?.();
+    } catch (error) {
+      console.error('Erro ao criar item:', error);
     }
   };
 
