@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Eye, Calendar, Building2, DollarSign } from "lucide-react";
+import { FileText, Eye, Calendar, Building2, DollarSign, Undo2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useNotasEntrada, type NotaEntrada } from "@/hooks/use-notas-entrada";
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
+import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "muted"> = {
   IMPORTADA: "success",
@@ -21,11 +24,31 @@ export default function NotasEntradaPage() {
   const { data: notas = [], isLoading } = useNotasEntrada();
   const [selectedChaveNfe, setSelectedChaveNfe] = useState<string>("");
   const [showNFeDialog, setShowNFeDialog] = useState(false);
+  const [reverting, setReverting] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const handleViewNota = (nota: NotaEntrada) => {
     if (nota.chave_nfe) {
       setSelectedChaveNfe(nota.chave_nfe);
       setShowNFeDialog(true);
+    }
+  };
+
+  const handleReverter = async (nota: NotaEntrada) => {
+    if (!confirm(`Tem certeza que deseja REVERTER a importação da NF-e ${nota.numero}?\n\nIsso apagará todos os lotes, itens da nota e contas a pagar gerados por esta importação.`)) return;
+    
+    setReverting(nota.id);
+    try {
+      await reverterImportacaoNFe(nota.id);
+      toast.success(`NF-e ${nota.numero} revertida com sucesso!`);
+      queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
+      queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
+      queryClient.invalidateQueries({ queryKey: ['itens'] });
+    } catch (error) {
+      console.error('Erro ao reverter:', error);
+      toast.error('Erro ao reverter importação');
+    } finally {
+      setReverting(null);
     }
   };
 
@@ -88,11 +111,23 @@ export default function NotasEntradaPage() {
     {
       key: "actions",
       header: "",
-      className: "w-20",
+      className: "w-32",
       render: (item: NotaEntrada) => (
-        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }}>
-          <Eye className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }} title="Visualizar">
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={(e) => { e.stopPropagation(); handleReverter(item); }}
+            disabled={reverting === item.id}
+            title="Reverter importação"
+            className="text-destructive hover:text-destructive"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ];
