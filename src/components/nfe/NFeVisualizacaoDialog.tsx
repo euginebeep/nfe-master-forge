@@ -74,11 +74,11 @@ interface NotaEntradaItemDB {
 interface XMLFullData {
   emitente: {
     cnpj: string; razaoSocial: string; nomeFantasia: string; ie: string;
-    cnae?: string; crt?: string;
+    im?: string; cnae?: string; crt?: string;
     endereco?: { logradouro: string; nro: string; complemento?: string; bairro: string; cidade: string; uf: string; cep: string; telefone?: string };
   } | null;
   destinatario: {
-    cnpj: string; cpf: string; razaoSocial: string; ie: string;
+    cnpj: string; cpf: string; razaoSocial: string; ie: string; email?: string;
     endereco?: { logradouro: string; nro: string; complemento?: string; bairro: string; cidade: string; uf: string; cep: string; telefone?: string };
   } | null;
   ide: {
@@ -86,7 +86,15 @@ interface XMLFullData {
     ambiente: string; protocolo: string; dhRecebimento: string;
     cUF: string; cNF: string; indPag: string; tpEmis: string;
     dhSaiEnt: string; verProc: string;
+    idDest: string; indPres: string;
   };
+  protSefaz: {
+    nProt: string; cStat: string; xMotivo: string; dhRecbto: string;
+    verAplic: string; ambiente: string;
+  } | null;
+  respTec: {
+    cnpj: string; xContato: string; email: string; fone: string;
+  } | null;
   totais: {
     vBC: number; vICMS: number; vICMSDeson: number; vBCST: number; vST: number;
     vProd: number; vFrete: number; vSeg: number; vDesc: number; vOutro: number;
@@ -134,10 +142,12 @@ function parseXMLFull(xmlString: string): XMLFullData | null {
 
     // ide
     const ide = doc.getElementsByTagName('ide')[0];
+    const idDestMap: Record<string, string> = { '1': 'Operação interna', '2': 'Operação interestadual', '3': 'Operação com exterior' };
+    const indPresMap: Record<string, string> = { '0': 'Não se aplica', '1': 'Presencial', '2': 'Internet', '3': 'Teleatendimento', '4': 'NFC-e entrega domicílio', '5': 'Presencial fora do estabelecimento', '9': 'Operação não presencial, outros' };
     const ideData = {
       naturezaOperacao: gt(ide, 'natOp'),
       tipoOperacao: gt(ide, 'tpNF') === '0' ? 'Entrada' : 'Saída',
-      finalidade: { '1': 'Normal', '2': 'Complementar', '3': 'Ajuste', '4': 'Devolução' }[gt(ide, 'finNFe')] || gt(ide, 'finNFe'),
+      finalidade: { '1': 'NF-e normal', '2': 'Complementar', '3': 'Ajuste', '4': 'Devolução' }[gt(ide, 'finNFe')] || gt(ide, 'finNFe'),
       ambiente: gt(ide, 'tpAmb') === '1' ? 'Produção' : 'Homologação',
       protocolo: '',
       dhRecebimento: '',
@@ -147,23 +157,35 @@ function parseXMLFull(xmlString: string): XMLFullData | null {
       tpEmis: gt(ide, 'tpEmis'),
       dhSaiEnt: gt(ide, 'dhSaiEnt'),
       verProc: '',
+      idDest: idDestMap[gt(ide, 'idDest')] || gt(ide, 'idDest'),
+      indPres: indPresMap[gt(ide, 'indPres')] || gt(ide, 'indPres'),
     };
 
     // protNFe
     const protNFe = doc.getElementsByTagName('protNFe')[0];
-    if (protNFe) {
-      ideData.protocolo = gt(protNFe, 'nProt');
-      ideData.dhRecebimento = gt(protNFe, 'dhRecbto');
+    const infProt = protNFe?.getElementsByTagName('infProt')[0];
+    let protSefaz: XMLFullData['protSefaz'] = null;
+    if (infProt) {
+      ideData.protocolo = gt(infProt, 'nProt');
+      ideData.dhRecebimento = gt(infProt, 'dhRecbto');
+      protSefaz = {
+        nProt: gt(infProt, 'nProt'),
+        cStat: gt(infProt, 'cStat'),
+        xMotivo: gt(infProt, 'xMotivo'),
+        dhRecbto: gt(infProt, 'dhRecbto'),
+        verAplic: gt(infProt, 'verAplic'),
+        ambiente: gt(infProt, 'tpAmb') === '1' ? 'Produção' : gt(infProt, 'tpAmb') === '2' ? 'Homologação' : ideData.ambiente,
+      };
     }
     const infNFe = doc.getElementsByTagName('infNFe')[0];
-    ideData.verProc = gt(doc.getElementsByTagName('infProt')[0] || infNFe, 'verProc');
+    ideData.verProc = gt(doc.getElementsByTagName('verProc')[0]?.parentElement || infNFe, 'verProc');
 
     // emit
     const emit = doc.getElementsByTagName('emit')[0];
     const enderEmit = emit?.getElementsByTagName('enderEmit')[0];
     const emitente = emit ? {
       cnpj: gt(emit, 'CNPJ'), razaoSocial: gt(emit, 'xNome'), nomeFantasia: gt(emit, 'xFant'), ie: gt(emit, 'IE'),
-      cnae: gt(emit, 'CNAE'), crt: gt(emit, 'CRT'),
+      im: gt(emit, 'IM'), cnae: gt(emit, 'CNAE'), crt: gt(emit, 'CRT'),
       endereco: enderEmit ? {
         logradouro: gt(enderEmit, 'xLgr'), nro: gt(enderEmit, 'nro'), complemento: gt(enderEmit, 'xCpl'),
         bairro: gt(enderEmit, 'xBairro'), cidade: gt(enderEmit, 'xMun'), uf: gt(enderEmit, 'UF'),
@@ -176,6 +198,7 @@ function parseXMLFull(xmlString: string): XMLFullData | null {
     const enderDest = dest?.getElementsByTagName('enderDest')[0];
     const destinatario = dest ? {
       cnpj: gt(dest, 'CNPJ'), cpf: gt(dest, 'CPF'), razaoSocial: gt(dest, 'xNome'), ie: gt(dest, 'IE'),
+      email: gt(dest, 'email'),
       endereco: enderDest ? {
         logradouro: gt(enderDest, 'xLgr'), nro: gt(enderDest, 'nro'), complemento: gt(enderDest, 'xCpl'),
         bairro: gt(enderDest, 'xBairro'), cidade: gt(enderDest, 'xMun'), uf: gt(enderDest, 'UF'),
@@ -293,7 +316,16 @@ function parseXMLFull(xmlString: string): XMLFullData | null {
     const infCpl = gt(infAdic, 'infCpl');
     const infAdFisco = gt(infAdic, 'infAdFisco');
 
-    return { emitente, destinatario, ide: ideData, totais, transporte, cobranca, pagamentos, itensDetalhados, infCpl, infAdFisco };
+    // infRespTec
+    const infRespTec = doc.getElementsByTagName('infRespTec')[0];
+    const respTec: XMLFullData['respTec'] = infRespTec ? {
+      cnpj: gt(infRespTec, 'CNPJ'),
+      xContato: gt(infRespTec, 'xContato'),
+      email: gt(infRespTec, 'email'),
+      fone: gt(infRespTec, 'fone'),
+    } : null;
+
+    return { emitente, destinatario, ide: ideData, protSefaz, respTec, totais, transporte, cobranca, pagamentos, itensDetalhados, infCpl, infAdFisco };
   } catch {
     return null;
   }
@@ -911,76 +943,110 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
 }
 
 // ====================================================
-// Tab: Dados Gerais
+// Tab: Dados Gerais (card-based layout matching reference)
 // ====================================================
 function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFullData | null }) {
   const emit = xmlData?.emitente;
   const dest = xmlData?.destinatario;
   const ide = xmlData?.ide;
+  const prot = xmlData?.protSefaz;
+  const rt = xmlData?.respTec;
 
   return (
     <div className="space-y-6">
-      {/* Identificação da NF-e */}
-      <Section title="Identificação">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Field label="Número" value={nota.numero || '-'} />
-          <Field label="Série" value={nota.serie || '-'} />
-          <Field label="Modelo" value={nota.modelo || '55'} />
-          <Field label="Status" value={nota.status} />
-          <Field label="Natureza da Operação" value={ide?.naturezaOperacao || '-'} />
-          <Field label="Tipo" value={ide?.tipoOperacao || '-'} />
-          <Field label="Finalidade" value={ide?.finalidade || '-'} />
-          <Field label="Ambiente" value={ide?.ambiente || '-'} />
-          <Field label="Data Emissão" value={formatDate(nota.dh_emissao || '')} />
-          <Field label="Data Saída/Entrada" value={ide?.dhSaiEnt ? formatDate(ide.dhSaiEnt) : '-'} />
-          <Field label="Protocolo" value={ide?.protocolo || '-'} />
-          <Field label="Data Autorização" value={ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '-'} />
-        </div>
-      </Section>
-
-      {/* Emitente */}
-      <Section title="Emitente">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} className="col-span-2" />
-          <Field label="Nome Fantasia" value={emit?.nomeFantasia || '-'} />
-          <Field label="CNPJ" value={emit?.cnpj || nota.fornecedor?.documento || '-'} />
-          <Field label="IE" value={emit?.ie || '-'} />
-          <Field label="CNAE" value={emit?.cnae || '-'} />
-          <Field label="CRT" value={emit?.crt || '-'} />
-          {emit?.endereco && (
-            <>
-              <Field label="Endereço" value={`${emit.endereco.logradouro}, ${emit.endereco.nro}`} className="col-span-2" />
-              <Field label="Bairro" value={emit.endereco.bairro} />
-              <Field label="Município" value={emit.endereco.cidade} />
-              <Field label="UF" value={emit.endereco.uf} />
-              <Field label="CEP" value={emit.endereco.cep} />
-            </>
-          )}
-        </div>
-      </Section>
-
-      {/* Destinatário */}
-      <Section title="Destinatário">
-        {dest ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Field label="Razão Social" value={dest.razaoSocial} className="col-span-2" />
-            <Field label="CNPJ" value={dest.cnpj || '-'} />
-            <Field label="CPF" value={dest.cpf || '-'} />
-            <Field label="IE" value={dest.ie || '-'} />
-            {dest.endereco && (
-              <>
-                <Field label="Endereço" value={`${dest.endereco.logradouro}, ${dest.endereco.nro}`} className="col-span-2" />
-                <Field label="Bairro" value={dest.endereco.bairro} />
-                <Field label="Município" value={dest.endereco.cidade} />
-                <Field label="UF" value={dest.endereco.uf} />
-                <Field label="CEP" value={dest.endereco.cep} />
-              </>
-            )}
+      {/* Row 1: Identificação + Protocolo SEFAZ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <CardSection icon={<FileText className="h-4 w-4" />} title="Identificação da NF-e">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <Field label="Número" value={nota.numero || '-'} bold />
+            <Field label="Série" value={nota.serie || '-'} bold />
+            <Field label="Natureza da Operação" value={ide?.naturezaOperacao || '-'} />
+            <Field label="Tipo de NF-e" value={ide?.tipoOperacao || '-'} />
+            <Field label="Finalidade" value={ide?.finalidade || '-'} />
+            <Field label="Destino" value={ide?.idDest || '-'} />
+            <Field label="Data/Hora Emissão" value={formatDate(nota.dh_emissao || '')} />
+            <Field label="Data/Hora Saída/Entrada" value={ide?.dhSaiEnt ? formatDate(ide.dhSaiEnt) : formatDate(nota.dh_emissao || '')} />
+            <Field label="Ambiente" value={ide?.ambiente || '-'} />
+            <Field label="Indicador de Presença" value={ide?.indPres || '-'} />
+            <Field label="Versão do Processo" value={ide?.verProc || '-'} />
+            <Field label="Código UF" value={ide?.cUF || '-'} />
           </div>
-        ) : (
-          <p className="text-muted-foreground">Não informado no XML</p>
-        )}
-      </Section>
+        </CardSection>
+
+        <CardSection icon={<Hash className="h-4 w-4" />} title="Protocolo SEFAZ">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <Field label="Número do Protocolo" value={prot?.nProt || ide?.protocolo || '-'} bold />
+            <Field label="Status" value={prot?.cStat || '-'} />
+            <Field label="Motivo" value={prot?.xMotivo || '-'} />
+            <Field label="Data/Hora Recebimento" value={prot?.dhRecbto ? formatDate(prot.dhRecbto) : ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '-'} />
+            <Field label="Versão Aplicativo" value={prot?.verAplic || '-'} />
+            <Field label="Ambiente" value={prot?.ambiente || ide?.ambiente || '-'} />
+          </div>
+        </CardSection>
+      </div>
+
+      {/* Row 2: Emitente + Destinatário */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <CardSection icon={<Building2 className="h-4 w-4" />} title="Emitente">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} />
+            <Field label="Nome Fantasia" value={emit?.nomeFantasia || '-'} />
+            <Field label="CNPJ/CPF" value={emit?.cnpj ? formatCNPJ(emit.cnpj) : '-'} />
+            <Field label="Inscrição Estadual" value={emit?.ie || '-'} />
+            <Field label="Inscrição Municipal" value={emit?.im || '—'} />
+            <Field label="CNAE" value={emit?.cnae || '—'} />
+            <Field label="CRT" value={emit?.crt || '-'} />
+            <Field label="Logradouro" value={emit?.endereco ? `${emit.endereco.logradouro}, ${emit.endereco.nro}${emit.endereco.complemento ? ` ${emit.endereco.complemento}` : ''}` : '—'} />
+            <Field label="Bairro" value={emit?.endereco?.bairro || '—'} />
+            <Field label="Município/UF" value={emit?.endereco ? `${emit.endereco.cidade}/${emit.endereco.uf}` : '—'} />
+            <Field label="CEP" value={emit?.endereco?.cep ? formatCEP(emit.endereco.cep) : '—'} />
+            <Field label="Telefone" value={emit?.endereco?.telefone || '—'} />
+          </div>
+        </CardSection>
+
+        <CardSection icon={<Building2 className="h-4 w-4" />} title="Destinatário">
+          {dest ? (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              <Field label="Razão Social / Nome" value={dest.razaoSocial} />
+              <Field label="CNPJ/CPF" value={dest.cnpj ? formatCNPJ(dest.cnpj) : dest.cpf || '-'} />
+              <Field label="Inscrição Estadual" value={dest.ie || '—'} />
+              <Field label="E-mail" value={dest.email || '—'} />
+              {dest.endereco && (
+                <>
+                  <Field label="Logradouro" value={`${dest.endereco.logradouro}, ${dest.endereco.nro}${dest.endereco.complemento ? ` ${dest.endereco.complemento}` : ''}`} />
+                  <Field label="Bairro" value={dest.endereco.bairro} />
+                  <Field label="Município/UF" value={`${dest.endereco.cidade}/${dest.endereco.uf}`} />
+                  <Field label="CEP" value={formatCEP(dest.endereco.cep)} />
+                  <Field label="Telefone" value={dest.endereco.telefone || '—'} />
+                </>
+              )}
+            </div>
+          ) : <p className="text-muted-foreground text-sm">Não informado no XML</p>}
+        </CardSection>
+      </div>
+
+      {/* Row 3: Informações Complementares + Responsável Técnico */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <CardSection icon={<Info className="h-4 w-4" />} title="Informações Complementares">
+          {(xmlData?.infCpl || xmlData?.infAdFisco) ? (
+            <div className="text-sm space-y-2">
+              {xmlData?.infAdFisco && <p>{xmlData.infAdFisco}</p>}
+              {xmlData?.infCpl && <p>{xmlData.infCpl}</p>}
+            </div>
+          ) : <p className="text-muted-foreground text-sm">Sem informações complementares</p>}
+        </CardSection>
+
+        <CardSection icon={<Building2 className="h-4 w-4" />} title="Responsável Técnico">
+          {rt ? (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              <Field label="CNPJ" value={rt.cnpj ? formatCNPJ(rt.cnpj) : '—'} />
+              <Field label="Contato" value={rt.xContato || '—'} />
+              <Field label="E-mail" value={rt.email || '—'} />
+              <Field label="Telefone" value={rt.fone || '—'} />
+            </div>
+          ) : <p className="text-muted-foreground text-sm">Não informado no XML</p>}
+        </CardSection>
+      </div>
     </div>
   );
 }
@@ -1347,6 +1413,18 @@ function TabXMLBruto({ xmlRaw }: { xmlRaw: string | null }) {
 // ====================================================
 // Shared components
 // ====================================================
+function CardSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div className="border rounded-lg p-5 space-y-4">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <span className="text-primary">{icon}</span>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
