@@ -32,7 +32,9 @@ export function EstoqueResumoCard({ lotes, unidadeInternaItem }: EstoqueResumoCa
   // Calcula resumo
   const resumo = lotes.reduce((acc, l) => {
     acc.quantidadeInterna += l.quantidade_interna || 0;
-    acc.valorTotal += l.valor_total_item || 0;
+    // Valor real em estoque = quantidade interna × custo unitário interno
+    const valorEstoqueLote = (l.quantidade_interna || 0) * (l.custo_unitario_interno || 0);
+    acc.valorTotal += valorEstoqueLote;
     acc.qtdDisponivel += l.status === 'DISPONIVEL' ? (l.quantidade_interna || 0) : 0;
     acc.qtdQuarentena += l.status === 'QUARENTENA' ? (l.quantidade_interna || 0) : 0;
     acc.qtdBloqueado += l.status === 'BLOQUEADO' ? (l.quantidade_interna || 0) : 0;

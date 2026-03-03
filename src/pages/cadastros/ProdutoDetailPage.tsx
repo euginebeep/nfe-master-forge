@@ -227,8 +227,10 @@ export default function ProdutoDetailPage() {
                       <SelectContent>
                         <SelectItem value="g">Gramas (g)</SelectItem>
                         <SelectItem value="mg">Miligramas (mg)</SelectItem>
+                        <SelectItem value="kg">Quilogramas (kg)</SelectItem>
                         <SelectItem value="un">Unidades (un)</SelectItem>
                         <SelectItem value="ml">Mililitros (ml)</SelectItem>
+                        <SelectItem value="l">Litros (l)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -946,6 +948,12 @@ export default function ProdutoDetailPage() {
                             <p className="text-muted-foreground">Valor Total (Nota)</p>
                             <p className="font-medium">
                               R$ {l.nota_entrada_item?.vprod?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "-"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Valor Estoque (R$)</p>
+                            <p className="font-medium text-emerald-500">
+                              R$ {((l.quantidade_interna || 0) * (l.custo_unitario_interno || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
                           <div>
