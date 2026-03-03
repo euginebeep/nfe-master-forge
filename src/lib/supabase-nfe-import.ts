@@ -4,6 +4,7 @@
 // ============================================
 
 import { supabase } from '@/integrations/supabase/client';
+import { getUserCompanyId } from '@/hooks/use-user-company';
 import type { NFeParseResult, ClassificacaoNota, EntidadeXML } from '@/types/nfe-completa';
 
 export interface ImportStats {
@@ -39,15 +40,17 @@ export async function checkNotaFiscalExistsSupabase(chaveAcesso: string): Promis
 // ============================================
 async function findOrCreateEntidadeSupabase(
   entidadeXML: EntidadeXML,
-  papel: 'FORNECEDOR' | 'CLIENTE' | 'TRANSPORTADORA'
+  papel: 'FORNECEDOR' | 'CLIENTE' | 'TRANSPORTADORA',
+  companyId: string  // ← recebe company_id como parâmetro
 ): Promise<{ id: string; isNew: boolean }> {
   const docLimpo = entidadeXML.documento.replace(/\D/g, '');
   
-  // Buscar entidade existente pelo documento
+  // Buscar entidade existente pelo documento dentro da mesma empresa
   const { data: existente } = await supabase
     .from('entidades')
     .select('id')
     .eq('documento', docLimpo)
+    .eq('company_id', companyId)  // ← filtrar por empresa
     .maybeSingle();
   
   if (existente) {
@@ -69,10 +72,11 @@ async function findOrCreateEntidadeSupabase(
     return { id: existente.id, isNew: false };
   }
   
-  // Criar nova entidade
+  // Criar nova entidade COM company_id
   const { data: novaEntidade, error } = await supabase
     .from('entidades')
     .insert({
+      company_id: companyId,  // ← FIX: company_id obrigatório
       tipo_pessoa: entidadeXML.tipo_pessoa === 'PJ' ? 'PJ' : 'PF',
       documento: docLimpo,
       razao_social: entidadeXML.razao_social,
@@ -137,32 +141,35 @@ async function findOrCreateEntidadeSupabase(
 async function findOrCreateItemSupabase(
   itemXML: NFeParseResult['itens'][0]['item'],
   classificacao: ClassificacaoNota,
+  companyId: string  // ← recebe company_id como parâmetro
 ): Promise<{ id: string; isNew: boolean }> {
   const ean = itemXML.ean && itemXML.ean !== 'SEM GTIN' ? itemXML.ean.replace(/\D/g, '') : null;
   const ncm = itemXML.ncm;
   const descricao = itemXML.descricao;
   
-  // 1. Buscar por EAN
+  // 1. Buscar por EAN dentro da mesma empresa
   if (ean) {
     const { data: itemPorEan } = await supabase
       .from('itens')
       .select('id')
       .eq('ean', ean)
+      .eq('company_id', companyId)  // ← filtrar por empresa
       .maybeSingle();
     
     if (itemPorEan) return { id: itemPorEan.id, isNew: false };
   }
   
-  // 2. Buscar por descrição exata
+  // 2. Buscar por descrição exata dentro da mesma empresa
   const { data: itemPorDesc } = await supabase
     .from('itens')
     .select('id')
     .ilike('descricao_interna', descricao)
+    .eq('company_id', companyId)  // ← filtrar por empresa
     .maybeSingle();
   
   if (itemPorDesc) return { id: itemPorDesc.id, isNew: false };
   
-  // 3. Criar novo item
+  // 3. Criar novo item COM company_id
   const tipoItem = mapClassificacaoToTipo(classificacao, descricao);
   const uCom = itemXML.unidade_comercial.toUpperCase();
   const unidadeInterna = inferirUnidadeInterna(uCom, tipoItem, descricao);
@@ -170,6 +177,7 @@ async function findOrCreateItemSupabase(
   const { data: novoItem, error } = await supabase
     .from('itens')
     .insert({
+      company_id: companyId,  // ← FIX: company_id obrigatório
       descricao_interna: descricao,
       tipo_item: tipoItem,
       ncm: ncm || null,
@@ -209,7 +217,7 @@ function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: str
 
 function inferirUnidadeInterna(uCom: string, tipoItem: string, descricao: string): string {
   const isEmbalagem = ['EMBALAGEM', 'CAPSULA_VAZIA', 'ROTULO', 'TAMPA', 'POTE', 'SILICA'].includes(tipoItem);
-  const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'MILHEIRO'];
+  const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'MILHEIRO', 'MI'];
   
   if (isEmbalagem || unidadesDiscretas.includes(uCom)) return 'un';
   if (uCom === 'KG' || uCom === 'G') return 'g';
@@ -228,6 +236,7 @@ function calcularFatorConversao(uCom: string, unidadeInterna: string): number {
   if (u === 'LT' && unidadeInterna === 'ml') return 1000;
   if (u === 'ML' && unidadeInterna === 'ml') return 1;
   if (u === 'MILHEIRO' && unidadeInterna === 'un') return 1000;
+  if (u === 'MI' && unidadeInterna === 'un') return 1000;
   if (u === 'TON' && unidadeInterna === 'g') return 1000000;
   return 1;
 }
@@ -240,6 +249,13 @@ export async function importarNFeCompletaSupabase(
   classificacaoManual?: ClassificacaoNota,
   configuracoesItens?: ItemImportConfig[]
 ): Promise<{ notaId: string; stats: ImportStats }> {
+
+  // ← FIX: buscar company_id UMA VEZ no início, passar para todas as funções
+  const companyId = await getUserCompanyId();
+  if (!companyId) {
+    throw new Error('Empresa não configurada. Configure sua empresa antes de importar NF-e.');
+  }
+
   const stats: ImportStats = {
     entidadesCriadas: 0,
     produtosCriados: 0,
@@ -255,7 +271,7 @@ export async function importarNFeCompletaSupabase(
   
   try {
     // 1. Criar/vincular emitente como fornecedor
-    const emitente = await findOrCreateEntidadeSupabase(parseResult.emitente, 'FORNECEDOR');
+    const emitente = await findOrCreateEntidadeSupabase(parseResult.emitente, 'FORNECEDOR', companyId);
     if (emitente.isNew) {
       stats.entidadesCriadas++;
       createdResources.push({ table: 'entidades', id: emitente.id });
@@ -263,7 +279,7 @@ export async function importarNFeCompletaSupabase(
     
     // Destinatário
     if (parseResult.destinatario) {
-      const dest = await findOrCreateEntidadeSupabase(parseResult.destinatario, 'CLIENTE');
+      const dest = await findOrCreateEntidadeSupabase(parseResult.destinatario, 'CLIENTE', companyId);
       if (dest.isNew) {
         stats.entidadesCriadas++;
         createdResources.push({ table: 'entidades', id: dest.id });
@@ -272,17 +288,18 @@ export async function importarNFeCompletaSupabase(
     
     // Transportadora
     if (parseResult.transportadora?.documento) {
-      const transp = await findOrCreateEntidadeSupabase(parseResult.transportadora, 'TRANSPORTADORA');
+      const transp = await findOrCreateEntidadeSupabase(parseResult.transportadora, 'TRANSPORTADORA', companyId);
       if (transp.isNew) {
         stats.entidadesCriadas++;
         createdResources.push({ table: 'entidades', id: transp.id });
       }
     }
     
-    // 2. Criar nota_entrada no Supabase
+    // 2. Criar nota_entrada no Supabase COM company_id
     const { data: notaEntrada, error: notaError } = await supabase
       .from('notas_entrada')
       .insert({
+        company_id: companyId,  // ← FIX: company_id obrigatório
         chave_nfe: parseResult.notaFiscal.chave_acesso,
         fornecedor_id: emitente.id,
         xml_raw: parseResult.notaFiscal.xml_raw || null,
@@ -316,7 +333,7 @@ export async function importarNFeCompletaSupabase(
         isNew = false;
         stats.produtosVinculados++;
       } else {
-        const result = await findOrCreateItemSupabase(itemData.item, classificacao);
+        const result = await findOrCreateItemSupabase(itemData.item, classificacao, companyId);
         itemId = result.id;
         isNew = result.isNew;
         if (isNew) {
@@ -357,10 +374,11 @@ export async function importarNFeCompletaSupabase(
         if (newLink) createdResources.push({ table: 'item_fornecedores', id: newLink.id });
       }
       
-      // Criar item da nota
+      // Criar item da nota COM company_id
       const { data: notaItem, error: notaItemError } = await supabase
         .from('notas_entrada_itens')
         .insert({
+          company_id: companyId,  // ← FIX: company_id obrigatório
           nota_entrada_id: notaEntrada.id,
           item_id: itemId,
           codigo_fornecedor: itemData.item.codigo_produto,
@@ -397,6 +415,7 @@ export async function importarNFeCompletaSupabase(
         const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConversao);
         
         const { data: lote, error: loteError } = await supabase.from('estoque_lotes').insert({
+          company_id: companyId,      // ← FIX: company_id obrigatório
           item_id: itemId,
           fornecedor_id: emitente.id,
           nota_entrada_item_id: notaItem.id,
@@ -425,6 +444,7 @@ export async function importarNFeCompletaSupabase(
     if (parseResult.duplicatas.length > 0) {
       for (const dup of parseResult.duplicatas) {
         const { data: conta } = await supabase.from('contas_receber').insert({
+          company_id: companyId,  // ← FIX: company_id obrigatório
           descricao: `NF-e ${parseResult.notaFiscal.numero} - Dup ${dup.numero}`,
           valor: dup.valor,
           data_vencimento: dup.data_vencimento,
