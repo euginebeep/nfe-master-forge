@@ -50,17 +50,29 @@ export async function lookupCNPJ(cnpj: string): Promise<CNPJData | null> {
   }
   
   try {
-    // Using BrasilAPI - free and doesn't require API key
-    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCNPJ}`);
+    // Use edge function proxy to avoid CORS issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/cnpj-lookup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseKey}`,
+        'apikey': supabaseKey,
+      },
+      body: JSON.stringify({ cnpj: cleanedCNPJ }),
+    });
     
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       if (response.status === 404) {
         throw new Error('CNPJ não encontrado na base da Receita Federal');
       }
       if (response.status === 400) {
         throw new Error('CNPJ inválido');
       }
-      throw new Error('Erro ao consultar CNPJ');
+      throw new Error(errorData.error || 'Erro ao consultar CNPJ');
     }
     
     const data = await response.json();
