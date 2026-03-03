@@ -552,22 +552,39 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 }
 
 // ====================================================
-// Tab: DANFE (visual representation matching official layout)
+// Tab: DANFE (Official Brazilian layout replica)
 // ====================================================
-const DANFE_HEADER = 'bg-[#1b3a5c] text-white text-xs font-bold px-3 py-1.5 uppercase tracking-wide';
-const DANFE_CELL = 'border border-[#ccc] px-3 py-1.5 text-xs';
-const DANFE_LABEL = 'text-[10px] uppercase text-muted-foreground leading-tight';
+const B = 'border-[#000]'; // border color
+const CELL = `border ${B} px-2 py-1`;
+const LBL = 'text-[7px] uppercase text-gray-500 leading-none mb-0.5';
+const VAL = 'text-[10px] leading-tight font-medium';
+const VAL_MONO = 'text-[10px] leading-tight font-mono font-medium';
+const SECTION_HEADER = `${B} bg-gray-100 border px-2 py-[3px] text-[8px] font-bold uppercase tracking-wider text-gray-700`;
 
 function formatCNPJ(cnpj: string): string {
   const d = cnpj.replace(/\D/g, '');
   if (d.length !== 14) return cnpj;
   return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
 }
-
 function formatCEP(cep: string): string {
   const d = cep.replace(/\D/g, '');
   if (d.length !== 8) return cep;
   return `${d.slice(0,5)}-${d.slice(5)}`;
+}
+function formatFone(fone: string): string {
+  const d = fone.replace(/\D/g, '');
+  if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return fone;
+}
+
+function DCell({ label, value, className = '', mono = false }: { label: string; value?: string | number | null; className?: string; mono?: boolean }) {
+  return (
+    <div className={`${CELL} ${className}`}>
+      <p className={LBL}>{label}</p>
+      <p className={mono ? VAL_MONO : VAL}>{value ?? '—'}</p>
+    </div>
+  );
 }
 
 function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLFullData | null; itens: NotaEntradaItemDB[] }) {
@@ -578,365 +595,311 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
   const cobr = xmlData?.cobranca;
   const pagamentos = xmlData?.pagamentos || [];
   const produtos = xmlData?.itensDetalhados || [];
+  const ide = xmlData?.ide;
 
   const enderEmit = emit?.endereco;
   const enderDest = dest?.endereco;
 
+  const tpNF = ide?.tipoOperacao === 'Entrada' ? '0' : '1';
+  const modelo = nota.modelo || '55';
+
   return (
-    <div className="max-w-[900px] mx-auto bg-white text-[#333] text-xs" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
-      {/* ===== HEADER: 3 boxes ===== */}
-      <div className="grid grid-cols-[1fr_auto_1fr] border border-[#333]">
-        {/* Left: Emitente */}
-        <div className="border-r border-[#333] p-3 space-y-0.5">
-          <p className="font-bold text-sm">{emit?.razaoSocial || nota.fornecedor?.razao_social || '-'}</p>
-          {emit?.nomeFantasia && <p className="font-semibold text-xs">{emit.nomeFantasia}</p>}
-          {emit?.cnpj && <p>CNPJ: {formatCNPJ(emit.cnpj)}</p>}
-          {emit?.ie && <p>IE: {emit.ie}</p>}
-          {enderEmit && (
-            <>
-              <p>{enderEmit.logradouro}, {enderEmit.nro}{enderEmit.complemento ? ` ${enderEmit.complemento}` : ''}</p>
-              <p>{enderEmit.bairro} — {enderEmit.cidade}/{enderEmit.uf}</p>
-              <p>CEP: {formatCEP(enderEmit.cep)}</p>
-            </>
-          )}
-        </div>
+    <div className="max-w-[210mm] mx-auto bg-white text-black print:shadow-none" style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '10px' }}>
+      <div className={`border-2 ${B}`}>
 
-        {/* Center: DANFE title */}
-        <div className="border-r border-[#333] px-6 py-3 text-center flex flex-col items-center justify-center min-w-[200px]">
-          <p className="text-2xl font-bold tracking-wider">DANFE</p>
-          <p className="text-[9px] text-muted-foreground leading-tight mt-1">Documento Auxiliar da Nota Fiscal Eletrônica</p>
-          <p className="text-[9px] text-muted-foreground mt-1">
-            {xmlData?.ide.tipoOperacao === 'Entrada' ? 'Entrada' : 'Saída'} — {xmlData?.ide.ambiente || 'Produção'}
-          </p>
-          <p className="text-xl font-bold mt-2">Nº {nota.numero || '-'}</p>
-          <p className="text-xs">Série {nota.serie || '1'}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">Emissão: {formatDate(nota.dh_emissao || '')}</p>
-        </div>
-
-        {/* Right: Authorization */}
-        <div className="p-3 flex flex-col items-center justify-center text-center space-y-1">
-          <p className="font-bold text-green-700 text-xs uppercase">Autorizado o uso da NF-e</p>
-          {xmlData?.ide.protocolo && <p className="text-[10px]">Protocolo: {xmlData.ide.protocolo}</p>}
-          {xmlData?.ide.dhRecebimento && <p className="text-[10px]">Recebimento: {formatDate(xmlData.ide.dhRecebimento)}</p>}
-          {xmlData?.ide.naturezaOperacao && (
-            <p className="text-[10px] text-muted-foreground mt-1">Nat. Op.: {xmlData.ide.naturezaOperacao}</p>
-          )}
-          {produtos.length > 0 && produtos[0].cfop && (
-            <p className="text-[10px]">CFOP: {produtos[0].cfop}</p>
-          )}
-        </div>
-      </div>
-
-      {/* ===== Chave de Acesso ===== */}
-      <div className="border border-t-0 border-[#333] px-4 py-2 text-center">
-        <p className="text-[10px] text-muted-foreground">Chave de Acesso</p>
-        <p className="font-mono text-xs tracking-wider font-medium mt-0.5">{formatChave(nota.chave_nfe)}</p>
-      </div>
-
-      {/* ===== EMITENTE Section ===== */}
-      <div className="border border-t-0 border-[#333]">
-        <div className={DANFE_HEADER}>EMITENTE</div>
-        <div className="grid grid-cols-1">
-          <div className={DANFE_CELL}>
-            <p className={DANFE_LABEL}>Razão Social</p>
-            <p>{emit?.razaoSocial || nota.fornecedor?.razao_social || '-'}</p>
-          </div>
-          <div className="grid grid-cols-2">
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>CNPJ/CPF</p>
-              <p>{emit?.cnpj ? formatCNPJ(emit.cnpj) : '-'}</p>
+        {/* ============ ROW 1: HEADER ============ */}
+        <div className="grid grid-cols-[1fr_180px_1fr] border-b border-black">
+          {/* LEFT: Emitente identification */}
+          <div className={`border-r ${B} p-2 flex flex-col justify-between`}>
+            <div>
+              <p className="text-[13px] font-bold leading-tight">{emit?.razaoSocial || nota.fornecedor?.razao_social || '—'}</p>
+              {emit?.nomeFantasia && <p className="text-[10px] mt-0.5">{emit.nomeFantasia}</p>}
             </div>
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Inscrição Estadual</p>
-              <p>{emit?.ie || '—'}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2">
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Inscrição Municipal</p>
-              <p>—</p>
-            </div>
-            <div className={DANFE_CELL + ' invisible'} />
-          </div>
-          <div className={DANFE_CELL}>
-            <p className={DANFE_LABEL}>Endereço</p>
-            <p>{enderEmit ? `${enderEmit.logradouro}, ${enderEmit.nro}${enderEmit.complemento ? ` ${enderEmit.complemento}` : ''}` : '—'}</p>
-          </div>
-          <div className="grid grid-cols-2">
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Bairro</p>
-              <p>{enderEmit?.bairro || '—'}</p>
-            </div>
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Município/UF</p>
-              <p>{enderEmit ? `${enderEmit.cidade}/${enderEmit.uf}` : '—'}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2">
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>CEP</p>
-              <p>{enderEmit?.cep ? formatCEP(enderEmit.cep) : '—'}</p>
-            </div>
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Telefone</p>
-              <p>{enderEmit?.telefone || '—'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ===== DESTINATÁRIO Section ===== */}
-      <div className="border border-t-0 border-[#333]">
-        <div className={DANFE_HEADER}>DESTINATÁRIO / REMETENTE</div>
-        <div className="grid grid-cols-1">
-          <div className={DANFE_CELL}>
-            <p className={DANFE_LABEL}>Razão Social / Nome</p>
-            <p>{dest?.razaoSocial || '—'}</p>
-          </div>
-          <div className="grid grid-cols-2">
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>CNPJ/CPF</p>
-              <p>{dest?.cnpj ? formatCNPJ(dest.cnpj) : dest?.cpf || '—'}</p>
-            </div>
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Inscrição Estadual</p>
-              <p>{dest?.ie || '—'}</p>
-            </div>
-          </div>
-          {enderDest && (
-            <>
-              <div className={DANFE_CELL}>
-                <p className={DANFE_LABEL}>Endereço</p>
-                <p>{enderDest.logradouro}, {enderDest.nro}{enderDest.complemento ? ` ${enderDest.complemento}` : ''}</p>
+            {enderEmit && (
+              <div className="mt-1 text-[9px] leading-snug text-gray-700">
+                <p>{enderEmit.logradouro}, {enderEmit.nro}{enderEmit.complemento ? `, ${enderEmit.complemento}` : ''}</p>
+                <p>{enderEmit.bairro} - {enderEmit.cidade} - {enderEmit.uf} - CEP: {formatCEP(enderEmit.cep)}</p>
+                {enderEmit.telefone && <p>Fone: {formatFone(enderEmit.telefone)}</p>}
               </div>
-              <div className="grid grid-cols-2">
-                <div className={DANFE_CELL}>
-                  <p className={DANFE_LABEL}>Bairro</p>
-                  <p>{enderDest.bairro}</p>
-                </div>
-                <div className={DANFE_CELL}>
-                  <p className={DANFE_LABEL}>Município/UF</p>
-                  <p>{enderDest.cidade}/{enderDest.uf}</p>
+            )}
+          </div>
+
+          {/* CENTER: DANFE box */}
+          <div className={`border-r ${B} text-center py-2 flex flex-col items-center justify-center`}>
+            <p className="text-[18px] font-extrabold tracking-[4px]">DANFE</p>
+            <p className="text-[6px] leading-tight mt-0.5 text-gray-600 px-2">DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRÔNICA</p>
+            <div className="mt-2 flex gap-4 text-[8px]">
+              <span>{tpNF === '0' ? '☒ ENTRADA' : '☐ ENTRADA'}</span>
+              <span>{tpNF === '1' ? '☒ SAÍDA' : '☐ SAÍDA'}</span>
+            </div>
+            <div className="mt-2 border-t border-gray-300 pt-1 w-full">
+              <p className={LBL}>Nº</p>
+              <p className="text-[14px] font-bold">{nota.numero || '—'}</p>
+              <p className={LBL}>SÉRIE</p>
+              <p className="text-[11px] font-bold">{nota.serie || '1'}</p>
+            </div>
+            <div className="mt-1 border-t border-gray-300 pt-1 w-full">
+              <p className={LBL}>FOLHA 1/1</p>
+            </div>
+          </div>
+
+          {/* RIGHT: Barcode area + chave + protocolo */}
+          <div className="flex flex-col">
+            {/* Barcode placeholder */}
+            <div className={`border-b ${B} p-2 flex items-center justify-center min-h-[40px]`}>
+              <div className="bg-gray-200 text-[7px] text-gray-500 px-4 py-2 text-center rounded">
+                CÓDIGO DE BARRAS
+              </div>
+            </div>
+            {/* Chave de acesso */}
+            <div className={`border-b ${B} p-2`}>
+              <p className={LBL}>CHAVE DE ACESSO</p>
+              <p className="text-[8px] font-mono font-bold tracking-wider leading-tight mt-0.5">{formatChave(nota.chave_nfe)}</p>
+            </div>
+            {/* Consulta */}
+            <div className={`border-b ${B} p-1.5 text-center`}>
+              <p className="text-[7px] text-gray-500">Consulta de autenticidade no portal nacional da NF-e</p>
+              <p className="text-[7px] font-bold">www.nfe.fazenda.gov.br/portal</p>
+            </div>
+            {/* Protocolo */}
+            <div className="p-2">
+              <p className={LBL}>PROTOCOLO DE AUTORIZAÇÃO DE USO</p>
+              <p className="text-[9px] font-mono font-bold mt-0.5">
+                {ide?.protocolo || '—'} — {ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '—'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ============ NATUREZA DA OPERAÇÃO | PROTOCOLO ============ */}
+        <div className="grid grid-cols-[1fr_auto] border-b border-black">
+          <DCell label="NATUREZA DA OPERAÇÃO" value={ide?.naturezaOperacao || '—'} />
+          <DCell label="INSCRIÇÃO ESTADUAL" value={emit?.ie || '—'} className="min-w-[180px]" />
+        </div>
+
+        {/* ============ IE, IE ST, CNPJ ============ */}
+        <div className="grid grid-cols-3 border-b border-black">
+          <DCell label="INSCRIÇÃO ESTADUAL" value={emit?.ie || '—'} />
+          <DCell label="INSCRIÇÃO ESTADUAL DO SUBST. TRIBUTÁRIO" value="—" />
+          <DCell label="CNPJ" value={emit?.cnpj ? formatCNPJ(emit.cnpj) : '—'} mono />
+        </div>
+
+        {/* ============ DESTINATÁRIO / REMETENTE ============ */}
+        <div className={SECTION_HEADER}>DESTINATÁRIO / REMETENTE</div>
+
+        <div className="grid grid-cols-[1fr_200px_120px] border-b border-black">
+          <DCell label="NOME / RAZÃO SOCIAL" value={dest?.razaoSocial || '—'} />
+          <DCell label="CNPJ / CPF" value={dest?.cnpj ? formatCNPJ(dest.cnpj) : dest?.cpf || '—'} mono />
+          <DCell label="DATA DA EMISSÃO" value={formatDate(nota.dh_emissao || '')} />
+        </div>
+
+        <div className="grid grid-cols-[1fr_160px_100px_120px] border-b border-black">
+          <DCell label="ENDEREÇO" value={enderDest ? `${enderDest.logradouro}, ${enderDest.nro}${enderDest.complemento ? ` - ${enderDest.complemento}` : ''}` : '—'} />
+          <DCell label="BAIRRO / DISTRITO" value={enderDest?.bairro || '—'} />
+          <DCell label="CEP" value={enderDest?.cep ? formatCEP(enderDest.cep) : '—'} mono />
+          <DCell label="DATA SAÍDA/ENTRADA" value={ide?.dhSaiEnt ? formatDate(ide.dhSaiEnt) : '—'} />
+        </div>
+
+        <div className="grid grid-cols-[1fr_100px_160px_120px] border-b border-black">
+          <DCell label="MUNICÍPIO" value={enderDest?.cidade || '—'} />
+          <DCell label="UF" value={enderDest?.uf || '—'} />
+          <DCell label="FONE / FAX" value={enderDest?.telefone ? formatFone(enderDest.telefone) : '—'} />
+          <DCell label="INSCRIÇÃO ESTADUAL" value={dest?.ie || '—'} />
+        </div>
+
+        {/* ============ FATURA / DUPLICATAS ============ */}
+        {(cobr?.fatura || (cobr?.duplicatas && cobr.duplicatas.length > 0)) && (
+          <>
+            <div className={SECTION_HEADER}>FATURA / DUPLICATA</div>
+            {cobr?.fatura && (
+              <div className="grid grid-cols-4 border-b border-black">
+                <DCell label="NÚMERO DA FATURA" value={cobr.fatura.nFat} />
+                <DCell label="VALOR ORIGINAL" value={formatCurrency(cobr.fatura.vOrig)} mono />
+                <DCell label="VALOR DESCONTO" value={formatCurrency(cobr.fatura.vDesc)} mono />
+                <DCell label="VALOR LÍQUIDO" value={formatCurrency(cobr.fatura.vLiq)} mono />
+              </div>
+            )}
+            {cobr?.duplicatas && cobr.duplicatas.length > 0 && (
+              <div className="border-b border-black p-1">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[9px]">
+                  {cobr.duplicatas.map((d, i) => (
+                    <span key={i} className="font-mono">
+                      <span className="text-gray-500">Nº:</span> {d.nDup} <span className="text-gray-500">Venc:</span> {formatDate(d.dVenc)} <span className="text-gray-500">Valor:</span> {formatCurrency(d.vDup)}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2">
-                <div className={DANFE_CELL}>
-                  <p className={DANFE_LABEL}>CEP</p>
-                  <p>{formatCEP(enderDest.cep)}</p>
-                </div>
-                <div className={DANFE_CELL}>
-                  <p className={DANFE_LABEL}>Telefone</p>
-                  <p>{enderDest.telefone || '—'}</p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+            )}
+          </>
+        )}
 
-      {/* ===== PRODUTOS ===== */}
-      <div className="border border-t-0 border-[#333] overflow-hidden">
-        <div className={DANFE_HEADER}>DADOS DOS PRODUTOS / SERVIÇOS</div>
-        <table className="w-full border-collapse text-[10px]">
-          <thead>
-            <tr className="bg-muted/40">
-              <th className="border border-[#ccc] px-1 py-1 text-left w-8">#</th>
-              <th className="border border-[#ccc] px-1 py-1 text-left w-16">Código</th>
-              <th className="border border-[#ccc] px-1 py-1 text-left">Descrição</th>
-              <th className="border border-[#ccc] px-1 py-1 text-left w-16">NCM</th>
-              <th className="border border-[#ccc] px-1 py-1 text-left w-12">CFOP</th>
-              <th className="border border-[#ccc] px-1 py-1 text-left w-10">Un</th>
-              <th className="border border-[#ccc] px-1 py-1 text-right w-16">Qtd</th>
-              <th className="border border-[#ccc] px-1 py-1 text-right w-20">Vl. Unit.</th>
-              <th className="border border-[#ccc] px-1 py-1 text-right w-20">Vl. Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(produtos.length > 0 ? produtos : itens.map((i, idx) => ({
-              nItem: idx + 1, cProd: i.codigo_fornecedor || '', xProd: i.descricao || '',
-              ncm: i.ncm || '', cfop: i.cfop || '', uCom: i.ucom || '',
-              qCom: i.qcom || 0, vUnCom: i.vuncom || 0, vProd: i.vprod || 0,
-            }))).map((p: any) => (
-              <tr key={p.nItem}>
-                <td className="border border-[#ccc] px-1 py-0.5">{p.nItem}</td>
-                <td className="border border-[#ccc] px-1 py-0.5 font-mono">{p.cProd}</td>
-                <td className="border border-[#ccc] px-1 py-0.5">{p.xProd}</td>
-                <td className="border border-[#ccc] px-1 py-0.5 font-mono">{p.ncm}</td>
-                <td className="border border-[#ccc] px-1 py-0.5 font-mono">{p.cfop}</td>
-                <td className="border border-[#ccc] px-1 py-0.5">{p.uCom}</td>
-                <td className="border border-[#ccc] px-1 py-0.5 text-right font-mono">{p.qCom?.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</td>
-                <td className="border border-[#ccc] px-1 py-0.5 text-right font-mono">{formatCurrency(p.vUnCom)}</td>
-                <td className="border border-[#ccc] px-1 py-0.5 text-right font-mono font-medium">{formatCurrency(p.vProd)}</td>
+        {/* ============ CÁLCULO DO IMPOSTO ============ */}
+        <div className={SECTION_HEADER}>CÁLCULO DO IMPOSTO</div>
+
+        <div className="grid grid-cols-5 border-b border-black">
+          <DCell label="BASE DE CÁLCULO DO ICMS" value={formatCurrency(totais?.vBC || 0)} mono />
+          <DCell label="VALOR DO ICMS" value={formatCurrency(totais?.vICMS || 0)} mono />
+          <DCell label="BASE DE CÁLC. ICMS ST" value={formatCurrency(totais?.vBCST || 0)} mono />
+          <DCell label="VALOR DO ICMS ST" value={formatCurrency(totais?.vST || 0)} mono />
+          <DCell label="VALOR APROX. DOS TRIBUTOS" value={formatCurrency(totais?.vTotTrib || 0)} mono />
+        </div>
+
+        <div className="grid grid-cols-6 border-b border-black">
+          <DCell label="VALOR TOTAL DOS PRODUTOS" value={formatCurrency(totais?.vProd || nota.total_produtos || 0)} mono />
+          <DCell label="VALOR DO FRETE" value={formatCurrency(totais?.vFrete || 0)} mono />
+          <DCell label="VALOR DO SEGURO" value={formatCurrency(totais?.vSeg || 0)} mono />
+          <DCell label="DESCONTO" value={formatCurrency(totais?.vDesc || 0)} mono />
+          <DCell label="OUTRAS DESPESAS" value={formatCurrency(totais?.vOutro || 0)} mono />
+          <DCell label="VALOR TOTAL DA NOTA" value={formatCurrency(totais?.vNF || nota.total_nota || 0)} mono className="bg-gray-50 font-bold" />
+        </div>
+
+        {/* ============ TRANSPORTADOR / VOLUMES ============ */}
+        <div className={SECTION_HEADER}>TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>
+
+        <div className="grid grid-cols-[1fr_120px_100px_140px_100px_100px] border-b border-black">
+          <DCell label="RAZÃO SOCIAL" value={transp?.transportadora?.razaoSocial || '—'} />
+          <DCell label="FRETE POR CONTA" value={transp?.modFrete || '—'} />
+          <DCell label="CÓDIGO ANTT" value={transp?.veiculo?.rntc || '—'} />
+          <DCell label="PLACA DO VEÍCULO" value={transp?.veiculo?.placa || '—'} />
+          <DCell label="UF" value={transp?.veiculo?.uf || '—'} />
+          <DCell label="CNPJ / CPF" value={transp?.transportadora?.cnpj || '—'} mono />
+        </div>
+
+        <div className="grid grid-cols-[1fr_100px_160px] border-b border-black">
+          <DCell label="ENDEREÇO" value={transp?.transportadora?.endereco || '—'} />
+          <DCell label="MUNICÍPIO" value={transp?.transportadora?.municipio || '—'} />
+          <DCell label="UF" value={transp?.transportadora?.uf || '—'} />
+        </div>
+
+        <div className="grid grid-cols-6 border-b border-black">
+          <DCell label="QUANTIDADE" value={transp?.volumes?.[0]?.qVol?.toString() || '—'} />
+          <DCell label="ESPÉCIE" value={transp?.volumes?.[0]?.especie || '—'} />
+          <DCell label="MARCA" value={transp?.volumes?.[0]?.marca || '—'} />
+          <DCell label="NUMERAÇÃO" value={transp?.volumes?.[0]?.nVol || '—'} />
+          <DCell label="PESO BRUTO" value={transp?.volumes?.[0]?.pesoB ? `${transp.volumes[0].pesoB.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}` : '—'} mono />
+          <DCell label="PESO LÍQUIDO" value={transp?.volumes?.[0]?.pesoL ? `${transp.volumes[0].pesoL.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}` : '—'} mono />
+        </div>
+
+        {/* ============ DADOS DOS PRODUTOS / SERVIÇOS ============ */}
+        <div className={SECTION_HEADER}>DADOS DOS PRODUTOS / SERVIÇOS</div>
+
+        <div className="border-b border-black overflow-x-auto">
+          <table className="w-full border-collapse" style={{ fontSize: '8px' }}>
+            <thead>
+              <tr className="bg-gray-50">
+                <th className={`${CELL} text-center w-6`}>ITEM</th>
+                <th className={`${CELL} text-left w-14`}>CÓDIGO</th>
+                <th className={`${CELL} text-left`}>DESCRIÇÃO DO PRODUTO / SERVIÇO</th>
+                <th className={`${CELL} text-center w-16`}>NCM/SH</th>
+                <th className={`${CELL} text-center w-8`}>CST</th>
+                <th className={`${CELL} text-center w-10`}>CFOP</th>
+                <th className={`${CELL} text-center w-8`}>UN</th>
+                <th className={`${CELL} text-right w-16`}>QTD</th>
+                <th className={`${CELL} text-right w-16`}>VL.UNIT</th>
+                <th className={`${CELL} text-right w-16`}>VL.TOTAL</th>
+                <th className={`${CELL} text-right w-14`}>BC ICMS</th>
+                <th className={`${CELL} text-right w-14`}>VL.ICMS</th>
+                <th className={`${CELL} text-right w-14`}>VL.IPI</th>
+                <th className={`${CELL} text-right w-10`}>% ICMS</th>
+                <th className={`${CELL} text-right w-10`}>% IPI</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ===== TOTAIS + FATURA side by side ===== */}
-      <div className="grid grid-cols-2 border border-t-0 border-[#333]">
-        {/* Left: Tax Totals */}
-        <div className="border-r border-[#333]">
-          <table className="w-full text-[10px]">
+            </thead>
             <tbody>
-              <tr><td className={DANFE_CELL}>Valor dos Produtos</td><td className={DANFE_CELL + ' text-right font-mono'}>{formatCurrency(totais?.vProd || nota.total_produtos || 0)}</td></tr>
-              <tr><td className={DANFE_CELL}>Base de Cálculo ICMS</td><td className={DANFE_CELL + ' text-right font-mono'}>{formatCurrency(totais?.vBC || 0)}</td></tr>
-              <tr><td className={DANFE_CELL}>Valor do ICMS</td><td className={DANFE_CELL + ' text-right font-mono'}>{formatCurrency(totais?.vICMS || 0)}</td></tr>
-              <tr><td className={DANFE_CELL}>Valor do PIS</td><td className={DANFE_CELL + ' text-right font-mono'}>{formatCurrency(totais?.vPIS || 0)}</td></tr>
-              <tr><td className={DANFE_CELL}>Valor da COFINS</td><td className={DANFE_CELL + ' text-right font-mono'}>{formatCurrency(totais?.vCOFINS || 0)}</td></tr>
+              {(produtos.length > 0 ? produtos : itens.map((i, idx) => ({
+                nItem: idx + 1, cProd: i.codigo_fornecedor || '', xProd: i.descricao || '',
+                ncm: i.ncm || '', cfop: i.cfop || '', uCom: i.ucom || '',
+                qCom: i.qcom || 0, vUnCom: i.vuncom || 0, vProd: i.vprod || 0,
+                icms: { orig: '', cst: '', vBC: 0, pICMS: 0, vICMS: 0 },
+                ipi: { cst: '', vBC: 0, pIPI: 0, vIPI: 0 },
+              }))).map((p: any) => (
+                <tr key={p.nItem} className="hover:bg-blue-50/30">
+                  <td className={`${CELL} text-center font-mono`}>{p.nItem}</td>
+                  <td className={`${CELL} font-mono`}>{p.cProd}</td>
+                  <td className={`${CELL}`}>{p.xProd}</td>
+                  <td className={`${CELL} text-center font-mono`}>{p.ncm}</td>
+                  <td className={`${CELL} text-center font-mono`}>{p.icms?.orig}{p.icms?.cst}</td>
+                  <td className={`${CELL} text-center font-mono`}>{p.cfop}</td>
+                  <td className={`${CELL} text-center`}>{p.uCom}</td>
+                  <td className={`${CELL} text-right font-mono`}>{p.qCom?.toLocaleString('pt-BR', { minimumFractionDigits: 4 })}</td>
+                  <td className={`${CELL} text-right font-mono`}>{p.vUnCom?.toLocaleString('pt-BR', { minimumFractionDigits: 4 })}</td>
+                  <td className={`${CELL} text-right font-mono font-bold`}>{formatCurrency(p.vProd)}</td>
+                  <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vBC || 0)}</td>
+                  <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vICMS || 0)}</td>
+                  <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.ipi?.vIPI || 0)}</td>
+                  <td className={`${CELL} text-right font-mono`}>{p.icms?.pICMS ? `${p.icms.pICMS.toFixed(2)}` : '0,00'}</td>
+                  <td className={`${CELL} text-right font-mono`}>{p.ipi?.pIPI ? `${p.ipi.pIPI.toFixed(2)}` : '0,00'}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* Right: Total NF-e + Fatura */}
-        <div>
-          {/* Valor Total */}
-          <div className="bg-[#1b3a5c] text-white px-4 py-2 flex justify-between items-center">
-            <span className="font-bold text-xs uppercase">Valor Total da NF-e</span>
-            <span className="font-bold text-sm">{formatCurrency(totais?.vNF || nota.total_nota || 0)}</span>
-          </div>
-          {/* Fatura */}
-          {cobr?.fatura && (
-            <div className="p-2 text-[10px] space-y-0.5">
-              <p className={DANFE_LABEL + ' font-bold'}>Fatura</p>
-              <div className="flex justify-between"><span>Nº Fatura</span><span>{cobr.fatura.nFat}</span></div>
-              <div className="flex justify-between"><span>Valor Original</span><span className="font-mono">{formatCurrency(cobr.fatura.vOrig)}</span></div>
-              <div className="flex justify-between"><span>Desconto</span><span className="font-mono">{formatCurrency(cobr.fatura.vDesc)}</span></div>
-              <div className="flex justify-between font-bold"><span>Valor Líquido</span><span className="font-mono">{formatCurrency(cobr.fatura.vLiq)}</span></div>
-            </div>
-          )}
+        {/* ============ CÁLCULO DO ISSQN ============ */}
+        <div className={SECTION_HEADER}>CÁLCULO DO ISSQN</div>
+        <div className="grid grid-cols-4 border-b border-black">
+          <DCell label="INSCRIÇÃO MUNICIPAL" value={emit?.im || '—'} />
+          <DCell label="VALOR TOTAL DOS SERVIÇOS" value="—" mono />
+          <DCell label="BASE DE CÁLCULO DO ISSQN" value="—" mono />
+          <DCell label="VALOR TOTAL DO ISSQN" value="—" mono />
         </div>
-      </div>
 
-      {/* ===== TRANSPORTE ===== */}
-      <div className="border border-t-0 border-[#333]">
-        <div className={DANFE_HEADER}>TRANSPORTE</div>
-        <div className="grid grid-cols-2">
-          <div className={DANFE_CELL}>
-            <p className={DANFE_LABEL}>Modalidade do Frete</p>
-            <p>{transp?.modFrete || '—'}</p>
+        {/* ============ DADOS ADICIONAIS ============ */}
+        <div className={SECTION_HEADER}>DADOS ADICIONAIS</div>
+        <div className="grid grid-cols-2 border-b border-black">
+          <div className={`${CELL} min-h-[60px]`}>
+            <p className={LBL}>INFORMAÇÕES COMPLEMENTARES</p>
+            <p className="text-[8px] mt-1 whitespace-pre-wrap leading-snug">
+              {xmlData?.infCpl || '—'}
+            </p>
           </div>
-          <div className={DANFE_CELL}>
-            <p className={DANFE_LABEL}>Transportadora</p>
-            <p>{transp?.transportadora?.razaoSocial || '—'}</p>
+          <div className={`${CELL} min-h-[60px]`}>
+            <p className={LBL}>RESERVADO AO FISCO</p>
+            <p className="text-[8px] mt-1 whitespace-pre-wrap leading-snug">
+              {xmlData?.infAdFisco || '—'}
+            </p>
           </div>
         </div>
-        {transp?.transportadora && (
-          <div className="grid grid-cols-2">
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>CNPJ/CPF Transportadora</p>
-              <p>{transp.transportadora.cnpj || '—'}</p>
-            </div>
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>IE Transportadora</p>
-              <p>{transp.transportadora.ie || '—'}</p>
-            </div>
-          </div>
-        )}
-        {transp?.transportadora?.endereco && (
-          <div className={DANFE_CELL}>
-            <p className={DANFE_LABEL}>Endereço Transportadora</p>
-            <p>{transp.transportadora.endereco}</p>
-          </div>
-        )}
-        {(transp?.transportadora?.municipio || transp?.volumes?.length) && (
-          <div className="grid grid-cols-2">
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Município/UF</p>
-              <p>{transp?.transportadora?.municipio || '—'}/{transp?.transportadora?.uf || '—'}</p>
-            </div>
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Qtd. Volumes</p>
-              <p>{transp?.volumes?.[0]?.qVol || '—'}</p>
-            </div>
-          </div>
-        )}
-        {transp?.volumes?.[0] && (
-          <>
-            <div className="grid grid-cols-2">
-              <div className={DANFE_CELL}>
-                <p className={DANFE_LABEL}>Espécie</p>
-                <p>{transp.volumes[0].especie || '—'}</p>
-              </div>
-              <div className={DANFE_CELL}>
-                <p className={DANFE_LABEL}>Peso Líquido (KG)</p>
-                <p>{transp.volumes[0].pesoL || '—'}</p>
-              </div>
-            </div>
-            <div className={DANFE_CELL}>
-              <p className={DANFE_LABEL}>Peso Bruto (KG)</p>
-              <p>{transp.volumes[0].pesoB || '—'}</p>
-            </div>
-          </>
-        )}
-      </div>
 
-      {/* ===== PAGAMENTO + DUPLICATAS side by side ===== */}
-      <div className="grid grid-cols-2 border border-t-0 border-[#333]">
-        {/* Pagamento */}
-        <div className="border-r border-[#333]">
-          <div className={DANFE_HEADER}>PAGAMENTO</div>
-          <table className="w-full text-[10px]">
+        {/* ============ PAGAMENTO ============ */}
+        <div className={SECTION_HEADER}>FORMAS DE PAGAMENTO</div>
+        <div className="border-b border-black">
+          <table className="w-full border-collapse" style={{ fontSize: '8px' }}>
             <thead>
-              <tr className="bg-[#1b3a5c] text-white">
-                <th className="px-2 py-1 text-left font-medium">Forma</th>
-                <th className="px-2 py-1 text-right font-medium">Valor</th>
+              <tr className="bg-gray-50">
+                <th className={`${CELL} text-left`}>FORMA DE PAGAMENTO</th>
+                <th className={`${CELL} text-right w-32`}>VALOR</th>
               </tr>
             </thead>
             <tbody>
               {pagamentos.length > 0 ? pagamentos.map((p, i) => (
                 <tr key={i}>
-                  <td className={DANFE_CELL}>{p.descricao}</td>
-                  <td className={DANFE_CELL + ' text-right font-mono'}>{formatCurrency(p.vPag)}</td>
+                  <td className={CELL}>{p.descricao} (cód. {p.tPag})</td>
+                  <td className={`${CELL} text-right font-mono font-bold`}>{formatCurrency(p.vPag)}</td>
                 </tr>
               )) : (
-                <tr><td className={DANFE_CELL + ' text-muted-foreground'} colSpan={2}>Sem dados</td></tr>
+                <tr><td className={`${CELL} text-gray-400`} colSpan={2}>Sem dados de pagamento</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Duplicatas */}
-        <div>
-          <div className={DANFE_HEADER}>DUPLICATAS</div>
-          <table className="w-full text-[10px]">
-            <thead>
-              <tr className="bg-[#1b3a5c] text-white">
-                <th className="px-2 py-1 text-left font-medium">Nº</th>
-                <th className="px-2 py-1 text-left font-medium">Vencimento</th>
-                <th className="px-2 py-1 text-right font-medium">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(cobr?.duplicatas?.length || 0) > 0 ? cobr!.duplicatas.map((d, i) => (
-                <tr key={i}>
-                  <td className={DANFE_CELL}>{d.nDup}</td>
-                  <td className={DANFE_CELL}>{formatDate(d.dVenc)}</td>
-                  <td className={DANFE_CELL + ' text-right font-mono'}>{formatCurrency(d.vDup)}</td>
-                </tr>
-              )) : (
-                <tr><td className={DANFE_CELL + ' text-muted-foreground'} colSpan={3}>Sem duplicatas</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* ============ RESPONSÁVEL TÉCNICO ============ */}
+        {xmlData?.respTec && (
+          <>
+            <div className={SECTION_HEADER}>RESPONSÁVEL TÉCNICO</div>
+            <div className="grid grid-cols-4 border-b border-black">
+              <DCell label="CNPJ" value={xmlData.respTec.cnpj ? formatCNPJ(xmlData.respTec.cnpj) : '—'} mono />
+              <DCell label="CONTATO" value={xmlData.respTec.xContato || '—'} />
+              <DCell label="E-MAIL" value={xmlData.respTec.email || '—'} />
+              <DCell label="FONE" value={xmlData.respTec.fone ? formatFone(xmlData.respTec.fone) : '—'} />
+            </div>
+          </>
+        )}
       </div>
 
-      {/* ===== INFORMAÇÕES COMPLEMENTARES ===== */}
-      {(xmlData?.infCpl || xmlData?.infAdFisco) && (
-        <div className="border border-t-0 border-[#333]">
-          <div className={DANFE_HEADER}>INFORMAÇÕES COMPLEMENTARES</div>
-          <div className={DANFE_CELL + ' min-h-[40px]'}>
-            {xmlData?.infAdFisco && <p>{xmlData.infAdFisco}</p>}
-            {xmlData?.infCpl && <p>{xmlData.infCpl}</p>}
-          </div>
-        </div>
-      )}
-
-      {/* ===== Footer ===== */}
-      <div className="text-center text-[9px] text-muted-foreground mt-3 py-2 space-y-0.5">
-        <p>Este documento é uma representação gráfica da NF-e e não possui validade jurídica. Consulte a NF-e original em <strong>www.nfe.fazenda.gov.br</strong></p>
-        <p>Chave: {formatChave(nota.chave_nfe)}</p>
+      {/* Footer */}
+      <div className="text-center text-[7px] text-gray-400 mt-2 py-1">
+        <p>Documento auxiliar da nota fiscal eletrônica para consulta. Não tem valor fiscal. Consulte a NF-e em www.nfe.fazenda.gov.br</p>
       </div>
     </div>
   );
