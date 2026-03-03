@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
     .single()
 
   if (syncErr) {
-    return new Response(JSON.stringify({ error: 'Falha ao criar registro de sync', details: syncErr.message }), {
+    console.error('Sync record creation error:', syncErr.message)
+    return new Response(JSON.stringify({ error: 'Falha ao iniciar sincronização. Tente novamente.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
@@ -238,8 +239,7 @@ Responda em JSON:
 
     return new Response(JSON.stringify({
       success: false,
-      error: errorMsg,
-      sync_id: syncRecord.id,
+      error: 'Erro durante a sincronização com o portal ANVISA. Tente novamente.',
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 })

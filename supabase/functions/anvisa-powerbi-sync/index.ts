@@ -127,14 +127,10 @@ Deno.serve(async (req) => {
   const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')
   const lovableKey = Deno.env.get('LOVABLE_API_KEY')
 
-  if (!firecrawlKey) {
-    return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY não configurada' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-  if (!lovableKey) {
-    return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY não configurada' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  if (!firecrawlKey || !lovableKey) {
+    console.error('Missing required API keys:', { firecrawl: !!firecrawlKey, lovable: !!lovableKey })
+    return new Response(JSON.stringify({ error: 'Serviço temporariamente indisponível. Configuração pendente.' }), {
+      status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
@@ -177,7 +173,8 @@ Deno.serve(async (req) => {
     .select().single()
 
   if (syncErr) {
-    return new Response(JSON.stringify({ error: 'Falha ao criar registro de sync', details: syncErr.message }), {
+    console.error('Sync record creation error:', syncErr.message)
+    return new Response(JSON.stringify({ error: 'Falha ao iniciar sincronização. Tente novamente.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
@@ -351,8 +348,7 @@ Responda em JSON:
 
     return new Response(JSON.stringify({
       success: false,
-      error: errorMsg,
-      sync_id: syncRecord.id,
+      error: 'Erro durante a sincronização ANVISA. Tente novamente.',
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 })

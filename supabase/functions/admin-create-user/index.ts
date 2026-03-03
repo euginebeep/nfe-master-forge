@@ -91,8 +91,12 @@ Deno.serve(async (req) => {
     })
 
     if (createError) {
+      console.error('Create user error:', createError.message)
+      const userMsg = createError.message?.includes('already') 
+        ? 'Este email já está cadastrado no sistema'
+        : 'Erro ao criar usuário. Verifique os dados e tente novamente.'
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: userMsg }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

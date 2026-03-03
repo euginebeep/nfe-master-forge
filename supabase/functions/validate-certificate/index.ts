@@ -46,13 +46,26 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || '';
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    // Verify the file belongs to the user's company by checking via authenticated context
-    // Get file metadata using service role (bypasses RLS for file access)
+    // Verify user is authenticated
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabaseAuth = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ valid: false, error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Get file metadata using authenticated user context (respects RLS)
     const metaRes = await fetch(`${supabaseUrl}/rest/v1/arquivos?id=eq.${fileId}&select=storage_key,nome_original`, {
       headers: { 
-        'apikey': supabaseKey, 
-        'Authorization': `Bearer ${supabaseKey}` 
+        'apikey': anonKey, 
+        'Authorization': authHeader 
       }
     });
     
@@ -238,9 +251,9 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Certificate validation error:', error);
     return new Response(
-      JSON.stringify({ valid: false, error: "Erro ao processar certificado: " + (error instanceof Error ? error.message : String(error)) }),
+      JSON.stringify({ valid: false, error: "Erro ao processar certificado. Verifique se o arquivo e a senha estão corretos." }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
