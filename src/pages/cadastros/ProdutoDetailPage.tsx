@@ -975,15 +975,24 @@ export default function ProdutoDetailPage() {
                           </div>
                           <div className="flex flex-col items-start">
                             <p className="text-muted-foreground text-xs">Validade</p>
-                            <p className={`text-base font-bold ${
-                              l.data_val && new Date(l.data_val) < new Date() 
-                                ? "text-destructive" 
-                                : l.data_val && new Date(l.data_val) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) 
-                                  ? "text-amber-500" 
-                                  : "text-emerald-500"
-                            }`}>
-                              {l.data_val ? new Date(l.data_val).toLocaleDateString('pt-BR') : "-"}
-                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className={`inline-block h-3 w-3 rounded-full ${
+                                l.data_val && new Date(l.data_val) < new Date() 
+                                  ? "bg-destructive" 
+                                  : l.data_val && new Date(l.data_val) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) 
+                                    ? "bg-amber-500" 
+                                    : "bg-emerald-500"
+                              }`} />
+                              <p className={`text-base font-bold ${
+                                l.data_val && new Date(l.data_val) < new Date() 
+                                  ? "text-destructive" 
+                                  : l.data_val && new Date(l.data_val) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) 
+                                    ? "text-amber-500" 
+                                    : "text-emerald-500"
+                              }`}>
+                                {l.data_val ? new Date(l.data_val).toLocaleDateString('pt-BR') : "-"}
+                              </p>
+                            </div>
                           </div>
                         </div>
                         
