@@ -32,11 +32,10 @@ interface NotaXml {
   numero: string;
   serie: string;
   dh_emissao: string | null;
-  fornecedor_cnpj: string | null;
-  fornecedor_razao: string | null;
   total_nota: number | null;
   xml_raw: string | null;
   created_at: string;
+  fornecedor?: { razao_social: string | null; documento: string | null } | null;
 }
 
 export default function XmlBackupPage() {
@@ -47,7 +46,7 @@ export default function XmlBackupPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notas_entrada')
-        .select('id, chave_nfe, numero, serie, dh_emissao, fornecedor_cnpj, fornecedor_razao, total_nota, xml_raw, created_at')
+        .select('id, chave_nfe, numero, serie, dh_emissao, total_nota, xml_raw, created_at, fornecedor:entidades!notas_entrada_fornecedor_id_fkey(razao_social, documento)')
         .not('xml_raw', 'is', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -64,8 +63,8 @@ export default function XmlBackupPage() {
   const filtered = notas.filter(n =>
     (n.numero || '').includes(search) ||
     (n.chave_nfe || '').includes(search) ||
-    (n.fornecedor_razao || '').toLowerCase().includes(search.toLowerCase()) ||
-    (n.fornecedor_cnpj || '').includes(search)
+    (n.fornecedor?.razao_social || '').toLowerCase().includes(search.toLowerCase()) ||
+    (n.fornecedor?.documento || '').includes(search)
   );
 
   const handleDownload = (nota: NotaXml) => {
@@ -88,7 +87,7 @@ export default function XmlBackupPage() {
       return `========================================
 CHAVE: ${n.chave_nfe}
 NÚMERO: ${n.numero} | SÉRIE: ${n.serie}
-FORNECEDOR: ${n.fornecedor_razao || '-'} (${n.fornecedor_cnpj || '-'})
+FORNECEDOR: ${n.fornecedor?.razao_social || '-'} (${n.fornecedor?.documento || '-'})
 DATA: ${n.dh_emissao || '-'}
 VALOR: R$ ${(n.total_nota || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
 ========================================
@@ -277,9 +276,9 @@ ${n.xml_raw}
                         </code>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{(nota.fornecedor_razao || '-').substring(0, 30)}</div>
+                        <div className="font-medium">{(nota.fornecedor?.razao_social || '-').substring(0, 30)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {(nota.fornecedor_cnpj || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}
+                          {(nota.fornecedor?.documento || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}
                         </div>
                       </TableCell>
                       <TableCell>
