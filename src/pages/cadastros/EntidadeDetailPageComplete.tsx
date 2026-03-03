@@ -57,7 +57,7 @@ const CLASSIFICACAO_VARIANTS: Record<string, "success" | "info" | "error" | "war
 export default function EntidadeDetailPageComplete() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: entidadeData, isLoading, refetch } = useEntidade(id);
+  const { data: entidadeData, isLoading, error, refetch } = useEntidade(id);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   if (isLoading) {
@@ -71,14 +71,25 @@ export default function EntidadeDetailPageComplete() {
     );
   }
 
+  if (error) {
+    console.error("Erro ao carregar entidade:", error);
+  }
+
   if (!entidadeData) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-muted-foreground">Entidade não encontrada</p>
+        <p className="text-muted-foreground">
+          {error ? `Erro ao carregar entidade: ${(error as Error).message}` : "Entidade não encontrada"}
+        </p>
         <Button variant="outline" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
         </Button>
+        {error && (
+          <Button variant="outline" onClick={() => refetch()}>
+            Tentar novamente
+          </Button>
+        )}
       </div>
     );
   }
