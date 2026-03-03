@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { seedInitialData } from "@/lib/local-db";
+import { LocalDb } from "@/lib/local-db";
 import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsManager";
 import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
 import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
@@ -137,8 +137,7 @@ export default function AdminMasterPage() {
     }
     allKeys.forEach((key) => localStorage.removeItem(key));
 
-    // Recria o registro mínimo da empresa (em branco) para evitar telas sem contexto
-    seedInitialData();
+    // Company data now comes from Supabase, no need to re-seed localStorage
 
     setCurrentStep(null);
     setCleaning(false);

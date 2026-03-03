@@ -1,4 +1,7 @@
 // LocalDb - localStorage-based persistence layer
+// ⚠️ DEPRECATED for business data (itens, entidades, lotes, notas)
+// Only use for UI preferences, filters, and temporary state.
+// All business data MUST go through Supabase with proper company_id.
 import { generateUUID } from './utils';
 type CollectionName = 
   | 'entidades'
@@ -15,9 +18,6 @@ type CollectionName =
   | 'notas_entrada_itens';
 
 const STORAGE_PREFIX = 'legacy_erp_';
-
-
-
 
 function getStorageKey(collection: CollectionName): string {
   return `${STORAGE_PREFIX}${collection}`;
@@ -53,6 +53,7 @@ export function getById<T extends { id: string }>(collection: CollectionName, id
 }
 
 export function insert<T>(collection: CollectionName, item: any): T {
+  console.warn(`[LocalDb] ⚠️ insert() called on '${collection}' — this data will NOT be persisted to the cloud. Use Supabase hooks instead.`);
   const items = getCollection<T>(collection);
   const newItem = {
     ...item,
@@ -113,43 +114,8 @@ export function generateSKU(tipo: string): string {
   return `${prefix}-${timestamp}-${random}`;
 }
 
-// Seed initial data
-export function seedInitialData(): void {
-  // Seed company if empty
-  const company = getSingleton<any>('company');
-  if (!company) {
-    insert('company', {
-      razao_social: '',
-      nome_fantasia: '',
-      cnpj: '',
-      ie: '',
-      im: '',
-      cnae: '',
-      crt: '',
-      regime_tributario: '',
-      endereco_logradouro: '',
-      endereco_nro: '',
-      endereco_compl: '',
-      endereco_bairro: '',
-      endereco_cidade: '',
-      endereco_uf: '',
-      endereco_cep: '',
-      endereco_pais: 'Brasil',
-      telefone: '',
-      site: '',
-      email_fiscal: '',
-      email_financeiro: '',
-      nfe_ambiente: 'HOMOLOGACAO',
-      nfe_serie_padrao: 1,
-      nfe_numero_inicial: 1,
-      csc_idtoken: '',
-      csc_token: '',
-    });
-  }
-}
-
-// Initialize on load
-seedInitialData();
+// ⚠️ REMOVED: seedInitialData() - company data MUST come from Supabase
+// No longer auto-creating localStorage company records on load.
 
 // Clear all data
 export function clearAll(): void {
