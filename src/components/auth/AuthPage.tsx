@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import brainxLogo from '@/assets/brainx-logo.png';
 
@@ -82,7 +83,7 @@ export default function AuthPage() {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [repeatedSignup, setRepeatedSignup] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
@@ -92,6 +93,11 @@ export default function AuthPage() {
   const [regConfirm, setRegConfirm] = useState('');
   const [signupSuccess, setSignupSuccess] = useState(false);
   const mismatch = !!regConfirm && regPass !== regConfirm;
+
+  // Redirect authenticated users to dashboard
+  if (isAuthenticated && !authLoading) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
