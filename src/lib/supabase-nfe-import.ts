@@ -308,6 +308,34 @@ export async function importarNFeCompletaSupabase(
       else stats.produtosVinculados++;
     }
     
+    // Vincular fornecedor ao item (upsert para não duplicar)
+    const { data: existingLink } = await supabase
+      .from('item_fornecedores')
+      .select('id')
+      .eq('item_id', itemId)
+      .eq('fornecedor_id', emitente.id)
+      .maybeSingle();
+    
+    if (!existingLink) {
+      await supabase.from('item_fornecedores').insert({
+        item_id: itemId,
+        fornecedor_id: emitente.id,
+        codigo_fornecedor: itemData.item.codigo_produto || null,
+        descricao_fornecedor: itemData.item.descricao || null,
+        unidade_fornecedor: itemData.item.unidade_comercial || null,
+        fator_para_unidade_interna: configManual?.fatorConversao || calcularFatorConversao(
+          itemData.item.unidade_comercial.toUpperCase(),
+          configManual?.unidadeInterna || inferirUnidadeInterna(
+            itemData.item.unidade_comercial.toUpperCase(),
+            mapClassificacaoToTipo(classificacao, itemData.item.descricao),
+            itemData.item.descricao
+          )
+        ),
+        ean: itemData.item.ean && itemData.item.ean !== 'SEM GTIN' ? itemData.item.ean : null,
+        ultimo_preco: itemData.item.valor_unitario_comercial,
+      });
+    }
+    
     // Criar item da nota
     const { data: notaItem } = await supabase
       .from('notas_entrada_itens')
