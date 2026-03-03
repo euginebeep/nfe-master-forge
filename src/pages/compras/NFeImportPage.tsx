@@ -67,43 +67,69 @@ export default function NFeImportPage() {
   const [fiscalConfigs, setFiscalConfigs] = useState<FiscalItemConfig[]>([]);
   const [itemVinculos, setItemVinculos] = useState<Record<number, string | undefined>>({});
 
+  /**
+   * Parses compound units like "500 G", "500G", "250ML", "1.5KG", "0.5L"
+   */
+  const parseCompoundUnit = useCallback((uCom: string): { multiplier: number; baseUnit: string } => {
+    const u = uCom.trim().toUpperCase();
+    const match = u.match(/^(\d+(?:[.,]\d+)?)\s*(G|KG|MG|MCG|ML|L|LT|TON|T|UN|UND|UNID)$/);
+    if (match) {
+      const multiplier = parseFloat(match[1].replace(',', '.'));
+      return { multiplier, baseUnit: match[2] };
+    }
+    return { multiplier: 1, baseUnit: u };
+  }, []);
+
   // Sugerir unidade e fator baseado na descrição e unidade comercial
   const sugerirConversao = useCallback((descricao: string, unidadeComercial: string): ItemConversaoConfig => {
-    const uCom = unidadeComercial.toUpperCase();
+    const { multiplier, baseUnit } = parseCompoundUnit(unidadeComercial);
     const desc = descricao.toUpperCase();
     
     // Detectar cápsulas
     if (desc.includes('CAPSULA') || desc.includes('CÁPSULA') || desc.includes('CAPS')) {
-      if (uCom === 'MILHEIRO' || uCom === 'MIL' || uCom === 'MI') {
-        return { unidadeInterna: 'un', fatorConversao: 1000 };
+      if (baseUnit === 'MILHEIRO' || baseUnit === 'MIL' || baseUnit === 'MI') {
+        return { unidadeInterna: 'un', fatorConversao: 1000 * multiplier };
       }
-      return { unidadeInterna: 'un', fatorConversao: 1 };
+      return { unidadeInterna: 'un', fatorConversao: multiplier };
     }
     
     // Detectar embalagens
     if (desc.includes('POTE') || desc.includes('FRASCO') || desc.includes('TAMPA') || 
         desc.includes('ROTULO') || desc.includes('RÓTULO') || desc.includes('CAIXA')) {
-      return { unidadeInterna: 'un', fatorConversao: 1 };
+      return { unidadeInterna: 'un', fatorConversao: multiplier };
     }
     
-    // Conversões de massa
-    if (uCom === 'KG') return { unidadeInterna: 'g', fatorConversao: 1000 };
-    if (uCom === 'G') return { unidadeInterna: 'g', fatorConversao: 1 };
-    if (uCom === 'MG') return { unidadeInterna: 'mg', fatorConversao: 1 };
-    if (uCom === 'TON' || uCom === 'T') return { unidadeInterna: 'g', fatorConversao: 1000000 };
+    // Conversões de massa (com multiplicador de unidade composta)
+    // Ex: "500 G" → baseUnit=G, multiplier=500 → interna=kg, fator=0.5 (500g = 0.5kg)
+    if (baseUnit === 'KG') {
+      return { unidadeInterna: 'kg', fatorConversao: multiplier };
+    }
+    if (baseUnit === 'G') {
+      // Se multiplier > 1 (ex: "500 G"), converter para kg para ficar mais prático
+      if (multiplier >= 1000) {
+        return { unidadeInterna: 'kg', fatorConversao: multiplier / 1000 };
+      }
+      if (multiplier > 1) {
+        return { unidadeInterna: 'kg', fatorConversao: multiplier / 1000 };
+      }
+      return { unidadeInterna: 'g', fatorConversao: 1 };
+    }
+    if (baseUnit === 'MG') return { unidadeInterna: 'mg', fatorConversao: multiplier };
+    if (baseUnit === 'TON' || baseUnit === 'T') return { unidadeInterna: 'kg', fatorConversao: 1000 * multiplier };
     
     // Conversões de volume
-    if (uCom === 'L' || uCom === 'LT') return { unidadeInterna: 'ml', fatorConversao: 1000 };
-    if (uCom === 'ML') return { unidadeInterna: 'ml', fatorConversao: 1 };
+    if (baseUnit === 'L' || baseUnit === 'LT') return { unidadeInterna: 'ml', fatorConversao: 1000 * multiplier };
+    if (baseUnit === 'ML') return { unidadeInterna: 'ml', fatorConversao: multiplier };
     
     // Unidades discretas
-    if (['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'PC', 'PÇ'].includes(uCom)) {
-      return { unidadeInterna: 'un', fatorConversao: 1 };
+    if (['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'SC', 'SACO', 'PC', 'PÇ', 'MILHEIRO', 'MI'].includes(baseUnit)) {
+      const discreteFactor = (baseUnit === 'MILHEIRO' || baseUnit === 'MI') ? 1000 : 1;
+      return { unidadeInterna: 'un', fatorConversao: discreteFactor * multiplier };
     }
     
     // Default: gramas com fator 1
-    return { unidadeInterna: 'g', fatorConversao: 1 };
-  }, []);
+    return { unidadeInterna: 'g', fatorConversao: multiplier };
+  }, [parseCompoundUnit]);
 
   // Inicializar configs quando o resultado é parseado
   const initializeItemConfigs = useCallback((result: NFeParseResult) => {
