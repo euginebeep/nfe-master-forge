@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { parseNFeCompleto, formatCNPJ, formatCurrency, formatDate, formatDateTime } from "@/lib/nfe-parser-completo";
-import { checkNotaFiscalExists, importarNFeCompleta, type ImportStats, type ItemImportConfig } from "@/lib/local-db-nfe";
+import { checkNotaFiscalExistsSupabase, importarNFeCompletaSupabase, type ImportStats, type ItemImportConfig } from "@/lib/supabase-nfe-import";
 import type { NFeParseResult, ClassificacaoNota } from "@/types/nfe-completa";
 import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/FiscalReviewDialog";
 import { ItemVinculoSelector } from "@/components/nfe/ItemVinculoSelector";
@@ -132,7 +132,7 @@ export default function NFeImportPage() {
     
     try {
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         const xml = ev.target?.result as string;
         const parsed = parseNFeCompleto(xml);
         
@@ -142,8 +142,8 @@ export default function NFeImportPage() {
           return;
         }
 
-        // Check for duplicate
-        const existingNota = checkNotaFiscalExists(parsed.notaFiscal.chave_acesso);
+        // Check for duplicate in Supabase
+        const existingNota = await checkNotaFiscalExistsSupabase(parsed.notaFiscal.chave_acesso);
         if (existingNota) {
           toast.error(`Esta NF-e já foi importada anteriormente (Nº ${existingNota.numero})`);
           setParsing(false);
@@ -193,7 +193,7 @@ export default function NFeImportPage() {
         
         return {
           itemIndex: idx,
-          unidadeInterna: config.unidadeInterna as ItemImportConfig['unidadeInterna'],
+          unidadeInterna: config.unidadeInterna,
           fatorConversao: config.fatorConversao,
           vinculoItemId: vinculoId, // Incluir vínculo manual
           // Adicionar dados fiscais editados se houver
@@ -212,7 +212,7 @@ export default function NFeImportPage() {
         };
       });
       
-      const result = importarNFeCompleta(parsedResult, classificacao, configuracoesItens);
+      const result = await importarNFeCompletaSupabase(parsedResult, classificacao, configuracoesItens);
       setImportStats(result.stats);
       
       setStep('complete');
