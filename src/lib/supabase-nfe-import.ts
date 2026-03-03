@@ -312,30 +312,78 @@ function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: str
   }
 }
 
+/**
+ * Parses compound units like "500 G", "500G", "250ML", "1.5KG" etc.
+ * Returns { multiplier, baseUnit } e.g. "500 G" → { multiplier: 500, baseUnit: "G" }
+ */
+function parseCompoundUnit(uCom: string): { multiplier: number; baseUnit: string } {
+  const u = uCom.trim().toUpperCase();
+  // Try to match patterns like "500 G", "500G", "1.5 KG", "250ML", "0.5L"
+  const match = u.match(/^(\d+(?:[.,]\d+)?)\s*(G|KG|MG|MCG|ML|L|LT|TON|T|UN|UND|UNID)$/);
+  if (match) {
+    const multiplier = parseFloat(match[1].replace(',', '.'));
+    return { multiplier, baseUnit: match[2] };
+  }
+  return { multiplier: 1, baseUnit: u };
+}
+
 function inferirUnidadeInterna(uCom: string, tipoItem: string, descricao: string): string {
   const isEmbalagem = ['EMBALAGEM', 'CAPSULA_VAZIA', 'ROTULO', 'TAMPA', 'POTE', 'SILICA'].includes(tipoItem);
   const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'MILHEIRO', 'MI'];
   
-  if (isEmbalagem || unidadesDiscretas.includes(uCom)) return 'un';
-  if (uCom === 'KG' || uCom === 'G') return 'g';
-  if (uCom === 'MG') return 'mg';
-  if (uCom === 'ML' || uCom === 'L' || uCom === 'LT') return 'ml';
+  const { baseUnit } = parseCompoundUnit(uCom);
+  
+  if (isEmbalagem || unidadesDiscretas.includes(baseUnit)) return 'un';
+  if (baseUnit === 'KG' || baseUnit === 'G') return 'g';
+  if (baseUnit === 'MG' || baseUnit === 'MCG') return 'mg';
+  if (baseUnit === 'ML' || baseUnit === 'L' || baseUnit === 'LT') return 'ml';
   return 'g';
 }
 
+/**
+ * Calculates the conversion factor from commercial unit to internal unit.
+ * Supports compound units: "500 G" → each unit = 500g → factor to 'g' = 500
+ * Supports decimals: "0.5 KG" → each unit = 0.5kg = 500g → factor to 'g' = 500
+ */
 function calcularFatorConversao(uCom: string, unidadeInterna: string): number {
-  const u = uCom.toUpperCase();
-  if (u === unidadeInterna.toUpperCase()) return 1;
-  if (u === 'KG' && unidadeInterna === 'g') return 1000;
-  if (u === 'G' && unidadeInterna === 'g') return 1;
-  if (u === 'MG' && unidadeInterna === 'mg') return 1;
-  if (u === 'L' && unidadeInterna === 'ml') return 1000;
-  if (u === 'LT' && unidadeInterna === 'ml') return 1000;
-  if (u === 'ML' && unidadeInterna === 'ml') return 1;
-  if (u === 'MILHEIRO' && unidadeInterna === 'un') return 1000;
-  if (u === 'MI' && unidadeInterna === 'un') return 1000;
-  if (u === 'TON' && unidadeInterna === 'g') return 1000000;
-  return 1;
+  const { multiplier, baseUnit } = parseCompoundUnit(uCom);
+  
+  // First get the base conversion factor (baseUnit → unidadeInterna)
+  let baseFator = 1;
+  const intUnit = unidadeInterna.toUpperCase();
+  
+  if (baseUnit === intUnit) {
+    baseFator = 1;
+  } else if (baseUnit === 'KG' && intUnit === 'G') {
+    baseFator = 1000;
+  } else if (baseUnit === 'G' && intUnit === 'KG') {
+    baseFator = 0.001;
+  } else if (baseUnit === 'G' && intUnit === 'G') {
+    baseFator = 1;
+  } else if (baseUnit === 'MG' && intUnit === 'MG') {
+    baseFator = 1;
+  } else if (baseUnit === 'MG' && intUnit === 'G') {
+    baseFator = 0.001;
+  } else if (baseUnit === 'MCG' && intUnit === 'MG') {
+    baseFator = 0.001;
+  } else if (baseUnit === 'L' && intUnit === 'ML') {
+    baseFator = 1000;
+  } else if (baseUnit === 'LT' && intUnit === 'ML') {
+    baseFator = 1000;
+  } else if (baseUnit === 'ML' && intUnit === 'ML') {
+    baseFator = 1;
+  } else if (baseUnit === 'MILHEIRO' && intUnit === 'UN') {
+    baseFator = 1000;
+  } else if (baseUnit === 'MI' && intUnit === 'UN') {
+    baseFator = 1000;
+  } else if ((baseUnit === 'TON' || baseUnit === 'T') && intUnit === 'G') {
+    baseFator = 1000000;
+  }
+  
+  // Multiply by the compound multiplier
+  // e.g. "500 G" with interna='kg' → multiplier=500, baseFator=0.001 → 500*0.001 = 0.5
+  // e.g. "500 G" with interna='g' → multiplier=500, baseFator=1 → 500
+  return multiplier * baseFator;
 }
 
 // ============================================
