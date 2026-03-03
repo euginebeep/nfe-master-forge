@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { seedInitialData } from "@/lib/local-db";
+import { LocalDb } from "@/lib/local-db";
 import { toast } from "sonner";
 
 export type LocalCollectionDef = { key: string; label: string };
@@ -204,9 +204,7 @@ export function LocalCollectionsManager({
   const deleteOne = (row: CollectionRow) => {
     localStorage.removeItem(row.storageKey);
 
-    if (row.key === "company") {
-      seedInitialData();
-    }
+    // Company data now comes from Supabase, no need to re-seed localStorage
 
     window.dispatchEvent(
       new CustomEvent("localdb:change", {

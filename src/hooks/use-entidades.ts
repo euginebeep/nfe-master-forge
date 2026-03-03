@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Entidade, EntidadePapel, EntidadeContato, EntidadeEndereco } from "@/types/erp";
 import { toast } from "sonner";
+import { getUserCompanyId } from "@/hooks/use-user-company";
 
 export function useEntidades(filters?: { papel?: string; status?: string }) {
   return useQuery({
@@ -72,11 +73,14 @@ export function useCreateEntidade() {
         papeis?: string[];
       }
     ) => {
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error('Empresa não configurada. Configure sua empresa antes de criar entidades.');
+
       const { papeis, ...entidadeData } = input;
 
       const { data: entidade, error } = await supabase
         .from("entidades")
-        .insert(entidadeData as any)
+        .insert({ ...entidadeData, company_id: companyId } as any)
         .select()
         .single();
 

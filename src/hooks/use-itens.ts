@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Item, ItemFornecedor, ItemAlias, TipoItem } from "@/types/erp";
 import { centralToast } from "@/components/ui/central-toast";
+import { getUserCompanyId } from "@/hooks/use-user-company";
 
 export function useItens(filters?: { tipo_item?: TipoItem; ativo?: boolean }) {
   return useQuery({
@@ -60,9 +61,12 @@ export function useCreateItem() {
 
   return useMutation({
     mutationFn: async (data: Omit<Item, "id" | "created_at" | "updated_at">) => {
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error('Empresa não configurada. Configure sua empresa antes de criar itens.');
+
       const { data: item, error } = await supabase
         .from("itens")
-        .insert(data as any)
+        .insert({ ...data, company_id: companyId } as any)
         .select()
         .single();
 

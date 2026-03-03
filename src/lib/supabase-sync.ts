@@ -3,6 +3,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { LocalDb } from "@/lib/local-db";
+import { getUserCompanyId } from "@/hooks/use-user-company";
 import { toast } from "sonner";
 import type { 
   LocalItem, 
@@ -38,7 +39,7 @@ export interface MigrationStats {
 }
 
 // Map local item to Supabase schema
-function mapLocalItemToSupabase(item: LocalItem) {
+function mapLocalItemToSupabase(item: LocalItem, companyId: string) {
   return {
     id: item.id,
     sku_interno: item.sku_interno,
@@ -59,6 +60,7 @@ function mapLocalItemToSupabase(item: LocalItem) {
     fator_conversao: item.fator_conversao || null,
     exige_premix: item.exige_premix,
     ativo: item.ativo,
+    company_id: companyId,
   };
 }
 
@@ -81,7 +83,7 @@ function normalizeEntidadeDocumento(ent: LocalEntidade): string {
 }
 
 // Map local entidade to Supabase schema (strict: no placeholder values)
-function mapLocalEntidadeToSupabase(ent: LocalEntidade) {
+function mapLocalEntidadeToSupabase(ent: LocalEntidade, companyId: string) {
   const documento = normalizeEntidadeDocumento(ent);
   const razaoSocial = (ent.razao_social || '').trim();
 
@@ -104,6 +106,7 @@ function mapLocalEntidadeToSupabase(ent: LocalEntidade) {
     tags: ent.tags || [],
     site: ent.site || null,
     observacoes: ent.observacoes || null,
+    company_id: companyId,
   };
 }
 
@@ -134,6 +137,9 @@ async function existsInSupabase(
 
 // Migrate itens from localStorage to Supabase
 export async function migrateItens(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
+  const companyId = await getUserCompanyId();
+  if (!companyId) throw new Error('Empresa não configurada. Faça login e configure sua empresa antes de migrar.');
+
   const localItens = LocalDb.getCollection<LocalItem>('itens');
   let migrated = 0;
   let errors = 0;
@@ -145,13 +151,13 @@ export async function migrateItens(errorLogs: MigrationErrorLog[]): Promise<{ mi
       if (existing) {
         const { error } = await supabase
           .from('itens')
-          .update(mapLocalItemToSupabase(item))
+          .update(mapLocalItemToSupabase(item, companyId))
           .eq('id', item.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('itens')
-          .insert(mapLocalItemToSupabase(item));
+          .insert(mapLocalItemToSupabase(item, companyId));
         if (error) throw error;
       }
       migrated++;
@@ -174,6 +180,9 @@ export async function migrateItens(errorLogs: MigrationErrorLog[]): Promise<{ mi
 
 // Migrate entidades from localStorage to Supabase
 export async function migrateEntidades(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
+  const companyId = await getUserCompanyId();
+  if (!companyId) throw new Error('Empresa não configurada. Faça login e configure sua empresa antes de migrar.');
+
   const localEntidades = LocalDb.getCollection<LocalEntidade>('entidades');
   let migrated = 0;
   let errors = 0;
@@ -185,13 +194,13 @@ export async function migrateEntidades(errorLogs: MigrationErrorLog[]): Promise<
       if (existing) {
         const { error } = await supabase
           .from('entidades')
-          .update(mapLocalEntidadeToSupabase(ent))
+          .update(mapLocalEntidadeToSupabase(ent, companyId))
           .eq('id', ent.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('entidades')
-          .insert(mapLocalEntidadeToSupabase(ent));
+          .insert(mapLocalEntidadeToSupabase(ent, companyId));
         if (error) throw error;
       }
 
@@ -431,6 +440,9 @@ export async function migrateItemFornecedores(errorLogs: MigrationErrorLog[]): P
 
 // Migrate estoque_lotes from localStorage to Supabase
 export async function migrateLotes(errorLogs: MigrationErrorLog[]): Promise<{ migrated: number; errors: number }> {
+  const companyId = await getUserCompanyId();
+  if (!companyId) throw new Error('Empresa não configurada.');
+
   const localLotes = LocalDb.getCollection<LocalEstoqueLote>('estoque_lotes');
   let migrated = 0;
   let errors = 0;
@@ -482,6 +494,7 @@ export async function migrateLotes(errorLogs: MigrationErrorLog[]): Promise<{ mi
         custo_unitario_interno: lote.custo_unitario_interno || null,
         status: lote.status,
         observacoes_qc: lote.observacoes_qc || null,
+        company_id: companyId,
       };
 
       if (existing) {
