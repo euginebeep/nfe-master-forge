@@ -192,7 +192,11 @@ async function findOrCreateItemSupabase(
 
 function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: string): string {
   const descNorm = descricao.toUpperCase();
-  if (descNorm.includes('CAPSULA') || descNorm.includes('CÁPSULA')) return 'CAPSULA';
+  if (descNorm.includes('CAPSULA') || descNorm.includes('CÁPSULA')) return 'CAPSULA_VAZIA';
+  if (descNorm.includes('ROTULO') || descNorm.includes('RÓTULO')) return 'ROTULO';
+  if (descNorm.includes('TAMPA')) return 'TAMPA';
+  if (descNorm.includes('POTE') || descNorm.includes('FRASCO')) return 'POTE';
+  if (descNorm.includes('SILICA') || descNorm.includes('SÍLICA')) return 'SILICA';
   
   switch (classificacao) {
     case 'MATERIA_PRIMA': return 'MP';
@@ -204,7 +208,7 @@ function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: str
 }
 
 function inferirUnidadeInterna(uCom: string, tipoItem: string, descricao: string): string {
-  const isEmbalagem = ['EMBALAGEM', 'CAPSULA', 'CAPSULA_VAZIA'].includes(tipoItem);
+  const isEmbalagem = ['EMBALAGEM', 'CAPSULA_VAZIA', 'ROTULO', 'TAMPA', 'POTE', 'SILICA'].includes(tipoItem);
   const unidadesDiscretas = ['UN', 'UND', 'UNID', 'PCT', 'CX', 'FD', 'MILHEIRO'];
   
   if (isEmbalagem || unidadesDiscretas.includes(uCom)) return 'un';
@@ -330,7 +334,7 @@ export async function importarNFeCompletaSupabase(
     const unidadeInterna = configManual?.unidadeInterna || inferirUnidadeInterna(uCom, mapClassificacaoToTipo(classificacao, itemData.item.descricao), itemData.item.descricao);
     const fatorConversao = configManual?.fatorConversao || calcularFatorConversao(uCom, unidadeInterna);
     
-    const isCritico = mapClassificacaoToTipo(classificacao, itemData.item.descricao) === 'MP';
+    // Todos os lotes importados via NF-e entram em QUARENTENA para controle de qualidade
     
     // Criar lotes
     const rastros = itemData.rastros.length > 0 ? itemData.rastros : [null];
@@ -352,7 +356,7 @@ export async function importarNFeCompletaSupabase(
         quantidade_interna: qtdInterna,
         custo_unitario_original: itemData.item.valor_unitario_comercial,
         custo_unitario_interno: custoInterno,
-        status: isCritico ? 'QUARENTENA' : 'APROVADO',
+        status: 'QUARENTENA',
       });
       
       stats.lotesCriados++;
