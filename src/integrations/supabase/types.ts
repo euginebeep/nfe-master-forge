@@ -946,6 +946,100 @@ export type Database = {
         }
         Relationships: []
       }
+      contas_pagar: {
+        Row: {
+          categoria: string | null
+          centro_custo: string | null
+          company_id: string
+          conta_bancaria: string | null
+          created_at: string
+          data_emissao: string
+          data_pagamento: string | null
+          data_vencimento: string
+          descricao: string
+          duplicata_id: string | null
+          forma_pagamento: string | null
+          fornecedor_id: string | null
+          id: string
+          nota_entrada_id: string | null
+          numero_parcela: number
+          observacoes: string | null
+          status: string
+          total_parcelas: number
+          updated_at: string
+          valor: number
+          valor_pago: number | null
+        }
+        Insert: {
+          categoria?: string | null
+          centro_custo?: string | null
+          company_id?: string
+          conta_bancaria?: string | null
+          created_at?: string
+          data_emissao?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          descricao: string
+          duplicata_id?: string | null
+          forma_pagamento?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          nota_entrada_id?: string | null
+          numero_parcela?: number
+          observacoes?: string | null
+          status?: string
+          total_parcelas?: number
+          updated_at?: string
+          valor: number
+          valor_pago?: number | null
+        }
+        Update: {
+          categoria?: string | null
+          centro_custo?: string | null
+          company_id?: string
+          conta_bancaria?: string | null
+          created_at?: string
+          data_emissao?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          descricao?: string
+          duplicata_id?: string | null
+          forma_pagamento?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          nota_entrada_id?: string | null
+          numero_parcela?: number
+          observacoes?: string | null
+          status?: string
+          total_parcelas?: number
+          updated_at?: string
+          valor?: number
+          valor_pago?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_pagar_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_pagar_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_pagar_nota_entrada_id_fkey"
+            columns: ["nota_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contas_receber: {
         Row: {
           cliente_id: string | null
