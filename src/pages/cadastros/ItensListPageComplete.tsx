@@ -190,6 +190,7 @@ export default function ItensListPageComplete() {
         searchable
         searchPlaceholder="Buscar por SKU, descrição ou NCM..."
         searchKeys={["sku_interno", "descricao_interna", "descricao_comercial", "ncm", "ean"]}
+        pageSize={40}
         onRowClick={(item) => navigate(`/cadastros/itens/${item.id}`)}
         emptyMessage="Nenhum item cadastrado"
         actions={
