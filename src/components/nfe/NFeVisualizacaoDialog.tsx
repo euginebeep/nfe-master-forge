@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Dialog,
@@ -115,6 +115,7 @@ interface XMLFullData {
     nItem: number; cProd: string; xProd: string; ncm: string; cfop: string;
     uCom: string; qCom: number; vUnCom: number; vProd: number; ean: string;
     cest?: string; infAdProd?: string;
+    rastros: Array<{ nLot: string; qLot: number; dFab: string; dVal: string }>;
     icms: { orig: string; cst: string; vBC: number; pICMS: number; vICMS: number };
     ipi: { cst: string; vBC: number; pIPI: number; vIPI: number };
     pis: { cst: string; vBC: number; pPIS: number; vPIS: number };
@@ -286,12 +287,22 @@ function parseXMLFull(xmlString: string): XMLFullData | null {
       const cofinsGroup = imposto?.getElementsByTagName('COFINS')[0];
       const cofinsNode = cofinsGroup ? (cofinsGroup.children[0] || null) : null;
 
+      // Rastros (rastreabilidade de lotes)
+      const rastroNodes = Array.from(prod?.getElementsByTagName('rastro') || []);
+      const rastros = rastroNodes.map(r => ({
+        nLot: gt(r, 'nLot'),
+        qLot: gf(r, 'qLot'),
+        dFab: gt(r, 'dFab'),
+        dVal: gt(r, 'dVal'),
+      }));
+
       return {
         nItem: parseInt(det.getAttribute('nItem') || '0'),
         cProd: gt(prod, 'cProd'), xProd: gt(prod, 'xProd'), ncm: gt(prod, 'NCM'),
         cfop: gt(prod, 'CFOP'), uCom: gt(prod, 'uCom'), qCom: gf(prod, 'qCom'),
         vUnCom: gf(prod, 'vUnCom'), vProd: gf(prod, 'vProd'), ean: gt(prod, 'cEAN'),
         cest: gt(prod, 'CEST'), infAdProd: gt(det, 'infAdProd'),
+        rastros,
         icms: {
           orig: gt(icmsNode, 'orig'), cst: gt(icmsNode, 'CST') || gt(icmsNode, 'CSOSN'),
           vBC: gf(icmsNode, 'vBC'), pICMS: gf(icmsNode, 'pICMS'), vICMS: gf(icmsNode, 'vICMS'),
@@ -836,27 +847,56 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
                 qCom: i.qcom || 0, vUnCom: i.vuncom || 0, vProd: i.vprod || 0,
                 icms: { orig: '', cst: '', vBC: 0, pICMS: 0, vICMS: 0 },
                 ipi: { cst: '', vBC: 0, pIPI: 0, vIPI: 0 },
-                infAdProd: '',
+                infAdProd: '', rastros: [] as Array<{ nLot: string; qLot: number; dFab: string; dVal: string }>,
               }))).map((p: any) => (
-                <tr key={p.nItem}>
-                  <td className={`${CELL} font-mono`}>{p.cProd}</td>
-                  <td className={CELL}>
-                    {p.xProd}
-                    {p.infAdProd && <div className="text-[8px] text-gray-600 mt-0.5">{p.infAdProd}</div>}
-                  </td>
-                  <td className={`${CELL} text-center font-mono`}>{p.ncm}</td>
-                  <td className={`${CELL} text-center font-mono`}>{p.icms?.orig}{p.icms?.cst}</td>
-                  <td className={`${CELL} text-center font-mono`}>{p.cfop}</td>
-                  <td className={`${CELL} text-center`}>{p.uCom}</td>
-                  <td className={`${CELL} text-right font-mono`}>{p.qCom?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className={`${CELL} text-right font-mono`}>{p.vUnCom?.toLocaleString('pt-BR', { minimumFractionDigits: 4 })}</td>
-                  <td className={`${CELL} text-right font-mono font-bold`}>{formatCurrency(p.vProd)}</td>
-                  <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vBC || 0)}</td>
-                  <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vICMS || 0)}</td>
-                  <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.ipi?.vIPI || 0)}</td>
-                  <td className={`${CELL} text-right font-mono`}>{p.icms?.pICMS ? p.icms.pICMS.toFixed(2) : ''}</td>
-                  <td className={`${CELL} text-right font-mono`}>{p.ipi?.pIPI ? p.ipi.pIPI.toFixed(2) : ''}</td>
-                </tr>
+                <React.Fragment key={p.nItem}>
+                  <tr>
+                    <td className={`${CELL} font-mono`}>{p.cProd}</td>
+                    <td className={CELL}>
+                      {p.xProd}
+                    </td>
+                    <td className={`${CELL} text-center font-mono`}>{p.ncm}</td>
+                    <td className={`${CELL} text-center font-mono`}>{p.icms?.orig}{p.icms?.cst}</td>
+                    <td className={`${CELL} text-center font-mono`}>{p.cfop}</td>
+                    <td className={`${CELL} text-center`}>{p.uCom}</td>
+                    <td className={`${CELL} text-right font-mono`}>{p.qCom?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className={`${CELL} text-right font-mono`}>{p.vUnCom?.toLocaleString('pt-BR', { minimumFractionDigits: 4 })}</td>
+                    <td className={`${CELL} text-right font-mono font-bold`}>{formatCurrency(p.vProd)}</td>
+                    <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vBC || 0)}</td>
+                    <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vICMS || 0)}</td>
+                    <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.ipi?.vIPI || 0)}</td>
+                    <td className={`${CELL} text-right font-mono`}>{p.icms?.pICMS ? p.icms.pICMS.toFixed(2) : ''}</td>
+                    <td className={`${CELL} text-right font-mono`}>{p.ipi?.pIPI ? p.ipi.pIPI.toFixed(2) : ''}</td>
+                  </tr>
+                  {/* Rastreabilidade + Info Adicional */}
+                  {(p.rastros?.length > 0 || p.infAdProd) && (
+                    <tr>
+                      <td colSpan={14} className="border-l border-r border-b border-black px-3 py-1.5 bg-amber-50/60">
+                        {p.rastros?.length > 0 && (
+                          <div className="mb-1">
+                            <span className="text-[8px] font-bold text-amber-700 uppercase">⟐ Rastreabilidade</span>
+                            {p.rastros.map((r: any, ri: number) => (
+                              <div key={ri} className="ml-2 mt-0.5 border border-amber-200 bg-amber-50 rounded px-2 py-1 inline-block mr-2">
+                                <span className="text-[9px]">
+                                  <span className="text-amber-700 font-semibold">Lote:</span> <span className="font-mono font-bold">{r.nLot}</span>
+                                  <span className="ml-3 text-amber-700 font-semibold">Qtd:</span> <span className="font-mono">{r.qLot}</span>
+                                  {r.dFab && <><span className="ml-3 text-amber-700 font-semibold">Fabricação:</span> <span className="font-mono">{formatDate(r.dFab)}</span></>}
+                                  {r.dVal && <><span className="ml-3 text-amber-700 font-semibold">Validade:</span> <span className="font-mono">{formatDate(r.dVal)}</span></>}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {p.infAdProd && (
+                          <div>
+                            <span className="text-[8px] text-gray-500">Informações Adicionais do Produto:</span>
+                            <p className="text-[9px] text-gray-700 mt-0.5">{p.infAdProd}</p>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
