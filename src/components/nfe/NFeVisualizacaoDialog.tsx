@@ -1135,22 +1135,43 @@ function TabProdutos({ xmlData, itens }: { xmlData: XMLFullData | null; itens: N
           </TableHeader>
           <TableBody>
             {hasXmlItems ? produtos.map(p => (
-              <TableRow key={p.nItem}>
-                <TableCell className="font-mono text-xs">{p.nItem}</TableCell>
-                <TableCell className="font-mono text-xs">{p.cProd}</TableCell>
-                <TableCell className="text-sm">
-                  {p.xProd}
-                  {p.infAdProd && <p className="text-xs text-muted-foreground mt-0.5">{p.infAdProd}</p>}
-                </TableCell>
-                <TableCell className="font-mono text-xs">{p.ncm}</TableCell>
-                <TableCell className="font-mono text-xs">{p.cfop}</TableCell>
-                <TableCell className="text-xs">{p.uCom}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{p.qCom.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{formatCurrency(p.vUnCom)}</TableCell>
-                <TableCell className="text-right font-mono text-xs font-medium">{formatCurrency(p.vProd)}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{formatCurrency(p.icms.vICMS)}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{formatCurrency(p.ipi.vIPI)}</TableCell>
-              </TableRow>
+              <React.Fragment key={p.nItem}>
+                <TableRow>
+                  <TableCell className="font-mono text-xs">{p.nItem}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.cProd}</TableCell>
+                  <TableCell className="text-sm">{p.xProd}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.ncm}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.cfop}</TableCell>
+                  <TableCell className="text-xs">{p.uCom}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{p.qCom.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{formatCurrency(p.vUnCom)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs font-medium">{formatCurrency(p.vProd)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{formatCurrency(p.icms.vICMS)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{formatCurrency(p.ipi.vIPI)}</TableCell>
+                </TableRow>
+                {(p.rastros?.length > 0 || p.infAdProd) && (
+                  <TableRow className="border-t-0">
+                    <TableCell colSpan={11} className="pt-0 pb-2 px-4">
+                      {p.rastros?.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <span className="text-[10px] font-semibold text-amber-700 uppercase">⟐ Rastreabilidade</span>
+                          {p.rastros.map((r: any, ri: number) => (
+                            <span key={ri} className="inline-flex items-center gap-2 text-xs border border-amber-200 bg-amber-50 rounded px-2 py-0.5">
+                              <span className="font-semibold">Lote: {r.nLot}</span>
+                              <span>Qtd: {r.qLot}</span>
+                              <span>Fab: {r.dFab}</span>
+                              <span>Val: {r.dVal}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {p.infAdProd && (
+                        <p className="text-xs text-muted-foreground mt-1">{p.infAdProd}</p>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             )) : itens.map((item, idx) => (
               <TableRow key={item.id}>
                 <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
