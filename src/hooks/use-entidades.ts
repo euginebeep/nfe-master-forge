@@ -50,9 +50,10 @@ export function useEntidade(id: string | undefined) {
           entidade_enderecos (*)
         `)
         .eq("id", id!)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) return null;
       return data as Entidade & {
         entidade_papeis: EntidadePapel[];
         entidade_contatos: EntidadeContato[];
