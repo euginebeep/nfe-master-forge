@@ -423,6 +423,63 @@ export function EntidadeFormDialogComplete({ open, onOpenChange, entidade, initi
               <IdentificacaoTab
                 data={formData}
                 onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
+                onCNPJDataFound={(cnpjData) => {
+                  // Auto-fill address if available
+                  if (cnpjData.endereco_logradouro) {
+                    const newEndereco = {
+                      id: crypto.randomUUID(),
+                      entidade_id: '',
+                      created_at: new Date().toISOString(),
+                      tipo: 'FISCAL' as const,
+                      principal: true,
+                      logradouro: cnpjData.endereco_logradouro || '',
+                      nro: cnpjData.endereco_nro || '',
+                      compl: cnpjData.endereco_compl || '',
+                      bairro: cnpjData.endereco_bairro || '',
+                      cep: cnpjData.endereco_cep || '',
+                      uf: cnpjData.endereco_uf || '',
+                      cidade: cnpjData.endereco_cidade || '',
+                      cmun: cnpjData.endereco_cmun || '',
+                      pais: 'Brasil',
+                      cpais: '1058',
+                    };
+                    if (!entidade?.id) {
+                      setEnderecos(prev => {
+                        const withoutFiscal = prev.filter(e => e.tipo !== 'FISCAL');
+                        return [newEndereco as any, ...withoutFiscal];
+                      });
+                    }
+                  }
+                  // Auto-fill contact if phone or email
+                  if ((cnpjData.telefone || cnpjData.email_fiscal) && !entidade?.id) {
+                    const existingPhone = contatos.some(c => c.telefone === cnpjData.telefone);
+                    if (!existingPhone) {
+                      setContatos(prev => [{
+                        id: crypto.randomUUID(),
+                        entidade_id: '',
+                        created_at: new Date().toISOString(),
+                        nome: 'Contato Principal',
+                        cargo: 'OUTRO',
+                        departamento: 'OUTRO',
+                        telefone: cnpjData.telefone || '',
+                        email: cnpjData.email_fiscal || '',
+                        whatsapp: null,
+                        preferencial: true,
+                        aceita_whatsapp: true,
+                        preferencia_contato: 'INDIFERENTE',
+                        observacoes: null,
+                        origem: 'CNPJ',
+                      } as any, ...prev]);
+                    }
+                  }
+                  // Auto-fill financeiro email
+                  if (cnpjData.email_fiscal) {
+                    setFinanceiroConfig(prev => ({
+                      ...prev,
+                      email_nfe: cnpjData.email_fiscal,
+                    }));
+                  }
+                }}
                 errors={errors}
               />
             </TabsContent>

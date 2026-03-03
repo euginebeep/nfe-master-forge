@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { useState } from "react";
 import { PAPEL_LABELS, TIPO_PESSOA_LABELS, isEstrangeiro, type PapelEntidadeExtended, type TipoPessoa } from "@/types/entidades";
+import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
+import { cleanCNPJ } from "@/lib/cnpj-lookup";
 
 interface IdentificacaoTabProps {
   data: {
@@ -24,6 +26,7 @@ interface IdentificacaoTabProps {
     pais?: string;
   };
   onChange: (field: string, value: any) => void;
+  onCNPJDataFound?: (data: Record<string, any>) => void;
   errors?: Record<string, string>;
 }
 
@@ -49,7 +52,7 @@ const PAISES_COMUNS = [
   { codigo: 'IN', nome: 'Índia' },
 ];
 
-export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabProps) {
+export function IdentificacaoTab({ data, onChange, onCNPJDataFound, errors }: IdentificacaoTabProps) {
   const [newTag, setNewTag] = useState("");
   
   const isForeign = isEstrangeiro(data.tipo_pessoa);
@@ -102,13 +105,30 @@ export function IdentificacaoTab({ data, onChange, errors }: IdentificacaoTabPro
             {isForeign ? "Documento (Tax ID / Passport)" : data.tipo_pessoa === "PJ" ? "CNPJ" : "CPF"} 
             {!isForeign && " *"}
           </Label>
-          <Input
-            id="documento"
-            value={data.documento}
-            onChange={(e) => onChange("documento", e.target.value)}
-            placeholder={isForeign ? "Insira o documento estrangeiro (Tax ID, Passport)" : data.tipo_pessoa === "PJ" ? "Insira o CNPJ da empresa" : "Insira o CPF da pessoa"}
-            disabled={false}
-          />
+          {data.tipo_pessoa === "PJ" && !isForeign ? (
+            <CNPJLookupInput
+              value={data.documento}
+              onChange={(value) => onChange("documento", value)}
+              onDataFound={(cnpjData) => {
+                // Fill in razao_social, nome_fantasia and fiscal data
+                onChange("razao_social", cnpjData.razao_social);
+                onChange("nome_fantasia", cnpjData.nome_fantasia);
+                onChange("ie", cnpjData.ie || "");
+                onChange("cnae", cnpjData.cnae || "");
+                onChange("crt", cnpjData.crt || "");
+                // Notify parent for address/phone/email data
+                onCNPJDataFound?.(cnpjData);
+              }}
+            />
+          ) : (
+            <Input
+              id="documento"
+              value={data.documento}
+              onChange={(e) => onChange("documento", e.target.value)}
+              placeholder={isForeign ? "Insira o documento estrangeiro (Tax ID, Passport)" : "Insira o CPF da pessoa"}
+              disabled={false}
+            />
+          )}
           {errors?.documento && (
             <p className="text-sm text-destructive">{errors.documento}</p>
           )}
