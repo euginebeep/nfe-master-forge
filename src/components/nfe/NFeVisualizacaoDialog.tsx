@@ -514,8 +514,9 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 <title>DANFE - NF-e ${nota.numero || ''}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #000; background: #fff; padding: 8mm; }
-  @media print { body { padding: 5mm; } @page { margin: 6mm; size: A4 portrait; } }
+  body { font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #000; background: #e8e8e8; padding: 20px 0; }
+  .danfe-page { max-width: 210mm; margin: 0 auto; background: #fff; padding: 8mm; box-shadow: 0 2px 20px rgba(0,0,0,0.15); }
+  @media print { body { background: #fff; padding: 0; } .danfe-page { box-shadow: none; padding: 5mm; max-width: none; } @page { margin: 6mm; size: A4 portrait; } }
   .mono { font-family: 'Courier New', Courier, monospace; }
   .c { border: 1px solid #000; padding: 2px 4px; vertical-align: top; }
   .r { text-align: right; }
@@ -529,6 +530,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 </style>
 </head>
 <body>
+<div class="danfe-page">
 
 <!-- RECEBEMOS STRIP -->
 <table style="border:2px solid #000;margin-bottom:0">
@@ -715,6 +717,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
   Documento auxiliar da nota fiscal eletrônica para consulta. Não tem valor fiscal. Consulte a NF-e em www.nfe.fazenda.gov.br
 </div>
 
+</div>
 </body>
 </html>`;
 
