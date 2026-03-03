@@ -177,17 +177,20 @@ async function findOrCreateItemSupabase(
   const { data: novoItem, error } = await supabase
     .from('itens')
     .insert({
-      company_id: companyId,  // ← FIX: company_id obrigatório
+      company_id: companyId,
       descricao_interna: descricao,
       tipo_item: tipoItem,
       ncm: ncm || null,
       ean: ean || null,
       unidade_interna: unidadeInterna,
+      unidade_fornecedor: itemXML.unidade_comercial || null,
+      cest: (itemXML as any).cest || null,
+      cfop_entrada_padrao: (itemXML as any).cfop || null,
       controla_lote: true,
       controla_validade: true,
       criticidade: tipoItem === 'MP' ? 'CRITICO' : 'NORMAL',
       ativo: true,
-    })
+    } as any)
     .select('id')
     .single();
   
@@ -342,6 +345,35 @@ export async function importarNFeCompletaSupabase(
         } else {
           stats.produtosVinculados++;
         }
+      }
+      
+      // Atualizar dados fiscais e comerciais do item com dados do XML
+      const impostos = itemData.impostos;
+      const uComItem = itemData.item.unidade_comercial.toUpperCase();
+      const unidadeInternaCalc = configManual?.unidadeInterna || inferirUnidadeInterna(uComItem, mapClassificacaoToTipo(classificacao, itemData.item.descricao), itemData.item.descricao);
+      const fatorConv = configManual?.fatorConversao || calcularFatorConversao(uComItem, unidadeInternaCalc);
+      const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConv);
+      
+      const fiscalUpdate: Record<string, unknown> = {};
+      if (impostos.icms_origem) fiscalUpdate.origem_icms = impostos.icms_origem;
+      if (impostos.icms_cst) fiscalUpdate.cst_icms = impostos.icms_cst;
+      if (impostos.icms_aliquota) fiscalUpdate.aliquota_icms = impostos.icms_aliquota;
+      if (impostos.icms_st_mva) fiscalUpdate.mva_st = impostos.icms_st_mva;
+      if (impostos.ipi_cst) fiscalUpdate.cst_ipi = impostos.ipi_cst;
+      if (impostos.ipi_aliquota) fiscalUpdate.aliquota_ipi = impostos.ipi_aliquota;
+      if (impostos.pis_cst) fiscalUpdate.cst_pis = impostos.pis_cst;
+      if (impostos.pis_aliquota) fiscalUpdate.aliquota_pis = impostos.pis_aliquota;
+      if (impostos.cofins_cst) fiscalUpdate.cst_cofins = impostos.cofins_cst;
+      if (impostos.cofins_aliquota) fiscalUpdate.aliquota_cofins = impostos.cofins_aliquota;
+      if (itemData.item.cest) fiscalUpdate.cest = itemData.item.cest;
+      if (itemData.item.cfop) fiscalUpdate.cfop_entrada_padrao = itemData.item.cfop;
+      // Dados comerciais
+      fiscalUpdate.unidade_fornecedor = itemData.item.unidade_comercial;
+      fiscalUpdate.preco_unitario_fornecedor = itemData.item.valor_unitario_comercial;
+      fiscalUpdate.custo_por_unidade_interna = custoInterno;
+      
+      if (Object.keys(fiscalUpdate).length > 0) {
+        await supabase.from('itens').update(fiscalUpdate).eq('id', itemId);
       }
       
       // Vincular fornecedor ao item (upsert para não duplicar)
@@ -521,4 +553,73 @@ export async function reverterImportacaoNFe(notaId: string): Promise<void> {
   
   // 5. Apagar a nota
   await supabase.from('notas_entrada').delete().eq('id', notaId);
+}
+
+// ============================================
+// BACKFILL: Re-parse XMLs e atualizar itens com dados fiscais
+// ============================================
+export async function backfillFiscalDataFromXML(): Promise<{ updated: number; errors: number }> {
+  const { parseNFeCompleto } = await import('@/lib/nfe-parser-completo');
+  
+  // Buscar notas com XML
+  const { data: notas } = await supabase
+    .from('notas_entrada')
+    .select('id, xml_raw')
+    .not('xml_raw', 'is', null);
+  
+  if (!notas || notas.length === 0) return { updated: 0, errors: 0 };
+  
+  let updated = 0;
+  let errors = 0;
+  
+  for (const nota of notas) {
+    try {
+      const parsed = parseNFeCompleto(nota.xml_raw!);
+      if (!parsed) continue;
+      
+      // Buscar itens vinculados a esta nota
+      const { data: notaItens } = await supabase
+        .from('notas_entrada_itens')
+        .select('item_id, codigo_fornecedor')
+        .eq('nota_entrada_id', nota.id);
+      
+      if (!notaItens) continue;
+      
+      for (const notaItem of notaItens) {
+        if (!notaItem.item_id) continue;
+        
+        // Encontrar item correspondente no parse result
+        const parsedItem = parsed.itens.find(pi => 
+          pi.item.codigo_produto === notaItem.codigo_fornecedor
+        );
+        
+        if (!parsedItem) continue;
+        
+        const imp = parsedItem.impostos;
+        const updateData: Record<string, unknown> = {};
+        
+        if (imp.icms_origem) updateData.origem_icms = imp.icms_origem;
+        if (imp.icms_cst) updateData.cst_icms = imp.icms_cst;
+        if (imp.icms_aliquota) updateData.aliquota_icms = imp.icms_aliquota;
+        if (imp.icms_st_mva) updateData.mva_st = imp.icms_st_mva;
+        if (imp.ipi_cst) updateData.cst_ipi = imp.ipi_cst;
+        if (imp.ipi_aliquota) updateData.aliquota_ipi = imp.ipi_aliquota;
+        if (imp.pis_cst) updateData.cst_pis = imp.pis_cst;
+        if (imp.pis_aliquota) updateData.aliquota_pis = imp.pis_aliquota;
+        if (imp.cofins_cst) updateData.cst_cofins = imp.cofins_cst;
+        if (imp.cofins_aliquota) updateData.aliquota_cofins = imp.cofins_aliquota;
+        if (parsedItem.item.cest) updateData.cest = parsedItem.item.cest;
+        
+        if (Object.keys(updateData).length > 0) {
+          await supabase.from('itens').update(updateData).eq('id', notaItem.item_id);
+          updated++;
+        }
+      }
+    } catch (err) {
+      console.error(`[Backfill] Erro ao processar nota ${nota.id}:`, err);
+      errors++;
+    }
+  }
+  
+  return { updated, errors };
 }
