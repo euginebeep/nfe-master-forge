@@ -297,9 +297,13 @@ export default function ProdutoDetailPage() {
                       <Label>Fator de Conversão</Label>
                       <Input
                         type="number"
-                        value={formData.fator_conversao || 1}
-                        onChange={(e) => setFormData({ ...formData, fator_conversao: parseFloat(e.target.value) || 1 })}
-                        placeholder="1000"
+                        step="any"
+                        value={formData.fator_conversao ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData({ ...formData, fator_conversao: val === '' ? undefined : parseFloat(val) });
+                        }}
+                        placeholder="ex: 0.5, 1000"
                       />
                       <p className="text-xs text-muted-foreground">
                         1 {(formData as any).unidade_fornecedor || 'kg'} = {formData.fator_conversao || 1} {formData.unidade_interna || 'g'}
@@ -664,9 +668,13 @@ export default function ProdutoDetailPage() {
                     <Label>Fator Conversao</Label>
                     <Input
                       type="number"
-                      value={formData.fator_conversao || ""}
-                      onChange={(e) => setFormData({ ...formData, fator_conversao: parseFloat(e.target.value) || undefined })}
-                      placeholder="ex: 40000"
+                      step="any"
+                      value={formData.fator_conversao ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData({ ...formData, fator_conversao: val === '' ? undefined : parseFloat(val) });
+                      }}
+                      placeholder="ex: 0.5, 1000"
                     />
                   </div>
                 </div>

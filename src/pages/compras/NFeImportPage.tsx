@@ -745,10 +745,13 @@ export default function NFeImportPage() {
                                 <Label className="text-xs">Fator de Conversão</Label>
                                 <Input
                                   type="number"
-                                  step="0.0001"
+                                  step="any"
                                   min="0.0001"
                                   value={config.fatorConversao}
-                                  onChange={(e) => updateItemConfig(index, 'fatorConversao', parseFloat(e.target.value) || 1)}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateItemConfig(index, 'fatorConversao', val === '' ? 1 : parseFloat(val));
+                                  }}
                                   className="h-9"
                                 />
                               </div>
