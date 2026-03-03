@@ -167,7 +167,7 @@ export default function DashboardIndustrialPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-muted-foreground">
-                            {op.quantidade_planejada.toLocaleString()} un
+                            {(op.total_capsulas ?? 0).toLocaleString()} un
                           </span>
                           <Badge variant={
                             op.status === 'FINALIZADA' ? 'default' :
