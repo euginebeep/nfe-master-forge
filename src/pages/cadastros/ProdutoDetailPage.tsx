@@ -952,16 +952,20 @@ export default function ProdutoDetailPage() {
                         )}
                         
                         {/* Quantidades e Conversão */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Fornecedor</p>
                             <p>{String(l.fornecedor?.razao_social ?? "-")}</p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">Qtd Original (Nota)</p>
+                            <p className="text-muted-foreground">Qtd Original (NF-e)</p>
                             <p className="font-medium">
-                              {l.quantidade_original?.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} {l.unidade_original}
+                              {l.quantidade_original?.toLocaleString('pt-BR', { maximumFractionDigits: 4 })}
                             </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Unidade NF-e</p>
+                            <p className="font-medium">{l.unidade_original || '-'}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Qtd Interna (Convertido)</p>
