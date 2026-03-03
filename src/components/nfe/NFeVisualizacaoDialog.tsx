@@ -439,7 +439,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] p-0 gap-0">
+      <DialogContent className="max-w-[95vw] xl:max-w-[1100px] max-h-[95vh] p-0 gap-0">
         {/* Header */}
         <div className="p-5 border-b">
           <div className="flex items-start justify-between">
@@ -554,12 +554,12 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 // ====================================================
 // Tab: DANFE (Official Brazilian layout replica)
 // ====================================================
-const B = 'border-[#000]'; // border color
+const B = 'border-[#000]';
 const CELL = `border ${B} px-2 py-1`;
-const LBL = 'text-[7px] uppercase text-gray-500 leading-none mb-0.5';
-const VAL = 'text-[10px] leading-tight font-medium';
-const VAL_MONO = 'text-[10px] leading-tight font-mono font-medium';
-const SECTION_HEADER = `${B} bg-gray-100 border px-2 py-[3px] text-[8px] font-bold uppercase tracking-wider text-gray-700`;
+const LBL = 'text-[8px] uppercase text-gray-500 leading-none mb-0.5';
+const VAL = 'text-[11px] leading-tight font-medium';
+const VAL_MONO = 'text-[11px] leading-tight font-mono font-medium';
+const SECTION_HEADER = `${B} bg-gray-200 border px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-gray-800`;
 
 function formatCNPJ(cnpj: string): string {
   const d = cnpj.replace(/\D/g, '');
@@ -601,162 +601,187 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
   const enderDest = dest?.endereco;
 
   const tpNF = ide?.tipoOperacao === 'Entrada' ? '0' : '1';
-  const modelo = nota.modelo || '55';
 
   return (
-    <div className="max-w-[210mm] mx-auto bg-white text-black print:shadow-none" style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '10px' }}>
-      <div className={`border-2 ${B}`}>
+    <div className="mx-auto bg-white text-black print:shadow-none" style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '11px' }}>
 
-        {/* ============ ROW 1: HEADER ============ */}
-        <div className="grid grid-cols-[1fr_180px_1fr] border-b border-black">
-          {/* LEFT: Emitente identification */}
-          <div className={`border-r ${B} p-2 flex flex-col justify-between`}>
+      {/* ============ RECEBEMOS STRIP ============ */}
+      <div className={`border-2 ${B}`}>
+        <div className="grid grid-cols-[1fr_150px] border-b border-black">
+          <div className={`border-r ${B} px-3 py-2`}>
+            <p className="text-[9px] leading-snug">
+              RECEBEMOS DE <span className="font-bold">{emit?.razaoSocial || nota.fornecedor?.razao_social || '—'}</span> OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO
+            </p>
+            <div className="grid grid-cols-[1fr_220px] mt-2">
+              <div>
+                <p className={LBL}>DATA DE RECEBIMENTO</p>
+                <div className="border-t border-gray-300 mt-3"></div>
+              </div>
+              <div>
+                <p className={LBL}>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</p>
+                <div className="border-t border-gray-300 mt-3"></div>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-center text-center p-2">
+            <p className="text-[10px] font-bold">NF-e</p>
+            <p className="text-[14px] font-extrabold leading-tight">Nº: {nota.numero ? nota.numero.padStart(9, '0') : '—'}</p>
+            <p className="text-[10px]">Série: {nota.serie || '1'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ============ MAIN BODY ============ */}
+      <div className={`border-2 border-t-0 ${B}`}>
+
+        {/* ROW 1: EMITENTE | DANFE | BARCODE/CHAVE */}
+        <div className="grid grid-cols-[1fr_170px_1fr] border-b border-black">
+          {/* Emitente */}
+          <div className={`border-r ${B} p-3 flex flex-col justify-between min-h-[110px]`}>
             <div>
-              <p className="text-[13px] font-bold leading-tight">{emit?.razaoSocial || nota.fornecedor?.razao_social || '—'}</p>
-              {emit?.nomeFantasia && <p className="text-[10px] mt-0.5">{emit.nomeFantasia}</p>}
+              <p className="text-[14px] font-bold leading-tight">{emit?.razaoSocial || nota.fornecedor?.razao_social || '—'}</p>
+              {emit?.nomeFantasia && <p className="text-[11px] mt-0.5">{emit.nomeFantasia}</p>}
             </div>
             {enderEmit && (
-              <div className="mt-1 text-[9px] leading-snug text-gray-700">
+              <div className="mt-2 text-[10px] leading-snug text-gray-700">
                 <p>{enderEmit.logradouro}, {enderEmit.nro}{enderEmit.complemento ? `, ${enderEmit.complemento}` : ''}</p>
-                <p>{enderEmit.bairro} - {enderEmit.cidade} - {enderEmit.uf} - CEP: {formatCEP(enderEmit.cep)}</p>
+                <p>{enderEmit.bairro} - CEP: {formatCEP(enderEmit.cep)}</p>
+                <p>{enderEmit.cidade} - {enderEmit.uf}</p>
                 {enderEmit.telefone && <p>Fone: {formatFone(enderEmit.telefone)}</p>}
               </div>
             )}
           </div>
 
-          {/* CENTER: DANFE box */}
-          <div className={`border-r ${B} text-center py-2 flex flex-col items-center justify-center`}>
-            <p className="text-[18px] font-extrabold tracking-[4px]">DANFE</p>
-            <p className="text-[6px] leading-tight mt-0.5 text-gray-600 px-2">DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRÔNICA</p>
-            <div className="mt-2 flex gap-4 text-[8px]">
-              <span>{tpNF === '0' ? '☒ ENTRADA' : '☐ ENTRADA'}</span>
-              <span>{tpNF === '1' ? '☒ SAÍDA' : '☐ SAÍDA'}</span>
+          {/* DANFE title */}
+          <div className={`border-r ${B} text-center py-3 flex flex-col items-center justify-between`}>
+            <div>
+              <p className="text-[20px] font-extrabold tracking-[5px] leading-none">DANFE</p>
+              <p className="text-[7px] leading-tight mt-1 text-gray-500 px-1">Documento Auxiliar da<br/>Nota Fiscal Eletrônica</p>
             </div>
-            <div className="mt-2 border-t border-gray-300 pt-1 w-full">
-              <p className={LBL}>Nº</p>
-              <p className="text-[14px] font-bold">{nota.numero || '—'}</p>
-              <p className={LBL}>SÉRIE</p>
-              <p className="text-[11px] font-bold">{nota.serie || '1'}</p>
+            <div className="mt-2 flex gap-3 text-[9px]">
+              <span>{tpNF === '0' ? '☒' : '☐'} ENTRADA</span>
+              <span>{tpNF === '1' ? '☒' : '☐'} SAÍDA</span>
             </div>
-            <div className="mt-1 border-t border-gray-300 pt-1 w-full">
-              <p className={LBL}>FOLHA 1/1</p>
+            <div className="mt-2 border-t border-gray-300 pt-1 w-full px-2">
+              <p className="text-[13px] font-bold">Nº: {nota.numero ? nota.numero.padStart(9, '0') : '—'}</p>
+              <p className="text-[11px]">Série: {nota.serie || '1'}</p>
+              <p className="text-[9px] mt-1">Folha 1/1</p>
             </div>
           </div>
 
-          {/* RIGHT: Barcode area + chave + protocolo */}
+          {/* Barcode + Chave + Protocolo */}
           <div className="flex flex-col">
-            {/* Barcode placeholder */}
-            <div className={`border-b ${B} p-2 flex items-center justify-center min-h-[40px]`}>
-              <div className="bg-gray-200 text-[7px] text-gray-500 px-4 py-2 text-center rounded">
-                CÓDIGO DE BARRAS
+            <div className={`border-b ${B} p-2 flex items-center justify-center min-h-[45px]`}>
+              <div className="flex gap-[1px]">
+                {Array.from({ length: 50 }).map((_, i) => (
+                  <div key={i} className="bg-black" style={{ width: i % 3 === 0 ? '2px' : '1px', height: '32px' }} />
+                ))}
               </div>
             </div>
-            {/* Chave de acesso */}
-            <div className={`border-b ${B} p-2`}>
+            <div className={`border-b ${B} px-2 py-1.5`}>
               <p className={LBL}>CHAVE DE ACESSO</p>
-              <p className="text-[8px] font-mono font-bold tracking-wider leading-tight mt-0.5">{formatChave(nota.chave_nfe)}</p>
+              <p className="text-[9px] font-mono font-bold tracking-[1px] leading-tight mt-0.5">{formatChave(nota.chave_nfe)}</p>
             </div>
-            {/* Consulta */}
-            <div className={`border-b ${B} p-1.5 text-center`}>
+            <div className={`border-b ${B} px-2 py-1 text-center`}>
               <p className="text-[7px] text-gray-500">Consulta de autenticidade no portal nacional da NF-e</p>
-              <p className="text-[7px] font-bold">www.nfe.fazenda.gov.br/portal</p>
+              <p className="text-[8px] font-bold">www.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizadora</p>
             </div>
-            {/* Protocolo */}
-            <div className="p-2">
+            <div className="px-2 py-1.5">
               <p className={LBL}>PROTOCOLO DE AUTORIZAÇÃO DE USO</p>
-              <p className="text-[9px] font-mono font-bold mt-0.5">
-                {ide?.protocolo || '—'} — {ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '—'}
+              <p className="text-[10px] font-mono font-bold mt-0.5">
+                {ide?.protocolo || '—'} - {ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '—'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* ============ NATUREZA DA OPERAÇÃO | PROTOCOLO ============ */}
+        {/* NATUREZA + PROTOCOLO */}
         <div className="grid grid-cols-[1fr_auto] border-b border-black">
           <DCell label="NATUREZA DA OPERAÇÃO" value={ide?.naturezaOperacao || '—'} />
-          <DCell label="INSCRIÇÃO ESTADUAL" value={emit?.ie || '—'} className="min-w-[180px]" />
+          <DCell label="PROTOCOLO DE AUTORIZAÇÃO" value={`${ide?.protocolo || '—'} - ${ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '—'}`} className="min-w-[280px]" mono />
         </div>
 
-        {/* ============ IE, IE ST, CNPJ ============ */}
+        {/* IE, IE ST, CNPJ */}
         <div className="grid grid-cols-3 border-b border-black">
           <DCell label="INSCRIÇÃO ESTADUAL" value={emit?.ie || '—'} />
           <DCell label="INSCRIÇÃO ESTADUAL DO SUBST. TRIBUTÁRIO" value="—" />
           <DCell label="CNPJ" value={emit?.cnpj ? formatCNPJ(emit.cnpj) : '—'} mono />
         </div>
 
-        {/* ============ DESTINATÁRIO / REMETENTE ============ */}
+        {/* DESTINATÁRIO */}
         <div className={SECTION_HEADER}>DESTINATÁRIO / REMETENTE</div>
 
-        <div className="grid grid-cols-[1fr_200px_120px] border-b border-black">
+        <div className="grid grid-cols-[1fr_220px_140px] border-b border-black">
           <DCell label="NOME / RAZÃO SOCIAL" value={dest?.razaoSocial || '—'} />
           <DCell label="CNPJ / CPF" value={dest?.cnpj ? formatCNPJ(dest.cnpj) : dest?.cpf || '—'} mono />
           <DCell label="DATA DA EMISSÃO" value={formatDate(nota.dh_emissao || '')} />
         </div>
 
-        <div className="grid grid-cols-[1fr_160px_100px_120px] border-b border-black">
+        <div className="grid grid-cols-[1fr_180px_120px_140px] border-b border-black">
           <DCell label="ENDEREÇO" value={enderDest ? `${enderDest.logradouro}, ${enderDest.nro}${enderDest.complemento ? ` - ${enderDest.complemento}` : ''}` : '—'} />
           <DCell label="BAIRRO / DISTRITO" value={enderDest?.bairro || '—'} />
           <DCell label="CEP" value={enderDest?.cep ? formatCEP(enderDest.cep) : '—'} mono />
-          <DCell label="DATA SAÍDA/ENTRADA" value={ide?.dhSaiEnt ? formatDate(ide.dhSaiEnt) : '—'} />
+          <DCell label="DATA ENTRADA / SAÍDA" value={ide?.dhSaiEnt ? formatDate(ide.dhSaiEnt) : '—'} />
         </div>
 
-        <div className="grid grid-cols-[1fr_100px_160px_120px] border-b border-black">
+        <div className="grid grid-cols-[1fr_100px_180px_180px_140px] border-b border-black">
           <DCell label="MUNICÍPIO" value={enderDest?.cidade || '—'} />
           <DCell label="UF" value={enderDest?.uf || '—'} />
           <DCell label="FONE / FAX" value={enderDest?.telefone ? formatFone(enderDest.telefone) : '—'} />
           <DCell label="INSCRIÇÃO ESTADUAL" value={dest?.ie || '—'} />
+          <DCell label="HORA ENTRADA / SAÍDA" value={ide?.dhSaiEnt ? new Date(ide.dhSaiEnt).toLocaleTimeString('pt-BR') : '—'} />
         </div>
 
-        {/* ============ FATURA / DUPLICATAS ============ */}
-        {(cobr?.fatura || (cobr?.duplicatas && cobr.duplicatas.length > 0)) && (
-          <>
-            <div className={SECTION_HEADER}>FATURA / DUPLICATA</div>
-            {cobr?.fatura && (
-              <div className="grid grid-cols-4 border-b border-black">
-                <DCell label="NÚMERO DA FATURA" value={cobr.fatura.nFat} />
-                <DCell label="VALOR ORIGINAL" value={formatCurrency(cobr.fatura.vOrig)} mono />
-                <DCell label="VALOR DESCONTO" value={formatCurrency(cobr.fatura.vDesc)} mono />
-                <DCell label="VALOR LÍQUIDO" value={formatCurrency(cobr.fatura.vLiq)} mono />
+        {/* FATURA / DUPLICATAS */}
+        <div className={SECTION_HEADER}>FATURA / DUPLICATA</div>
+        {cobr?.fatura ? (
+          <div className="border-b border-black">
+            <div className="grid grid-cols-3">
+              <DCell label="NÚMERO" value={cobr.fatura.nFat} />
+              <DCell label="VALOR LÍQUIDO" value={formatCurrency(cobr.fatura.vLiq)} mono />
+              <div className={`${CELL}`}>
+                <p className={LBL}>DUPLICATAS</p>
+                {cobr?.duplicatas && cobr.duplicatas.length > 0 ? (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    {cobr.duplicatas.map((d, i) => (
+                      <span key={i} className="text-[9px] font-mono">
+                        {d.nDup} {formatDate(d.dVenc)} {formatCurrency(d.vDup)}
+                      </span>
+                    ))}
+                  </div>
+                ) : <p className={VAL}>—</p>}
               </div>
-            )}
-            {cobr?.duplicatas && cobr.duplicatas.length > 0 && (
-              <div className="border-b border-black p-1">
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[9px]">
-                  {cobr.duplicatas.map((d, i) => (
-                    <span key={i} className="font-mono">
-                      <span className="text-gray-500">Nº:</span> {d.nDup} <span className="text-gray-500">Venc:</span> {formatDate(d.dVenc)} <span className="text-gray-500">Valor:</span> {formatCurrency(d.vDup)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+            </div>
+          </div>
+        ) : (
+          <div className={`${CELL} border-b border-black`}><p className={VAL}>Sem dados de fatura</p></div>
         )}
 
-        {/* ============ CÁLCULO DO IMPOSTO ============ */}
+        {/* CÁLCULO DO IMPOSTO */}
         <div className={SECTION_HEADER}>CÁLCULO DO IMPOSTO</div>
 
         <div className="grid grid-cols-5 border-b border-black">
-          <DCell label="BASE DE CÁLCULO DO ICMS" value={formatCurrency(totais?.vBC || 0)} mono />
+          <DCell label="BASE DE CÁLC. DO ICMS" value={formatCurrency(totais?.vBC || 0)} mono />
           <DCell label="VALOR DO ICMS" value={formatCurrency(totais?.vICMS || 0)} mono />
-          <DCell label="BASE DE CÁLC. ICMS ST" value={formatCurrency(totais?.vBCST || 0)} mono />
-          <DCell label="VALOR DO ICMS ST" value={formatCurrency(totais?.vST || 0)} mono />
-          <DCell label="VALOR APROX. DOS TRIBUTOS" value={formatCurrency(totais?.vTotTrib || 0)} mono />
+          <DCell label="BASE DE CÁLC. ICMS S.T." value={formatCurrency(totais?.vBCST || 0)} mono />
+          <DCell label="VALOR DO ICMS SUBST." value={formatCurrency(totais?.vST || 0)} mono />
+          <DCell label="V. TOTAL PRODUTOS" value={formatCurrency(totais?.vProd || nota.total_produtos || 0)} mono />
         </div>
 
-        <div className="grid grid-cols-6 border-b border-black">
-          <DCell label="VALOR TOTAL DOS PRODUTOS" value={formatCurrency(totais?.vProd || nota.total_produtos || 0)} mono />
+        <div className="grid grid-cols-7 border-b border-black">
           <DCell label="VALOR DO FRETE" value={formatCurrency(totais?.vFrete || 0)} mono />
           <DCell label="VALOR DO SEGURO" value={formatCurrency(totais?.vSeg || 0)} mono />
           <DCell label="DESCONTO" value={formatCurrency(totais?.vDesc || 0)} mono />
           <DCell label="OUTRAS DESPESAS" value={formatCurrency(totais?.vOutro || 0)} mono />
-          <DCell label="VALOR TOTAL DA NOTA" value={formatCurrency(totais?.vNF || nota.total_nota || 0)} mono className="bg-gray-50 font-bold" />
+          <DCell label="VALOR DO IPI" value={formatCurrency(totais?.vIPI || 0)} mono />
+          <DCell label="V. APROX. TRIBUTOS" value={formatCurrency(totais?.vTotTrib || 0)} mono />
+          <DCell label="VALOR TOTAL DA NOTA" value={formatCurrency(totais?.vNF || nota.total_nota || 0)} mono className="bg-gray-100 font-bold" />
         </div>
 
-        {/* ============ TRANSPORTADOR / VOLUMES ============ */}
+        {/* TRANSPORTADOR / VOLUMES */}
         <div className={SECTION_HEADER}>TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>
 
-        <div className="grid grid-cols-[1fr_120px_100px_140px_100px_100px] border-b border-black">
+        <div className="grid grid-cols-[1fr_140px_100px_140px_50px_120px] border-b border-black">
           <DCell label="RAZÃO SOCIAL" value={transp?.transportadora?.razaoSocial || '—'} />
           <DCell label="FRETE POR CONTA" value={transp?.modFrete || '—'} />
           <DCell label="CÓDIGO ANTT" value={transp?.veiculo?.rntc || '—'} />
@@ -765,43 +790,43 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
           <DCell label="CNPJ / CPF" value={transp?.transportadora?.cnpj || '—'} mono />
         </div>
 
-        <div className="grid grid-cols-[1fr_100px_160px] border-b border-black">
+        <div className="grid grid-cols-[1fr_180px_50px_180px] border-b border-black">
           <DCell label="ENDEREÇO" value={transp?.transportadora?.endereco || '—'} />
           <DCell label="MUNICÍPIO" value={transp?.transportadora?.municipio || '—'} />
           <DCell label="UF" value={transp?.transportadora?.uf || '—'} />
+          <DCell label="INSCRIÇÃO ESTADUAL" value={transp?.transportadora?.ie || '—'} />
         </div>
 
         <div className="grid grid-cols-6 border-b border-black">
-          <DCell label="QUANTIDADE" value={transp?.volumes?.[0]?.qVol?.toString() || '—'} />
+          <DCell label="QUANTIDADE" value={transp?.volumes?.[0]?.qVol ? transp.volumes[0].qVol.toLocaleString('pt-BR', { minimumFractionDigits: 3 }) : '—'} mono />
           <DCell label="ESPÉCIE" value={transp?.volumes?.[0]?.especie || '—'} />
           <DCell label="MARCA" value={transp?.volumes?.[0]?.marca || '—'} />
           <DCell label="NUMERAÇÃO" value={transp?.volumes?.[0]?.nVol || '—'} />
-          <DCell label="PESO BRUTO" value={transp?.volumes?.[0]?.pesoB ? `${transp.volumes[0].pesoB.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}` : '—'} mono />
-          <DCell label="PESO LÍQUIDO" value={transp?.volumes?.[0]?.pesoL ? `${transp.volumes[0].pesoL.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}` : '—'} mono />
+          <DCell label="PESO BRUTO" value={transp?.volumes?.[0]?.pesoB ? transp.volumes[0].pesoB.toLocaleString('pt-BR', { minimumFractionDigits: 3 }) : '—'} mono />
+          <DCell label="PESO LÍQUIDO" value={transp?.volumes?.[0]?.pesoL ? transp.volumes[0].pesoL.toLocaleString('pt-BR', { minimumFractionDigits: 3 }) : '—'} mono />
         </div>
 
-        {/* ============ DADOS DOS PRODUTOS / SERVIÇOS ============ */}
+        {/* DADOS DOS PRODUTOS */}
         <div className={SECTION_HEADER}>DADOS DOS PRODUTOS / SERVIÇOS</div>
 
         <div className="border-b border-black overflow-x-auto">
-          <table className="w-full border-collapse" style={{ fontSize: '8px' }}>
+          <table className="w-full border-collapse" style={{ fontSize: '9px' }}>
             <thead>
-              <tr className="bg-gray-50">
-                <th className={`${CELL} text-center w-6`}>ITEM</th>
-                <th className={`${CELL} text-left w-14`}>CÓDIGO</th>
+              <tr className="bg-gray-100">
+                <th className={`${CELL} text-left w-14`}>CÓDIGO<br/>PRODUTO</th>
                 <th className={`${CELL} text-left`}>DESCRIÇÃO DO PRODUTO / SERVIÇO</th>
                 <th className={`${CELL} text-center w-16`}>NCM/SH</th>
-                <th className={`${CELL} text-center w-8`}>CST</th>
-                <th className={`${CELL} text-center w-10`}>CFOP</th>
+                <th className={`${CELL} text-center w-10`}>O/CST</th>
+                <th className={`${CELL} text-center w-12`}>CFOP</th>
                 <th className={`${CELL} text-center w-8`}>UN</th>
-                <th className={`${CELL} text-right w-16`}>QTD</th>
-                <th className={`${CELL} text-right w-16`}>VL.UNIT</th>
-                <th className={`${CELL} text-right w-16`}>VL.TOTAL</th>
-                <th className={`${CELL} text-right w-14`}>BC ICMS</th>
-                <th className={`${CELL} text-right w-14`}>VL.ICMS</th>
-                <th className={`${CELL} text-right w-14`}>VL.IPI</th>
-                <th className={`${CELL} text-right w-10`}>% ICMS</th>
-                <th className={`${CELL} text-right w-10`}>% IPI</th>
+                <th className={`${CELL} text-right w-14`}>QUANT.</th>
+                <th className={`${CELL} text-right w-16`}>VALOR<br/>UNIT.</th>
+                <th className={`${CELL} text-right w-16`}>VALOR<br/>TOTAL</th>
+                <th className={`${CELL} text-right w-14`}>B.CÁLC.<br/>ICMS</th>
+                <th className={`${CELL} text-right w-14`}>VALOR<br/>ICMS</th>
+                <th className={`${CELL} text-right w-14`}>VALOR<br/>IPI</th>
+                <th className={`${CELL} text-right w-10`}>ALÍQ.<br/>ICMS</th>
+                <th className={`${CELL} text-right w-10`}>ALÍQ.<br/>IPI</th>
               </tr>
             </thead>
             <tbody>
@@ -811,30 +836,33 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
                 qCom: i.qcom || 0, vUnCom: i.vuncom || 0, vProd: i.vprod || 0,
                 icms: { orig: '', cst: '', vBC: 0, pICMS: 0, vICMS: 0 },
                 ipi: { cst: '', vBC: 0, pIPI: 0, vIPI: 0 },
+                infAdProd: '',
               }))).map((p: any) => (
-                <tr key={p.nItem} className="hover:bg-blue-50/30">
-                  <td className={`${CELL} text-center font-mono`}>{p.nItem}</td>
+                <tr key={p.nItem}>
                   <td className={`${CELL} font-mono`}>{p.cProd}</td>
-                  <td className={`${CELL}`}>{p.xProd}</td>
+                  <td className={CELL}>
+                    {p.xProd}
+                    {p.infAdProd && <div className="text-[8px] text-gray-600 mt-0.5">{p.infAdProd}</div>}
+                  </td>
                   <td className={`${CELL} text-center font-mono`}>{p.ncm}</td>
                   <td className={`${CELL} text-center font-mono`}>{p.icms?.orig}{p.icms?.cst}</td>
                   <td className={`${CELL} text-center font-mono`}>{p.cfop}</td>
                   <td className={`${CELL} text-center`}>{p.uCom}</td>
-                  <td className={`${CELL} text-right font-mono`}>{p.qCom?.toLocaleString('pt-BR', { minimumFractionDigits: 4 })}</td>
+                  <td className={`${CELL} text-right font-mono`}>{p.qCom?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                   <td className={`${CELL} text-right font-mono`}>{p.vUnCom?.toLocaleString('pt-BR', { minimumFractionDigits: 4 })}</td>
                   <td className={`${CELL} text-right font-mono font-bold`}>{formatCurrency(p.vProd)}</td>
                   <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vBC || 0)}</td>
                   <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.icms?.vICMS || 0)}</td>
                   <td className={`${CELL} text-right font-mono`}>{formatCurrency(p.ipi?.vIPI || 0)}</td>
-                  <td className={`${CELL} text-right font-mono`}>{p.icms?.pICMS ? `${p.icms.pICMS.toFixed(2)}` : '0,00'}</td>
-                  <td className={`${CELL} text-right font-mono`}>{p.ipi?.pIPI ? `${p.ipi.pIPI.toFixed(2)}` : '0,00'}</td>
+                  <td className={`${CELL} text-right font-mono`}>{p.icms?.pICMS ? p.icms.pICMS.toFixed(2) : ''}</td>
+                  <td className={`${CELL} text-right font-mono`}>{p.ipi?.pIPI ? p.ipi.pIPI.toFixed(2) : ''}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* ============ CÁLCULO DO ISSQN ============ */}
+        {/* CÁLCULO DO ISSQN */}
         <div className={SECTION_HEADER}>CÁLCULO DO ISSQN</div>
         <div className="grid grid-cols-4 border-b border-black">
           <DCell label="INSCRIÇÃO MUNICIPAL" value={emit?.im || '—'} />
@@ -843,31 +871,27 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
           <DCell label="VALOR TOTAL DO ISSQN" value="—" mono />
         </div>
 
-        {/* ============ DADOS ADICIONAIS ============ */}
+        {/* DADOS ADICIONAIS */}
         <div className={SECTION_HEADER}>DADOS ADICIONAIS</div>
         <div className="grid grid-cols-2 border-b border-black">
-          <div className={`${CELL} min-h-[60px]`}>
+          <div className={`${CELL} min-h-[80px]`}>
             <p className={LBL}>INFORMAÇÕES COMPLEMENTARES</p>
-            <p className="text-[8px] mt-1 whitespace-pre-wrap leading-snug">
-              {xmlData?.infCpl || '—'}
-            </p>
+            <p className="text-[9px] mt-1 whitespace-pre-wrap leading-snug">{xmlData?.infCpl || '—'}</p>
           </div>
-          <div className={`${CELL} min-h-[60px]`}>
+          <div className={`${CELL} min-h-[80px]`}>
             <p className={LBL}>RESERVADO AO FISCO</p>
-            <p className="text-[8px] mt-1 whitespace-pre-wrap leading-snug">
-              {xmlData?.infAdFisco || '—'}
-            </p>
+            <p className="text-[9px] mt-1 whitespace-pre-wrap leading-snug">{xmlData?.infAdFisco || '—'}</p>
           </div>
         </div>
 
-        {/* ============ PAGAMENTO ============ */}
+        {/* PAGAMENTO */}
         <div className={SECTION_HEADER}>FORMAS DE PAGAMENTO</div>
         <div className="border-b border-black">
-          <table className="w-full border-collapse" style={{ fontSize: '8px' }}>
+          <table className="w-full border-collapse" style={{ fontSize: '9px' }}>
             <thead>
-              <tr className="bg-gray-50">
+              <tr className="bg-gray-100">
                 <th className={`${CELL} text-left`}>FORMA DE PAGAMENTO</th>
-                <th className={`${CELL} text-right w-32`}>VALOR</th>
+                <th className={`${CELL} text-right w-36`}>VALOR</th>
               </tr>
             </thead>
             <tbody>
@@ -883,7 +907,7 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
           </table>
         </div>
 
-        {/* ============ RESPONSÁVEL TÉCNICO ============ */}
+        {/* RESPONSÁVEL TÉCNICO */}
         {xmlData?.respTec && (
           <>
             <div className={SECTION_HEADER}>RESPONSÁVEL TÉCNICO</div>
@@ -898,7 +922,7 @@ function TabDANFE({ nota, xmlData, itens }: { nota: NotaEntradaDB; xmlData: XMLF
       </div>
 
       {/* Footer */}
-      <div className="text-center text-[7px] text-gray-400 mt-2 py-1">
+      <div className="text-center text-[7px] text-gray-400 mt-1 py-1">
         <p>Documento auxiliar da nota fiscal eletrônica para consulta. Não tem valor fiscal. Consulte a NF-e em www.nfe.fazenda.gov.br</p>
       </div>
     </div>
