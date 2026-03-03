@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { centralToast } from "@/components/ui/central-toast";
 import { useParams, useNavigate } from "react-router-dom";
 import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search } from "lucide-react";
 import { EstoqueResumoCard } from "@/components/estoque/EstoqueResumoCard";
@@ -110,10 +112,50 @@ export default function ProdutoDetailPage() {
     }
   }, [item]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!id) return;
-    // Try hybrid update (Supabase first, then localStorage)
+    // Save item data
     updateMutation.mutate({ id, data: formData });
+    
+    // If fator_conversao changed, recalculate all lotes for this item
+    const newFator = formData.fator_conversao;
+    if (newFator && newFator !== item?.fator_conversao) {
+      try {
+        // Fetch all lotes for this item
+        const { data: lotes, error } = await supabase
+          .from('estoque_lotes')
+          .select('id, quantidade_original')
+          .eq('item_id', id);
+        
+        if (!error && lotes && lotes.length > 0) {
+          for (const lote of lotes) {
+            const qtdOriginal = lote.quantidade_original || 0;
+            const qtdInterna = qtdOriginal * newFator;
+            // Get original cost to recalculate internal cost
+            const { data: loteDetail } = await supabase
+              .from('estoque_lotes')
+              .select('custo_unitario_original')
+              .eq('id', lote.id)
+              .single();
+            
+            const custoOriginal = loteDetail?.custo_unitario_original || 0;
+            const custoInterno = newFator > 0 ? custoOriginal / newFator : 0;
+            
+            await supabase
+              .from('estoque_lotes')
+              .update({
+                quantidade_interna: qtdInterna,
+                custo_unitario_interno: custoInterno,
+                unidade_interna: formData.unidade_interna || item?.unidade_interna,
+              })
+              .eq('id', lote.id);
+          }
+          centralToast.success("Lotes Recalculados", `${lotes.length} lote(s) atualizado(s) com novo fator de conversão`);
+        }
+      } catch (err) {
+        console.error('Erro ao recalcular lotes:', err);
+      }
+    }
   };
 
   if (isLoading) {
