@@ -1,22 +1,54 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+// ============================================
+// BACKUP DE XMLs — LEITURA DO SUPABASE
+// Substituiu localStorage por notas_entrada (xml_raw já gravado lá)
+// ============================================
+
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { FileArchive, Download, Trash2, Search, HardDrive, FileText, RefreshCw, AlertTriangle } from 'lucide-react';
+import {
+  FileArchive,
+  Download,
+  Search,
+  HardDrive,
+  FileText,
+  RefreshCw,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { getUserCompanyId } from '@/hooks/use-user-company';
+
+// ── Tipagem local baseada no Supabase ────────────────────────────────────────
+
+interface NotaXmlRow {
+  id: string;
+  chave_nfe: string;
+  numero: string | null;
+  serie: string | null;
+  dh_emissao: string | null;
+  total_nota: number | null;
+  xml_raw: string | null;
+  created_at: string;
+  fornecedor: {
+    razao_social: string;
+    documento: string;
+  } | null;
+}
+
+// ── Utilitários ──────────────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -26,108 +58,116 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-interface NotaXml {
-  id: string;
-  chave_nfe: string;
-  numero: string;
-  serie: string;
-  dh_emissao: string | null;
-  total_nota: number | null;
-  xml_raw: string | null;
-  created_at: string;
-  fornecedor?: { razao_social: string | null; documento: string | null } | null;
+function downloadXml(nota: NotaXmlRow): void {
+  if (!nota.xml_raw) {
+    toast.error('XML não disponível para esta nota');
+    return;
+  }
+  const blob = new Blob([nota.xml_raw], { type: 'application/xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `NFe_${nota.numero || 'SEM_NUM'}_${nota.serie || '1'}_${nota.chave_nfe}.xml`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
+function downloadAllXmls(notas: NotaXmlRow[]): void {
+  const comXml = notas.filter(n => n.xml_raw);
+  if (comXml.length === 0) {
+    toast.error('Nenhum XML disponível para exportar');
+    return;
+  }
+
+  const content = comXml.map(n => {
+    const fornRazao = n.fornecedor?.razao_social || 'Desconhecido';
+    const fornCnpj  = n.fornecedor?.documento    || '';
+    return [
+      '========================================',
+      `CHAVE: ${n.chave_nfe}`,
+      `NÚMERO: ${n.numero || '-'} | SÉRIE: ${n.serie || '-'}`,
+      `FORNECEDOR: ${fornRazao} (${fornCnpj})`,
+      `DATA: ${n.dh_emissao || '-'}`,
+      `VALOR: R$ ${(n.total_nota ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      '========================================',
+      n.xml_raw,
+      '',
+    ].join('\n');
+  }).join('\n\n');
+
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_xmls_nfe_${new Date().toISOString().split('T')[0]}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── Componente ───────────────────────────────────────────────────────────────
+
 export default function XmlBackupPage() {
+  const [notas, setNotas] = useState<NotaXmlRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const { data: notas = [], isLoading, refetch } = useQuery({
-    queryKey: ['xml-backups'],
-    queryFn: async () => {
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) {
+        toast.error('Empresa não configurada');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('notas_entrada')
-        .select('id, chave_nfe, numero, serie, dh_emissao, total_nota, xml_raw, created_at, fornecedor:entidades!notas_entrada_fornecedor_id_fkey(razao_social, documento)')
-        .not('xml_raw', 'is', null)
+        .select(`
+          id,
+          chave_nfe,
+          numero,
+          serie,
+          dh_emissao,
+          total_nota,
+          xml_raw,
+          created_at,
+          fornecedor:entidades (razao_social, documento)
+        `)
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
+
       if (error) throw error;
-      return (data || []) as unknown as NotaXml[];
-    },
+      setNotas((data as unknown as NotaXmlRow[]) || []);
+    } catch (err) {
+      toast.error('Erro ao carregar notas: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  // ── Stats derivadas ──────────────────────────────────────────────────────
+  const total       = notas.length;
+  const comXml      = notas.filter(n => n.xml_raw).length;
+  const tamanhoTotal = notas.reduce((sum, n) => sum + new Blob([n.xml_raw || '']).size, 0);
+  const valorTotal  = notas.reduce((sum, n) => sum + (n.total_nota ?? 0), 0);
+
+  // ── Filtro ───────────────────────────────────────────────────────────────
+  const filtradas = notas.filter(n => {
+    if (!search.trim()) return true;
+    const s = search.toLowerCase();
+    return (
+      (n.numero || '').includes(search) ||
+      n.chave_nfe.includes(search) ||
+      (n.fornecedor?.razao_social || '').toLowerCase().includes(s) ||
+      (n.fornecedor?.documento || '').includes(search)
+    );
   });
-
-  const stats = {
-    total: notas.length,
-    tamanhoTotal: notas.reduce((sum, n) => sum + (n.xml_raw ? new Blob([n.xml_raw]).size : 0), 0),
-    valorTotal: notas.reduce((sum, n) => sum + (n.total_nota || 0), 0),
-  };
-
-  const filtered = notas.filter(n =>
-    (n.numero || '').includes(search) ||
-    (n.chave_nfe || '').includes(search) ||
-    (n.fornecedor?.razao_social || '').toLowerCase().includes(search.toLowerCase()) ||
-    (n.fornecedor?.documento || '').includes(search)
-  );
-
-  const handleDownload = (nota: NotaXml) => {
-    if (!nota.xml_raw) { toast.error('XML não disponível'); return; }
-    const blob = new Blob([nota.xml_raw], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `NFe_${nota.numero}_${nota.serie}_${nota.chave_nfe}.xml`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Download iniciado');
-  };
-
-  const handleDownloadAll = () => {
-    if (notas.length === 0) { toast.error('Nenhum XML para exportar'); return; }
-    const content = notas.filter(n => n.xml_raw).map(n => {
-      return `========================================
-CHAVE: ${n.chave_nfe}
-NÚMERO: ${n.numero} | SÉRIE: ${n.serie}
-FORNECEDOR: ${n.fornecedor?.razao_social || '-'} (${n.fornecedor?.documento || '-'})
-DATA: ${n.dh_emissao || '-'}
-VALOR: R$ ${(n.total_nota || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-========================================
-${n.xml_raw}
-
-`;
-    }).join('\n\n');
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup_xmls_nfe_${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success(`Exportando ${notas.length} XMLs`);
-  };
-
-  const handleDeleteXml = async (id: string) => {
-    const { error } = await supabase
-      .from('notas_entrada')
-      .update({ xml_raw: null } as any)
-      .eq('id', id);
-    if (error) { toast.error('Erro ao remover XML'); return; }
-    refetch();
-    toast.success('XML removido do backup');
-  };
-
-  const handleClearAll = async () => {
-    const ids = notas.map(n => n.id);
-    if (ids.length === 0) return;
-    const { error } = await supabase
-      .from('notas_entrada')
-      .update({ xml_raw: null } as any)
-      .in('id', ids);
-    if (error) { toast.error('Erro ao limpar backups'); return; }
-    refetch();
-    toast.success('Todos os backups foram removidos');
-  };
 
   return (
     <div className="space-y-6">
@@ -136,6 +176,7 @@ ${n.xml_raw}
         description="Gerenciamento e backup de todos os XMLs originais importados"
       />
 
+      {/* Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -144,12 +185,16 @@ ${n.xml_raw}
                 <FileText className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total de XMLs</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-sm text-muted-foreground">Total de Notas</p>
+                <p className="text-2xl font-bold">{total}</p>
+                {comXml < total && (
+                  <p className="text-xs text-muted-foreground">{comXml} com XML disponível</p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -157,12 +202,13 @@ ${n.xml_raw}
                 <HardDrive className="h-6 w-6 text-secondary-foreground" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Espaço Utilizado</p>
-                <p className="text-2xl font-bold">{formatBytes(stats.tamanhoTotal)}</p>
+                <p className="text-sm text-muted-foreground">Espaço dos XMLs</p>
+                <p className="text-2xl font-bold">{formatBytes(tamanhoTotal)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -172,7 +218,7 @@ ${n.xml_raw}
               <div>
                 <p className="text-sm text-muted-foreground">Valor Total das Notas</p>
                 <p className="text-2xl font-bold">
-                  R$ {stats.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -180,56 +226,37 @@ ${n.xml_raw}
         </Card>
       </div>
 
+      {/* Lista */}
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <CardTitle>XMLs Armazenados</CardTitle>
               <CardDescription>
-                Todos os XMLs originais são armazenados na íntegra no banco de dados
+                XMLs originais gravados no banco de dados — sem modificações
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <Button variant="outline" size="sm" onClick={loadData}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Atualizar
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadAll}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  downloadAllXmls(notas);
+                  toast.success(`Exportando ${comXml} XMLs`);
+                }}
+                disabled={comXml === 0}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Exportar Todos
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Limpar Tudo
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                      Limpar Todos os Backups?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta ação irá remover permanentemente todos os {stats.total} XMLs do backup.
-                      Recomendamos exportar todos os XMLs antes de limpar.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleClearAll}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Limpar Tudo
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           </div>
         </CardHeader>
+
         <CardContent>
           <div className="mb-4">
             <div className="relative">
@@ -243,11 +270,11 @@ ${n.xml_raw}
             </div>
           </div>
 
-          {isLoading ? (
+          {loading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : filtered.length === 0 ? (
+          ) : filtradas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {search ? 'Nenhum XML encontrado com os filtros aplicados' : 'Nenhum XML armazenado'}
+              {search ? 'Nenhuma nota encontrada com esse filtro' : 'Nenhuma nota importada ainda'}
             </div>
           ) : (
             <div className="rounded-md border">
@@ -259,76 +286,62 @@ ${n.xml_raw}
                     <TableHead>Fornecedor</TableHead>
                     <TableHead>Data Emissão</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-right">Tamanho</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                    <TableHead className="text-right">Tamanho XML</TableHead>
+                    <TableHead className="text-center">Download</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((nota) => (
-                    <TableRow key={nota.id}>
-                      <TableCell>
-                        <div className="font-medium">{nota.numero}</div>
-                        <div className="text-xs text-muted-foreground">Série {nota.serie}</div>
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                          {(nota.chave_nfe || '').substring(0, 22)}...
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{(nota.fornecedor?.razao_social || '-').substring(0, 30)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {(nota.fornecedor?.documento || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {nota.dh_emissao ? (
-                          <div className="text-sm">
-                            {format(new Date(nota.dh_emissao), 'dd/MM/yyyy', { locale: ptBR })}
-                          </div>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        R$ {(nota.total_nota || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">
-                          {nota.xml_raw ? formatBytes(new Blob([nota.xml_raw]).size) : '0 B'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleDownload(nota)} title="Download XML">
+                  {filtradas.map((nota) => {
+                    const xmlSize = nota.xml_raw ? new Blob([nota.xml_raw]).size : 0;
+                    const fornRazao = nota.fornecedor?.razao_social || 'Desconhecido';
+                    const fornCnpj  = nota.fornecedor?.documento    || '';
+                    const cnpjFmt   = fornCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+
+                    return (
+                      <TableRow key={nota.id}>
+                        <TableCell>
+                          <div className="font-medium">{nota.numero || '-'}</div>
+                          <div className="text-xs text-muted-foreground">Série {nota.serie || '-'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                            {nota.chave_nfe.substring(0, 22)}...
+                          </code>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{fornRazao.substring(0, 30)}</div>
+                          <div className="text-xs text-muted-foreground">{cnpjFmt}</div>
+                        </TableCell>
+                        <TableCell>
+                          {nota.dh_emissao ? (
+                            <div className="text-sm">
+                              {format(new Date(nota.dh_emissao), 'dd/MM/yyyy', { locale: ptBR })}
+                            </div>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          R$ {(nota.total_nota ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {xmlSize > 0
+                            ? <Badge variant="outline">{formatBytes(xmlSize)}</Badge>
+                            : <Badge variant="secondary">Sem XML</Badge>
+                          }
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => { downloadXml(nota); toast.success('Download iniciado'); }}
+                            disabled={!nota.xml_raw}
+                            title={nota.xml_raw ? 'Download XML' : 'XML não disponível'}
+                          >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" title="Remover">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remover XML do Backup?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  O XML da nota {nota.numero} será removido permanentemente do backup.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteXml(nota.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Remover
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
