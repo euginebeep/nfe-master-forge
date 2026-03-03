@@ -1266,9 +1266,9 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
   return (
     <div className="space-y-6">
       {/* Row 1: Identificação + Protocolo SEFAZ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <CardSection icon={<FileText className="h-4 w-4" />} title="Identificação da NF-e">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Field label="Número" value={nota.numero || '-'} bold />
             <Field label="Série" value={nota.serie || '-'} bold />
             <Field label="Natureza da Operação" value={ide?.naturezaOperacao || '-'} />
@@ -1285,7 +1285,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
         </CardSection>
 
         <CardSection icon={<Hash className="h-4 w-4" />} title="Protocolo SEFAZ">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Field label="Número do Protocolo" value={prot?.nProt || ide?.protocolo || '-'} bold />
             <Field label="Status" value={prot?.cStat || '-'} />
             <Field label="Motivo" value={prot?.xMotivo || '-'} />
@@ -1297,9 +1297,9 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       </div>
 
       {/* Row 2: Emitente + Destinatário */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Emitente">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} />
             <Field label="Nome Fantasia" value={emit?.nomeFantasia || '-'} />
             <Field label="CNPJ/CPF" value={emit?.cnpj ? formatCNPJ(emit.cnpj) : '-'} />
@@ -1317,7 +1317,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
 
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Destinatário">
           {dest ? (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
               <Field label="Razão Social / Nome" value={dest.razaoSocial} />
               <Field label="CNPJ/CPF" value={dest.cnpj ? formatCNPJ(dest.cnpj) : dest.cpf || '-'} />
               <Field label="Inscrição Estadual" value={dest.ie || '—'} />
@@ -1337,7 +1337,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       </div>
 
       {/* Row 3: Informações Complementares + Responsável Técnico */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <CardSection icon={<Info className="h-4 w-4" />} title="Informações Complementares">
           {(xmlData?.infCpl || xmlData?.infAdFisco) ? (
             <div className="text-sm space-y-2">
@@ -1747,9 +1747,9 @@ function TabXMLBruto({ xmlRaw }: { xmlRaw: string | null }) {
 // ====================================================
 function CardSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="border rounded-lg p-5 space-y-4">
+    <div className="border rounded-lg p-4 space-y-3 overflow-hidden">
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <span className="text-primary">{icon}</span>
+        <span className="text-primary shrink-0">{icon}</span>
         {title}
       </div>
       {children}
@@ -1768,9 +1768,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Field({ label, value, bold, className }: { label: string; value: string; bold?: boolean; className?: string }) {
   return (
-    <div className={className}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-sm ${bold ? 'font-bold text-primary' : ''}`}>{value}</p>
+    <div className={`min-w-0 ${className || ''}`}>
+      <p className="text-xs text-muted-foreground truncate">{label}</p>
+      <p className={`text-sm break-words ${bold ? 'font-bold text-primary' : ''}`} title={value}>{value}</p>
     </div>
   );
 }
