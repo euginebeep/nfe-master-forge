@@ -1,13 +1,10 @@
-// Hybrid hooks that use Supabase as primary source with localStorage fallback
-// These hooks first try Supabase, then fall back to localStorage if no data
+// Hybrid hooks — Supabase-only with company_id isolation
+// localStorage fallback has been REMOVED to prevent silent data loss
 
-import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { LocalDb } from '@/lib/local-db';
 import { centralToast } from '@/components/ui/central-toast';
-import type { LocalItem } from '@/hooks/use-local-itens';
-import type { LocalEntidade, LocalEntidadeContato, LocalEntidadeEndereco } from '@/hooks/use-local-entidades';
+import { getUserCompanyId } from '@/hooks/use-user-company';
 
 // ===============================
 // ITENS HYBRID HOOKS
@@ -41,7 +38,6 @@ export function useHybridItens(filters?: { tipo_item?: string; ativo?: boolean }
   return useQuery({
     queryKey: ['hybrid-itens', filters],
     queryFn: async (): Promise<HybridItem[]> => {
-      // Try Supabase first
       let query = supabase
         .from('itens')
         .select('*')
@@ -55,40 +51,16 @@ export function useHybridItens(filters?: { tipo_item?: string; ativo?: boolean }
         query = query.eq('ativo', filters.ativo);
       }
 
-      const { data: supabaseData, error } = await query;
+      const { data, error } = await query;
 
-      // If Supabase has data, use it
-      if (!error && supabaseData && supabaseData.length > 0) {
-        return supabaseData as HybridItem[];
+      if (error) {
+        console.error('[useHybridItens] Erro ao buscar itens:', error.message);
+        throw error;
       }
 
-      // Fallback to localStorage
-      let localData = LocalDb.getCollection<LocalItem>('itens');
-      
-      if (filters?.tipo_item) {
-        localData = localData.filter(i => i.tipo_item === filters.tipo_item);
-      }
-      if (filters?.ativo !== undefined) {
-        localData = localData.filter(i => i.ativo === filters.ativo);
-      }
-
-      return localData.map(item => ({
-        ...item,
-        sku_interno: item.sku_interno || null,
-        descricao_comercial: item.descricao_comercial || null,
-        categoria_operacional: item.categoria_operacional || null,
-        ncm: item.ncm || null,
-        ean: item.ean || null,
-        criticidade: item.criticidade || 'NORMAL',
-        higroscopico: item.higroscopico || false,
-        armazenamento: item.armazenamento || 'AMBIENTE',
-        unidade_declaracao: item.unidade_declaracao || null,
-        unidade_pesagem: item.unidade_pesagem || null,
-        fator_conversao: item.fator_conversao || null,
-        exige_premix: item.exige_premix || false,
-      }));
+      return (data || []) as HybridItem[];
     },
-    staleTime: 30000, // 30 seconds
+    staleTime: 30000,
   });
 }
 
@@ -99,32 +71,18 @@ export function useHybridItem(id: string | undefined) {
     queryFn: async (): Promise<HybridItem | null> => {
       if (!id) return null;
 
-      // Try Supabase first
-      const { data: supabaseData, error } = await supabase
+      const { data, error } = await supabase
         .from('itens')
         .select('*')
         .eq('id', id)
         .maybeSingle();
 
-      if (!error && supabaseData) {
-        return supabaseData as HybridItem;
+      if (error) {
+        console.error('[useHybridItem] Erro:', error.message);
+        throw error;
       }
 
-      // Fallback to localStorage
-      const localItem = LocalDb.getById<LocalItem>('itens', id);
-      if (localItem) {
-        return {
-          ...localItem,
-          sku_interno: localItem.sku_interno || null,
-          descricao_comercial: localItem.descricao_comercial || null,
-          categoria_operacional: localItem.categoria_operacional || null,
-          ncm: localItem.ncm || null,
-          ean: localItem.ean || null,
-          criticidade: localItem.criticidade || 'NORMAL',
-        };
-      }
-
-      return null;
+      return data as HybridItem | null;
     },
   });
 }
@@ -150,20 +108,17 @@ export interface HybridEntidade {
   observacoes?: string | null;
   created_at?: string;
   updated_at?: string;
-  // Joined data
   entidade_papeis?: { papel: string }[];
-  entidade_contatos?: LocalEntidadeContato[];
-  entidade_enderecos?: LocalEntidadeEndereco[];
-  // Computed field for local compatibility
+  entidade_contatos?: any[];
+  entidade_enderecos?: any[];
   papeis?: string[];
-  _primaryContact?: LocalEntidadeContato;
+  _primaryContact?: any;
 }
 
 export function useHybridEntidades(filters?: { papel?: string; status?: string }) {
   return useQuery({
     queryKey: ['hybrid-entidades', filters],
     queryFn: async (): Promise<HybridEntidade[]> => {
-      // Try Supabase first
       let query = supabase
         .from('entidades')
         .select(`
@@ -177,51 +132,24 @@ export function useHybridEntidades(filters?: { papel?: string; status?: string }
         query = query.eq('status', filters.status);
       }
 
-      const { data: supabaseData, error } = await query;
+      const { data, error } = await query;
 
-      // If Supabase has data, use it
-      if (!error && supabaseData && supabaseData.length > 0) {
-        let result = supabaseData.map(ent => ({
-          ...ent,
-          papeis: ent.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
-          _primaryContact: ent.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || ent.entidade_contatos?.[0],
-        })) as HybridEntidade[];
-
-        // Filter by papel if needed
-        if (filters?.papel) {
-          result = result.filter(e => e.papeis?.includes(filters.papel!));
-        }
-
-        return result;
+      if (error) {
+        console.error('[useHybridEntidades] Erro:', error.message);
+        throw error;
       }
 
-      // Fallback to localStorage
-      let localData = LocalDb.getCollection<LocalEntidade>('entidades');
-      
-      if (filters?.papel) {
-        localData = localData.filter(e => e.papeis?.includes(filters.papel as any));
-      }
-      if (filters?.status) {
-        localData = localData.filter(e => e.status === filters.status);
-      }
-
-      // Enrich with contacts
-      const contatos = LocalDb.getCollection<LocalEntidadeContato>('entidade_contatos');
-      
-      return localData.map(ent => ({
+      let result = (data || []).map(ent => ({
         ...ent,
-        nome_fantasia: ent.nome_fantasia || null,
-        ie: ent.ie || null,
-        im: ent.im || null,
-        cnae: ent.cnae || null,
-        crt: ent.crt || null,
-        classificacao: ent.classificacao || 'REGULAR',
-        tags: ent.tags || [],
-        site: ent.site || null,
-        observacoes: ent.observacoes || null,
-        _primaryContact: contatos.find(c => c.entidade_id === ent.id && c.preferencial) 
-          || contatos.find(c => c.entidade_id === ent.id),
-      }));
+        papeis: ent.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
+        _primaryContact: ent.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || ent.entidade_contatos?.[0],
+      })) as HybridEntidade[];
+
+      if (filters?.papel) {
+        result = result.filter(e => e.papeis?.includes(filters.papel!));
+      }
+
+      return result;
     },
     staleTime: 30000,
   });
@@ -234,8 +162,7 @@ export function useHybridEntidade(id: string | undefined) {
     queryFn: async (): Promise<HybridEntidade | null> => {
       if (!id) return null;
 
-      // Try Supabase first
-      const { data: supabaseData, error } = await supabase
+      const { data, error } = await supabase
         .from('entidades')
         .select(`
           *,
@@ -246,30 +173,18 @@ export function useHybridEntidade(id: string | undefined) {
         .eq('id', id)
         .maybeSingle();
 
-      if (!error && supabaseData) {
-        return {
-          ...supabaseData,
-          papeis: supabaseData.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
-          _primaryContact: supabaseData.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || supabaseData.entidade_contatos?.[0],
-        } as HybridEntidade;
+      if (error) {
+        console.error('[useHybridEntidade] Erro:', error.message);
+        throw error;
       }
 
-      // Fallback to localStorage
-      const localEnt = LocalDb.getById<LocalEntidade>('entidades', id);
-      if (localEnt) {
-        const contatos = LocalDb.query<LocalEntidadeContato>('entidade_contatos', c => c.entidade_id === id);
-        const enderecos = LocalDb.query<LocalEntidadeEndereco>('entidade_enderecos', e => e.entidade_id === id);
-        
-        return {
-          ...localEnt,
-          nome_fantasia: localEnt.nome_fantasia || null,
-          entidade_contatos: contatos,
-          entidade_enderecos: enderecos,
-          _primaryContact: contatos.find(c => c.preferencial) || contatos[0],
-        };
-      }
+      if (!data) return null;
 
-      return null;
+      return {
+        ...data,
+        papeis: data.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
+        _primaryContact: data.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || data.entidade_contatos?.[0],
+      } as HybridEntidade;
     },
   });
 }
@@ -283,27 +198,26 @@ export function useCreateHybridItem() {
 
   return useMutation({
     mutationFn: async (data: Omit<HybridItem, 'id' | 'created_at' | 'updated_at'>) => {
-      // Try to create in Supabase first
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error('Empresa não configurada. Configure sua empresa antes de criar itens.');
+
       const { data: item, error } = await supabase
         .from('itens')
-        .insert(data)
+        .insert({ ...data, company_id: companyId })
         .select()
         .single();
 
       if (error) {
-        // Fallback: create in localStorage
-        const localItem = LocalDb.insert<LocalItem>('itens', {
-          ...data,
-          sku_interno: data.sku_interno || LocalDb.generateSKU(data.tipo_item),
-        } as any);
-        return localItem;
+        console.error('[useCreateHybridItem] Erro ao criar item:', error.message);
+        throw error; // NEVER fallback to localStorage
       }
 
       return item;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hybrid-itens'] });
-      centralToast.success('Item Criado', 'Produto cadastrado com sucesso');
+      queryClient.invalidateQueries({ queryKey: ['itens'] });
+      centralToast.success('Item Criado', 'Produto salvo no banco com sucesso');
     },
     onError: (error) => {
       centralToast.error('Erro ao Criar Item', (error as Error).message);
@@ -316,37 +230,39 @@ export function useCreateHybridEntidade() {
 
   return useMutation({
     mutationFn: async (input: Omit<HybridEntidade, 'id' | 'created_at' | 'updated_at'> & { papeis?: string[] }) => {
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error('Empresa não configurada. Configure sua empresa antes de criar entidades.');
+
       const { papeis, entidade_papeis, entidade_contatos, entidade_enderecos, _primaryContact, ...entidadeData } = input;
 
-      // Try to create in Supabase first
       const { data: entidade, error } = await supabase
         .from('entidades')
-        .insert(entidadeData)
+        .insert({ ...entidadeData, company_id: companyId })
         .select()
         .single();
 
       if (error) {
-        // Fallback: create in localStorage
-        const localEnt = LocalDb.insert<LocalEntidade>('entidades', {
-          ...entidadeData,
-          papeis: papeis || [],
-          tags: input.tags || [],
-        } as any);
-        return localEnt;
+        console.error('[useCreateHybridEntidade] Erro ao criar entidade:', error.message);
+        throw error; // NEVER fallback to localStorage
       }
 
       // Insert papeis
       if (papeis && papeis.length > 0) {
-        await supabase
+        const { error: papeisError } = await supabase
           .from('entidade_papeis')
           .insert(papeis.map(p => ({ entidade_id: entidade.id, papel: p })));
+        
+        if (papeisError) {
+          console.error('[useCreateHybridEntidade] Erro ao inserir papéis:', papeisError.message);
+        }
       }
 
       return entidade;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hybrid-entidades'] });
-      centralToast.success('Entidade Criada', 'Cadastro realizado com sucesso');
+      queryClient.invalidateQueries({ queryKey: ['entidades'] });
+      centralToast.success('Entidade Criada', 'Cadastro salvo no banco com sucesso');
     },
     onError: (error) => {
       centralToast.error('Erro ao Criar Entidade', (error as Error).message);
@@ -365,24 +281,17 @@ export function useUpdateHybridItem() {
         .eq('id', id);
 
       if (error) {
-        // Fallback: update in localStorage
-        LocalDb.update<LocalItem>('itens', id, data as any);
-        // Dispatch event to notify other components
-        window.dispatchEvent(new CustomEvent('localdb:change', { detail: { collection: 'itens' } }));
+        console.error('[useUpdateHybridItem] Erro ao atualizar item:', error.message);
+        throw error; // NEVER fallback to localStorage
       }
       
       return { id };
     },
-    onSuccess: async (result, vars) => {
-      // Force invalidate all item-related queries to refresh data
+    onSuccess: async (_, vars) => {
       await queryClient.invalidateQueries({ queryKey: ['hybrid-itens'] });
       await queryClient.invalidateQueries({ queryKey: ['hybrid-item', vars.id] });
       await queryClient.invalidateQueries({ queryKey: ['itens'] });
       await queryClient.invalidateQueries({ queryKey: ['item', vars.id] });
-      
-      // Refetch immediately to ensure UI updates
-      await queryClient.refetchQueries({ queryKey: ['hybrid-itens'] });
-      
       centralToast.success('Item Atualizado', 'Alterações salvas com sucesso');
     },
     onError: (error) => {
@@ -404,8 +313,8 @@ export function useUpdateHybridEntidade() {
         .eq('id', id);
 
       if (error) {
-        // Fallback: update in localStorage
-        LocalDb.update<LocalEntidade>('entidades', id, data as any);
+        console.error('[useUpdateHybridEntidade] Erro ao atualizar entidade:', error.message);
+        throw error; // NEVER fallback to localStorage
       }
 
       // Update papeis if provided
@@ -425,7 +334,11 @@ export function useUpdateHybridEntidade() {
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['hybrid-entidades'] });
       queryClient.invalidateQueries({ queryKey: ['hybrid-entidade', vars.id] });
+      queryClient.invalidateQueries({ queryKey: ['entidades'] });
       centralToast.success('Entidade Atualizada', 'Alterações salvas com sucesso');
+    },
+    onError: (error) => {
+      centralToast.error('Erro ao Atualizar Entidade', (error as Error).message);
     },
   });
 }
