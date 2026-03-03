@@ -117,10 +117,11 @@ export default function ProdutoDetailPage() {
     // Save item data
     updateMutation.mutate({ id, data: formData });
     
-    // Always recalculate lotes if fator_conversao is set
+    // Always recalculate lotes and sync fornecedores if fator_conversao is set
     const newFator = formData.fator_conversao;
     if (newFator && newFator > 0) {
       try {
+        // 1. Recalculate all lotes
         const { data: lotes, error } = await supabase
           .from('estoque_lotes')
           .select('id, quantidade_original, custo_unitario_original')
@@ -149,6 +150,12 @@ export default function ProdutoDetailPage() {
             centralToast.success("Lotes Recalculados", `${updated} lote(s) atualizado(s) com fator ${newFator}`);
           }
         }
+
+        // 2. Sync fator to all item_fornecedores
+        await supabase
+          .from('item_fornecedores')
+          .update({ fator_para_unidade_interna: newFator } as any)
+          .eq('item_id', id);
       } catch (err) {
         console.error('Erro ao recalcular lotes:', err);
       }
