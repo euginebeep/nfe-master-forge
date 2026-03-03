@@ -98,13 +98,14 @@ const DELETE_ORDER = [
   "audit_trail_imutavel",
   "chat_messages",
   "notifications",
-  "arquivos",
   // Configs (opcionais)
   "contratos_templates",
   "conversoes_unidades",
   "responsaveis_tecnicos",
   "config_capacidade_producao",
   "config_custos_producao",
+  // Arquivos deve vir antes de company (FK: company.logo_file_id, certificado_a1_file_id)
+  "arquivos",
   "company",
 ] as const;
 
@@ -200,6 +201,14 @@ export function BackendCleanupManager() {
 
   const deleteTable = async (tableKey: string): Promise<boolean> => {
     try {
+      // Arquivos: precisa limpar FKs da company antes
+      if (tableKey === 'arquivos') {
+        await supabase
+          .from('company')
+          .update({ logo_file_id: null, certificado_a1_file_id: null } as any)
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+      
       const { error } = await supabase
         .from(tableKey as any)
         .delete()
