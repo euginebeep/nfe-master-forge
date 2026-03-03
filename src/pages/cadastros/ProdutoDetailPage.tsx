@@ -14,10 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { 
-  useUpdateItem, 
-  useItemFornecedores,
   useItemAliases,
-  useEstoqueLotes,
   useLoteDocumentos,
   canReleaseLote,
   LocalItem,
@@ -26,9 +23,9 @@ import {
   LocalEstoqueLote,
   LocalLoteDocumento,
 } from "@/hooks/use-local-itens";
-import { useLocalEntidades, LocalEntidade } from "@/hooks/use-local-entidades";
+import { useSupabaseItemFornecedores, useSupabaseEstoqueLotes } from "@/hooks/use-supabase-item-details";
+import { useHybridEntidades } from "@/hooks/use-hybrid-data";
 import { useHybridItem, useUpdateHybridItem, type HybridItem } from "@/hooks/use-hybrid-data";
-import { LocalDb } from "@/lib/local-db";
 import {
   Dialog,
   DialogContent,
@@ -93,17 +90,16 @@ export default function ProdutoDetailPage() {
   const navigate = useNavigate();
   const { data: item, isLoading, refetch } = useHybridItem(id);
   const updateMutation = useUpdateHybridItem();
-  const { update: updateLocal } = useUpdateItem();
-  const { fornecedores, create: createFornecedor, update: updateFornecedor, remove: removeFornecedor } = useItemFornecedores(id);
+  const { fornecedores, create: createFornecedor, remove: removeFornecedor } = useSupabaseItemFornecedores(id);
   const { aliases, create: createAlias, remove: removeAlias } = useItemAliases(id);
-  const { lotes, create: createLote, update: updateLote, remove: removeLote } = useEstoqueLotes(id);
-  const { data: entidadesFornecedores } = useLocalEntidades({ papel: "FORNECEDOR" });
+  const { lotes, update: updateLote, remove: removeLote } = useSupabaseEstoqueLotes(id);
+  const { data: entidadesFornecedores = [] } = useHybridEntidades({ papel: "FORNECEDOR" });
 
   const [formData, setFormData] = useState<Partial<HybridItem>>({});
   const [showFornecedorForm, setShowFornecedorForm] = useState(false);
   const [showAliasForm, setShowAliasForm] = useState(false);
   const [showLoteForm, setShowLoteForm] = useState(false);
-  const [selectedLote, setSelectedLote] = useState<LocalEstoqueLote | null>(null);
+  const [selectedLote, setSelectedLote] = useState<any>(null);
   const [showDocumentos, setShowDocumentos] = useState(false);
   const [showNFeDialog, setShowNFeDialog] = useState(false);
   const [selectedChaveNfe, setSelectedChaveNfe] = useState<string>("");
@@ -885,23 +881,24 @@ export default function ProdutoDetailPage() {
                         </div>
                         
                         {/* Dados da Nota */}
-                        {l.nota_numero && (
+                        {l.nota_entrada_item?.nota_entrada?.numero && (
                           <div className="mb-3 p-2 bg-muted/50 rounded text-sm flex items-center gap-2">
                             <button
                               onClick={() => {
-                                if (l.nota_chave) {
-                                  setSelectedChaveNfe(l.nota_chave);
+                                const chave = l.nota_entrada_item?.nota_entrada?.chave_nfe;
+                                if (chave) {
+                                  setSelectedChaveNfe(chave);
                                   setShowNFeDialog(true);
                                 }
                               }}
                               className="font-medium text-primary hover:underline cursor-pointer flex items-center gap-1"
-                              disabled={!l.nota_chave}
+                              disabled={!l.nota_entrada_item?.nota_entrada?.chave_nfe}
                             >
-                              NF-e {l.nota_numero}
+                              NF-e {l.nota_entrada_item.nota_entrada.numero}
                               <ExternalLink className="h-3 w-3" />
                             </button>
-                            {l.nota_serie && <span className="text-muted-foreground">| Série {l.nota_serie}</span>}
-                            {l.nota_data && <span className="text-muted-foreground">| {new Date(l.nota_data).toLocaleDateString('pt-BR')}</span>}
+                            {l.nota_entrada_item.nota_entrada.serie && <span className="text-muted-foreground">| Série {l.nota_entrada_item.nota_entrada.serie}</span>}
+                            {l.nota_entrada_item.nota_entrada.dh_emissao && <span className="text-muted-foreground">| {new Date(l.nota_entrada_item.nota_entrada.dh_emissao).toLocaleDateString('pt-BR')}</span>}
                           </div>
                         )}
                         
@@ -920,10 +917,7 @@ export default function ProdutoDetailPage() {
                           <div>
                             <p className="text-muted-foreground">Qtd Interna (Convertido)</p>
                             <p className="font-medium text-primary">
-                              {l.quantidade_interna?.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {l.unidade_interna || item.unidade_interna}
-                              {l.fator_conversao && l.fator_conversao !== 1 && (
-                                <span className="text-xs text-muted-foreground ml-1">(×{l.fator_conversao})</span>
-                              )}
+                              {l.quantidade_interna?.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unidade_interna}
                             </p>
                           </div>
                           <div>
@@ -945,13 +939,13 @@ export default function ProdutoDetailPage() {
                           <div>
                             <p className="text-muted-foreground">Custo Unit. Interno</p>
                             <p className="font-medium text-primary">
-                              R$ {l.custo_unitario_interno?.toLocaleString('pt-BR', { minimumFractionDigits: 6, maximumFractionDigits: 6 }) || "-"}/{l.unidade_interna || item.unidade_interna}
+                              R$ {l.custo_unitario_interno?.toLocaleString('pt-BR', { minimumFractionDigits: 6, maximumFractionDigits: 6 }) || "-"}/{item.unidade_interna}
                             </p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Valor Total (Nota)</p>
                             <p className="font-medium">
-                              R$ {l.valor_total_item?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "-"}
+                              R$ {l.nota_entrada_item?.vprod?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "-"}
                             </p>
                           </div>
                           <div>
@@ -959,62 +953,6 @@ export default function ProdutoDetailPage() {
                             <p>{l.data_fab ? new Date(l.data_fab).toLocaleDateString('pt-BR') : "-"}</p>
                           </div>
                         </div>
-                        
-                        {/* Impostos Detalhados */}
-                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm mt-3 pt-3 border-t bg-muted/30 rounded p-3">
-                          <div>
-                            <p className="text-xs text-muted-foreground">ICMS</p>
-                            <p className="font-mono text-xs">
-                              {l.icms_valor ? `R$ ${l.icms_valor.toFixed(2)}` : "-"}
-                              {l.icms_aliquota ? <span className="text-muted-foreground"> ({l.icms_aliquota}%)</span> : ""}
-                            </p>
-                            {l.icms_cst && <p className="text-xs text-muted-foreground">CST: {l.icms_cst}</p>}
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">ICMS-ST</p>
-                            <p className="font-mono text-xs">
-                              {l.icms_st_valor ? `R$ ${l.icms_st_valor.toFixed(2)}` : "-"}
-                              {l.icms_st_aliquota ? <span className="text-muted-foreground"> ({l.icms_st_aliquota}%)</span> : ""}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">IPI</p>
-                            <p className="font-mono text-xs">
-                              {l.ipi_valor ? `R$ ${l.ipi_valor.toFixed(2)}` : "-"}
-                              {l.ipi_aliquota ? <span className="text-muted-foreground"> ({l.ipi_aliquota}%)</span> : ""}
-                            </p>
-                            {l.ipi_cst && <p className="text-xs text-muted-foreground">CST: {l.ipi_cst}</p>}
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">PIS</p>
-                            <p className="font-mono text-xs">
-                              {l.pis_valor ? `R$ ${l.pis_valor.toFixed(2)}` : "-"}
-                              {l.pis_aliquota ? <span className="text-muted-foreground"> ({l.pis_aliquota}%)</span> : ""}
-                            </p>
-                            {l.pis_cst && <p className="text-xs text-muted-foreground">CST: {l.pis_cst}</p>}
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">COFINS</p>
-                            <p className="font-mono text-xs">
-                              {l.cofins_valor ? `R$ ${l.cofins_valor.toFixed(2)}` : "-"}
-                              {l.cofins_aliquota ? <span className="text-muted-foreground"> ({l.cofins_aliquota}%)</span> : ""}
-                            </p>
-                            {l.cofins_cst && <p className="text-xs text-muted-foreground">CST: {l.cofins_cst}</p>}
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">NCM/CFOP</p>
-                            <p className="font-mono text-xs">{l.ncm || "-"}</p>
-                            <p className="font-mono text-xs text-muted-foreground">{l.cfop || "-"}</p>
-                          </div>
-                        </div>
-                        
-                        {/* Descrição do produto na nota (se diferente) */}
-                        {l.descricao_produto_nota && l.descricao_produto_nota !== item.descricao_interna && (
-                          <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                            <span className="font-medium">Descrição na Nota:</span> {l.descricao_produto_nota}
-                            {l.codigo_produto_fornecedor && <span className="ml-2">| Cód: {l.codigo_produto_fornecedor}</span>}
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -1066,9 +1004,9 @@ export default function ProdutoDetailPage() {
         open={showFornecedorForm}
         onOpenChange={setShowFornecedorForm}
         itemId={id!}
-        fornecedores={entidadesFornecedores}
-        onSave={(data) => {
-          createFornecedor(data as Omit<LocalItemFornecedor, 'id'>);
+        fornecedores={entidadesFornecedores as any}
+        onSave={(data: any) => {
+          createFornecedor(data);
           setShowFornecedorForm(false);
         }}
       />
@@ -1084,18 +1022,7 @@ export default function ProdutoDetailPage() {
         }}
       />
 
-      {/* Lote Form Dialog */}
-      <LoteFormDialog
-        open={showLoteForm}
-        onOpenChange={setShowLoteForm}
-        itemId={id!}
-        item={item as LocalItem}
-        fornecedores={fornecedores}
-        onSave={(data) => {
-          createLote(data as any);
-          setShowLoteForm(false);
-        }}
-      />
+      {/* Lote Form Dialog - disabled, lotes are created via NF-e import */}
 
       {/* Documentos Dialog */}
       {selectedLote && (
@@ -1131,8 +1058,8 @@ function FornecedorFormDialog({
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
   itemId: string;
-  fornecedores: LocalEntidade[];
-  onSave: (data: Partial<LocalItemFornecedor>) => void;
+  fornecedores: { id: string; razao_social: string }[];
+  onSave: (data: Record<string, unknown>) => void;
 }) {
   const [formData, setFormData] = useState({
     fornecedor_id: "",
