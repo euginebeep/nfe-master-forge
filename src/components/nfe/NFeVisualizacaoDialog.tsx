@@ -376,6 +376,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
   const [xmlData, setXmlData] = useState<XMLFullData | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const danfeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open || !chaveNfe) return;
@@ -443,10 +444,36 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
   const statusInfo = getStatusInfo(nota.status);
   const emitenteNome = xmlData?.emitente?.razaoSocial || nota.fornecedor?.razao_social || nota.fornecedor_razao || '';
 
+
   const handleDownloadDANFE = () => {
-    // Simple print of the DANFE tab content
-    window.print();
+    if (!danfeRef.current) return;
+    const html = danfeRef.current.innerHTML;
+    const fullHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DANFE - NF-e ${nota.numero || ''} - ${emit?.razaoSocial || nota.fornecedor?.razao_social || ''}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #000; background: #fff; padding: 10mm; }
+  @media print { body { padding: 5mm; } @page { margin: 8mm; size: A4 portrait; } }
+</style>
+</head>
+<body>${html}</body>
+</html>`;
+    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DANFE_${nota.numero || 'NF'}_${(emit?.razaoSocial || nota.fornecedor?.razao_social || 'nota').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
+
+  const emit = xmlData?.emitente;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -518,7 +545,9 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
           <ScrollArea className="flex-1 max-h-[calc(95vh-220px)]">
             {/* DANFE Tab */}
             <TabsContent value="danfe" className="mt-0 p-6">
-              <TabDANFE nota={nota} xmlData={xmlData} itens={itens} />
+              <div ref={danfeRef}>
+                <TabDANFE nota={nota} xmlData={xmlData} itens={itens} />
+              </div>
             </TabsContent>
 
             {/* Dados Gerais */}
