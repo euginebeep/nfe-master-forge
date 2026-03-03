@@ -2316,11 +2316,20 @@ export type Database = {
       }
       itens: {
         Row: {
+          aliquota_cofins: number | null
+          aliquota_icms: number | null
+          aliquota_ipi: number | null
+          aliquota_pis: number | null
           armazenamento: string | null
           ativo: boolean
           bloquear_entrada_mg_manual: boolean | null
           categoria_operacional: string | null
+          cest: string | null
+          cfop_entrada_padrao: string | null
+          cfop_saida_padrao: string | null
           classificacao_risco: string | null
+          codigo_anp: string | null
+          codigo_enquadramento_ipi: string | null
           company_id: string
           controla_lote: boolean
           controla_validade: boolean
@@ -2328,6 +2337,11 @@ export type Database = {
           conversao_ui_mcg: number | null
           created_at: string
           criticidade: string | null
+          cst_cofins: string | null
+          cst_icms: string | null
+          cst_ipi: string | null
+          cst_pis: string | null
+          custo_por_unidade_interna: number | null
           densidade_aparente: number | null
           descricao_comercial: string | null
           descricao_interna: string
@@ -2336,24 +2350,41 @@ export type Database = {
           fator_conversao: number | null
           higroscopico: boolean | null
           id: string
+          lead_time_dias: number | null
           metodo_distribuicao: string | null
+          moq: number | null
+          mva_st: number | null
           ncm: string | null
+          observacoes_comerciais: string | null
+          observacoes_fiscais: string | null
+          origem_icms: string | null
           potencia_compra: number | null
           potencia_rotulo: number | null
+          preco_unitario_fornecedor: number | null
           sku_interno: string | null
           texto_alerta_padrao: string | null
           tipo_item: string
           unidade_declaracao: string | null
+          unidade_fornecedor: string | null
           unidade_interna: string
           unidade_pesagem: string | null
           updated_at: string
         }
         Insert: {
+          aliquota_cofins?: number | null
+          aliquota_icms?: number | null
+          aliquota_ipi?: number | null
+          aliquota_pis?: number | null
           armazenamento?: string | null
           ativo?: boolean
           bloquear_entrada_mg_manual?: boolean | null
           categoria_operacional?: string | null
+          cest?: string | null
+          cfop_entrada_padrao?: string | null
+          cfop_saida_padrao?: string | null
           classificacao_risco?: string | null
+          codigo_anp?: string | null
+          codigo_enquadramento_ipi?: string | null
           company_id?: string
           controla_lote?: boolean
           controla_validade?: boolean
@@ -2361,6 +2392,11 @@ export type Database = {
           conversao_ui_mcg?: number | null
           created_at?: string
           criticidade?: string | null
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_ipi?: string | null
+          cst_pis?: string | null
+          custo_por_unidade_interna?: number | null
           densidade_aparente?: number | null
           descricao_comercial?: string | null
           descricao_interna: string
@@ -2369,24 +2405,41 @@ export type Database = {
           fator_conversao?: number | null
           higroscopico?: boolean | null
           id?: string
+          lead_time_dias?: number | null
           metodo_distribuicao?: string | null
+          moq?: number | null
+          mva_st?: number | null
           ncm?: string | null
+          observacoes_comerciais?: string | null
+          observacoes_fiscais?: string | null
+          origem_icms?: string | null
           potencia_compra?: number | null
           potencia_rotulo?: number | null
+          preco_unitario_fornecedor?: number | null
           sku_interno?: string | null
           texto_alerta_padrao?: string | null
           tipo_item?: string
           unidade_declaracao?: string | null
+          unidade_fornecedor?: string | null
           unidade_interna?: string
           unidade_pesagem?: string | null
           updated_at?: string
         }
         Update: {
+          aliquota_cofins?: number | null
+          aliquota_icms?: number | null
+          aliquota_ipi?: number | null
+          aliquota_pis?: number | null
           armazenamento?: string | null
           ativo?: boolean
           bloquear_entrada_mg_manual?: boolean | null
           categoria_operacional?: string | null
+          cest?: string | null
+          cfop_entrada_padrao?: string | null
+          cfop_saida_padrao?: string | null
           classificacao_risco?: string | null
+          codigo_anp?: string | null
+          codigo_enquadramento_ipi?: string | null
           company_id?: string
           controla_lote?: boolean
           controla_validade?: boolean
@@ -2394,6 +2447,11 @@ export type Database = {
           conversao_ui_mcg?: number | null
           created_at?: string
           criticidade?: string | null
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_ipi?: string | null
+          cst_pis?: string | null
+          custo_por_unidade_interna?: number | null
           densidade_aparente?: number | null
           descricao_comercial?: string | null
           descricao_interna?: string
@@ -2402,14 +2460,22 @@ export type Database = {
           fator_conversao?: number | null
           higroscopico?: boolean | null
           id?: string
+          lead_time_dias?: number | null
           metodo_distribuicao?: string | null
+          moq?: number | null
+          mva_st?: number | null
           ncm?: string | null
+          observacoes_comerciais?: string | null
+          observacoes_fiscais?: string | null
+          origem_icms?: string | null
           potencia_compra?: number | null
           potencia_rotulo?: number | null
+          preco_unitario_fornecedor?: number | null
           sku_interno?: string | null
           texto_alerta_padrao?: string | null
           tipo_item?: string
           unidade_declaracao?: string | null
+          unidade_fornecedor?: string | null
           unidade_interna?: string
           unidade_pesagem?: string | null
           updated_at?: string

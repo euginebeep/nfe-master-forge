@@ -30,6 +30,7 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getUserCompanyId } from '@/hooks/use-user-company';
+import { backfillFiscalDataFromXML } from '@/lib/supabase-nfe-import';
 
 // ── Tipagem local baseada no Supabase ────────────────────────────────────────
 
@@ -114,6 +115,20 @@ export default function XmlBackupPage() {
   const [notas, setNotas] = useState<NotaXmlRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [backfilling, setBackfilling] = useState(false);
+
+  const handleBackfillFiscal = async () => {
+    setBackfilling(true);
+    try {
+      const result = await backfillFiscalDataFromXML();
+      toast.success(`Dados fiscais atualizados: ${result.updated} itens processados${result.errors > 0 ? `, ${result.errors} erros` : ''}`);
+    } catch (err) {
+      toast.error('Erro ao reprocessar dados fiscais');
+      console.error(err);
+    } finally {
+      setBackfilling(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -252,6 +267,15 @@ export default function XmlBackupPage() {
               >
                 <Download className="h-4 w-4 mr-2" />
                 Exportar Todos
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBackfillFiscal}
+                disabled={backfilling || comXml === 0}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${backfilling ? 'animate-spin' : ''}`} />
+                {backfilling ? 'Processando...' : 'Reprocessar Fiscal'}
               </Button>
             </div>
           </div>
