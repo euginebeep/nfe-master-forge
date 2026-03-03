@@ -136,12 +136,84 @@ async function findOrCreateEntidadeSupabase(
 }
 
 // ============================================
+// NCM → CLASSIFICAÇÃO DE RISCO E CATEGORIA
+// ============================================
+const NCM_CLASSIFICACAO: Record<string, { risco: string; categoria: string }> = {
+  '2936': { risco: 'CRITICO', categoria: 'VITAMINA' },
+  '2935': { risco: 'ATENCAO', categoria: 'SULFONAMIDA' },
+  '2933': { risco: 'ATENCAO', categoria: 'COMPOSTO_HETEROCICLICO' },
+  '2930': { risco: 'NORMAL', categoria: 'AMINOACIDO_ENXOFRE' },
+  '2106': { risco: 'NORMAL', categoria: 'PREPARACAO_ALIMENTICIA' },
+  '1302': { risco: 'NORMAL', categoria: 'EXTRATO_VEGETAL' },
+  '1211': { risco: 'NORMAL', categoria: 'PLANTA_MEDICINAL' },
+  '0511': { risco: 'NORMAL', categoria: 'PRODUTO_ANIMAL' },
+  '2309': { risco: 'NORMAL', categoria: 'PREPARACAO_ANIMAL' },
+  '2941': { risco: 'CRITICO', categoria: 'ANTIBIOTICO' },
+  '2937': { risco: 'CRITICO', categoria: 'HORMONIO' },
+  '2842': { risco: 'ATENCAO', categoria: 'MINERAL_INORGANICO' },
+  '2833': { risco: 'ATENCAO', categoria: 'MINERAL_SULFATO' },
+  '2836': { risco: 'NORMAL', categoria: 'MINERAL_CARBONATO' },
+  '3923': { risco: 'NORMAL', categoria: 'EMBALAGEM_PLASTICA' },
+  '4819': { risco: 'NORMAL', categoria: 'EMBALAGEM_PAPEL' },
+  '7010': { risco: 'NORMAL', categoria: 'EMBALAGEM_VIDRO' },
+};
+
+function classificarPorNCM(ncm: string | undefined): { risco: string; categoria: string } | null {
+  if (!ncm) return null;
+  const ncmLimpo = ncm.replace(/\D/g, '');
+  for (const len of [4, 3, 2]) {
+    const prefix = ncmLimpo.substring(0, len);
+    if (NCM_CLASSIFICACAO[prefix]) return NCM_CLASSIFICACAO[prefix];
+  }
+  return null;
+}
+
+// ============================================
+// REGEX PARA POTÊNCIA NA DESCRIÇÃO DO PRODUTO
+// ============================================
+function extrairPotenciaDescricao(descricao: string): number | null {
+  const desc = descricao.toUpperCase();
+  const patterns = [
+    /(\d+[\.,]?\d*)\s*UI\/G/i,
+    /(\d+[\.,]?\d*)\s*MCG\/G/i,
+    /(\d+[\.,]?\d*)\s*UI\b/i,
+    /(\d+[\.,]?\d*)\s*MCG\b/i,
+    /(\d+[\.,]?\d*)\s*MG\b/i,
+  ];
+  for (const p of patterns) {
+    const m = desc.match(p);
+    if (m) return parseFloat(m[1].replace(',', '.'));
+  }
+  return null;
+}
+
+// ============================================
+// BUSCAR FATOR UI→MG NA TABELA conversoes_unidades
+// ============================================
+async function buscarFatorConversaoUI(descricao: string): Promise<number | null> {
+  const { data: conversoes } = await supabase
+    .from('conversoes_unidades')
+    .select('substancia, fator_ui_para_mg')
+    .eq('ativo', true);
+  
+  if (!conversoes || conversoes.length === 0) return null;
+  
+  const descNorm = descricao.toUpperCase();
+  for (const c of conversoes) {
+    if (descNorm.includes(c.substancia.toUpperCase())) {
+      return c.fator_ui_para_mg;
+    }
+  }
+  return null;
+}
+
+// ============================================
 // BUSCAR OU CRIAR ITEM NO SUPABASE
 // ============================================
 async function findOrCreateItemSupabase(
   itemXML: NFeParseResult['itens'][0]['item'],
   classificacao: ClassificacaoNota,
-  companyId: string  // ← recebe company_id como parâmetro
+  companyId: string
 ): Promise<{ id: string; isNew: boolean }> {
   const ean = itemXML.ean && itemXML.ean !== 'SEM GTIN' ? itemXML.ean.replace(/\D/g, '') : null;
   const ncm = itemXML.ncm;
@@ -153,7 +225,7 @@ async function findOrCreateItemSupabase(
       .from('itens')
       .select('id')
       .eq('ean', ean)
-      .eq('company_id', companyId)  // ← filtrar por empresa
+      .eq('company_id', companyId)
       .maybeSingle();
     
     if (itemPorEan) return { id: itemPorEan.id, isNew: false };
@@ -164,33 +236,55 @@ async function findOrCreateItemSupabase(
     .from('itens')
     .select('id')
     .ilike('descricao_interna', descricao)
-    .eq('company_id', companyId)  // ← filtrar por empresa
+    .eq('company_id', companyId)
     .maybeSingle();
   
   if (itemPorDesc) return { id: itemPorDesc.id, isNew: false };
   
-  // 3. Criar novo item COM company_id
+  // 3. Criar novo item
   const tipoItem = mapClassificacaoToTipo(classificacao, descricao);
   const uCom = itemXML.unidade_comercial.toUpperCase();
   const unidadeInterna = inferirUnidadeInterna(uCom, tipoItem, descricao);
   
+  // Classificação automática por NCM
+  const ncmClass = classificarPorNCM(ncm);
+  const criticidade = ncmClass?.risco || (tipoItem === 'MP' ? 'CRITICO' : 'NORMAL');
+  
+  // Potência da descrição (regex)
+  const potenciaCompra = extrairPotenciaDescricao(descricao);
+  
+  // Fator UI→mg (busca na tabela conversoes_unidades)
+  let conversaoUiMcg: number | null = null;
+  if (descricao.toUpperCase().match(/UI\b/)) {
+    conversaoUiMcg = await buscarFatorConversaoUI(descricao);
+  }
+  
+  const insertData: Record<string, unknown> = {
+    company_id: companyId,
+    descricao_interna: descricao,
+    tipo_item: tipoItem,
+    ncm: ncm || null,
+    ean: ean || null,
+    unidade_interna: unidadeInterna,
+    unidade_pesagem: unidadeInterna, // Sync: unidade_pesagem = unidade_interna
+    unidade_fornecedor: itemXML.unidade_comercial || null,
+    cest: (itemXML as any).cest || null,
+    cfop_entrada_padrao: (itemXML as any).cfop || null,
+    preco_unitario_fornecedor: itemXML.valor_unitario_comercial || null,
+    controla_lote: true,
+    controla_validade: true,
+    criticidade,
+    classificacao_risco: ncmClass?.risco || null,
+    categoria_operacional: ncmClass?.categoria || null,
+    potencia_compra: potenciaCompra,
+    ativo: true,
+  };
+  
+  if (conversaoUiMcg) insertData.conversao_ui_mcg = conversaoUiMcg;
+  
   const { data: novoItem, error } = await supabase
     .from('itens')
-    .insert({
-      company_id: companyId,
-      descricao_interna: descricao,
-      tipo_item: tipoItem,
-      ncm: ncm || null,
-      ean: ean || null,
-      unidade_interna: unidadeInterna,
-      unidade_fornecedor: itemXML.unidade_comercial || null,
-      cest: (itemXML as any).cest || null,
-      cfop_entrada_padrao: (itemXML as any).cfop || null,
-      controla_lote: true,
-      controla_validade: true,
-      criticidade: tipoItem === 'MP' ? 'CRITICO' : 'NORMAL',
-      ativo: true,
-    } as any)
+    .insert(insertData as any)
     .select('id')
     .single();
   
@@ -369,8 +463,10 @@ export async function importarNFeCompletaSupabase(
       if (itemData.item.cfop) fiscalUpdate.cfop_entrada_padrao = itemData.item.cfop;
       // Dados comerciais
       fiscalUpdate.unidade_fornecedor = itemData.item.unidade_comercial;
+      fiscalUpdate.unidade_pesagem = unidadeInternaCalc; // Sync unidade_pesagem
       fiscalUpdate.preco_unitario_fornecedor = itemData.item.valor_unitario_comercial;
       fiscalUpdate.custo_por_unidade_interna = custoInterno;
+      fiscalUpdate.fator_conversao = fatorConv;
       
       if (Object.keys(fiscalUpdate).length > 0) {
         await supabase.from('itens').update(fiscalUpdate).eq('id', itemId);
@@ -385,6 +481,14 @@ export async function importarNFeCompletaSupabase(
         .maybeSingle();
       
       if (!existingLink) {
+        // Verificar se é o primeiro fornecedor → auto-preferencial
+        const { count: totalFornecedores } = await supabase
+          .from('item_fornecedores')
+          .select('id', { count: 'exact', head: true })
+          .eq('item_id', itemId);
+        
+        const isFirstFornecedor = (totalFornecedores || 0) === 0;
+        
         const { data: newLink, error: linkError } = await supabase.from('item_fornecedores').insert({
           item_id: itemId,
           fornecedor_id: emitente.id,
@@ -400,6 +504,7 @@ export async function importarNFeCompletaSupabase(
             )
           ),
           preco_referencia: itemData.item.valor_unitario_comercial,
+          fornecedor_preferencial: isFirstFornecedor, // Auto-true se 1º fornecedor
         }).select('id').single();
         
         if (linkError) {
@@ -450,20 +555,22 @@ export async function importarNFeCompletaSupabase(
         const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConversao);
         
         const { data: lote, error: loteError } = await supabase.from('estoque_lotes').insert({
-          company_id: companyId,      // ← FIX: company_id obrigatório
+          company_id: companyId,
           item_id: itemId,
           fornecedor_id: emitente.id,
           nota_entrada_item_id: notaItem.id,
           numero_lote: rastro?.numero_lote || `LOTE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
           data_fab: rastro?.data_fabricacao || null,
           data_val: rastro?.data_validade || null,
+          codigo_agregacao: rastro?.codigo_agregacao || null,
           quantidade_original: qtdOriginal,
           unidade_original: uCom,
           quantidade_interna: qtdInterna,
+          unidade_interna: unidadeInterna,
           custo_unitario_original: itemData.item.valor_unitario_comercial,
           custo_unitario_interno: custoInterno,
           status: 'QUARENTENA',
-        }).select('id').single();
+        } as any).select('id').single();
         
         if (loteError) {
           console.error(`Erro ao criar lote para item ${itemIndex}:`, loteError.message);
