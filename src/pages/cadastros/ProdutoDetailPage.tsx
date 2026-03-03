@@ -973,9 +973,15 @@ export default function ProdutoDetailPage() {
                               {l.quantidade_interna?.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unidade_interna}
                             </p>
                           </div>
-                          <div>
-                            <p className="text-muted-foreground">Validade</p>
-                            <p className={l.data_val && new Date(l.data_val) < new Date() ? "text-destructive font-medium" : ""}>
+                          <div className="flex flex-col items-start">
+                            <p className="text-muted-foreground text-xs">Validade</p>
+                            <p className={`text-base font-bold ${
+                              l.data_val && new Date(l.data_val) < new Date() 
+                                ? "text-destructive" 
+                                : l.data_val && new Date(l.data_val) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) 
+                                  ? "text-amber-500" 
+                                  : "text-emerald-500"
+                            }`}>
                               {l.data_val ? new Date(l.data_val).toLocaleDateString('pt-BR') : "-"}
                             </p>
                           </div>
