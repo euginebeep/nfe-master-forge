@@ -353,12 +353,12 @@ export async function importarNFeCompletaSupabase(
         .maybeSingle();
       
       if (!existingLink) {
-        const { data: newLink } = await supabase.from('item_fornecedores').insert({
+        const { data: newLink, error: linkError } = await supabase.from('item_fornecedores').insert({
           item_id: itemId,
           fornecedor_id: emitente.id,
           codigo_fornecedor: itemData.item.codigo_produto || null,
           descricao_fornecedor: itemData.item.descricao || null,
-          unidade_fornecedor: itemData.item.unidade_comercial || null,
+          unidade_compra_padrao: itemData.item.unidade_comercial || null,
           fator_para_unidade_interna: configManual?.fatorConversao || calcularFatorConversao(
             itemData.item.unidade_comercial.toUpperCase(),
             configManual?.unidadeInterna || inferirUnidadeInterna(
@@ -367,9 +367,12 @@ export async function importarNFeCompletaSupabase(
               itemData.item.descricao
             )
           ),
-          ean: itemData.item.ean && itemData.item.ean !== 'SEM GTIN' ? itemData.item.ean : null,
-          ultimo_preco: itemData.item.valor_unitario_comercial,
+          preco_referencia: itemData.item.valor_unitario_comercial,
         }).select('id').single();
+        
+        if (linkError) {
+          console.error(`[NF-e Import] Erro ao vincular fornecedor ao item:`, linkError.message);
+        }
         
         if (newLink) createdResources.push({ table: 'item_fornecedores', id: newLink.id });
       }
@@ -442,18 +445,28 @@ export async function importarNFeCompletaSupabase(
     
     // 4. Gerar contas a pagar (se houver duplicatas)
     if (parseResult.duplicatas.length > 0) {
-      for (const dup of parseResult.duplicatas) {
-        const { data: conta } = await supabase.from('contas_receber').insert({
-          company_id: companyId,  // ← FIX: company_id obrigatório
+      const totalParcelas = parseResult.duplicatas.length;
+      for (let i = 0; i < parseResult.duplicatas.length; i++) {
+        const dup = parseResult.duplicatas[i];
+        const { data: conta, error: contaError } = await supabase.from('contas_pagar').insert({
+          company_id: companyId,
+          nota_entrada_id: notaEntrada.id,
+          duplicata_id: dup.numero || null,
+          fornecedor_id: emitente.id,
           descricao: `NF-e ${parseResult.notaFiscal.numero} - Dup ${dup.numero}`,
+          numero_parcela: i + 1,
+          total_parcelas: totalParcelas,
           valor: dup.valor,
-          data_vencimento: dup.data_vencimento,
           data_emissao: parseResult.notaFiscal.dh_emissao?.split('T')[0] || new Date().toISOString().split('T')[0],
+          data_vencimento: dup.data_vencimento,
           status: 'pendente',
-          cliente_id: emitente.id,
+          categoria: 'COMPRAS',
         }).select('id').single();
         
-        if (conta) createdResources.push({ table: 'contas_receber', id: conta.id });
+        if (contaError) {
+          console.error('[NF-e Import] Erro ao criar conta a pagar:', contaError.message);
+        }
+        if (conta) createdResources.push({ table: 'contas_pagar', id: conta.id });
         stats.contasPagarGeradas++;
       }
     }
@@ -504,15 +517,7 @@ export async function reverterImportacaoNFe(notaId: string): Promise<void> {
   }
   
   // 4. Apagar contas a pagar geradas por esta nota
-  const { data: nota } = await supabase
-    .from('notas_entrada')
-    .select('numero')
-    .eq('id', notaId)
-    .single();
-  
-  if (nota?.numero) {
-    await supabase.from('contas_receber').delete().ilike('descricao', `%NF-e ${nota.numero}%`);
-  }
+  await supabase.from('contas_pagar').delete().eq('nota_entrada_id', notaId);
   
   // 5. Apagar a nota
   await supabase.from('notas_entrada').delete().eq('id', notaId);
