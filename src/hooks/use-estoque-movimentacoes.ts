@@ -53,9 +53,13 @@ export function useEstoqueMovimentacoes() {
       observacoes?: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+      // Get company_id from profile
+      const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
       const { error } = await supabase.from('estoque_movimentacoes').insert({
         ...mov,
-        usuario_id: user?.id,
+        usuario_id: user.id,
+        company_id: profile?.company_id,
       });
       if (error) throw error;
     },
