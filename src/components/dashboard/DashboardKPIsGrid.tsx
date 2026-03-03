@@ -71,7 +71,12 @@ export function DashboardKPIsGrid() {
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <KPIItem label="Entidades" value={kpis.totalEntidades} icon={Users} />
       <KPIItem label="Itens Ativos" value={kpis.totalItens} icon={Package} />
-      <KPIItem label="Lotes em Estoque" value={kpis.lotesAprovados} icon={Boxes} variant="success" />
+      <KPIItem
+        label="Lotes em Estoque"
+        value={kpis.lotesAprovados}
+        icon={Boxes}
+        variant={kpis.lotesAprovados > 0 ? "success" : "default"}
+      />
       <KPIItem
         label="Lotes Vencendo (30d)"
         value={kpis.lotesVencendo30d}
