@@ -950,7 +950,7 @@ export default function ProdutoDetailPage() {
                               className="font-medium text-primary hover:underline cursor-pointer flex items-center gap-1"
                               disabled={!l.nota_entrada_item?.nota_entrada?.chave_nfe}
                             >
-                              NF-e {l.nota_entrada_item.nota_entrada.numero}
+                              Consultar NF-e {l.nota_entrada_item.nota_entrada.numero}
                               <ExternalLink className="h-3 w-3" />
                             </button>
                             {l.nota_entrada_item.nota_entrada.serie && <span className="text-muted-foreground">| Série {l.nota_entrada_item.nota_entrada.serie}</span>}
