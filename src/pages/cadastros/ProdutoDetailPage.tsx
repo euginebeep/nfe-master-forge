@@ -117,31 +117,24 @@ export default function ProdutoDetailPage() {
     // Save item data
     updateMutation.mutate({ id, data: formData });
     
-    // If fator_conversao changed, recalculate all lotes for this item
+    // Always recalculate lotes if fator_conversao is set
     const newFator = formData.fator_conversao;
-    if (newFator && newFator !== item?.fator_conversao) {
+    if (newFator && newFator > 0) {
       try {
-        // Fetch all lotes for this item
         const { data: lotes, error } = await supabase
           .from('estoque_lotes')
-          .select('id, quantidade_original')
+          .select('id, quantidade_original, custo_unitario_original')
           .eq('item_id', id);
         
         if (!error && lotes && lotes.length > 0) {
+          let updated = 0;
           for (const lote of lotes) {
             const qtdOriginal = lote.quantidade_original || 0;
             const qtdInterna = qtdOriginal * newFator;
-            // Get original cost to recalculate internal cost
-            const { data: loteDetail } = await supabase
-              .from('estoque_lotes')
-              .select('custo_unitario_original')
-              .eq('id', lote.id)
-              .single();
+            const custoOriginal = lote.custo_unitario_original || 0;
+            const custoInterno = custoOriginal / newFator;
             
-            const custoOriginal = loteDetail?.custo_unitario_original || 0;
-            const custoInterno = newFator > 0 ? custoOriginal / newFator : 0;
-            
-            await supabase
+            const { error: updErr } = await supabase
               .from('estoque_lotes')
               .update({
                 quantidade_interna: qtdInterna,
@@ -149,8 +142,12 @@ export default function ProdutoDetailPage() {
                 unidade_interna: formData.unidade_interna || item?.unidade_interna,
               })
               .eq('id', lote.id);
+            
+            if (!updErr) updated++;
           }
-          centralToast.success("Lotes Recalculados", `${lotes.length} lote(s) atualizado(s) com novo fator de conversão`);
+          if (updated > 0) {
+            centralToast.success("Lotes Recalculados", `${updated} lote(s) atualizado(s) com fator ${newFator}`);
+          }
         }
       } catch (err) {
         console.error('Erro ao recalcular lotes:', err);
