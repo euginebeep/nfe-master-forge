@@ -73,9 +73,9 @@ export function DashboardKPIsGrid() {
       <KPIItem label="Itens Ativos" value={kpis.totalItens} icon={Package} />
       <KPIItem
         label="Lotes em Estoque"
-        value={kpis.lotesAprovados}
+        value={kpis.totalLotes}
         icon={Boxes}
-        variant={kpis.lotesAprovados > 0 ? "success" : "default"}
+        variant={kpis.totalLotes > 0 ? "success" : "default"}
       />
       <KPIItem
         label="Lotes Vencendo (30d)"
