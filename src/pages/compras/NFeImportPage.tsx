@@ -220,7 +220,8 @@ export default function NFeImportPage() {
       
     } catch (error) {
       console.error('Error importing NF-e:', error);
-      toast.error("Erro ao importar NF-e");
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error(msg, { duration: 8000 });
       setStep('preview');
     }
   };

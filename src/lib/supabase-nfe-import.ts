@@ -248,163 +248,252 @@ export async function importarNFeCompletaSupabase(
     contasPagarGeradas: 0,
   };
   
+  // Track created resources for rollback on failure
+  const createdResources: { table: string; id: string }[] = [];
+  
   const classificacao = classificacaoManual || parseResult.notaFiscal.classificacao;
   
-  // 1. Criar/vincular emitente como fornecedor
-  const emitente = await findOrCreateEntidadeSupabase(parseResult.emitente, 'FORNECEDOR');
-  if (emitente.isNew) stats.entidadesCriadas++;
-  
-  // Destinatário
-  if (parseResult.destinatario) {
-    const dest = await findOrCreateEntidadeSupabase(parseResult.destinatario, 'CLIENTE');
-    if (dest.isNew) stats.entidadesCriadas++;
-  }
-  
-  // Transportadora
-  if (parseResult.transportadora?.documento) {
-    const transp = await findOrCreateEntidadeSupabase(parseResult.transportadora, 'TRANSPORTADORA');
-    if (transp.isNew) stats.entidadesCriadas++;
-  }
-  
-  // 2. Criar nota_entrada no Supabase
-  const { data: notaEntrada, error: notaError } = await supabase
-    .from('notas_entrada')
-    .insert({
-      chave_nfe: parseResult.notaFiscal.chave_acesso,
-      fornecedor_id: emitente.id,
-      xml_raw: parseResult.notaFiscal.xml_raw || null,
-      numero: parseResult.notaFiscal.numero,
-      serie: parseResult.notaFiscal.serie,
-      modelo: parseResult.notaFiscal.modelo,
-      dh_emissao: parseResult.notaFiscal.dh_emissao || new Date().toISOString(),
-      total_produtos: parseResult.totaisImpostos.valor_produtos,
-      total_nota: parseResult.totaisImpostos.valor_nota,
-      status: 'IMPORTADA',
-    })
-    .select('id')
-    .single();
-  
-  if (notaError || !notaEntrada) {
-    throw new Error(`Erro ao salvar nota de entrada: ${notaError?.message}`);
-  }
-  
-  // 3. Processar cada item
-  for (let itemIndex = 0; itemIndex < parseResult.itens.length; itemIndex++) {
-    const itemData = parseResult.itens[itemIndex];
-    const configManual = configuracoesItens?.find(c => c.itemIndex === itemIndex);
-    
-    let itemId: string;
-    let isNew: boolean;
-    
-    if (configManual?.vinculoItemId) {
-      itemId = configManual.vinculoItemId;
-      isNew = false;
-      stats.produtosVinculados++;
-    } else {
-      const result = await findOrCreateItemSupabase(itemData.item, classificacao);
-      itemId = result.id;
-      isNew = result.isNew;
-      if (isNew) stats.produtosCriados++;
-      else stats.produtosVinculados++;
+  try {
+    // 1. Criar/vincular emitente como fornecedor
+    const emitente = await findOrCreateEntidadeSupabase(parseResult.emitente, 'FORNECEDOR');
+    if (emitente.isNew) {
+      stats.entidadesCriadas++;
+      createdResources.push({ table: 'entidades', id: emitente.id });
     }
     
-    // Vincular fornecedor ao item (upsert para não duplicar)
-    const { data: existingLink } = await supabase
-      .from('item_fornecedores')
-      .select('id')
-      .eq('item_id', itemId)
-      .eq('fornecedor_id', emitente.id)
-      .maybeSingle();
-    
-    if (!existingLink) {
-      await supabase.from('item_fornecedores').insert({
-        item_id: itemId,
-        fornecedor_id: emitente.id,
-        codigo_fornecedor: itemData.item.codigo_produto || null,
-        descricao_fornecedor: itemData.item.descricao || null,
-        unidade_fornecedor: itemData.item.unidade_comercial || null,
-        fator_para_unidade_interna: configManual?.fatorConversao || calcularFatorConversao(
-          itemData.item.unidade_comercial.toUpperCase(),
-          configManual?.unidadeInterna || inferirUnidadeInterna(
-            itemData.item.unidade_comercial.toUpperCase(),
-            mapClassificacaoToTipo(classificacao, itemData.item.descricao),
-            itemData.item.descricao
-          )
-        ),
-        ean: itemData.item.ean && itemData.item.ean !== 'SEM GTIN' ? itemData.item.ean : null,
-        ultimo_preco: itemData.item.valor_unitario_comercial,
-      });
+    // Destinatário
+    if (parseResult.destinatario) {
+      const dest = await findOrCreateEntidadeSupabase(parseResult.destinatario, 'CLIENTE');
+      if (dest.isNew) {
+        stats.entidadesCriadas++;
+        createdResources.push({ table: 'entidades', id: dest.id });
+      }
     }
     
-    // Criar item da nota
-    const { data: notaItem } = await supabase
-      .from('notas_entrada_itens')
+    // Transportadora
+    if (parseResult.transportadora?.documento) {
+      const transp = await findOrCreateEntidadeSupabase(parseResult.transportadora, 'TRANSPORTADORA');
+      if (transp.isNew) {
+        stats.entidadesCriadas++;
+        createdResources.push({ table: 'entidades', id: transp.id });
+      }
+    }
+    
+    // 2. Criar nota_entrada no Supabase
+    const { data: notaEntrada, error: notaError } = await supabase
+      .from('notas_entrada')
       .insert({
-        nota_entrada_id: notaEntrada.id,
-        item_id: itemId,
-        codigo_fornecedor: itemData.item.codigo_produto,
-        descricao: itemData.item.descricao,
-        ncm: itemData.item.ncm || null,
-        cfop: itemData.item.cfop || null,
-        ean: itemData.item.ean || null,
-        ucom: itemData.item.unidade_comercial,
-        qcom: itemData.item.quantidade_comercial,
-        vuncom: itemData.item.valor_unitario_comercial,
-        vprod: itemData.item.valor_total,
+        chave_nfe: parseResult.notaFiscal.chave_acesso,
+        fornecedor_id: emitente.id,
+        xml_raw: parseResult.notaFiscal.xml_raw || null,
+        numero: parseResult.notaFiscal.numero,
+        serie: parseResult.notaFiscal.serie,
+        modelo: parseResult.notaFiscal.modelo,
+        dh_emissao: parseResult.notaFiscal.dh_emissao || new Date().toISOString(),
+        total_produtos: parseResult.totaisImpostos.valor_produtos,
+        total_nota: parseResult.totaisImpostos.valor_nota,
+        status: 'IMPORTADA',
       })
       .select('id')
       .single();
     
-    if (!notaItem) continue;
-    
-    // Determinar fator de conversão
-    const uCom = itemData.item.unidade_comercial.toUpperCase();
-    const unidadeInterna = configManual?.unidadeInterna || inferirUnidadeInterna(uCom, mapClassificacaoToTipo(classificacao, itemData.item.descricao), itemData.item.descricao);
-    const fatorConversao = configManual?.fatorConversao || calcularFatorConversao(uCom, unidadeInterna);
-    
-    // Todos os lotes importados via NF-e entram em QUARENTENA para controle de qualidade
-    
-    // Criar lotes
-    const rastros = itemData.rastros.length > 0 ? itemData.rastros : [null];
-    
-    for (const rastro of rastros) {
-      const qtdOriginal = rastro?.quantidade || itemData.item.quantidade_comercial;
-      const qtdInterna = qtdOriginal * fatorConversao;
-      const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConversao);
-      
-      await supabase.from('estoque_lotes').insert({
-        item_id: itemId,
-        fornecedor_id: emitente.id,
-        nota_entrada_item_id: notaItem.id,
-        numero_lote: rastro?.numero_lote || `LOTE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-        data_fab: rastro?.data_fabricacao || null,
-        data_val: rastro?.data_validade || null,
-        quantidade_original: qtdOriginal,
-        unidade_original: uCom,
-        quantidade_interna: qtdInterna,
-        custo_unitario_original: itemData.item.valor_unitario_comercial,
-        custo_unitario_interno: custoInterno,
-        status: 'QUARENTENA',
-      });
-      
-      stats.lotesCriados++;
+    if (notaError || !notaEntrada) {
+      throw new Error(`Erro ao salvar nota de entrada: ${notaError?.message}`);
     }
+    
+    createdResources.push({ table: 'notas_entrada', id: notaEntrada.id });
+    
+    // 3. Processar cada item
+    for (let itemIndex = 0; itemIndex < parseResult.itens.length; itemIndex++) {
+      const itemData = parseResult.itens[itemIndex];
+      const configManual = configuracoesItens?.find(c => c.itemIndex === itemIndex);
+      
+      let itemId: string;
+      let isNew: boolean;
+      
+      if (configManual?.vinculoItemId) {
+        itemId = configManual.vinculoItemId;
+        isNew = false;
+        stats.produtosVinculados++;
+      } else {
+        const result = await findOrCreateItemSupabase(itemData.item, classificacao);
+        itemId = result.id;
+        isNew = result.isNew;
+        if (isNew) {
+          stats.produtosCriados++;
+          createdResources.push({ table: 'itens', id: itemId });
+        } else {
+          stats.produtosVinculados++;
+        }
+      }
+      
+      // Vincular fornecedor ao item (upsert para não duplicar)
+      const { data: existingLink } = await supabase
+        .from('item_fornecedores')
+        .select('id')
+        .eq('item_id', itemId)
+        .eq('fornecedor_id', emitente.id)
+        .maybeSingle();
+      
+      if (!existingLink) {
+        const { data: newLink } = await supabase.from('item_fornecedores').insert({
+          item_id: itemId,
+          fornecedor_id: emitente.id,
+          codigo_fornecedor: itemData.item.codigo_produto || null,
+          descricao_fornecedor: itemData.item.descricao || null,
+          unidade_fornecedor: itemData.item.unidade_comercial || null,
+          fator_para_unidade_interna: configManual?.fatorConversao || calcularFatorConversao(
+            itemData.item.unidade_comercial.toUpperCase(),
+            configManual?.unidadeInterna || inferirUnidadeInterna(
+              itemData.item.unidade_comercial.toUpperCase(),
+              mapClassificacaoToTipo(classificacao, itemData.item.descricao),
+              itemData.item.descricao
+            )
+          ),
+          ean: itemData.item.ean && itemData.item.ean !== 'SEM GTIN' ? itemData.item.ean : null,
+          ultimo_preco: itemData.item.valor_unitario_comercial,
+        }).select('id').single();
+        
+        if (newLink) createdResources.push({ table: 'item_fornecedores', id: newLink.id });
+      }
+      
+      // Criar item da nota
+      const { data: notaItem, error: notaItemError } = await supabase
+        .from('notas_entrada_itens')
+        .insert({
+          nota_entrada_id: notaEntrada.id,
+          item_id: itemId,
+          codigo_fornecedor: itemData.item.codigo_produto,
+          descricao: itemData.item.descricao,
+          ncm: itemData.item.ncm || null,
+          cfop: itemData.item.cfop || null,
+          ean: itemData.item.ean || null,
+          ucom: itemData.item.unidade_comercial,
+          qcom: itemData.item.quantidade_comercial,
+          vuncom: itemData.item.valor_unitario_comercial,
+          vprod: itemData.item.valor_total,
+        })
+        .select('id')
+        .single();
+      
+      if (notaItemError || !notaItem) {
+        console.error(`Erro ao salvar item ${itemIndex} da nota:`, notaItemError?.message);
+        continue;
+      }
+      
+      createdResources.push({ table: 'notas_entrada_itens', id: notaItem.id });
+      
+      // Determinar fator de conversão
+      const uCom = itemData.item.unidade_comercial.toUpperCase();
+      const unidadeInterna = configManual?.unidadeInterna || inferirUnidadeInterna(uCom, mapClassificacaoToTipo(classificacao, itemData.item.descricao), itemData.item.descricao);
+      const fatorConversao = configManual?.fatorConversao || calcularFatorConversao(uCom, unidadeInterna);
+      
+      // Criar lotes — todos entram em QUARENTENA
+      const rastros = itemData.rastros.length > 0 ? itemData.rastros : [null];
+      
+      for (const rastro of rastros) {
+        const qtdOriginal = rastro?.quantidade || itemData.item.quantidade_comercial;
+        const qtdInterna = qtdOriginal * fatorConversao;
+        const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConversao);
+        
+        const { data: lote, error: loteError } = await supabase.from('estoque_lotes').insert({
+          item_id: itemId,
+          fornecedor_id: emitente.id,
+          nota_entrada_item_id: notaItem.id,
+          numero_lote: rastro?.numero_lote || `LOTE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+          data_fab: rastro?.data_fabricacao || null,
+          data_val: rastro?.data_validade || null,
+          quantidade_original: qtdOriginal,
+          unidade_original: uCom,
+          quantidade_interna: qtdInterna,
+          custo_unitario_original: itemData.item.valor_unitario_comercial,
+          custo_unitario_interno: custoInterno,
+          status: 'QUARENTENA',
+        }).select('id').single();
+        
+        if (loteError) {
+          console.error(`Erro ao criar lote para item ${itemIndex}:`, loteError.message);
+          continue;
+        }
+        
+        if (lote) createdResources.push({ table: 'estoque_lotes', id: lote.id });
+        stats.lotesCriados++;
+      }
+    }
+    
+    // 4. Gerar contas a pagar (se houver duplicatas)
+    if (parseResult.duplicatas.length > 0) {
+      for (const dup of parseResult.duplicatas) {
+        const { data: conta } = await supabase.from('contas_receber').insert({
+          descricao: `NF-e ${parseResult.notaFiscal.numero} - Dup ${dup.numero}`,
+          valor: dup.valor,
+          data_vencimento: dup.data_vencimento,
+          data_emissao: parseResult.notaFiscal.dh_emissao?.split('T')[0] || new Date().toISOString().split('T')[0],
+          status: 'pendente',
+          cliente_id: emitente.id,
+        }).select('id').single();
+        
+        if (conta) createdResources.push({ table: 'contas_receber', id: conta.id });
+        stats.contasPagarGeradas++;
+      }
+    }
+    
+    return { notaId: notaEntrada.id, stats };
+    
+  } catch (error) {
+    // ROLLBACK: Apagar tudo que foi criado nesta importação (ordem reversa)
+    console.error('[NF-e Import] Erro durante importação, iniciando rollback:', error);
+    
+    const rollbackOrder = [...createdResources].reverse();
+    for (const resource of rollbackOrder) {
+      try {
+        await supabase.from(resource.table as any).delete().eq('id', resource.id);
+      } catch (rollbackErr) {
+        console.warn(`[Rollback] Falha ao remover ${resource.table}/${resource.id}:`, rollbackErr);
+      }
+    }
+    
+    throw new Error(
+      `Importação falhou e foi revertida. Nenhum dado parcial ficou no sistema. ` +
+      `Erro original: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// ============================================
+// REVERTER IMPORTAÇÃO DE NF-e
+// Remove todos os dados associados a uma nota
+// ============================================
+export async function reverterImportacaoNFe(notaId: string): Promise<void> {
+  // 1. Buscar itens da nota para encontrar lotes
+  const { data: notaItens } = await supabase
+    .from('notas_entrada_itens')
+    .select('id')
+    .eq('nota_entrada_id', notaId);
+  
+  if (notaItens && notaItens.length > 0) {
+    const notaItemIds = notaItens.map(ni => ni.id);
+    
+    // 2. Apagar lotes vinculados
+    for (const niId of notaItemIds) {
+      await supabase.from('estoque_lotes').delete().eq('nota_entrada_item_id', niId);
+    }
+    
+    // 3. Apagar itens da nota
+    await supabase.from('notas_entrada_itens').delete().eq('nota_entrada_id', notaId);
   }
   
-  // 4. Gerar contas a pagar (se houver duplicatas)
-  if (parseResult.duplicatas.length > 0) {
-    for (const dup of parseResult.duplicatas) {
-      await supabase.from('contas_receber').insert({
-        descricao: `NF-e ${parseResult.notaFiscal.numero} - Dup ${dup.numero}`,
-        valor: dup.valor,
-        data_vencimento: dup.data_vencimento,
-        data_emissao: parseResult.notaFiscal.dh_emissao?.split('T')[0] || new Date().toISOString().split('T')[0],
-        status: 'pendente',
-        cliente_id: emitente.id,
-      });
-      stats.contasPagarGeradas++;
-    }
+  // 4. Apagar contas a pagar geradas por esta nota
+  const { data: nota } = await supabase
+    .from('notas_entrada')
+    .select('numero')
+    .eq('id', notaId)
+    .single();
+  
+  if (nota?.numero) {
+    await supabase.from('contas_receber').delete().ilike('descricao', `%NF-e ${nota.numero}%`);
   }
   
-  return { notaId: notaEntrada.id, stats };
+  // 5. Apagar a nota
+  await supabase.from('notas_entrada').delete().eq('id', notaId);
 }
