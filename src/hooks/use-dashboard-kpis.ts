@@ -7,6 +7,7 @@ export interface DashboardKPIs {
   totalLotes: number;
   lotesQuarentena: number;
   lotesAprovados: number;
+  lotesDisponiveis: number;
   lotesVencendo30d: number;
   totalOPs: number;
   opsEmAndamento: number;
@@ -26,6 +27,7 @@ export function useDashboardKPIs() {
         lotes,
         lotesQ,
         lotesA,
+        lotesD,
         lotesV,
         ops,
         opsAnd,
@@ -37,9 +39,10 @@ export function useDashboardKPIs() {
         supabase.from("itens").select("id").eq("ativo", true),
         supabase.from("estoque_lotes").select("id"),
         supabase.from("estoque_lotes").select("id").eq("status", "QUARENTENA"),
-        supabase.from("estoque_lotes").select("id").eq("status", "APROVADO"),
+        supabase.from("estoque_lotes").select("id").in("status", ["APROVADO", "DISPONIVEL"]),
+        supabase.from("estoque_lotes").select("id").eq("status", "DISPONIVEL"),
         supabase.from("estoque_lotes").select("id")
-          .eq("status", "APROVADO")
+          .in("status", ["APROVADO", "DISPONIVEL"])
           .lte("data_val", new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0])
           .gte("data_val", new Date().toISOString().split("T")[0]),
         supabase.from("ordens_producao_industrial").select("id"),
@@ -60,6 +63,7 @@ export function useDashboardKPIs() {
         totalLotes: lotes.data?.length || 0,
         lotesQuarentena: lotesQ.data?.length || 0,
         lotesAprovados: lotesA.data?.length || 0,
+        lotesDisponiveis: lotesD.data?.length || 0,
         lotesVencendo30d: lotesV.data?.length || 0,
         totalOPs: ops.data?.length || 0,
         opsEmAndamento: opsAnd.data?.length || 0,
