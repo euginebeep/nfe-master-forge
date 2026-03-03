@@ -1828,6 +1828,7 @@ export type Database = {
       }
       estoque_lotes: {
         Row: {
+          codigo_agregacao: string | null
           company_id: string
           created_at: string
           custo_unitario_interno: number | null
@@ -1840,12 +1841,18 @@ export type Database = {
           nota_entrada_item_id: string | null
           numero_lote: string
           observacoes_qc: string | null
+          potencia_observacoes: string | null
+          potencia_unidade: string | null
+          potencia_valor: number | null
           quantidade_interna: number
           quantidade_original: number
           status: string
+          tipo_potencia: string | null
+          unidade_interna: string | null
           unidade_original: string
         }
         Insert: {
+          codigo_agregacao?: string | null
           company_id?: string
           created_at?: string
           custo_unitario_interno?: number | null
@@ -1858,12 +1865,18 @@ export type Database = {
           nota_entrada_item_id?: string | null
           numero_lote: string
           observacoes_qc?: string | null
+          potencia_observacoes?: string | null
+          potencia_unidade?: string | null
+          potencia_valor?: number | null
           quantidade_interna: number
           quantidade_original: number
           status?: string
+          tipo_potencia?: string | null
+          unidade_interna?: string | null
           unidade_original: string
         }
         Update: {
+          codigo_agregacao?: string | null
           company_id?: string
           created_at?: string
           custo_unitario_interno?: number | null
@@ -1876,9 +1889,14 @@ export type Database = {
           nota_entrada_item_id?: string | null
           numero_lote?: string
           observacoes_qc?: string | null
+          potencia_observacoes?: string | null
+          potencia_unidade?: string | null
+          potencia_valor?: number | null
           quantidade_interna?: number
           quantidade_original?: number
           status?: string
+          tipo_potencia?: string | null
+          unidade_interna?: string | null
           unidade_original?: string
         }
         Relationships: [
