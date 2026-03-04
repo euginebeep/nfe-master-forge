@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Plus, Edit, Key, UserCog, Trash2 } from "lucide-react";
+import { Shield, Plus, Edit, Key, UserCog, Trash2, ScrollText } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserFormDialog } from "@/components/usuarios/UserFormDialog";
+import { UserActivityLogDialog } from "@/components/usuarios/UserActivityLogDialog";
 import { useUsers, FACTORY_ROLES, type UserWithProfile, type ModulePermission, type CreateUserData, type UpdateUserData } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +20,8 @@ export default function UsuariosPage() {
   const { hasRole, user: currentUser } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [logDialogOpen, setLogDialogOpen] = useState(false);
+  const [logUser, setLogUser] = useState<UserWithProfile | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserWithProfile | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<ModulePermission[]>([]);
@@ -127,7 +130,7 @@ export default function UsuariosPage() {
     {
       key: "actions",
       header: "",
-      className: "w-32",
+      className: "w-40",
       render: (item: UserWithProfile) => (
         <div className="flex gap-1">
           <Button 
@@ -138,6 +141,15 @@ export default function UsuariosPage() {
             title="Editar"
           >
             <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => { setLogUser(item); setLogDialogOpen(true); }}
+            disabled={!isAdmin}
+            title="Log de atividades"
+          >
+            <ScrollText className="h-4 w-4" />
           </Button>
           <Button 
             variant="ghost" 
@@ -316,6 +328,15 @@ export default function UsuariosPage() {
           }
         }}
       />
+
+      {logUser && (
+        <UserActivityLogDialog
+          open={logDialogOpen}
+          onOpenChange={setLogDialogOpen}
+          userId={logUser.id}
+          userName={logUser.nome_completo}
+        />
+      )}
     </div>
   );
 }
