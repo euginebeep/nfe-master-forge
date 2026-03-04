@@ -5016,6 +5016,7 @@ export type Database = {
           causa_raiz: string | null
           codigo: string
           company_id: string
+          contencao_anexos: Json | null
           contencao_data_fim: string | null
           contencao_data_inicio: string | null
           contencao_descricao: string | null
@@ -5024,12 +5025,14 @@ export type Database = {
           contencao_responsavel: string | null
           created_at: string | null
           descricao: string
+          encerramento_anexos: Json | null
           encerramento_aprovado_por: string | null
           encerramento_data: string | null
           encerramento_licoes_aprendidas: string | null
           encerramento_observacoes: string | null
           fase_atual: string
           id: string
+          impl_anexos: Json | null
           impl_data_fim: string | null
           impl_data_inicio: string | null
           impl_evidencias: string | null
@@ -5052,6 +5055,7 @@ export type Database = {
           status: string | null
           tipo: string
           updated_at: string | null
+          verif_anexos: Json | null
           verif_data: string | null
           verif_eficaz: boolean | null
           verif_evidencias: string | null
@@ -5065,6 +5069,7 @@ export type Database = {
           causa_raiz?: string | null
           codigo: string
           company_id?: string
+          contencao_anexos?: Json | null
           contencao_data_fim?: string | null
           contencao_data_inicio?: string | null
           contencao_descricao?: string | null
@@ -5073,12 +5078,14 @@ export type Database = {
           contencao_responsavel?: string | null
           created_at?: string | null
           descricao: string
+          encerramento_anexos?: Json | null
           encerramento_aprovado_por?: string | null
           encerramento_data?: string | null
           encerramento_licoes_aprendidas?: string | null
           encerramento_observacoes?: string | null
           fase_atual?: string
           id?: string
+          impl_anexos?: Json | null
           impl_data_fim?: string | null
           impl_data_inicio?: string | null
           impl_evidencias?: string | null
@@ -5101,6 +5108,7 @@ export type Database = {
           status?: string | null
           tipo?: string
           updated_at?: string | null
+          verif_anexos?: Json | null
           verif_data?: string | null
           verif_eficaz?: boolean | null
           verif_evidencias?: string | null
@@ -5114,6 +5122,7 @@ export type Database = {
           causa_raiz?: string | null
           codigo?: string
           company_id?: string
+          contencao_anexos?: Json | null
           contencao_data_fim?: string | null
           contencao_data_inicio?: string | null
           contencao_descricao?: string | null
@@ -5122,12 +5131,14 @@ export type Database = {
           contencao_responsavel?: string | null
           created_at?: string | null
           descricao?: string
+          encerramento_anexos?: Json | null
           encerramento_aprovado_por?: string | null
           encerramento_data?: string | null
           encerramento_licoes_aprendidas?: string | null
           encerramento_observacoes?: string | null
           fase_atual?: string
           id?: string
+          impl_anexos?: Json | null
           impl_data_fim?: string | null
           impl_data_inicio?: string | null
           impl_evidencias?: string | null
@@ -5150,6 +5161,7 @@ export type Database = {
           status?: string | null
           tipo?: string
           updated_at?: string | null
+          verif_anexos?: Json | null
           verif_data?: string | null
           verif_eficaz?: boolean | null
           verif_evidencias?: string | null
