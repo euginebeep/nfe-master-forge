@@ -20,6 +20,9 @@ export interface ItemImportConfig {
   unidadeInterna: string;
   fatorConversao: number;
   vinculoItemId?: string;
+  potenciaValor?: number;
+  potenciaUnidade?: string;
+  tipoPotencia?: string;
 }
 
 // ============================================
@@ -618,6 +621,12 @@ export async function importarNFeCompletaSupabase(
           custo_unitario_original: itemData.item.valor_unitario_comercial,
           custo_unitario_interno: custoInterno,
           status: 'QUARENTENA',
+          // Potência do lote (informada na importação via COA)
+          ...(configManual?.potenciaValor && configManual.potenciaValor > 0 ? {
+            tipo_potencia: configManual.tipoPotencia || 'UI_POR_GRAMA',
+            potencia_valor: configManual.potenciaValor,
+            potencia_unidade: configManual.potenciaUnidade || 'UI/g',
+          } : {}),
         } as any).select('id').single();
         
         if (loteError) {
