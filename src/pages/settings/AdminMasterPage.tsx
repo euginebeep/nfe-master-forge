@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShieldAlert, Trash2, AlertTriangle, FileArchive, Database, FileOutput } from "lucide-react";
+import { ShieldAlert, Trash2, AlertTriangle, FileArchive, Database, FileOutput, Map } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -163,7 +163,7 @@ export default function AdminMasterPage() {
           <CardTitle className="text-base">Ferramentas de Dados</CardTitle>
           <CardDescription>Backup, migração e importação de dados</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/xml-backup')}>
             <FileArchive className="h-4 w-4" /> Backup XMLs
           </Button>
@@ -172,6 +172,9 @@ export default function AdminMasterPage() {
           </Button>
           <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/importar-dados')}>
             <FileOutput className="h-4 w-4" /> Importar CSV
+          </Button>
+          <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/roadmap')}>
+            <Map className="h-4 w-4" /> Roadmap
           </Button>
         </CardContent>
       </Card>
