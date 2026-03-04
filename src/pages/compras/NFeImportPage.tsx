@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   FileText, Upload, Loader2, Check, AlertCircle, Building2, 
   Package, CheckCircle2, Truck, Receipt, CreditCard, DollarSign,
-  Scale, FileWarning, Info, Box, ArrowRightLeft, Calculator, Edit, Link
+  Scale, FileWarning, Info, Box, ArrowRightLeft, Calculator, Edit, Link, Beaker
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
@@ -52,6 +52,9 @@ interface ItemConversaoConfig {
   unidadeInterna: string;
   fatorConversao: number;
   vinculoItemId?: string; // ID do item vinculado manualmente
+  potenciaValor?: number;
+  potenciaUnidade?: string;
+  tipoPotencia?: string;
 }
 
 export default function NFeImportPage() {
@@ -221,7 +224,10 @@ export default function NFeImportPage() {
           itemIndex: idx,
           unidadeInterna: config.unidadeInterna,
           fatorConversao: config.fatorConversao,
-          vinculoItemId: vinculoId, // Incluir vínculo manual
+          vinculoItemId: vinculoId,
+          potenciaValor: config.potenciaValor,
+          potenciaUnidade: config.potenciaUnidade,
+          tipoPotencia: config.tipoPotencia,
           // Adicionar dados fiscais editados se houver
           ...(fiscalConfig && {
             ncm: fiscalConfig.ncm,
@@ -775,8 +781,75 @@ export default function NFeImportPage() {
                                       <span className="font-semibold text-primary">
                                         {formatCurrency(preview.custoUnitario)}
                                       </span>
+                            </div>
+                            
+                            {/* Potência / Concentração do Lote (UI/g, mg/g, %) */}
+                            <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg space-y-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Beaker className="h-4 w-4 text-amber-600" />
+                                <span className="font-medium text-amber-700 dark:text-amber-400">Potência do Lote (opcional)</span>
+                                <span className="text-xs text-muted-foreground">— Informação do COA/Laudo do fornecedor</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Tipo de Potência</Label>
+                                  <Select
+                                    value={config.tipoPotencia || 'NENHUMA'}
+                                    onValueChange={(v) => {
+                                      updateItemConfig(index, 'tipoPotencia' as any, v);
+                                      if (v === 'NENHUMA') {
+                                        updateItemConfig(index, 'potenciaValor' as any, 0);
+                                        updateItemConfig(index, 'potenciaUnidade' as any, '');
+                                      } else {
+                                        updateItemConfig(index, 'potenciaUnidade' as any, 
+                                          v === 'UI_POR_GRAMA' ? 'UI/g' : v === 'MG_POR_GRAMA' ? 'mg/g' : '%'
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="NENHUMA">Sem potência</SelectItem>
+                                      <SelectItem value="UI_POR_GRAMA">UI por grama (UI/g)</SelectItem>
+                                      <SelectItem value="MG_POR_GRAMA">mg por grama (mg/g)</SelectItem>
+                                      <SelectItem value="PERCENTUAL">Percentual (%)</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                {config.tipoPotencia && config.tipoPotencia !== 'NENHUMA' && (
+                                  <>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">
+                                        Valor ({config.potenciaUnidade || 'UI/g'})
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        placeholder={config.tipoPotencia === 'UI_POR_GRAMA' ? 'Ex: 40000000' : 'Ex: 500'}
+                                        value={config.potenciaValor || ''}
+                                        onChange={(e) => updateItemConfig(index, 'potenciaValor' as any, e.target.value ? parseFloat(e.target.value) : 0)}
+                                        className="h-9"
+                                      />
                                     </div>
-                                  </div>
+                                    <div className="flex items-end pb-1">
+                                      <p className="text-xs text-muted-foreground">
+                                        {config.tipoPotencia === 'UI_POR_GRAMA' && config.potenciaValor ? (
+                                          <>Cada grama contém <strong className="text-foreground">{Number(config.potenciaValor).toLocaleString('pt-BR')} UI</strong></>
+                                        ) : config.tipoPotencia === 'MG_POR_GRAMA' && config.potenciaValor ? (
+                                          <>Concentração: <strong className="text-foreground">{config.potenciaValor} mg/g</strong></>
+                                        ) : config.tipoPotencia === 'PERCENTUAL' && config.potenciaValor ? (
+                                          <>Teor: <strong className="text-foreground">{config.potenciaValor}%</strong></>
+                                        ) : 'Informe o valor do COA/Laudo'}
+                                      </p>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                                 </div>
                               )}
                             </div>
