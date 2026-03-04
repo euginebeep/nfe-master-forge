@@ -371,19 +371,25 @@ export default function EmpresaSettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ie">Inscricao Estadual</Label>
-                <Input
+                <Label htmlFor="ie">Inscrição Estadual</Label>
+                <MaskedInput
                   id="ie"
+                  mask="ie"
+                  maxLength={20}
                   value={formData.ie || ""}
-                  onChange={(e) => setFormData({ ...formData, ie: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, ie: value })}
+                  placeholder="Ex: 123456789"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="im">Inscricao Municipal</Label>
-                <Input
+                <Label htmlFor="im">Inscrição Municipal</Label>
+                <MaskedInput
                   id="im"
+                  mask="im"
+                  maxLength={20}
                   value={formData.im || ""}
-                  onChange={(e) => setFormData({ ...formData, im: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, im: value })}
+                  placeholder="Ex: 123456"
                 />
               </div>
             </div>
