@@ -49,7 +49,14 @@ export function CertificateTestButton({
     setResult(null);
 
     try {
-      // Use fetch directly to get the full response even on non-2xx
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Você precisa estar logado para validar o certificado");
+        setIsLoading(false);
+        return;
+      }
+      
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
@@ -57,7 +64,7 @@ export function CertificateTestButton({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'apikey': supabaseKey,
         },
         body: JSON.stringify({ fileId: certificateFileId, password: certificatePassword, companyCnpj }),
