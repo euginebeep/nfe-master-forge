@@ -26,4 +26,4 @@ project_id = "lvptvswvqjhvobdvgfws"
   [functions.send-contract-email]
     verify_jwt = false
   [functions.validate-certificate]
-    verify_jwt = true
+    verify_jwt = false
