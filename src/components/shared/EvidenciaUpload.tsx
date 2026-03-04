@@ -9,6 +9,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 export interface AnexoFile {
   id: string;
   url: string;
+  storage_path?: string;
   nome: string;
   tamanho: number;
   tipo: string;
@@ -85,11 +86,17 @@ export function EvidenciaUpload({ anexos, onChange, disabled, pasta, maxFiles = 
 
         if (error) throw error;
 
-        const { data: urlData } = supabase.storage.from("erp-files").getPublicUrl(path);
+        // Bucket is private — use signed URL (valid 10 years)
+        const { data: signedData, error: signError } = await supabase.storage
+          .from("erp-files")
+          .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+
+        if (signError || !signedData?.signedUrl) throw signError || new Error("URL error");
 
         novos.push({
           id: crypto.randomUUID(),
-          url: urlData.publicUrl,
+          url: signedData.signedUrl,
+          storage_path: path,
           nome: file.name,
           tamanho: blob.size,
           tipo: isImage ? "image/jpeg" : file.type,
