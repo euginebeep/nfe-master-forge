@@ -23,6 +23,7 @@ export interface CNPJData {
   opcao_pelo_simples: boolean;
   opcao_pelo_mei: boolean;
   data_abertura: string;
+  inscricao_estadual?: string;
 }
 
 export function formatCNPJ(value: string): string {
