@@ -323,6 +323,15 @@ export function useCreateOrdemProducaoIndustrial() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['ordens_producao_industrial'] });
       toast.success(`OP ${data.codigo} criada com sucesso`);
+      import('@/lib/audit-logger').then(({ registrarAuditoria }) => {
+        registrarAuditoria({
+          tipo: 'OP_CRIADA',
+          descricao: `OP "${data.codigo}" criada`,
+          entidade_tipo: 'OrdemProducao',
+          entidade_id: data.id,
+          entidade_codigo: data.codigo,
+        });
+      });
     },
     onError: (error: Error) => {
       toast.error(`Erro ao criar OP: ${error.message}`);

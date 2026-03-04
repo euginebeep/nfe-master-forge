@@ -1,0 +1,23 @@
+
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ENTIDADE_CRIADA';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ENTIDADE_ALTERADA';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ENTIDADE_EXCLUIDA';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ITEM_CRIADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ITEM_ALTERADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ITEM_EXCLUIDO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'LOTE_CRIADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'LOTE_ALTERADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ESTOQUE_MOVIMENTADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'NFE_IMPORTADA';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ORCAMENTO_CRIADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'ORCAMENTO_ALTERADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'PEDIDO_CRIADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'PEDIDO_ALTERADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'USUARIO_CRIADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'USUARIO_ALTERADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'USUARIO_EXCLUIDO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'LOGIN_REALIZADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'LOGOUT_REALIZADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'CONTA_PAGAR_CRIADA';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'CONTA_RECEBER_CRIADA';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'EXPORTACAO_DADOS';

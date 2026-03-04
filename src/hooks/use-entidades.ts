@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Entidade, EntidadePapel, EntidadeContato, EntidadeEndereco } from "@/types/erp";
 import { toast } from "sonner";
 import { getUserCompanyId } from "@/hooks/use-user-company";
+import { registrarAuditoria } from "@/lib/audit-logger";
 
 export function useEntidades(filters?: { papel?: string; status?: string }) {
   return useQuery({
@@ -96,9 +97,16 @@ export function useCreateEntidade() {
 
       return entidade;
     },
-    onSuccess: () => {
+    onSuccess: (entidade: any) => {
       queryClient.invalidateQueries({ queryKey: ["entidades"] });
       toast.success("Entidade criada com sucesso");
+      registrarAuditoria({
+        tipo: 'ENTIDADE_CRIADA',
+        descricao: `Entidade "${entidade.razao_social}" criada`,
+        entidade_tipo: 'Entidade',
+        entidade_id: entidade.id,
+        entidade_codigo: entidade.codigo_interno,
+      });
     },
     onError: (error: Error & { code?: string }) => {
       if (error?.code === '23505' || error?.message?.includes('entidades_documento_key')) {
@@ -131,10 +139,17 @@ export function useUpdateEntidade() {
       if (error) throw error;
       return entidade;
     },
-    onSuccess: (_, vars) => {
+    onSuccess: (entidade: any, vars) => {
       queryClient.invalidateQueries({ queryKey: ["entidades"] });
       queryClient.invalidateQueries({ queryKey: ["entidade", vars.id] });
       toast.success("Entidade atualizada com sucesso");
+      registrarAuditoria({
+        tipo: 'ENTIDADE_ALTERADA',
+        descricao: `Entidade "${entidade.razao_social}" alterada`,
+        entidade_tipo: 'Entidade',
+        entidade_id: vars.id,
+        entidade_codigo: entidade.codigo_interno,
+      });
     },
     onError: (error) => {
       toast.error("Erro ao atualizar entidade: " + error.message);
@@ -159,10 +174,16 @@ export function useDeleteEntidade() {
       const { error } = await supabase.from("entidades").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["entidades"] });
       queryClient.invalidateQueries({ queryKey: ["hybrid-entidades"] });
       toast.success("Entidade excluída com sucesso");
+      registrarAuditoria({
+        tipo: 'ENTIDADE_EXCLUIDA',
+        descricao: `Entidade excluída`,
+        entidade_tipo: 'Entidade',
+        entidade_id: id,
+      });
     },
     onError: (error) => {
       toast.error("Erro ao excluir entidade: " + error.message);

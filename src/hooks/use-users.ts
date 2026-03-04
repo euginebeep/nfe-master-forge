@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { registrarAuditoria } from '@/lib/audit-logger';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -186,6 +187,12 @@ export function useUsers() {
 
       toast.success('Usuário criado com sucesso!');
       await fetchUsers();
+      registrarAuditoria({
+        tipo: 'USUARIO_CRIADO',
+        descricao: `Usuário "${data.nome_completo}" criado (${data.email})`,
+        entidade_tipo: 'Usuario',
+        entidade_id: response.data?.user_id || 'unknown',
+      });
       return { success: true };
     } catch (err) {
       console.error('Error creating user:', err);
@@ -215,6 +222,12 @@ export function useUsers() {
 
       toast.success('Usuário atualizado com sucesso!');
       await fetchUsers();
+      registrarAuditoria({
+        tipo: 'USUARIO_ALTERADO',
+        descricao: `Usuário "${data.nome_completo || ''}" atualizado`,
+        entidade_tipo: 'Usuario',
+        entidade_id: data.user_id,
+      });
       return { success: true };
     } catch (err) {
       console.error('Error updating user:', err);
@@ -243,6 +256,12 @@ export function useUsers() {
 
       toast.success('Usuário excluído com sucesso!');
       await fetchUsers();
+      registrarAuditoria({
+        tipo: 'USUARIO_EXCLUIDO',
+        descricao: `Usuário excluído`,
+        entidade_tipo: 'Usuario',
+        entidade_id: userId,
+      });
       return { success: true };
     } catch (err) {
       console.error('Error deleting user:', err);
