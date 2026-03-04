@@ -95,7 +95,7 @@ const menuGroups: MenuGroup[] = [
   { title: "Clientes", url: "/cadastros/clientes", icon: Users, tooltip: "Cadastro e histórico de clientes da empresa", modulo: "entidades" },
   { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart, tooltip: "Cadastro de transportadoras e meios de envio", modulo: "entidades" },
   { title: "Produtos/Insumos", url: "/cadastros/produtos", icon: Package, tooltip: "Cadastro de matérias-primas, insumos e produtos acabados", modulo: "itens" },
-  { title: "Responsáveis Técnicos", url: "/cadastros/responsaveis-tecnicos", icon: UserCheck, badge: "RT", tooltip: "Gestão de responsáveis técnicos habilitados para produção", modulo: "producao" }]
+  ]
 
 },
 {
@@ -189,7 +189,8 @@ interface FooterItem {
 const footerItems: FooterItem[] = [
 { to: "/settings/empresa", icon: Settings, label: "Configuracoes", tooltip: "Configurações gerais da empresa e sistema", modulo: "configuracoes" },
 { to: "/settings/admin-master", icon: ShieldAlert, label: "Admin Master", tooltip: "Painel administrativo master — operações críticas do sistema", danger: true, adminOnly: true },
-{ to: "/usuarios", icon: Shield, label: "Usuarios", tooltip: "Gestão de usuários, permissões e acessos ao sistema", modulo: "usuarios" }];
+{ to: "/usuarios", icon: Shield, label: "Usuarios", tooltip: "Gestão de usuários, permissões e acessos ao sistema", modulo: "usuarios" },
+{ to: "/cadastros/responsaveis-tecnicos", icon: UserCheck, label: "Resp. Técnicos", tooltip: "Gestão de responsáveis técnicos habilitados para produção", modulo: "producao" }];
 
 
 export function AppSidebar() {
