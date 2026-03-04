@@ -70,6 +70,7 @@ const LoteAuditoriaPublicaPage = lazy(() => import("./pages/audit/LoteAuditoriaP
 const VerificarOPPage = lazy(() => import("./pages/producao/VerificarOPPage"));
 const NotificacoesPage = lazy(() => import("./pages/notificacoes/NotificacoesPage"));
 const DesviosPage = lazy(() => import("./pages/qualidade/DesviosPage"));
+const DesvioDetailPage = lazy(() => import("./pages/qualidade/DesvioDetailPage"));
 const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
 const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
@@ -195,6 +196,7 @@ const App = () => (
                 <Route path="/auditoria" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AuditoriaPage /></ErrorBoundary></Suspense>} />
                 {/* Qualidade */}
                 <Route path="/qualidade/desvios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DesviosPage /></ErrorBoundary></Suspense>} />
+                <Route path="/qualidade/desvios/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DesvioDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/analises" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AnalisesPage /></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/calibracoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><CalibracoesPage /></ErrorBoundary></Suspense>} />
                 {/* Regulatório */}

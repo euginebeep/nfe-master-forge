@@ -5016,16 +5016,48 @@ export type Database = {
           causa_raiz: string | null
           codigo: string
           company_id: string
+          contencao_data_fim: string | null
+          contencao_data_inicio: string | null
+          contencao_descricao: string | null
+          contencao_eficaz: boolean | null
+          contencao_evidencias: string | null
+          contencao_responsavel: string | null
           created_at: string | null
           descricao: string
+          encerramento_aprovado_por: string | null
+          encerramento_data: string | null
+          encerramento_licoes_aprendidas: string | null
+          encerramento_observacoes: string | null
+          fase_atual: string
           id: string
+          impl_data_fim: string | null
+          impl_data_inicio: string | null
+          impl_evidencias: string | null
+          impl_observacoes: string | null
+          impl_responsavel: string | null
           lote_id: string | null
           op_id: string | null
+          plano_acoes: Json | null
           prazo: string | null
+          rca_conclusao: string | null
+          rca_descricao: string | null
+          rca_metodo: string | null
+          rca_por_que_1: string | null
+          rca_por_que_2: string | null
+          rca_por_que_3: string | null
+          rca_por_que_4: string | null
+          rca_por_que_5: string | null
           responsavel_id: string | null
           severidade: string
           status: string | null
           tipo: string
+          updated_at: string | null
+          verif_data: string | null
+          verif_eficaz: boolean | null
+          verif_evidencias: string | null
+          verif_metodo: string | null
+          verif_responsavel: string | null
+          verif_resultado: string | null
         }
         Insert: {
           acao_corretiva?: string | null
@@ -5033,16 +5065,48 @@ export type Database = {
           causa_raiz?: string | null
           codigo: string
           company_id?: string
+          contencao_data_fim?: string | null
+          contencao_data_inicio?: string | null
+          contencao_descricao?: string | null
+          contencao_eficaz?: boolean | null
+          contencao_evidencias?: string | null
+          contencao_responsavel?: string | null
           created_at?: string | null
           descricao: string
+          encerramento_aprovado_por?: string | null
+          encerramento_data?: string | null
+          encerramento_licoes_aprendidas?: string | null
+          encerramento_observacoes?: string | null
+          fase_atual?: string
           id?: string
+          impl_data_fim?: string | null
+          impl_data_inicio?: string | null
+          impl_evidencias?: string | null
+          impl_observacoes?: string | null
+          impl_responsavel?: string | null
           lote_id?: string | null
           op_id?: string | null
+          plano_acoes?: Json | null
           prazo?: string | null
+          rca_conclusao?: string | null
+          rca_descricao?: string | null
+          rca_metodo?: string | null
+          rca_por_que_1?: string | null
+          rca_por_que_2?: string | null
+          rca_por_que_3?: string | null
+          rca_por_que_4?: string | null
+          rca_por_que_5?: string | null
           responsavel_id?: string | null
           severidade?: string
           status?: string | null
           tipo?: string
+          updated_at?: string | null
+          verif_data?: string | null
+          verif_eficaz?: boolean | null
+          verif_evidencias?: string | null
+          verif_metodo?: string | null
+          verif_responsavel?: string | null
+          verif_resultado?: string | null
         }
         Update: {
           acao_corretiva?: string | null
@@ -5050,16 +5114,48 @@ export type Database = {
           causa_raiz?: string | null
           codigo?: string
           company_id?: string
+          contencao_data_fim?: string | null
+          contencao_data_inicio?: string | null
+          contencao_descricao?: string | null
+          contencao_eficaz?: boolean | null
+          contencao_evidencias?: string | null
+          contencao_responsavel?: string | null
           created_at?: string | null
           descricao?: string
+          encerramento_aprovado_por?: string | null
+          encerramento_data?: string | null
+          encerramento_licoes_aprendidas?: string | null
+          encerramento_observacoes?: string | null
+          fase_atual?: string
           id?: string
+          impl_data_fim?: string | null
+          impl_data_inicio?: string | null
+          impl_evidencias?: string | null
+          impl_observacoes?: string | null
+          impl_responsavel?: string | null
           lote_id?: string | null
           op_id?: string | null
+          plano_acoes?: Json | null
           prazo?: string | null
+          rca_conclusao?: string | null
+          rca_descricao?: string | null
+          rca_metodo?: string | null
+          rca_por_que_1?: string | null
+          rca_por_que_2?: string | null
+          rca_por_que_3?: string | null
+          rca_por_que_4?: string | null
+          rca_por_que_5?: string | null
           responsavel_id?: string | null
           severidade?: string
           status?: string | null
           tipo?: string
+          updated_at?: string | null
+          verif_data?: string | null
+          verif_eficaz?: boolean | null
+          verif_evidencias?: string | null
+          verif_metodo?: string | null
+          verif_responsavel?: string | null
+          verif_resultado?: string | null
         }
         Relationships: [
           {
