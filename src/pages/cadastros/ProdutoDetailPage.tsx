@@ -1034,6 +1034,77 @@ export default function ProdutoDetailPage() {
                             <p>{l.data_fab ? new Date(l.data_fab).toLocaleDateString('pt-BR') : "-"}</p>
                           </div>
                         </div>
+                        
+                        {/* Potência do Lote (COA) */}
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm font-medium">Potência do Lote</span>
+                            {(l as any).potencia_valor ? (
+                              <StatusBadge variant="success">
+                                {Number((l as any).potencia_valor).toLocaleString('pt-BR')} {(l as any).potencia_unidade || 'UI/g'}
+                              </StatusBadge>
+                            ) : (
+                              <StatusBadge variant="warning">Não informada</StatusBadge>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Tipo de Potência</Label>
+                              <Select
+                                value={(l as any).tipo_potencia || 'NENHUMA'}
+                                onValueChange={(v) => {
+                                  const unidade = v === 'UI_POR_GRAMA' ? 'UI/g' : v === 'MG_POR_GRAMA' ? 'mg/g' : v === 'PERCENTUAL' ? '%' : null;
+                                  updateLote(l.id, { 
+                                    tipo_potencia: v,
+                                    potencia_unidade: unidade,
+                                    ...(v === 'NENHUMA' ? { potencia_valor: null } : {}),
+                                  } as any);
+                                }}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="NENHUMA">Sem potência</SelectItem>
+                                  <SelectItem value="UI_POR_GRAMA">UI por grama (UI/g)</SelectItem>
+                                  <SelectItem value="MG_POR_GRAMA">mg por grama (mg/g)</SelectItem>
+                                  <SelectItem value="PERCENTUAL">Percentual (%)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {(l as any).tipo_potencia && (l as any).tipo_potencia !== 'NENHUMA' && (
+                              <div className="space-y-1">
+                                <Label className="text-xs">
+                                  Valor ({(l as any).potencia_unidade || 'UI/g'})
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  className="h-8"
+                                  placeholder="Ex: 40000000"
+                                  defaultValue={(l as any).potencia_valor || ''}
+                                  onBlur={(e) => {
+                                    const val = e.target.value ? parseFloat(e.target.value) : null;
+                                    updateLote(l.id, { potencia_valor: val } as any);
+                                    if (val) {
+                                      toast.success(`Potência ${val.toLocaleString('pt-BR')} ${(l as any).potencia_unidade || 'UI/g'} salva no lote ${l.numero_lote}`);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            )}
+                            {(l as any).tipo_potencia && (l as any).tipo_potencia !== 'NENHUMA' && (l as any).potencia_valor && (
+                              <div className="flex items-end pb-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Cada grama deste lote contém{' '}
+                                  <strong className="text-foreground">
+                                    {Number((l as any).potencia_valor).toLocaleString('pt-BR')} {(l as any).potencia_unidade || 'UI/g'}
+                                  </strong>
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
