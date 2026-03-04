@@ -69,6 +69,8 @@ serve(async (req) => {
               opcao_pelo_simples: rwData.simples?.optante === true,
               opcao_pelo_mei: rwData.simei?.optante === true,
               data_abertura: rwData.abertura || '',
+              // ReceitaWS sometimes returns IE in extra fields
+              inscricao_estadual: rwData.inscricao_estadual || '',
             };
           } else {
             lastError += ` | ReceitaWS: ${rwData.message}`;
@@ -84,6 +86,25 @@ serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Try to fetch IE from BrasilAPI SINTEGRA (best-effort, don't block)
+    if (!data.inscricao_estadual && data.uf) {
+      try {
+        const sintegraResp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`, {
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(3000),
+        });
+        if (sintegraResp.ok) {
+          const sintegraData = await sintegraResp.json();
+          // BrasilAPI v1 sometimes includes IE in qsa or specific fields
+          if (sintegraData.inscricao_estadual) {
+            data.inscricao_estadual = sintegraData.inscricao_estadual;
+          }
+        }
+      } catch {
+        // Silent - IE is optional
+      }
     }
 
     return new Response(JSON.stringify(data), {

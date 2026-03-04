@@ -79,6 +79,7 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
           endereco_cmun: data.codigo_municipio?.toString() || "",
           telefone: data.telefone || "",
           email_fiscal: data.email || "",
+          ie: data.inscricao_estadual || "",
         });
         setLookupSuccess(true);
         toast.success("Dados da empresa carregados com sucesso!");

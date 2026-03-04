@@ -93,6 +93,31 @@ export default function EmpresaSettingsPage() {
     }
   }, [company, supabaseCompany]);
 
+  // Load logo from Supabase storage when logo_file_id exists but no local preview
+  useEffect(() => {
+    if (logoPreview || !supabaseCompany?.logo_file_id) return;
+    const loadLogoFromStorage = async () => {
+      try {
+        const { data: arquivo } = await supabase
+          .from("arquivos")
+          .select("storage_key")
+          .eq("id", supabaseCompany.logo_file_id!)
+          .maybeSingle();
+        if (arquivo?.storage_key) {
+          const { data } = await supabase.storage
+            .from("erp-files")
+            .createSignedUrl(arquivo.storage_key, 3600);
+          if (data?.signedUrl) {
+            setLogoPreview(data.signedUrl);
+          }
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+    loadLogoFromStorage();
+  }, [supabaseCompany?.logo_file_id, logoPreview]);
+
   // Load certificate file ID and name from Supabase company
   useEffect(() => {
     if (supabaseCompany?.certificado_a1_file_id) {
@@ -118,6 +143,9 @@ export default function EmpresaSettingsPage() {
     
     const autoValidate = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         
@@ -125,7 +153,7 @@ export default function EmpresaSettingsPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`,
+            'Authorization': `Bearer ${session.access_token}`,
             'apikey': supabaseKey,
           },
           body: JSON.stringify({
@@ -211,6 +239,7 @@ export default function EmpresaSettingsPage() {
     endereco_cmun: string;
     telefone: string;
     email_fiscal: string;
+    ie?: string;
   }) => {
     setFormData(prev => ({
       ...prev,
@@ -228,6 +257,7 @@ export default function EmpresaSettingsPage() {
       endereco_cidade: data.endereco_cidade,
       telefone: data.telefone || prev?.telefone,
       email_fiscal: data.email_fiscal || prev?.email_fiscal,
+      ie: data.ie || prev?.ie,
     }));
   };
 
