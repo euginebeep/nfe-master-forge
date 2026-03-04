@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Switch } from "@/components/ui/switch";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
+import { EvidenciaUpload, type AnexoFile } from "@/components/shared/EvidenciaUpload";
 import {
   useDesvioDetail,
   isFaseAtiva,
@@ -229,7 +230,16 @@ export default function DesvioDetailPage() {
                 <Switch checked={!!form.contencao_eficaz} onCheckedChange={v => update("contencao_eficaz", v)} disabled={!isTabEditable("CONTENCAO")} />
                 <Label>Contenção foi eficaz?</Label>
               </div>
-              <div><Label>Evidências</Label><Textarea value={form.contencao_evidencias || ""} onChange={e => update("contencao_evidencias", e.target.value)} rows={2} disabled={!isTabEditable("CONTENCAO")} placeholder="Referências, fotos, documentos..." /></div>
+              <div><Label>Observações de Evidências</Label><Textarea value={form.contencao_evidencias || ""} onChange={e => update("contencao_evidencias", e.target.value)} rows={2} disabled={!isTabEditable("CONTENCAO")} placeholder="Referências, descrições..." /></div>
+              <div>
+                <Label>Fotos / Anexos de Evidência</Label>
+                <EvidenciaUpload
+                  anexos={(form.contencao_anexos as AnexoFile[]) || []}
+                  onChange={v => update("contencao_anexos", v)}
+                  disabled={!isTabEditable("CONTENCAO")}
+                  pasta={`desvios/${form.id || "novo"}/contencao`}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -321,7 +331,16 @@ export default function DesvioDetailPage() {
                 <div><Label>Data Início</Label><Input type="date" value={form.impl_data_inicio || ""} onChange={e => update("impl_data_inicio", e.target.value)} disabled={!isTabEditable("IMPLEMENTACAO")} /></div>
                 <div><Label>Data Fim</Label><Input type="date" value={form.impl_data_fim || ""} onChange={e => update("impl_data_fim", e.target.value)} disabled={!isTabEditable("IMPLEMENTACAO")} /></div>
               </div>
-              <div><Label>Evidências da Implementação</Label><Textarea value={form.impl_evidencias || ""} onChange={e => update("impl_evidencias", e.target.value)} rows={2} disabled={!isTabEditable("IMPLEMENTACAO")} placeholder="Fotos, registros, documentos comprobatórios..." /></div>
+              <div><Label>Observações de Evidências</Label><Textarea value={form.impl_evidencias || ""} onChange={e => update("impl_evidencias", e.target.value)} rows={2} disabled={!isTabEditable("IMPLEMENTACAO")} placeholder="Descrições, referências..." /></div>
+              <div>
+                <Label>Fotos / Anexos</Label>
+                <EvidenciaUpload
+                  anexos={(form.impl_anexos as AnexoFile[]) || []}
+                  onChange={v => update("impl_anexos", v)}
+                  disabled={!isTabEditable("IMPLEMENTACAO")}
+                  pasta={`desvios/${form.id || "novo"}/implementacao`}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -341,7 +360,16 @@ export default function DesvioDetailPage() {
                   <Label>Ações foram eficazes?</Label>
                 </div>
               </div>
-              <div><Label>Evidências</Label><Textarea value={form.verif_evidencias || ""} onChange={e => update("verif_evidencias", e.target.value)} rows={2} disabled={!isTabEditable("VERIFICACAO")} /></div>
+              <div><Label>Observações de Evidências</Label><Textarea value={form.verif_evidencias || ""} onChange={e => update("verif_evidencias", e.target.value)} rows={2} disabled={!isTabEditable("VERIFICACAO")} /></div>
+              <div>
+                <Label>Fotos / Anexos</Label>
+                <EvidenciaUpload
+                  anexos={(form.verif_anexos as AnexoFile[]) || []}
+                  onChange={v => update("verif_anexos", v)}
+                  disabled={!isTabEditable("VERIFICACAO")}
+                  pasta={`desvios/${form.id || "novo"}/verificacao`}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -357,6 +385,15 @@ export default function DesvioDetailPage() {
               </div>
               <div><Label>Observações Finais</Label><Textarea value={form.encerramento_observacoes || ""} onChange={e => update("encerramento_observacoes", e.target.value)} rows={3} disabled={!isTabEditable("ENCERRAMENTO")} /></div>
               <div><Label>Lições Aprendidas</Label><Textarea value={form.encerramento_licoes_aprendidas || ""} onChange={e => update("encerramento_licoes_aprendidas", e.target.value)} rows={3} disabled={!isTabEditable("ENCERRAMENTO")} placeholder="O que aprendemos com este desvio? Como evitar recorrências?" /></div>
+              <div>
+                <Label>Documentos de Encerramento</Label>
+                <EvidenciaUpload
+                  anexos={(form.encerramento_anexos as AnexoFile[]) || []}
+                  onChange={v => update("encerramento_anexos", v)}
+                  disabled={!isTabEditable("ENCERRAMENTO")}
+                  pasta={`desvios/${form.id || "novo"}/encerramento`}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

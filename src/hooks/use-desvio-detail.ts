@@ -55,6 +55,11 @@ export interface DesvioCompleto {
   encerramento_data?: string;
   encerramento_observacoes?: string;
   encerramento_licoes_aprendidas?: string;
+  // Anexos
+  contencao_anexos?: any[];
+  impl_anexos?: any[];
+  verif_anexos?: any[];
+  encerramento_anexos?: any[];
 }
 
 export interface PlanoAcaoItem {
