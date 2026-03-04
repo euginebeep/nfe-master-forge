@@ -112,6 +112,17 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
       if (isValidCNPJFormat(value) && !isLoading) {
         handleLookup();
       }
+      // Move focus to next focusable element
+      const form = (e.target as HTMLElement).closest('form');
+      if (form) {
+        const focusables = Array.from(form.querySelectorAll<HTMLElement>(
+          'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+        ));
+        const idx = focusables.indexOf(e.target as HTMLElement);
+        if (idx >= 0 && idx < focusables.length - 1) {
+          focusables[idx + 1]?.focus();
+        }
+      }
     }
   };
 
