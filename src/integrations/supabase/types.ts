@@ -5014,6 +5014,7 @@ export type Database = {
           acao_corretiva: string | null
           acao_preventiva: string | null
           causa_raiz: string | null
+          cliente_id: string | null
           codigo: string
           company_id: string
           contencao_anexos: Json | null
@@ -5031,6 +5032,8 @@ export type Database = {
           encerramento_licoes_aprendidas: string | null
           encerramento_observacoes: string | null
           fase_atual: string
+          fonte_desvio: string | null
+          fornecedor_id: string | null
           id: string
           impl_anexos: Json | null
           impl_data_fim: string | null
@@ -5038,10 +5041,14 @@ export type Database = {
           impl_evidencias: string | null
           impl_observacoes: string | null
           impl_responsavel: string | null
+          insumo_id: string | null
+          lote_fornecedor: string | null
           lote_id: string | null
           op_id: string | null
+          pedido_venda_id: string | null
           plano_acoes: Json | null
           prazo: string | null
+          produto_id: string | null
           rca_conclusao: string | null
           rca_descricao: string | null
           rca_metodo: string | null
@@ -5067,6 +5074,7 @@ export type Database = {
           acao_corretiva?: string | null
           acao_preventiva?: string | null
           causa_raiz?: string | null
+          cliente_id?: string | null
           codigo: string
           company_id?: string
           contencao_anexos?: Json | null
@@ -5084,6 +5092,8 @@ export type Database = {
           encerramento_licoes_aprendidas?: string | null
           encerramento_observacoes?: string | null
           fase_atual?: string
+          fonte_desvio?: string | null
+          fornecedor_id?: string | null
           id?: string
           impl_anexos?: Json | null
           impl_data_fim?: string | null
@@ -5091,10 +5101,14 @@ export type Database = {
           impl_evidencias?: string | null
           impl_observacoes?: string | null
           impl_responsavel?: string | null
+          insumo_id?: string | null
+          lote_fornecedor?: string | null
           lote_id?: string | null
           op_id?: string | null
+          pedido_venda_id?: string | null
           plano_acoes?: Json | null
           prazo?: string | null
+          produto_id?: string | null
           rca_conclusao?: string | null
           rca_descricao?: string | null
           rca_metodo?: string | null
@@ -5120,6 +5134,7 @@ export type Database = {
           acao_corretiva?: string | null
           acao_preventiva?: string | null
           causa_raiz?: string | null
+          cliente_id?: string | null
           codigo?: string
           company_id?: string
           contencao_anexos?: Json | null
@@ -5137,6 +5152,8 @@ export type Database = {
           encerramento_licoes_aprendidas?: string | null
           encerramento_observacoes?: string | null
           fase_atual?: string
+          fonte_desvio?: string | null
+          fornecedor_id?: string | null
           id?: string
           impl_anexos?: Json | null
           impl_data_fim?: string | null
@@ -5144,10 +5161,14 @@ export type Database = {
           impl_evidencias?: string | null
           impl_observacoes?: string | null
           impl_responsavel?: string | null
+          insumo_id?: string | null
+          lote_fornecedor?: string | null
           lote_id?: string | null
           op_id?: string | null
+          pedido_venda_id?: string | null
           plano_acoes?: Json | null
           prazo?: string | null
+          produto_id?: string | null
           rca_conclusao?: string | null
           rca_descricao?: string | null
           rca_metodo?: string | null

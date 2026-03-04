@@ -10,11 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Switch } from "@/components/ui/switch";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
 import { EvidenciaUpload, type AnexoFile } from "@/components/shared/EvidenciaUpload";
+import { DesvioRastreabilidade } from "@/components/qualidade/DesvioRastreabilidade";
 import {
   useDesvioDetail,
   isFaseAtiva,
@@ -207,6 +207,10 @@ export default function DesvioDetailPage() {
                 </div>
               </div>
               <div><Label>Descrição do Desvio *</Label><Textarea value={form.descricao || ""} onChange={e => update("descricao", e.target.value)} rows={3} disabled={!isTabEditable("IDENTIFICACAO")} /></div>
+              
+              {/* Rastreabilidade */}
+              <DesvioRastreabilidade form={form} update={update} disabled={!isTabEditable("IDENTIFICACAO")} />
+
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Prazo para Resolução</Label><Input type="date" value={form.prazo || ""} onChange={e => update("prazo", e.target.value)} disabled={!isTabEditable("IDENTIFICACAO")} /></div>
                 <div><Label>Status</Label><Input value={form.status || "ABERTO"} disabled className="bg-muted" /></div>
