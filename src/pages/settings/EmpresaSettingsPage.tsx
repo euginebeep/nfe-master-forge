@@ -335,7 +335,19 @@ export default function EmpresaSettingsPage() {
         }
       />
 
-      <div className="space-y-6 mt-6 w-full min-w-0">
+      <div className="space-y-6 mt-6 w-full min-w-0" onKeyDown={(e) => {
+        // Enter = Tab for all input fields on this page
+        if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+          e.preventDefault();
+          const allInputs = Array.from(document.querySelectorAll<HTMLElement>(
+            'input:not([disabled]):not([type="hidden"]):not([type="file"]), textarea:not([disabled])'
+          ));
+          const idx = allInputs.indexOf(e.target as HTMLElement);
+          if (idx >= 0 && idx < allInputs.length - 1) {
+            setTimeout(() => allInputs[idx + 1]?.focus(), 50);
+          }
+        }
+      }}>
         {/* Dados Gerais */}
         <Card>
           <CardHeader>
