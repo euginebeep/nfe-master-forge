@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Item, ItemFornecedor, ItemAlias, TipoItem } from "@/types/erp";
 import { centralToast } from "@/components/ui/central-toast";
 import { getUserCompanyId } from "@/hooks/use-user-company";
+import { registrarAuditoria } from "@/lib/audit-logger";
 
 export function useItens(filters?: { tipo_item?: TipoItem; ativo?: boolean }) {
   return useQuery({
@@ -73,10 +74,17 @@ export function useCreateItem() {
       if (error) throw error;
       return item;
     },
-    onSuccess: () => {
+    onSuccess: (item: any) => {
       queryClient.invalidateQueries({ queryKey: ["itens"] });
       queryClient.invalidateQueries({ queryKey: ["hybrid-itens"] });
       centralToast.success("Item Criado", "Produto cadastrado com sucesso");
+      registrarAuditoria({
+        tipo: 'ITEM_CRIADO',
+        descricao: `Item "${item.descricao_interna}" criado`,
+        entidade_tipo: 'Item',
+        entidade_id: item.id,
+        entidade_codigo: item.sku_interno,
+      });
     },
     onError: (error) => {
       centralToast.error("Erro ao Criar", error.message);
@@ -99,13 +107,20 @@ export function useUpdateItem() {
       if (error) throw error;
       return item;
     },
-    onSuccess: async (_, vars) => {
+    onSuccess: async (item: any, vars) => {
       await queryClient.invalidateQueries({ queryKey: ["itens"] });
       await queryClient.invalidateQueries({ queryKey: ["hybrid-itens"] });
       await queryClient.invalidateQueries({ queryKey: ["item", vars.id] });
       await queryClient.invalidateQueries({ queryKey: ["hybrid-item", vars.id] });
       await queryClient.refetchQueries({ queryKey: ["hybrid-itens"] });
       centralToast.success("Item Atualizado", "Alterações salvas com sucesso");
+      registrarAuditoria({
+        tipo: 'ITEM_ALTERADO',
+        descricao: `Item "${item.descricao_interna}" alterado`,
+        entidade_tipo: 'Item',
+        entidade_id: vars.id,
+        entidade_codigo: item.sku_interno,
+      });
     },
     onError: (error) => {
       centralToast.error("Erro ao Atualizar", error.message);

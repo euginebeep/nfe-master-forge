@@ -5957,6 +5957,28 @@ export type Database = {
         | "QC_REPROVADO"
         | "PESAGEM_REGISTRADA"
         | "CHECKLIST_VERIFICADO"
+        | "ENTIDADE_CRIADA"
+        | "ENTIDADE_ALTERADA"
+        | "ENTIDADE_EXCLUIDA"
+        | "ITEM_CRIADO"
+        | "ITEM_ALTERADO"
+        | "ITEM_EXCLUIDO"
+        | "LOTE_CRIADO"
+        | "LOTE_ALTERADO"
+        | "ESTOQUE_MOVIMENTADO"
+        | "NFE_IMPORTADA"
+        | "ORCAMENTO_CRIADO"
+        | "ORCAMENTO_ALTERADO"
+        | "PEDIDO_CRIADO"
+        | "PEDIDO_ALTERADO"
+        | "USUARIO_CRIADO"
+        | "USUARIO_ALTERADO"
+        | "USUARIO_EXCLUIDO"
+        | "LOGIN_REALIZADO"
+        | "LOGOUT_REALIZADO"
+        | "CONTA_PAGAR_CRIADA"
+        | "CONTA_RECEBER_CRIADA"
+        | "EXPORTACAO_DADOS"
       tipo_excipiente_formula: "AMIDO" | "CELULOSE" | "PRE_BLEND"
       tipo_sugestao_otimizacao:
         | "AJUSTE_EXCIPIENTE"
@@ -6148,6 +6170,28 @@ export const Constants = {
         "QC_REPROVADO",
         "PESAGEM_REGISTRADA",
         "CHECKLIST_VERIFICADO",
+        "ENTIDADE_CRIADA",
+        "ENTIDADE_ALTERADA",
+        "ENTIDADE_EXCLUIDA",
+        "ITEM_CRIADO",
+        "ITEM_ALTERADO",
+        "ITEM_EXCLUIDO",
+        "LOTE_CRIADO",
+        "LOTE_ALTERADO",
+        "ESTOQUE_MOVIMENTADO",
+        "NFE_IMPORTADA",
+        "ORCAMENTO_CRIADO",
+        "ORCAMENTO_ALTERADO",
+        "PEDIDO_CRIADO",
+        "PEDIDO_ALTERADO",
+        "USUARIO_CRIADO",
+        "USUARIO_ALTERADO",
+        "USUARIO_EXCLUIDO",
+        "LOGIN_REALIZADO",
+        "LOGOUT_REALIZADO",
+        "CONTA_PAGAR_CRIADA",
+        "CONTA_RECEBER_CRIADA",
+        "EXPORTACAO_DADOS",
       ],
       tipo_excipiente_formula: ["AMIDO", "CELULOSE", "PRE_BLEND"],
       tipo_sugestao_otimizacao: [

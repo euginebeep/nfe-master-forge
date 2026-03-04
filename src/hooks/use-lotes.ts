@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { EstoqueLote, LoteDocumento, StatusLote } from "@/types/erp";
 import { toast } from "sonner";
+import { registrarAuditoria } from "@/lib/audit-logger";
 
 export function useLotes(filters?: { item_id?: string; status?: StatusLote }) {
   return useQuery({
@@ -80,9 +81,16 @@ export function useCreateLote() {
       if (error) throw error;
       return lote;
     },
-    onSuccess: () => {
+    onSuccess: (lote: any) => {
       queryClient.invalidateQueries({ queryKey: ["lotes"] });
       toast.success("Lote criado com sucesso");
+      registrarAuditoria({
+        tipo: 'LOTE_CRIADO',
+        descricao: `Lote "${lote.numero_lote}" criado`,
+        entidade_tipo: 'Lote',
+        entidade_id: lote.id,
+        entidade_codigo: lote.numero_lote,
+      });
     },
     onError: (error) => {
       toast.error("Erro ao criar lote: " + error.message);
@@ -114,6 +122,13 @@ export function useUpdateLoteStatus() {
       queryClient.invalidateQueries({ queryKey: ["lotes"] });
       queryClient.invalidateQueries({ queryKey: ["lote", vars.id] });
       toast.success("Status do lote atualizado");
+      const auditType = vars.status === 'DISPONIVEL' ? 'LOTE_LIBERADO' : vars.status === 'BLOQUEADO' ? 'LOTE_BLOQUEADO' : 'LOTE_ALTERADO';
+      registrarAuditoria({
+        tipo: auditType as any,
+        descricao: `Lote alterado para status "${vars.status}"`,
+        entidade_tipo: 'Lote',
+        entidade_id: vars.id,
+      });
     },
     onError: (error) => {
       toast.error("Erro ao atualizar status: " + error.message);

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
+import { registrarAuditoria } from '@/lib/audit-logger';
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 type AppDepartamento = 'DIRETORIA' | 'COMERCIAL' | 'COMPRAS' | 'FINANCEIRO' | 'ESTOQUE' | 'PRODUCAO' | 'QUALIDADE' | 'RH' | 'TI';
@@ -181,10 +182,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error };
+    // Fire-and-forget audit
+    if (data.user) {
+      registrarAuditoria({
+        tipo: 'LOGIN_REALIZADO',
+        descricao: `Login realizado por ${email}`,
+        entidade_tipo: 'Usuario',
+        entidade_id: data.user.id,
+      });
+    }
     return { data };
   };
 
   const signOut = async () => {
+    const userId = state.user?.id;
+    if (userId) {
+      registrarAuditoria({
+        tipo: 'LOGOUT_REALIZADO',
+        descricao: 'Logout realizado',
+        entidade_tipo: 'Usuario',
+        entidade_id: userId,
+      });
+    }
     const { error } = await supabase.auth.signOut();
     if (error) return { error };
     return {};
