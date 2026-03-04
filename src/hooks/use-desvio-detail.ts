@@ -19,6 +19,14 @@ export interface DesvioCompleto {
   fase_atual: string;
   created_at: string;
   updated_at?: string;
+  // Rastreabilidade
+  fonte_desvio?: string;
+  produto_id?: string;
+  insumo_id?: string;
+  lote_fornecedor?: string;
+  fornecedor_id?: string;
+  cliente_id?: string;
+  pedido_venda_id?: string;
   // Contenção
   contencao_descricao?: string;
   contencao_responsavel?: string;
