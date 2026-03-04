@@ -46,14 +46,26 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
   const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCNPJ(e.target.value);
+    const raw = e.target.value;
+    const formatted = formatCNPJ(raw);
     onChange(formatted);
     setLookupSuccess(false);
     setError(null);
+
+    // Auto-lookup when 14 digits are typed
+    const digits = cleanCNPJ(raw);
+    if (digits.length === 14 && !lookupSuccess && onDataFound) {
+      // Small delay to let state update, then trigger lookup
+      setTimeout(() => {
+        onChange(formatCNPJ(digits));
+        triggerLookup(digits);
+      }, 100);
+    }
   };
 
-  const handleLookup = useCallback(async () => {
-    if (!isValidCNPJFormat(value)) {
+  const triggerLookup = useCallback(async (rawValue?: string) => {
+    const checkValue = rawValue || value;
+    if (!isValidCNPJFormat(checkValue)) {
       setError("CNPJ inválido: deve conter 14 dígitos");
       return;
     }
@@ -61,7 +73,7 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
     setIsLoading(true);
     setError(null);
     try {
-      const data = await lookupCNPJ(value);
+      const data = await lookupCNPJ(checkValue);
       if (data && onDataFound) {
         onDataFound({
           razao_social: data.razao_social || "",
@@ -92,7 +104,18 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
     }
   }, [value, onDataFound]);
 
-  // Auto-lookup when CNPJ is complete
+  const handleLookup = useCallback(() => triggerLookup(), [triggerLookup]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (isValidCNPJFormat(value) && !isLoading) {
+        handleLookup();
+      }
+    }
+  };
+
+  // Auto-lookup on blur
   const handleBlur = useCallback(() => {
     if (isValidCNPJFormat(value) && !lookupSuccess && onDataFound) {
       handleLookup();
@@ -107,6 +130,7 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
             value={value}
             onChange={handleChange}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             placeholder="00.000.000/0000-00"
             disabled={disabled || isLoading}
             className={lookupSuccess ? "pr-10 border-primary" : error ? "border-destructive" : ""}
