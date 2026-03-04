@@ -40,6 +40,17 @@ interface CNPJLookupInputProps {
   disabled?: boolean;
 }
 
+// Helper: move focus to next input on page (Enter = Tab)
+function focusNextInput(currentElement: HTMLElement) {
+  const allInputs = Array.from(document.querySelectorAll<HTMLElement>(
+    'input:not([disabled]):not([type="hidden"]):not([type="file"]), textarea:not([disabled])'
+  ));
+  const idx = allInputs.indexOf(currentElement);
+  if (idx >= 0 && idx < allInputs.length - 1) {
+    setTimeout(() => allInputs[idx + 1]?.focus(), 100);
+  }
+}
+
 export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJLookupInputProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [lookupSuccess, setLookupSuccess] = useState(false);
@@ -51,16 +62,6 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
     onChange(formatted);
     setLookupSuccess(false);
     setError(null);
-
-    // Auto-lookup when 14 digits are typed
-    const digits = cleanCNPJ(raw);
-    if (digits.length === 14 && !lookupSuccess && onDataFound) {
-      // Small delay to let state update, then trigger lookup
-      setTimeout(() => {
-        onChange(formatCNPJ(digits));
-        triggerLookup(digits);
-      }, 100);
-    }
   };
 
   const triggerLookup = useCallback(async (rawValue?: string) => {
@@ -109,26 +110,14 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (isValidCNPJFormat(value) && !isLoading) {
+      // Only lookup if not already done
+      if (isValidCNPJFormat(value) && !isLoading && !lookupSuccess) {
         handleLookup();
       }
-      // Move focus to next focusable element in the page
-      const allFocusables = Array.from(document.querySelectorAll<HTMLElement>(
-        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
-      ));
-      const idx = allFocusables.indexOf(e.target as HTMLElement);
-      if (idx >= 0 && idx < allFocusables.length - 1) {
-        setTimeout(() => allFocusables[idx + 1]?.focus(), 100);
-      }
+      // Always advance to next field (Enter = Tab)
+      focusNextInput(e.target as HTMLElement);
     }
   };
-
-  // Auto-lookup on blur
-  const handleBlur = useCallback(() => {
-    if (isValidCNPJFormat(value) && !lookupSuccess && onDataFound) {
-      handleLookup();
-    }
-  }, [value, lookupSuccess, onDataFound, handleLookup]);
 
   return (
     <div className="space-y-3">
@@ -137,7 +126,6 @@ export function CNPJLookupInput({ value, onChange, onDataFound, disabled }: CNPJ
           <Input
             value={value}
             onChange={handleChange}
-            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             placeholder="00.000.000/0000-00"
             disabled={disabled || isLoading}
