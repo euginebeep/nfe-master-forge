@@ -111,6 +111,38 @@ serve(async (req) => {
     const isInTrial = trialDaysRemaining > 0;
     logStep("Trial check", { diffDays, trialDaysRemaining, isInTrial });
 
+    // Check if admin granted manual access override
+    const { data: profileData } = await supabaseClient
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profileData?.company_id) {
+      const { data: companyData } = await supabaseClient
+        .from('company')
+        .select('acesso_liberado_ate')
+        .eq('id', profileData.company_id)
+        .single();
+
+      if (companyData?.acesso_liberado_ate) {
+        const liberadoAte = new Date(companyData.acesso_liberado_ate);
+        if (liberadoAte > now) {
+          const daysRemaining = Math.ceil((liberadoAte.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          logStep("Admin override active", { acesso_liberado_ate: companyData.acesso_liberado_ate, daysRemaining });
+          return createResponse({
+            subscribed: true,
+            is_in_trial: false,
+            trial_days_remaining: 0,
+            product_id: null,
+            plan_name: `Liberado (${daysRemaining}d)`,
+            subscription_end: companyData.acesso_liberado_ate,
+          });
+        }
+      }
+    }
+
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
