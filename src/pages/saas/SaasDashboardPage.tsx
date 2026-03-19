@@ -105,8 +105,9 @@ export default function SaasDashboardPage() {
 
   // Dialogs
   const [detailCompany, setDetailCompany] = useState<SaasCompany | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete"; company: SaasCompany } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete" | "grant-access"; company: SaasCompany } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [grantDays, setGrantDays] = useState(30);
 
   // Check if already logged in as admin
   useEffect(() => {
