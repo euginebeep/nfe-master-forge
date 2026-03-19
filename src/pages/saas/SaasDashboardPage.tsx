@@ -174,11 +174,14 @@ export default function SaasDashboardPage() {
   }, [authed, fetchCompanies]);
   
 
-  const handleAction = async (type: "block" | "unblock" | "delete-company", companyId: string) => {
+  const handleAction = async (type: "block" | "unblock" | "delete-company" | "grant-access", companyId: string) => {
     setActionLoading(true);
     try {
+      const body: any = { company_id: companyId };
+      if (type === "grant-access") body.days = grantDays;
+
       const { data, error } = await supabase.functions.invoke(`saas-admin?action=${type}`, {
-        body: { company_id: companyId },
+        body,
       });
       if (error || data?.error) {
         toast.error(data?.error || "Erro na operação");
@@ -187,6 +190,7 @@ export default function SaasDashboardPage() {
       toast.success(
         type === "block" ? "Empresa bloqueada" :
         type === "unblock" ? "Empresa desbloqueada" :
+        type === "grant-access" ? `Acesso liberado por ${grantDays} dias` :
         "Empresa excluída"
       );
       setConfirmAction(null);
