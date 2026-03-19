@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     if (action === 'list') {
       const { data: companies, error: compErr } = await supabaseAdmin
         .from('company')
-        .select('id, razao_social, nome_fantasia, cnpj, telefone, created_at, email_financeiro, email_fiscal')
+        .select('id, razao_social, nome_fantasia, cnpj, telefone, created_at, email_financeiro, email_fiscal, acesso_liberado_ate')
         .order('created_at', { ascending: false })
 
       if (compErr) throw compErr
@@ -137,6 +137,23 @@ Deno.serve(async (req) => {
           } catch (stripeErr) {
             console.error('Stripe error for', company.owner_email, stripeErr)
             company.stripe = { status: 'unknown', plan: null }
+          }
+        }
+      }
+
+      // Override status if admin granted temporary access
+      const now = new Date()
+      for (const company of companyData) {
+        if (company.acesso_liberado_ate) {
+          const liberadoAte = new Date(company.acesso_liberado_ate)
+          if (liberadoAte > now) {
+            const daysRemaining = Math.ceil((liberadoAte.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            company.stripe = {
+              ...(company.stripe || {}),
+              status: 'active',
+              plan: `Liberado (${daysRemaining}d)`,
+              current_period_end: company.acesso_liberado_ate,
+            }
           }
         }
       }
