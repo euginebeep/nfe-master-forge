@@ -420,6 +420,15 @@ export default function SaasDashboardPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Detalhes" onClick={() => setDetailCompany(c)}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {["expired", "past_due", "canceled"].includes(c.stripe?.status || "") && (
+                            <Button
+                              variant="ghost" size="icon" className="h-8 w-8 text-success"
+                              title="Liberar acesso temporário"
+                              onClick={() => { setGrantDays(30); setConfirmAction({ type: "grant-access", company: c }); }}
+                            >
+                              <ShieldCheck className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost" size="icon" className="h-8 w-8 text-warning"
                             title={c.usuarios?.some(u => u.status === "BLOQUEADO") ? "Desbloquear" : "Bloquear"}
