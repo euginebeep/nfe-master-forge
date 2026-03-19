@@ -720,6 +720,7 @@ export type Database = {
       }
       company: {
         Row: {
+          acesso_liberado_ate: string | null
           certificado_a1_file_id: string | null
           certificado_senha_encrypted: string | null
           cnae: string | null
@@ -756,6 +757,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          acesso_liberado_ate?: string | null
           certificado_a1_file_id?: string | null
           certificado_senha_encrypted?: string | null
           cnae?: string | null
@@ -792,6 +794,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          acesso_liberado_ate?: string | null
           certificado_a1_file_id?: string | null
           certificado_senha_encrypted?: string | null
           cnae?: string | null
