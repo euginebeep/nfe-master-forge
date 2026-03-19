@@ -621,21 +621,41 @@ export default function SaasDashboardPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className={cn("h-5 w-5", confirmAction.type === "delete" ? "text-destructive" : "text-warning")} />
+                  <AlertTriangle className={cn("h-5 w-5", confirmAction.type === "delete" ? "text-destructive" : confirmAction.type === "grant-access" ? "text-success" : "text-warning")} />
                   {confirmAction.type === "block" && "Bloquear Empresa"}
                   {confirmAction.type === "unblock" && "Desbloquear Empresa"}
                   {confirmAction.type === "delete" && "Excluir Empresa"}
+                  {confirmAction.type === "grant-access" && "Liberar Acesso Temporário"}
                 </DialogTitle>
                 <DialogDescription>
                   {confirmAction.type === "block" && `Todos os ${confirmAction.company.total_usuarios} usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão bloqueados e não poderão acessar o ERP.`}
                   {confirmAction.type === "unblock" && `Todos os usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão desbloqueados.`}
                   {confirmAction.type === "delete" && `ATENÇÃO: Esta ação é irreversível! A empresa "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" e todos os seus ${confirmAction.company.total_usuarios} usuários serão permanentemente excluídos.`}
+                  {confirmAction.type === "grant-access" && `A empresa "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" terá acesso liberado temporariamente, mesmo sem assinatura ativa.`}
                 </DialogDescription>
               </DialogHeader>
+              {confirmAction.type === "grant-access" && (
+                <div className="space-y-2 py-2">
+                  <Label>Dias de acesso</Label>
+                  <Select value={String(grantDays)} onValueChange={(v) => setGrantDays(Number(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7 dias</SelectItem>
+                      <SelectItem value="15">15 dias</SelectItem>
+                      <SelectItem value="30">30 dias</SelectItem>
+                      <SelectItem value="60">60 dias</SelectItem>
+                      <SelectItem value="90">90 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={actionLoading}>Cancelar</Button>
                 <Button
                   variant={confirmAction.type === "delete" ? "destructive" : "default"}
+                  className={confirmAction.type === "grant-access" ? "bg-success hover:bg-success/90 text-success-foreground" : ""}
                   onClick={() => handleAction(
                     confirmAction.type === "delete" ? "delete-company" : confirmAction.type,
                     confirmAction.company.id
@@ -643,7 +663,7 @@ export default function SaasDashboardPage() {
                   disabled={actionLoading}
                 >
                   {actionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  Confirmar
+                  {confirmAction.type === "grant-access" ? `Liberar ${grantDays} dias` : "Confirmar"}
                 </Button>
               </DialogFooter>
             </>
