@@ -141,6 +141,23 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Override status if admin granted temporary access
+      const now = new Date()
+      for (const company of companyData) {
+        if (company.acesso_liberado_ate) {
+          const liberadoAte = new Date(company.acesso_liberado_ate)
+          if (liberadoAte > now) {
+            const daysRemaining = Math.ceil((liberadoAte.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            company.stripe = {
+              ...(company.stripe || {}),
+              status: 'active',
+              plan: `Liberado (${daysRemaining}d)`,
+              current_period_end: company.acesso_liberado_ate,
+            }
+          }
+        }
+      }
+
       return new Response(JSON.stringify({ companies: companyData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
