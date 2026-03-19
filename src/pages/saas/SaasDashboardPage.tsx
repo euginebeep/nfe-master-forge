@@ -565,12 +565,24 @@ export default function SaasDashboardPage() {
                 </Card>
 
                 {/* Actions */}
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-end flex-wrap">
                   {detailCompany.owner_email && (
                     <Button variant="outline" size="sm" asChild>
                       <a href={`mailto:${detailCompany.owner_email}`}>
                         <Mail className="h-4 w-4 mr-1" /> Enviar Email
                       </a>
+                    </Button>
+                  )}
+                  {["expired", "past_due", "canceled"].includes(detailCompany.stripe?.status || "") && (
+                    <Button
+                      variant="outline" size="sm" className="text-success border-success/30 hover:bg-success/10"
+                      onClick={() => {
+                        setGrantDays(30);
+                        setDetailCompany(null);
+                        setConfirmAction({ type: "grant-access", company: detailCompany });
+                      }}
+                    >
+                      <ShieldCheck className="h-4 w-4 mr-1" /> Liberar Conta
                     </Button>
                   )}
                   <Button
