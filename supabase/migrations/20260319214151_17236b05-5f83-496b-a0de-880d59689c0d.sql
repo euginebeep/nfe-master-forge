@@ -1,0 +1,1 @@
+ALTER TABLE public.company ADD COLUMN acesso_liberado_ate timestamptz DEFAULT NULL;

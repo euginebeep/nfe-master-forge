@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
-  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock
+  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, CalendarPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,8 +105,9 @@ export default function SaasDashboardPage() {
 
   // Dialogs
   const [detailCompany, setDetailCompany] = useState<SaasCompany | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete"; company: SaasCompany } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete" | "grant-access"; company: SaasCompany } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [grantDays, setGrantDays] = useState(30);
 
   // Check if already logged in as admin
   useEffect(() => {
@@ -173,11 +174,14 @@ export default function SaasDashboardPage() {
   }, [authed, fetchCompanies]);
   
 
-  const handleAction = async (type: "block" | "unblock" | "delete-company", companyId: string) => {
+  const handleAction = async (type: "block" | "unblock" | "delete-company" | "grant-access", companyId: string) => {
     setActionLoading(true);
     try {
+      const body: any = { company_id: companyId };
+      if (type === "grant-access") body.days = grantDays;
+
       const { data, error } = await supabase.functions.invoke(`saas-admin?action=${type}`, {
-        body: { company_id: companyId },
+        body,
       });
       if (error || data?.error) {
         toast.error(data?.error || "Erro na operação");
@@ -186,6 +190,7 @@ export default function SaasDashboardPage() {
       toast.success(
         type === "block" ? "Empresa bloqueada" :
         type === "unblock" ? "Empresa desbloqueada" :
+        type === "grant-access" ? `Acesso liberado por ${grantDays} dias` :
         "Empresa excluída"
       );
       setConfirmAction(null);
@@ -415,6 +420,15 @@ export default function SaasDashboardPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Detalhes" onClick={() => setDetailCompany(c)}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {["expired", "past_due", "canceled"].includes(c.stripe?.status || "") && (
+                            <Button
+                              variant="ghost" size="icon" className="h-8 w-8 text-success"
+                              title="Liberar acesso temporário"
+                              onClick={() => { setGrantDays(30); setConfirmAction({ type: "grant-access", company: c }); }}
+                            >
+                              <ShieldCheck className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost" size="icon" className="h-8 w-8 text-warning"
                             title={c.usuarios?.some(u => u.status === "BLOQUEADO") ? "Desbloquear" : "Bloquear"}
@@ -551,12 +565,24 @@ export default function SaasDashboardPage() {
                 </Card>
 
                 {/* Actions */}
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-end flex-wrap">
                   {detailCompany.owner_email && (
                     <Button variant="outline" size="sm" asChild>
                       <a href={`mailto:${detailCompany.owner_email}`}>
                         <Mail className="h-4 w-4 mr-1" /> Enviar Email
                       </a>
+                    </Button>
+                  )}
+                  {["expired", "past_due", "canceled"].includes(detailCompany.stripe?.status || "") && (
+                    <Button
+                      variant="outline" size="sm" className="text-success border-success/30 hover:bg-success/10"
+                      onClick={() => {
+                        setGrantDays(30);
+                        setDetailCompany(null);
+                        setConfirmAction({ type: "grant-access", company: detailCompany });
+                      }}
+                    >
+                      <ShieldCheck className="h-4 w-4 mr-1" /> Liberar Conta
                     </Button>
                   )}
                   <Button
@@ -595,21 +621,41 @@ export default function SaasDashboardPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className={cn("h-5 w-5", confirmAction.type === "delete" ? "text-destructive" : "text-warning")} />
+                  <AlertTriangle className={cn("h-5 w-5", confirmAction.type === "delete" ? "text-destructive" : confirmAction.type === "grant-access" ? "text-success" : "text-warning")} />
                   {confirmAction.type === "block" && "Bloquear Empresa"}
                   {confirmAction.type === "unblock" && "Desbloquear Empresa"}
                   {confirmAction.type === "delete" && "Excluir Empresa"}
+                  {confirmAction.type === "grant-access" && "Liberar Acesso Temporário"}
                 </DialogTitle>
                 <DialogDescription>
                   {confirmAction.type === "block" && `Todos os ${confirmAction.company.total_usuarios} usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão bloqueados e não poderão acessar o ERP.`}
                   {confirmAction.type === "unblock" && `Todos os usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão desbloqueados.`}
                   {confirmAction.type === "delete" && `ATENÇÃO: Esta ação é irreversível! A empresa "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" e todos os seus ${confirmAction.company.total_usuarios} usuários serão permanentemente excluídos.`}
+                  {confirmAction.type === "grant-access" && `A empresa "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" terá acesso liberado temporariamente, mesmo sem assinatura ativa.`}
                 </DialogDescription>
               </DialogHeader>
+              {confirmAction.type === "grant-access" && (
+                <div className="space-y-2 py-2">
+                  <Label>Dias de acesso</Label>
+                  <Select value={String(grantDays)} onValueChange={(v) => setGrantDays(Number(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7 dias</SelectItem>
+                      <SelectItem value="15">15 dias</SelectItem>
+                      <SelectItem value="30">30 dias</SelectItem>
+                      <SelectItem value="60">60 dias</SelectItem>
+                      <SelectItem value="90">90 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={actionLoading}>Cancelar</Button>
                 <Button
                   variant={confirmAction.type === "delete" ? "destructive" : "default"}
+                  className={confirmAction.type === "grant-access" ? "bg-success hover:bg-success/90 text-success-foreground" : ""}
                   onClick={() => handleAction(
                     confirmAction.type === "delete" ? "delete-company" : confirmAction.type,
                     confirmAction.company.id
@@ -617,7 +663,7 @@ export default function SaasDashboardPage() {
                   disabled={actionLoading}
                 >
                   {actionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  Confirmar
+                  {confirmAction.type === "grant-access" ? `Liberar ${grantDays} dias` : "Confirmar"}
                 </Button>
               </DialogFooter>
             </>

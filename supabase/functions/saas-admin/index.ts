@@ -205,6 +205,36 @@ Deno.serve(async (req) => {
       })
     }
 
+    // ─── GRANT ACCESS: Temporarily unlock a company ───
+    if (action === 'grant-access') {
+      const body = await req.json()
+      const { company_id, days } = body
+      if (!company_id) {
+        return new Response(JSON.stringify({ error: 'company_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      const grantDays = days || 30
+      const until = new Date()
+      until.setDate(until.getDate() + grantDays)
+
+      const { error: updateErr } = await supabaseAdmin
+        .from('company')
+        .update({ acesso_liberado_ate: until.toISOString() })
+        .eq('id', company_id)
+
+      if (updateErr) throw updateErr
+
+      // Also unblock users if they were blocked
+      await supabaseAdmin
+        .from('profiles')
+        .update({ status: 'ATIVO' })
+        .eq('company_id', company_id)
+
+      return new Response(JSON.stringify({ success: true, acesso_liberado_ate: until.toISOString(), days: grantDays }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
     console.error('Error:', error)
