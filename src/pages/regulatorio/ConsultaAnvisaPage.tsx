@@ -184,6 +184,34 @@ export default function ConsultaAnvisaPage() {
         </div>
       )}
 
+      {!isLoading && !aiLoading && aiAviso && termo.length >= 2 && resultados && resultados.length === 0 && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 shadow-md">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="w-7 h-7 shrink-0 text-amber-600" />
+              <div className="space-y-2">
+                <h3 className="font-bold text-base text-amber-700">
+                  {aiAviso === 'sem_creditos_ia' && 'Créditos de IA esgotados'}
+                  {aiAviso === 'limite_requisicoes_ia' && 'Limite de requisições atingido'}
+                  {aiAviso !== 'sem_creditos_ia' && aiAviso !== 'limite_requisicoes_ia' && 'Verificação por IA indisponível'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {aiAviso === 'sem_creditos_ia' && (
+                    <>A consulta inteligente requer créditos de IA. Adicione créditos no workspace em <strong>Settings → Workspace → Usage</strong> para retomar a verificação automática contra IN 28/2018 e RDC 243/2018.</>
+                  )}
+                  {aiAviso === 'limite_requisicoes_ia' && (
+                    <>Muitas consultas em pouco tempo. Aguarde alguns segundos e tente novamente.</>
+                  )}
+                  {aiAviso !== 'sem_creditos_ia' && aiAviso !== 'limite_requisicoes_ia' && (
+                    <>Não foi possível consultar a IA agora. Tente novamente em instantes.</>
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length > 0 && (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
