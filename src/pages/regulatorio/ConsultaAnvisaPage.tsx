@@ -45,11 +45,13 @@ export default function ConsultaAnvisaPage() {
   };
   const [aiResults, setAiResults] = useState<AiResult[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiAviso, setAiAviso] = useState<string | null>(null);
 
   // Quando a busca local não encontrar resultados, consultar IA
   useEffect(() => {
     let cancelled = false;
     setAiResults([]);
+    setAiAviso(null);
     if (isLoading) return;
     if (termo.length < 2) return;
     if (resultados && resultados.length > 0) return;
@@ -59,11 +61,17 @@ export default function ConsultaAnvisaPage() {
       .invoke('anvisa-ai-verify', { body: { termo } })
       .then(({ data, error }) => {
         if (cancelled) return;
-        if (error || !Array.isArray(data?.resultados)) {
+        if (error) {
           setAiResults([]);
-        } else {
-          setAiResults(data.resultados as AiResult[]);
+          setAiAviso('falha_ia');
+          return;
         }
+        if (data?.aviso) {
+          setAiResults([]);
+          setAiAviso(String(data.aviso));
+          return;
+        }
+        setAiResults(Array.isArray(data?.resultados) ? (data.resultados as AiResult[]) : []);
       })
       .finally(() => {
         if (!cancelled) setAiLoading(false);
@@ -174,6 +182,34 @@ export default function ConsultaAnvisaPage() {
             IN 28/2018, RDC 243/2018 e anexos oficiais
           </p>
         </div>
+      )}
+
+      {!isLoading && !aiLoading && aiAviso && termo.length >= 2 && resultados && resultados.length === 0 && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 shadow-md">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="w-7 h-7 shrink-0 text-amber-600" />
+              <div className="space-y-2">
+                <h3 className="font-bold text-base text-amber-700">
+                  {aiAviso === 'sem_creditos_ia' && 'Créditos de IA esgotados'}
+                  {aiAviso === 'limite_requisicoes_ia' && 'Limite de requisições atingido'}
+                  {aiAviso !== 'sem_creditos_ia' && aiAviso !== 'limite_requisicoes_ia' && 'Verificação por IA indisponível'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {aiAviso === 'sem_creditos_ia' && (
+                    <>A consulta inteligente requer créditos de IA. Adicione créditos no workspace em <strong>Settings → Workspace → Usage</strong> para retomar a verificação automática contra IN 28/2018 e RDC 243/2018.</>
+                  )}
+                  {aiAviso === 'limite_requisicoes_ia' && (
+                    <>Muitas consultas em pouco tempo. Aguarde alguns segundos e tente novamente.</>
+                  )}
+                  {aiAviso !== 'sem_creditos_ia' && aiAviso !== 'limite_requisicoes_ia' && (
+                    <>Não foi possível consultar a IA agora. Tente novamente em instantes.</>
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length > 0 && (

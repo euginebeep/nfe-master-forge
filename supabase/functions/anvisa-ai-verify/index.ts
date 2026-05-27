@@ -90,10 +90,14 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const text = await response.text()
-      return new Response(JSON.stringify({ erro: 'ai_gateway_error', detalhe: text }), {
-        status: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      let aviso = 'ai_gateway_error'
+      if (response.status === 402) aviso = 'sem_creditos_ia'
+      else if (response.status === 429) aviso = 'limite_requisicoes_ia'
+      // Retorna 200 com aviso para evitar tela em branco no cliente
+      return new Response(
+        JSON.stringify({ termo, resultados: [], resultado: null, aviso, detalhe: text }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
     }
 
     const data = await response.json()
