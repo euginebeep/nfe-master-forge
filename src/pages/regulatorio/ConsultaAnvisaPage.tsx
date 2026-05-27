@@ -29,11 +29,12 @@ const LINKS_LEGISLACAO = [
 export default function ConsultaAnvisaPage() {
   const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
   const { ultimoSync, sincronizar, sincronizando } = useAnvisaSync();
-  const [aiResult, setAiResult] = useState<null | {
+  type AiResult = {
     autorizado: boolean;
     status: string;
     nome_tecnico?: string;
     nome_popular?: string;
+    variacoes_grafia?: string[];
     categoria?: string;
     anexo?: string;
     fonte_legal?: string;
@@ -41,13 +42,14 @@ export default function ConsultaAnvisaPage() {
     alegacoes?: string[];
     advertencias?: string[];
     observacao?: string;
-  }>(null);
+  };
+  const [aiResults, setAiResults] = useState<AiResult[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
 
   // Quando a busca local não encontrar resultados, consultar IA
   useEffect(() => {
     let cancelled = false;
-    setAiResult(null);
+    setAiResults([]);
     if (isLoading) return;
     if (termo.length < 2) return;
     if (resultados && resultados.length > 0) return;
@@ -57,10 +59,10 @@ export default function ConsultaAnvisaPage() {
       .invoke('anvisa-ai-verify', { body: { termo } })
       .then(({ data, error }) => {
         if (cancelled) return;
-        if (error || !data?.resultado) {
-          setAiResult(null);
+        if (error || !Array.isArray(data?.resultados)) {
+          setAiResults([]);
         } else {
-          setAiResult(data.resultado);
+          setAiResults(data.resultados as AiResult[]);
         }
       })
       .finally(() => {
@@ -174,73 +176,104 @@ export default function ConsultaAnvisaPage() {
         </div>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResult?.autorizado && (
-        <Card className="border-green-500/50 bg-green-50 dark:bg-green-950/30 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="rounded-full bg-green-500/10 p-3">
-                <CheckCircle2 className="w-8 h-8 text-green-600 shrink-0" />
-              </div>
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-green-700 dark:text-green-400 text-lg flex items-center gap-2">
-                    <Shield className="w-5 h-5" />
-                    SUBSTÂNCIA AUTORIZADA PARA SUPLEMENTOS
-                  </h3>
-                  <Badge variant="outline" className="gap-1 border-primary/40">
-                    <Sparkles className="w-3 h-3" /> Verificação via IA
-                  </Badge>
-                </div>
-                <p className="text-sm text-green-800 dark:text-green-200">
-                  <strong>{aiResult.nome_tecnico || termo}</strong>
-                  {aiResult.nome_popular && aiResult.nome_popular !== aiResult.nome_tecnico && (
-                    <span className="text-muted-foreground"> ({aiResult.nome_popular})</span>
-                  )}
-                </p>
-                <div className="grid sm:grid-cols-2 gap-2 text-sm">
-                  {aiResult.categoria && (
-                    <p><span className="font-semibold">Categoria:</span> {aiResult.categoria}</p>
-                  )}
-                  {aiResult.anexo && (
-                    <p><span className="font-semibold">Anexo:</span> {aiResult.anexo}</p>
-                  )}
-                  {aiResult.fonte_legal && (
-                    <p className="sm:col-span-2"><span className="font-semibold">Fonte legal:</span> {aiResult.fonte_legal}</p>
-                  )}
-                </div>
-                {aiResult.justificativa && (
-                  <p className="text-sm text-muted-foreground italic">{aiResult.justificativa}</p>
-                )}
-                {aiResult.alegacoes && aiResult.alegacoes.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm font-semibold">Alegações permitidas:</p>
-                    <ul className="text-sm text-muted-foreground list-disc list-inside">
-                      {aiResult.alegacoes.map((a, i) => <li key={i}>{a}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {aiResult.advertencias && aiResult.advertencias.length > 0 && (
-                  <div className="mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/30">
-                    <p className="text-sm font-semibold text-amber-700 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Advertências de rotulagem:</p>
-                    <ul className="text-sm text-amber-800 dark:text-amber-300 list-disc list-inside">
-                      {aiResult.advertencias.map((a, i) => <li key={i}>{a}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {aiResult.observacao && (
-                  <p className="text-xs text-muted-foreground mt-2">{aiResult.observacao}</p>
-                )}
-                <p className="text-xs text-muted-foreground mt-3 italic">
-                  Resultado obtido por IA com base na legislação ANVISA. Confirme sempre na{' '}
-                  <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            {aiResults.length} correspondência(s) identificada(s) via IA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
+          </p>
+          {aiResults
+            .slice()
+            .sort((a, b) => (a.status === 'PROIBIDO' ? -1 : 0) - (b.status === 'PROIBIDO' ? -1 : 0))
+            .map((r, idx) => {
+              const proibido = r.status === 'PROIBIDO';
+              const ok = r.autorizado;
+              const cls = proibido
+                ? 'border-destructive bg-red-50 dark:bg-red-950/30'
+                : ok
+                  ? 'border-green-500/50 bg-green-50 dark:bg-green-950/30'
+                  : 'border-amber-500/50 bg-amber-50 dark:bg-amber-950/30';
+              const Icon = proibido ? XCircle : ok ? CheckCircle2 : AlertTriangle;
+              const iconColor = proibido ? 'text-destructive' : ok ? 'text-green-600' : 'text-amber-600';
+              const title = proibido
+                ? 'SUBSTÂNCIA PROIBIDA'
+                : ok
+                  ? 'SUBSTÂNCIA AUTORIZADA PARA SUPLEMENTOS'
+                  : r.status === 'REGULAMENTACAO_ESPECIFICA'
+                    ? 'AUTORIZADA COM REGULAMENTAÇÃO ESPECÍFICA'
+                    : 'NÃO LISTADA NA LEGISLAÇÃO';
+              return (
+                <Card key={idx} className={`shadow-md ${cls}`}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <div className="rounded-full bg-background/60 p-3">
+                        <Icon className={`w-7 h-7 shrink-0 ${iconColor}`} />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className={`font-bold text-base flex items-center gap-2 ${iconColor}`}>
+                            <Shield className="w-4 h-4" /> {title}
+                          </h3>
+                          <Badge variant="outline" className="gap-1 border-primary/40">
+                            <Sparkles className="w-3 h-3" /> IA
+                          </Badge>
+                        </div>
+                        <p className="text-sm">
+                          <strong>{r.nome_tecnico || termo}</strong>
+                          {r.nome_popular && r.nome_popular !== r.nome_tecnico && (
+                            <span className="text-muted-foreground"> ({r.nome_popular})</span>
+                          )}
+                        </p>
+                        {r.variacoes_grafia && r.variacoes_grafia.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {r.variacoes_grafia.slice(0, 12).map((v, i) => (
+                              <Badge key={i} variant="secondary" className="text-[10px]">{v}</Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="grid sm:grid-cols-2 gap-1.5 text-sm">
+                          {r.categoria && (<p><span className="font-semibold">Categoria:</span> {r.categoria}</p>)}
+                          {r.anexo && (<p><span className="font-semibold">Anexo:</span> {r.anexo}</p>)}
+                          {r.fonte_legal && (<p className="sm:col-span-2"><span className="font-semibold">Fonte legal:</span> {r.fonte_legal}</p>)}
+                        </div>
+                        {r.justificativa && (
+                          <p className="text-sm text-muted-foreground italic">{r.justificativa}</p>
+                        )}
+                        {r.alegacoes && r.alegacoes.length > 0 && (
+                          <div>
+                            <p className="text-sm font-semibold">Alegações permitidas:</p>
+                            <ul className="text-sm text-muted-foreground list-disc list-inside">
+                              {r.alegacoes.map((a, i) => <li key={i}>{a}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {r.advertencias && r.advertencias.length > 0 && (
+                          <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30">
+                            <p className="text-sm font-semibold text-amber-700 flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5" /> Advertências de rotulagem:
+                            </p>
+                            <ul className="text-sm text-amber-800 dark:text-amber-300 list-disc list-inside">
+                              {r.advertencias.map((a, i) => <li key={i}>{a}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {r.observacao && (
+                          <p className="text-xs text-muted-foreground">{r.observacao}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          <p className="text-xs text-muted-foreground italic">
+            Resultados obtidos por IA com base na legislação ANVISA. Confirme sempre na{' '}
+            <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
+          </p>
+        </div>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResult && !aiResult.autorizado && (
+      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && (
         <Card className="border-destructive bg-red-50 dark:bg-red-950/30 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
@@ -248,33 +281,15 @@ export default function ConsultaAnvisaPage() {
                 <XCircle className="w-8 h-8 text-destructive shrink-0" />
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-destructive text-lg flex items-center gap-2">
-                    <Shield className="w-5 h-5" />
-                    {aiResult.status === 'PROIBIDO' ? 'SUBSTÂNCIA PROIBIDA' : 'SUBSTÂNCIA NÃO AUTORIZADA PARA SUPLEMENTOS'}
-                  </h3>
-                  <Badge variant="outline" className="gap-1 border-primary/40">
-                    <Sparkles className="w-3 h-3" /> Verificação via IA
-                  </Badge>
-                </div>
+                <h3 className="font-bold text-destructive text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5" /> SUBSTÂNCIA NÃO AUTORIZADA PARA SUPLEMENTOS
+                </h3>
                 <p className="text-sm mt-2 text-destructive/90 dark:text-red-300">
-                  <strong>"{termo}"</strong> <strong>NÃO consta</strong> na lista de constituintes autorizados pela ANVISA
-                  conforme IN 28/2018 e RDC 243/2018.
+                  <strong>"{termo}"</strong> não foi encontrada nem na base local, nem por verificação IA na legislação ANVISA (IN 28/2018, RDC 243/2018).
                 </p>
-                {aiResult.justificativa && (
-                  <p className="text-sm text-destructive/80 mt-2 italic">{aiResult.justificativa}</p>
-                )}
-                <div className="mt-3 p-3 bg-destructive/5 rounded-md border border-destructive/20">
-                  <p className="text-sm font-semibold text-destructive">⚠ Consequências legais:</p>
-                  <ul className="text-xs mt-1 space-y-1 text-destructive/80">
-                    <li>• Constituintes não listados na IN 28/2018 <strong>NÃO podem</strong> ser utilizados em suplementos alimentares</li>
-                    <li>• O uso configura infração sanitária sujeita a apreensão do produto e multa</li>
-                    <li>• A empresa fabricante é responsável pela regularização junto à ANVISA</li>
-                  </ul>
-                </div>
                 <p className="text-xs text-muted-foreground mt-3">
-                  Se esta substância deveria constar na base, verifique a grafia ou consulte diretamente
-                  a <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
+                  Verifique a grafia ou consulte diretamente a{' '}
+                  <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
                 </p>
               </div>
             </div>
