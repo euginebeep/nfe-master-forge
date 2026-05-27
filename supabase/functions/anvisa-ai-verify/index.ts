@@ -197,16 +197,16 @@ function splitLegalText(value: string | null): string[] {
 }
 
 function powerBiRowToResult(row: PowerBiRow, termo: string) {
-  const limites = [
-    ['0 a 6 meses', row['0 a 6 meses']],
-    ['7 a 11 meses', row['7 a 11 meses']],
-    ['1 a 3 anos', row['1 a 3 anos']],
-    ['4 a 8 anos', row['4 a 8 anos ']],
-    ['9 a 18 anos', row['9 a 18 anos']],
-    ['19+ anos', row['Maiores 19 anos ']],
-    ['Gestantes', row['Gestantes ']],
-    ['Lactantes', row['Lactantes']],
-  ].filter(([, value]) => value && normalize(value) !== 'nao autorizado')
+  const faixas: Array<{ grupo: string; valor: string | null }> = [
+    { grupo: '0 a 6 meses', valor: row['0 a 6 meses'] },
+    { grupo: '7 a 11 meses', valor: row['7 a 11 meses'] },
+    { grupo: '1 a 3 anos', valor: row['1 a 3 anos'] },
+    { grupo: '4 a 8 anos', valor: row['4 a 8 anos '] },
+    { grupo: '9 a 18 anos', valor: row['9 a 18 anos'] },
+    { grupo: 'Maiores 19 anos', valor: row['Maiores 19 anos '] },
+    { grupo: 'Gestantes', valor: row['Gestantes '] },
+    { grupo: 'Lactantes', valor: row['Lactantes'] },
+  ]
 
   return {
     autorizado: true,
@@ -220,13 +220,14 @@ function powerBiRowToResult(row: PowerBiRow, termo: string) {
     justificativa: `Encontrado na lista oficial de constituintes autorizados da ANVISA como “${row['Constituintes Autorizados']}”.`,
     alegacoes: splitLegalText(row['Alegações autorizadas e requisitos para uso da alegação']),
     advertencias: splitLegalText(row['Requisitos de Rotulagem Complementar e outros']),
-    observacao: [
-      row['CAS'] ? `CAS: ${row['CAS']}` : null,
-      row['Especificações'] ? `Especificações: ${row['Especificações']}` : null,
-      limites.length ? `Limites com autorização: ${limites.map(([grupo, valor]) => `${grupo}: ${valor}`).join(' | ')}` : null,
-      row['Observações'],
-      row['Outras Informações'],
-    ].filter(Boolean).join(' • '),
+    funcao: row['Função'] || null,
+    cas: row['CAS'] || null,
+    especificacoes: row['Especificações'] || null,
+    link_especificacoes: row['Link de acesso a especificações publicadas'] || null,
+    limites_idade: faixas,
+    observacoes: row['Observações'] || null,
+    outras_informacoes: row['Outras Informações'] || null,
+    nutriente: row['Nutriente/Substância Bioativa/Enzima'] || null,
   }
 }
 
