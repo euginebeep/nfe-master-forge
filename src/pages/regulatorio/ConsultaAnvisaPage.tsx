@@ -45,11 +45,13 @@ export default function ConsultaAnvisaPage() {
   };
   const [aiResults, setAiResults] = useState<AiResult[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiAviso, setAiAviso] = useState<string | null>(null);
 
   // Quando a busca local não encontrar resultados, consultar IA
   useEffect(() => {
     let cancelled = false;
     setAiResults([]);
+    setAiAviso(null);
     if (isLoading) return;
     if (termo.length < 2) return;
     if (resultados && resultados.length > 0) return;
@@ -59,11 +61,17 @@ export default function ConsultaAnvisaPage() {
       .invoke('anvisa-ai-verify', { body: { termo } })
       .then(({ data, error }) => {
         if (cancelled) return;
-        if (error || !Array.isArray(data?.resultados)) {
+        if (error) {
           setAiResults([]);
-        } else {
-          setAiResults(data.resultados as AiResult[]);
+          setAiAviso('falha_ia');
+          return;
         }
+        if (data?.aviso) {
+          setAiResults([]);
+          setAiAviso(String(data.aviso));
+          return;
+        }
+        setAiResults(Array.isArray(data?.resultados) ? (data.resultados as AiResult[]) : []);
       })
       .finally(() => {
         if (!cancelled) setAiLoading(false);
