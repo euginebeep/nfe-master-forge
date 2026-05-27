@@ -5,6 +5,50 @@ const corsHeaders = {
 
 const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
 
+const SYSTEM_PROMPT = `Você é um especialista em legislação ANVISA para suplementos alimentares (IN 28/2018, RDC 243/2018, RDC 240/2018 e atualizações).
+Avalie TODAS as substâncias que possam corresponder ao termo informado pelo usuário, considerando:
+
+1) Variações de grafia, acentuação, hifenização, pluralização, abreviações e erros ortográficos comuns
+   (ex.: "colageno" = "Colágeno"; "ashwaganda"/"axuagandha" = "Ashwagandha"; "omega-3"/"ômega 3"/"ômega três" = "Ômega 3";
+   "vit d"/"vit. d3"/"vitamina d" = "Vitamina D / Colecalciferol"; "q10"/"coq10"/"co q-10" = "Coenzima Q10").
+2) Sinônimos científicos e nomes populares
+   (ex.: "Maca" = "Lepidium meyenii"; "Ora pro nóbis" = "Pereskia aculeata"; "Cúrcuma" = "Curcuma longa / Curcumina").
+3) Diferentes formas químicas/sais/variantes que aparecem na legislação como entradas separadas
+   (ex.: "Magnésio" → citrato, bisglicinato, óxido, cloreto, malato; "Vitamina D" → D2 ergocalciferol e D3 colecalciferol;
+   "Ômega 3" → EPA, DHA, ALA; "Colágeno" → peptídeos de colágeno, proteína de colágeno hidrolisado, colágeno tipo II não desnaturado).
+4) Categorias correlatas autorizadas (anexos I a VI da IN 28/2018, plantas autorizadas, RDC 243/2018) e a lista de proibidos.
+
+Liste TODAS as correspondências plausíveis (uma entrada por forma/variante legal). NÃO inclua substâncias diferentes só por terem uso parecido.
+Se houver formas autorizadas E formas proibidas com o mesmo nome popular, retorne ambas.
+
+Retorne SOMENTE um JSON válido (sem markdown) na forma:
+{
+  "resultados": [
+    {
+      "autorizado": boolean,
+      "status": "AUTORIZADO" | "PROIBIDO" | "NAO_LISTADO" | "REGULAMENTACAO_ESPECIFICA",
+      "nome_tecnico": string,
+      "nome_popular": string,
+      "variacoes_grafia": string[],
+      "categoria": string,
+      "anexo": string,
+      "fonte_legal": string,
+      "justificativa": string,
+      "alegacoes": string[],
+      "advertencias": string[],
+      "observacao": string
+    }
+  ]
+}
+
+Regras de status:
+- "AUTORIZADO": consta nos anexos permitidos.
+- "REGULAMENTACAO_ESPECIFICA": permitido com regramento próprio (ex.: medicamento, novel food).
+- "PROIBIDO": consta em lista de proibidos.
+- "NAO_LISTADO": não previsto na legislação de suplementos.
+
+Se não houver qualquer correspondência, retorne {"resultados": []}.`
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -36,45 +80,11 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          {
-            role: 'system',
-            content: `Você é um especialista em legislação ANVISA para suplementos alimentares (IN 28/2018, RDC 243/2018, RDC 240/2018 e atualizações).
-Avalie se a substância informada PODE ser utilizada em suplementos alimentares no Brasil.
-
-Considere TODAS as listas oficiais ANVISA:
-- Anexo I (Nutrientes — vitaminas e minerais)
-- Anexo II (Substâncias bioativas — ex.: cafeína, luteína, licopeno)
-- Anexo III (Enzimas)
-- Anexo IV (Probióticos)
-- Anexo VI (Proteínas e aminoácidos — INCLUI proteína/peptídeos de colágeno, whey, caseína, soja, BCAAs, creatina, etc.)
-- Plantas autorizadas (Instrução Normativa nº 28/2018, anexo de plantas)
-- Constituintes proibidos / não autorizados (RDC 243/2018 art. 7º e listas complementares)
-
-Reconheça nomes populares e variações (ex.: "Colágeno" = "Peptídeos de colágeno / Proteína de colágeno hidrolisado", "Ômega 3" = EPA/DHA, "Whey" = Proteína do soro do leite, "Ashwagandha" = Withania somnifera).
-
-Retorne SOMENTE um JSON válido (sem markdown) com a forma:
-{
-  "autorizado": boolean,
-  "status": "AUTORIZADO" | "PROIBIDO" | "NAO_LISTADO" | "REGULAMENTACAO_ESPECIFICA",
-  "nome_tecnico": string,
-  "nome_popular": string,
-  "categoria": string,            // ex: "Proteína / Aminoácido", "Vitamina", "Probiótico", "Planta"
-  "anexo": string,                // ex: "Anexo VI IN 28/2018"
-  "fonte_legal": string,          // ex: "IN 28/2018 - Anexo VI; RDC 243/2018"
-  "justificativa": string,        // 1-2 frases claras
-  "alegacoes": string[],          // alegações de propriedade funcional permitidas, se houver
-  "advertencias": string[],       // advertências obrigatórias de rotulagem, se houver
-  "observacao": string            // restrições, limites ou observações relevantes
-}
-
-Se realmente não houver previsão na legislação, use status "NAO_LISTADO" e autorizado=false.
-Se for proibida, status "PROIBIDO" e autorizado=false.
-Se permitida (mesmo com regulamento específico), autorizado=true.`
-          },
-          { role: 'user', content: `Substância: ${termo}` },
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: `Substância buscada: ${termo}` },
         ],
         temperature: 0,
-        max_tokens: 800,
+        max_tokens: 2500,
       }),
     })
 
@@ -90,14 +100,23 @@ Se permitida (mesmo com regulamento específico), autorizado=true.`
     const content: string = data.choices?.[0]?.message?.content || '{}'
     const cleaned = content.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
 
-    let parsed: Record<string, unknown> = {}
+    type Res = Record<string, unknown> & { autorizado?: boolean; status?: string }
+    let resultados: Res[] = []
     try {
-      parsed = JSON.parse(cleaned)
+      const parsed = JSON.parse(cleaned)
+      if (Array.isArray(parsed?.resultados)) {
+        resultados = parsed.resultados
+      } else if (parsed && typeof parsed === 'object' && (parsed.status || parsed.autorizado !== undefined)) {
+        // tolerância: formato antigo de objeto único
+        resultados = [parsed]
+      }
     } catch {
-      parsed = { autorizado: false, status: 'NAO_LISTADO', justificativa: content }
+      resultados = []
     }
 
-    return new Response(JSON.stringify({ termo, resultado: parsed }), {
+    const primeiro = resultados[0] || null
+
+    return new Response(JSON.stringify({ termo, resultados, resultado: primeiro }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: unknown) {
