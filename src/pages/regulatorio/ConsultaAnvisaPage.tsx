@@ -278,10 +278,42 @@ export default function ConsultaAnvisaPage() {
                         <div className="grid sm:grid-cols-2 gap-1.5 text-sm">
                           {r.categoria && (<p><span className="font-semibold">Categoria:</span> {r.categoria}</p>)}
                           {r.anexo && (<p><span className="font-semibold">Anexo:</span> {r.anexo}</p>)}
+                          {r.funcao && (<p className="sm:col-span-2"><span className="font-semibold">Função:</span> {r.funcao}</p>)}
+                          {r.nutriente && (<p><span className="font-semibold">Nutriente/Bioativo:</span> {r.nutriente}</p>)}
+                          {r.cas && (<p><span className="font-semibold">CAS:</span> {r.cas}</p>)}
                           {r.fonte_legal && (<p className="sm:col-span-2"><span className="font-semibold">Fonte legal:</span> {r.fonte_legal}</p>)}
                         </div>
                         {r.justificativa && (
                           <p className="text-sm text-muted-foreground italic">{r.justificativa}</p>
+                        )}
+                        {r.limites_idade && r.limites_idade.length > 0 && (
+                          <div>
+                            <p className="text-sm font-semibold mb-1">Limites por faixa etária (IN 28/2018):</p>
+                            <div className="overflow-x-auto rounded border border-border">
+                              <table className="w-full text-xs">
+                                <thead className="bg-muted/60">
+                                  <tr>
+                                    {r.limites_idade.map((f) => (
+                                      <th key={f.grupo} className="px-2 py-1 text-left font-semibold">{f.grupo}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    {r.limites_idade.map((f) => {
+                                      const v = (f.valor || '').trim();
+                                      const naoAut = /n[aã]o autorizado/i.test(v);
+                                      return (
+                                        <td key={f.grupo} className={`px-2 py-1 align-top whitespace-pre-line ${naoAut ? 'text-muted-foreground italic' : ''}`}>
+                                          {v || '—'}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         )}
                         {r.alegacoes && r.alegacoes.length > 0 && (
                           <div>
@@ -300,6 +332,20 @@ export default function ConsultaAnvisaPage() {
                               {r.advertencias.map((a, i) => <li key={i}>{a}</li>)}
                             </ul>
                           </div>
+                        )}
+                        {r.especificacoes && (
+                          <p className="text-sm"><span className="font-semibold">Especificações:</span> {r.especificacoes}</p>
+                        )}
+                        {r.observacoes && (
+                          <p className="text-sm"><span className="font-semibold">Observações:</span> {r.observacoes}</p>
+                        )}
+                        {r.outras_informacoes && (
+                          <p className="text-sm"><span className="font-semibold">Outras informações:</span> {r.outras_informacoes}</p>
+                        )}
+                        {r.link_especificacoes && (
+                          <a href={r.link_especificacoes} target="_blank" rel="noopener noreferrer" className="text-sm underline text-primary">
+                            Acessar especificações publicadas
+                          </a>
                         )}
                         {r.observacao && (
                           <p className="text-xs text-muted-foreground">{r.observacao}</p>
