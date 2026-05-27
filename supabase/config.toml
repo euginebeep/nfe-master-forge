@@ -9,6 +9,8 @@ project_id = "lvptvswvqjhvobdvgfws"
     verify_jwt = false
   [functions.anvisa-resolve-name]
     verify_jwt = false
+  [functions.anvisa-ai-verify]
+    verify_jwt = false
   [functions.anvisa-sync]
     verify_jwt = false
   [functions.auth-email-hook]
