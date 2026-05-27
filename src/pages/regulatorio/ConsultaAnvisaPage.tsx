@@ -42,6 +42,14 @@ export default function ConsultaAnvisaPage() {
     alegacoes?: string[];
     advertencias?: string[];
     observacao?: string;
+    funcao?: string | null;
+    cas?: string | null;
+    especificacoes?: string | null;
+    link_especificacoes?: string | null;
+    limites_idade?: Array<{ grupo: string; valor: string | null }>;
+    observacoes?: string | null;
+    outras_informacoes?: string | null;
+    nutriente?: string | null;
   };
   const [aiResults, setAiResults] = useState<AiResult[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
