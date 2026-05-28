@@ -60,7 +60,7 @@ export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte 
                 onClick={handleVerificarANVISA}
               >
                 <RefreshCw className={`w-3 h-3 mr-1 ${sincronizandoSubstancia ? 'animate-spin' : ''}`} />
-                Verificar Power BI
+                Verificar ANVISA
               </Button>
             </div>
           </div>
