@@ -282,6 +282,67 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  const startedAt = Date.now()
+  let termoLog = ''
+  let origemLog = 'erro'
+  let encontrouLog = false
+  let totalLog = 0
+  let usouIaLog = false
+  const authHeader = req.headers.get('Authorization') || ''
+
+  const logSearch = async () => {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      if (!supabaseUrl || !serviceKey || !termoLog) return
+      let userId: string | null = null
+      let companyId: string | null = null
+      const token = authHeader.replace(/^Bearer\s+/i, '')
+      if (token) {
+        try {
+          const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+            headers: { Authorization: `Bearer ${token}`, apikey: serviceKey },
+          })
+          if (userRes.ok) {
+            const u = await userRes.json()
+            userId = u?.id ?? null
+            if (userId) {
+              const profRes = await fetch(
+                `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=company_id`,
+                { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+              )
+              if (profRes.ok) {
+                const arr = await profRes.json()
+                companyId = arr?.[0]?.company_id ?? null
+              }
+            }
+          }
+        } catch (_) { /* ignore */ }
+      }
+      await fetch(`${supabaseUrl}/rest/v1/anvisa_search_log`, {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          termo: termoLog.slice(0, 200),
+          origem: origemLog,
+          encontrou_match: encontrouLog,
+          total_resultados: totalLog,
+          usou_ia: usouIaLog,
+          duracao_ms: Date.now() - startedAt,
+          user_id: userId,
+          company_id: companyId,
+        }),
+      })
+    } catch (e) {
+      console.warn('log search failed:', e instanceof Error ? e.message : e)
+    }
+  }
+
   try {
     const { termo } = await req.json()
     if (!termo || String(termo).length < 2) {
@@ -290,6 +351,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    termoLog = String(termo)
 
     let powerBiRows: PowerBiRow[] = []
     try {
@@ -301,6 +363,10 @@ Deno.serve(async (req) => {
     const directRows = safetyFilterRows(matchPowerBiRows(powerBiRows, String(termo)), String(termo))
     if (directRows.length > 0) {
       const resultados = directRows.map((row) => powerBiRowToResult(row, String(termo)))
+      origemLog = 'powerbi_anvisa'
+      encontrouLog = true
+      totalLog = resultados.length
+      logSearch()
       return new Response(JSON.stringify({ termo, resultados, resultado: resultados[0], origem: 'powerbi_anvisa' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -309,6 +375,10 @@ Deno.serve(async (req) => {
     // Nada encontrado na base oficial — NÃO usamos IA para inferir status
     // (a IA já demonstrou alucinar: ex. "maca peruana" → "maçã" → "Concentrado de maçã").
     // Reportamos honestamente que não consta na lista oficial consultada.
+    origemLog = 'sem_match'
+    encontrouLog = false
+    totalLog = 0
+    logSearch()
     return new Response(
       JSON.stringify({
         termo,
@@ -323,6 +393,8 @@ Deno.serve(async (req) => {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Erro desconhecido'
     console.error('anvisa-ai-verify error:', msg)
+    origemLog = 'erro'
+    logSearch()
     return new Response(JSON.stringify({ erro: msg }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
