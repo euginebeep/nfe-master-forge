@@ -268,7 +268,7 @@ export function ConsultaANVISACard() {
                           size="sm"
                           className="h-6 text-xs px-2"
                           disabled={sincronizandoSubstancia}
-                          onClick={() => handleVerificarPowerBI(c.nome_tecnico)}
+                          onClick={() => handleVerificarANVISA(c.nome_tecnico)}
                         >
                           <RefreshCw className={`w-3 h-3 mr-1 ${sincronizandoSubstancia ? 'animate-spin' : ''}`} />
                           Verificar

@@ -57,7 +57,7 @@ export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte 
                 size="sm"
                 className="text-xs h-6 px-2"
                 disabled={sincronizandoSubstancia}
-                onClick={handleVerificarPowerBI}
+                onClick={handleVerificarANVISA}
               >
                 <RefreshCw className={`w-3 h-3 mr-1 ${sincronizandoSubstancia ? 'animate-spin' : ''}`} />
                 Verificar Power BI
