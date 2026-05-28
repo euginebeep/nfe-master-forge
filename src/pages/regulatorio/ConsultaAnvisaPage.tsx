@@ -181,9 +181,9 @@ export default function ConsultaAnvisaPage() {
         </div>
       )}
 
-      {!isLoading && aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && (
+      {!isLoading && aiLoading && termo.length >= 2 && (
         <div className="space-y-2">
-          <LoadingSpinner text="Não encontrado na base local. Verificando via IA na legislação ANVISA..." />
+          <LoadingSpinner text="Consultando fonte oficial ANVISA/Power BI..." />
           <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
             <Sparkles className="w-3 h-3" />
             IN 28/2018, RDC 243/2018 e anexos oficiais
@@ -219,11 +219,11 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length > 0 && (
+      {!isLoading && !aiLoading && termo.length >= 2 && aiResults.length > 0 && (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
-            {aiResults.length} correspondência(s) identificada(s) via IA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
+            {aiResults.length} correspondência(s) identificada(s) na base oficial ANVISA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
           </p>
           {aiResults
             .slice()
@@ -258,7 +258,7 @@ export default function ConsultaAnvisaPage() {
                             <Shield className="w-4 h-4" /> {title}
                           </h3>
                           <Badge variant="outline" className="gap-1 border-primary/40">
-                            <Sparkles className="w-3 h-3" /> IA
+                            <Sparkles className="w-3 h-3" /> ANVISA
                           </Badge>
                         </div>
                         <p className="text-sm">
