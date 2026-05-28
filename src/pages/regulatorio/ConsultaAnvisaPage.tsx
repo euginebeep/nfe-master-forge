@@ -55,14 +55,13 @@ export default function ConsultaAnvisaPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAviso, setAiAviso] = useState<string | null>(null);
 
-  // Quando a busca local não encontrar resultados, consultar IA
+  // Consulta oficial ANVISA/Power BI como fonte primária da página.
   useEffect(() => {
     let cancelled = false;
     setAiResults([]);
     setAiAviso(null);
     if (isLoading) return;
     if (termo.length < 2) return;
-    if (resultados && resultados.length > 0) return;
 
     setAiLoading(true);
     supabase.functions
@@ -88,7 +87,7 @@ export default function ConsultaAnvisaPage() {
     return () => {
       cancelled = true;
     };
-  }, [termo, isLoading, resultados]);
+  }, [termo, isLoading]);
 
   const handleSync = () => {
     sincronizar(undefined, {
@@ -182,9 +181,9 @@ export default function ConsultaAnvisaPage() {
         </div>
       )}
 
-      {!isLoading && aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && (
+      {!isLoading && aiLoading && termo.length >= 2 && (
         <div className="space-y-2">
-          <LoadingSpinner text="Não encontrado na base local. Verificando via IA na legislação ANVISA..." />
+          <LoadingSpinner text="Consultando fonte oficial ANVISA/Power BI..." />
           <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
             <Sparkles className="w-3 h-3" />
             IN 28/2018, RDC 243/2018 e anexos oficiais
@@ -220,11 +219,11 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length > 0 && (
+      {!isLoading && !aiLoading && termo.length >= 2 && aiResults.length > 0 && (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
-            {aiResults.length} correspondência(s) identificada(s) via IA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
+            {aiResults.length} correspondência(s) identificada(s) na base oficial ANVISA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
           </p>
           {aiResults
             .slice()
@@ -259,7 +258,7 @@ export default function ConsultaAnvisaPage() {
                             <Shield className="w-4 h-4" /> {title}
                           </h3>
                           <Badge variant="outline" className="gap-1 border-primary/40">
-                            <Sparkles className="w-3 h-3" /> IA
+                            <Sparkles className="w-3 h-3" /> ANVISA
                           </Badge>
                         </div>
                         <p className="text-sm">
@@ -357,25 +356,26 @@ export default function ConsultaAnvisaPage() {
               );
             })}
           <p className="text-xs text-muted-foreground italic">
-            Resultados obtidos por IA com base na legislação ANVISA. Confirme sempre na{' '}
+            Resultados obtidos da consulta oficial ANVISA/Power BI; quando necessário, a IA apenas auxilia na variação de grafia. Confirme sempre na{' '}
             <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
           </p>
         </div>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && (
-        <Card className="border-destructive bg-red-50 dark:bg-red-950/30 shadow-lg">
+      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && !aiAviso && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              <div className="rounded-full bg-destructive/10 p-3">
-                <XCircle className="w-8 h-8 text-destructive shrink-0" />
+              <div className="rounded-full bg-background/60 p-3">
+                <AlertTriangle className="w-8 h-8 text-amber-600 shrink-0" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-destructive text-lg flex items-center gap-2">
-                  <Shield className="w-5 h-5" /> SUBSTÂNCIA NÃO AUTORIZADA PARA SUPLEMENTOS
+                <h3 className="font-bold text-amber-700 text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5" /> SEM CORRESPONDÊNCIA OFICIAL ENCONTRADA
                 </h3>
-                <p className="text-sm mt-2 text-destructive/90 dark:text-red-300">
-                  <strong>"{termo}"</strong> não foi encontrada nem na base local, nem por verificação IA na legislação ANVISA (IN 28/2018, RDC 243/2018).
+                <p className="text-sm mt-2 text-muted-foreground">
+                  <strong>"{termo}"</strong> não retornou correspondência na base local nem na consulta oficial ANVISA/Power BI.
+                  Isso não deve ser tratado automaticamente como “proibido”; revise a grafia, sinônimos ou o nome técnico.
                 </p>
                 <p className="text-xs text-muted-foreground mt-3">
                   Verifique a grafia ou consulte diretamente a{' '}
@@ -387,7 +387,7 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {resultados && resultados.length > 0 && (
+      {!aiLoading && aiResults.length === 0 && resultados && resultados.length > 0 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {resultados.length} resultado(s) encontrado(s) para "{termo}"
