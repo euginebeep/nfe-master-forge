@@ -194,6 +194,29 @@ function matchPowerBiRows(rows: PowerBiRow[], termo: string): PowerBiRow[] {
     .map((item) => item.row)
 }
 
+// TRAVA DE SEGURANÇA FINAL — bloqueia qualquer falso positivo.
+// Exige que cada linha aprovada compartilhe pelo menos UM token significativo
+// (>=4 chars) do termo do usuário com o nome técnico ou nutriente da linha,
+// OU que um deles seja substring direto do outro. Sem isso, descarta a linha.
+function safetyFilterRows(rows: PowerBiRow[], termo: string): PowerBiRow[] {
+  const termNorm = normalize(termo)
+  if (!termNorm) return []
+  const termTokens = termNorm.split(' ').filter((t) => t.length >= 4)
+  return rows.filter((row) => {
+    const name = normalize(row['Constituintes Autorizados'])
+    const nutrient = normalize(row['Nutriente/Substância Bioativa/Enzima'])
+    const haystack = `${name} ${nutrient}`.trim()
+    if (!haystack) return false
+    // Caso 1: o termo (>=4 chars) aparece literalmente no nome/nutriente, ou vice-versa.
+    if (termNorm.length >= 4 && (haystack.includes(termNorm) || name.includes(termNorm) || nutrient.includes(termNorm))) return true
+    if (name && termNorm.includes(name) && name.length >= 4) return true
+    if (nutrient && termNorm.includes(nutrient) && nutrient.length >= 4) return true
+    // Caso 2: pelo menos um token significativo do termo bate no nome/nutriente.
+    if (termTokens.length > 0 && termTokens.some((tok) => name.includes(tok) || nutrient.includes(tok))) return true
+    return false
+  })
+}
+
 function splitLegalText(value: string | null): string[] {
   if (!value || normalize(value).includes('nao foi aprovada alegacao')) return value ? [value] : []
   if (normalize(value).includes('nao ha requisitos adicionais')) return []
@@ -275,7 +298,7 @@ Deno.serve(async (req) => {
       console.warn('Power BI ANVISA lookup failed:', error instanceof Error ? error.message : error)
     }
 
-    const directRows = matchPowerBiRows(powerBiRows, String(termo))
+    const directRows = safetyFilterRows(matchPowerBiRows(powerBiRows, String(termo)), String(termo))
     if (directRows.length > 0) {
       const resultados = directRows.map((row) => powerBiRowToResult(row, String(termo)))
       return new Response(JSON.stringify({ termo, resultados, resultado: resultados[0], origem: 'powerbi_anvisa' }), {
