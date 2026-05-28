@@ -92,15 +92,15 @@ export function ConsultaANVISACard() {
   const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
   const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
 
-  const handleVerificarPowerBI = (nomeTecnico: string) => {
+  const handleVerificarANVISA = (nomeTecnico: string) => {
     sincronizarSubstancia(nomeTecnico, {
       onSuccess: (data: Record<string, unknown>) => {
-        toast.success('Verificação Power BI concluída', {
+        toast.success('Verificação ANVISA concluída', {
           description: (data?.analise as Record<string, string>)?.resumo_geral || 'Dados atualizados.',
         });
       },
       onError: (err: Error) => {
-        toast.error('Erro ao verificar no Power BI', { description: err.message });
+        toast.error('Erro ao verificar na ANVISA', { description: err.message });
       },
     });
   };
@@ -268,7 +268,7 @@ export function ConsultaANVISACard() {
                           size="sm"
                           className="h-6 text-xs px-2"
                           disabled={sincronizandoSubstancia}
-                          onClick={() => handleVerificarPowerBI(c.nome_tecnico)}
+                          onClick={() => handleVerificarANVISA(c.nome_tecnico)}
                         >
                           <RefreshCw className={`w-3 h-3 mr-1 ${sincronizandoSubstancia ? 'animate-spin' : ''}`} />
                           Verificar
