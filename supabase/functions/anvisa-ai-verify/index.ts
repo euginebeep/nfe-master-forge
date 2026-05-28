@@ -164,27 +164,31 @@ function matchPowerBiRows(rows: PowerBiRow[], termo: string): PowerBiRow[] {
     const name = normalize(row['Constituintes Autorizados'])
     const nutrient = normalize(row['Nutriente/Substância Bioativa/Enzima'])
     const functionText = normalize(row['Função'])
-    const haystack = normalize(Object.values(row).filter(Boolean).join(' '))
-    const haystackCompact = compact(haystack)
     let score = 0
 
     for (const term of terms) {
       const normalizedTerm = normalize(term)
-      const compactTerm = compact(term)
-      const tokens = normalizedTerm.split(' ').filter((token) => token.length > 1)
-      if (name === normalizedTerm || nutrient === normalizedTerm) score = Math.max(score, 100)
-      if (name.includes(normalizedTerm) || nutrient.includes(normalizedTerm)) score = Math.max(score, 90)
-      if (functionText.includes(normalizedTerm)) score = Math.max(score, 82)
-      if (normalizedTerm.length >= 4 && haystack.includes(normalizedTerm)) score = Math.max(score, 75)
-      if (compactTerm.length >= 3 && haystackCompact.includes(compactTerm)) score = Math.max(score, 72)
-      if (tokens.length > 1 && tokens.every((token) => haystack.includes(token))) score = Math.max(score, 68)
+      if (!normalizedTerm) continue
+      const tokens = normalizedTerm.split(' ').filter((token) => token.length >= 3)
+      // Match estrito: só nome técnico ou nutriente/substância bioativa,
+      // nunca função/observação (para não dar falso positivo).
+      if (name === normalizedTerm || nutrient === normalizedTerm) {
+        score = Math.max(score, 100)
+      } else if (normalizedTerm.length >= 4 && (name.includes(normalizedTerm) || nutrient.includes(normalizedTerm))) {
+        score = Math.max(score, 92)
+      } else if (tokens.length >= 2 && tokens.every((token) => name.includes(token) || nutrient.includes(token))) {
+        score = Math.max(score, 85)
+      } else if (tokens.length >= 1 && functionText && tokens.every((token) => functionText.includes(token)) && tokens.join(' ').length >= 6) {
+        // Função só conta como evidência fraca se o termo inteiro (>=6 chars) bate em todos os tokens.
+        score = Math.max(score, 70)
+      }
     }
 
     return { row, score }
   })
 
   return scored
-    .filter((item) => item.score >= 68)
+    .filter((item) => item.score >= 85)
     .sort((a, b) => b.score - a.score)
     .slice(0, 20)
     .map((item) => item.row)
