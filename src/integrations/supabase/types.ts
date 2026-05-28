@@ -405,6 +405,45 @@ export type Database = {
           },
         ]
       }
+      anvisa_search_log: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          duracao_ms: number | null
+          encontrou_match: boolean
+          id: string
+          origem: string
+          termo: string
+          total_resultados: number
+          user_id: string | null
+          usou_ia: boolean
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          duracao_ms?: number | null
+          encontrou_match?: boolean
+          id?: string
+          origem?: string
+          termo: string
+          total_resultados?: number
+          user_id?: string | null
+          usou_ia?: boolean
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          duracao_ms?: number | null
+          encontrou_match?: boolean
+          id?: string
+          origem?: string
+          termo?: string
+          total_resultados?: number
+          user_id?: string | null
+          usou_ia?: boolean
+        }
+        Relationships: []
+      }
       anvisa_sync_history: {
         Row: {
           detalhes: Json | null
