@@ -283,70 +283,16 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Não achou direto. Tenta IA somente para gerar variações de grafia
-    // e re-consulta o Power BI com essas variações. A IA NUNCA define status.
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
-    let variacoesIA: string[] = []
-    if (lovableApiKey) {
-      try {
-        const response = await fetch(AI_GATEWAY, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: `Termo informado: ${termo}` },
-            ],
-            temperature: 0,
-            max_tokens: 400,
-          }),
-        })
-        if (response.ok) {
-          const data = await response.json()
-          const content: string = data.choices?.[0]?.message?.content || '{}'
-          const cleaned = content.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
-          try {
-            const parsed = JSON.parse(cleaned)
-            if (Array.isArray(parsed?.variacoes)) {
-              variacoesIA = parsed.variacoes.filter((v: unknown) => typeof v === 'string' && v.trim().length >= 2)
-            }
-          } catch { /* ignora */ }
-        }
-      } catch (error) {
-        console.warn('AI variação lookup failed:', error instanceof Error ? error.message : error)
-      }
-    }
-
-    // Re-tenta Power BI com cada variação sugerida pela IA
-    const matched: PowerBiRow[] = []
-    const seen = new Set<string>()
-    for (const variacao of variacoesIA) {
-      for (const row of matchPowerBiRows(powerBiRows, variacao)) {
-        const key = row['Constituintes Autorizados'] || ''
-        if (key && !seen.has(key)) {
-          seen.add(key)
-          matched.push(row)
-        }
-      }
-    }
-
-    if (matched.length > 0) {
-      const resultados = matched.map((row) => powerBiRowToResult(row, String(termo)))
-      return new Response(
-        JSON.stringify({ termo, resultados, resultado: resultados[0], origem: 'powerbi_anvisa_ia_grafia', variacoes_testadas: variacoesIA }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    // Nada encontrado na base oficial — NÃO afirmamos status. Apenas reportamos honestamente.
+    // Nada encontrado na base oficial — NÃO usamos IA para inferir status
+    // (a IA já demonstrou alucinar: ex. "maca peruana" → "maçã" → "Concentrado de maçã").
+    // Reportamos honestamente que não consta na lista oficial consultada.
     return new Response(
       JSON.stringify({
         termo,
         resultados: [],
         resultado: null,
         origem: 'powerbi_anvisa',
-        variacoes_testadas: variacoesIA,
+        variacoes_testadas: expandSearchTerms(String(termo)),
         mensagem: 'Nenhuma correspondência encontrada na lista oficial ANVISA (IN 28/2018) consultada via Power BI.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
