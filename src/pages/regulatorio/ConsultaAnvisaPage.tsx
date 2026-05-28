@@ -356,25 +356,26 @@ export default function ConsultaAnvisaPage() {
               );
             })}
           <p className="text-xs text-muted-foreground italic">
-            Resultados obtidos por IA com base na legislação ANVISA. Confirme sempre na{' '}
+            Resultados obtidos da consulta oficial ANVISA/Power BI; quando necessário, a IA apenas auxilia na variação de grafia. Confirme sempre na{' '}
             <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
           </p>
         </div>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && (
-        <Card className="border-destructive bg-red-50 dark:bg-red-950/30 shadow-lg">
+      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && !aiAviso && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              <div className="rounded-full bg-destructive/10 p-3">
-                <XCircle className="w-8 h-8 text-destructive shrink-0" />
+              <div className="rounded-full bg-background/60 p-3">
+                <AlertTriangle className="w-8 h-8 text-amber-600 shrink-0" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-destructive text-lg flex items-center gap-2">
-                  <Shield className="w-5 h-5" /> SUBSTÂNCIA NÃO AUTORIZADA PARA SUPLEMENTOS
+                <h3 className="font-bold text-amber-700 text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5" /> SEM CORRESPONDÊNCIA OFICIAL ENCONTRADA
                 </h3>
-                <p className="text-sm mt-2 text-destructive/90 dark:text-red-300">
-                  <strong>"{termo}"</strong> não foi encontrada nem na base local, nem por verificação IA na legislação ANVISA (IN 28/2018, RDC 243/2018).
+                <p className="text-sm mt-2 text-muted-foreground">
+                  <strong>"{termo}"</strong> não retornou correspondência na base local nem na consulta oficial ANVISA/Power BI.
+                  Isso não deve ser tratado automaticamente como “proibido”; revise a grafia, sinônimos ou o nome técnico.
                 </p>
                 <p className="text-xs text-muted-foreground mt-3">
                   Verifique a grafia ou consulte diretamente a{' '}
@@ -386,7 +387,7 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {resultados && resultados.length > 0 && (
+      {!aiLoading && aiResults.length === 0 && resultados && resultados.length > 0 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {resultados.length} resultado(s) encontrado(s) para "{termo}"
