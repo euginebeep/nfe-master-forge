@@ -13,16 +13,16 @@ export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte 
   const [expanded, setExpanded] = useState(false);
   const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
 
-  const handleVerificarPowerBI = (e: React.MouseEvent) => {
+  const handleVerificarANVISA = (e: React.MouseEvent) => {
     e.stopPropagation();
     sincronizarSubstancia(constituinte.nome_tecnico, {
       onSuccess: (data: Record<string, unknown>) => {
-        toast.success('Verificação concluída via Power BI ANVISA', {
+        toast.success('Verificação concluída via ANVISA', {
           description: (data?.analise as Record<string, string>)?.resumo_geral || 'Dados atualizados.',
         });
       },
       onError: (err: Error) => {
-        toast.error('Erro ao verificar no Power BI', { description: err.message });
+        toast.error('Erro ao verificar na ANVISA', { description: err.message });
       },
     });
   };

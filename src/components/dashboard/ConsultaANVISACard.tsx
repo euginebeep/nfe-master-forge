@@ -92,15 +92,15 @@ export function ConsultaANVISACard() {
   const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
   const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
 
-  const handleVerificarPowerBI = (nomeTecnico: string) => {
+  const handleVerificarANVISA = (nomeTecnico: string) => {
     sincronizarSubstancia(nomeTecnico, {
       onSuccess: (data: Record<string, unknown>) => {
-        toast.success('Verificação Power BI concluída', {
+        toast.success('Verificação ANVISA concluída', {
           description: (data?.analise as Record<string, string>)?.resumo_geral || 'Dados atualizados.',
         });
       },
       onError: (err: Error) => {
-        toast.error('Erro ao verificar no Power BI', { description: err.message });
+        toast.error('Erro ao verificar na ANVISA', { description: err.message });
       },
     });
   };
