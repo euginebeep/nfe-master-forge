@@ -21,6 +21,7 @@ import { LocalDb } from "@/lib/local-db";
 import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsManager";
 import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
 import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
+import { AnvisaSearchStats } from "@/components/admin/AnvisaSearchStats";
 
 const STORAGE_PREFIX = "legacy_erp_";
 
@@ -180,6 +181,8 @@ export default function AdminMasterPage() {
       </Card>
 
       <LocalCollectionsManager storagePrefix={STORAGE_PREFIX} collections={ALL_COLLECTIONS} />
+
+      <AnvisaSearchStats />
 
       <ContratosTemplateManager />
 
