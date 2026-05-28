@@ -55,14 +55,13 @@ export default function ConsultaAnvisaPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAviso, setAiAviso] = useState<string | null>(null);
 
-  // Quando a busca local não encontrar resultados, consultar IA
+  // Consulta oficial ANVISA/Power BI como fonte primária da página.
   useEffect(() => {
     let cancelled = false;
     setAiResults([]);
     setAiAviso(null);
     if (isLoading) return;
     if (termo.length < 2) return;
-    if (resultados && resultados.length > 0) return;
 
     setAiLoading(true);
     supabase.functions
@@ -88,7 +87,7 @@ export default function ConsultaAnvisaPage() {
     return () => {
       cancelled = true;
     };
-  }, [termo, isLoading, resultados]);
+  }, [termo, isLoading]);
 
   const handleSync = () => {
     sincronizar(undefined, {
