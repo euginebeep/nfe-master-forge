@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BarChart3, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, Clock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -11,10 +11,9 @@ export default function FluxoCaixaPage() {
   const { data: contasPagar = [], isLoading: loadingPagar } = useQuery({
     queryKey: ['fluxo-contas-pagar'],
     queryFn: async () => {
-      // contas_pagar may not exist yet in types, use raw query
       const { data } = await supabase
-        .from('notas_entrada')
-        .select('total_nota, dh_emissao, status')
+        .from('contas_pagar')
+        .select('valor, valor_pago, data_pagamento, data_vencimento, status')
         .limit(500);
       return data || [];
     },
@@ -31,36 +30,33 @@ export default function FluxoCaixaPage() {
     },
   });
 
-  const { data: notasEntrada = [] } = useQuery({
-    queryKey: ['fluxo-notas-entrada'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('notas_entrada')
-        .select('total_nota, dh_emissao')
-        .limit(500);
-      return data || [];
-    },
-  });
-
   const isLoading = loadingPagar || loadingReceber;
 
   const resumo = useMemo(() => {
     const entradas = contasReceber
       .filter((c: Record<string, unknown>) => c.status === 'PAGO')
       .reduce((a: number, c: Record<string, unknown>) => a + Number(c.valor_pago || 0), 0);
-    const saidas = notasEntrada
-      .reduce((a: number, c: Record<string, unknown>) => a + Number(c.total_nota || 0), 0);
+    const saidas = contasPagar
+      .filter((c: Record<string, unknown>) => c.status === 'PAGO')
+      .reduce((a: number, c: Record<string, unknown>) => a + Number(c.valor_pago || c.valor || 0), 0);
     const aReceber = contasReceber
       .filter((c: Record<string, unknown>) => c.status !== 'PAGO' && c.status !== 'CANCELADO')
       .reduce((a: number, c: Record<string, unknown>) => a + Number(c.valor || 0) - Number(c.valor_pago || 0), 0);
+    const aPagar = contasPagar
+      .filter((c: Record<string, unknown>) => c.status !== 'PAGO' && c.status !== 'CANCELADO')
+      .reduce((a: number, c: Record<string, unknown>) => a + Number(c.valor || 0) - Number(c.valor_pago || 0), 0);
+
+    const saldoAtual = entradas - saidas;
+    const previsao = saldoAtual + aReceber - aPagar;
 
     return {
-      saldoAtual: entradas - saidas,
+      saldoAtual,
       entradas,
       saidas,
-      previsao: entradas - saidas + aReceber,
+      aPagar,
+      previsao,
     };
-  }, [contasReceber, notasEntrada]);
+  }, [contasReceber, contasPagar]);
 
   // Build monthly chart data
   const chartData = useMemo(() => {
@@ -79,10 +75,10 @@ export default function FluxoCaixaPage() {
       }
     });
 
-    notasEntrada.forEach((n: Record<string, unknown>) => {
-      if (n.dh_emissao) {
-        const key = String(n.dh_emissao).slice(0, 7);
-        if (months[key]) months[key].saidas += Number(n.total_nota || 0);
+    contasPagar.forEach((c: Record<string, unknown>) => {
+      if (c.status === 'PAGO' && c.data_pagamento) {
+        const key = String(c.data_pagamento).slice(0, 7);
+        if (months[key]) months[key].saidas += Number(c.valor_pago || c.valor || 0);
       }
     });
 
@@ -91,7 +87,7 @@ export default function FluxoCaixaPage() {
       Entradas: Math.round(vals.entradas),
       Saídas: Math.round(vals.saidas),
     }));
-  }, [contasReceber, notasEntrada]);
+  }, [contasReceber, contasPagar]);
 
   const fmtMoeda = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
@@ -108,7 +104,7 @@ export default function FluxoCaixaPage() {
     <div>
       <PageHeader title="Fluxo de Caixa" description="Visão consolidada de entradas e saídas" icon={BarChart3} />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
         <Card><CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -129,6 +125,13 @@ export default function FluxoCaixaPage() {
             <p className="text-xs text-muted-foreground uppercase">Saídas</p>
           </div>
           <p className="text-xl font-bold text-destructive">{fmtMoeda(resumo.saidas)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="h-4 w-4 text-amber-500" />
+            <p className="text-xs text-muted-foreground uppercase">A Pagar</p>
+          </div>
+          <p className="text-xl font-bold text-amber-600">{fmtMoeda(resumo.aPagar)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2">
