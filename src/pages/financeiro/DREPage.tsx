@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SkeletonCards } from "@/components/ui/skeleton-cards";
+import { useUserCompanyId } from "@/hooks/use-user-company";
 import {
   BarChart,
   Bar,
@@ -28,30 +29,37 @@ interface DRELinha {
 }
 
 export default function DREPage() {
+  const { data: companyId } = useUserCompanyId();
+
   const { data: contasReceber = [], isLoading: l1 } = useQuery({
-    queryKey: ["dre-receber"],
+    queryKey: ["dre-receber", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data } = await supabase
         .from("contas_receber")
         .select("valor, valor_pago, status, data_emissao")
+        .eq("company_id", companyId!)
         .limit(1000);
       return data || [];
     },
   });
 
   const { data: notasEntrada = [], isLoading: l2 } = useQuery({
-    queryKey: ["dre-notas"],
+    queryKey: ["dre-notas", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data } = await supabase
         .from("notas_entrada")
         .select("total_nota, total_produtos, dh_emissao")
+        .eq("company_id", companyId!)
         .limit(1000);
       return data || [];
     },
   });
 
   const { data: custosOP = [], isLoading: l3 } = useQuery({
-    queryKey: ["dre-custos-op"],
+    queryKey: ["dre-custos-op", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data } = await supabase
         .from("custos_op")
@@ -61,19 +69,30 @@ export default function DREPage() {
     },
   });
 
-  const isLoading = l1 || l2 || l3;
+  const { data: impostos = [], isLoading: l4 } = useQuery({
+    queryKey: ["dre-impostos", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("contas_pagar")
+        .select("valor, valor_pago, status, categoria, data_emissao")
+        .eq("company_id", companyId!)
+        .in("categoria", ["IMPOSTO", "TRIBUTO"]);
+      return data || [];
+    },
+  });
+
+  const isLoading = l1 || l2 || l3 || l4;
 
   const dre = useMemo(() => {
     const receitaBruta = contasReceber
       .filter((c) => c.status === "PAGO")
       .reduce((a, c) => a + Number(c.valor_pago || 0), 0);
 
-    // Estimate taxes at ~15% of purchases as proxy
-    const totalCompras = notasEntrada.reduce(
-      (a, n) => a + Number(n.total_nota || 0),
+    const impostosSobreVenda = impostos.reduce(
+      (a, c) => a + Number(c.valor || 0),
       0
     );
-    const impostosSobreVenda = totalCompras * 0.15;
 
     const receitaLiquida = receitaBruta - impostosSobreVenda;
 
@@ -126,7 +145,7 @@ export default function DREPage() {
         { name: "Overhead", value: custoOverhead },
       ].filter((c) => c.value > 0),
     };
-  }, [contasReceber, notasEntrada, custosOP]);
+  }, [contasReceber, custosOP, impostos]);
 
   const fmtMoeda = (v: number) =>
     `R$ ${Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
@@ -239,6 +258,10 @@ export default function DREPage() {
                 ))}
               </TableBody>
             </Table>
+            <p className="text-xs text-muted-foreground mt-3 italic">
+              * Impostos baseados em contas a pagar com categoria IMPOSTO/TRIBUTO.
+              Para precisão contábil, classifique suas contas corretamente.
+            </p>
           </CardContent>
         </Card>
 
