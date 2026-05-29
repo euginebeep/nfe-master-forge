@@ -589,6 +589,15 @@ export function useOrdemProducaoIndustrialActions() {
       operador_nome: finalizadoPor,
     });
 
+    // Notificar pedidos de vendedor vinculados a esta OP
+    try {
+      await supabase.functions.invoke('op-concluida-notify', {
+        body: { op_id: opId },
+      });
+    } catch (e) {
+      console.warn('Falha ao notificar expedição:', e);
+    }
+
     toast.success(`OP ${op.codigo} finalizada — Rendimento: ${rendimento.toFixed(1)}%`);
     invalidate(opId);
     return true;

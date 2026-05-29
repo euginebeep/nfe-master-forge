@@ -58,6 +58,7 @@ const ConciliacaoPage = lazy(() => import("./pages/financeiro/ConciliacaoPage"))
 const DREPage = lazy(() => import("./pages/financeiro/DREPage"));
 const CRMPage = lazy(() => import("./pages/vendas/CRMPage"));
 const NovoPedidoVendedorPage = lazy(() => import("./pages/vendas/NovoPedidoVendedorPage"));
+const ExpedicaoPage = lazy(() => import("./pages/expedicao/ExpedicaoPage"));
 const OrcamentosPage = lazy(() => import("./pages/vendas/OrcamentosPage"));
 const PedidosVendaPage = lazy(() => import("./pages/vendas/PedidosVendaPage"));
 const MarketplacePage = lazy(() => import("./pages/vendas/MarketplacePage"));
@@ -189,6 +190,7 @@ const App = () => (
                 {/* Vendas — operador+ */}
                 <Route path="/vendas/crm" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><CRMPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/pedido-vendedor/novo" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NovoPedidoVendedorPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/expedicao" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ExpedicaoPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/orcamentos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrcamentosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/pedidos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><PedidosVendaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/marketplace" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><MarketplacePage /></ErrorBoundary></Suspense></ProtectedRoute>} />

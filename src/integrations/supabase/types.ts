@@ -2214,6 +2214,66 @@ export type Database = {
           },
         ]
       }
+      expedicao_romaneio: {
+        Row: {
+          company_id: string
+          conferido: boolean
+          conferido_em: string | null
+          conferido_por: string | null
+          created_at: string
+          data_validade: string | null
+          id: string
+          item_id: string | null
+          numero_lote: string | null
+          pedido_id: string
+          produto_nome: string | null
+          quantidade: number | null
+        }
+        Insert: {
+          company_id: string
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string
+          data_validade?: string | null
+          id?: string
+          item_id?: string | null
+          numero_lote?: string | null
+          pedido_id: string
+          produto_nome?: string | null
+          quantidade?: number | null
+        }
+        Update: {
+          company_id?: string
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string
+          data_validade?: string | null
+          id?: string
+          item_id?: string | null
+          numero_lote?: string | null
+          pedido_id?: string
+          produto_nome?: string | null
+          quantidade?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedicao_romaneio_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expedicao_romaneio_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_vendedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       formula_itens: {
         Row: {
           alerta_exibido: boolean | null
@@ -5164,56 +5224,77 @@ export type Database = {
         Row: {
           cliente_id: string | null
           cliente_nome: string | null
+          codigo_rastreio: string | null
           comissao_paga: boolean
           comissao_percent: number
           company_id: string
           created_at: string
+          data_despacho: string | null
+          data_entrega_confirmada: string | null
           data_pagamento_comissao: string | null
           id: string
+          nfe_chave: string | null
+          nfe_numero: string | null
           numero: string | null
           observacoes: string | null
           oportunidade_id: string | null
           status: string
+          transportadora_id: string | null
           updated_at: string
           valor_comissao: number
           valor_total: number
           vendedor_id: string | null
+          volumes: number | null
         }
         Insert: {
           cliente_id?: string | null
           cliente_nome?: string | null
+          codigo_rastreio?: string | null
           comissao_paga?: boolean
           comissao_percent?: number
           company_id: string
           created_at?: string
+          data_despacho?: string | null
+          data_entrega_confirmada?: string | null
           data_pagamento_comissao?: string | null
           id?: string
+          nfe_chave?: string | null
+          nfe_numero?: string | null
           numero?: string | null
           observacoes?: string | null
           oportunidade_id?: string | null
           status?: string
+          transportadora_id?: string | null
           updated_at?: string
           valor_comissao?: number
           valor_total?: number
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Update: {
           cliente_id?: string | null
           cliente_nome?: string | null
+          codigo_rastreio?: string | null
           comissao_paga?: boolean
           comissao_percent?: number
           company_id?: string
           created_at?: string
+          data_despacho?: string | null
+          data_entrega_confirmada?: string | null
           data_pagamento_comissao?: string | null
           id?: string
+          nfe_chave?: string | null
+          nfe_numero?: string | null
           numero?: string | null
           observacoes?: string | null
           oportunidade_id?: string | null
           status?: string
+          transportadora_id?: string | null
           updated_at?: string
           valor_comissao?: number
           valor_total?: number
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Relationships: [
           {
@@ -5235,6 +5316,13 @@ export type Database = {
             columns: ["oportunidade_id"]
             isOneToOne: false
             referencedRelation: "oportunidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_vendedor_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
