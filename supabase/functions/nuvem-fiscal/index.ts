@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isDemoUser, demoBlockedResponse } from "../_shared/demo-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -105,6 +106,14 @@ Deno.serve(async (req) => {
     const { supabase, userId } = await authenticateUser(req);
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
+
+    // Bloqueio de ações reais para conta demo
+    const writeActions = new Set(["emitir-nfe", "cancelar-nfe", "carta-correcao", "cadastrar-empresa"]);
+    if (action && writeActions.has(action)) {
+      if (await isDemoUser(req.headers.get("Authorization"))) {
+        return demoBlockedResponse(corsHeaders, "emissão fiscal real");
+      }
+    }
 
     switch (action) {
       // ─── Cadastrar empresa na Nuvem Fiscal ───
