@@ -181,12 +181,12 @@ export default function RelatoriosPage() {
   const { data: empresa } = useQuery({
     queryKey: ["relatorios-empresa", companyId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("company")
         .select("razao_social, nome_fantasia, cnpj")
         .eq("id", companyId!)
         .maybeSingle();
-      return data;
+      return data as { razao_social?: string; nome_fantasia?: string; cnpj?: string } | null;
     },
     enabled: !!companyId,
   });
