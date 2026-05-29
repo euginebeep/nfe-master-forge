@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Thermometer,
   Droplets,
@@ -11,6 +12,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Activity,
+  Settings,
 } from "lucide-react";
 import {
   ComposedChart,
@@ -23,6 +25,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserCompanyId } from "@/hooks/use-user-company";
 import {
   useMonitoramentoAmbiental,
   getLatestByRoom,
@@ -323,6 +326,23 @@ export default function MonitoramentoAmbientalPage() {
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
 
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
+  const navigate = useNavigate();
+  const { data: companyId } = useUserCompanyId();
+
+  // Sensores configurados pelo tenant
+  const { data: sensores = [], isLoading: isLoadingSensores } = useQuery({
+    queryKey: ["ambiental-sensores", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("ambiental_sensores")
+        .select("id, device_id, room_name, ativo")
+        .eq("company_id", companyId)
+        .eq("ativo", true);
+      if (error) throw error;
+      return (data || []) as Array<{ id: string; device_id: string; room_name: string; ativo: boolean }>;
+    },
+  });
 
   // RT
   const { data: rt } = useQuery({
@@ -523,6 +543,9 @@ export default function MonitoramentoAmbientalPage() {
 
   /* ---------------- EMPTY ---------------- */
   const isEmpty = !isLoading && readings.length === 0;
+  const isCarregandoEstado = isLoading || isLoadingSensores;
+  const semConfiguracao = !isCarregandoEstado && sensores.length === 0;
+  const aguardandoLeituras = !isCarregandoEstado && sensores.length > 0 && readings.length === 0;
 
   return (
     <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-5">
@@ -556,14 +579,37 @@ export default function MonitoramentoAmbientalPage() {
         }
       />
 
-      {isEmpty ? (
-        <Card>
+      {semConfiguracao ? (
+        <Card className="border-amber-200">
+          <CardContent className="py-6">
+            <EmptyState
+              icon={Settings}
+              title="Módulo não configurado"
+              description="Configure suas credenciais eWeLink e mapeie os sensores por sala antes de usar o monitoramento."
+              actionLabel="Configurar agora →"
+              onAction={() => navigate("/ambiental/configuracao")}
+              className="[&_.rounded-full]:bg-amber-100 [&_svg]:text-amber-600"
+            />
+          </CardContent>
+        </Card>
+      ) : aguardandoLeituras ? (
+        <Card className="border-blue-200">
           <CardContent className="py-6">
             <EmptyState
               icon={Wifi}
-              title="Nenhuma leitura registrada"
-              description="Configure a integração eWeLink via n8n para começar o monitoramento. Os sensores Sonoff SNZB-02 sincronizam automaticamente a cada 60 segundos."
+              title="Aguardando primeiras leituras"
+              description={`${sensores.length} sensor(es) configurado(s). O n8n está coletando os dados — as leituras aparecerão automaticamente em até 60 segundos.`}
+              className="[&_.rounded-full]:bg-blue-100 [&_svg]:text-blue-600"
             />
+            <div className="flex justify-center mt-2">
+              <Badge className="bg-blue-100 text-blue-700 border-blue-200 gap-1.5 hover:bg-blue-100">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
+                </span>
+                Sincronizando...
+              </Badge>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -894,9 +940,19 @@ export default function MonitoramentoAmbientalPage() {
         <ShieldCheck className="w-4 h-4 text-emerald-600" />
         <span>
           Responsável Técnico:{" "}
-          {rt
-            ? `${rt.nome} · ${rt.tipo_conselho}-${rt.uf_registro} ${rt.numero_registro}`
-            : "Não configurado — cadastre em Resp. Técnicos"}
+          {rt ? (
+            `${rt.nome} · ${rt.tipo_conselho}-${rt.uf_registro} ${rt.numero_registro}`
+          ) : (
+            <>
+              Não configurado —{" "}
+              <Link
+                to="/cadastros/responsaveis-tecnicos"
+                className="text-primary underline hover:no-underline"
+              >
+                cadastre em Resp. Técnicos
+              </Link>
+            </>
+          )}
         </span>
         <span className="mx-1">|</span>
         <span>Sistema: BrainX ERP</span>
