@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { isDemoUser, demoBlockedResponse } from "../_shared/demo-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,9 @@ serve(async (req) => {
   }
 
   try {
+    if (await isDemoUser(req.headers.get("Authorization"))) {
+      return demoBlockedResponse(corsHeaders, "envio de e-mails reais");
+    }
     const SMTP_USER = (Deno.env.get('SMTP_USER') || '').trim();
     const SMTP_PASS = (Deno.env.get('SMTP_PASS') || '').trim();
 
