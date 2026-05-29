@@ -54,9 +54,9 @@ export default function ContasReceberPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("entidades")
-        .select("id, razao_social, tipo_pessoa")
+        .select("id, razao_social, entidade_papeis!inner(papel)")
         .eq("company_id", companyId!)
-        .contains("papeis", ["CLIENTE"])
+        .eq("entidade_papeis.papel", "CLIENTE")
         .order("razao_social", { ascending: true });
       if (error) throw error;
       return (data || []) as Array<{ id: string; razao_social: string }>;
