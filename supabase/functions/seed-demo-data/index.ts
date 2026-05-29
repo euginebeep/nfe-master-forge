@@ -8,8 +8,9 @@ const corsHeaders = {
 };
 
 // Deterministic UUIDs for the demo tenant (so re-seeds replace cleanly)
-const uid = (n: number, prefix = 'dd') =>
-  `${prefix.padEnd(8, '0').slice(0, 8)}-0000-4000-8000-${String(n).padStart(12, '0')}`;
+// IMPORTANT: must be valid hex — use only digits in the variable segment.
+const uid = (n: number, _prefix?: string) =>
+  `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: number) => {
@@ -200,7 +201,7 @@ Deno.serve(async (req) => {
         tipo_item: 'MP',
         descricao_interna: nome,
         sku_interno: `MP-${String(i + 1).padStart(4, '0')}`,
-        unidade_estoque: 'g',
+        unidade_interna: 'g',
         ativo: true,
       });
     });
@@ -211,7 +212,7 @@ Deno.serve(async (req) => {
         tipo_item: 'EM',
         descricao_interna: it.d,
         sku_interno: `CAP-${String(i + 1).padStart(3, '0')}`,
-        unidade_estoque: it.un,
+        unidade_interna: it.un,
         ativo: true,
       });
     });
@@ -222,7 +223,7 @@ Deno.serve(async (req) => {
         tipo_item: 'EM',
         descricao_interna: it.d,
         sku_interno: `EMB-${String(i + 1).padStart(3, '0')}`,
-        unidade_estoque: it.un,
+        unidade_interna: it.un,
         ativo: true,
       });
     });
@@ -233,7 +234,7 @@ Deno.serve(async (req) => {
         tipo_item: 'PA',
         descricao_interna: d,
         sku_interno: `PA-${String(i + 1).padStart(4, '0')}`,
-        unidade_estoque: 'UN',
+        unidade_interna: 'UN',
         ativo: true,
       });
     });
@@ -248,21 +249,22 @@ Deno.serve(async (req) => {
     itens.slice(0, 80).forEach((it, i) => {
       const status = i < 65 ? 'APROVADO' : i < 75 ? 'QUARENTENA' : 'APROVADO';
       const isExpiring = i >= 75; // last 5 are expiring soon
-      const qtd = it.tipo_item === 'MP' ? 5000 + i * 100 : it.unidade_estoque === 'MIL' ? 50 : 1000;
+      const qtd = it.tipo_item === 'MP' ? 5000 + i * 100 : it.unidade_interna === 'MIL' ? 50 : 1000;
       lotes.push({
         id: uid(5000 + i, 'lt'),
         company_id: c,
         item_id: it.id,
         numero_lote: `L${String(2026000 + i).padStart(7, '0')}`,
         quantidade_original: qtd,
-        unidade_original: it.unidade_estoque,
-        quantidade_interna: qtd * (it.unidade_estoque === 'g' ? 1 : 1),
+        unidade_original: it.unidade_interna,
+        unidade_interna: it.unidade_interna,
+        quantidade_interna: qtd,
         custo_unitario_interno: 0.15 + (i % 50) * 0.8,
         status,
         data_fab: addDays(-90 - i),
         data_val: isExpiring ? addDays(15 + i % 20) : addDays(365 + i * 10),
         fornecedor_id: pick(fornecedoresIds, i),
-        motivo_quarentena: status === 'QUARENTENA' ? 'Aguardando análise de COA' : null,
+        observacoes_qc: status === 'QUARENTENA' ? 'Aguardando análise de COA' : null,
       });
     });
     const { error: ltErr } = await supabase.from('estoque_lotes').insert(lotes);
