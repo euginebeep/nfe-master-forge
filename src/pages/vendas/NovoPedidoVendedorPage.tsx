@@ -83,6 +83,7 @@ export default function NovoPedidoVendedorPage() {
   }, [leadId]);
 
   const vendedorSelecionado = vendedores.find((v) => v.id === vendedorId);
+  const vendedorMeta: any = vendedorSelecionado || {};
   const { data: tabelaPrecos = [] } = useTabelaPrecos(vendedorId || null);
   const confirmar = useConfirmarPedido();
 
