@@ -1,11 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldAlert, Eye, CheckCircle, XCircle, FileText, AlertTriangle } from "lucide-react";
+import { ShieldAlert, Eye, CheckCircle, Trash2, FileText, AlertTriangle } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserCompanyId } from "@/hooks/use-user-company";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useLotes, useUpdateLoteStatus } from "@/hooks/use-lotes";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatNumber, formatCurrency } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,38 +19,84 @@ import { toast } from "sonner";
 
 export default function QuarentenaPage() {
   const navigate = useNavigate();
-  const { data: allLotes, isLoading } = useLotes({ status: "QUARENTENA" as any });
-  const updateStatus = useUpdateLoteStatus();
+  const { data: companyId } = useUserCompanyId();
+  const queryClient = useQueryClient();
   const [selectedLote, setSelectedLote] = useState<any>(null);
-  const [actionType, setActionType] = useState<'liberar' | 'bloquear' | null>(null);
-  const [observacoes, setObservacoes] = useState("");
+  const [actionType, setActionType] = useState<'liberar' | 'descartar' | null>(null);
+  const [motivo, setMotivo] = useState("");
 
-  const lotes = allLotes || [];
+  const { data: lotes = [], isLoading } = useQuery({
+    queryKey: ['quarentena-lotes', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('estoque_lotes')
+        .select(`
+          *,
+          item:itens(descricao_interna, sku_interno, unidade_interna),
+          fornecedor:entidades(razao_social),
+          lote_documentos(tipo_documento, status_validacao)
+        `)
+        .eq('company_id', companyId!)
+        .in('status', ['QUARENTENA', 'BLOQUEADO'])
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-  const handleAction = (lote: any, type: 'liberar' | 'bloquear') => {
+  const liberarLote = useMutation({
+    mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
+      const { error } = await supabase
+        .from('estoque_lotes')
+        .update({ status: 'DISPONIVEL', observacoes_qc: motivo } as any)
+        .eq('id', id).eq('company_id', companyId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quarentena-lotes'] });
+      toast.success('Lote liberado para uso');
+      closeDialog();
+    },
+    onError: (e: Error) => toast.error(`Erro: ${e.message}`),
+  });
+
+  const descartarLote = useMutation({
+    mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
+      const { error } = await supabase
+        .from('estoque_lotes')
+        .update({ status: 'DESCARTADO', observacoes_qc: motivo } as any)
+        .eq('id', id).eq('company_id', companyId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quarentena-lotes'] });
+      toast.success('Lote descartado e removido da quarentena');
+      closeDialog();
+    },
+    onError: (e: Error) => toast.error(`Erro: ${e.message}`),
+  });
+
+  const closeDialog = () => {
+    setSelectedLote(null);
+    setActionType(null);
+    setMotivo("");
+  };
+
+  const handleAction = (lote: any, type: 'liberar' | 'descartar') => {
     setSelectedLote(lote);
     setActionType(type);
-    setObservacoes("");
+    setMotivo("");
   };
 
   const confirmAction = () => {
     if (!selectedLote || !actionType) return;
-    const newStatus = actionType === 'liberar' ? 'DISPONIVEL' : 'BLOQUEADO';
-    updateStatus.mutate(
-      { id: selectedLote.id, status: newStatus as any, observacoes_qc: observacoes || undefined },
-      {
-        onSuccess: () => {
-          toast.success(
-            actionType === 'liberar'
-              ? `Lote ${selectedLote.numero_lote} liberado para estoque!`
-              : `Lote ${selectedLote.numero_lote} bloqueado.`
-          );
-          setSelectedLote(null);
-          setActionType(null);
-          setObservacoes("");
-        },
-      }
-    );
+    if (!motivo.trim()) {
+      toast.error('Motivo é obrigatório');
+      return;
+    }
+    const fn = actionType === 'liberar' ? liberarLote : descartarLote;
+    fn.mutate({ id: selectedLote.id, motivo: motivo.trim() });
   };
 
   const hasValidatedCOA = (lote: any) => {
@@ -147,8 +196,8 @@ export default function QuarentenaPage() {
             <CheckCircle className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={(e) => { e.stopPropagation(); handleAction(item, 'bloquear'); }} title="Bloquear Lote">
-            <XCircle className="h-4 w-4" />
+            onClick={(e) => { e.stopPropagation(); handleAction(item, 'descartar'); }} title="Descartar Lote">
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
@@ -178,15 +227,26 @@ export default function QuarentenaPage() {
         </Card>
       </div>
 
-      <DataTable data={lotes} columns={columns} loading={isLoading} searchable searchPlaceholder="Buscar por lote, produto ou nota..."
-        searchKeys={["numero_lote", "nota_numero"]} onRowClick={(item) => navigate(`/estoque/lotes/${item.id}`)} emptyMessage="Nenhum lote em quarentena" />
+      {!isLoading && lotes.length === 0 ? (
+        <EmptyState
+          icon={CheckCircle}
+          title="Nenhum lote em quarentena"
+          description="Todos os lotes estão disponíveis ou descartados."
+        />
+      ) : (
+        <DataTable data={lotes} columns={columns} loading={isLoading} searchable
+          searchPlaceholder="Buscar por lote, produto ou nota..."
+          searchKeys={["numero_lote", "nota_numero"]}
+          onRowClick={(item) => navigate(`/estoque/lotes/${item.id}`)}
+          emptyMessage="Nenhum lote encontrado" />
+      )}
 
-      <Dialog open={!!selectedLote && !!actionType} onOpenChange={() => { setSelectedLote(null); setActionType(null); }}>
+      <Dialog open={!!selectedLote && !!actionType} onOpenChange={(o) => { if (!o) closeDialog(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{actionType === 'liberar' ? 'Liberar Lote para Estoque' : 'Bloquear Lote'}</DialogTitle>
+            <DialogTitle>{actionType === 'liberar' ? 'Liberar Lote para Estoque' : 'Descartar Lote'}</DialogTitle>
             <DialogDescription>
-              {actionType === 'liberar' ? 'Este lote será movido para o estoque oficial e ficará disponível para uso.' : 'Este lote será bloqueado e não poderá ser utilizado.'}
+              {actionType === 'liberar' ? 'Este lote será movido para o estoque oficial e ficará disponível para uso.' : 'Este lote será marcado como descartado e removido da quarentena.'}
             </DialogDescription>
           </DialogHeader>
           {selectedLote && (
@@ -202,15 +262,17 @@ export default function QuarentenaPage() {
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Observações (opcional)</label>
-                <Textarea placeholder="Motivo da liberação/bloqueio..." value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} />
+                <label className="text-sm font-medium">Motivo <span className="text-destructive">*</span></label>
+                <Textarea placeholder={actionType === 'liberar' ? 'Ex: COA validado, conforme especificação' : 'Ex: Fora de especificação, vencido, contaminação'}
+                  value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} required />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setSelectedLote(null); setActionType(null); }}>Cancelar</Button>
-            <Button variant={actionType === 'liberar' ? 'default' : 'destructive'} onClick={confirmAction} disabled={updateStatus.isPending}>
-              {actionType === 'liberar' ? 'Confirmar Liberação' : 'Confirmar Bloqueio'}
+            <Button variant="outline" onClick={closeDialog}>Cancelar</Button>
+            <Button variant={actionType === 'liberar' ? 'default' : 'destructive'} onClick={confirmAction}
+              disabled={liberarLote.isPending || descartarLote.isPending || !motivo.trim()}>
+              {actionType === 'liberar' ? 'Confirmar Liberação' : 'Confirmar Descarte'}
             </Button>
           </DialogFooter>
         </DialogContent>
