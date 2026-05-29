@@ -77,7 +77,7 @@ export default function DREPage() {
         .from("contas_pagar")
         .select("valor, valor_pago, status, categoria, data_emissao")
         .eq("company_id", companyId!)
-        .in("categoria", ["IMPOSTO", "TRIBUTO"]);
+        .in("categoria", ["IMPOSTO", "TRIBUTO", "TAXA"]);
       return data || [];
     },
   });
@@ -259,8 +259,8 @@ export default function DREPage() {
               </TableBody>
             </Table>
             <p className="text-xs text-muted-foreground mt-3 italic">
-              * Impostos baseados em contas a pagar com categoria IMPOSTO/TRIBUTO.
-              Para precisão contábil, classifique suas contas corretamente.
+              * Impostos baseados em contas a pagar com categoria IMPOSTO/TRIBUTO/TAXA.
+              Classifique suas contas corretamente para precisão contábil.
             </p>
           </CardContent>
         </Card>
