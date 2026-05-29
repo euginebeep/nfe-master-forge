@@ -246,36 +246,166 @@ export default function NotasSaidaPage() {
 
   const transmitirNota = useMutation({
     mutationFn: async (notaId: string) => {
-      // Update status to PROCESSANDO
-      await supabase
+      await supabase.from("notas_saida")
+        .update({ status: "PROCESSANDO" }).eq("id", notaId);
+      const { data: nota, error: notaErr } = await supabase
         .from("notas_saida")
-        .update({ status: "PROCESSANDO" })
-        .eq("id", notaId);
-
-      // Get nota + items + company + client data
-      const { data: nota } = await supabase
-        .from("notas_saida")
-        .select("*, entidades(*), notas_saida_itens(*)")
-        .eq("id", notaId)
-        .single();
-
-      if (!nota) throw new Error("Nota não encontrada");
-      if (!company) throw new Error("Empresa não configurada");
-
-      // TODO: Implementar integração Nuvem Fiscal
-      // Requer payload completo da NF-e e empresa cadastrada na Nuvem Fiscal
-      toast.info("Para transmitir, configure as credenciais da Nuvem Fiscal (Client ID e Secret)");
-      
-      // Revert status
-      await supabase
-        .from("notas_saida")
-        .update({ status: "RASCUNHO" })
-        .eq("id", notaId);
+        .select(`
+          *,
+          cliente:entidades!notas_saida_cliente_id_fkey(*),
+          notas_saida_itens(*),
+          transportadora:entidades!notas_saida_transportadora_id_fkey(*)
+        `)
+        .eq("id", notaId).single();
+      if (notaErr || !nota) throw new Error("Nota não encontrada");
+      if (!company) throw new Error("Empresa não configurada. Preencha os dados fiscais em Configurações.");
+      const comp: any = company;
+      if (!comp.cnpj) throw new Error("CNPJ da empresa não configurado em Configurações.");
+      const cli: any = (nota as any).cliente || {};
+      const payload = {
+        ambiente: comp.nfe_ambiente === "PRODUCAO" ? "producao" : "homologacao",
+        referencia: notaId,
+        natureza_operacao: nota.natureza_operacao || "VENDA DE MERCADORIA",
+        serie: String(comp.nfe_serie_padrao || 1),
+        numero: String(comp.nfe_numero_inicial || 1),
+        data_emissao: new Date().toISOString(),
+        tipo_operacao: nota.tipo_operacao || "1",
+        finalidade_emissao: nota.finalidade || "1",
+        consumidor_final: "1",
+        presenca_comprador: "1",
+        emitente: {
+          cpf_cnpj: (comp.cnpj || "").replace(/\D/g, ""),
+          razao_social: comp.razao_social || "",
+          nome_fantasia: comp.nome_fantasia || comp.razao_social || "",
+          inscricao_estadual: comp.inscricao_estadual || "",
+          regime_tributario: comp.regime_tributario || "1",
+          endereco: {
+            logradouro: comp.endereco_logradouro || "",
+            numero: comp.endereco_nro || "S/N",
+            bairro: comp.endereco_bairro || "",
+            codigo_municipio: comp.codigo_municipio || "",
+            nome_municipio: comp.endereco_cidade || "",
+            uf: comp.endereco_uf || "",
+            cep: (comp.endereco_cep || "").replace(/\D/g, ""),
+            codigo_pais: "1058",
+            nome_pais: "Brasil",
+            telefone: (comp.telefone || "").replace(/\D/g, ""),
+          },
+        },
+        destinatario: {
+          cpf_cnpj: (cli.documento || "").replace(/\D/g, ""),
+          razao_social: cli.razao_social || cli.nome_fantasia || "",
+          email: cli.email || "",
+          endereco: {
+            logradouro: cli.endereco_logradouro || "",
+            numero: cli.endereco_nro || "S/N",
+            bairro: cli.endereco_bairro || "",
+            codigo_municipio: cli.codigo_municipio || "",
+            nome_municipio: cli.endereco_cidade || "",
+            uf: cli.endereco_uf || "",
+            cep: (cli.endereco_cep || "").replace(/\D/g, ""),
+            codigo_pais: "1058",
+            nome_pais: "Brasil",
+          },
+        },
+        itens: (nota.notas_saida_itens || []).map((item: any, idx: number) => ({
+          numero_item: String(idx + 1),
+          codigo_produto: item.item_id || String(idx + 1),
+          descricao: item.descricao || "",
+          codigo_ncm: (item.ncm || "").replace(/\D/g, ""),
+          cfop: item.cfop || "5102",
+          unidade_comercial: item.unidade || "UN",
+          quantidade_comercial: Number(item.quantidade),
+          valor_unitario_comercial: Number(item.valor_unitario),
+          valor_bruto: Number(item.valor_total),
+          unidade_tributavel: item.unidade || "UN",
+          quantidade_tributavel: Number(item.quantidade),
+          valor_unitario_tributavel: Number(item.valor_unitario),
+          codigo_origem: item.origem || "0",
+          icms: {
+            origem: item.origem || "0",
+            cst: item.cst_icms || "00",
+            modalidade_base_calculo: "3",
+            base_calculo: Number(item.valor_total),
+            aliquota: Number(item.icms_aliquota || 0),
+            valor: Number(item.icms_valor || 0),
+          },
+          pis: {
+            cst: item.cst_pis || "07",
+            base_calculo: Number(item.valor_total),
+            aliquota_percentual: Number(item.pis_aliquota || 0),
+            valor: Number(item.pis_valor || 0),
+          },
+          cofins: {
+            cst: item.cst_cofins || "07",
+            base_calculo: Number(item.valor_total),
+            aliquota_percentual: Number(item.cofins_aliquota || 0),
+            valor: Number(item.cofins_valor || 0),
+          },
+        })),
+        total: {
+          icms_total: {
+            base_calculo: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.valor_total || 0), 0),
+            valor_icms: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.icms_valor || 0), 0),
+            valor_pis: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.pis_valor || 0), 0),
+            valor_cofins: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.cofins_valor || 0), 0),
+            valor_produtos: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.valor_total || 0), 0),
+            valor_nota: Number(nota.valor_total || 0),
+            valor_frete: 0,
+            valor_seguro: 0,
+            outras_despesas: 0,
+            valor_desconto: 0,
+            valor_ii: 0,
+            valor_ipi: 0,
+            valor_servicos: 0,
+            base_calculo_st: 0,
+            valor_icms_st: 0,
+          },
+        },
+        pagamentos: [{
+          forma_pagamento: nota.meio_pagamento || "01",
+          valor: Number(nota.valor_total || 0),
+        }],
+        informacoes_adicionais_contribuinte: nota.informacoes_adicionais || "",
+      };
+      const resultado = await emitirNFe(payload);
+      if (!resultado?.id) throw new Error("Resposta inválida da Nuvem Fiscal");
+      let autorizada = false;
+      let tentativas = 0;
+      let dadosNfe: any = null;
+      while (!autorizada && tentativas < 10) {
+        await new Promise(r => setTimeout(r, 2000));
+        dadosNfe = await consultarNFe(resultado.id);
+        if (dadosNfe?.status === "autorizado") {
+          autorizada = true;
+        } else if (["erro", "rejeitado", "denegado"].includes(dadosNfe?.status)) {
+          throw new Error(`NF-e ${dadosNfe.status}: ${dadosNfe?.motivo_rejeicao || "Verifique os dados e tente novamente"}`);
+        }
+        tentativas++;
+      }
+      if (!autorizada) {
+        await supabase.from("notas_saida")
+          .update({ status: "RASCUNHO" }).eq("id", notaId);
+        throw new Error("Timeout aguardando SEFAZ. A nota foi salva — consulte depois clicando em Atualizar Status.");
+      }
+      await supabase.from("notas_saida").update({
+        status: "AUTORIZADA",
+        nuvem_fiscal_id: resultado.id,
+        chave_acesso: dadosNfe?.chave_acesso || null,
+        protocolo_autorizacao: dadosNfe?.protocolo || null,
+        numero: dadosNfe?.numero || null,
+        serie: dadosNfe?.serie || null,
+        danfe_url: dadosNfe?.link_pdf || null,
+      }).eq("id", notaId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+      toast.success("NF-e autorizada pela SEFAZ com sucesso! DANFE disponível para download.");
     },
-    onError: (err: any) => toast.error("Erro: " + err.message),
+    onError: async (err: any) => {
+      toast.error("Erro na transmissão: " + err.message);
+      queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+    },
   });
 
   const cancelarNotaMutation = useMutation({
