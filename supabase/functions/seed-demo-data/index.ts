@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
         razao_social: `${nome} Comércio Ltda`,
         nome_fantasia: nome,
         status: 'ATIVO',
-        classificacao: pick(['REGULAR', 'PREMIUM', 'VIP', 'NOVO'], i),
+        classificacao: pick(['REGULAR', 'VIP', 'REGULAR', 'VIP'], i),
         limite_credito: 10000 + i * 5000,
         prazo_pagamento_padrao_dias: pick([15, 30, 45, 60], i),
         contribuinte_icms: 'CONTRIBUINTE',
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
         razao_social: `${nome} Indústria Ltda`,
         nome_fantasia: nome,
         status: 'ATIVO',
-        classificacao: pick(['HOMOLOGADO', 'PREMIUM', 'REGULAR'], i),
+        classificacao: pick(['REGULAR', 'VIP'], i),
         prazo_pagamento_padrao_dias: pick([28, 30, 45, 60, 90], i),
         contribuinte_icms: 'CONTRIBUINTE',
       });
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
       itens.push({
         id: uid(2000 + i, 'it'),
         company_id: c,
-        tipo_item: 'EM',
+        tipo_item: 'CAPSULA_VAZIA',
         descricao_interna: it.d,
         sku_interno: `CAP-${String(i + 1).padStart(3, '0')}`,
         unidade_interna: it.un,
@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
       itens.push({
         id: uid(3000 + i, 'it'),
         company_id: c,
-        tipo_item: 'EM',
+        tipo_item: 'EMBALAGEM',
         descricao_interna: it.d,
         sku_interno: `EMB-${String(i + 1).padStart(3, '0')}`,
         unidade_interna: it.un,
@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
     // ───────────────── 5. Estoque Lotes ─────────────────
     const lotes: any[] = [];
     itens.slice(0, 80).forEach((it, i) => {
-      const status = i < 65 ? 'APROVADO' : i < 75 ? 'QUARENTENA' : 'APROVADO';
+      const status = i < 65 ? 'DISPONIVEL' : i < 75 ? 'QUARENTENA' : 'DISPONIVEL';
       const isExpiring = i >= 75; // last 5 are expiring soon
       const qtd = it.tipo_item === 'MP' ? 5000 + i * 100 : it.unidade_interna === 'MIL' ? 50 : 1000;
       lotes.push({
