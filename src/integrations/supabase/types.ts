@@ -1102,6 +1102,8 @@ export type Database = {
           categoria: string | null
           centro_custo: string | null
           company_id: string
+          conciliado: boolean
+          conciliado_em: string | null
           conta_bancaria: string | null
           created_at: string
           data_emissao: string
@@ -1125,6 +1127,8 @@ export type Database = {
           categoria?: string | null
           centro_custo?: string | null
           company_id?: string
+          conciliado?: boolean
+          conciliado_em?: string | null
           conta_bancaria?: string | null
           created_at?: string
           data_emissao?: string
@@ -1148,6 +1152,8 @@ export type Database = {
           categoria?: string | null
           centro_custo?: string | null
           company_id?: string
+          conciliado?: boolean
+          conciliado_em?: string | null
           conta_bancaria?: string | null
           created_at?: string
           data_emissao?: string
@@ -1195,6 +1201,8 @@ export type Database = {
         Row: {
           cliente_id: string | null
           company_id: string
+          conciliado: boolean
+          conciliado_em: string | null
           created_at: string | null
           data_emissao: string
           data_pagamento: string | null
@@ -1213,6 +1221,8 @@ export type Database = {
         Insert: {
           cliente_id?: string | null
           company_id?: string
+          conciliado?: boolean
+          conciliado_em?: string | null
           created_at?: string | null
           data_emissao?: string
           data_pagamento?: string | null
@@ -1231,6 +1241,8 @@ export type Database = {
         Update: {
           cliente_id?: string | null
           company_id?: string
+          conciliado?: boolean
+          conciliado_em?: string | null
           created_at?: string | null
           data_emissao?: string
           data_pagamento?: string | null
