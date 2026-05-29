@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserCompanyId } from "@/hooks/use-user-company";
 
 interface ExtratoLinha {
   id: string;
@@ -16,18 +18,83 @@ interface ExtratoLinha {
   tipo: "CREDITO" | "DEBITO";
   conciliado: boolean;
   lancamento_ref?: string;
+  lancamento_tabela?: "contas_pagar" | "contas_receber";
+  lancamento_id?: string;
+}
+
+// Converte "dd/mm/yyyy" ou "yyyy-mm-dd" para Date
+function parseDataExtrato(s: string): Date | null {
+  if (!s) return null;
+  const t = s.trim();
+  const br = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return new Date(`${br[3]}-${br[2]}-${br[1]}T00:00:00`);
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(`${iso[1]}-${iso[2]}-${iso[3]}T00:00:00`);
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function diffDays(a: Date, b: Date): number {
+  return Math.abs((a.getTime() - b.getTime()) / 86400000);
 }
 
 export default function ConciliacaoPage() {
+  const { data: companyId } = useUserCompanyId();
   const [linhasExtrato, setLinhasExtrato] = useState<ExtratoLinha[]>([]);
   const [filtro, setFiltro] = useState("");
+  const [conciliando, setConciliando] = useState<string | null>(null);
+
+  // Tenta pré-marcar linhas que já correspondem a lançamentos conciliados no DB
+  const aplicarConciliacoesExistentes = async (linhas: ExtratoLinha[]) => {
+    if (!companyId) return linhas;
+    try {
+      const [pagar, receber] = await Promise.all([
+        supabase
+          .from("contas_pagar")
+          .select("id, valor, valor_pago, data_vencimento, data_pagamento, conciliado")
+          .eq("company_id", companyId)
+          .eq("conciliado", true),
+        supabase
+          .from("contas_receber")
+          .select("id, valor, valor_pago, data_vencimento, data_pagamento, conciliado")
+          .eq("company_id", companyId)
+          .eq("conciliado", true),
+      ]);
+      const pagarRows = (pagar.data || []) as any[];
+      const receberRows = (receber.data || []) as any[];
+
+      return linhas.map((linha) => {
+        const dataL = parseDataExtrato(linha.data);
+        if (!dataL) return linha;
+        const pool = linha.tipo === "DEBITO" ? pagarRows : receberRows;
+        const tabela = linha.tipo === "DEBITO" ? "contas_pagar" : "contas_receber";
+        const match = pool.find((r) => {
+          const valorRef = Number(r.valor_pago || r.valor);
+          if (Math.abs(valorRef - linha.valor) > 0.01) return false;
+          const dataRef = r.data_pagamento
+            ? new Date(`${r.data_pagamento}T00:00:00`)
+            : new Date(`${r.data_vencimento}T00:00:00`);
+          return diffDays(dataL, dataRef) <= 3;
+        });
+        if (!match) return linha;
+        return {
+          ...linha,
+          conciliado: true,
+          lancamento_id: match.id,
+          lancamento_tabela: tabela as ExtratoLinha["lancamento_tabela"],
+        };
+      });
+    } catch {
+      return linhas;
+    }
+  };
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const text = evt.target?.result as string;
         const lines = text.split("\n").filter(Boolean);
@@ -61,8 +128,12 @@ export default function ConciliacaoPage() {
           };
         });
 
-        setLinhasExtrato(parsed);
-        toast.success(`${parsed.length} lançamentos importados`);
+        const comConciliacoes = await aplicarConciliacoesExistentes(parsed);
+        setLinhasExtrato(comConciliacoes);
+        const jaConc = comConciliacoes.filter((l) => l.conciliado).length;
+        toast.success(
+          `${parsed.length} lançamentos importados${jaConc ? ` — ${jaConc} já conciliados` : ""}`,
+        );
       } catch {
         toast.error("Erro ao processar arquivo CSV");
       }
@@ -71,10 +142,91 @@ export default function ConciliacaoPage() {
     e.target.value = "";
   };
 
-  const toggleConciliado = (id: string) => {
-    setLinhasExtrato((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, conciliado: !l.conciliado } : l))
-    );
+  const conciliar = async (linha: ExtratoLinha) => {
+    if (!companyId) {
+      toast.error("Empresa não identificada");
+      return;
+    }
+    setConciliando(linha.id);
+    try {
+      const dataL = parseDataExtrato(linha.data);
+      if (!dataL) {
+        toast.error("Data do extrato inválida");
+        return;
+      }
+      const tabela: "contas_pagar" | "contas_receber" =
+        linha.tipo === "DEBITO" ? "contas_pagar" : "contas_receber";
+
+      // Busca janela de ±3 dias e filtra no cliente por valor exato
+      const dataMin = new Date(dataL); dataMin.setDate(dataMin.getDate() - 3);
+      const dataMax = new Date(dataL); dataMax.setDate(dataMax.getDate() + 3);
+      const iso = (d: Date) => d.toISOString().split("T")[0];
+
+      const { data: candidatos, error } = await (supabase as any)
+        .from(tabela)
+        .select("id, valor, valor_pago, data_vencimento, data_pagamento, descricao, conciliado")
+        .eq("company_id", companyId)
+        .eq("conciliado", false)
+        .gte("data_vencimento", iso(dataMin))
+        .lte("data_vencimento", iso(dataMax));
+      if (error) throw error;
+
+      const match = (candidatos || []).find((r: any) => {
+        const v = Number(r.valor_pago || r.valor);
+        return Math.abs(v - linha.valor) < 0.01;
+      });
+
+      if (!match) {
+        toast.warning(
+          `Nenhum lançamento em ${tabela === "contas_pagar" ? "Contas a Pagar" : "Contas a Receber"} bate com R$ ${linha.valor.toFixed(2)} em ±3 dias`,
+        );
+        return;
+      }
+
+      const { error: updErr } = await (supabase as any)
+        .from(tabela)
+        .update({ conciliado: true, conciliado_em: new Date().toISOString() })
+        .eq("id", match.id);
+      if (updErr) throw updErr;
+
+      setLinhasExtrato((prev) =>
+        prev.map((l) =>
+          l.id === linha.id
+            ? { ...l, conciliado: true, lancamento_id: match.id, lancamento_tabela: tabela }
+            : l,
+        ),
+      );
+      toast.success(`Conciliado: ${match.descricao || `R$ ${linha.valor.toFixed(2)}`}`);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao conciliar");
+    } finally {
+      setConciliando(null);
+    }
+  };
+
+  const desfazerConciliacao = async (linha: ExtratoLinha) => {
+    setConciliando(linha.id);
+    try {
+      if (linha.lancamento_id && linha.lancamento_tabela) {
+        const { error } = await (supabase as any)
+          .from(linha.lancamento_tabela)
+          .update({ conciliado: false, conciliado_em: null })
+          .eq("id", linha.lancamento_id);
+        if (error) throw error;
+      }
+      setLinhasExtrato((prev) =>
+        prev.map((l) =>
+          l.id === linha.id
+            ? { ...l, conciliado: false, lancamento_id: undefined, lancamento_tabela: undefined }
+            : l,
+        ),
+      );
+      toast.success("Conciliação desfeita");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao desfazer");
+    } finally {
+      setConciliando(null);
+    }
   };
 
   const linhasFiltradas = useMemo(() => {
@@ -230,7 +382,10 @@ export default function ConciliacaoPage() {
                         <Button
                           size="sm"
                           variant={linha.conciliado ? "ghost" : "outline"}
-                          onClick={() => toggleConciliado(linha.id)}
+                          disabled={conciliando === linha.id}
+                          onClick={() =>
+                            linha.conciliado ? desfazerConciliacao(linha) : conciliar(linha)
+                          }
                         >
                           {linha.conciliado ? (
                             <>
@@ -240,7 +395,7 @@ export default function ConciliacaoPage() {
                           ) : (
                             <>
                               <Link2 className="h-3 w-3 mr-1" />
-                              Conciliar
+                              {conciliando === linha.id ? "..." : "Conciliar"}
                             </>
                           )}
                         </Button>
