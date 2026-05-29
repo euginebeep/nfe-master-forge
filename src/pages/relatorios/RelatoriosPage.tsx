@@ -196,17 +196,17 @@ export default function RelatoriosPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("responsaveis_tecnicos")
-        .select("nome, conselho, numero_registro, uf_registro")
+        .select("nome_completo, tipo_conselho, numero_registro, uf_conselho")
         .eq("company_id", companyId!)
-        .eq("ativo", true);
+        .eq("status", "ATIVO");
       return data || [];
     },
     enabled: !!companyId,
   });
 
-  const rtPrincipal = rts[0];
+  const rtPrincipal = rts[0] as { nome_completo?: string; tipo_conselho?: string; numero_registro?: string; uf_conselho?: string } | undefined;
   const rtLabel = rtPrincipal
-    ? `${rtPrincipal.nome} — ${rtPrincipal.conselho || ""} ${rtPrincipal.numero_registro || ""}${rtPrincipal.uf_registro ? "/" + rtPrincipal.uf_registro : ""}`.trim()
+    ? `${rtPrincipal.nome_completo} — ${rtPrincipal.tipo_conselho || ""} ${rtPrincipal.numero_registro || ""}${rtPrincipal.uf_conselho ? "/" + rtPrincipal.uf_conselho : ""}`.trim()
     : "Não cadastrado";
   const empresaLabel = empresa?.nome_fantasia || empresa?.razao_social || "Empresa";
 
