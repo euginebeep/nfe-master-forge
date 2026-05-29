@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getUserCompanyId } from '@/hooks/use-user-company';
 import { toast } from 'sonner';
 
 export interface EstoqueMovimentacao {
@@ -54,12 +55,12 @@ export function useEstoqueMovimentacoes() {
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
-      // Get company_id from profile
-      const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error('Empresa não identificada');
       const { error } = await supabase.from('estoque_movimentacoes').insert({
         ...mov,
         usuario_id: user.id,
-        company_id: profile?.company_id,
+        company_id: companyId,
       });
       if (error) throw error;
     },
