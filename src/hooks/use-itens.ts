@@ -133,9 +133,11 @@ export function useCreateItemFornecedor() {
 
   return useMutation({
     mutationFn: async (data: Omit<ItemFornecedor, "id" | "created_at">) => {
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error('Empresa não identificada');
       const { data: forn, error } = await supabase
         .from("item_fornecedores")
-        .insert(data as any)
+        .insert({ ...data, company_id: companyId } as any)
         .select()
         .single();
 
@@ -203,9 +205,11 @@ export function useCreateItemAlias() {
 
   return useMutation({
     mutationFn: async (data: Omit<ItemAlias, "id" | "created_at">) => {
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error('Empresa não identificada');
       const { data: alias, error } = await supabase
         .from("item_alias")
-        .insert(data as any)
+        .insert({ ...data, company_id: companyId } as any)
         .select()
         .single();
 
