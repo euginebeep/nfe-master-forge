@@ -375,6 +375,12 @@ export default function ExpedicaoPage() {
   const [confirmEntregaId, setConfirmEntregaId] = useState<string | null>(null);
 
   async function confirmarEntrega(pedidoId: string) {
+    const { data: pedido } = await supabase
+      .from("pedidos_vendedor")
+      .select("*, vendedores_externos(nome)")
+      .eq("id", pedidoId)
+      .maybeSingle();
+
     await supabase
       .from("pedidos_vendedor")
       .update({
@@ -383,6 +389,33 @@ export default function ExpedicaoPage() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", pedidoId);
+
+    if (pedido) {
+      const { data: contaExistente } = await supabase
+        .from('contas_receber')
+        .select('id')
+        .eq('company_id', pedido.company_id)
+        .eq('pedido_venda_id', pedidoId)
+        .maybeSingle();
+      if (!contaExistente) {
+        const vendedor = (pedido as any).vendedores_externos?.nome || 'Vendedor';
+        await supabase.from('contas_receber').insert({
+          company_id: pedido.company_id,
+          cliente_id: (pedido as any).entidade_id || null,
+          descricao: `Pedido externo — ${vendedor}`,
+          valor: Number((pedido as any).valor_total || 0),
+          valor_pago: 0,
+          data_emissao: new Date().toISOString().split('T')[0],
+          data_vencimento: (pedido as any).data_entrega_estimada
+            || new Date().toISOString().split('T')[0],
+          status: 'PENDENTE',
+          pedido_venda_id: pedidoId,
+          observacoes: 'Gerado automaticamente na confirmação de entrega',
+        });
+        qc.invalidateQueries({ queryKey: ['contas-receber'] });
+      }
+    }
+
     toast.success("Entrega confirmada. Comissão liberada para pagamento.");
     qc.invalidateQueries({ queryKey: ["expedicao-transito"] });
     qc.invalidateQueries({ queryKey: ["expedicao-historico"] });
