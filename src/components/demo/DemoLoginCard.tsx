@@ -14,13 +14,30 @@ export function DemoLoginCard() {
 
   const enterDemo = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    let { error } = await supabase.auth.signInWithPassword({
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
     });
+
+    // Se ainda não existe, provisiona via bootstrap e tenta novamente
+    if (error) {
+      toast.info('Preparando conta demo... isso pode levar até 1 minuto.');
+      const { error: bootErr } = await supabase.functions.invoke('bootstrap-demo-user');
+      if (bootErr) {
+        setLoading(false);
+        toast.error('Falha ao preparar demo: ' + bootErr.message);
+        return;
+      }
+      const retry = await supabase.auth.signInWithPassword({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+      });
+      error = retry.error;
+    }
+
     setLoading(false);
     if (error) {
-      toast.error('Demo ainda não está pronta. Tente novamente em alguns minutos.');
+      toast.error('Demo indisponível: ' + error.message);
       return;
     }
     navigate('/');
