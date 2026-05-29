@@ -592,7 +592,7 @@ export function useOrdemProducaoIndustrialActions() {
     // Notificar pedidos de vendedor vinculados a esta OP
     try {
       await supabase.functions.invoke('op-concluida-notify', {
-        body: { op_id: opId, company_id: op.company_id },
+        body: { op_id: opId },
       });
     } catch (e) {
       console.warn('Falha ao notificar expedição:', e);
