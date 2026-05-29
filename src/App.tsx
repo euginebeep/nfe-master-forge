@@ -75,6 +75,7 @@ const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
 const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
 const MonitoramentoAmbientalPage = lazy(() => import("./pages/ambiental/MonitoramentoAmbientalPage"));
+const AmbientalConfigPage = lazy(() => import("./pages/ambiental/AmbientalConfigPage"));
 const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
 const AssinaturaPage = lazy(() => import("./pages/assinatura/AssinaturaPage"));
 const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
@@ -203,6 +204,7 @@ const App = () => (
                 {/* Regulatório */}
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ConsultaAnvisaPage /></ErrorBoundary></Suspense>} />
                 <Route path="/ambiental/monitoramento" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MonitoramentoAmbientalPage /></ErrorBoundary></Suspense>} />
+                <Route path="/ambiental/configuracao" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AmbientalConfigPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Notificações */}
                 <Route path="/notificacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotificacoesPage /></ErrorBoundary></Suspense>} />
                 {/* Chat Interno */}
