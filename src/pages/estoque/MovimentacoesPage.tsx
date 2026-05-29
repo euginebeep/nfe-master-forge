@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ClipboardList, Plus, ArrowUpCircle, ArrowDownCircle, RefreshCw, Filter, Download, Calendar } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ClipboardList, Plus, ArrowUpCircle, ArrowDownCircle, RefreshCw, Filter, Search, Activity } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,29 @@ export default function MovimentacoesPage() {
   const { movimentacoes, isLoading } = useEstoqueMovimentacoes();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
+  const [filtroPeriodo, setFiltroPeriodo] = useState<string>("30");
+  const [busca, setBusca] = useState("");
 
-  const filtered = filtroTipo === "TODOS"
-    ? movimentacoes
-    : movimentacoes.filter(m => m.tipo === filtroTipo);
+  const filtered = useMemo(() => {
+    const agora = new Date();
+    const dias = filtroPeriodo === "0" ? null : Number(filtroPeriodo);
+    const limite = dias !== null ? new Date(agora.getTime() - dias * 86400000) : null;
+    const q = busca.trim().toLowerCase();
+    return movimentacoes.filter((m) => {
+      if (filtroTipo !== "TODOS" && m.tipo !== filtroTipo) return false;
+      if (limite && new Date(m.created_at) < limite) return false;
+      if (filtroPeriodo === "0") {
+        // Hoje
+        const d = new Date(m.created_at);
+        if (d.toDateString() !== agora.toDateString()) return false;
+      }
+      if (q) {
+        const hay = `${m.item?.descricao_interna || ""} ${m.item?.sku_interno || ""} ${m.lote?.numero_lote || ""} ${m.motivo || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [movimentacoes, filtroTipo, filtroPeriodo, busca]);
 
   const getTipoVariant = (tipo: string) => {
     switch (tipo) {
@@ -39,11 +58,18 @@ export default function MovimentacoesPage() {
     return <RefreshCw className="h-4 w-4 text-amber-500" />;
   };
 
-  const totais = {
-    entradas: movimentacoes.filter(m => m.tipo === 'ENTRADA' || m.tipo === 'DEVOLUCAO').length,
-    saidas: movimentacoes.filter(m => m.tipo === 'SAIDA' || m.tipo === 'CONSUMO_OP').length,
-    ajustes: movimentacoes.filter(m => m.tipo === 'AJUSTE' || m.tipo === 'TRANSFERENCIA').length,
-  };
+  const totais = useMemo(() => {
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
+    const doMes = movimentacoes.filter((m) => new Date(m.created_at) >= inicioMes);
+    return {
+      entradas: doMes.filter((m) => m.tipo === "ENTRADA" || m.tipo === "DEVOLUCAO").length,
+      saidas: doMes.filter((m) => m.tipo === "SAIDA" || m.tipo === "CONSUMO_OP").length,
+      ajustes: doMes.filter((m) => m.tipo === "AJUSTE" || m.tipo === "TRANSFERENCIA").length,
+      total: movimentacoes.length,
+    };
+  }, [movimentacoes]);
 
   const columns = [
     {
@@ -134,12 +160,12 @@ export default function MovimentacoesPage() {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <Card className="border-l-4 border-l-emerald-500">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Entradas</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Entradas (mês)</p>
             </div>
             <p className="text-2xl font-bold">{totais.entradas}</p>
           </CardContent>
@@ -148,7 +174,7 @@ export default function MovimentacoesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <ArrowDownCircle className="h-4 w-4 text-red-500" />
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Saídas / Consumo OP</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Saídas (mês)</p>
             </div>
             <p className="text-2xl font-bold">{totais.saidas}</p>
           </CardContent>
@@ -157,15 +183,33 @@ export default function MovimentacoesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <RefreshCw className="h-4 w-4 text-amber-500" />
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Ajustes / Transferências</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Ajustes (mês)</p>
             </div>
             <p className="text-2xl font-bold">{totais.ajustes}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Activity className="h-4 w-4 text-blue-500" />
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total</p>
+            </div>
+            <p className="text-2xl font-bold">{totais.total}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar item, lote ou motivo..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={filtroTipo} onValueChange={setFiltroTipo}>
@@ -183,6 +227,17 @@ export default function MovimentacoesPage() {
             </SelectContent>
           </Select>
         </div>
+        <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
+          <SelectTrigger className="w-[150px] h-9">
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">Hoje</SelectItem>
+            <SelectItem value="7">Últimos 7 dias</SelectItem>
+            <SelectItem value="30">Últimos 30 dias</SelectItem>
+            <SelectItem value="365">Último ano</SelectItem>
+          </SelectContent>
+        </Select>
         <p className="text-xs text-muted-foreground ml-auto">
           {filtered.length} movimentação(ões) encontrada(s)
         </p>
