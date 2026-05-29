@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { isDemoUser, demoBlockedResponse } from "../_shared/demo-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +25,10 @@ serve(async (req) => {
 
   try {
     logStep("Function started");
+
+    if (await isDemoUser(req.headers.get("Authorization"))) {
+      return demoBlockedResponse(corsHeaders, "assinatura paga");
+    }
 
     const { priceId } = await req.json();
     if (!priceId) throw new Error("priceId is required");
