@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   TrendingUp, Plus, Search, MapPin, Package, ArrowRight, ArrowUp,
   Users, Phone, Mail, Download, ChevronDown, ChevronRight, X, Archive, Edit
@@ -465,20 +465,14 @@ function LeadFormDialog({ open, onOpenChange, editing, vendedores }: {
     produtos_interesse: "", valor_estimado: 0, score: 50, observacoes: "",
   });
 
-  // populate when editing changes
-  useState(() => { if (editing) setForm({ ...editing }); });
-  // sync on open
-  const openRef = useMemo(() => {
-    if (open) {
-      if (editing) setForm({ ...editing });
-      else setForm({
-        empresa: "", contato_nome: "", telefone: "", email: "",
-        cidade: "", estado: "", origem: "DIRETO", vendedor_id: null,
-        produtos_interesse: "", valor_estimado: 0, score: 50, observacoes: "",
-      });
-    }
-    return open;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!open) return;
+    if (editing) setForm({ ...editing });
+    else setForm({
+      empresa: "", contato_nome: "", telefone: "", email: "",
+      cidade: "", estado: "", origem: "DIRETO", vendedor_id: null,
+      produtos_interesse: "", valor_estimado: 0, score: 50, observacoes: "",
+    });
   }, [open, editing?.id]);
 
   const submit = () => {
@@ -501,7 +495,7 @@ function LeadFormDialog({ open, onOpenChange, editing, vendedores }: {
   };
 
   return (
-    <Dialog open={openRef} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{editing ? "Editar lead" : "Novo lead"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
@@ -892,7 +886,7 @@ function ComissoesTab() {
                 const status = aPagar.length === 0 ? "PAGO" : "PENDENTE";
                 const isOpen = expandido === r.vendedor.id;
                 return (
-                  <>
+                  <Fragment key={r.vendedor.id}>
                     <TableRow key={r.vendedor.id} className="cursor-pointer" onClick={() => setExpandido(isOpen ? null : r.vendedor.id)}>
                       <TableCell>{isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</TableCell>
                       <TableCell className="font-medium">{r.vendedor.nome}</TableCell>
@@ -942,7 +936,7 @@ function ComissoesTab() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
