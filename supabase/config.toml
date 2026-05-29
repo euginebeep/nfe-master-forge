@@ -29,3 +29,7 @@ project_id = "lvptvswvqjhvobdvgfws"
     verify_jwt = false
   [functions.validate-certificate]
     verify_jwt = false
+  [functions.bootstrap-demo-user]
+    verify_jwt = false
+  [functions.seed-demo-data]
+    verify_jwt = false
