@@ -4933,6 +4933,86 @@ export type Database = {
           },
         ]
       }
+      pedido_vendedor_itens: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          item_id: string
+          item_nome: string
+          op_id: string | null
+          pedido_id: string
+          preco_unitario: number
+          qtd_do_estoque: number
+          qtd_para_producao: number
+          quantidade: number
+          status_item: string
+          subtotal: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          item_nome: string
+          op_id?: string | null
+          pedido_id: string
+          preco_unitario?: number
+          qtd_do_estoque?: number
+          qtd_para_producao?: number
+          quantidade?: number
+          status_item?: string
+          subtotal?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_nome?: string
+          op_id?: string | null
+          pedido_id?: string
+          preco_unitario?: number
+          qtd_do_estoque?: number
+          qtd_para_producao?: number
+          quantidade?: number
+          status_item?: string
+          subtotal?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_vendedor_itens_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_vendedor_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_vendedor_itens_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_vendedor_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_vendedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pedidos_venda: {
         Row: {
           cliente_documento: string | null
@@ -6241,6 +6321,7 @@ export type Database = {
           id: string
           meta_mensal: number
           nome: string
+          pedido_minimo: number
           telefone: string | null
           territorio: string | null
           updated_at: string
@@ -6256,6 +6337,7 @@ export type Database = {
           id?: string
           meta_mensal?: number
           nome: string
+          pedido_minimo?: number
           telefone?: string | null
           territorio?: string | null
           updated_at?: string
@@ -6271,6 +6353,7 @@ export type Database = {
           id?: string
           meta_mensal?: number
           nome?: string
+          pedido_minimo?: number
           telefone?: string | null
           territorio?: string | null
           updated_at?: string
