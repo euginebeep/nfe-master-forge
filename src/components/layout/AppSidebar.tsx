@@ -30,7 +30,8 @@ import {
   Map,
   HelpCircle,
   LogOut,
-  Thermometer } from
+  Thermometer,
+  Settings2 } from
 "lucide-react";
 import {
   Sidebar,
