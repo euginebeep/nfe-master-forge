@@ -142,13 +142,13 @@ export default function MonitoramentoAmbientalPage() {
     (async () => {
       const { data } = await supabase
         .from("responsaveis_tecnicos")
-        .select("nome_completo, tipo_conselho, numero_conselho, uf_conselho")
+        .select("nome_completo, tipo_conselho, numero_registro, uf_conselho")
         .eq("status", "ATIVO")
         .limit(1)
         .maybeSingle();
       if (data) {
         setRtName(
-          `${data.nome_completo} — ${data.tipo_conselho} ${data.numero_conselho}/${data.uf_conselho}`
+          `${data.nome_completo} — ${data.tipo_conselho} ${data.numero_registro}/${data.uf_conselho}`
         );
       }
     })();
