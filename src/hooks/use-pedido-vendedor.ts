@@ -90,8 +90,14 @@ export function useConfirmarPedido() {
         if (check.paraProducao > 0) {
           const { data: itemRow } = await supabase
             .from("itens")
-            .select("formula_id, descricao_interna")
+            .select("descricao_interna")
             .eq("id", item.item_id)
+            .maybeSingle();
+
+          const { data: formulaRow } = await supabase
+            .from("formulas")
+            .select("id")
+            .eq("produto_acabado_id", item.item_id)
             .maybeSingle();
 
           const today = new Date();
@@ -107,7 +113,7 @@ export function useConfirmarPedido() {
               produto_nome:
                 item.item_nome || itemRow?.descricao_interna || "Produto",
               produto_id: item.item_id,
-              formula_id: itemRow?.formula_id ?? null,
+              formula_id: formulaRow?.id ?? null,
               quantidade_frascos: Math.ceil(check.paraProducao),
               capsulas_por_frasco: 0,
               total_capsulas: 0,
