@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { CentralToastProvider } from "@/components/ui/central-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { GlobalSearchDialog } from "./components/search/GlobalSearchDialog";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -182,7 +182,7 @@ const App = () => (
                 <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasEntradaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Financeiro — gerente+ */}
                 <Route path="/financeiro/pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
-                <Route path="/financeiro/contas-pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/financeiro/contas-pagar" element={<Navigate to="/financeiro/pagar" replace />} />
                 <Route path="/financeiro/receber" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasReceberPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/fluxo" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><FluxoCaixaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/conciliacao" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ConciliacaoPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
