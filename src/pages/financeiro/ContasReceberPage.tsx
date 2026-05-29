@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   DollarSign, Search, Calendar, Building2, Plus, MoreVertical, Edit, Ban,
-  CheckCircle, AlertCircle, Clock, X, CreditCard, TrendingUp
+  CheckCircle, AlertCircle, Clock, X, CreditCard, TrendingUp, FileSpreadsheet
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -326,6 +326,9 @@ export default function ContasReceberPage() {
               </SelectContent>
             </Select>
             {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters}><X className="h-4 w-4 mr-1" /> Limpar</Button>}
+            <Button variant="outline" size="sm" onClick={exportarCSV} className="ml-auto">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar
+            </Button>
           </div>
         </CardContent>
       </Card>
