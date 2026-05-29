@@ -103,7 +103,8 @@ export default function NovoPedidoVendedorPage() {
           preco_minimo: Number(tp.preco_minimo) || 0,
           preco_sugerido: Number(tp.preco_sugerido) || 0,
           quantidade_minima: Number(tp.quantidade_minima) || 0,
-          preco_unitario: existente?.preco_unitario ?? Number(tp.preco_sugerido) || 0,
+          preco_unitario:
+            existente?.preco_unitario ?? (Number(tp.preco_sugerido) || 0),
           quantidade: existente?.quantidade ?? 0,
           estoque: existente?.estoque,
         };
