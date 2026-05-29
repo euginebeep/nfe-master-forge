@@ -9,15 +9,86 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useQCDesvios } from "@/hooks/use-qc";
+import { useUserCompanyId } from "@/hooks/use-user-company";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { FASES_LABELS } from "@/hooks/use-desvio-detail";
 import { format } from "date-fns";
 
 export default function DesviosPage() {
   const { data: desvios, isLoading } = useQCDesvios();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: companyId } = useUserCompanyId();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [novoDesvioOpen, setNovoDesvioOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    tipo: "PROCESSO",
+    severidade: "MEDIA",
+    descricao: "",
+    fase_detectada: "PRODUCAO",
+    produto_afetado: "",
+    lote_afetado: "",
+  });
+
+  const resetForm = () => setForm({
+    tipo: "PROCESSO",
+    severidade: "MEDIA",
+    descricao: "",
+    fase_detectada: "PRODUCAO",
+    produto_afetado: "",
+    lote_afetado: "",
+  });
+
+  const gerarCodigo = () => {
+    const d = new Date();
+    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    const seq = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    return `DEV-${ymd}-${seq}`;
+  };
+
+  const handleSalvar = async () => {
+    if (!form.descricao.trim()) {
+      toast.error("Descrição é obrigatória");
+      return;
+    }
+    if (!companyId) {
+      toast.error("Empresa não identificada");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: any = {
+        codigo: gerarCodigo(),
+        tipo: form.tipo,
+        severidade: form.severidade,
+        descricao: form.descricao,
+        status: "ABERTO",
+        fase_atual: "IDENTIFICACAO",
+        company_id: companyId,
+        produto_afetado: form.produto_afetado || null,
+        lote_afetado: form.lote_afetado || null,
+        fase_detectada: form.fase_detectada,
+      };
+      const { error } = await supabase.from("qc_desvios").insert(payload);
+      if (error) throw error;
+      toast.success("Desvio registrado");
+      queryClient.invalidateQueries({ queryKey: ["qc-desvios"] });
+      setNovoDesvioOpen(false);
+      resetForm();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao registrar desvio");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const filtered = (desvios || []).filter(d => {
     const matchSearch = d.codigo.toLowerCase().includes(search.toLowerCase()) || d.descricao.toLowerCase().includes(search.toLowerCase());
@@ -54,7 +125,7 @@ export default function DesviosPage() {
         title="Desvios / CAPA"
         description="Gestão de não-conformidades, ações corretivas e preventivas"
         icon={ShieldAlert}
-        actions={<Button onClick={() => navigate("/qualidade/desvios/novo")}><Plus className="h-4 w-4 mr-2" />Novo Desvio</Button>}
+        actions={<Button onClick={() => setNovoDesvioOpen(true)}><Plus className="h-4 w-4 mr-2" />Novo Desvio</Button>}
       />
 
       {/* KPIs */}
@@ -119,6 +190,84 @@ export default function DesviosPage() {
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog open={novoDesvioOpen} onOpenChange={setNovoDesvioOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Novo Desvio</DialogTitle>
+            <DialogDescription>Registrar nova não-conformidade</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PROCESSO">Processo</SelectItem>
+                  <SelectItem value="PRODUTO">Produto</SelectItem>
+                  <SelectItem value="EQUIPAMENTO">Equipamento</SelectItem>
+                  <SelectItem value="AMBIENTAL">Ambiental</SelectItem>
+                  <SelectItem value="FORNECEDOR">Fornecedor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Severidade</Label>
+              <Select value={form.severidade} onValueChange={(v) => setForm({ ...form, severidade: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CRITICA">Crítica</SelectItem>
+                  <SelectItem value="ALTA">Alta</SelectItem>
+                  <SelectItem value="MEDIA">Média</SelectItem>
+                  <SelectItem value="BAIXA">Baixa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Descrição *</Label>
+              <Textarea
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                placeholder="Descreva o desvio observado..."
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Fase Detectada</Label>
+              <Select value={form.fase_detectada} onValueChange={(v) => setForm({ ...form, fase_detectada: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RECEBIMENTO">Recebimento</SelectItem>
+                  <SelectItem value="PESAGEM">Pesagem</SelectItem>
+                  <SelectItem value="PRODUCAO">Produção</SelectItem>
+                  <SelectItem value="EMBALAGEM">Embalagem</SelectItem>
+                  <SelectItem value="EXPEDICAO">Expedição</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Produto Afetado</Label>
+              <Input
+                value={form.produto_afetado}
+                onChange={(e) => setForm({ ...form, produto_afetado: e.target.value })}
+                placeholder="Nome ou SKU"
+              />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Lote Afetado</Label>
+              <Input
+                value={form.lote_afetado}
+                onChange={(e) => setForm({ ...form, lote_afetado: e.target.value })}
+                placeholder="Número do lote"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNovoDesvioOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={handleSalvar} disabled={saving}>{saving ? "Salvando..." : "Registrar Desvio"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
