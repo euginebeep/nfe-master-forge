@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Thermometer, Droplets, Download, Printer, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserCompanyId } from "@/hooks/use-user-company";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -11,38 +15,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  Thermometer,
-  Droplets,
-  Printer,
-  Download,
-  AlertTriangle,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
-import { toast } from "sonner";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 
-// === Limites default conforme RDC 658/2022 ===
-const DEFAULT_LIMITS = {
-  temp_min: 15,
-  temp_max: 25,
-  hum_min: 40,
-  hum_max: 65,
-};
-
-interface SensorReading {
+type SensorReading = {
   id: string;
+  company_id: string | null;
   room_name: string;
   device_id: string;
   temperature: number | null;
@@ -53,164 +38,133 @@ interface SensorReading {
   hum_max: number | null;
   responsible: string | null;
   recorded_at: string;
-}
+};
+
+type Periodo = "hoje" | "7d" | "30d" | "3m";
+
+const PERIODO_DIAS: Record<Periodo, number> = {
+  hoje: 1,
+  "7d": 7,
+  "30d": 30,
+  "3m": 90,
+};
 
 type Status = "CONFORME" | "ATENCAO" | "ALERTA";
 
 function classify(
-  temp: number | null,
-  hum: number | null,
-  tmin: number,
-  tmax: number,
-  hmin: number,
-  hmax: number
+  value: number | null,
+  min: number | null,
+  max: number | null,
+  buffer: number
 ): Status {
-  if (temp == null || hum == null) return "ATENCAO";
-  const tempOut = temp < tmin || temp > tmax;
-  const humOut = hum < hmin || hum > hmax;
-  const tempNear = Math.abs(temp - tmin) <= 1 || Math.abs(temp - tmax) <= 1;
-  const humNear = Math.abs(hum - hmin) <= 3 || Math.abs(hum - hmax) <= 3;
-  if (tempOut || humOut) return "ALERTA";
-  if (tempNear || humNear) return "ATENCAO";
+  if (value == null || min == null || max == null) return "CONFORME";
+  if (value < min || value > max) return "ALERTA";
+  if (value <= min + buffer || value >= max - buffer) return "ATENCAO";
   return "CONFORME";
 }
 
-const STATUS_META: Record<
-  Status,
-  { label: string; cls: string; Icon: typeof CheckCircle2 }
-> = {
-  CONFORME: {
-    label: "Conforme",
-    cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-    Icon: CheckCircle2,
-  },
-  ATENCAO: {
-    label: "Atenção",
-    cls: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-    Icon: AlertTriangle,
-  },
-  ALERTA: {
-    label: "Alerta",
-    cls: "bg-destructive/10 text-destructive border-destructive/30",
-    Icon: AlertCircle,
-  },
-};
+function combineStatus(a: Status, b: Status): Status {
+  if (a === "ALERTA" || b === "ALERTA") return "ALERTA";
+  if (a === "ATENCAO" || b === "ATENCAO") return "ATENCAO";
+  return "CONFORME";
+}
 
-function fmtDateTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+function statusLabel(s: Status) {
+  return s === "CONFORME" ? "Conforme" : s === "ATENCAO" ? "Atenção" : "Não Conforme";
+}
+
+function statusVariant(s: Status): "default" | "secondary" | "destructive" {
+  return s === "CONFORME" ? "default" : s === "ATENCAO" ? "secondary" : "destructive";
+}
+
+function progressColor(s: Status) {
+  if (s === "ALERTA") return "bg-destructive";
+  if (s === "ATENCAO") return "bg-yellow-500";
+  return "bg-green-500";
+}
+
+function progressPct(value: number | null, min: number | null, max: number | null) {
+  if (value == null || min == null || max == null || max <= min) return 0;
+  const pct = ((value - min) / (max - min)) * 100;
+  return Math.max(0, Math.min(100, pct));
 }
 
 export default function MonitoramentoAmbientalPage() {
-  const [readings, setReadings] = useState<SensorReading[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedRoom, setSelectedRoom] = useState<string>("ALL");
-  const [hours, setHours] = useState<number>(24);
-  const [rtName, setRtName] = useState<string>("—");
-  const [customLimits, setCustomLimits] = useState<
-    Record<string, { temp_min: number; temp_max: number; hum_min: number; hum_max: number }>
-  >({});
+  const { data: companyId } = useUserCompanyId();
+  const [periodo, setPeriodo] = useState<Periodo>("hoje");
+  const [salaFiltro, setSalaFiltro] = useState<string>("__all__");
 
-  // === Fetch readings (RLS filtra company_id) ===
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      setLoading(true);
-      const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-      const { data, error } = await supabase
-        .from("sensor_readings" as any)
+  const sinceIso = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - PERIODO_DIAS[periodo]);
+    return d.toISOString();
+  }, [periodo]);
+
+  const { data: readings = [], isLoading } = useQuery({
+    queryKey: ["sensor_readings", companyId, sinceIso],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("sensor_readings")
         .select("*")
-        .gte("recorded_at", since)
-        .order("recorded_at", { ascending: false })
-        .limit(2000);
-      if (!active) return;
-      if (error) {
-        toast.error("Erro ao carregar leituras: " + error.message);
-        setReadings([]);
-      } else {
-        setReadings((data || []) as unknown as SensorReading[]);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [hours]);
+        .eq("company_id", companyId!)
+        .gte("recorded_at", sinceIso)
+        .order("recorded_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as SensorReading[];
+    },
+  });
 
-  // === Fetch RT ===
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
+  const { data: rtNome } = useQuery({
+    queryKey: ["rt-ativo-monitoramento"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
         .from("responsaveis_tecnicos")
-        .select("nome_completo, tipo_conselho, numero_registro, uf_conselho")
-        .eq("status", "ATIVO")
+        .select("nome_completo, nome, conselho, numero_registro")
+        .eq("ativo", true)
         .limit(1)
         .maybeSingle();
-      if (data) {
-        setRtName(
-          `${data.nome_completo} — ${data.tipo_conselho} ${data.numero_registro}/${data.uf_conselho}`
-        );
-      }
-    })();
-  }, []);
+      if (!data) return null;
+      const anyData = data as any;
+      const nome = anyData.nome_completo ?? anyData.nome ?? "";
+      const reg =
+        anyData.conselho && anyData.numero_registro
+          ? ` (${anyData.conselho} ${anyData.numero_registro})`
+          : "";
+      return `${nome}${reg}`;
+    },
+  });
 
-  // === Agregação por sala (última leitura) ===
-  const rooms = useMemo(() => {
+  const salas = useMemo(() => {
+    const set = new Set<string>();
+    readings.forEach((r) => set.add(r.room_name));
+    return Array.from(set).sort();
+  }, [readings]);
+
+  const filtered = useMemo(
+    () =>
+      salaFiltro === "__all__"
+        ? readings
+        : readings.filter((r) => r.room_name === salaFiltro),
+    [readings, salaFiltro]
+  );
+
+  // Última leitura por sala para os cards
+  const ultimasPorSala = useMemo(() => {
     const map = new Map<string, SensorReading>();
     for (const r of readings) {
       if (!map.has(r.room_name)) map.set(r.room_name, r);
     }
-    return Array.from(map.entries()).map(([name, last]) => {
-      const limits = customLimits[name] || {
-        temp_min: last.temp_min ?? DEFAULT_LIMITS.temp_min,
-        temp_max: last.temp_max ?? DEFAULT_LIMITS.temp_max,
-        hum_min: last.hum_min ?? DEFAULT_LIMITS.hum_min,
-        hum_max: last.hum_max ?? DEFAULT_LIMITS.hum_max,
-      };
-      const status = classify(
-        last.temperature,
-        last.humidity,
-        limits.temp_min,
-        limits.temp_max,
-        limits.hum_min,
-        limits.hum_max
-      );
-      return { name, last, limits, status };
-    });
-  }, [readings, customLimits]);
+    return Array.from(map.values());
+  }, [readings]);
 
-  const roomNames = useMemo(() => rooms.map((r) => r.name), [rooms]);
-
-  // === Série para gráfico ===
-  const chartData = useMemo(() => {
-    const filter =
-      selectedRoom === "ALL"
-        ? readings
-        : readings.filter((r) => r.room_name === selectedRoom);
-    return [...filter]
-      .sort((a, b) => +new Date(a.recorded_at) - +new Date(b.recorded_at))
-      .map((r) => ({
-        time: new Date(r.recorded_at).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        temperatura: r.temperature,
-        umidade: r.humidity,
-      }));
-  }, [readings, selectedRoom]);
-
-  // === Exportar CSV ===
   function exportCsv() {
-    if (readings.length === 0) {
-      toast.warning("Não há leituras para exportar.");
-      return;
-    }
-    const header = [
+    const headers = [
       "data_hora",
       "sala",
       "device_id",
-      "temperatura_c",
-      "umidade_pct",
+      "temperatura",
+      "umidade",
       "temp_min",
       "temp_max",
       "hum_min",
@@ -218,298 +172,240 @@ export default function MonitoramentoAmbientalPage() {
       "status",
       "responsavel",
     ];
-    const rowsCsv = readings.map((r) => {
-      const lim = customLimits[r.room_name] || {
-        temp_min: r.temp_min ?? DEFAULT_LIMITS.temp_min,
-        temp_max: r.temp_max ?? DEFAULT_LIMITS.temp_max,
-        hum_min: r.hum_min ?? DEFAULT_LIMITS.hum_min,
-        hum_max: r.hum_max ?? DEFAULT_LIMITS.hum_max,
-      };
-      const st = classify(
-        r.temperature,
-        r.humidity,
-        lim.temp_min,
-        lim.temp_max,
-        lim.hum_min,
-        lim.hum_max
+    const rows = filtered.map((r) => {
+      const st = combineStatus(
+        classify(r.temperature, r.temp_min, r.temp_max, 1),
+        classify(r.humidity, r.hum_min, r.hum_max, 3)
       );
       return [
-        fmtDateTime(r.recorded_at),
+        new Date(r.recorded_at).toLocaleString("pt-BR"),
         r.room_name,
         r.device_id,
         r.temperature ?? "",
         r.humidity ?? "",
-        lim.temp_min,
-        lim.temp_max,
-        lim.hum_min,
-        lim.hum_max,
-        st,
+        r.temp_min ?? "",
+        r.temp_max ?? "",
+        r.hum_min ?? "",
+        r.hum_max ?? "",
+        statusLabel(st),
         r.responsible ?? "",
       ];
     });
-    const csv = [header, ...rowsCsv]
-      .map((row) =>
-        row
-          .map((v) => {
-            const s = String(v).replace(/"/g, '""');
-            return /[,;"\n]/.test(s) ? `"${s}"` : s;
-          })
-          .join(";")
-      )
-      .join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const csv =
+      "\uFEFF" +
+      [headers, ...rows]
+        .map((row) =>
+          row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")
+        )
+        .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `monitoramento-ambiental-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `monitoramento-ambiental-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("CSV exportado");
   }
 
-  function updateLimit(
-    name: string,
-    field: "temp_min" | "temp_max" | "hum_min" | "hum_max",
-    value: number
-  ) {
-    setCustomLimits((prev) => {
-      const cur =
-        prev[name] || {
-          temp_min: DEFAULT_LIMITS.temp_min,
-          temp_max: DEFAULT_LIMITS.temp_max,
-          hum_min: DEFAULT_LIMITS.hum_min,
-          hum_max: DEFAULT_LIMITS.hum_max,
-        };
-      return { ...prev, [name]: { ...cur, [field]: value } };
-    });
-  }
+  const rtTexto = `Responsável Técnico: ${
+    rtNome ?? "Não cadastrado"
+  } — RDC 658/2022 / POP-AMB-001`;
 
   return (
-    <div className="p-6 space-y-6 print:p-2">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Thermometer className="w-6 h-6 text-primary" />
-            Monitoramento Ambiental
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Conforme RDC 658/2022 — Boas Práticas de Fabricação ANVISA
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={selectedRoom} onValueChange={setSelectedRoom}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Sala" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todas as salas</SelectItem>
-              {roomNames.map((n) => (
-                <SelectItem key={n} value={n}>
-                  {n}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={String(hours)} onValueChange={(v) => setHours(Number(v))}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="6">Últimas 6h</SelectItem>
-              <SelectItem value="24">Últimas 24h</SelectItem>
-              <SelectItem value="72">Últimos 3 dias</SelectItem>
-              <SelectItem value="168">Última semana</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={exportCsv}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar CSV
-          </Button>
-          <Button onClick={() => window.print()}>
-            <Printer className="w-4 h-4 mr-2" />
-            Imprimir relatório
-          </Button>
-        </div>
+    <div className="p-4 sm:p-6 space-y-6">
+      <PageHeader
+        title="Monitoramento Ambiental"
+        description="Leituras de temperatura e umidade conforme RDC 658/2022 — ANVISA"
+        icon={Thermometer}
+        actions={
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="w-4 h-4 mr-2" /> Exportar CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Printer className="w-4 h-4 mr-2" /> Imprimir / PDF
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="flex flex-wrap gap-3 print:hidden">
+        <Select value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="hoje">Hoje</SelectItem>
+            <SelectItem value="7d">Últimos 7 dias</SelectItem>
+            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+            <SelectItem value="3m">Últimos 3 meses</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={salaFiltro} onValueChange={setSalaFiltro}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Filtrar por sala" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas as salas</SelectItem>
+            {salas.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Cabeçalho de impressão */}
-      <div className="hidden print:block mb-4">
-        <h1 className="text-xl font-bold">Relatório de Monitoramento Ambiental — ANVISA</h1>
-        <p className="text-xs text-muted-foreground">
-          RDC 658/2022 • Emitido em {new Date().toLocaleString("pt-BR")}
-        </p>
-      </div>
-
-      {/* Cards por sala */}
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Carregando leituras…</p>
-      ) : rooms.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Nenhuma leitura registrada no período selecionado.
-          </CardContent>
-        </Card>
+      {!isLoading && readings.length === 0 ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="Sem leituras"
+          description="Nenhuma leitura registrada. Configure a integração eWeLink via n8n para começar o monitoramento."
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rooms.map(({ name, last, limits, status }) => {
-            const meta = STATUS_META[status];
-            return (
-              <Card key={name} className="border-l-4" style={{ borderLeftColor: status === "ALERTA" ? "hsl(var(--destructive))" : status === "ATENCAO" ? "hsl(45 95% 50%)" : "hsl(150 65% 40%)" }}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{name}</CardTitle>
-                    <Badge variant="outline" className={meta.cls}>
-                      <meta.Icon className="w-3 h-3 mr-1" />
-                      {meta.label}
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Device: {last.device_id} • {fmtDateTime(last.recorded_at)}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2">
-                      <Thermometer className="w-5 h-5 text-orange-500" />
-                      <div>
-                        <div className="text-2xl font-bold leading-none">
-                          {last.temperature?.toFixed(1) ?? "—"}°C
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {limits.temp_min}–{limits.temp_max}°C
-                        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {ultimasPorSala
+              .filter(
+                (r) => salaFiltro === "__all__" || r.room_name === salaFiltro
+              )
+              .map((r) => {
+                const tempSt = classify(r.temperature, r.temp_min, r.temp_max, 1);
+                const humSt = classify(r.humidity, r.hum_min, r.hum_max, 3);
+                const overall = combineStatus(tempSt, humSt);
+                return (
+                  <Card key={r.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-base truncate">
+                          {r.room_name}
+                        </CardTitle>
+                        <Badge variant={statusVariant(overall)}>
+                          {statusLabel(overall)}
+                        </Badge>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Droplets className="w-5 h-5 text-blue-500" />
-                      <div>
-                        <div className="text-2xl font-bold leading-none">
-                          {last.humidity ?? "—"}%
+                      <p className="text-xs text-muted-foreground truncate">
+                        {r.device_id} ·{" "}
+                        {new Date(r.recorded_at).toLocaleString("pt-BR")}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <Thermometer className="w-4 h-4" /> Temperatura
+                          </span>
+                          <span className="font-medium">
+                            {r.temperature != null ? `${r.temperature}°C` : "—"}
+                          </span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {limits.hum_min}–{limits.hum_max}% UR
-                        </div>
+                        <Progress
+                          value={progressPct(r.temperature, r.temp_min, r.temp_max)}
+                          indicatorClassName={progressColor(tempSt)}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Limites: {r.temp_min ?? "—"}°C – {r.temp_max ?? "—"}°C
+                        </p>
                       </div>
-                    </div>
-                  </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <Droplets className="w-4 h-4" /> Umidade
+                          </span>
+                          <span className="font-medium">
+                            {r.humidity != null ? `${r.humidity}%` : "—"}
+                          </span>
+                        </div>
+                        <Progress
+                          value={progressPct(r.humidity, r.hum_min, r.hum_max)}
+                          indicatorClassName={progressColor(humSt)}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Limites: {r.hum_min ?? "—"}% – {r.hum_max ?? "—"}%
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+          </div>
 
-                  {/* Limites configuráveis */}
-                  <div className="grid grid-cols-4 gap-2 print:hidden">
-                    <div>
-                      <Label className="text-[10px]">T min</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        className="h-7 text-xs"
-                        value={limits.temp_min}
-                        onChange={(e) => updateLimit(name, "temp_min", Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[10px]">T max</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        className="h-7 text-xs"
-                        value={limits.temp_max}
-                        onChange={(e) => updateLimit(name, "temp_max", Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[10px]">UR min</Label>
-                      <Input
-                        type="number"
-                        className="h-7 text-xs"
-                        value={limits.hum_min}
-                        onChange={(e) => updateLimit(name, "hum_min", Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[10px]">UR max</Label>
-                      <Input
-                        type="number"
-                        className="h-7 text-xs"
-                        value={limits.hum_max}
-                        onChange={(e) => updateLimit(name, "hum_max", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-
-                  {last.responsible && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Responsável: {last.responsible}
-                    </p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Registros do período ({filtered.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data/Hora</TableHead>
+                    <TableHead>Sala</TableHead>
+                    <TableHead>Device ID</TableHead>
+                    <TableHead className="text-right">Temp.</TableHead>
+                    <TableHead className="text-right">Umid.</TableHead>
+                    <TableHead>Limites</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Responsável</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((r) => {
+                    const st = combineStatus(
+                      classify(r.temperature, r.temp_min, r.temp_max, 1),
+                      classify(r.humidity, r.hum_min, r.hum_max, 3)
+                    );
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {new Date(r.recorded_at).toLocaleString("pt-BR")}
+                        </TableCell>
+                        <TableCell>{r.room_name}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {r.device_id}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {r.temperature != null ? `${r.temperature}°C` : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {r.humidity != null ? `${r.humidity}%` : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          T: {r.temp_min ?? "—"}–{r.temp_max ?? "—"}°C · U:{" "}
+                          {r.hum_min ?? "—"}–{r.hum_max ?? "—"}%
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant(st)}>
+                            {statusLabel(st)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{r.responsible ?? "—"}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="text-center text-muted-foreground py-6"
+                      >
+                        Nenhum registro no período selecionado.
+                      </TableCell>
+                    </TableRow>
                   )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      {/* Gráfico */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Evolução —{" "}
-            {selectedRoom === "ALL" ? "Todas as salas (combinado)" : selectedRoom} • últimas{" "}
-            {hours}h
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="h-[340px]">
-          {chartData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem dados no período.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={11}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    fontSize: 12,
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="temperatura"
-                  name="Temp (°C)"
-                  stroke="#f97316"
-                  dot={false}
-                  strokeWidth={2}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="umidade"
-                  name="UR (%)"
-                  stroke="#3b82f6"
-                  dot={false}
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Rodapé com RT */}
-      <footer className="border-t pt-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
-        <span>
-          Responsável Técnico: <span className="font-semibold text-foreground">{rtName}</span>
-        </span>
-        <span>BrainX ERP • RDC 658/2022 ANVISA</span>
+      <footer className="pt-4 border-t text-xs text-muted-foreground text-center">
+        {rtTexto}
       </footer>
     </div>
   );
