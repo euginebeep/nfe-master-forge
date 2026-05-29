@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
 
@@ -40,6 +41,7 @@ function diffDays(a: Date, b: Date): number {
 
 export default function ConciliacaoPage() {
   const { data: companyId } = useUserCompanyId();
+  const queryClient = useQueryClient();
   const [linhasExtrato, setLinhasExtrato] = useState<ExtratoLinha[]>([]);
   const [filtro, setFiltro] = useState("");
   const [conciliando, setConciliando] = useState<string | null>(null);
