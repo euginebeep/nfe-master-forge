@@ -29,7 +29,8 @@ import {
   UserCheck,
   Map,
   HelpCircle,
-  LogOut } from
+  LogOut,
+  Thermometer } from
 "lucide-react";
 import {
   Sidebar,
@@ -162,7 +163,8 @@ const menuGroups: MenuGroup[] = [
   label: "Regulatorio",
   modulo: "producao",
   items: [
-  { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018", modulo: "producao" }]
+  { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018", modulo: "producao" },
+  { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade conforme RDC 658/2022", modulo: "producao" }]
 
 },
 {
