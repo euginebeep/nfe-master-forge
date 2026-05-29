@@ -715,6 +715,7 @@ export type Database = {
       chat_messages: {
         Row: {
           channel: string | null
+          company_id: string | null
           content: string
           created_at: string
           id: string
@@ -724,6 +725,7 @@ export type Database = {
         }
         Insert: {
           channel?: string | null
+          company_id?: string | null
           content: string
           created_at?: string
           id?: string
@@ -733,6 +735,7 @@ export type Database = {
         }
         Update: {
           channel?: string | null
+          company_id?: string | null
           content?: string
           created_at?: string
           id?: string
