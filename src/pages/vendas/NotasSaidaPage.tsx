@@ -233,11 +233,11 @@ export default function NotasSaidaPage() {
 
       return nota;
     },
-    onSuccess: () => {
+    onSuccess: (nota: any) => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
       toast.success("Nota de saída criada como rascunho");
-      // Auto-open DANFE preview with current form data
-      openDanfeFromForm();
+      // Auto-open DANFE preview using the saved nota
+      if (nota?.id) openDanfeFromSavedNota(nota.id);
       resetForm();
       setDialogOpen(false);
     },
@@ -262,8 +262,8 @@ export default function NotasSaidaPage() {
       if (!nota) throw new Error("Nota não encontrada");
       if (!company) throw new Error("Empresa não configurada");
 
-      // TODO: Build full NF-e payload for Nuvem Fiscal API
-      // This requires the company to be registered in Nuvem Fiscal first
+      // TODO: Implementar integração Nuvem Fiscal
+      // Requer payload completo da NF-e e empresa cadastrada na Nuvem Fiscal
       toast.info("Para transmitir, configure as credenciais da Nuvem Fiscal (Client ID e Secret)");
       
       // Revert status
@@ -363,20 +363,9 @@ export default function NotasSaidaPage() {
   });
 
   const openDanfeFromForm = () => {
-    const cliente = clientes?.find((c: any) => c.id === clienteId);
-    const fakeNota = {
-      natureza_operacao: naturezaOperacao,
-      valor_produtos: totais.produtos,
-      valor_total: totais.produtos,
-      valor_icms: totais.icms,
-      valor_pis: totais.pis,
-      valor_cofins: totais.cofins,
-      modalidade_frete: modalidadeFrete,
-      informacoes_adicionais: infoAdicionais,
-      ambiente: "homologacao",
-    };
-    setDanfeData(buildDanfeData(fakeNota, itens, company, cliente));
-    setDanfePreviewOpen(true);
+    // Preview do DANFE só está disponível após salvar a nota,
+    // para evitar exibir dados fiscais inconsistentes/falsos.
+    toast.warning("Salve a nota primeiro para visualizar o DANFE");
   };
 
   const openDanfeFromSavedNota = async (notaId: string) => {
