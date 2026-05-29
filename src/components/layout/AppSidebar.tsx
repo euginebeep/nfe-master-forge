@@ -152,6 +152,13 @@ const menuGroups: MenuGroup[] = [
 
 },
 {
+  label: "EXPEDIÇÃO",
+  modulo: "vendas",
+  items: [
+  { title: "Expedição", url: "/expedicao", icon: Truck, tooltip: "Separação, despacho e rastreio de pedidos", modulo: "vendas" }]
+
+},
+{
   label: "Qualidade",
   modulo: "estoque",
   items: [
