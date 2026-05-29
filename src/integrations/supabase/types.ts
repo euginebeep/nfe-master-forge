@@ -1356,6 +1356,51 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_interacoes: {
+        Row: {
+          company_id: string
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          oportunidade_id: string
+          tipo: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          oportunidade_id: string
+          tipo: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          oportunidade_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_interacoes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_interacoes_oportunidade_id_fkey"
+            columns: ["oportunidade_id"]
+            isOneToOne: false
+            referencedRelation: "oportunidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custos_op: {
         Row: {
           created_at: string
@@ -4082,6 +4127,94 @@ export type Database = {
           },
         ]
       }
+      oportunidades: {
+        Row: {
+          arquivado: boolean
+          cidade: string | null
+          company_id: string
+          contato_nome: string | null
+          created_at: string
+          email: string | null
+          empresa: string
+          entidade_id: string | null
+          estado: string | null
+          id: string
+          observacoes: string | null
+          origem: string | null
+          produtos_interesse: string | null
+          score: number
+          status: string
+          telefone: string | null
+          updated_at: string
+          valor_estimado: number | null
+          vendedor_id: string | null
+        }
+        Insert: {
+          arquivado?: boolean
+          cidade?: string | null
+          company_id: string
+          contato_nome?: string | null
+          created_at?: string
+          email?: string | null
+          empresa: string
+          entidade_id?: string | null
+          estado?: string | null
+          id?: string
+          observacoes?: string | null
+          origem?: string | null
+          produtos_interesse?: string | null
+          score?: number
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+          valor_estimado?: number | null
+          vendedor_id?: string | null
+        }
+        Update: {
+          arquivado?: boolean
+          cidade?: string | null
+          company_id?: string
+          contato_nome?: string | null
+          created_at?: string
+          email?: string | null
+          empresa?: string
+          entidade_id?: string | null
+          estado?: string | null
+          id?: string
+          observacoes?: string | null
+          origem?: string | null
+          produtos_interesse?: string | null
+          score?: number
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+          valor_estimado?: number | null
+          vendedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oportunidades_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oportunidades_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oportunidades_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores_externos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orcamento_itens: {
         Row: {
           capsula_cor: string | null
@@ -4943,6 +5076,92 @@ export type Database = {
             columns: ["transportadora_id"]
             isOneToOne: false
             referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos_vendedor: {
+        Row: {
+          cliente_id: string | null
+          cliente_nome: string | null
+          comissao_paga: boolean
+          comissao_percent: number
+          company_id: string
+          created_at: string
+          data_pagamento_comissao: string | null
+          id: string
+          numero: string | null
+          observacoes: string | null
+          oportunidade_id: string | null
+          status: string
+          updated_at: string
+          valor_comissao: number
+          valor_total: number
+          vendedor_id: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          comissao_paga?: boolean
+          comissao_percent?: number
+          company_id: string
+          created_at?: string
+          data_pagamento_comissao?: string | null
+          id?: string
+          numero?: string | null
+          observacoes?: string | null
+          oportunidade_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_comissao?: number
+          valor_total?: number
+          vendedor_id?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          comissao_paga?: boolean
+          comissao_percent?: number
+          company_id?: string
+          created_at?: string
+          data_pagamento_comissao?: string | null
+          id?: string
+          numero?: string | null
+          observacoes?: string | null
+          oportunidade_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_comissao?: number
+          valor_total?: number
+          vendedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_vendedor_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_vendedor_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_vendedor_oportunidade_id_fkey"
+            columns: ["oportunidade_id"]
+            isOneToOne: false
+            referencedRelation: "oportunidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_vendedor_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores_externos"
             referencedColumns: ["id"]
           },
         ]
@@ -5951,6 +6170,120 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vendedor_tabela_precos: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          item_id: string
+          preco_minimo: number
+          preco_sugerido: number
+          quantidade_minima: number
+          updated_at: string
+          vendedor_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          preco_minimo?: number
+          preco_sugerido?: number
+          quantidade_minima?: number
+          updated_at?: string
+          vendedor_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          preco_minimo?: number
+          preco_sugerido?: number
+          quantidade_minima?: number
+          updated_at?: string
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendedor_tabela_precos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendedor_tabela_precos_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendedor_tabela_precos_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores_externos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendedores_externos: {
+        Row: {
+          ativo: boolean
+          comissao_percent: number
+          company_id: string
+          cpf: string | null
+          created_at: string
+          desconto_maximo_percent: number
+          email: string | null
+          id: string
+          meta_mensal: number
+          nome: string
+          telefone: string | null
+          territorio: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          comissao_percent?: number
+          company_id: string
+          cpf?: string | null
+          created_at?: string
+          desconto_maximo_percent?: number
+          email?: string | null
+          id?: string
+          meta_mensal?: number
+          nome: string
+          telefone?: string | null
+          territorio?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          comissao_percent?: number
+          company_id?: string
+          cpf?: string | null
+          created_at?: string
+          desconto_maximo_percent?: number
+          email?: string | null
+          id?: string
+          meta_mensal?: number
+          nome?: string
+          telefone?: string | null
+          territorio?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendedores_externos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       versoes_parametros_industriais: {
         Row: {
