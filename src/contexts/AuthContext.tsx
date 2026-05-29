@@ -15,6 +15,7 @@ export interface UserProfile {
   telefone: string | null;
   sexo: 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO' | null;
   data_nascimento: string | null;
+  is_demo?: boolean;
 }
 
 export interface UserPermission {
