@@ -124,6 +124,112 @@ export type Database = {
         }
         Relationships: []
       }
+      ambiental_config: {
+        Row: {
+          ativo: boolean | null
+          company_id: string
+          created_at: string | null
+          ewelink_access_token: string | null
+          ewelink_app_id: string | null
+          ewelink_app_secret: string | null
+          ewelink_refresh_token: string | null
+          ewelink_region: string | null
+          id: string
+          sync_interval_seconds: number | null
+          token_expires_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          company_id: string
+          created_at?: string | null
+          ewelink_access_token?: string | null
+          ewelink_app_id?: string | null
+          ewelink_app_secret?: string | null
+          ewelink_refresh_token?: string | null
+          ewelink_region?: string | null
+          id?: string
+          sync_interval_seconds?: number | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          ewelink_access_token?: string | null
+          ewelink_app_id?: string | null
+          ewelink_app_secret?: string | null
+          ewelink_refresh_token?: string | null
+          ewelink_region?: string | null
+          id?: string
+          sync_interval_seconds?: number | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambiental_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambiental_sensores: {
+        Row: {
+          ativo: boolean | null
+          company_id: string
+          created_at: string | null
+          device_id: string
+          device_name: string | null
+          hum_max: number
+          hum_min: number
+          id: string
+          responsible: string | null
+          room_name: string
+          temp_max: number
+          temp_min: number
+        }
+        Insert: {
+          ativo?: boolean | null
+          company_id: string
+          created_at?: string | null
+          device_id: string
+          device_name?: string | null
+          hum_max?: number
+          hum_min?: number
+          id?: string
+          responsible?: string | null
+          room_name: string
+          temp_max?: number
+          temp_min?: number
+        }
+        Update: {
+          ativo?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          device_id?: string
+          device_name?: string | null
+          hum_max?: number
+          hum_min?: number
+          id?: string
+          responsible?: string | null
+          room_name?: string
+          temp_max?: number
+          temp_min?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambiental_sensores_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anomalias_operacionais: {
         Row: {
           analise_observacoes: string | null
