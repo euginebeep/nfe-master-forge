@@ -5491,6 +5491,59 @@ export type Database = {
           },
         ]
       }
+      sensor_readings: {
+        Row: {
+          company_id: string | null
+          device_id: string
+          hum_max: number | null
+          hum_min: number | null
+          humidity: number | null
+          id: string
+          recorded_at: string | null
+          responsible: string | null
+          room_name: string
+          temp_max: number | null
+          temp_min: number | null
+          temperature: number | null
+        }
+        Insert: {
+          company_id?: string | null
+          device_id: string
+          hum_max?: number | null
+          hum_min?: number | null
+          humidity?: number | null
+          id?: string
+          recorded_at?: string | null
+          responsible?: string | null
+          room_name: string
+          temp_max?: number | null
+          temp_min?: number | null
+          temperature?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          device_id?: string
+          hum_max?: number | null
+          hum_min?: number | null
+          humidity?: number | null
+          id?: string
+          recorded_at?: string | null
+          responsible?: string | null
+          room_name?: string
+          temp_max?: number | null
+          temp_min?: number | null
+          temperature?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sensor_readings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       simulacoes_producao: {
         Row: {
           company_id: string | null
