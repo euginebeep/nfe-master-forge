@@ -748,7 +748,7 @@ export default function AmbientalConfigPage() {
         onOpenChange={(o) => !o && setConfirmDeleteId(null)}
         title="Remover sensor?"
         description="Esta ação não pode ser desfeita. O sensor será removido permanentemente."
-        confirmText="Remover"
+        confirmLabel="Remover"
         variant="destructive"
         onConfirm={() => confirmDeleteId && deleteSensorMutation.mutate(confirmDeleteId)}
       />
