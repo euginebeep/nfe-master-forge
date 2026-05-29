@@ -209,7 +209,7 @@ export default function NovoPedidoVendedorPage() {
         return;
       }
     }
-    const pedidoMinimo = Number(vendedorSelecionado?.pedido_minimo) || 0;
+    const pedidoMinimo = Number(vendedorMeta.pedido_minimo) || 0;
     if (status === "PENDENTE" && pedidoMinimo > 0 && totais.total < pedidoMinimo) {
       const ok = window.confirm(
         `Total ${fmtBRL(totais.total)} abaixo do mínimo ${fmtBRL(pedidoMinimo)}. Confirmar mesmo assim?`
@@ -549,10 +549,10 @@ export default function NovoPedidoVendedorPage() {
           <p className="text-xs text-muted-foreground">Total do pedido</p>
           <p className="text-3xl font-bold">{fmtBRL(totais.total)}</p>
           {vendedorSelecionado &&
-            Number(vendedorSelecionado.pedido_minimo) > 0 &&
-            totais.total < Number(vendedorSelecionado.pedido_minimo) && (
+            Number(vendedorMeta.pedido_minimo) > 0 &&
+            totais.total < Number(vendedorMeta.pedido_minimo) && (
               <p className="text-xs text-amber-600">
-                Abaixo do mínimo {fmtBRL(Number(vendedorSelecionado.pedido_minimo))}
+                Abaixo do mínimo {fmtBRL(Number(vendedorMeta.pedido_minimo))}
               </p>
             )}
         </div>
