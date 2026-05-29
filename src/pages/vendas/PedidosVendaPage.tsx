@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   ShoppingCart, Plus, Search, Eye, Factory, CheckCircle, 
-  Truck, FileText, DollarSign, Clock, Package
+  Truck, FileText, DollarSign, Clock, Package, Info
 } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
@@ -146,7 +146,26 @@ export default function PedidosVendaPage() {
         title="Pedidos de Venda"
         description="Gerencie pedidos e acompanhe a produção"
         icon={ShoppingCart}
+        actions={
+          <Button onClick={() => navigate("/vendas/pedido-vendedor/novo")}>
+            <Plus className="h-4 w-4 mr-2" />Novo Pedido
+          </Button>
+        }
       />
+
+      <div className="flex items-center gap-2 text-sm text-muted-foreground -mt-2 mb-2">
+        <Info className="h-4 w-4 flex-shrink-0" />
+        <span>
+          Pedidos via vendedores externos com verificação de estoque.
+          Para pedidos internos converta um{" "}
+          <span
+            className="text-primary underline cursor-pointer"
+            onClick={() => navigate("/vendas/orcamentos")}
+          >
+            Orçamento
+          </span>.
+        </span>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-5 gap-4 mb-6">
