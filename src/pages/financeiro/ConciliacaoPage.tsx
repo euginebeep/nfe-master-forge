@@ -157,9 +157,9 @@ export default function ConciliacaoPage() {
       const tabela: "contas_pagar" | "contas_receber" =
         linha.tipo === "DEBITO" ? "contas_pagar" : "contas_receber";
 
-      // Busca janela de ±3 dias e filtra no cliente por valor exato
-      const dataMin = new Date(dataL); dataMin.setDate(dataMin.getDate() - 3);
-      const dataMax = new Date(dataL); dataMax.setDate(dataMax.getDate() + 3);
+      // Busca janela de ±5 dias e filtra no cliente por valor (±1%)
+      const dataMin = new Date(dataL); dataMin.setDate(dataMin.getDate() - 5);
+      const dataMax = new Date(dataL); dataMax.setDate(dataMax.getDate() + 5);
       const iso = (d: Date) => d.toISOString().split("T")[0];
 
       const { data: candidatos, error } = await (supabase as any)
@@ -173,21 +173,33 @@ export default function ConciliacaoPage() {
 
       const match = (candidatos || []).find((r: any) => {
         const v = Number(r.valor_pago || r.valor);
-        return Math.abs(v - linha.valor) < 0.01;
+        return v >= linha.valor * 0.99 && v <= linha.valor * 1.01;
       });
 
       if (!match) {
         toast.warning(
-          `Nenhum lançamento em ${tabela === "contas_pagar" ? "Contas a Pagar" : "Contas a Receber"} bate com R$ ${linha.valor.toFixed(2)} em ±3 dias`,
+          `Lançamento marcado mas sem conta correspondente encontrada em ${tabela === "contas_pagar" ? "Contas a Pagar" : "Contas a Receber"} (R$ ${linha.valor.toFixed(2)} ±1%, ±5 dias). Verifique manualmente.`,
+        );
+        setLinhasExtrato((prev) =>
+          prev.map((l) => (l.id === linha.id ? { ...l, conciliado: true } : l)),
         );
         return;
       }
 
       const { error: updErr } = await (supabase as any)
         .from(tabela)
-        .update({ conciliado: true, conciliado_em: new Date().toISOString() })
+        .update({
+          conciliado: true,
+          conciliado_em: new Date().toISOString(),
+          status: "PAGO",
+          data_pagamento: iso(dataL),
+          valor_pago: linha.valor,
+          observacoes: `Conciliado via extrato bancário em ${new Date().toLocaleDateString("pt-BR")}`,
+        })
         .eq("id", match.id);
       if (updErr) throw updErr;
+
+      queryClient.invalidateQueries({ queryKey: [tabela === "contas_pagar" ? "contas-pagar" : "contas-receber"] });
 
       setLinhasExtrato((prev) =>
         prev.map((l) =>
