@@ -17,6 +17,7 @@ import AuthPage from "./components/auth/AuthPage";
 
 // Lazy loaded pages
 const Index = lazy(() => import("./pages/Index"));
+const DemoLandingPage = lazy(() => import("./pages/DemoLandingPage"));
 const RoadmapPage = lazy(() => import("./pages/RoadmapPage"));
 const FAQPage = lazy(() => import("./pages/faq/FAQPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -107,6 +108,7 @@ const App = () => (
             <Routes>
               {/* Auth - público */}
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/demo" element={<Suspense fallback={<PageFallback />}><DemoLandingPage /></Suspense>} />
               <Route path="/termos-de-uso" element={<Suspense fallback={<PageFallback />}><TermosUsoPage /></Suspense>} />
               <Route path="/politica-de-privacidade" element={<Suspense fallback={<PageFallback />}><PoliticaPrivacidadePage /></Suspense>} />
 

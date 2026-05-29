@@ -892,6 +892,7 @@ export type Database = {
           id: string
           ie: string | null
           im: string | null
+          is_demo: boolean
           logo_file_id: string | null
           nfe_ambiente: string | null
           nfe_numero_inicial: number | null
@@ -929,6 +930,7 @@ export type Database = {
           id?: string
           ie?: string | null
           im?: string | null
+          is_demo?: boolean
           logo_file_id?: string | null
           nfe_ambiente?: string | null
           nfe_numero_inicial?: number | null
@@ -966,6 +968,7 @@ export type Database = {
           id?: string
           ie?: string | null
           im?: string | null
+          is_demo?: boolean
           logo_file_id?: string | null
           nfe_ambiente?: string | null
           nfe_numero_inicial?: number | null
@@ -5402,6 +5405,7 @@ export type Database = {
           data_nascimento: string | null
           departamento: Database["public"]["Enums"]["app_departamento"] | null
           id: string
+          is_demo: boolean
           nome_completo: string
           sexo: string | null
           status: string | null
@@ -5417,6 +5421,7 @@ export type Database = {
           data_nascimento?: string | null
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
           id: string
+          is_demo?: boolean
           nome_completo: string
           sexo?: string | null
           status?: string | null
@@ -5432,6 +5437,7 @@ export type Database = {
           data_nascimento?: string | null
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
           id?: string
+          is_demo?: boolean
           nome_completo?: string
           sexo?: string | null
           status?: string | null
@@ -6708,6 +6714,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_demo_company: { Args: { _cid: string }; Returns: boolean }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
       lote_belongs_to_tenant: { Args: { _lid: string }; Returns: boolean }
       nota_entrada_belongs_to_tenant: {

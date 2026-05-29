@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import brainxLogo from '@/assets/brainx-logo.png';
+import { DemoLoginCard } from '@/components/demo/DemoLoginCard';
 
 /* Load Bootstrap Icons CSS */
 const BI_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css';
@@ -425,6 +426,9 @@ export default function AuthPage() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Demo login card */}
+          <DemoLoginCard />
 
           {/* Below card */}
           <p style={{ textAlign: 'center', color: '#6c757d', fontSize: 12.5, marginTop: 16, lineHeight: 1.6 }}>
