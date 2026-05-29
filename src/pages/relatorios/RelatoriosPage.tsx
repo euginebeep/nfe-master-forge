@@ -1,4 +1,4 @@
-import { BarChart3, Download, Printer, FileText, Factory, Package, Shield, Beaker, Users, DollarSign, TrendingUp } from "lucide-react";
+import { BarChart3, Download, Printer, FileText, Factory, Package, Shield, Beaker, Users, DollarSign, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { downloadCSV } from "@/lib/export-utils";
 import { exportToPDF } from "@/lib/pdf-export";
 import { centralToast } from "@/components/ui/central-toast";
+import { useQuery } from "@tanstack/react-query";
+import { useUserCompanyId } from "@/hooks/use-user-company";
 
 type ReportGenerator = () => Promise<{ headers: string[]; rows: string[][]; title: string }>;
 
@@ -174,6 +176,53 @@ const reportGenerators: Record<string, ReportGenerator> = {
 export default function RelatoriosPage() {
   const showSuccess = (msg: string) => centralToast.success(msg);
   const showError = (msg: string) => centralToast.error(msg);
+  const { data: companyId } = useUserCompanyId();
+
+  const { data: empresa } = useQuery({
+    queryKey: ["relatorios-empresa", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("company")
+        .select("razao_social, nome_fantasia, cnpj")
+        .eq("id", companyId!)
+        .maybeSingle();
+      return data as { razao_social?: string; nome_fantasia?: string; cnpj?: string } | null;
+    },
+    enabled: !!companyId,
+  });
+
+  const { data: rts = [] } = useQuery({
+    queryKey: ["relatorios-rts", companyId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("responsaveis_tecnicos")
+        .select("nome_completo, tipo_conselho, numero_registro, uf_conselho")
+        .eq("company_id", companyId!)
+        .eq("status", "ATIVO");
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const rtPrincipal = rts[0] as { nome_completo?: string; tipo_conselho?: string; numero_registro?: string; uf_conselho?: string } | undefined;
+  const rtLabel = rtPrincipal
+    ? `${rtPrincipal.nome_completo} — ${rtPrincipal.tipo_conselho || ""} ${rtPrincipal.numero_registro || ""}${rtPrincipal.uf_conselho ? "/" + rtPrincipal.uf_conselho : ""}`.trim()
+    : "Não cadastrado";
+  const empresaLabel = empresa?.nome_fantasia || empresa?.razao_social || "Empresa";
+
+  const exportarCSV = () => {
+    const dadosAtivos = relatorios.flatMap((g) =>
+      g.itens.map((i) => ({ categoria: g.categoria, relatorio: i.nome, descricao: i.descricao }))
+    );
+    const header = Object.keys(dadosAtivos[0] || {}).join(",");
+    const linhas = dadosAtivos.map((item) => Object.values(item).join(","));
+    const csv = "\uFEFF" + header + "\n" + linhas.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `relatorio_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  };
 
   const handleExportCSV = async (reportName: string) => {
     const gen = reportGenerators[reportName];
@@ -252,6 +301,16 @@ export default function RelatoriosPage() {
         title="Relatórios"
         description="Relatórios gerenciais e regulatórios com exportação CSV e impressão PDF"
         icon={BarChart3}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportarCSV}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />CSV
+            </Button>
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" />Imprimir
+            </Button>
+          </div>
+        }
       />
 
       <div className="space-y-6">
@@ -283,6 +342,11 @@ export default function RelatoriosPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4 pt-3 border-t text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                  <span>{empresaLabel}</span>
+                  <span>Gerado em {new Date().toLocaleDateString("pt-BR")}</span>
+                  <span>RT: {rtLabel}</span>
                 </div>
               </CardContent>
             </Card>
