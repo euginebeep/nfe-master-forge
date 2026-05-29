@@ -128,6 +128,29 @@ export default function ContasReceberPage() {
       .map(c => [c.cliente_id, { id: c.cliente_id!, nome: c.cliente?.razao_social || "—" }])
   ).values()], [contas]);
 
+  const exportarCSV = () => {
+    const linhas = filteredContas.map((c: any) => [
+      c.descricao,
+      c.cliente?.razao_social || '—',
+      c.numero_documento || '—',
+      c.data_emissao,
+      c.data_vencimento,
+      Number(c.valor).toFixed(2),
+      Number(c.valor_pago || 0).toFixed(2),
+      Number(c.valor - (c.valor_pago || 0)).toFixed(2),
+      c.status,
+      c.forma_pagamento || '—',
+      c.data_pagamento || '—',
+    ].join(';'));
+    const header = 'Descrição;Cliente;Nº Documento;Emissão;Vencimento;Valor;Pago;Saldo;Status;Forma Pagamento;Data Pagamento';
+    const csv = '\uFEFF' + header + '\n' + linhas.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `contas_receber_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  };
+
   // KPIs
   const stats = useMemo(() => {
     const aReceber = contas
