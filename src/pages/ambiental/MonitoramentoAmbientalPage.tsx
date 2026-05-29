@@ -104,7 +104,7 @@ export default function MonitoramentoAmbientalPage() {
     queryKey: ["sensor_readings", companyId, sinceIso],
     enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("sensor_readings")
         .select("*")
         .eq("company_id", companyId!)
@@ -118,7 +118,7 @@ export default function MonitoramentoAmbientalPage() {
   const { data: rtNome } = useQuery({
     queryKey: ["rt-ativo-monitoramento"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("responsaveis_tecnicos")
         .select("nome_completo, nome, conselho, numero_registro")
         .eq("ativo", true)
