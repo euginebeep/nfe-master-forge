@@ -19,6 +19,7 @@ import { MaskedInput } from "@/components/ui/masked-input";
 import { useUploadFile } from "@/hooks/use-files";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { registrarAuditoria } from "@/lib/audit-logger";
 
 const UFS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
