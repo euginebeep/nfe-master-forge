@@ -164,23 +164,8 @@ serve(async (req) => {
         );
       }
 
-      // Connection + auth check only — denomailer authenticates on first send,
-      // so we issue a NOOP via a HELO+QUIT roundtrip by opening + closing.
-      // Using a tiny no-op handshake: connect then close. To force auth we
-      // perform a fake send to ourselves with a minimal payload? Better: call
-      // the internal connection. denomailer doesn't expose verify(); we emulate
-      // by attempting send with no recipients, then catching specific errors.
-      // Simplest reliable approach: try connect via close() — auth happens on
-      // first command. We'll attempt a HELO-only by closing immediately. If
-      // credentials are wrong, the user will only know on the actual send.
-      // To guarantee auth validation, do a real send to the user themselves.
-      const probeFrom = user;
-      await client.send({
-        from: probeFrom,
-        to: probeFrom,
-        subject: "[verify] SMTP probe",
-        content: "probe",
-      });
+      // Network + TLS validation only (no email sent, no auth round-trip).
+      // For a full auth check, call with send_test=true.
       await client.close().catch(() => undefined);
 
       return new Response(
