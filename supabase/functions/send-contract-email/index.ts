@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isDemoUser, demoBlockedResponse } from "../_shared/demo-guard.ts";
 
 const corsHeaders = {
@@ -13,17 +14,12 @@ serve(async (req) => {
   }
 
   try {
-    if (await isDemoUser(req.headers.get("Authorization"))) {
+    const authHeader = req.headers.get("Authorization");
+    if (await isDemoUser(authHeader)) {
       return demoBlockedResponse(corsHeaders, "envio de e-mails reais");
     }
-    const SMTP_USER = (Deno.env.get('SMTP_USER') || '').trim();
-    const SMTP_PASS = (Deno.env.get('SMTP_PASS') || '').trim();
 
-    console.log('SMTP_USER length:', SMTP_USER.length, 'chars:', JSON.stringify(SMTP_USER));
-
-    if (!SMTP_USER || !SMTP_PASS) {
-      throw new Error('Credenciais SMTP não configuradas. Configure em Admin Master.');
-    }
+    if (!authHeader) throw new Error("Não autenticado");
 
     const { to, subject, htmlBody, senderName } = await req.json();
 
@@ -31,11 +27,62 @@ serve(async (req) => {
       throw new Error('Campos obrigatórios: to, subject, htmlBody');
     }
 
+    // Identifica usuário e empresa (tenant)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData?.user) throw new Error("Sessão inválida");
+
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("company_id")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    if (!profile?.company_id) {
+      throw new Error("Empresa não vinculada ao usuário.");
+    }
+
+    const { data: company } = await admin
+      .from("company")
+      .select("smtp_host, smtp_port, smtp_secure, smtp_user, smtp_pass_encrypted, smtp_from_name, smtp_from_email, razao_social, nome_fantasia")
+      .eq("id", profile.company_id)
+      .maybeSingle();
+
+    const SMTP_HOST = (company?.smtp_host || "").trim();
+    const SMTP_USER = (company?.smtp_user || "").trim();
+    const SMTP_PASS = (company?.smtp_pass_encrypted || "").trim();
+    const SMTP_PORT = company?.smtp_port || 465;
+    const SMTP_SECURE = company?.smtp_secure ?? true;
+
+    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "SMTP da empresa não configurado. Acesse Configurações → Empresa → SMTP e cadastre o servidor de envio.",
+          code: "SMTP_NOT_CONFIGURED",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const fromEmail = (company?.smtp_from_email || SMTP_USER).trim();
+    if (!emailRegex.test(fromEmail)) {
+      throw new Error(`E-mail de remetente inválido: "${fromEmail}". Configure em Empresa → SMTP.`);
+    }
+
     const client = new SMTPClient({
       connection: {
-        hostname: "smtp.hostinger.com",
-        port: 465,
-        tls: true,
+        hostname: SMTP_HOST,
+        port: SMTP_PORT,
+        tls: SMTP_SECURE,
         auth: {
           username: SMTP_USER,
           password: SMTP_PASS,
@@ -43,13 +90,8 @@ serve(async (req) => {
       },
     });
 
-    // Validate SMTP_USER is a valid email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(SMTP_USER)) {
-      throw new Error(`SMTP_USER não é um email válido: "${SMTP_USER}". Configure um email completo (ex: contato@dominio.com)`);
-    }
-
-    const fromAddress = senderName ? `${senderName} <${SMTP_USER}>` : SMTP_USER;
+    const displayName = (senderName || company?.smtp_from_name || company?.nome_fantasia || company?.razao_social || "").trim();
+    const fromAddress = displayName ? `${displayName} <${fromEmail}>` : fromEmail;
 
     await client.send({
       from: fromAddress,
