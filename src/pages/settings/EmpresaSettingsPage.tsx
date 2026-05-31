@@ -817,11 +817,17 @@ function SmtpSettingsCard() {
     smtp_port: 465,
     smtp_secure: true,
     smtp_user: "",
-    smtp_pass_encrypted: "",
     smtp_from_name: "",
     smtp_from_email: "",
   });
+  // Password is write-only: NEVER returned by the API. We only know whether
+  // it is set (smtp_pass_set flag) and accept a new value to overwrite it.
+  const [newPassword, setNewPassword] = useState("");
+  const passwordIsSet = !!(company as any)?.smtp_pass_set;
   const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<
+    { ok: boolean; code: string; message: string } | null
+  >(null);
 
   useEffect(() => {
     if (company) {
@@ -830,19 +836,37 @@ function SmtpSettingsCard() {
         smtp_port: (company as any).smtp_port || 465,
         smtp_secure: (company as any).smtp_secure ?? true,
         smtp_user: (company as any).smtp_user || "",
-        smtp_pass_encrypted: (company as any).smtp_pass_encrypted || "",
         smtp_from_name: (company as any).smtp_from_name || "",
         smtp_from_email: (company as any).smtp_from_email || "",
       });
+      setNewPassword("");
     }
   }, [company]);
 
   const handleSave = async () => {
-    if (!smtp.smtp_host || !smtp.smtp_user || !smtp.smtp_pass_encrypted) {
-      toast.error("Preencha servidor, usuário e senha.");
+    if (!smtp.smtp_host || !smtp.smtp_user) {
+      toast.error("Preencha servidor e usuário.");
       return;
     }
+    if (!passwordIsSet && !newPassword) {
+      toast.error("Informe a senha do SMTP.");
+      return;
+    }
+    // 1. Save non-sensitive settings via normal upsert
     await upsertCompany.mutateAsync(smtp as any);
+    // 2. If user typed a new password, encrypt + store via RPC (write-only)
+    if (newPassword) {
+      const { error: rpcErr } = await supabase.rpc(
+        "set_company_smtp_password" as any,
+        { p_password: newPassword },
+      );
+      if (rpcErr) {
+        toast.error("Falha ao salvar senha do SMTP.");
+        return;
+      }
+      setNewPassword("");
+      toast.success("Senha do SMTP salva com segurança (criptografada).");
+    }
     if (company?.id) {
       registrarAuditoria({
         tipo: 'SMTP_CONFIGURADO',
@@ -859,30 +883,44 @@ function SmtpSettingsCard() {
           smtp_user: smtp.smtp_user,
           smtp_from_email: smtp.smtp_from_email || null,
           smtp_from_name: smtp.smtp_from_name || null,
+          senha_alterada: !!newPassword,
         },
       });
     }
   };
 
   const handleTest = async () => {
-    if (!company?.email_financeiro && !smtp.smtp_user) {
-      toast.error("Salve as configurações antes de testar.");
+    if (!smtp.smtp_host || !smtp.smtp_user) {
+      toast.error("Preencha servidor e usuário antes de testar.");
+      return;
+    }
+    if (!passwordIsSet && !newPassword) {
+      toast.error("Informe e salve a senha do SMTP antes de testar.");
       return;
     }
     setTesting(true);
+    setTestResult(null);
     try {
       const dest = smtp.smtp_from_email || smtp.smtp_user;
-      const { data, error } = await supabase.functions.invoke("send-contract-email", {
+      const { data, error } = await supabase.functions.invoke("verify-tenant-smtp", {
         body: {
-          to: dest,
-          subject: "Teste de SMTP - BrainX ERP",
-          htmlBody: `<p>Este é um e-mail de teste enviado pelo SMTP configurado para <b>${company?.razao_social || "sua empresa"}</b>.</p><p>Se você recebeu esta mensagem, o servidor está funcionando.</p>`,
-          senderName: smtp.smtp_from_name || company?.nome_fantasia,
+          // Use unsaved overrides so user can test before saving
+          smtp_host: smtp.smtp_host,
+          smtp_port: smtp.smtp_port,
+          smtp_secure: smtp.smtp_secure,
+          smtp_user: smtp.smtp_user,
+          smtp_pass: newPassword || undefined, // omit → backend uses stored encrypted password
+          send_test: true,
+          test_to: dest,
+          from_name: smtp.smtp_from_name,
+          from_email: smtp.smtp_from_email,
         },
       });
-      if (error) throw error;
-      if (data && !data.success) throw new Error(data.error || "Falha");
-      toast.success(`E-mail de teste enviado para ${dest}`);
+      if (error) throw new Error(error.message || "Falha de comunicação");
+      const result = data as { ok: boolean; code: string; message: string };
+      setTestResult(result);
+      if (!result.ok) throw new Error(result.message || "Falha");
+      toast.success(result.message);
       if (company?.id) {
         registrarAuditoria({
           tipo: 'SMTP_TESTE_ENVIADO',
@@ -897,11 +935,16 @@ function SmtpSettingsCard() {
             smtp_host: smtp.smtp_host,
             smtp_user: smtp.smtp_user,
             resultado: 'SUCESSO',
+            codigo: result.code,
           },
         });
       }
     } catch (err: any) {
-      toast.error("Falha no teste: " + (err.message || err));
+      const msg = String(err?.message || err || "Falha desconhecida");
+      toast.error("Falha no teste: " + msg);
+      if (!testResult) {
+        setTestResult({ ok: false, code: "ERROR", message: msg });
+      }
       if (company?.id) {
         registrarAuditoria({
           tipo: 'SMTP_TESTE_ENVIADO',
@@ -915,7 +958,7 @@ function SmtpSettingsCard() {
             smtp_host: smtp.smtp_host,
             smtp_user: smtp.smtp_user,
             resultado: 'FALHA',
-            erro: String(err?.message || err),
+            erro: msg,
           },
         });
       }
@@ -982,11 +1025,16 @@ function SmtpSettingsCard() {
             <Label>Senha *</Label>
             <Input
               type="password"
-              placeholder="••••••••"
-              value={smtp.smtp_pass_encrypted}
-              onChange={(e) => setSmtp({ ...smtp, smtp_pass_encrypted: e.target.value })}
+              placeholder={passwordIsSet ? "••••••••  (senha já configurada — preencha para alterar)" : "Senha do servidor SMTP"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
               autoComplete="new-password"
             />
+            <p className="text-xs text-muted-foreground">
+              {passwordIsSet
+                ? "🔒 Senha armazenada criptografada. Deixe em branco para manter a atual."
+                : "🔒 A senha é criptografada antes de ser salva e nunca é retornada pelo sistema."}
+            </p>
           </div>
         </div>
 
@@ -1020,6 +1068,14 @@ function SmtpSettingsCard() {
             Enviar e-mail de teste
           </Button>
         </div>
+
+        {testResult && (
+          <Alert variant={testResult.ok ? "default" : "destructive"}>
+            <AlertDescription className="text-sm">
+              <b>[{testResult.code}]</b> {testResult.message}
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
     </Card>
   );
