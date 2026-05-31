@@ -801,7 +801,172 @@ export default function EmpresaSettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <SmtpSettingsCard />
       </div>
     </div>
+  );
+}
+
+function SmtpSettingsCard() {
+  const { data: company } = useCompany();
+  const upsertCompany = useUpsertCompany();
+  const [smtp, setSmtp] = useState({
+    smtp_host: "",
+    smtp_port: 465,
+    smtp_secure: true,
+    smtp_user: "",
+    smtp_pass_encrypted: "",
+    smtp_from_name: "",
+    smtp_from_email: "",
+  });
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    if (company) {
+      setSmtp({
+        smtp_host: (company as any).smtp_host || "",
+        smtp_port: (company as any).smtp_port || 465,
+        smtp_secure: (company as any).smtp_secure ?? true,
+        smtp_user: (company as any).smtp_user || "",
+        smtp_pass_encrypted: (company as any).smtp_pass_encrypted || "",
+        smtp_from_name: (company as any).smtp_from_name || "",
+        smtp_from_email: (company as any).smtp_from_email || "",
+      });
+    }
+  }, [company]);
+
+  const handleSave = async () => {
+    if (!smtp.smtp_host || !smtp.smtp_user || !smtp.smtp_pass_encrypted) {
+      toast.error("Preencha servidor, usuário e senha.");
+      return;
+    }
+    await upsertCompany.mutateAsync(smtp as any);
+  };
+
+  const handleTest = async () => {
+    if (!company?.email_financeiro && !smtp.smtp_user) {
+      toast.error("Salve as configurações antes de testar.");
+      return;
+    }
+    setTesting(true);
+    try {
+      const dest = smtp.smtp_from_email || smtp.smtp_user;
+      const { data, error } = await supabase.functions.invoke("send-contract-email", {
+        body: {
+          to: dest,
+          subject: "Teste de SMTP - BrainX ERP",
+          htmlBody: `<p>Este é um e-mail de teste enviado pelo SMTP configurado para <b>${company?.razao_social || "sua empresa"}</b>.</p><p>Se você recebeu esta mensagem, o servidor está funcionando.</p>`,
+          senderName: smtp.smtp_from_name || company?.nome_fantasia,
+        },
+      });
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error || "Falha");
+      toast.success(`E-mail de teste enviado para ${dest}`);
+    } catch (err: any) {
+      toast.error("Falha no teste: " + (err.message || err));
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Mail className="h-5 w-5" />
+          SMTP - Servidor de Envio de E-mails
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <Alert>
+          <AlertDescription className="text-sm">
+            Este SMTP é usado para enviar <b>contratos, orçamentos, NF-e e cobranças</b> em nome
+            da sua empresa. E-mails do sistema (recuperação de senha, cadastro no SaaS) são
+            enviados separadamente pela plataforma.
+          </AlertDescription>
+        </Alert>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2 space-y-2">
+            <Label>Servidor SMTP *</Label>
+            <Input
+              placeholder="smtp.hostinger.com"
+              value={smtp.smtp_host}
+              onChange={(e) => setSmtp({ ...smtp, smtp_host: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Porta *</Label>
+            <Input
+              type="number"
+              value={smtp.smtp_port}
+              onChange={(e) => setSmtp({ ...smtp, smtp_port: parseInt(e.target.value) || 465 })}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={smtp.smtp_secure}
+            onCheckedChange={(v) => setSmtp({ ...smtp, smtp_secure: v })}
+          />
+          <Label className="!mt-0">Usar SSL/TLS (recomendado para porta 465)</Label>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Usuário / E-mail de login *</Label>
+            <Input
+              type="email"
+              placeholder="contato@suaempresa.com.br"
+              value={smtp.smtp_user}
+              onChange={(e) => setSmtp({ ...smtp, smtp_user: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Senha *</Label>
+            <Input
+              type="password"
+              placeholder="••••••••"
+              value={smtp.smtp_pass_encrypted}
+              onChange={(e) => setSmtp({ ...smtp, smtp_pass_encrypted: e.target.value })}
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Nome do remetente</Label>
+            <Input
+              placeholder="Sua Empresa LTDA"
+              value={smtp.smtp_from_name}
+              onChange={(e) => setSmtp({ ...smtp, smtp_from_name: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>E-mail "De" (opcional)</Label>
+            <Input
+              type="email"
+              placeholder="(usa o e-mail de login se vazio)"
+              value={smtp.smtp_from_email}
+              onChange={(e) => setSmtp({ ...smtp, smtp_from_email: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button onClick={handleSave} disabled={upsertCompany.isPending}>
+            <Save className="h-4 w-4 mr-2" />
+            Salvar SMTP
+          </Button>
+          <Button variant="outline" onClick={handleTest} disabled={testing}>
+            {testing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+            Enviar e-mail de teste
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
