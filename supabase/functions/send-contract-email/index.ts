@@ -51,13 +51,19 @@ serve(async (req) => {
 
     const { data: company } = await admin
       .from("company")
-      .select("smtp_host, smtp_port, smtp_secure, smtp_user, smtp_pass_encrypted, smtp_from_name, smtp_from_email, razao_social, nome_fantasia")
+      .select("smtp_host, smtp_port, smtp_secure, smtp_user, smtp_from_name, smtp_from_email, razao_social, nome_fantasia")
       .eq("id", profile.company_id)
       .maybeSingle();
 
     const SMTP_HOST = (company?.smtp_host || "").trim();
     const SMTP_USER = (company?.smtp_user || "").trim();
-    const SMTP_PASS = (company?.smtp_pass_encrypted || "").trim();
+    let SMTP_PASS = "";
+    {
+      const { data: pwd } = await admin.rpc("get_company_smtp_password", {
+        p_company_id: profile.company_id,
+      });
+      SMTP_PASS = (pwd || "").toString();
+    }
     const SMTP_PORT = company?.smtp_port || 465;
     const SMTP_SECURE = company?.smtp_secure ?? true;
 
@@ -108,11 +114,22 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
-    console.error('Erro ao enviar email:', error);
-    const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+    // NEVER log the raw error object — may contain SMTP credentials
+    const rawMsg = error instanceof Error ? error.message : "Erro desconhecido";
+    const msg = sanitizeError(rawMsg);
+    console.error("Erro ao enviar email (sanitizado):", msg);
     return new Response(
       JSON.stringify({ success: false, error: msg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+// Strip anything that resembles credentials before logging or returning to UI
+function sanitizeError(msg: string): string {
+  return msg
+    .replace(/AUTH\s+[A-Z]+\s+[^\s]+/gi, "AUTH ***")
+    .replace(/password=[^\s&;,]+/gi, "password=***")
+    .replace(/(:|=)\s*[A-Za-z0-9+/=]{12,}/g, "$1***")
+    .slice(0, 300);
+}
