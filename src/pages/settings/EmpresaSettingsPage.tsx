@@ -19,6 +19,7 @@ import { MaskedInput } from "@/components/ui/masked-input";
 import { useUploadFile } from "@/hooks/use-files";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { registrarAuditoria } from "@/lib/audit-logger";
 
 const UFS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
@@ -842,6 +843,25 @@ function SmtpSettingsCard() {
       return;
     }
     await upsertCompany.mutateAsync(smtp as any);
+    if (company?.id) {
+      registrarAuditoria({
+        tipo: 'SMTP_CONFIGURADO',
+        descricao: `Configurações de SMTP atualizadas (${smtp.smtp_host}:${smtp.smtp_port})`,
+        entidade_tipo: 'company',
+        entidade_id: company.id,
+        entidade_codigo: company.razao_social || undefined,
+        dados_evento: {
+          tenant_id: company.id,
+          timestamp: new Date().toISOString(),
+          smtp_host: smtp.smtp_host,
+          smtp_port: smtp.smtp_port,
+          smtp_secure: smtp.smtp_secure,
+          smtp_user: smtp.smtp_user,
+          smtp_from_email: smtp.smtp_from_email || null,
+          smtp_from_name: smtp.smtp_from_name || null,
+        },
+      });
+    }
   };
 
   const handleTest = async () => {
@@ -863,8 +883,42 @@ function SmtpSettingsCard() {
       if (error) throw error;
       if (data && !data.success) throw new Error(data.error || "Falha");
       toast.success(`E-mail de teste enviado para ${dest}`);
+      if (company?.id) {
+        registrarAuditoria({
+          tipo: 'SMTP_TESTE_ENVIADO',
+          descricao: `E-mail de teste de SMTP enviado para ${dest}`,
+          entidade_tipo: 'company',
+          entidade_id: company.id,
+          entidade_codigo: company.razao_social || undefined,
+          dados_evento: {
+            tenant_id: company.id,
+            timestamp: new Date().toISOString(),
+            destinatario: dest,
+            smtp_host: smtp.smtp_host,
+            smtp_user: smtp.smtp_user,
+            resultado: 'SUCESSO',
+          },
+        });
+      }
     } catch (err: any) {
       toast.error("Falha no teste: " + (err.message || err));
+      if (company?.id) {
+        registrarAuditoria({
+          tipo: 'SMTP_TESTE_ENVIADO',
+          descricao: `Falha ao enviar e-mail de teste de SMTP`,
+          entidade_tipo: 'company',
+          entidade_id: company.id,
+          entidade_codigo: company.razao_social || undefined,
+          dados_evento: {
+            tenant_id: company.id,
+            timestamp: new Date().toISOString(),
+            smtp_host: smtp.smtp_host,
+            smtp_user: smtp.smtp_user,
+            resultado: 'FALHA',
+            erro: String(err?.message || err),
+          },
+        });
+      }
     } finally {
       setTesting(false);
     }

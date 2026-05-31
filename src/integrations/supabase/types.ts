@@ -6856,6 +6856,8 @@ export type Database = {
         | "CONTA_PAGAR_CRIADA"
         | "CONTA_RECEBER_CRIADA"
         | "EXPORTACAO_DADOS"
+        | "SMTP_CONFIGURADO"
+        | "SMTP_TESTE_ENVIADO"
       tipo_excipiente_formula: "AMIDO" | "CELULOSE" | "PRE_BLEND"
       tipo_sugestao_otimizacao:
         | "AJUSTE_EXCIPIENTE"
@@ -7069,6 +7071,8 @@ export const Constants = {
         "CONTA_PAGAR_CRIADA",
         "CONTA_RECEBER_CRIADA",
         "EXPORTACAO_DADOS",
+        "SMTP_CONFIGURADO",
+        "SMTP_TESTE_ENVIADO",
       ],
       tipo_excipiente_formula: ["AMIDO", "CELULOSE", "PRE_BLEND"],
       tipo_sugestao_otimizacao: [

@@ -1,0 +1,2 @@
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'SMTP_CONFIGURADO';
+ALTER TYPE public.tipo_evento_auditoria ADD VALUE IF NOT EXISTS 'SMTP_TESTE_ENVIADO';
