@@ -905,7 +905,9 @@ export type Database = {
           smtp_from_email: string | null
           smtp_from_name: string | null
           smtp_host: string | null
+          smtp_pass_ciphertext: string | null
           smtp_pass_encrypted: string | null
+          smtp_pass_set: boolean | null
           smtp_port: number | null
           smtp_secure: boolean | null
           smtp_user: string | null
@@ -950,7 +952,9 @@ export type Database = {
           smtp_from_email?: string | null
           smtp_from_name?: string | null
           smtp_host?: string | null
+          smtp_pass_ciphertext?: string | null
           smtp_pass_encrypted?: string | null
+          smtp_pass_set?: boolean | null
           smtp_port?: number | null
           smtp_secure?: boolean | null
           smtp_user?: string | null
@@ -995,7 +999,9 @@ export type Database = {
           smtp_from_email?: string | null
           smtp_from_name?: string | null
           smtp_host?: string | null
+          smtp_pass_ciphertext?: string | null
           smtp_pass_encrypted?: string | null
+          smtp_pass_set?: boolean | null
           smtp_port?: number | null
           smtp_secure?: boolean | null
           smtp_user?: string | null
@@ -6607,6 +6613,7 @@ export type Database = {
       }
     }
     Functions: {
+      _smtp_enc_key: { Args: never; Returns: string }
       baixar_estoque_op_embalagens: {
         Args: { p_op_id: string }
         Returns: undefined
@@ -6719,6 +6726,10 @@ export type Database = {
         Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }
         Returns: string
       }
+      get_company_smtp_password: {
+        Args: { p_company_id: string }
+        Returns: string
+      }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -6766,6 +6777,10 @@ export type Database = {
         Returns: string
       }
       rt_valido_para_producao: { Args: { p_rt_id: string }; Returns: boolean }
+      set_company_smtp_password: {
+        Args: { p_password: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       unaccent: { Args: { "": string }; Returns: string }
