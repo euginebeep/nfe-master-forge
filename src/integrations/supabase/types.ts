@@ -902,6 +902,13 @@ export type Database = {
           regime_apuracao: string | null
           regime_tributario: string | null
           site: string | null
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_pass_encrypted: string | null
+          smtp_port: number | null
+          smtp_secure: boolean | null
+          smtp_user: string | null
           telefone: string | null
           updated_at: string
         }
@@ -940,6 +947,13 @@ export type Database = {
           regime_apuracao?: string | null
           regime_tributario?: string | null
           site?: string | null
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_pass_encrypted?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_user?: string | null
           telefone?: string | null
           updated_at?: string
         }
@@ -978,6 +992,13 @@ export type Database = {
           regime_apuracao?: string | null
           regime_tributario?: string | null
           site?: string | null
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_pass_encrypted?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_user?: string | null
           telefone?: string | null
           updated_at?: string
         }
