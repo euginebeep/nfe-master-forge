@@ -22,7 +22,20 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         navigateFallbackDenylist: [/^\/~oauth/],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
+          {
+            // Sempre buscar HTML novo da rede para evitar tela antiga em cache
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "html-pages",
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 },
+            },
+          },
           {
             urlPattern: /^https:\/\/.*supabase.*$/,
             handler: "NetworkFirst",
