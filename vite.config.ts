@@ -25,16 +25,20 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
+        // Não usar fallback de navegação para que toda navegação
+        // bata no servidor (ver runtimeCaching abaixo)
+        navigateFallback: null,
         runtimeCaching: [
           {
-            // Sempre buscar HTML novo da rede para evitar tela antiga em cache
+            // HTML / navegação: NUNCA servir do cache.
             urlPattern: ({ request }) => request.mode === "navigate",
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "html-pages",
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 },
-            },
+            handler: "NetworkOnly",
+          },
+          {
+            // index.html explícito — também sempre da rede
+            urlPattern: ({ url }) =>
+              url.pathname === "/" || url.pathname.endsWith("/index.html"),
+            handler: "NetworkOnly",
           },
           {
             urlPattern: /^https:\/\/.*supabase.*$/,
@@ -45,6 +49,9 @@ export default defineConfig(({ mode }) => ({
             },
           },
         ],
+        // Limpa proativamente TODAS as caches que não pertencem
+        // ao precache da versão atual a cada novo deploy.
+        importScripts: ["/sw-cache-purge.js"],
       },
       manifest: {
         name: "BrainX - ERP Industrial",
