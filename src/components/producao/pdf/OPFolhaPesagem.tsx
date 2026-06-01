@@ -138,6 +138,33 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {/* BLOCO 3: PESAGEM DE ATIVOS                                     */}
       {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* Condições Ambientais — RDC 658/2022 */}
+      <div className="border-2 border-blue-300 mb-3 bg-blue-50">
+        <div className="bg-blue-300 px-3 py-1">
+          <span className="text-xs font-bold uppercase text-blue-900">
+            Condições Ambientais — RDC 658/2022
+          </span>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-blue-200 p-2">
+          <div className="px-3">
+            <div className="text-[8px] text-slate-500 uppercase">Temperatura</div>
+            <div className="text-xs mt-1">_______ °C</div>
+          </div>
+          <div className="px-3">
+            <div className="text-[8px] text-slate-500 uppercase">Umidade Relativa</div>
+            <div className="text-xs mt-1">_______ %</div>
+          </div>
+          <div className="px-3">
+            <div className="text-[8px] text-slate-500 uppercase">Verificado por</div>
+            <div className="text-xs mt-1">_________________</div>
+          </div>
+          <div className="px-3">
+            <div className="text-[8px] text-slate-500 uppercase">Hora</div>
+            <div className="text-xs mt-1">_______</div>
+          </div>
+        </div>
+      </div>
+
       <div className="border-2 border-red-600 mb-4">
         <div className="bg-red-600 px-4 py-2 flex items-center gap-3">
           <span className="flex items-center justify-center w-7 h-7 bg-white text-red-600 rounded-full font-bold text-sm">{itensCriticos.length > 0 ? 3 : 2}</span>
@@ -151,6 +178,8 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
               <th className="border border-red-200 px-2 py-2 text-left w-[22%]">Insumo</th>
               <th className="border border-red-200 px-2 py-2 text-center w-[8%]">Tipo</th>
               <th className="border border-red-200 px-2 py-2 text-right w-[12%]">Qtd. Teórica</th>
+              <th className="border border-slate-400 px-2 py-2 w-[14%]">Qtd. Pesada (real)</th>
+              <th className="border border-slate-400 px-2 py-2 w-[10%]">Balança Nº</th>
               <th className="border border-red-200 px-2 py-2 text-right w-[14%]">Tolerância ±10%</th>
               <th className="border border-red-200 px-2 py-2 text-center w-[10%]">Lote MP</th>
               <th className="border border-red-200 px-2 py-2 text-center w-[12%]">Peso Real</th>
@@ -160,7 +189,7 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
           </thead>
           <tbody>
             {ativos.length === 0 ? (
-              <tr><td colSpan={9} className="border border-red-200 p-3 text-center text-slate-400 italic">Nenhum ativo cadastrado</td></tr>
+              <tr><td colSpan={11} className="border border-red-200 p-3 text-center text-slate-400 italic">Nenhum ativo cadastrado</td></tr>
             ) : (
               ativos.map((mp, idx) => {
                 const qtd = formatarQuantidade(mp.quantidade_teorica_g);
@@ -181,6 +210,8 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
                       )}
                     </td>
                     <td className="border border-red-200 px-2 py-3 text-right font-mono font-semibold">{qtd.valor} {qtd.unidade}</td>
+                    <td className="border border-slate-400 px-2 py-3 w-[14%]">&nbsp;</td>
+                    <td className="border border-slate-400 px-2 py-3 w-[10%]">&nbsp;</td>
                     <td className="border border-red-200 px-2 py-3 text-right text-[9px] text-slate-500">{formatarTolerancia(mp.quantidade_minima_g, mp.quantidade_maxima_g)}</td>
                     <td className="border border-red-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
                     <td className="border border-red-200 px-2 py-3">
@@ -213,6 +244,8 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
               <th className="border border-green-200 px-2 py-2 text-left w-[22%]">Insumo</th>
               <th className="border border-green-200 px-2 py-2 text-center w-[10%]">Categoria</th>
               <th className="border border-green-200 px-2 py-2 text-right w-[12%]">Qtd. Teórica</th>
+              <th className="border border-slate-400 px-2 py-2 w-[14%]">Qtd. Pesada (real)</th>
+              <th className="border border-slate-400 px-2 py-2 w-[10%]">Balança Nº</th>
               <th className="border border-green-200 px-2 py-2 text-right w-[14%]">Tolerância ±10%</th>
               <th className="border border-green-200 px-2 py-2 text-center w-[10%]">Lote MP</th>
               <th className="border border-green-200 px-2 py-2 text-center w-[12%]">Peso Real</th>
@@ -222,7 +255,7 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
           </thead>
           <tbody>
             {excipientes.length === 0 ? (
-              <tr><td colSpan={9} className="border border-green-200 p-3 text-center text-slate-400 italic">Nenhum excipiente cadastrado</td></tr>
+              <tr><td colSpan={11} className="border border-green-200 p-3 text-center text-slate-400 italic">Nenhum excipiente cadastrado</td></tr>
             ) : (
               excipientes.map((mp, idx) => {
                 const qtd = formatarQuantidade(mp.quantidade_teorica_g);
@@ -239,6 +272,8 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
                       </span>
                     </td>
                     <td className="border border-green-200 px-2 py-3 text-right font-mono font-semibold">{qtd.valor} {qtd.unidade}</td>
+                    <td className="border border-slate-400 px-2 py-3 w-[14%]">&nbsp;</td>
+                    <td className="border border-slate-400 px-2 py-3 w-[10%]">&nbsp;</td>
                     <td className="border border-green-200 px-2 py-3 text-right text-[9px] text-slate-500">{formatarTolerancia(mp.quantidade_minima_g, mp.quantidade_maxima_g)}</td>
                     <td className="border border-green-200 px-2 py-3"><div className="border-b-2 border-slate-400 min-h-[20px]">&nbsp;</div></td>
                     <td className="border border-green-200 px-2 py-3">
