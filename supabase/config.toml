@@ -33,3 +33,5 @@ project_id = "lvptvswvqjhvobdvgfws"
     verify_jwt = false
   [functions.seed-demo-data]
     verify_jwt = false
+  [functions.export-full-backup]
+    verify_jwt = false
