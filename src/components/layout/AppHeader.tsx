@@ -1,4 +1,4 @@
-import { Moon, Sun, Menu, LogOut, Search } from "lucide-react";
+import { Moon, Sun, Menu, LogOut, Search, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import brainxLogo from "@/assets/brainx-logo.png";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,14 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { FACTORY_ROLES } from "@/hooks/use-users";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useCompany } from "@/hooks/use-company";
+import { formatCNPJ } from "@/lib/cnpj-lookup";
+
+function maskCNPJ(cnpj?: string | null) {
+  if (!cnpj) return "";
+  const formatted = formatCNPJ(cnpj);
+  return formatted.replace(/^(\d{2})\.\d{3}\.\d{3}/, "$1.***.***");
+}
 
 export function AppHeader() {
   const [isDark, setIsDark] = useState(() => {
@@ -24,6 +32,7 @@ export function AppHeader() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const { profile, role, isAuthenticated, signOut } = useAuth();
+  const { data: company } = useCompany();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -87,7 +96,24 @@ export function AppHeader() {
         </Button>
 
         {isAuthenticated && <NotificationBell />}
-        
+
+        {isAuthenticated && company && (
+          <div
+            className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md border bg-muted/50 max-w-[260px]"
+            title={`${company.razao_social} — CNPJ ${formatCNPJ(company.cnpj || '')}`}
+          >
+            <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="text-[11px] font-semibold truncate">
+                {company.nome_fantasia || company.razao_social}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {maskCNPJ(company.cnpj)}
+              </span>
+            </div>
+          </div>
+        )}
+
         <Button
           variant="ghost"
           size="icon"

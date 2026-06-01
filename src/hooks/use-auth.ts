@@ -1,6 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+function maskCNPJ(cnpj: string) {
+  const d = (cnpj || '').replace(/\D/g, '').padEnd(14, ' ').slice(0, 14);
+  if (d.replace(/\s/g, '').length !== 14) return cnpj;
+  return `${d.slice(0,2)}.***.***/${d.slice(8,12)}-${d.slice(12,14)}`;
+}
 
 export type { UserProfile, UserPermission, AuthState } from '@/contexts/AuthContext';
 
@@ -36,7 +43,35 @@ export function useAuth() {
       toast.error(result.error.message);
       return result;
     }
-    toast.success('Login realizado com sucesso!');
+    // Confirmação visual: mostrar empresa vinculada (após autenticação)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        if (profile?.company_id) {
+          const { data: company } = await supabase
+            .from('company')
+            .select('razao_social, nome_fantasia, cnpj')
+            .eq('id', profile.company_id)
+            .maybeSingle();
+          if (company) {
+            toast.success(
+              `Conectado em: ${company.nome_fantasia || company.razao_social}`,
+              { description: `CNPJ ${maskCNPJ(company.cnpj || '')}`, duration: 5000 }
+            );
+          } else {
+            toast.success('Login realizado com sucesso!');
+          }
+        } else {
+          toast.success('Login realizado! Configure sua empresa para começar.');
+        }
+      } else {
+        toast.success('Login realizado com sucesso!');
+      }
+    } catch {
+      toast.success('Login realizado com sucesso!');
+    }
     navigate('/');
     return result;
   };
