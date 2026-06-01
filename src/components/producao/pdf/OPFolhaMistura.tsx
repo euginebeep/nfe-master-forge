@@ -199,6 +199,8 @@ export function OPFolhaMistura({ op, materiasPrimas }: OPFolhaMisturaProps) {
               <th className="border-r border-slate-300 px-3 py-2 text-center w-[8%] font-bold">ETAPA</th>
               <th className="border-r border-slate-300 px-3 py-2 text-left w-[30%] font-bold">COMPONENTE</th>
               <th className="border-r border-slate-300 px-3 py-2 text-right w-[18%] font-bold">QUANTIDADE</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-[10%]">Hora Início</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-[10%]">Hora Fim</th>
               <th className="border-r border-slate-300 px-3 py-2 text-center w-[22%] font-bold">FUNÇÃO</th>
               <th className="px-3 py-2 text-center w-[22%] font-bold">TEMPO DE MISTURA</th>
             </tr>
@@ -222,6 +224,8 @@ export function OPFolhaMistura({ op, materiasPrimas }: OPFolhaMisturaProps) {
                 <td className="border-r border-slate-300 px-3 py-3 text-right font-mono">
                   {item.quantidade}
                 </td>
+                <td className="border border-slate-300 px-2 py-3 text-center">&nbsp;</td>
+                <td className="border border-slate-300 px-2 py-3 text-center">&nbsp;</td>
                 <td className="border-r border-slate-300 px-3 py-3 text-center text-slate-600">
                   {item.funcao}
                 </td>
