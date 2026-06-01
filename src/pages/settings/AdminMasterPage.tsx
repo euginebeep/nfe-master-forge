@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShieldAlert, Trash2, AlertTriangle, FileArchive, Database, FileOutput, Map } from "lucide-react";
+import { ShieldAlert, Trash2, AlertTriangle, FileArchive, Database, FileOutput, Map, PackageOpen, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsMana
 import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
 import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
 import { AnvisaSearchStats } from "@/components/admin/AnvisaSearchStats";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STORAGE_PREFIX = "legacy_erp_";
 
@@ -64,6 +66,7 @@ interface CleanupStep {
 
 export default function AdminMasterPage() {
   const navigate = useNavigate();
+  const [exportingBackup, setExportingBackup] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [cleaning, setCleaning] = useState(false);
@@ -73,6 +76,44 @@ export default function AdminMasterPage() {
   const [completed, setCompleted] = useState(false);
 
   const canConfirm = confirmText.toUpperCase() === "APAGAR TUDO";
+
+  const handleFullBackup = async () => {
+    if (exportingBackup) return;
+    setExportingBackup(true);
+    const tId = toast.loading("Gerando backup completo... isso pode levar alguns minutos.");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-full-backup`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        let msg = errText;
+        try { msg = JSON.parse(errText).error || errText; } catch { /* ignore */ }
+        throw new Error(msg || `Falha (${res.status})`);
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("content-disposition") || "";
+      const m = /filename="?([^";]+)"?/i.exec(cd);
+      const filename = m?.[1] || `backup-${new Date().toISOString().slice(0,10)}.zip`;
+      const dlUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = dlUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(dlUrl);
+      toast.success("Backup gerado com sucesso!", { id: tId });
+    } catch (e) {
+      toast.error(`Erro ao gerar backup: ${e instanceof Error ? e.message : "?"}`, { id: tId });
+    } finally {
+      setExportingBackup(false);
+    }
+  };
 
   const startCleanup = async () => {
     setConfirmOpen(false);
@@ -165,6 +206,15 @@ export default function AdminMasterPage() {
           <CardDescription>Backup, migração e importação de dados</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Button
+            variant="default"
+            className="justify-start gap-2 sm:col-span-2 lg:col-span-4"
+            onClick={handleFullBackup}
+            disabled={exportingBackup}
+          >
+            {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageOpen className="h-4 w-4" />}
+            {exportingBackup ? "Gerando backup..." : "Exportar tudo (backup full .zip)"}
+          </Button>
           <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/xml-backup')}>
             <FileArchive className="h-4 w-4" /> Backup XMLs
           </Button>
