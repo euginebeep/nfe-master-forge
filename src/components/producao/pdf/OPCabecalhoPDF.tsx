@@ -7,9 +7,11 @@ interface OPCabecalhoPDFProps {
   op: OPDadosPDF;
   tituloSecao: string;
   subtitulo?: string;
+  paginaAtual?: number;
+  totalPaginas?: number;
 }
 
-export function OPCabecalhoPDF({ op, tituloSecao, subtitulo }: OPCabecalhoPDFProps) {
+export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalPaginas }: OPCabecalhoPDFProps) {
   const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
@@ -21,7 +23,14 @@ export function OPCabecalhoPDF({ op, tituloSecao, subtitulo }: OPCabecalhoPDFPro
       <div className="op-header">
         <div className="op-header-left">
           <h1>ORDEM DE PRODUÇÃO INDUSTRIAL</h1>
-          <div className="subtitle">{tituloSecao}</div>
+          <div className="flex items-center gap-2">
+            <div className="subtitle">{tituloSecao}</div>
+            {paginaAtual && totalPaginas && (
+              <div className="text-[9px] text-slate-500 font-mono ml-auto">
+                Pág. {paginaAtual}/{totalPaginas}
+              </div>
+            )}
+          </div>
           {subtitulo && <div className="subtitle">{subtitulo}</div>}
         </div>
         <div className="op-header-right">

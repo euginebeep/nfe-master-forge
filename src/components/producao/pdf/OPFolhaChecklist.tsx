@@ -147,7 +147,12 @@ export const OPFolhaChecklist = React.forwardRef<HTMLDivElement, OPFolhaChecklis
                 {itens.map((item, idx) => (
                   <tr key={item.id || idx} className="bg-white">
                     <td className="border border-slate-200 px-2 py-3 text-center text-base">☐</td>
-                    <td className="border border-slate-200 px-2 py-3">{item.item || item.descricao}</td>
+                    <td className="border border-slate-200 px-2 py-3">
+                      <div>{item.item || item.descricao}</div>
+                      <div className="text-[8px] text-slate-400 mt-1 ml-6">
+                        Obs: _________________________________________________
+                      </div>
+                    </td>
                     <td className="border border-slate-200 px-2 py-3 text-center">
                       {item.obrigatorio !== false ? (
                         <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">SIM</span>
@@ -162,6 +167,51 @@ export const OPFolhaChecklist = React.forwardRef<HTMLDivElement, OPFolhaChecklis
                 ))}
               </tbody>
             </table>
+            {cat.key === 'QC' && (
+              <div className="border-2 border-purple-400 mt-3 bg-purple-50">
+                <div className="bg-purple-400 px-3 py-1">
+                  <span className="text-xs font-bold uppercase text-white">
+                    Amostra de Retenção — Obrigatório BPF
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-purple-200 p-2">
+                  <div className="px-3 py-1">
+                    <div className="text-[8px] text-slate-500 uppercase">
+                      Quantidade retida (unidades)
+                    </div>
+                    <div className="text-xs mt-1 border-b border-slate-400 pb-1">
+                      &nbsp;
+                    </div>
+                  </div>
+                  <div className="px-3 py-1">
+                    <div className="text-[8px] text-slate-500 uppercase">
+                      Localização física (câmara/prateleira/posição)
+                    </div>
+                    <div className="text-xs mt-1 border-b border-slate-400 pb-1">
+                      &nbsp;
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-purple-200 border-t border-purple-200">
+                  <div className="px-3 py-1">
+                    <div className="text-[8px] text-slate-500 uppercase">
+                      Separado por
+                    </div>
+                    <div className="text-xs mt-1 border-b border-slate-400 pb-1">
+                      &nbsp;
+                    </div>
+                  </div>
+                  <div className="px-3 py-1">
+                    <div className="text-[8px] text-slate-500 uppercase">
+                      Data / Hora
+                    </div>
+                    <div className="text-xs mt-1 border-b border-slate-400 pb-1">
+                      &nbsp;
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
