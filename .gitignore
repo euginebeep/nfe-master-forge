@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backup credentials
+scripts/.env.backup
+supabase-backup-*.tar.*
