@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useNavigationAudit } from "@/hooks/use-navigation-audit";
 import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
@@ -12,6 +13,7 @@ import { DemoModeBanner } from "@/components/demo/DemoModeBanner";
 
 export function MainLayout() {
   useRealtimeNotifications();
+  useNavigationAudit();
   const { isBlocked, isLoading: subLoading } = useSubscription();
 
   if (isBlocked && !subLoading) {

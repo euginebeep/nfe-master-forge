@@ -6873,6 +6873,8 @@ export type Database = {
         | "EXPORTACAO_DADOS"
         | "SMTP_CONFIGURADO"
         | "SMTP_TESTE_ENVIADO"
+        | "NAVEGACAO"
+        | "ACAO_UI"
       tipo_excipiente_formula: "AMIDO" | "CELULOSE" | "PRE_BLEND"
       tipo_sugestao_otimizacao:
         | "AJUSTE_EXCIPIENTE"
@@ -7088,6 +7090,8 @@ export const Constants = {
         "EXPORTACAO_DADOS",
         "SMTP_CONFIGURADO",
         "SMTP_TESTE_ENVIADO",
+        "NAVEGACAO",
+        "ACAO_UI",
       ],
       tipo_excipiente_formula: ["AMIDO", "CELULOSE", "PRE_BLEND"],
       tipo_sugestao_otimizacao: [
