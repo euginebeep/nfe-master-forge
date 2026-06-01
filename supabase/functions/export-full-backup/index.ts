@@ -107,7 +107,15 @@ serve(async (req) => {
     const { data: profile } = await admin
       .from("profiles").select("company_id").eq("id", u.user.id).maybeSingle();
     const companyId = profile?.company_id as string | undefined;
-    if (!companyId) {
+
+    // Modo SaaS-wide (super admin): backup de TODOS os tenants + auth.users + binários
+    let saasMode = false;
+    try {
+      const body = await req.json().catch(() => ({}));
+      saasMode = body?.scope === "saas";
+    } catch { /* ignore */ }
+
+    if (!saasMode && !companyId) {
       return new Response(JSON.stringify({ error: "Empresa não vinculada ao usuário." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -116,23 +124,26 @@ serve(async (req) => {
     const zip = new JSZip();
     const summary: Record<string, number | string> = {};
 
-    // 1) Empresa (linha única)
-    const { data: company } = await admin
-      .from("company").select("*").eq("id", companyId).maybeSingle();
-    if (company) {
-      // Não exportar senha SMTP cifrada
-      const safe = { ...company } as Record<string, unknown>;
-      delete safe["smtp_pass_ciphertext"];
-      delete safe["smtp_pass_encrypted"];
-      zip.file("tables/company.csv", toCSV([safe]));
-      zip.file("tables/company.json", JSON.stringify(safe, null, 2));
-      summary["company"] = 1;
+    // 1) Empresa(s)
+    {
+      const q = admin.from("company").select("*");
+      const { data: companies } = saasMode ? await q : await q.eq("id", companyId!);
+      const rows = (companies || []).map((c: any) => {
+        const safe = { ...c };
+        delete safe.smtp_pass_ciphertext;
+        delete safe.smtp_pass_encrypted;
+        return safe;
+      });
+      zip.file("tables/company.csv", toCSV(rows));
+      zip.file("tables/company.json", JSON.stringify(rows, null, 2));
+      summary["company"] = rows.length;
     }
 
     // 2) Tabelas multi-tenant
     for (const t of TENANT_TABLES) {
       try {
-        const { data, error } = await admin.from(t).select("*").eq("company_id", companyId);
+        const q = admin.from(t).select("*");
+        const { data, error } = saasMode ? await q : await q.eq("company_id", companyId!);
         if (error) {
           summary[t] = `erro: ${error.message}`;
           continue;
@@ -148,16 +159,15 @@ serve(async (req) => {
 
     // 3) XMLs das notas fiscais (xml_raw)
     try {
-      const { data: nfes } = await admin
-        .from("notas_entrada")
-        .select("id, chave_acesso, numero, xml_raw")
-        .eq("company_id", companyId);
+      const qn = admin.from("notas_entrada").select("id, chave_nfe, numero, xml_raw, company_id");
+      const { data: nfes } = saasMode ? await qn : await qn.eq("company_id", companyId!);
       let xmlCount = 0;
       for (const n of (nfes || []) as Array<Record<string, unknown>>) {
         const xml = (n.xml_raw as string | null) || "";
         if (!xml) continue;
-        const name = (n.chave_acesso as string) || (n.id as string);
-        zip.file(`nfe-xmls/${name}.xml`, xml);
+        const name = (n.chave_nfe as string) || (n.id as string);
+        const prefix = saasMode ? `nfe-xmls/${n.company_id}/` : `nfe-xmls/`;
+        zip.file(`${prefix}${name}.xml`, xml);
         xmlCount++;
       }
       summary["nfe_xmls"] = xmlCount;
@@ -165,11 +175,13 @@ serve(async (req) => {
       summary["nfe_xmls"] = `falha: ${e instanceof Error ? e.message : "?"}`;
     }
 
-    // 4) Arquivos do Storage (escopo da empresa)
+    // 4) Arquivos do Storage
     for (const bucket of STORAGE_BUCKETS) {
       try {
-        // Convenção do projeto: arquivos ficam em <bucket>/<company_id>/...
-        const paths = await listAllFiles(admin, bucket, companyId);
+        // SaaS: tudo. Tenant: apenas a pasta do company_id.
+        const paths = saasMode
+          ? await listAllFiles(admin, bucket, "")
+          : await listAllFiles(admin, bucket, companyId!);
         let count = 0;
         for (const p of paths) {
           const { data: blob, error } = await admin.storage.from(bucket).download(p);
@@ -184,13 +196,40 @@ serve(async (req) => {
       }
     }
 
+    // 4b) Usuários auth (apenas SaaS-wide)
+    if (saasMode) {
+      try {
+        const allUsers: any[] = [];
+        let page = 1;
+        while (true) {
+          const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+          if (error || !data?.users?.length) break;
+          allUsers.push(...data.users.map((x) => ({
+            id: x.id, email: x.email, phone: x.phone,
+            created_at: x.created_at, last_sign_in_at: x.last_sign_in_at,
+            email_confirmed_at: x.email_confirmed_at,
+            user_metadata: x.user_metadata, app_metadata: x.app_metadata,
+          })));
+          if (data.users.length < 1000) break;
+          page++;
+        }
+        zip.file("auth/users.json", JSON.stringify(allUsers, null, 2));
+        zip.file("auth/users.csv", toCSV(allUsers));
+        summary["auth_users"] = allUsers.length;
+      } catch (e) {
+        summary["auth_users"] = `falha: ${e instanceof Error ? e.message : "?"}`;
+      }
+    }
+
     // 5) Manifesto
     const manifest = {
       generated_at: new Date().toISOString(),
-      company_id: companyId,
+      scope: saasMode ? "saas-wide" : "tenant",
+      company_id: saasMode ? null : companyId,
       generated_by: u.user.email,
       tables: summary,
       notes: [
+        saasMode ? "Backup a NÍVEL SAAS: todos os tenants, auth.users e binários do Storage." : "Backup do tenant logado.",
         "CSV e JSON por tabela em /tables.",
         "XMLs originais de NF-e em /nfe-xmls.",
         "Arquivos de storage em /storage/<bucket>/<company_id>/...",
@@ -205,7 +244,9 @@ serve(async (req) => {
       compressionOptions: { level: 6 },
     });
 
-    const filename = `backup-${companyId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.zip`;
+    const filename = saasMode
+      ? `backup-SAAS-${new Date().toISOString().slice(0, 10)}.zip`
+      : `backup-${(companyId || "tenant").slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.zip`;
 
     return new Response(blob, {
       status: 200,
