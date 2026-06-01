@@ -77,10 +77,14 @@ export default function AdminMasterPage() {
 
   const canConfirm = confirmText.toUpperCase() === "APAGAR TUDO";
 
-  const handleFullBackup = async () => {
+  const handleFullBackup = async (scope: "tenant" | "saas" = "tenant") => {
     if (exportingBackup) return;
     setExportingBackup(true);
-    const tId = toast.loading("Gerando backup completo... isso pode levar alguns minutos.");
+    const tId = toast.loading(
+      scope === "saas"
+        ? "Gerando backup SAAS-WIDE (todos os tenants + auth + binários). Pode levar vários minutos..."
+        : "Gerando backup completo... isso pode levar alguns minutos."
+    );
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Sessão expirada. Faça login novamente.");
@@ -90,7 +94,9 @@ export default function AdminMasterPage() {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ scope }),
       });
       if (!res.ok) {
         const errText = await res.text();
@@ -209,11 +215,21 @@ export default function AdminMasterPage() {
           <Button
             variant="default"
             className="justify-start gap-2 sm:col-span-2 lg:col-span-4"
-            onClick={handleFullBackup}
+            onClick={() => handleFullBackup("tenant")}
             disabled={exportingBackup}
           >
             {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageOpen className="h-4 w-4" />}
             {exportingBackup ? "Gerando backup..." : "Exportar tudo (backup full .zip)"}
+          </Button>
+          <Button
+            variant="destructive"
+            className="justify-start gap-2 sm:col-span-2 lg:col-span-4"
+            onClick={() => handleFullBackup("saas")}
+            disabled={exportingBackup}
+            title="Backup de TODOS os tenants + auth.users + binários do Storage. Apenas super admin."
+          >
+            {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageOpen className="h-4 w-4" />}
+            Exportar SAAS INTEIRO (super admin)
           </Button>
           <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/xml-backup')}>
             <FileArchive className="h-4 w-4" /> Backup XMLs
