@@ -3113,6 +3113,7 @@ export type Database = {
           id: string
           liberado_em: string | null
           liberado_por: string | null
+          marca_cliente: string | null
           motivo_bloqueio: string | null
           numero_lote: string
           op_id: string
@@ -3124,6 +3125,7 @@ export type Database = {
           quantidade_produzida: number
           quantidade_rejeitada: number | null
           responsavel_tecnico_id: string | null
+          rotulo_cliente_url: string | null
           rt_nome: string | null
           rt_numero_registro: string | null
           rt_tipo_conselho:
@@ -3132,6 +3134,8 @@ export type Database = {
           rt_uf_conselho: string | null
           status: string
           updated_at: string
+          white_label_atribuido_em: string | null
+          white_label_cliente_id: string | null
         }
         Insert: {
           assinatura_liberacao_id?: string | null
@@ -3142,6 +3146,7 @@ export type Database = {
           id?: string
           liberado_em?: string | null
           liberado_por?: string | null
+          marca_cliente?: string | null
           motivo_bloqueio?: string | null
           numero_lote: string
           op_id: string
@@ -3153,6 +3158,7 @@ export type Database = {
           quantidade_produzida: number
           quantidade_rejeitada?: number | null
           responsavel_tecnico_id?: string | null
+          rotulo_cliente_url?: string | null
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
@@ -3161,6 +3167,8 @@ export type Database = {
           rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
+          white_label_atribuido_em?: string | null
+          white_label_cliente_id?: string | null
         }
         Update: {
           assinatura_liberacao_id?: string | null
@@ -3171,6 +3179,7 @@ export type Database = {
           id?: string
           liberado_em?: string | null
           liberado_por?: string | null
+          marca_cliente?: string | null
           motivo_bloqueio?: string | null
           numero_lote?: string
           op_id?: string
@@ -3182,6 +3191,7 @@ export type Database = {
           quantidade_produzida?: number
           quantidade_rejeitada?: number | null
           responsavel_tecnico_id?: string | null
+          rotulo_cliente_url?: string | null
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
@@ -3190,6 +3200,8 @@ export type Database = {
           rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
+          white_label_atribuido_em?: string | null
+          white_label_cliente_id?: string | null
         }
         Relationships: [
           {
@@ -3211,6 +3223,13 @@ export type Database = {
             columns: ["responsavel_tecnico_id"]
             isOneToOne: false
             referencedRelation: "responsaveis_tecnicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_produto_acabado_white_label_cliente_id_fkey"
+            columns: ["white_label_cliente_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
         ]
