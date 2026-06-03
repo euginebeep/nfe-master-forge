@@ -329,6 +329,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         observacoes: values.observacoes || null,
         cliente_id: values.cliente_id || null,
         cliente_nome: values.cliente_nome || null,
+        white_label: values.tipo_op === "WHITE_LABEL",
         capsula_item_id: values.capsula_item_source === "supabase" ? (values.capsula_item_id || null) : null,
         capsula_item_nome: values.capsula_item_nome || null,
         pote_item_id: values.pote_item_source === "supabase" ? (values.pote_item_id || null) : null,
