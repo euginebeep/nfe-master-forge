@@ -24,7 +24,7 @@ import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateMa
 import { AnvisaSearchStats } from "@/components/admin/AnvisaSearchStats";
 import { UnlockGuard } from "@/components/security/UnlockGuard";
 import { useUnlockSession } from "@/hooks/use-unlock-session";
-import { ShieldAlert, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
