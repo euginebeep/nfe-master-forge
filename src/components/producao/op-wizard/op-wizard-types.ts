@@ -72,7 +72,7 @@ export const ACRESCIMO_INDUSTRIAL = 5; // %
 // ============================================================
 
 export const formSchema = z.object({
-  tipo_op: z.enum(["MANUAL", "BASEADA_FORMULA", "BASEADA_PEDIDO"]),
+  tipo_op: z.enum(["MANUAL", "BASEADA_FORMULA", "BASEADA_PEDIDO", "WHITE_LABEL"]),
   formula_id: z.string().optional(),
   pedido_id: z.string().optional(),
   cliente_id: z.string().optional(),
