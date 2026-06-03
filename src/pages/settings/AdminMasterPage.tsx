@@ -72,6 +72,8 @@ export default function AdminMasterPage() {
   const navigate = useNavigate();
   const { isUnlocked } = useUnlockSession();
   const [exportingBackup, setExportingBackup] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [cleaning, setCleaning] = useState(false);
@@ -275,6 +277,54 @@ export default function AdminMasterPage() {
       </Card>
 
       <LocalCollectionsManager storagePrefix={STORAGE_PREFIX} collections={ALL_COLLECTIONS} />
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-base">Teste de E-mail (template + logo)</CardTitle>
+          <CardDescription>
+            Envia um e-mail real de "recuperação de senha" usando o template e o logo mais recentes para você conferir no Gmail/Outlook.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+            <Input
+              type="email"
+              placeholder="seu-email@dominio.com"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              disabled={sendingTestEmail}
+            />
+            <Button
+              onClick={async () => {
+                const email = testEmail.trim();
+                if (!/^\S+@\S+\.\S+$/.test(email)) {
+                  toast.error("Informe um e-mail válido");
+                  return;
+                }
+                setSendingTestEmail(true);
+                try {
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/auth`,
+                  });
+                  if (error) throw error;
+                  toast.success("E-mail enviado! Confira sua caixa de entrada (e o spam).");
+                } catch (e: any) {
+                  toast.error(e?.message || "Falha ao enviar e-mail de teste");
+                } finally {
+                  setSendingTestEmail(false);
+                }
+              }}
+              disabled={sendingTestEmail}
+            >
+              {sendingTestEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Enviar e-mail de teste
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Dica: se o logo aparecer "antigo", abra o e-mail numa janela anônima — alguns clientes (Gmail web) cacheiam imagens no proxy por algumas horas.
+          </p>
+        </CardContent>
+      </Card>
 
       <AnvisaSearchStats />
 
