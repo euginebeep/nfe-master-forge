@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       p_usuario_nome: challenge.requested_by_nome,
       p_ip_address: ip,
       p_dados_evento: { escopo: challenge.escopo, motivo: challenge.motivo },
-    });
+    }); } catch (e) { console.error("audit fail:", String(e)); }
 
     // Notifica admins do tenant
     const { data: tenantAdmins } = await admin
