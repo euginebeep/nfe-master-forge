@@ -361,30 +361,57 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
             <div className="flex justify-between"><span className="text-muted-foreground">Lote:</span><span className="font-mono">{form.watch("lote_produto_acabado") || "-"}</span></div>
             {selectedFormula && <div className="flex justify-between"><span className="text-muted-foreground">Fórmula:</span><span className="font-medium">{selectedFormula.codigo_formula}</span></div>}
           </div>
-          {tipoProduto === "CAPSULA" && pesoTotalMisturaKg > 0 && (
-            <div className="mt-3 pt-3 border-t space-y-1">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                <div className="flex justify-between"><span className="text-muted-foreground">Peso total mistura:</span><span className="font-mono">{pesoTotalMisturaKg.toFixed(2)} kg</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Bateladas:</span><span className="font-mono font-bold">{numeroBateladas}×</span></div>
-                <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Peso por batelada:</span><span className={cn("font-mono font-bold",
-                  bateladaStatus === 'bloqueado' && "text-destructive",
-                  bateladaStatus === 'aviso_alto' && "text-orange-600",
-                  bateladaStatus === 'aviso_baixo' && "text-yellow-600",
-                  bateladaStatus === 'ok' && "text-primary",
-                )}>{pesoPorBatelada.toFixed(2)} kg</span></div>
-              </div>
-              {bateladaAlerta && (
-                <div className={cn("text-xs mt-2 p-2 rounded border",
-                  bateladaStatus === 'bloqueado' && "bg-destructive/10 border-destructive/30 text-destructive",
-                  bateladaStatus === 'aviso_alto' && "bg-orange-500/10 border-orange-500/30 text-orange-700",
-                  bateladaStatus === 'aviso_baixo' && "bg-yellow-500/10 border-yellow-500/30 text-yellow-700",
-                )}>
-                  {bateladaAlerta}
-                </div>
-              )}
-            </div>
-          )}
         </CardContent></Card>
+
+      {tipoProduto === 'CAPSULA' && totalUnidades > 0 && (
+        <Card className={cn(
+          bateladaStatus === 'bloqueado' ? 'border-destructive bg-destructive/5' :
+          bateladaStatus === 'aviso_alto' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20' :
+          bateladaStatus === 'aviso_baixo' ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/20' :
+          'border-green-500 bg-green-50 dark:bg-green-950/20'
+        )}>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <Scale className="h-4 w-4" />
+              Planejamento do Misturador em V 100L
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Peso total mistura</div>
+                <div className="font-mono font-bold text-base">{pesoTotalMisturaKg.toFixed(1)} kg</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Nº bateladas</div>
+                <div className="font-mono font-bold text-base">{numeroBateladas}×</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Kg/batelada</div>
+                <div className="font-mono font-bold text-base">{pesoPorBatelada.toFixed(1)} kg</div>
+              </div>
+            </div>
+            {bateladaStatus === 'bloqueado' && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>Carga por batelada acima de 50 kg. Reduza a quantidade ou divida em mais bateladas. OP bloqueada.</AlertDescription>
+              </Alert>
+            )}
+            {bateladaStatus === 'aviso_alto' && (
+              <Alert className="border-yellow-500 text-yellow-800 dark:text-yellow-200">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>Carga entre 40–50 kg. Requer confirmação técnica conforme densidade da fórmula.</AlertDescription>
+              </Alert>
+            )}
+            {bateladaStatus === 'aviso_baixo' && (
+              <Alert className="border-blue-400 text-blue-800 dark:text-blue-200">
+                <AlertDescription>Batelada abaixo de 15 kg. Avaliar homogeneidade da mistura.</AlertDescription>
+              </Alert>
+            )}
+            {bateladaStatus === 'ok' && (
+              <p className="text-xs text-green-700 dark:text-green-400">✓ Carga dentro do range ideal (15–40 kg)</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 
