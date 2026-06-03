@@ -180,6 +180,22 @@ export function useAssinaturaRT() {
         } as any)
         .eq('id', opId);
 
+      // Liberar lote(s) de Produto Acabado em QUARENTENA vinculados à OP
+      await supabase
+        .from('lotes_produto_acabado')
+        .update({
+          status: 'LIBERADO',
+          liberado_em: new Date().toISOString(),
+          assinatura_liberacao_id: data.id,
+          responsavel_tecnico_id: rtId,
+          rt_nome: rt.nome_completo,
+          rt_tipo_conselho: rt.tipo_conselho,
+          rt_numero_registro: rt.numero_registro,
+          rt_uf_conselho: rt.uf_conselho,
+        } as any)
+        .eq('op_id', opId)
+        .eq('status', 'QUARENTENA');
+
       // Registrar na trilha de auditoria
       await supabase.rpc('registrar_evento_auditoria', {
         p_tipo_evento: 'RT_ASSINATURA',
