@@ -192,6 +192,7 @@ export function useAssinaturaRT() {
           rt_tipo_conselho: rt.tipo_conselho,
           rt_numero_registro: rt.numero_registro,
           rt_uf_conselho: rt.uf_conselho,
+          updated_at: new Date().toISOString(),
         } as any)
         .eq('op_id', opId)
         .eq('status', 'QUARENTENA');
