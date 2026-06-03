@@ -445,6 +445,9 @@ export default function AdminMasterPage() {
         </CardContent>
       </Card>
 
+      </>
+      )}
+
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
