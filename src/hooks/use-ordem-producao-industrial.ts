@@ -600,25 +600,44 @@ export function useOrdemProducaoIndustrialActions() {
 
     // Auto-criar lote de Produto Acabado em QUARENTENA
     try {
+      const { data: opComRT } = await supabase
+        .from('ordens_producao_industrial')
+        .select('codigo, rt_nome, rt_tipo_conselho, rt_numero_registro, rt_uf_conselho, responsavel_tecnico_id, total_capsulas_com_acrescimo, total_capsulas')
+        .eq('id', opId)
+        .single();
+
       const hoje = new Date();
       const dataStr = hoje.toISOString().slice(0, 10).replace(/-/g, '');
-      const loteNumero = `PA-${op.codigo}-${dataStr}`;
+      const loteNumero = `PA-${opComRT?.codigo}-${dataStr}`;
       const validade = new Date(hoje);
       validade.setFullYear(validade.getFullYear() + 2);
+
+      const qrBuffer = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(loteNumero + opId)
+      );
+      const qrHash = Array.from(new Uint8Array(qrBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+
       const { error: loteError } = await supabase
         .from('lotes_produto_acabado')
         .insert([{
           op_id: opId,
           numero_lote: loteNumero,
-          codigo_auditoria: loteNumero,
-          produto_nome: op.produto_nome,
-          produto_codigo: op.formula_codigo,
-          quantidade_produzida: quantidadeProduzida,
+          produto_nome: opComRT?.codigo ?? op.produto_nome ?? 'Produto',
+          data_fabricacao: hoje.toISOString().split('T')[0],
+          data_validade: validade.toISOString().split('T')[0],
+          quantidade_produzida: quantidadeAprovada,
           quantidade_aprovada: quantidadeAprovada,
-          quantidade_rejeitada: quantidadeRejeitada,
           status: 'QUARENTENA',
-          data_fabricacao: hoje.toISOString().slice(0, 10),
-          data_validade: validade.toISOString().slice(0, 10),
+          rt_nome: opComRT?.rt_nome ?? 'Pendente',
+          rt_tipo_conselho: opComRT?.rt_tipo_conselho ?? 'CRN',
+          rt_numero_registro: opComRT?.rt_numero_registro ?? '000000',
+          rt_uf_conselho: opComRT?.rt_uf_conselho ?? 'SP',
+          responsavel_tecnico_id: opComRT?.responsavel_tecnico_id ?? null,
+          codigo_auditoria: crypto.randomUUID(),
+          qr_code_hash: qrHash,
         }]);
       if (loteError) {
         console.error('Erro ao criar lote PA:', loteError);
