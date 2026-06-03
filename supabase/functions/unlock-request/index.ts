@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       p_usuario_nome: profile.nome_completo ?? null,
       p_ip_address: ip,
       p_dados_evento: { motivo, escopo },
-    });
+    }); } catch (e) { console.error("audit fail:", String(e)); }
 
     return new Response(JSON.stringify(inserted), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
