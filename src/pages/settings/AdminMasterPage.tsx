@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShieldAlert, Trash2, AlertTriangle, FileArchive, Database, FileOutput, Map, PackageOpen, Loader2 } from "lucide-react";
+import { ShieldAlert, Trash2, AlertTriangle, FileArchive, Database, FileOutput, Map, PackageOpen, Loader2, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -264,6 +264,9 @@ export default function AdminMasterPage() {
           </Button>
           <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/roadmap')}>
             <Map className="h-4 w-4" /> Roadmap
+          </Button>
+          <Button variant="outline" className="justify-start gap-2" onClick={() => navigate('/settings/unlock-requests')}>
+            <History className="h-4 w-4" /> Solicitações de Desbloqueio
           </Button>
         </CardContent>
       </Card>
