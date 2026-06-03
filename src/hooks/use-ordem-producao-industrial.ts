@@ -603,11 +603,14 @@ export function useOrdemProducaoIndustrialActions() {
       const hoje = new Date();
       const dataStr = hoje.toISOString().slice(0, 10).replace(/-/g, '');
       const loteNumero = `PA-${op.codigo}-${dataStr}`;
+      const validade = new Date(hoje);
+      validade.setFullYear(validade.getFullYear() + 2);
       const { error: loteError } = await supabase
         .from('lotes_produto_acabado')
-        .insert({
+        .insert([{
           op_id: opId,
           numero_lote: loteNumero,
+          codigo_auditoria: loteNumero,
           produto_nome: op.produto_nome,
           produto_codigo: op.formula_codigo,
           quantidade_produzida: quantidadeProduzida,
@@ -615,7 +618,8 @@ export function useOrdemProducaoIndustrialActions() {
           quantidade_rejeitada: quantidadeRejeitada,
           status: 'QUARENTENA',
           data_fabricacao: hoje.toISOString().slice(0, 10),
-        });
+          data_validade: validade.toISOString().slice(0, 10),
+        }]);
       if (loteError) {
         console.error('Erro ao criar lote PA:', loteError);
         toast.warning('OP finalizada, mas falha ao criar lote. Verifique estoque manualmente.');
