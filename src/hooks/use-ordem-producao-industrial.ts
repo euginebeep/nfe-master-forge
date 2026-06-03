@@ -602,48 +602,42 @@ export function useOrdemProducaoIndustrialActions() {
     try {
       const { data: opComRT } = await supabase
         .from('ordens_producao_industrial')
-        .select('codigo, rt_nome, rt_tipo_conselho, rt_numero_registro, rt_uf_conselho, responsavel_tecnico_id, total_capsulas_com_acrescimo, total_capsulas')
+        .select('codigo, produto_nome, rt_nome, rt_tipo_conselho, rt_numero_registro, rt_uf_conselho, responsavel_tecnico_id')
         .eq('id', opId)
         .single();
 
-      const hoje = new Date();
-      const dataStr = hoje.toISOString().slice(0, 10).replace(/-/g, '');
-      const loteNumero = `PA-${opComRT?.codigo}-${dataStr}`;
-      const validade = new Date(hoje);
-      validade.setFullYear(validade.getFullYear() + 2);
+      if (opComRT) {
+        const loteNumero = `PA-${opComRT.codigo}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+        const hashData = new TextEncoder().encode(loteNumero + opId + Date.now().toString());
+        const hashBuffer = await crypto.subtle.digest('SHA-256', hashData);
+        const qrHash = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
 
-      const qrBuffer = await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(loteNumero + opId)
-      );
-      const qrHash = Array.from(new Uint8Array(qrBuffer))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
+        const { error: loteError } = await supabase
+          .from('lotes_produto_acabado')
+          .insert({
+            op_id: opId,
+            numero_lote: loteNumero,
+            codigo_auditoria: crypto.randomUUID(),
+            qr_code_hash: qrHash,
+            produto_nome: opComRT.produto_nome ?? opComRT.codigo,
+            data_fabricacao: new Date().toISOString().split('T')[0],
+            data_validade: new Date(Date.now() + 730 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            quantidade_produzida: quantidadeAprovada,
+            quantidade_aprovada: quantidadeAprovada,
+            status: 'QUARENTENA',
+            rt_nome: opComRT.rt_nome ?? 'Pendente',
+            rt_tipo_conselho: opComRT.rt_tipo_conselho ?? 'CRN',
+            rt_numero_registro: opComRT.rt_numero_registro ?? '000000',
+            rt_uf_conselho: opComRT.rt_uf_conselho ?? 'SP',
+            responsavel_tecnico_id: opComRT.responsavel_tecnico_id ?? null,
+          });
 
-      const { error: loteError } = await supabase
-        .from('lotes_produto_acabado')
-        .insert([{
-          op_id: opId,
-          numero_lote: loteNumero,
-          produto_nome: opComRT?.codigo ?? op.produto_nome ?? 'Produto',
-          data_fabricacao: hoje.toISOString().split('T')[0],
-          data_validade: validade.toISOString().split('T')[0],
-          quantidade_produzida: quantidadeAprovada,
-          quantidade_aprovada: quantidadeAprovada,
-          status: 'QUARENTENA',
-          rt_nome: opComRT?.rt_nome ?? 'Pendente',
-          rt_tipo_conselho: opComRT?.rt_tipo_conselho ?? 'CRN',
-          rt_numero_registro: opComRT?.rt_numero_registro ?? '000000',
-          rt_uf_conselho: opComRT?.rt_uf_conselho ?? 'SP',
-          responsavel_tecnico_id: opComRT?.responsavel_tecnico_id ?? null,
-          codigo_auditoria: crypto.randomUUID(),
-          qr_code_hash: qrHash,
-        }]);
-      if (loteError) {
-        console.error('Erro ao criar lote PA:', loteError);
-        toast.warning('OP finalizada, mas falha ao criar lote. Verifique estoque manualmente.');
-      } else {
-        toast.info(`Lote ${loteNumero} criado em QUARENTENA — aguardando assinatura do RT.`);
+        if (loteError) {
+          console.error('Erro ao criar lote PA:', loteError);
+          toast.warning('OP finalizada, mas falha ao criar lote. Verifique estoque manualmente.');
+        } else {
+          toast.info(`Lote ${loteNumero} criado em QUARENTENA — aguardando assinatura do RT.`);
+        }
       }
     } catch (e) {
       console.error('Erro ao criar lote PA:', e);
