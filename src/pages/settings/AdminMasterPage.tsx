@@ -70,6 +70,7 @@ interface CleanupStep {
 
 export default function AdminMasterPage() {
   const navigate = useNavigate();
+  const { isUnlocked } = useUnlockSession();
   const [exportingBackup, setExportingBackup] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -211,6 +212,21 @@ export default function AdminMasterPage() {
 
       <UnlockStatusCard />
 
+      {!isUnlocked && (
+        <Card className="mt-6 border-destructive/30">
+          <CardContent className="py-10 text-center space-y-3">
+            <ShieldAlert className="h-12 w-12 text-destructive mx-auto" />
+            <p className="font-semibold">Conteúdo bloqueado</p>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Para acessar as ferramentas do Admin Master, solicite um código de desbloqueio ao administrador SaaS acima.
+              Todo o conteúdo permanece oculto até que a sessão crítica seja liberada.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {isUnlocked && (
+        <>
       {/* Ferramentas de Dados */}
       <Card className="mt-6">
         <CardHeader>
@@ -428,6 +444,9 @@ export default function AdminMasterPage() {
           )}
         </CardContent>
       </Card>
+
+      </>
+      )}
 
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
