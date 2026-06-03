@@ -10,6 +10,7 @@ import { Copy, KeyRound, Loader2, ShieldAlert, CheckCircle2, Clock } from "lucid
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { setUnlockSession } from "@/hooks/use-unlock-session";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 const ESCOPOS = [
   { id: "DELETE_DADOS", label: "Apagar dados (lotes, OPs, NFes, entidades)" },
@@ -82,11 +83,12 @@ export function UnlockDialog({ open, onOpenChange, onUnlocked }: Props) {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("unlock-request", {
-        body: { motivo, escopo },
-      });
-      if (error || data?.error) {
-        toast.error(data?.error || error?.message || "Erro ao solicitar");
+      const { data, error } = await invokeEdge<{ challenge_code: string; expira_em: string }>(
+        "unlock-request",
+        { motivo, escopo }
+      );
+      if (error || !data) {
+        toast.error(error || "Erro ao solicitar");
         return;
       }
       setChallengeCode(data.challenge_code);
@@ -105,11 +107,12 @@ export function UnlockDialog({ open, onOpenChange, onUnlocked }: Props) {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("unlock-consume", {
-        body: { challenge_code: challengeCode, temp_password: tempPassword },
+      const { data, error } = await invokeEdge<any>("unlock-consume", {
+        challenge_code: challengeCode,
+        temp_password: tempPassword,
       });
-      if (error || data?.error) {
-        toast.error(data?.error || error?.message || "Senha inválida");
+      if (error || !data) {
+        toast.error(error || "Senha inválida");
         return;
       }
       setUnlockSession({

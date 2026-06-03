@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ShieldAlert, KeyRound, Copy, RefreshCw, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -64,11 +65,11 @@ export function UnlockChallengesPanel() {
     setApproveLoading(true);
     setTempPassword(null);
     try {
-      const { data, error } = await supabase.functions.invoke("unlock-approve", {
-        body: { challenge_code: code.toUpperCase() },
+      const { data, error } = await invokeEdge<{ temp_password: string }>("unlock-approve", {
+        challenge_code: code.toUpperCase(),
       });
-      if (error || data?.error) {
-        toast.error(data?.error || error?.message || "Erro ao liberar");
+      if (error || !data) {
+        toast.error(error || "Erro ao liberar");
         return;
       }
       setTempPassword(data.temp_password);
