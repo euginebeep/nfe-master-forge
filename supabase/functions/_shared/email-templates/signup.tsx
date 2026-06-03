@@ -22,7 +22,7 @@ interface SignupEmailProps {
   confirmationUrl: string
 }
 
-const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/public/email-assets/brainx-logo.png'
+const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/public/email-assets/brainx-logo.png?v=2'
 
 export const SignupEmail = ({
   siteName,
