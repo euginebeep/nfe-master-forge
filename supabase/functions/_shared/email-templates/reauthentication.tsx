@@ -22,10 +22,10 @@ const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/pub
 export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
     <Head />
-    <Preview>Seu código de verificação — BrainX ERP</Preview>
+    <Preview>Seu código de verificação — BrainxERP</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="BrainX ERP" width="160" height="auto" style={logo} />
+        <Img src={LOGO_URL} alt="BrainxERP" width="160" height="auto" style={logo} />
         <Heading style={h1}>Código de verificação</Heading>
         <Text style={text}>Use o código abaixo para confirmar sua identidade:</Text>
         <Text style={codeStyle}>{token}</Text>

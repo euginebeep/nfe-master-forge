@@ -24,13 +24,13 @@ const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/pub
 export const MagicLinkEmail = ({ siteName, confirmationUrl }: MagicLinkEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
     <Head />
-    <Preview>Seu link de acesso — BrainX ERP</Preview>
+    <Preview>Seu link de acesso — BrainxERP</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="BrainX ERP" width="160" height="auto" style={logo} />
+        <Img src={LOGO_URL} alt="BrainxERP" width="160" height="auto" style={logo} />
         <Heading style={h1}>Seu link de acesso</Heading>
         <Text style={text}>
-          Clique no botão abaixo para entrar no BrainX ERP. Este link expira em breve.
+          Clique no botão abaixo para entrar no BrainxERP. Este link expira em breve.
         </Text>
         <Button style={button} href={confirmationUrl}>
           Entrar
