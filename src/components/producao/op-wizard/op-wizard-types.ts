@@ -4,7 +4,7 @@ import { z } from "zod";
 // TIPOS E INTERFACES DO WIZARD DE OP
 // ============================================================
 
-export type TipoOP = "MANUAL" | "BASEADA_FORMULA" | "BASEADA_PEDIDO";
+export type TipoOP = "MANUAL" | "BASEADA_FORMULA" | "BASEADA_PEDIDO" | "WHITE_LABEL";
 export type TipoProduto = "CAPSULA" | "LIQUIDO" | "PO";
 export type EtapaWizard = 1 | 2 | 3 | 4;
 
