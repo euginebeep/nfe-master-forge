@@ -221,6 +221,9 @@ export default function AdminMasterPage() {
               Para acessar as ferramentas do Admin Master, solicite um código de desbloqueio ao administrador SaaS acima.
               Todo o conteúdo permanece oculto até que a sessão crítica seja liberada.
             </p>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate('/settings/unlock-requests')}>
+              <History className="h-4 w-4" /> Ver solicitações de desbloqueio
+            </Button>
           </CardContent>
         </Card>
       )}
