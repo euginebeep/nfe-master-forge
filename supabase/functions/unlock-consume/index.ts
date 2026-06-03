@@ -110,8 +110,8 @@ Deno.serve(async (req) => {
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
 
-    await admin.rpc("registrar_evento_auditoria", {
-      p_tipo_evento: "OUTRO",
+    try { await admin.rpc("registrar_evento_auditoria", {
+      p_tipo_evento: "ACAO_UI",
       p_descricao: `Modo desbloqueio ATIVADO por 30 minutos: ${challengeCode}`,
       p_entidade_tipo: "unlock_challenge",
       p_entidade_id: challenge.id,
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       p_usuario_nome: challenge.requested_by_nome,
       p_ip_address: ip,
       p_dados_evento: { escopo: challenge.escopo, motivo: challenge.motivo },
-    }).catch(() => {});
+    }); } catch (e) { console.error("audit fail:", String(e)); }
 
     // Notifica admins do tenant
     const { data: tenantAdmins } = await admin

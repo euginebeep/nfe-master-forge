@@ -108,8 +108,8 @@ Deno.serve(async (req) => {
     }
 
     // Audit
-    await admin.rpc("registrar_evento_auditoria", {
-      p_tipo_evento: "OUTRO",
+    try { await admin.rpc("registrar_evento_auditoria", {
+      p_tipo_evento: "ACAO_UI",
       p_descricao: `Desbloqueio crítico solicitado: ${code}`,
       p_entidade_tipo: "unlock_challenge",
       p_entidade_id: inserted.id,
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       p_usuario_nome: profile.nome_completo ?? null,
       p_ip_address: ip,
       p_dados_evento: { motivo, escopo },
-    }).catch(() => {});
+    }); } catch (e) { console.error("audit fail:", String(e)); }
 
     return new Response(JSON.stringify(inserted), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
