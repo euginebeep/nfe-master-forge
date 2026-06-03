@@ -253,6 +253,7 @@ async function handleWebhook(req: Request): Promise<Response> {
         to: payload.data.email,
         from: `BrainxERP <noreply@${FROM_DOMAIN}>`,
         sender_domain: SENDER_DOMAIN,
+        reply_to: `BrainxERP <noreply@${FROM_DOMAIN}>`,
         subject: EMAIL_SUBJECTS[emailType] || 'Notification',
         html,
         text,
