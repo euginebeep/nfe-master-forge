@@ -445,6 +445,247 @@ Deno.serve(async (req) => {
     await supabase.from('contas_receber').insert(contasReceber);
     log.push(`Pedidos: ${pedidos.length} | Contas receber: ${contasReceber.length}`);
 
+    // ───────────────── 11. Equipamentos (Misturador V) ─────────────────
+    const equipamentos = [
+      { id: uid(10000, 'eq'), company_id: c, nome: 'Misturador V-01 (50 L)', tipo: 'MISTURADOR_V',
+        volume_nominal_litros: 50, capacidade_padrao_kg: 20, capacidade_minima_kg: 10, capacidade_maxima_kg: 25,
+        capacidade_maxima_com_aprovacao_kg: 30, fator_enchimento_padrao: 0.60, fator_enchimento_minimo: 0.50,
+        fator_enchimento_maximo: 0.70, densidade_padrao_kg_l: 0.65, ativo: true },
+      { id: uid(10001, 'eq'), company_id: c, nome: 'Misturador V-02 (100 L)', tipo: 'MISTURADOR_V',
+        volume_nominal_litros: 100, capacidade_padrao_kg: 40, capacidade_minima_kg: 20, capacidade_maxima_kg: 50,
+        capacidade_maxima_com_aprovacao_kg: 60, fator_enchimento_padrao: 0.60, fator_enchimento_minimo: 0.50,
+        fator_enchimento_maximo: 0.70, densidade_padrao_kg_l: 0.65, ativo: true },
+      { id: uid(10002, 'eq'), company_id: c, nome: 'Misturador V-03 (200 L)', tipo: 'MISTURADOR_V',
+        volume_nominal_litros: 200, capacidade_padrao_kg: 80, capacidade_minima_kg: 40, capacidade_maxima_kg: 100,
+        capacidade_maxima_com_aprovacao_kg: 120, fator_enchimento_padrao: 0.60, fator_enchimento_minimo: 0.50,
+        fator_enchimento_maximo: 0.70, densidade_padrao_kg_l: 0.65, ativo: true },
+    ];
+    const { error: eqErr } = await supabase.from('equipamentos').insert(equipamentos);
+    if (eqErr) log.push(`EQ err: ${eqErr.message}`); else log.push(`EQ: ${equipamentos.length}`);
+
+    // ───────────────── 12. Conversões UI/mcg → mg (ativos críticos) ─────────────────
+    const conversoesData = [
+      { substancia: 'Vitamina D3', fator_ui_para_mg: 0.000025, conversao_ui_mcg: 0.025, classificacao_risco: 'ULTRA_CRITICO', fonte_tecnica: 'USP/FCC: 1 UI = 0,025 µg colecalciferol' },
+      { substancia: 'Vitamina A Palmitato', fator_ui_para_mg: 0.0003, conversao_ui_mcg: 0.3, classificacao_risco: 'ULTRA_CRITICO', fonte_tecnica: 'USP: 1 UI = 0,3 µg retinol' },
+      { substancia: 'Vitamina E Acetato', fator_ui_para_mg: 0.67, conversao_ui_mcg: 670, classificacao_risco: 'CRITICO', fonte_tecnica: 'USP: 1 UI = 0,67 mg d-α-tocoferol' },
+      { substancia: 'Vitamina B12 Cianocobalamina', fator_ui_para_mg: 0.001, conversao_ui_mcg: 1.0, classificacao_risco: 'ULTRA_CRITICO', fonte_tecnica: 'Conversão padrão µg' },
+      { substancia: 'Biotina', fator_ui_para_mg: 0.001, conversao_ui_mcg: 1.0, classificacao_risco: 'ULTRA_CRITICO', fonte_tecnica: 'Conversão padrão µg' },
+      { substancia: 'Vitamina K2 MK-7', fator_ui_para_mg: 0.001, conversao_ui_mcg: 1.0, classificacao_risco: 'ULTRA_CRITICO', fonte_tecnica: 'Conversão padrão µg' },
+    ];
+    // upsert por chave substancia (única)
+    for (const cv of conversoesData) {
+      await supabase.from('conversoes_unidades').upsert(cv, { onConflict: 'substancia' });
+    }
+    log.push(`Conversões: ${conversoesData.length}`);
+
+    // ───────────────── 13. Ordens de Produção Industrial (com OP completa) ─────────────────
+    // 6 OPs: 2 concluídas/assinadas, 2 em produção, 1 WHITE_LABEL sem cliente, 1 WHITE_LABEL já atribuída
+    const opsConfig = [
+      { i: 0, status: 'CONCLUIDA',  etapa: 'FINALIZADA',     pa: 0,  cliente: 0,  whiteLabel: false, attribuido: false, eq: 1, batch: 18 },
+      { i: 1, status: 'CONCLUIDA',  etapa: 'FINALIZADA',     pa: 2,  cliente: 3,  whiteLabel: false, attribuido: false, eq: 0, batch: 12 },
+      { i: 2, status: 'EM_PRODUCAO', etapa: 'PESAGEM',       pa: 4,  cliente: 7,  whiteLabel: false, attribuido: false, eq: 1, batch: 20 },
+      { i: 3, status: 'EM_PRODUCAO', etapa: 'MISTURA',       pa: 6,  cliente: 11, whiteLabel: false, attribuido: false, eq: 2, batch: 45 },
+      { i: 4, status: 'PLANEJADA',   etapa: 'SEPARACAO_MP',  pa: 8,  cliente: -1, whiteLabel: true,  attribuido: false, eq: 1, batch: 25 },
+      { i: 5, status: 'CONCLUIDA',   etapa: 'FINALIZADA',    pa: 10, cliente: -1, whiteLabel: true,  attribuido: true,  eq: 1, batch: 22 },
+    ];
+
+    const ops: any[] = [];
+    const opMPs: any[] = [];
+    const opEmbs: any[] = [];
+    const opPesagens: any[] = [];
+    const opAssinaturas: any[] = [];
+    const lotesPA: any[] = [];
+
+    for (const cfg of opsConfig) {
+      const opId = uid(11000 + cfg.i, 'op');
+      const pa = paItens[cfg.pa];
+      const formula = formulas[cfg.pa % formulas.length];
+      const loteNumero = `LPA-2026${String(cfg.i + 1).padStart(4, '0')}`;
+      const qrToken = uid(11100 + cfg.i, 'qr');
+      const qrHash = await sha256(`${opId}:${loteNumero}:LOVABLE_OP_MASTER_SECRET_2026`);
+      const rt = rtRows[cfg.i % rtRows.length];
+      const equip = equipamentos[cfg.eq];
+      const isFinal = cfg.status === 'CONCLUIDA';
+
+      ops.push({
+        id: opId, company_id: c,
+        codigo: `OP-2026-${String(cfg.i + 1).padStart(4, '0')}`,
+        produto_id: pa.id, produto_nome: pa.descricao_interna,
+        formula_id: formula.id, formula_codigo: formula.codigo_formula, formula_versao: 1,
+        quantidade_frascos: 100 + cfg.i * 50,
+        capsulas_por_frasco: 60,
+        total_capsulas: (100 + cfg.i * 50) * 60,
+        acrescimo_percentual: 5,
+        total_capsulas_com_acrescimo: Math.round((100 + cfg.i * 50) * 60 * 1.05),
+        lote_produto_acabado: loteNumero,
+        data_fabricacao: addDays(-30 + cfg.i * 5),
+        data_validade: addDays(720 + cfg.i * 10),
+        tipo_apresentacao: 'CAPSULA',
+        peso_capsula_mg: 500,
+        tipo_capsula: '00',
+        excipiente_base: 'AMIDO',
+        status: cfg.status,
+        etapa_producao_atual: cfg.etapa,
+        etapa_atualizada_em: new Date().toISOString(),
+        responsavel_tecnico_id: rt.id,
+        rt_nome: rt.nome_completo,
+        rt_tipo_conselho: rt.tipo_conselho,
+        rt_numero_registro: rt.numero_registro,
+        rt_uf_conselho: rt.uf_conselho,
+        rt_vinculado_em: new Date().toISOString(),
+        qr_code_token: qrToken,
+        qr_code_hash: qrHash,
+        qr_code_lote: loteNumero,
+        cliente_id: cfg.cliente >= 0 ? clientesIds[cfg.cliente] : null,
+        cliente_nome: cfg.cliente >= 0 ? empresasNomes[cfg.cliente] : null,
+        white_label: cfg.whiteLabel,
+        marca_cliente: cfg.attribuido ? 'BioVitta Premium' : null,
+        turno: pick(['MANHÃ', 'TARDE', 'NOITE'], cfg.i),
+        linha_producao: `Linha ${(cfg.i % 3) + 1}`,
+        cor_capsula: 'BRANCA',
+        cor_tampa: 'BRANCA',
+        tipo_pote: 'PET 60 caps',
+        tipo_tampa: 'Rosca 38mm',
+        incluir_silica: true,
+        quantidade_silica_sache: '1g',
+        peso_total_mistura_kg: cfg.batch,
+        numero_bateladas: 1,
+        peso_por_batelada_kg: cfg.batch,
+        equipamento_id: equip.id,
+        data_inicio_producao: cfg.status !== 'PLANEJADA' ? addDays(-20 + cfg.i * 3) : null,
+        data_fim_producao: isFinal ? addDays(-15 + cfg.i * 3) : null,
+      });
+
+      // Matérias-primas da OP (3 a 5 itens, 1 ultra-crítico)
+      const formItensOP = formItens.filter((f: any) => f.formula_id === formula.id);
+      formItensOP.forEach((fi: any, idx: number) => {
+        const mpId = uid(12000 + cfg.i * 100 + idx, 'mp');
+        const isCritico = idx === 0 && /Vitamina (D3|B12|A|K2)|Biotina/i.test(fi.nome_insumo);
+        const qtdMg = Number(fi.quantidade_convertida_mg || fi.quantidade_informada || 100) * (100 + cfg.i * 50);
+        const qtdG = qtdMg / 1000;
+        const fornId = pick(fornecedoresIds, idx);
+        const fornNome = pick(fornecedoresNomes, idx);
+        const loteRM = lotes.find((l) => l.item_id === fi.item_id);
+        opMPs.push({
+          id: mpId, op_id: opId,
+          insumo_id: fi.item_id, insumo_nome: fi.nome_insumo,
+          categoria: 'ATIVO',
+          lote_id: loteRM?.id || null,
+          numero_lote: loteRM?.numero_lote || null,
+          fornecedor_id: fornId, fornecedor_nome: fornNome,
+          quantidade_teorica_mg: qtdMg,
+          quantidade_teorica_g: qtdG,
+          quantidade_real_g: isFinal ? qtdG * 1.002 : null,
+          unidade: 'g',
+          pesagem_critica: isCritico,
+          motivo_critico: isCritico ? 'Ativo ultra-crítico <1mg/dose — exige pré-mix e dupla conferência' : null,
+          tolerancia_percentual: isCritico ? 2 : 10,
+          ordem_mistura: idx + 1,
+          dentro_tolerancia: isFinal ? true : null,
+          pesado_em: isFinal ? new Date().toISOString() : null,
+          conferido_em: isFinal ? new Date().toISOString() : null,
+        });
+
+        // Pesagem crítica registrada
+        if (isCritico) {
+          opPesagens.push({
+            op_id: opId, materia_prima_id: mpId,
+            insumo_nome: fi.nome_insumo,
+            quantidade_teorica_mg: qtdMg,
+            quantidade_pesada_mg: isFinal ? qtdMg * 1.001 : null,
+            operador_pesagem_nome: 'Operador Demo João',
+            assinatura_operador: isFinal ? `OP-SIGN-${cfg.i}` : null,
+            data_pesagem: isFinal ? new Date().toISOString() : null,
+            conferente_nome: 'Conferente Demo Maria',
+            assinatura_conferente: isFinal ? `CF-SIGN-${cfg.i}` : null,
+            data_conferencia: isFinal ? new Date().toISOString() : null,
+            status: isFinal ? 'CONFERIDO' : 'PENDENTE',
+            observacoes: 'Pré-mix 1:100 com excipiente — distribuição geométrica',
+          });
+        }
+      });
+
+      // Embalagens da OP
+      const potePA = itens.find((it) => it.tipo_item === 'EMBALAGEM' && it.descricao_interna.startsWith('Pote'));
+      const tampa = itens.find((it) => it.tipo_item === 'EMBALAGEM' && it.descricao_interna.startsWith('Tampa'));
+      const capsula = itens.find((it) => it.tipo_item === 'CAPSULA_VAZIA');
+      if (potePA && tampa && capsula) {
+        const qtdF = 100 + cfg.i * 50;
+        opEmbs.push(
+          { op_id: opId, tipo_embalagem: 'POTE', insumo_id: potePA.id, insumo_nome: potePA.descricao_interna, quantidade_planejada: qtdF, status: isFinal ? 'BAIXADO' : 'PENDENTE' },
+          { op_id: opId, tipo_embalagem: 'TAMPA', insumo_id: tampa.id, insumo_nome: tampa.descricao_interna, quantidade_planejada: qtdF, status: isFinal ? 'BAIXADO' : 'PENDENTE' },
+        );
+      }
+
+      // Assinatura RT (apenas OPs concluídas)
+      if (isFinal) {
+        const assId = uid(13000 + cfg.i, 'as');
+        const hashOp = await sha256(`${opId}|${rt.id}|${loteNumero}|${new Date().toISOString().slice(0, 10)}`);
+        opAssinaturas.push({
+          id: assId, op_id: opId,
+          responsavel_tecnico_id: rt.id,
+          rt_nome: rt.nome_completo, rt_cpf: rt.cpf,
+          rt_tipo_conselho: rt.tipo_conselho,
+          rt_numero_registro: rt.numero_registro,
+          rt_uf_conselho: rt.uf_conselho,
+          ip_address: '192.168.1.10', user_agent: 'Demo Browser',
+          hash_op: hashOp,
+          declaracao_aceita: true,
+        });
+        // Atualizar OP com assinatura
+        ops[ops.length - 1].assinatura_rt_id = assId;
+        ops[ops.length - 1].assinatura_rt_hash = hashOp;
+        ops[ops.length - 1].rt_assinatura_timestamp = new Date().toISOString();
+
+        // Lote de produto acabado (apenas OPs concluídas geram lote PA)
+        const codAud = `AUD-${opId.slice(-12).toUpperCase()}`;
+        const loteHash = await sha256(`${loteNumero}:${opId}:LOVABLE_LOTE`);
+        lotesPA.push({
+          id: uid(14000 + cfg.i, 'lp'), op_id: opId,
+          numero_lote: loteNumero, codigo_auditoria: codAud,
+          qr_code_hash: loteHash,
+          produto_id: pa.id, produto_nome: pa.descricao_interna,
+          data_fabricacao: addDays(-15 + cfg.i * 3),
+          data_validade: addDays(720 + cfg.i * 10),
+          quantidade_produzida: 100 + cfg.i * 50,
+          quantidade_aprovada: 100 + cfg.i * 50,
+          quantidade_rejeitada: 0,
+          status: 'APROVADO',
+          responsavel_tecnico_id: rt.id,
+          rt_nome: rt.nome_completo,
+          rt_tipo_conselho: rt.tipo_conselho,
+          rt_numero_registro: rt.numero_registro,
+          rt_uf_conselho: rt.uf_conselho,
+          assinatura_liberacao_id: assId,
+          liberado_em: new Date().toISOString(),
+          white_label: cfg.whiteLabel,
+          white_label_cliente_id: cfg.attribuido ? clientesIds[5] : null,
+          marca_cliente: cfg.attribuido ? 'BioVitta Premium' : null,
+          white_label_atribuido_em: cfg.attribuido ? new Date().toISOString() : null,
+        });
+      }
+    }
+
+    const { error: opErr } = await supabase.from('ordens_producao_industrial').insert(ops);
+    if (opErr) log.push(`OP err: ${opErr.message}`); else log.push(`OP: ${ops.length}`);
+    await supabase.from('op_materias_primas').insert(opMPs);
+    await supabase.from('op_embalagens').insert(opEmbs);
+    const { error: assErr } = await supabase.from('op_assinaturas_rt').insert(opAssinaturas);
+    if (assErr) log.push(`AssRT err: ${assErr.message}`); else log.push(`Assinaturas RT: ${opAssinaturas.length}`);
+    // Após inserir assinaturas, atualizar refs nas OPs
+    for (const op of ops.filter((o) => o.assinatura_rt_id)) {
+      await supabase.from('ordens_producao_industrial').update({
+        assinatura_rt_id: op.assinatura_rt_id,
+        assinatura_rt_hash: op.assinatura_rt_hash,
+        rt_assinatura_timestamp: op.rt_assinatura_timestamp,
+      }).eq('id', op.id);
+    }
+    await supabase.from('op_pesagens_criticas').insert(opPesagens);
+    log.push(`OP MPs: ${opMPs.length} | Embalagens: ${opEmbs.length} | Pesagens críticas: ${opPesagens.length}`);
+
+    const { error: lpErr } = await supabase.from('lotes_produto_acabado').insert(lotesPA);
+    if (lpErr) log.push(`LotePA err: ${lpErr.message}`); else log.push(`Lotes PA: ${lotesPA.length} (white_label: ${lotesPA.filter((l) => l.white_label).length})`);
+
     return new Response(
       JSON.stringify({ success: true, company_id: c, log }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
