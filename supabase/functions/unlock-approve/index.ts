@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       p_usuario_id: userId,
       p_usuario_nome: adminProfile?.nome_completo ?? null,
       p_ip_address: ip,
-    });
+    }); } catch (e) { console.error("audit fail:", String(e)); }
 
     return new Response(
       JSON.stringify({
