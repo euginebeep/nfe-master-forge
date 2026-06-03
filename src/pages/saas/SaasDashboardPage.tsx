@@ -464,6 +464,8 @@ export default function SaasDashboardPage() {
         </CardContent>
       </Card>
 
+      <UnlockChallengesPanel />
+
       {/* Detail Dialog */}
       <Dialog open={!!detailCompany} onOpenChange={() => setDetailCompany(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
