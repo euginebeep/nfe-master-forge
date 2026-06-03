@@ -17,6 +17,8 @@ export interface Formula {
   excipiente_padrao?: string;
   peso_capsula_alvo_mg?: number;
   tipo_apresentacao?: string;
+  peso_enchimento_mg?: number;
+  densidade_aparente_kg_l?: number;
 }
 
 export interface PedidoVenda {

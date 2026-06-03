@@ -54,6 +54,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     showQuickClienteModal, setShowQuickClienteModal,
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
     totalUnidades, totalComAcrescimo,
+    pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange,
     podeAvancar, avancar, voltar, onSubmit, progressoEtapas,
   } = state;
@@ -360,6 +361,29 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
             <div className="flex justify-between"><span className="text-muted-foreground">Lote:</span><span className="font-mono">{form.watch("lote_produto_acabado") || "-"}</span></div>
             {selectedFormula && <div className="flex justify-between"><span className="text-muted-foreground">Fórmula:</span><span className="font-medium">{selectedFormula.codigo_formula}</span></div>}
           </div>
+          {tipoProduto === "CAPSULA" && pesoTotalMisturaKg > 0 && (
+            <div className="mt-3 pt-3 border-t space-y-1">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                <div className="flex justify-between"><span className="text-muted-foreground">Peso total mistura:</span><span className="font-mono">{pesoTotalMisturaKg.toFixed(2)} kg</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Bateladas:</span><span className="font-mono font-bold">{numeroBateladas}×</span></div>
+                <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Peso por batelada:</span><span className={cn("font-mono font-bold",
+                  bateladaStatus === 'bloqueado' && "text-destructive",
+                  bateladaStatus === 'aviso_alto' && "text-orange-600",
+                  bateladaStatus === 'aviso_baixo' && "text-yellow-600",
+                  bateladaStatus === 'ok' && "text-primary",
+                )}>{pesoPorBatelada.toFixed(2)} kg</span></div>
+              </div>
+              {bateladaAlerta && (
+                <div className={cn("text-xs mt-2 p-2 rounded border",
+                  bateladaStatus === 'bloqueado' && "bg-destructive/10 border-destructive/30 text-destructive",
+                  bateladaStatus === 'aviso_alto' && "bg-orange-500/10 border-orange-500/30 text-orange-700",
+                  bateladaStatus === 'aviso_baixo' && "bg-yellow-500/10 border-yellow-500/30 text-yellow-700",
+                )}>
+                  {bateladaAlerta}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent></Card>
     </div>
   );
