@@ -22,7 +22,7 @@ interface EmailChangeEmailProps {
   confirmationUrl: string
 }
 
-const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/public/email-assets/brainx-logo.png?v=2'
+const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/public/email-assets/brainx-logo-v3.jpg'
 
 export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }: EmailChangeEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
