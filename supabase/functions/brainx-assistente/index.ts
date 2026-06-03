@@ -9,33 +9,57 @@ Deno.serve(async (req) => {
 
   try {
     const { system, messages } = await req.json();
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
-      console.error("[brainx-assistente] LOVABLE_API_KEY ausente no ambiente");
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY ausente" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+
+    if (!lovableKey && !anthropicKey) {
+      console.error("[brainx-assistente] Nenhuma chave de IA configurada");
+      return new Response(
+        JSON.stringify({ error: "Nenhuma chave de IA configurada. Configure LOVABLE_API_KEY ou ANTHROPIC_API_KEY nos secrets." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: system },
-          ...messages,
-        ],
-      }),
-    });
+    let resp: Response;
+    let parseContent: (data: any) => string;
+
+    if (lovableKey) {
+      resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${lovableKey}`,
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: system },
+            ...messages,
+          ],
+        }),
+      });
+      parseContent = (data) => data.choices?.[0]?.message?.content ?? "";
+    } else {
+      resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicKey!,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system,
+          messages,
+        }),
+      });
+      parseContent = (data) => data.content?.[0]?.text ?? "";
+    }
 
     if (!resp.ok) {
       const errText = await resp.text();
-      console.error("[brainx-assistente] Gateway respondeu com erro", {
+      console.error("[brainx-assistente] Provider respondeu com erro", {
         status: resp.status,
         statusText: resp.statusText,
         body: errText?.slice(0, 2000),
@@ -50,13 +74,13 @@ Deno.serve(async (req) => {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: `Gateway ${resp.status}: ${errText || resp.statusText}` }), {
+      return new Response(JSON.stringify({ error: `Provider ${resp.status}: ${errText || resp.statusText}` }), {
         status: resp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await resp.json();
-    const content = data.choices?.[0]?.message?.content ?? "";
+    const content = parseContent(data);
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
