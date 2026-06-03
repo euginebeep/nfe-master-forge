@@ -22,6 +22,10 @@ import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsMana
 import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
 import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
 import { AnvisaSearchStats } from "@/components/admin/AnvisaSearchStats";
+import { UnlockGuard } from "@/components/security/UnlockGuard";
+import { UnlockStatusCard } from "@/components/security/UnlockStatusCard";
+import { useUnlockSession } from "@/hooks/use-unlock-session";
+import { KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -205,6 +209,8 @@ export default function AdminMasterPage() {
         icon={ShieldAlert}
       />
 
+      <UnlockStatusCard />
+
       {/* Ferramentas de Dados */}
       <Card className="mt-6">
         <CardHeader>
@@ -284,15 +290,23 @@ export default function AdminMasterPage() {
                 </div>
               </div>
 
-              <Button
-                variant="destructive"
-                size="lg"
-                className="w-full"
-                onClick={() => setConfirmOpen(true)}
-              >
-                <Trash2 className="h-5 w-5 mr-2" />
-                Executar Limpeza Total
-              </Button>
+              <UnlockGuard>
+                {({ run, isUnlocked }) => (
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => run(() => setConfirmOpen(true))}
+                  >
+                    {isUnlocked ? (
+                      <Trash2 className="h-5 w-5 mr-2" />
+                    ) : (
+                      <KeyRound className="h-5 w-5 mr-2" />
+                    )}
+                    {isUnlocked ? "Executar Limpeza Total" : "Executar Limpeza Total (requer desbloqueio)"}
+                  </Button>
+                )}
+              </UnlockGuard>
             </>
           )}
 

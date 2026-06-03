@@ -13,6 +13,7 @@ import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { DemoModeBanner } from "@/components/demo/DemoModeBanner";
+import { UnlockBanner } from "@/components/security/UnlockBanner";
 
 export function MainLayout() {
   useRealtimeNotifications();
@@ -28,6 +29,7 @@ export function MainLayout() {
       <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
         <AppSidebar />
         <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+          <UnlockBanner />
           <DemoModeBanner />
           <AppHeader />
           <motion.main

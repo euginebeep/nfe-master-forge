@@ -6451,6 +6451,75 @@ export type Database = {
         }
         Relationships: []
       }
+      unlock_challenges: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          aprovado_por_nome: string | null
+          challenge_code: string
+          company_id: string
+          consumido_em: string | null
+          created_at: string
+          desbloqueio_expira_em: string | null
+          escopo: string[]
+          expira_em: string
+          id: string
+          ip_aprovador: string | null
+          ip_solicitante: string | null
+          motivo: string
+          requested_by: string
+          requested_by_nome: string | null
+          status: string
+          temp_password_hash: string | null
+          temp_password_visualizada_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          aprovado_por_nome?: string | null
+          challenge_code: string
+          company_id: string
+          consumido_em?: string | null
+          created_at?: string
+          desbloqueio_expira_em?: string | null
+          escopo?: string[]
+          expira_em?: string
+          id?: string
+          ip_aprovador?: string | null
+          ip_solicitante?: string | null
+          motivo: string
+          requested_by: string
+          requested_by_nome?: string | null
+          status?: string
+          temp_password_hash?: string | null
+          temp_password_visualizada_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          aprovado_por_nome?: string | null
+          challenge_code?: string
+          company_id?: string
+          consumido_em?: string | null
+          created_at?: string
+          desbloqueio_expira_em?: string | null
+          escopo?: string[]
+          expira_em?: string
+          id?: string
+          ip_aprovador?: string | null
+          ip_solicitante?: string | null
+          motivo?: string
+          requested_by?: string
+          requested_by_nome?: string | null
+          status?: string
+          temp_password_hash?: string | null
+          temp_password_visualizada_em?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           created_at: string | null
@@ -6868,6 +6937,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      has_active_unlock: { Args: { _user_id: string }; Returns: boolean }
       has_module_permission: {
         Args: { _modulo: string; _permission?: string; _user_id: string }
         Returns: boolean
