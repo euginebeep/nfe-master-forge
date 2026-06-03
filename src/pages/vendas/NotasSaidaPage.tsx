@@ -428,7 +428,7 @@ export default function NotasSaidaPage() {
           // Baixa FEFO: debitar 1 unidade do lote LIBERADO mais antigo
           const { data: lotes } = await supabase
             .from("lotes_produto_acabado")
-            .select("id, quantidade_disponivel")
+            .select("id, quantidade_aprovada")
             .eq("status", "LIBERADO")
             .order("data_fabricacao", { ascending: true })
             .limit(1);
@@ -437,7 +437,7 @@ export default function NotasSaidaPage() {
             await supabase
               .from("lotes_produto_acabado")
               .update({
-                quantidade_disponivel: Math.max(0, (lotes[0].quantidade_disponivel ?? 0) - 1),
+                quantidade_aprovada: Math.max(0, (lotes[0].quantidade_aprovada ?? 0) - 1),
                 updated_at: new Date().toISOString(),
               })
               .eq("id", lotes[0].id);
