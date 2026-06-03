@@ -3045,15 +3045,17 @@ export type Database = {
           produto_codigo: string | null
           produto_id: string | null
           produto_nome: string
-          qr_code_hash: string
+          qr_code_hash: string | null
           quantidade_aprovada: number | null
           quantidade_produzida: number
           quantidade_rejeitada: number | null
           responsavel_tecnico_id: string | null
-          rt_nome: string
-          rt_numero_registro: string
-          rt_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
-          rt_uf_conselho: string
+          rt_nome: string | null
+          rt_numero_registro: string | null
+          rt_tipo_conselho:
+            | Database["public"]["Enums"]["tipo_conselho_profissional"]
+            | null
+          rt_uf_conselho: string | null
           status: string
           updated_at: string
         }
@@ -3072,15 +3074,17 @@ export type Database = {
           produto_codigo?: string | null
           produto_id?: string | null
           produto_nome: string
-          qr_code_hash: string
+          qr_code_hash?: string | null
           quantidade_aprovada?: number | null
           quantidade_produzida: number
           quantidade_rejeitada?: number | null
           responsavel_tecnico_id?: string | null
-          rt_nome: string
-          rt_numero_registro: string
-          rt_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
-          rt_uf_conselho: string
+          rt_nome?: string | null
+          rt_numero_registro?: string | null
+          rt_tipo_conselho?:
+            | Database["public"]["Enums"]["tipo_conselho_profissional"]
+            | null
+          rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
         }
@@ -3099,15 +3103,17 @@ export type Database = {
           produto_codigo?: string | null
           produto_id?: string | null
           produto_nome?: string
-          qr_code_hash?: string
+          qr_code_hash?: string | null
           quantidade_aprovada?: number | null
           quantidade_produzida?: number
           quantidade_rejeitada?: number | null
           responsavel_tecnico_id?: string | null
-          rt_nome?: string
-          rt_numero_registro?: string
-          rt_tipo_conselho?: Database["public"]["Enums"]["tipo_conselho_profissional"]
-          rt_uf_conselho?: string
+          rt_nome?: string | null
+          rt_numero_registro?: string | null
+          rt_tipo_conselho?:
+            | Database["public"]["Enums"]["tipo_conselho_profissional"]
+            | null
+          rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
         }
