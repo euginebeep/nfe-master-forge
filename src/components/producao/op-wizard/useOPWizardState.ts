@@ -268,6 +268,10 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
 
   // ============ SUBMIT ============
   const onSubmit = async (values: FormValues) => {
+    if (bateladaStatus === 'bloqueado') {
+      toast.error('Peso por batelada acima do máximo do misturador. Reduza a quantidade ou divida em múltiplas OPs.');
+      return;
+    }
     setIsLoading(true);
     try {
       const ano = new Date().getFullYear();
@@ -335,6 +339,10 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         silica_item_nome: values.silica_item_nome || null,
         incluir_silica: values.incluir_silica,
         descricao_rotulo: values.descricao_rotulo || null,
+        peso_total_mistura_kg: pesoTotalMisturaKg,
+        numero_bateladas: numeroBateladas,
+        peso_por_batelada_kg: pesoPorBatelada,
+        alerta_batelada: bateladaAlerta,
       };
 
       const { data: newOP, error } = await supabase
