@@ -147,7 +147,7 @@ serve(async (req) => {
         await client.send({
           from: fromAddr,
           to: dest,
-          subject: "Teste de SMTP - BrainX ERP",
+          subject: "Teste de SMTP - BrainxERP",
           content: "Mensagem de teste em texto puro.",
           html: `<p>Este é um e-mail de teste do SMTP configurado para sua empresa.</p>
                  <p>Se você o recebeu, o servidor está respondendo corretamente.</p>`,
