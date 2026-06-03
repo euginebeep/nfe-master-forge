@@ -108,8 +108,8 @@ Deno.serve(async (req) => {
     }
 
     // Audit
-    await admin.rpc("registrar_evento_auditoria", {
-      p_tipo_evento: "OUTRO",
+    try { await admin.rpc("registrar_evento_auditoria", {
+      p_tipo_evento: "ACAO_UI",
       p_descricao: `Desbloqueio crítico solicitado: ${code}`,
       p_entidade_tipo: "unlock_challenge",
       p_entidade_id: inserted.id,
