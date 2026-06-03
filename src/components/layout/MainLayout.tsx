@@ -7,6 +7,7 @@ import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlock
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
 import { BrainXAssistente } from "@/components/assistente/BrainXAssistente";
+import { OnboardingWalkthrough } from "@/components/onboarding/OnboardingWalkthrough";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -43,6 +44,7 @@ export function MainLayout() {
         </div>
         <ChatGlobalProvider />
         <BrainXAssistente />
+        <OnboardingWalkthrough />
       </div>
     </SidebarProvider>
   );
