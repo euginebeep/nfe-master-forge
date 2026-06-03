@@ -397,6 +397,55 @@ export default function NotasSaidaPage() {
         serie: dadosNfe?.serie || null,
         danfe_url: dadosNfe?.link_pdf || null,
       }).eq("id", notaId);
+
+      // ── Pós-autorização: Conta a Receber + Baixa de Estoque (FEFO) ──
+      try {
+        const { data: nfe } = await supabase
+          .from("notas_saida")
+          .select("id, numero, serie, valor_total, cliente_id, company_id, entidades:cliente_id(razao_social, nome_fantasia)")
+          .eq("id", notaId)
+          .maybeSingle();
+
+        if (nfe) {
+          const clienteNome =
+            (nfe as any).entidades?.razao_social ||
+            (nfe as any).entidades?.nome_fantasia ||
+            "Cliente";
+          const vencimento = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0];
+
+          await supabase.from("contas_receber").insert({
+            descricao: `NF-e ${nfe.serie ?? ""}/${nfe.numero ?? ""} — ${clienteNome}`,
+            valor: Number(nfe.valor_total || 0),
+            data_vencimento: vencimento,
+            status: "ABERTO",
+            numero_documento: `NF-e ${nfe.serie ?? ""}/${nfe.numero ?? ""}`,
+            cliente_id: nfe.cliente_id,
+            company_id: nfe.company_id,
+          });
+
+          // Baixa FEFO: debitar 1 unidade do lote LIBERADO mais antigo
+          const { data: lotes } = await supabase
+            .from("lotes_produto_acabado")
+            .select("id, quantidade_aprovada")
+            .eq("status", "LIBERADO")
+            .order("data_fabricacao", { ascending: true })
+            .limit(1);
+
+          if (lotes?.[0]) {
+            await supabase
+              .from("lotes_produto_acabado")
+              .update({
+                quantidade_aprovada: Math.max(0, (lotes[0].quantidade_aprovada ?? 0) - 1),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", lotes[0].id);
+          }
+        }
+      } catch (e) {
+        console.error("Erro em pós-autorização (CR/estoque):", e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
