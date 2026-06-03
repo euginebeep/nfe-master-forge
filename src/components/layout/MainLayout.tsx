@@ -6,6 +6,7 @@ import { useNavigationAudit } from "@/hooks/use-navigation-audit";
 import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
+import { BrainXAssistente } from "@/components/assistente/BrainXAssistente";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -41,6 +42,7 @@ export function MainLayout() {
           </motion.main>
         </div>
         <ChatGlobalProvider />
+        <BrainXAssistente />
       </div>
     </SidebarProvider>
   );
