@@ -208,6 +208,8 @@ export default function AdminMasterPage() {
         icon={ShieldAlert}
       />
 
+      <UnlockStatusCard />
+
       {/* Ferramentas de Dados */}
       <Card className="mt-6">
         <CardHeader>
