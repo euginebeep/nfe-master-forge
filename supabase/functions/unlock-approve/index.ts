@@ -35,13 +35,13 @@ Deno.serve(async (req) => {
     const userClient = createClient(url, anon, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: claims } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (!claims?.claims) {
+    const { data: userData } = await userClient.auth.getUser();
+    if (!userData?.user) {
       return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claims.claims.sub as string;
+    const userId = userData.user.id;
 
     const admin = createClient(url, service);
 
