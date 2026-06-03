@@ -544,7 +544,7 @@ export function useOrdemProducaoIndustrialActions() {
     // Buscar dados da OP para calcular rendimento
     const { data: op } = await supabase
       .from('ordens_producao_industrial')
-      .select('codigo, total_capsulas, acrescimo_percentual, total_capsulas_com_acrescimo')
+      .select('codigo, total_capsulas, acrescimo_percentual, total_capsulas_com_acrescimo, produto_nome, formula_codigo')
       .eq('id', opId)
       .single();
 
@@ -596,6 +596,38 @@ export function useOrdemProducaoIndustrialActions() {
       });
     } catch (e) {
       console.warn('Falha ao notificar expedição:', e);
+    }
+
+    // Auto-criar lote de Produto Acabado em QUARENTENA
+    try {
+      const hoje = new Date();
+      const dataStr = hoje.toISOString().slice(0, 10).replace(/-/g, '');
+      const loteNumero = `PA-${op.codigo}-${dataStr}`;
+      const validade = new Date(hoje);
+      validade.setFullYear(validade.getFullYear() + 2);
+      const { error: loteError } = await supabase
+        .from('lotes_produto_acabado')
+        .insert([{
+          op_id: opId,
+          numero_lote: loteNumero,
+          codigo_auditoria: loteNumero,
+          produto_nome: op.produto_nome,
+          produto_codigo: op.formula_codigo,
+          quantidade_produzida: quantidadeProduzida,
+          quantidade_aprovada: quantidadeAprovada,
+          quantidade_rejeitada: quantidadeRejeitada,
+          status: 'QUARENTENA',
+          data_fabricacao: hoje.toISOString().slice(0, 10),
+          data_validade: validade.toISOString().slice(0, 10),
+        }]);
+      if (loteError) {
+        console.error('Erro ao criar lote PA:', loteError);
+        toast.warning('OP finalizada, mas falha ao criar lote. Verifique estoque manualmente.');
+      } else {
+        toast.info(`Lote ${loteNumero} criado em QUARENTENA — aguardando assinatura do RT.`);
+      }
+    } catch (e) {
+      console.error('Erro ao criar lote PA:', e);
     }
 
     toast.success(`OP ${op.codigo} finalizada — Rendimento: ${rendimento.toFixed(1)}%`);
