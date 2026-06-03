@@ -23,6 +23,7 @@ import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager"
 import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
 import { AnvisaSearchStats } from "@/components/admin/AnvisaSearchStats";
 import { UnlockGuard } from "@/components/security/UnlockGuard";
+import { UnlockStatusCard } from "@/components/security/UnlockStatusCard";
 import { useUnlockSession } from "@/hooks/use-unlock-session";
 import { KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
