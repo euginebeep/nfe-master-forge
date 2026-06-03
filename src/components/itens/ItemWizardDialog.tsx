@@ -17,6 +17,7 @@ import { CapsulePhotoUpload } from "./CapsulePhotoUpload";
 import { formatarUnidade } from "@/lib/erp-validation";
 import { calcularFatorConversaoAutomatico } from "@/lib/erp-validation";
 import { useItemWizardState } from "./wizard/useItemWizardState";
+import { TOOLTIPS } from "@/components/ajuda/TooltipAjuda";
 import {
   TIPOS_ITEM, CRITICIDADES, ARMAZENAMENTOS, UNIDADES_FORNECEDOR, UNIDADES_INTERNAS,
   TIPOS_POTENCIA, TAMANHOS_CAPSULA, MATERIAIS_CAPSULA, MARCAS_CAPSULA_SUGERIDAS,
@@ -230,7 +231,7 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
               <Card>
                 <CardContent className="pt-6 space-y-4">
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2"><Label>NCM</Label><Input value={s.ncm} onChange={(e) => s.setNcm(e.target.value)} placeholder="0000.00.00" /></div>
+                    <div className="space-y-2"><Label className="flex items-center gap-1.5">NCM {TOOLTIPS.ncm}</Label><Input value={s.ncm} onChange={(e) => s.setNcm(e.target.value)} placeholder="0000.00.00" /></div>
                     <div className="space-y-2"><Label>EAN/GTIN</Label><Input value={s.ean} onChange={(e) => s.setEan(e.target.value)} placeholder="7891234567890" /></div>
                     <div className="space-y-2"><Label>CEST</Label><Input value={s.cest} onChange={(e) => s.setCest(e.target.value)} placeholder="00.000.00" /></div>
                   </div>

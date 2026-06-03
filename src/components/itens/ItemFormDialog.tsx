@@ -13,6 +13,7 @@ import { Pill, AlertTriangle, ArrowRight, Calculator, Package, Beaker, Loader2 }
 import { useCreateItem as useCreateItemSupabase } from "@/hooks/use-itens";
 import type { TipoItemLocal, UnidadeInternaLocal, UnidadeFornecedor } from "@/hooks/use-local-itens";
 import { CapsulePhotoUpload } from "./CapsulePhotoUpload";
+import { TOOLTIPS } from "@/components/ajuda/TooltipAjuda";
 import { 
   calcularFatorConversaoAutomatico, 
   unidadeInternaSugerida, 
@@ -393,7 +394,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>NCM</Label>
+              <Label className="flex items-center gap-1.5">NCM {TOOLTIPS.ncm}</Label>
               <Input {...register("ncm")} placeholder="00000000" maxLength={8} />
             </div>
           </div>
