@@ -72,7 +72,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
       <FormField control={form.control} name="tipo_op" render={({ field }) => (
         <FormItem className="space-y-4">
           <FormControl>
-            <RadioGroup value={field.value} onValueChange={field.onChange} className="grid grid-cols-3 gap-4">
+            <RadioGroup value={field.value} onValueChange={field.onChange} className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <RadioGroupItem value="MANUAL" id="manual" className="peer sr-only" />
                 <Label htmlFor="manual" className={cn("flex flex-col items-center justify-between rounded-lg border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground", field.value === "MANUAL" ? "border-primary bg-primary/5" : "border-muted")}>
@@ -92,6 +92,13 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
                 <Label htmlFor="pedido" className={cn("flex flex-col items-center justify-between rounded-lg border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground", field.value === "BASEADA_PEDIDO" ? "border-primary bg-primary/5" : "border-muted")}>
                   <Package className="h-8 w-8 mb-2" /><span className="font-semibold">Baseada em Pedido</span>
                   <span className="text-xs text-muted-foreground text-center mt-1">Criar OP vinculada a pedido de venda</span>
+                </Label>
+              </div>
+              <div>
+                <RadioGroupItem value="WHITE_LABEL" id="white_label" className="peer sr-only" />
+                <Label htmlFor="white_label" className={cn("flex flex-col items-center justify-between rounded-lg border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground", field.value === "WHITE_LABEL" ? "border-primary bg-primary/5" : "border-muted")}>
+                  <Package className="h-8 w-8 mb-2" /><span className="font-semibold">White Label</span>
+                  <span className="text-xs text-muted-foreground text-center mt-1">Produção sem cliente — estoque genérico para venda futura</span>
                 </Label>
               </div>
             </RadioGroup>
