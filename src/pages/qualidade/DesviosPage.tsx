@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldAlert, Plus, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -29,6 +29,7 @@ export default function DesviosPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [novoDesvioOpen, setNovoDesvioOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [opsAtivas, setOpsAtivas] = useState<Array<{ id: string; codigo: string; produto_nome: string | null }>>([]);
   const [form, setForm] = useState({
     tipo: "PROCESSO",
     severidade: "MEDIA",
@@ -36,6 +37,7 @@ export default function DesviosPage() {
     fase_detectada: "PRODUCAO",
     produto_afetado: "",
     lote_afetado: "",
+    op_id: "",
   });
 
   const resetForm = () => setForm({
@@ -45,7 +47,21 @@ export default function DesviosPage() {
     fase_detectada: "PRODUCAO",
     produto_afetado: "",
     lote_afetado: "",
+    op_id: "",
   });
+
+  useEffect(() => {
+    if (!novoDesvioOpen || !companyId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("ordens_producao_industrial")
+        .select("id, codigo, produto_nome")
+        .eq("company_id", companyId)
+        .in("status", ["PLANEJADA", "EM_PRODUCAO"])
+        .order("codigo", { ascending: false });
+      setOpsAtivas((data || []) as any);
+    })();
+  }, [novoDesvioOpen, companyId]);
 
   const gerarCodigo = () => {
     const d = new Date();
@@ -76,10 +92,21 @@ export default function DesviosPage() {
         produto_afetado: form.produto_afetado || null,
         lote_afetado: form.lote_afetado || null,
         fase_detectada: form.fase_detectada,
+        op_id: form.op_id || null,
       };
       const { error } = await supabase.from("qc_desvios").insert(payload);
       if (error) throw error;
       toast.success("Desvio registrado");
+
+      if (form.severidade === "CRITICA" && form.op_id) {
+        await supabase
+          .from("ordens_producao_industrial")
+          .update({ status: "BLOQUEADA", updated_at: new Date().toISOString() })
+          .eq("id", form.op_id)
+          .in("status", ["PLANEJADA", "EM_PRODUCAO", "FINALIZADA"]);
+        toast.warning("OP bloqueada automaticamente por desvio CRÍTICO.");
+      }
+
       queryClient.invalidateQueries({ queryKey: ["qc-desvios"] });
       setNovoDesvioOpen(false);
       resetForm();
@@ -260,6 +287,30 @@ export default function DesviosPage() {
                 onChange={(e) => setForm({ ...form, lote_afetado: e.target.value })}
                 placeholder="Número do lote"
               />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Ordem de Produção (opcional)</Label>
+              <Select
+                value={form.op_id || "none"}
+                onValueChange={(v) => setForm({ ...form, op_id: v === "none" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Vincular a uma OP ativa..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhuma</SelectItem>
+                  {opsAtivas.map((op) => (
+                    <SelectItem key={op.id} value={op.id}>
+                      {op.codigo} — {op.produto_nome || "Sem produto"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.severidade === "CRITICA" && form.op_id && (
+                <p className="text-xs text-destructive">
+                  ⚠ Esta OP será BLOQUEADA automaticamente ao registrar o desvio.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
