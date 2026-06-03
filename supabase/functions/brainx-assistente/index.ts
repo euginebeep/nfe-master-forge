@@ -11,6 +11,7 @@ Deno.serve(async (req) => {
     const { system, messages } = await req.json();
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
+      console.error("[brainx-assistente] LOVABLE_API_KEY ausente no ambiente");
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY ausente" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -34,6 +35,11 @@ Deno.serve(async (req) => {
 
     if (!resp.ok) {
       const errText = await resp.text();
+      console.error("[brainx-assistente] Gateway respondeu com erro", {
+        status: resp.status,
+        statusText: resp.statusText,
+        body: errText?.slice(0, 2000),
+      });
       if (resp.status === 429) {
         return new Response(JSON.stringify({ error: "Muitas requisições. Tente em instantes." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -44,7 +50,7 @@ Deno.serve(async (req) => {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: `Gateway error: ${errText}` }), {
+      return new Response(JSON.stringify({ error: `Gateway ${resp.status}: ${errText || resp.statusText}` }), {
         status: resp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -55,7 +61,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
+    const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    console.error("[brainx-assistente] Exceção não tratada:", msg, e instanceof Error ? e.stack : undefined);
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
