@@ -74,13 +74,49 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const totalUnidades = quantidadeFrascos * unidadesPorFrasco;
   const totalComAcrescimo = Math.ceil(totalUnidades * (1 + ACRESCIMO_INDUSTRIAL / 100));
 
+  // ============================================================
+  // CÁLCULO DE BATELADAS — Misturador em V 100L (Vitalnow padrão)
+  // ============================================================
+  const MISTURADOR_CAPACIDADE_PADRAO_KG = 40;
+  const MISTURADOR_CAPACIDADE_MINIMA_KG = 15;
+  const MISTURADOR_CAPACIDADE_MAXIMA_KG = 50;
+  const PESO_ENCHIMENTO_MG = selectedFormula?.peso_enchimento_mg ?? 500;
+  const DENSIDADE_FORMULA = selectedFormula?.densidade_aparente_kg_l ?? 0.65;
+
+  const pesoTotalMisturaKg = (totalComAcrescimo * PESO_ENCHIMENTO_MG) / 1_000_000;
+  const numeroBateladas = pesoTotalMisturaKg > 0
+    ? Math.ceil(pesoTotalMisturaKg / MISTURADOR_CAPACIDADE_PADRAO_KG)
+    : 1;
+  const pesoPorBatelada = numeroBateladas > 0 ? pesoTotalMisturaKg / numeroBateladas : 0;
+
+  const bateladaStatus: 'ok' | 'aviso_baixo' | 'aviso_alto' | 'bloqueado' = (() => {
+    if (pesoPorBatelada <= 0) return 'ok';
+    if (pesoPorBatelada > MISTURADOR_CAPACIDADE_MAXIMA_KG) return 'bloqueado';
+    if (pesoPorBatelada > MISTURADOR_CAPACIDADE_PADRAO_KG) return 'aviso_alto';
+    if (pesoPorBatelada < MISTURADOR_CAPACIDADE_MINIMA_KG) return 'aviso_baixo';
+    return 'ok';
+  })();
+
+  const bateladaAlerta: string | null = (() => {
+    switch (bateladaStatus) {
+      case 'bloqueado':
+        return `Peso por batelada (${pesoPorBatelada.toFixed(2)} kg) excede o máximo do misturador (${MISTURADOR_CAPACIDADE_MAXIMA_KG} kg).`;
+      case 'aviso_alto':
+        return `Peso por batelada (${pesoPorBatelada.toFixed(2)} kg) acima do padrão (${MISTURADOR_CAPACIDADE_PADRAO_KG} kg) — requer aprovação.`;
+      case 'aviso_baixo':
+        return `Peso por batelada (${pesoPorBatelada.toFixed(2)} kg) abaixo do mínimo recomendado (${MISTURADOR_CAPACIDADE_MINIMA_KG} kg) — risco de heterogeneidade.`;
+      default:
+        return null;
+    }
+  })();
+
   // Load formulas & pedidos on open
   useEffect(() => {
     if (!open) return;
     const fetchFormulas = async () => {
       const { data } = await supabase
         .from("formulas")
-        .select("id, codigo_formula, nome_formula, status, tipo_capsula, excipiente_padrao, peso_capsula_alvo_mg, tipo_apresentacao")
+        .select("id, codigo_formula, nome_formula, status, tipo_capsula, excipiente_padrao, peso_capsula_alvo_mg, tipo_apresentacao, peso_enchimento_mg, densidade_aparente_kg_l")
         .eq("status", "APROVADA")
         .order("nome_formula", { ascending: true });
       setFormulas((data as Formula[]) || []);
