@@ -20,6 +20,11 @@ const addDays = (d: number) => {
 };
 const pick = <T,>(arr: T[], i: number) => arr[i % arr.length];
 
+async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -38,6 +43,7 @@ Deno.serve(async (req) => {
       'crm_interacoes', 'oportunidades', 'qc_desvios', 'qc_analises',
       'pedido_vendedor_itens', 'pedidos_vendedor', 'pedido_itens', 'pedidos_venda',
       'orcamento_itens', 'orcamentos',
+      'lotes_produto_acabado',
       'op_pesagens_criticas', 'op_controle_qualidade', 'op_controle_perdas',
       'op_historico_etapas', 'op_checklist', 'op_anexos', 'op_assinaturas_rt',
       'op_embalagens', 'op_materias_primas', 'ordens_producao_industrial',
@@ -50,7 +56,7 @@ Deno.serve(async (req) => {
       'entidade_papeis', 'entidade_contatos', 'entidade_enderecos',
       'entidade_fiscal_config', 'entidade_financeiro_config', 'entidade_logistica_config',
       'entidade_comercial_crm', 'entidade_documentos', 'entidades',
-      'vendedores_externos', 'responsaveis_tecnicos',
+      'vendedores_externos', 'responsaveis_tecnicos', 'equipamentos',
       'notifications', 'audit_log',
     ];
 
