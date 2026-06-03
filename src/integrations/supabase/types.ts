@@ -3134,6 +3134,7 @@ export type Database = {
           rt_uf_conselho: string | null
           status: string
           updated_at: string
+          white_label: boolean | null
           white_label_atribuido_em: string | null
           white_label_cliente_id: string | null
         }
@@ -3167,6 +3168,7 @@ export type Database = {
           rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
+          white_label?: boolean | null
           white_label_atribuido_em?: string | null
           white_label_cliente_id?: string | null
         }
@@ -3200,6 +3202,7 @@ export type Database = {
           rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
+          white_label?: boolean | null
           white_label_atribuido_em?: string | null
           white_label_cliente_id?: string | null
         }
