@@ -390,6 +390,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     showQuickClienteModal, setShowQuickClienteModal,
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
     totalUnidades, totalComAcrescimo, dataFab,
+    pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange,
     podeAvancar, avancar, voltar, onSubmit,
     progressoEtapas: (etapaAtual / 4) * 100,
