@@ -2064,6 +2064,74 @@ export type Database = {
           },
         ]
       }
+      equipamentos: {
+        Row: {
+          ativo: boolean | null
+          capacidade_maxima_com_aprovacao_kg: number | null
+          capacidade_maxima_kg: number | null
+          capacidade_minima_kg: number | null
+          capacidade_padrao_kg: number | null
+          company_id: string | null
+          created_at: string | null
+          densidade_padrao_kg_l: number | null
+          fator_enchimento_maximo: number | null
+          fator_enchimento_minimo: number | null
+          fator_enchimento_padrao: number | null
+          id: string
+          nome: string
+          observacoes: string | null
+          tipo: string
+          updated_at: string | null
+          volume_nominal_litros: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          capacidade_maxima_com_aprovacao_kg?: number | null
+          capacidade_maxima_kg?: number | null
+          capacidade_minima_kg?: number | null
+          capacidade_padrao_kg?: number | null
+          company_id?: string | null
+          created_at?: string | null
+          densidade_padrao_kg_l?: number | null
+          fator_enchimento_maximo?: number | null
+          fator_enchimento_minimo?: number | null
+          fator_enchimento_padrao?: number | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          tipo?: string
+          updated_at?: string | null
+          volume_nominal_litros?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          capacidade_maxima_com_aprovacao_kg?: number | null
+          capacidade_maxima_kg?: number | null
+          capacidade_minima_kg?: number | null
+          capacidade_padrao_kg?: number | null
+          company_id?: string | null
+          created_at?: string | null
+          densidade_padrao_kg_l?: number | null
+          fator_enchimento_maximo?: number | null
+          fator_enchimento_minimo?: number | null
+          fator_enchimento_padrao?: number | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          tipo?: string
+          updated_at?: string | null
+          volume_nominal_litros?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipamentos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque_lotes: {
         Row: {
           codigo_agregacao: string | null
@@ -2419,6 +2487,7 @@ export type Database = {
           company_id: string
           criado_em: string | null
           criado_por: string | null
+          densidade_aparente_kg_l: number | null
           densidade_media: number | null
           doses_por_frasco: number | null
           doses_por_pote: number | null
@@ -2432,6 +2501,7 @@ export type Database = {
           observacoes_tecnicas: string | null
           peso_capsula_alvo_mg: number | null
           peso_capsula_nominal_mg: number | null
+          peso_enchimento_mg: number | null
           peso_por_dose_g: number | null
           peso_total_pote_g: number | null
           produto_acabado_id: string | null
@@ -2452,6 +2522,7 @@ export type Database = {
           company_id?: string
           criado_em?: string | null
           criado_por?: string | null
+          densidade_aparente_kg_l?: number | null
           densidade_media?: number | null
           doses_por_frasco?: number | null
           doses_por_pote?: number | null
@@ -2465,6 +2536,7 @@ export type Database = {
           observacoes_tecnicas?: string | null
           peso_capsula_alvo_mg?: number | null
           peso_capsula_nominal_mg?: number | null
+          peso_enchimento_mg?: number | null
           peso_por_dose_g?: number | null
           peso_total_pote_g?: number | null
           produto_acabado_id?: string | null
@@ -2485,6 +2557,7 @@ export type Database = {
           company_id?: string
           criado_em?: string | null
           criado_por?: string | null
+          densidade_aparente_kg_l?: number | null
           densidade_media?: number | null
           doses_por_frasco?: number | null
           doses_por_pote?: number | null
@@ -2498,6 +2571,7 @@ export type Database = {
           observacoes_tecnicas?: string | null
           peso_capsula_alvo_mg?: number | null
           peso_capsula_nominal_mg?: number | null
+          peso_enchimento_mg?: number | null
           peso_por_dose_g?: number | null
           peso_total_pote_g?: number | null
           produto_acabado_id?: string | null
@@ -4596,6 +4670,7 @@ export type Database = {
       ordens_producao_industrial: {
         Row: {
           acrescimo_percentual: number | null
+          alerta_batelada: string | null
           assinatura_rt_hash: string | null
           assinatura_rt_id: string | null
           capsula_item_id: string | null
@@ -4614,6 +4689,7 @@ export type Database = {
           data_inicio_producao: string | null
           data_validade: string
           descricao_rotulo: string | null
+          equipamento_id: string | null
           especificacoes_embalagem: Json | null
           etapa_atualizada_em: string | null
           etapa_producao_atual: string | null
@@ -4627,12 +4703,16 @@ export type Database = {
           linha_producao: string | null
           lote_produto_acabado: string
           maquina: string | null
+          marca_cliente: string | null
           motivo_bloqueio: string | null
+          numero_bateladas: number | null
           observacoes: string | null
           operadores: Json | null
           pedido_id: string | null
           pedido_numero: string | null
           peso_capsula_mg: number | null
+          peso_por_batelada_kg: number | null
+          peso_total_mistura_kg: number | null
           pote_item_id: string | null
           pote_item_nome: string | null
           produto_id: string | null
@@ -4645,6 +4725,7 @@ export type Database = {
           responsavel_producao_id: string | null
           responsavel_producao_nome: string | null
           responsavel_tecnico_id: string | null
+          rotulo_cliente_url: string | null
           rt_assinatura_timestamp: string | null
           rt_nome: string | null
           rt_numero_registro: string | null
@@ -4666,9 +4747,11 @@ export type Database = {
           total_capsulas_com_acrescimo: number
           turno: string | null
           updated_at: string | null
+          white_label: boolean | null
         }
         Insert: {
           acrescimo_percentual?: number | null
+          alerta_batelada?: string | null
           assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
           capsula_item_id?: string | null
@@ -4687,6 +4770,7 @@ export type Database = {
           data_inicio_producao?: string | null
           data_validade: string
           descricao_rotulo?: string | null
+          equipamento_id?: string | null
           especificacoes_embalagem?: Json | null
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
@@ -4700,12 +4784,16 @@ export type Database = {
           linha_producao?: string | null
           lote_produto_acabado: string
           maquina?: string | null
+          marca_cliente?: string | null
           motivo_bloqueio?: string | null
+          numero_bateladas?: number | null
           observacoes?: string | null
           operadores?: Json | null
           pedido_id?: string | null
           pedido_numero?: string | null
           peso_capsula_mg?: number | null
+          peso_por_batelada_kg?: number | null
+          peso_total_mistura_kg?: number | null
           pote_item_id?: string | null
           pote_item_nome?: string | null
           produto_id?: string | null
@@ -4718,6 +4806,7 @@ export type Database = {
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
+          rotulo_cliente_url?: string | null
           rt_assinatura_timestamp?: string | null
           rt_nome?: string | null
           rt_numero_registro?: string | null
@@ -4739,9 +4828,11 @@ export type Database = {
           total_capsulas_com_acrescimo: number
           turno?: string | null
           updated_at?: string | null
+          white_label?: boolean | null
         }
         Update: {
           acrescimo_percentual?: number | null
+          alerta_batelada?: string | null
           assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
           capsula_item_id?: string | null
@@ -4760,6 +4851,7 @@ export type Database = {
           data_inicio_producao?: string | null
           data_validade?: string
           descricao_rotulo?: string | null
+          equipamento_id?: string | null
           especificacoes_embalagem?: Json | null
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
@@ -4773,12 +4865,16 @@ export type Database = {
           linha_producao?: string | null
           lote_produto_acabado?: string
           maquina?: string | null
+          marca_cliente?: string | null
           motivo_bloqueio?: string | null
+          numero_bateladas?: number | null
           observacoes?: string | null
           operadores?: Json | null
           pedido_id?: string | null
           pedido_numero?: string | null
           peso_capsula_mg?: number | null
+          peso_por_batelada_kg?: number | null
+          peso_total_mistura_kg?: number | null
           pote_item_id?: string | null
           pote_item_nome?: string | null
           produto_id?: string | null
@@ -4791,6 +4887,7 @@ export type Database = {
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
+          rotulo_cliente_url?: string | null
           rt_assinatura_timestamp?: string | null
           rt_nome?: string | null
           rt_numero_registro?: string | null
@@ -4812,6 +4909,7 @@ export type Database = {
           total_capsulas_com_acrescimo?: number
           turno?: string | null
           updated_at?: string | null
+          white_label?: boolean | null
         }
         Relationships: [
           {
@@ -4840,6 +4938,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
             referencedColumns: ["id"]
           },
           {
