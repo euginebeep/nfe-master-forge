@@ -17,6 +17,7 @@ import AuthPage from "./components/auth/AuthPage";
 
 // Lazy loaded pages
 const Index = lazy(() => import("./pages/Index"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 const RoadmapPage = lazy(() => import("./pages/RoadmapPage"));
 const FAQPage = lazy(() => import("./pages/faq/FAQPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
