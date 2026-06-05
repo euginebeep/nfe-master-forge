@@ -22,12 +22,13 @@ export function DemoLoginCard() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [consent, setConsent] = useState(false);
 
   const validatePhone = (p: string) => {
     const digits = p.replace(/\D/g, '');
-    // Prevent dummy numbers like 00000000000
-    if (/^(\d)\1+$/.test(digits)) return false;
-    return digits.length >= 10 && digits.length <= 11;
+    // Prevents simple repetition like 0000000000 or 1111111111
+    if (digits.length < 10 || /^(\d)\1+$/.test(digits)) return false;
+    return true;
   };
 
   const enterDemo = async (e?: React.FormEvent) => {
