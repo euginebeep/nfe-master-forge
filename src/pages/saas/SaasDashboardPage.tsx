@@ -478,7 +478,17 @@ export default function SaasDashboardPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="leads">
+        <DemoLeadsPanel />
+      </TabsContent>
+
+      <TabsContent value="desafios">
+        <UnlockChallengesPanel />
+      </TabsContent>
+    </Tabs>
 
       <UnlockChallengesPanel />
 
