@@ -120,6 +120,9 @@ const App = () => (
               } />
 
               {/* Páginas Públicas */}
+              <Route path="/landing" element={
+                <Suspense fallback={<PageFallback />}><ErrorBoundary><LandingPage /></ErrorBoundary></Suspense>
+              } />
               <Route path="/audit/lote/:hash" element={
                 <Suspense fallback={<PageFallback />}><LoteAuditoriaPublicaPage /></Suspense>
               } />
