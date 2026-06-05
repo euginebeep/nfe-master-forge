@@ -516,7 +516,7 @@ export default function MonitoramentoAmbientalPage() {
         r.hum_max ?? "",
         STATUS_TEXT[st],
         rtName,
-        "BrainX ERP",
+        "BrainxERP",
         "RDC 658/2022 / POP-AMB-001",
       ];
     });
@@ -955,7 +955,7 @@ export default function MonitoramentoAmbientalPage() {
           )}
         </span>
         <span className="mx-1">|</span>
-        <span>Sistema: BrainX ERP</span>
+        <span>Sistema: BrainxERP</span>
         <span className="mx-1">|</span>
         <span>Ref: RDC 658/2022 / POP-AMB-001</span>
         <span className="mx-1">|</span>
