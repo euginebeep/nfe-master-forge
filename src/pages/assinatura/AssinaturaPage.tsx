@@ -99,7 +99,7 @@ export default function AssinaturaPage() {
 
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Planos BrainX ERP</h1>
+        <h1 className="text-3xl font-bold">Planos BrainxERP</h1>
         <p className="text-muted-foreground max-w-lg mx-auto">
           Acesso completo a todos os módulos do ERP Industrial. Escolha o plano que melhor se encaixa.
         </p>
