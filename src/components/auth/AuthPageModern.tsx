@@ -181,10 +181,6 @@ export default function AuthPageModern() {
 
           <div className="max-w-2xl py-16">
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-primary-foreground/10 px-3 py-2 text-sm text-primary-foreground/80">
-                <Sparkles className="h-4 w-4" />
-                Nova identidade ativa
-              </div>
               <h1 className="max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">
                 BrainX ERP para gestão industrial de suplementos.
               </h1>
