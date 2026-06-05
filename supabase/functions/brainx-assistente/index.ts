@@ -1,4 +1,4 @@
-// BrainX Assistente — Edge function usando Lovable AI Gateway
+// BrainxERP Assistente — Edge function usando Lovable AI Gateway
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

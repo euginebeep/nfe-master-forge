@@ -1,5 +1,5 @@
 /**
- * Atalhos de teclado globais do BrainX ERP
+ * Atalhos de teclado globais do BrainxERP
  * - Ctrl+K: Busca global (já implementado no GlobalSearchDialog)
  * - Ctrl+/: Exibir lista de atalhos
  */
