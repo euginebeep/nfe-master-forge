@@ -44,7 +44,9 @@ export function ProtectedRoute({ children, minRole }: Props) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    // Visitantes na raiz vão para a landing pública; em rotas internas, vão para login
+    const target = location.pathname === "/" ? "/landing" : "/auth";
+    return <Navigate to={target} state={{ from: location }} replace />;
   }
 
   if (minRole && role) {
