@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
   RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, CalendarPlus, FileText,
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
+import { DemoLeadsPanel } from "@/components/saas/DemoLeadsPanel";
 
 // ─── Types ───
 
