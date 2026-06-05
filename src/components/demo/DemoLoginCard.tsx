@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { maskPhone } from '@/lib/masks';
+import { normalizeEmail, normalizePhone, isDemoExpired } from '@/lib/leads-utils';
 
 const DEMO_EMAIL = 'demo@brainxerp.com';
 const DEMO_PASSWORD = 'BrainxERPDemo2026!';
@@ -63,16 +64,40 @@ export function DemoLoginCard() {
     setLoading(true);
 
     try {
-      // 1. Save Lead with upsert-like behavior to handle duplicates gracefully
+      const nEmail = normalizeEmail(email);
+      const nPhone = normalizePhone(phone);
+
+      // Check for existing lead and 15-day limit
+      const { data: existingLead, error: checkError } = await supabase
+        .from('demo_leads')
+        .select('created_at')
+        .or(`email.eq.${nEmail},phone.eq.${nPhone}`)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar lead:', checkError);
+      }
+
+      if (existingLead) {
+        if (isDemoExpired(existingLead.created_at)) {
+          toast.error('Seu período de demonstração de 15 dias expirou. Entre em contato com o comercial para continuar.');
+          setLoading(false);
+          return;
+        }
+
+        toast.info('Identificamos seu cadastro anterior. Seus dados foram atualizados e o acesso liberado.');
+      }
+
+      // 1. Save/Update Lead
       const { error: leadError } = await supabase.from('demo_leads').upsert({
         name,
-        email: email.toLowerCase().trim(),
-        phone: phone.replace(/\D/g, '')
+        email: nEmail,
+        phone: nPhone,
+        updated_at: new Date().toISOString()
       }, { onConflict: 'email, phone' });
 
       if (leadError) {
         console.error('Erro ao salvar lead:', leadError);
-        // We continue even if lead fails to not block user, but ideally it should work
       }
 
       // 2. Auth
