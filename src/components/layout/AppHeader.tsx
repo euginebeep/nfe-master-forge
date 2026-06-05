@@ -59,7 +59,7 @@ export function AppHeader() {
           <img
             src={brainxLogo}
             alt="BrainxERP"
-            className="w-9 h-9 object-contain rounded"
+            className="w-[47px] h-[47px] object-contain rounded"
             loading="lazy"
           />
         </Link>

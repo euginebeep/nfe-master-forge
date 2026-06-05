@@ -172,7 +172,7 @@ export default function AuthPageModern() {
         <div className="absolute inset-0 bg-[linear-gradient(hsl(var(--primary-foreground)/0.06)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--primary-foreground)/0.06)_1px,transparent_1px)] bg-[size:48px_48px]" />
         <div className="relative z-10 flex w-full flex-col justify-between px-14 py-12">
           <div className="flex items-center gap-4">
-            <img src={brandLogo} alt="BrainX ERP" className="h-24 w-24 object-contain" />
+            <img src={brandLogo} alt="BrainX ERP" className="h-[125px] w-[125px] object-contain" />
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-foreground/70">BrainX ERP</p>
               <p className="text-xs text-primary-foreground/50">Plataforma industrial regulatória</p>
@@ -214,7 +214,7 @@ export default function AuthPageModern() {
       <section className="flex min-h-screen items-center justify-center px-5 py-8 sm:px-8">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-4 lg:hidden">
-            <img src={brandLogo} alt="BrainX ERP" className="h-14 w-14 object-contain" />
+            <img src={brandLogo} alt="BrainX ERP" className="h-[73px] w-[73px] object-contain" />
             <div>
               <p className="text-lg font-bold">BrainX ERP</p>
               <p className="text-sm text-muted-foreground">Plataforma industrial regulatória</p>
