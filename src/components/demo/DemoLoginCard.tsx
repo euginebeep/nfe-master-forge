@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { maskPhone } from '@/lib/masks';
+import { normalizeEmail, normalizePhone, isDemoExpired } from '@/lib/leads-utils';
 
 const DEMO_EMAIL = 'demo@brainxerp.com';
 const DEMO_PASSWORD = 'BrainxERPDemo2026!';
@@ -63,14 +64,14 @@ export function DemoLoginCard() {
     setLoading(true);
 
     try {
-      const normalizedEmail = email.toLowerCase().trim();
-      const normalizedPhone = phone.replace(/\D/g, '');
+      const nEmail = normalizeEmail(email);
+      const nPhone = normalizePhone(phone);
 
       // Check for existing lead and 15-day limit
       const { data: existingLead, error: checkError } = await supabase
         .from('demo_leads')
         .select('created_at')
-        .or(`email.eq.${normalizedEmail},phone.eq.${normalizedPhone}`)
+        .or(`email.eq.${nEmail},phone.eq.${nPhone}`)
         .maybeSingle();
 
       if (checkError) {
@@ -78,12 +79,8 @@ export function DemoLoginCard() {
       }
 
       if (existingLead) {
-        const createdAt = new Date(existingLead.created_at);
-        const now = new Date();
-        const diffInDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffInDays > 15) {
-          toast.error('Seu período de demonstração de 15 dias expirou. Entre em contato com o suporte para continuar.');
+        if (isDemoExpired(existingLead.created_at)) {
+          toast.error('Seu período de demonstração de 15 dias expirou. Entre em contato com o comercial para continuar.');
           setLoading(false);
           return;
         }
@@ -94,8 +91,8 @@ export function DemoLoginCard() {
       // 1. Save/Update Lead
       const { error: leadError } = await supabase.from('demo_leads').upsert({
         name,
-        email: normalizedEmail,
-        phone: normalizedPhone,
+        email: nEmail,
+        phone: nPhone,
         updated_at: new Date().toISOString()
       }, { onConflict: 'email, phone' });
 
