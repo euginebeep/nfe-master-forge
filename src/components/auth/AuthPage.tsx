@@ -154,7 +154,7 @@ export default function AuthPage() {
           {/* Logo */}
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
             style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <img src={brainxLogo} alt="BrainX" style={{ width: 160, height: 160, objectFit: 'contain' }} />
+            <img src={brainxLogo} alt="BrainxERP" style={{ width: 180, height: 180, objectFit: 'contain' }} />
           </motion.div>
 
           {/* Hero text */}
@@ -226,8 +226,8 @@ export default function AuthPage() {
 
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-8">
-          <img src={brainxLogo} alt="BrainX" style={{ width: 56, height: 56, objectFit: 'contain' }} />
-          <div style={{ color: '#212529', fontWeight: 700, fontSize: 16 }}>BrainX Industrial</div>
+          <img src={brainxLogo} alt="BrainxERP" style={{ width: 56, height: 56, objectFit: 'contain' }} />
+          <div style={{ color: '#212529', fontWeight: 700, fontSize: 16 }}>BrainxERP</div>
         </div>
 
         {signupSuccess ? (
@@ -254,7 +254,7 @@ export default function AuthPage() {
                 Verifique seu e-mail
               </h2>
               <p style={{ color: '#495057', fontSize: 14, lineHeight: 1.7, margin: '0 0 8px' }}>
-                Para acessar o <strong>BrainX ERP</strong>, acesse seu e-mail
+                Para acessar o <strong>BrainxERP</strong>, acesse seu e-mail
               </p>
               <p style={{
                 color: '#0d6efd', fontWeight: 600, fontSize: 15,
