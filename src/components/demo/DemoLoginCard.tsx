@@ -39,8 +39,14 @@ export function DemoLoginCard() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!name.trim() || !email.trim() || !phone.trim()) {
       toast.error('Preencha todos os campos para acessar a demo');
+      return;
+    }
+
+    if (!emailRegex.test(email)) {
+      toast.error('Informe um e-mail válido');
       return;
     }
 
@@ -57,12 +63,12 @@ export function DemoLoginCard() {
     setLoading(true);
 
     try {
-      // 1. Save Lead
-      const { error: leadError } = await supabase.from('demo_leads').insert({
+      // 1. Save Lead with upsert-like behavior to handle duplicates gracefully
+      const { error: leadError } = await supabase.from('demo_leads').upsert({
         name,
-        email,
+        email: email.toLowerCase().trim(),
         phone: phone.replace(/\D/g, '')
-      });
+      }, { onConflict: 'email, phone' });
 
       if (leadError) {
         console.error('Erro ao salvar lead:', leadError);
@@ -222,9 +228,17 @@ export function DemoLoginCard() {
 
           <div className="flex items-start gap-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
             <Info className="h-3.5 w-3.5 text-blue-700 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-blue-800 leading-tight">
-              <strong>Privacidade:</strong> Seus dados serão armazenados com segurança e utilizados apenas para fins de suporte à demonstração e contato comercial.
-            </p>
+            <div className="text-[10px] text-blue-800 leading-tight">
+              <strong>Privacidade:</strong> Seus dados serão armazenados com segurança. 
+              Ao clicar em acessar, você confirma ser o titular dos dados.
+              <a 
+                href="/politica-de-privacidade" 
+                target="_blank" 
+                className="ml-1 text-blue-700 font-bold hover:underline"
+              >
+                Saiba mais
+              </a>
+            </div>
           </div>
 
           <Button 
