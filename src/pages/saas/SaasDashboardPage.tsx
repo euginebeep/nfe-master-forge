@@ -699,7 +699,7 @@ export default function SaasDashboardPage() {
           )}
         </DialogContent>
       </Dialog>
-      </div>
     </div>
+  </div>
   );
 }
