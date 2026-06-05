@@ -178,7 +178,7 @@ export function DemoLoginCard() {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="demo-email" className="text-xs font-semibold text-yellow-900">E-mail corporativo</Label>
+            <Label htmlFor="demo-email" className="text-xs font-semibold text-yellow-900">Seu melhor e-mail</Label>
             <div className="relative">
               <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-yellow-700" />
               <Input 
