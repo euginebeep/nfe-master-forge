@@ -49,6 +49,11 @@ export function DemoLoginCard() {
       return;
     }
 
+    if (!consent) {
+      toast.error('É necessário aceitar os termos para acessar a demonstração');
+      return;
+    }
+
     setLoading(true);
 
     try {
