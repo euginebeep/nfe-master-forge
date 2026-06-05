@@ -63,16 +63,44 @@ export function DemoLoginCard() {
     setLoading(true);
 
     try {
-      // 1. Save Lead with upsert-like behavior to handle duplicates gracefully
+      const normalizedEmail = email.toLowerCase().trim();
+      const normalizedPhone = phone.replace(/\D/g, '');
+
+      // Check for existing lead and 15-day limit
+      const { data: existingLead, error: checkError } = await supabase
+        .from('demo_leads')
+        .select('created_at')
+        .or(`email.eq.${normalizedEmail},phone.eq.${normalizedPhone}`)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar lead:', checkError);
+      }
+
+      if (existingLead) {
+        const createdAt = new Date(existingLead.created_at);
+        const now = new Date();
+        const diffInDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffInDays > 15) {
+          toast.error('Seu período de demonstração de 15 dias expirou. Entre em contato com o suporte para continuar.');
+          setLoading(false);
+          return;
+        }
+
+        toast.info('Identificamos seu cadastro anterior. Seus dados foram atualizados e o acesso liberado.');
+      }
+
+      // 1. Save/Update Lead
       const { error: leadError } = await supabase.from('demo_leads').upsert({
         name,
-        email: email.toLowerCase().trim(),
-        phone: phone.replace(/\D/g, '')
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        updated_at: new Date().toISOString()
       }, { onConflict: 'email, phone' });
 
       if (leadError) {
         console.error('Erro ao salvar lead:', leadError);
-        // We continue even if lead fails to not block user, but ideally it should work
       }
 
       // 2. Auth
