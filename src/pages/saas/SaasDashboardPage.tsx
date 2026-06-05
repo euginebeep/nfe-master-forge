@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
-  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, CalendarPlus
+  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, CalendarPlus, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
+import { DemoLeadsPanel } from "@/components/saas/DemoLeadsPanel";
 
 // ─── Types ───
 
@@ -336,8 +338,22 @@ export default function SaasDashboardPage() {
         </Card>
       </div>
 
-      {/* Client List */}
-      <Card>
+      <Tabs defaultValue="empresas" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="empresas" className="gap-2">
+            <Building2 className="h-4 w-4" /> Empresas
+          </TabsTrigger>
+          <TabsTrigger value="leads" className="gap-2">
+            <FileText className="h-4 w-4" /> Leads Demo
+          </TabsTrigger>
+          <TabsTrigger value="desafios" className="gap-2">
+            <Unlock className="h-4 w-4" /> Solicitações Unlock
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="empresas">
+          {/* Client List */}
+          <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -462,7 +478,17 @@ export default function SaasDashboardPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="leads">
+        <DemoLeadsPanel />
+      </TabsContent>
+
+      <TabsContent value="desafios">
+        <UnlockChallengesPanel />
+      </TabsContent>
+    </Tabs>
 
       <UnlockChallengesPanel />
 
@@ -673,7 +699,7 @@ export default function SaasDashboardPage() {
           )}
         </DialogContent>
       </Dialog>
-      </div>
     </div>
+  </div>
   );
 }
