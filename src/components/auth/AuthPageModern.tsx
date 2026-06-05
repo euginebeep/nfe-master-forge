@@ -182,7 +182,7 @@ export default function AuthPageModern() {
           <div className="max-w-2xl py-16">
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
               <h1 className="max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">
-                Industrial de Fabricação de Suplementos Alimentares!
+                Controle Industrial na Fabricação de Suplementos Alimentares e Produtos Alimentícios!
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-primary-foreground/70">
                 Controle produção, estoque, qualidade e conformidade com rastreabilidade de ponta a ponta.
