@@ -127,13 +127,13 @@ export default function AuthPageModern() {
             <img src={brandLogo} alt="BrainX ERP" className="h-24 w-24 object-contain" />
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-foreground/70">BrainX ERP</p>
-              <p className="text-xs text-primary-foreground/55">Plataforma industrial regulatória</p>
+              <p className="text-xs text-primary-foreground/50">Plataforma industrial regulatória</p>
             </div>
           </div>
 
           <div className="max-w-2xl py-16">
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-md border border-primary-foreground/15 bg-primary-foreground/10 px-3 py-2 text-sm text-primary-foreground/85">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-md border border-primary-foreground/20 bg-primary-foreground/10 px-3 py-2 text-sm text-primary-foreground/80">
                 <Sparkles className="h-4 w-4" />
                 Nova identidade ativa
               </div>
@@ -155,7 +155,7 @@ export default function AuthPageModern() {
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: 0.1 + index * 0.06 }}
-                  className="rounded-lg border border-primary-foreground/12 bg-primary-foreground/8 p-4"
+                  className="rounded-lg border border-primary-foreground/20 bg-primary-foreground/10 p-4"
                 >
                   <Icon className="mb-4 h-5 w-5 text-secondary" />
                   <h2 className="text-sm font-semibold">{item.title}</h2>
