@@ -209,9 +209,21 @@ export function DemoLoginCard() {
           </div>
 
           <div className="flex items-start gap-2 p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
-            <Info className="h-3.5 w-3.5 text-yellow-700 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-yellow-800 leading-tight">
-              Ao acessar a demo, você autoriza o contato comercial e o envio de novidades sobre o BrainxERP.
+            <Checkbox 
+              id="consent" 
+              checked={consent} 
+              onCheckedChange={(v) => setConsent(v as boolean)}
+              className="mt-1 border-yellow-600 data-[state=checked]:bg-yellow-600"
+            />
+            <Label htmlFor="consent" className="text-[10px] text-yellow-800 leading-tight cursor-pointer">
+              Eu autorizo o contato comercial futuro e o envio de e-mails sobre promoções e novidades do BrainxERP.
+            </Label>
+          </div>
+
+          <div className="flex items-start gap-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
+            <Info className="h-3.5 w-3.5 text-blue-700 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-blue-800 leading-tight">
+              <strong>Privacidade:</strong> Seus dados serão armazenados com segurança e utilizados apenas para fins de suporte à demonstração e contato comercial.
             </p>
           </div>
 
