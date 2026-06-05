@@ -103,15 +103,12 @@ export default function LandingPage() {
           <motion.div {...fadeUp} className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-destructive/30 bg-destructive/10 text-destructive text-xs font-semibold uppercase tracking-wider mb-6">
               <AlertOctagon className="h-3.5 w-3.5" />
-              ERP especializado em fabricação industrial de suplementos alimentares
+              Alerta para indústrias de suplementos
             </div>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6">
               Sua indústria está preparada para
               <span className="block bg-gradient-to-r from-primary via-primary to-rose-500 bg-clip-text text-transparent">
                 uma fiscalização hoje?
-              </span>
-              <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-foreground/90 mt-4">
-                Industrial de Fabricação de Suplementos Alimentares.
               </span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
