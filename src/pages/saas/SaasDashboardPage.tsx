@@ -338,8 +338,22 @@ export default function SaasDashboardPage() {
         </Card>
       </div>
 
-      {/* Client List */}
-      <Card>
+      <Tabs defaultValue="empresas" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="empresas" className="gap-2">
+            <Building2 className="h-4 w-4" /> Empresas
+          </TabsTrigger>
+          <TabsTrigger value="leads" className="gap-2">
+            <FileText className="h-4 w-4" /> Leads Demo
+          </TabsTrigger>
+          <TabsTrigger value="desafios" className="gap-2">
+            <Unlock className="h-4 w-4" /> Solicitações Unlock
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="empresas">
+          {/* Client List */}
+          <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="text-base flex items-center gap-2">
