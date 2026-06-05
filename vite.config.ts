@@ -54,9 +54,9 @@ export default defineConfig(({ mode }) => ({
         importScripts: ["/sw-cache-purge.js"],
       },
       manifest: {
-        name: "BrainX - ERP Industrial",
-        short_name: "BrainX ERP",
-        description: "Sistema de Gestão Empresarial e Industrial para indústrias de suplementos e nutracêuticos",
+        name: "BrainxERP - Gestão Industrial",
+        short_name: "BrainxERP",
+        description: "Sistema de gestão empresarial e industrial para indústrias de suplementos e nutracêuticos",
         start_url: "/",
         display: "standalone",
         background_color: "#0F2A44",
@@ -76,7 +76,7 @@ export default defineConfig(({ mode }) => ({
             purpose: "any",
           },
           {
-            src: "/icon-192.png",
+            src: "/icon-192-maskable.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "maskable",
@@ -88,7 +88,7 @@ export default defineConfig(({ mode }) => ({
             purpose: "any",
           },
           {
-            src: "/icon-512.png",
+            src: "/icon-512-maskable.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",

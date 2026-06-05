@@ -14,7 +14,7 @@ export default function PoliticaPrivacidadePage() {
 
         <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: '32px 28px', lineHeight: 1.75, color: '#495057', fontSize: 15 }}>
           <Section title="1. Introdução">
-            O BrainX ERP ("nós", "nosso") respeita a privacidade dos seus usuários e está comprometido com a proteção dos
+            O BrainxERP ("nós", "nosso") respeita a privacidade dos seus usuários e está comprometido com a proteção dos
             dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
             Esta Política descreve como coletamos, usamos, armazenamos e protegemos suas informações.
           </Section>

@@ -14,12 +14,12 @@ export default function TermosUsoPage() {
 
         <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: '32px 28px', lineHeight: 1.75, color: '#495057', fontSize: 15 }}>
           <Section title="1. Aceitação dos Termos">
-            Ao acessar e utilizar a plataforma BrainX ERP ("Plataforma"), você declara ter lido, compreendido e concordado
+            Ao acessar e utilizar a plataforma BrainxERP ("Plataforma"), você declara ter lido, compreendido e concordado
             com estes Termos de Uso. Caso não concorde com qualquer disposição, não utilize a Plataforma.
           </Section>
 
           <Section title="2. Descrição do Serviço">
-            O BrainX ERP é uma plataforma de gestão industrial voltada para indústrias farmacêuticas, suplementos alimentares,
+            O BrainxERP é uma plataforma de gestão industrial voltada para indústrias farmacêuticas, suplementos alimentares,
             cosméticos e similares, oferecendo funcionalidades de cadastro, produção, estoque, financeiro, qualidade,
             regulatório e demais módulos integrados.
           </Section>
@@ -45,14 +45,14 @@ export default function TermosUsoPage() {
 
           <Section title="5. Propriedade Intelectual">
             Todo o conteúdo da Plataforma, incluindo textos, gráficos, logotipos, ícones, imagens, software e código-fonte,
-            é de propriedade exclusiva do BrainX ERP ou de seus licenciadores e está protegido pelas leis de propriedade
+            é de propriedade exclusiva do BrainxERP ou de seus licenciadores e está protegido pelas leis de propriedade
             intelectual brasileiras e internacionais.
           </Section>
 
           <Section title="6. Dados e Responsabilidade">
             <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
               <li>Os dados inseridos na Plataforma são de responsabilidade do usuário e da empresa contratante.</li>
-              <li>O BrainX ERP não se responsabiliza por dados incorretos, incompletos ou desatualizados inseridos pelos usuários.</li>
+              <li>O BrainxERP não se responsabiliza por dados incorretos, incompletos ou desatualizados inseridos pelos usuários.</li>
               <li>A Plataforma realiza backups periódicos, mas recomenda-se que o usuário mantenha cópias de segurança próprias.</li>
             </ul>
           </Section>
@@ -67,12 +67,12 @@ export default function TermosUsoPage() {
           </Section>
 
           <Section title="8. Disponibilidade">
-            O BrainX ERP se compromete a manter a disponibilidade da Plataforma em no mínimo 99,9% do tempo (SLA),
+            O BrainxERP se compromete a manter a disponibilidade da Plataforma em no mínimo 99,9% do tempo (SLA),
             exceto em casos de manutenção programada, previamente comunicada, ou eventos de força maior.
           </Section>
 
           <Section title="9. Limitação de Responsabilidade">
-            O BrainX ERP não será responsável por danos indiretos, incidentais, especiais ou consequenciais decorrentes
+            O BrainxERP não será responsável por danos indiretos, incidentais, especiais ou consequenciais decorrentes
             do uso ou impossibilidade de uso da Plataforma, incluindo perda de dados, lucros cessantes ou interrupção de negócios.
           </Section>
 

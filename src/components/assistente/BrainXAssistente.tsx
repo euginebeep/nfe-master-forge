@@ -25,9 +25,9 @@ const CONTEXTO_ROTAS: Record<string, string> = {
 function buildSystemPrompt(rota: string, nomeUsuario: string): string {
   const contextoRota = CONTEXTO_ROTAS[rota] ??
     CONTEXTO_ROTAS[Object.keys(CONTEXTO_ROTAS).find(k => rota.startsWith(k)) ?? ''] ??
-    'O usuário está usando o BrainX ERP.';
+    'O usuário está usando o BrainxERP.';
 
-  return `Você é o Assistente BrainX, um guia especialista no ERP BrainX — sistema de gestão industrial para fábricas de suplementos alimentares em cápsulas.
+  return `Você é o Assistente BrainxERP, um guia especialista no BrainxERP — sistema de gestão industrial para fábricas de suplementos alimentares em cápsulas.
 
 USUÁRIO ATUAL: ${nomeUsuario}
 TELA ATUAL: ${rota}
@@ -101,7 +101,7 @@ export function BrainXAssistente() {
       setMensagens([{
         id: 'welcome',
         role: 'assistant',
-        content: `Oi, ${nomeUsuario}! 👋 Sou o Assistente BrainX.\n\n${contexto ? `Vejo que você está em ${rota.split('/').filter(Boolean).join(' › ') || 'home'}. ` : ''}Como posso ajudar?`,
+        content: `Oi, ${nomeUsuario}! 👋 Sou o Assistente BrainxERP.\n\n${contexto ? `Vejo que você está em ${rota.split('/').filter(Boolean).join(' › ') || 'home'}. ` : ''}Como posso ajudar?`,
         timestamp: new Date(),
       }]);
     }
@@ -176,7 +176,7 @@ export function BrainXAssistente() {
         <button
           onClick={() => setAberto(true)}
           className="fixed bottom-6 right-6 z-[9997] w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-110 flex items-center justify-center group"
-          title="Assistente BrainX — Clique para ajuda"
+          title="Assistente BrainxERP — Clique para ajuda"
         >
           <MessageCircle className="w-6 h-6" />
           <span className="absolute right-16 bg-foreground text-background text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
@@ -194,7 +194,7 @@ export function BrainXAssistente() {
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Assistente BrainX</p>
+                  <p className="text-sm font-semibold text-foreground">Assistente BrainxERP</p>
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Online · IA contextual
                   </p>

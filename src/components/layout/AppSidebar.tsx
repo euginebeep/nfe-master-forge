@@ -248,7 +248,7 @@ export function AppSidebar() {
           <Link to="/" className="flex items-center gap-3 px-4 py-4">
             <img
               src={brainxLogo}
-              alt="BrainX"
+              alt="BrainxERP"
               className={cn(
                 "object-contain rounded shrink-0 transition-all duration-200",
                 collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
@@ -257,8 +257,8 @@ export function AppSidebar() {
             />
             {!collapsed &&
             <div className="flex flex-col">
-                <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX</span>
-                <span className="text-xs text-sidebar-foreground/60 font-medium">ERP Industrial</span>
+                <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainxERP</span>
+                <span className="text-xs text-sidebar-foreground/60 font-medium">Industrial</span>
               </div>
             }
           </Link>
@@ -287,7 +287,7 @@ export function AppSidebar() {
           <Link to="/" className="flex items-center gap-3 px-4 py-5">
             <img
               src={brainxLogo}
-              alt="BrainX"
+              alt="BrainxERP"
               className={cn(
                 "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200",
                 collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
@@ -296,8 +296,8 @@ export function AppSidebar() {
             />
             {!collapsed &&
             <div className="flex flex-col">
-                <span className="font-bold text-lg text-sidebar-foreground tracking-tight leading-tight">BrainX</span>
-                <span className="text-[11px] text-sidebar-foreground/50 font-medium tracking-wide">ERP Industrial</span>
+                <span className="font-bold text-lg text-sidebar-foreground tracking-tight leading-tight">BrainxERP</span>
+                <span className="text-[11px] text-sidebar-foreground/50 font-medium tracking-wide">Industrial</span>
               </div>
             }
           </Link>
