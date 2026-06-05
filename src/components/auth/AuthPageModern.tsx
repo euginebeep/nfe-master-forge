@@ -14,6 +14,14 @@ import {
   Sparkles,
   User,
   UserPlus,
+  FileText,
+  Thermometer,
+  FlaskConical,
+  Boxes,
+  Receipt,
+  ClipboardCheck,
+  Beaker,
+  Activity,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import brainxLogo from '@/assets/brainx-logo.png';
@@ -40,6 +48,46 @@ const valueCards = [
     icon: Layers3,
     title: 'Estoque por lote',
     description: 'FEFO, quarentena, COA e consumo com rastreabilidade total.',
+  },
+  {
+    icon: Receipt,
+    title: 'Emissão de NF-e / NFC-e',
+    description: 'Emissor fiscal integrado com cálculo automático de impostos e DANFE.',
+  },
+  {
+    icon: Thermometer,
+    title: 'Controle de temperatura',
+    description: 'Monitoramento por sensores IoT com alertas e histórico para BPF.',
+  },
+  {
+    icon: FlaskConical,
+    title: 'Formulador industrial',
+    description: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.',
+  },
+  {
+    icon: ClipboardCheck,
+    title: 'Ordens de Produção',
+    description: 'OP com 13 fases, assinatura digital do RT e dossiê de lote completo.',
+  },
+  {
+    icon: Beaker,
+    title: 'Controle de Qualidade',
+    description: 'Físico-químico, CAPA, calibrações e liberação técnica de lotes.',
+  },
+  {
+    icon: FileText,
+    title: 'Importação de NF-e',
+    description: 'XML automatiza entidades, SKUs, lotes, contas a pagar e fiscal.',
+  },
+  {
+    icon: Boxes,
+    title: 'Multi-empresa & RBAC',
+    description: 'Isolamento por tenant, permissões granulares e auditoria imutável.',
+  },
+  {
+    icon: Activity,
+    title: 'Financeiro & Indicadores',
+    description: 'Contas a pagar/receber, KPIs de estoque e dashboards em tempo real.',
   },
 ];
 
@@ -146,7 +194,7 @@ export default function AuthPageModern() {
             </motion.div>
           </div>
 
-          <div className="grid gap-3 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {valueCards.map((item, index) => {
               const Icon = item.icon;
               return (
@@ -154,12 +202,12 @@ export default function AuthPageModern() {
                   key={item.title}
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: 0.1 + index * 0.06 }}
+                  transition={{ duration: 0.35, delay: 0.05 + index * 0.04 }}
                   className="rounded-lg border border-primary-foreground/20 bg-primary-foreground/10 p-4"
                 >
-                  <Icon className="mb-4 h-5 w-5 text-secondary" />
+                  <Icon className="mb-3 h-5 w-5 text-secondary" />
                   <h2 className="text-sm font-semibold">{item.title}</h2>
-                  <p className="mt-2 text-xs leading-5 text-primary-foreground/60">{item.description}</p>
+                  <p className="mt-1.5 text-xs leading-5 text-primary-foreground/60">{item.description}</p>
                 </motion.div>
               );
             })}
