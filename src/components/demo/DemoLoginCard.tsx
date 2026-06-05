@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const DEMO_EMAIL = 'demo@brainxerp.com';
-const DEMO_PASSWORD = 'BrainXDemo2026!';
+const DEMO_PASSWORD = 'BrainxERPDemo2026!';
 
 export function DemoLoginCard() {
   const navigate = useNavigate();
