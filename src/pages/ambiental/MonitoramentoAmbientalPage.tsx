@@ -325,6 +325,7 @@ export default function MonitoramentoAmbientalPage() {
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [chartDate, setChartDate] = useState<string>(""); // YYYY-MM-DD (vazio = últimas 24h)
 
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
   const navigate = useNavigate();
@@ -415,12 +416,26 @@ export default function MonitoramentoAmbientalPage() {
     };
   }, [filteredReadings]);
 
-  // Chart data — last 24h for effectiveRoom
+  // Chart data — últimas 24h ou dia escolhido para effectiveRoom
   const chartData = useMemo(() => {
     if (!effectiveRoom) return [];
-    const since = Date.now() - 24 * 60 * 60 * 1000;
+    let from: number;
+    let to: number;
+    if (chartDate) {
+      const [y, m, d] = chartDate.split("-").map(Number);
+      const start = new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+      from = start.getTime();
+      to = from + 24 * 60 * 60 * 1000;
+    } else {
+      to = Date.now();
+      from = to - 24 * 60 * 60 * 1000;
+    }
     return readings
-      .filter((r) => r.room_name === effectiveRoom && new Date(r.recorded_at).getTime() >= since)
+      .filter((r) => {
+        if (r.room_name !== effectiveRoom) return false;
+        const t = new Date(r.recorded_at).getTime();
+        return t >= from && t < to;
+      })
       .slice()
       .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
       .map((r) => ({
@@ -428,7 +443,7 @@ export default function MonitoramentoAmbientalPage() {
         temp: r.temperature,
         hum: r.humidity,
       }));
-  }, [readings, effectiveRoom]);
+  }, [readings, effectiveRoom, chartDate]);
 
   const selectedRoomLimits = useMemo(() => {
     if (!effectiveRoom) return null;
