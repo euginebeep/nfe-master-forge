@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/components/layout/AppHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { AnvisaCheckerForm } from "@/components/regulatorio/AnvisaCheckerForm";
