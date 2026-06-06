@@ -55,7 +55,7 @@ export function AppHeader() {
         <SidebarTrigger className="h-9 w-9" aria-label="Abrir/fechar menu lateral">
           <Menu className="h-5 w-5" />
         </SidebarTrigger>
-        <Link to="/" className="flex items-center gap-2 md:hidden" aria-label="BrainxERP Home">
+        <Link to="/dashboard" className="flex items-center gap-2 md:hidden" aria-label="BrainxERP Home">
           <img
             src={brainxLogo}
             alt="BrainxERP"
