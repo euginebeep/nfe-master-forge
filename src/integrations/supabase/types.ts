@@ -6964,11 +6964,6 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
-      has_active_unlock: { Args: { _user_id: string }; Returns: boolean }
-      has_module_permission: {
-        Args: { _modulo: string; _permission?: string; _user_id: string }
-        Returns: boolean
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6976,7 +6971,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_demo_company: { Args: { _cid: string }; Returns: boolean }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
       lote_belongs_to_tenant: { Args: { _lid: string }; Returns: boolean }
       nota_entrada_belongs_to_tenant: {
@@ -7011,9 +7005,6 @@ export type Database = {
         Args: { p_password: string }
         Returns: undefined
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
-      unaccent: { Args: { "": string }; Returns: string }
       update_ultimo_acesso: { Args: { p_user_id: string }; Returns: undefined }
       validar_compatibilidade_rt: {
         Args: {
