@@ -593,6 +593,50 @@ export type Database = {
           },
         ]
       }
+      anvisa_laudos: {
+        Row: {
+          cliente: string | null
+          company_id: string
+          criado_em: string | null
+          criado_por: string | null
+          id: string
+          payload_entrada: Json | null
+          produto: string
+          resultado_ia: Json | null
+          status_geral: string | null
+        }
+        Insert: {
+          cliente?: string | null
+          company_id: string
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          payload_entrada?: Json | null
+          produto: string
+          resultado_ia?: Json | null
+          status_geral?: string | null
+        }
+        Update: {
+          cliente?: string | null
+          company_id?: string
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          payload_entrada?: Json | null
+          produto?: string
+          resultado_ia?: Json | null
+          status_geral?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anvisa_laudos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anvisa_search_log: {
         Row: {
           company_id: string | null
