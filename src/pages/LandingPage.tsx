@@ -210,7 +210,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium" style={{ color: "#374151" }}>
               <span className="flex items-center gap-1.5"><Lock className="h-4 w-4" style={{ color: "#1E3A5F" }} /> Dados isolados por tenant (Row Level Security)</span>
               <span className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4" style={{ color: "#16A34A" }} /> Emissor NF-e homologado SEFAZ</span>
-              <span className="flex items-center gap-1.5"><Factory className="h-4 w-4" style={{ color: "#1E3A5F" }} /> Desenvolvido para RDC 658/2022</span>
+              <span className="flex items-center gap-1.5"><Factory className="h-4 w-4" style={{ color: "#1E3A5F" }} /> Desenvolvido respeitando RDCs e Instruções Normativas da ANVISA</span>
               <span className="flex items-center gap-1.5"><FileBadge2 className="h-4 w-4" style={{ color: "#1E3A5F" }} /> LGPD compliant</span>
             </div>
           </motion.div>
