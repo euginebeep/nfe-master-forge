@@ -372,7 +372,7 @@ export default function LandingPage() {
                 ))}
               </ul>
             </motion.div>
-            <motion.div {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }} className="md:scale-[1.15] origin-center">
+            <motion.div {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }} className="mt-16 md:mt-0 md:scale-[1.15] origin-center w-full max-w-md mx-auto md:max-w-none">
               <Card
                 className="overflow-hidden bg-white"
                 style={{ border: "1px solid #E5E7EB", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
@@ -385,11 +385,11 @@ export default function LandingPage() {
                     </div>
                     <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style={{ background: "#DCFCE7", color: "#15803D" }}>Liberado</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div><div style={{ color: "#6B7280" }}>Produto</div><div className="font-bold" style={{ color: "#0F172A" }}>Vitamina D3 2000 UI</div></div>
-                    <div><div style={{ color: "#6B7280" }}>Validade</div><div className="font-bold" style={{ color: "#0F172A" }}>12/2027</div></div>
-                    <div><div style={{ color: "#6B7280" }}>RT (CRF)</div><div className="font-bold" style={{ color: "#0F172A" }}>Dra. M. Almeida</div></div>
-                    <div><div style={{ color: "#6B7280" }}>Assinado em</div><div className="font-bold" style={{ color: "#0F172A" }}>05/06/2026 14:32</div></div>
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 text-xs">
+                    <div><div style={{ color: "#6B7280" }}>Produto</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>Vitamina D3 2000 UI</div></div>
+                    <div><div style={{ color: "#6B7280" }}>Validade</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>12/2027</div></div>
+                    <div><div style={{ color: "#6B7280" }}>RT (CRF)</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>Dra. M. Almeida</div></div>
+                    <div><div style={{ color: "#6B7280" }}>Assinado em</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>05/06/2026 14:32</div></div>
                   </div>
                 </div>
                 <CardContent className="p-6 space-y-3 bg-white">
