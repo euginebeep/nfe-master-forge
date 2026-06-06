@@ -3953,6 +3953,7 @@ export type Database = {
       op_checklist: {
         Row: {
           categoria: string
+          codigo: string | null
           created_at: string | null
           id: string
           item: string
@@ -3966,6 +3967,7 @@ export type Database = {
         }
         Insert: {
           categoria: string
+          codigo?: string | null
           created_at?: string | null
           id?: string
           item: string
@@ -3979,6 +3981,7 @@ export type Database = {
         }
         Update: {
           categoria?: string
+          codigo?: string | null
           created_at?: string | null
           id?: string
           item?: string
