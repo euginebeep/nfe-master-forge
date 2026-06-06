@@ -18,6 +18,7 @@ import { OPFolhaEmbalagem } from './OPFolhaEmbalagem';
 import { OPFolhaChecklist } from './OPFolhaChecklist';
 import { getOPPrintStyles, getTerminalPrintStyles } from './op-print-styles';
 import type { OPDadosPDF, OPMateriaPrimaPDF, OPEmbalagemPDF, ChecklistItemPDF } from '@/types/op-pdf';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OPDocumentoCompletoProps {
   op: OPDadosPDF;
