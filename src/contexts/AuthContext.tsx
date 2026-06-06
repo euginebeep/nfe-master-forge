@@ -16,6 +16,7 @@ export interface UserProfile {
   sexo: 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO' | null;
   data_nascimento: string | null;
   is_demo?: boolean;
+  company_id?: string | null;
 }
 
 export interface UserPermission {
