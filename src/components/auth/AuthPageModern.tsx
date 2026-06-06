@@ -179,8 +179,8 @@ export default function AuthPageModern() {
             </p>
           </motion.div>
 
-          {/* Feature cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 40 }}>
+          {/* Compact Feature cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
             {FEATURES.map((f, i) => (
               <motion.div key={f.label}
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -188,8 +188,9 @@ export default function AuthPageModern() {
                 style={{
                   background: 'rgba(255,255,255,0.02)',
                   border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: 12, padding: '20px 18px',
+                  borderRadius: 10, padding: '14px 12px',
                   transition: 'all 0.3s ease',
+                  cursor: 'default'
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
@@ -200,13 +201,13 @@ export default function AuthPageModern() {
                   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
                 }}
               >
-                <div style={{ marginBottom: 14, width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <BI name={f.icon} size={18} color="#0d6efd" />
+                <div style={{ marginBottom: 12, width: 42, height: 42, borderRadius: 8, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <BI name={f.icon} size={22} color="#0d6efd" />
                 </div>
-                <div style={{ color: '#f8f9fa', fontSize: 14, fontWeight: 600, marginBottom: 6, letterSpacing: '-0.01em' }}>
+                <div style={{ color: '#f8f9fa', fontSize: 13, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>
                   {f.label}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, lineHeight: 1.55 }}>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, lineHeight: 1.4, letterSpacing: '0.01em' }}>
                   {f.sub}
                 </div>
               </motion.div>
