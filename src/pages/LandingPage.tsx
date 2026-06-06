@@ -42,7 +42,7 @@ const features = [
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-[#061423] text-white relative overflow-hidden font-sans selection:bg-[#10b981]/30">
+    <div className="min-h-screen bg-[#000000] text-white relative overflow-hidden font-sans selection:bg-[#10b981]/30">
       {/* Subtle Grid Background */}
       <div 
         className="absolute inset-0 pointer-events-none"

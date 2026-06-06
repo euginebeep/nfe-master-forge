@@ -124,10 +124,10 @@ export default function AuthPageModern() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
 
-      {/* ══ LEFT PANEL — Bootstrap Dark ══ */}
+      {/* ══ LEFT PANEL — Deep Black background matching logo ══ */}
       <div className="hidden lg:flex flex-col" style={{
         width: '56%',
-        background: 'linear-gradient(160deg, #212529 0%, #0d1b2a 100%)',
+        background: '#000000',
         position: 'relative', overflow: 'hidden',
       }}>
         {/* Subtle grid */}
