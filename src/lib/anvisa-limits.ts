@@ -68,3 +68,120 @@ export const VD_REFERENCE: Record<string, number> = {
   manganes: 2.3,
 };
 
+export function resolveAnvisaKey(nome: string): string {
+  const n = nome.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[-_\s]+/g, ' ').trim();
+
+  const mapa: Record<string, string> = {
+    // Vitamina D
+    'vitamina d': 'vitamina_d3', 'vitamina d3': 'vitamina_d3',
+    'colecalciferol': 'vitamina_d3', 'vitamina d2': 'vitamina_d3',
+    'ergocalciferol': 'vitamina_d3',
+    // Vitamina A
+    'vitamina a': 'vitamina_a', 'retinol': 'vitamina_a',
+    'acetato de retinol': 'vitamina_a', 'palmitato de retinol': 'vitamina_a',
+    'betacaroteno': 'vitamina_a', 'beta caroteno': 'vitamina_a',
+    // Vitamina C
+    'vitamina c': 'vitamina_c', 'acido ascorbico': 'vitamina_c',
+    'ascorbato de calcio': 'vitamina_c', 'ascorbato de sodio': 'vitamina_c',
+    // Vitamina E
+    'vitamina e': 'vitamina_e', 'tocoferol': 'vitamina_e',
+    'alfa tocoferol': 'vitamina_e', 'acetato de tocoferol': 'vitamina_e',
+    // Vitamina K
+    'vitamina k2': 'vitamina_k2', 'vitamina k': 'vitamina_k2',
+    'menaquinona': 'vitamina_k2', 'mk 7': 'vitamina_k2',
+    'mk7': 'vitamina_k2', 'fitomenadiona': 'vitamina_k2',
+    // Vitaminas B
+    'vitamina b1': 'vitamina_b1', 'tiamina': 'vitamina_b1',
+    'nitrato de tiamina': 'vitamina_b1', 'cloridrato de tiamina': 'vitamina_b1',
+    'vitamina b2': 'vitamina_b2', 'riboflavina': 'vitamina_b2',
+    'vitamina b3': 'vitamina_b3', 'niacina': 'vitamina_b3',
+    'acido nicotinico': 'vitamina_b3', 'nicotinamida': 'vitamina_b3',
+    'vitamina b5': 'vitamina_b5', 'acido pantotenico': 'vitamina_b5',
+    'pantotenato de calcio': 'vitamina_b5', 'pantenol': 'vitamina_b5',
+    'vitamina b6': 'vitamina_b6', 'piridoxina': 'vitamina_b6',
+    'cloridrato de piridoxina': 'vitamina_b6',
+    'vitamina b7': 'vitamina_b7', 'biotina': 'vitamina_b7',
+    'd biotina': 'vitamina_b7',
+    'vitamina b9': 'vitamina_b9', 'acido folico': 'vitamina_b9',
+    'folato': 'vitamina_b9', 'metilfolato': 'vitamina_b9',
+    'l metilfolato': 'vitamina_b9', '5 mthf': 'vitamina_b9',
+    'vitamina b12': 'vitamina_b12', 'cobalamina': 'vitamina_b12',
+    'metilcobalamina': 'vitamina_b12', 'cianocobalamina': 'vitamina_b12',
+    'hidroxocobalamina': 'vitamina_b12',
+    // Minerais
+    'zinco': 'zinco', 'zinco quelato': 'zinco', 'bisglicinato de zinco': 'zinco',
+    'gluconato de zinco': 'zinco', 'oxido de zinco': 'zinco',
+    'ferro': 'ferro', 'ferro quelato': 'ferro', 'bisglicinato ferroso': 'ferro',
+    'fumarato ferroso': 'ferro', 'sulfato ferroso': 'ferro', 'citrato ferrico': 'ferro',
+    'magnesio': 'magnesio', 'magnesio quelato': 'magnesio', 'magnesio dimalato': 'magnesio',
+    'magnesio taurato': 'magnesio', 'magnesio citrato': 'magnesio',
+    'cloreto de magnesio': 'magnesio', 'oxido de magnesio': 'magnesio',
+    'bisglicinato de magnesio': 'magnesio',
+    'calcio': 'calcio', 'carbonato de calcio': 'calcio', 'citrato de calcio': 'calcio',
+    'bisglicinato de calcio': 'calcio',
+    'selenio': 'selenio', 'selenito de sodio': 'selenio', 'selenato de sodio': 'selenio',
+    'selenometionina': 'selenio',
+    'iodo': 'iodo', 'iodeto de potassio': 'iodo', 'iodato de potassio': 'iodo',
+    'manganes': 'manganes', 'sulfato de manganes': 'manganes',
+    'cobre': 'cobre', 'sulfato cuprico': 'cobre', 'gluconato cuprico': 'cobre',
+    'cromo': 'cromo', 'picolinato de cromo': 'cromo', 'cloreto cromico': 'cromo',
+    'boro': 'boro', 'boro quelato': 'boro',
+    'fosforo': 'fosforo', 'fosfato': 'fosforo',
+    // Substâncias bioativas
+    'coenzima q10': 'coenzima_q10', 'ubiquinona': 'coenzima_q10', 'coq10': 'coenzima_q10',
+    'cafeina': 'cafeina', 'cafeína': 'cafeina',
+    'melatonina': 'melatonina',
+    'luteina': 'luteina', 'luteína': 'luteina',
+    'zeaxantina': 'zeaxantina',
+    'astaxantina': 'astaxantina',
+    'msm': 'msm', 'metilsulfonilmetano': 'msm', 'enxofre organico': 'msm',
+    'acido hialuronico': 'acido_hialuronico', 'hialuronato': 'acido_hialuronico',
+    'colageno tipo 2': 'colageno_tipo2', 'colageno tipo ii': 'colageno_tipo2',
+    'uc ii': 'colageno_tipo2', 'ucii': 'colageno_tipo2',
+    'colageno nao hidrolisado': 'colageno_tipo2',
+    'colageno hidrolisado': 'colageno_hidrolisado', 'gelatina hidrolisada': 'colageno_hidrolisado',
+    'omega 3': 'omega3_epa_dha', 'omega3': 'omega3_epa_dha', 'epa': 'omega3_epa_dha',
+    'dha': 'omega3_epa_dha', 'oleo de peixe': 'omega3_epa_dha',
+    // Aminoácidos
+    'l arginina': 'l_arginina', 'arginina': 'l_arginina',
+    'taurina': 'taurina', 'l taurina': 'taurina',
+    'creatina': 'creatina', 'creatina monoidratada': 'creatina',
+    'l triptofano': 'l_triptofano', 'triptofano': 'l_triptofano',
+    'l tirosina': 'l_tirosina', 'tirosina': 'l_tirosina',
+    'beta alanina': 'beta_alanina',
+    'leucina': 'leucina', 'l leucina': 'leucina',
+    'isoleucina': 'isoleucina', 'l isoleucina': 'isoleucina',
+    'valina': 'valina', 'l valina': 'valina',
+    'cistina': 'l_cistina', 'l cistina': 'l_cistina', 'cisteina': 'l_cistina',
+    // Extratos e fitoterápicos
+    'espirulina': 'espirulina', 'arthrospira': 'espirulina',
+    'psyllium': 'psyllium', 'plantago': 'psyllium',
+    'curcuma': 'curcuma', 'curcumina': 'curcuma', 'extrato de curcuma': 'curcuma',
+    'extrato de açafrão': 'curcuma',
+    'laranja moro': 'ext_laranja_moro', 'antocianinas': 'ext_laranja_moro',
+    'cha verde': 'cha_verde', 'extrato de cha verde': 'cha_verde', 'camellia sinensis': 'cha_verde',
+    'gengibre': 'gengibre', 'zingiber': 'gengibre',
+    'feno grego': 'feno_grego', 'trigonella': 'feno_grego',
+    'propolis': 'propolis', 'extrato de propolis': 'propolis',
+    // Bloqueados
+    'berberina': 'berberina',
+    'queratina': 'queratina', 'queratina hidrolisada': 'queratina',
+    'silicio organico': 'silicio_organico', 'silicio': 'silicio_organico',
+    'monometilsilanetriol': 'silicio_organico',
+    'citrulina': 'l_citrulina', 'l citrulina': 'l_citrulina', 'citrulina malato': 'l_citrulina',
+  };
+
+  // Busca direta
+  if (mapa[n]) return mapa[n];
+
+  // Busca parcial — se o nome contém alguma chave do mapa
+  for (const [k, v] of Object.entries(mapa)) {
+    if (n.includes(k) || k.includes(n)) return v;
+  }
+
+  return "";
+}
+
+
