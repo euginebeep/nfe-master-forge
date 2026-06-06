@@ -28,13 +28,13 @@ export function useCompany() {
         companyId = freshProfile?.company_id || null;
       }
 
-      console.log('[useCompany] profile:', {
+      console.log('[useCompany] profile details:', {
         userId: user.id,
         email: user.email,
-        company_id: profile?.company_id,
+        profile_company_id: profile?.company_id,
         is_demo: profile?.is_demo,
         isDemoSession,
-        companyId,
+        finalCompanyId: companyId,
       });
 
       if (!companyId) {
