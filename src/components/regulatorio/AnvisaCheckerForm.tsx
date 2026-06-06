@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Upload, FileArchive, FileText, Image as ImageIcon, X, CheckCircle2, Loader2 } from "lucide-react";
+import { Upload, FileArchive, FileText, Image as ImageIcon, X, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   const [clientName, setClientName] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [errorDetails, setErrorDetails] = useState<{ message: string; step: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const steps = [
@@ -141,6 +142,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
     setAnalyzing(true);
     setCurrentStep(0);
+    setErrorDetails(null);
 
     try {
       const reader = new FileReader();
@@ -218,12 +220,17 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         title: "Análise concluída", 
         description: `${data.total_produtos} produto(s) analisado(s) com sucesso` 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const stepName = steps[currentStep] || "Processamento inicial";
+      setErrorDetails({
+        message: error.message || "Falha ao processar o arquivo. Verifique se o formato é válido.",
+        step: stepName
+      });
       toast({ 
         variant: "destructive", 
         title: "Erro na análise", 
-        description: "Falha ao processar o arquivo. Verifique se o formato é válido." 
+        description: `Falha na etapa: ${stepName}` 
       });
     } finally {
       setAnalyzing(false);
@@ -386,6 +393,25 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
             <Progress value={(currentStep + 1) * 25} className="h-3 rounded-full" />
             <div className="flex items-center justify-center gap-3 text-primary font-bold text-lg">
               <div className="animate-pulse">{steps[currentStep]}</div>
+            </div>
+          </div>
+        )}
+
+        {errorDetails && (
+          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="font-bold text-destructive text-sm uppercase tracking-wider">Erro na etapa: {errorDetails.step}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{errorDetails.message}</p>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-xs text-destructive/70 hover:text-destructive"
+                  onClick={() => setErrorDetails(null)}
+                >
+                  Fechar aviso
+                </Button>
+              </div>
             </div>
           </div>
         )}
