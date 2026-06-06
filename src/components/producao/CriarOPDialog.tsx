@@ -46,7 +46,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarLoteProdutoAcabado } from "@/types/op-industrial";
+import { gerarLoteProdutoAcabado, CHECKLIST_PADRAO } from "@/types/op-industrial";
 import { RTSelectorOP } from "@/components/responsavel-tecnico/RTSelectorOP";
 
 const formSchema = z.object({
