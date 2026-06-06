@@ -63,12 +63,21 @@ export default function AnvisaCheckerPage() {
                 ...selectedLaudo.resultado_ia,
                 produto: selectedLaudo.produto,
                 cliente: selectedLaudo.cliente,
-                ativos: selectedLaudo.payload_entrada?.ativos || []
+                ativos: selectedLaudo.payload_entrada?.ativos || [],
+                multiplos_produtos: selectedLaudo.multiplos_produtos
               }} 
               onReset={() => {
                 setSelectedLaudo(null);
                 setActiveTab("formula");
               }} 
+              onSelectProduct={(p) => {
+                setSelectedLaudo({
+                  ...selectedLaudo,
+                  produto: p.nome || p.produto,
+                  resultado_ia: p,
+                  payload_entrada: { ativos: p.ativos }
+                });
+              }}
             />
           ) : (
             <AnvisaLaudosHistorico onSelect={(laudo) => {
