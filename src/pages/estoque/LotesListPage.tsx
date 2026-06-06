@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Boxes, Filter, Eye, CheckCircle, AlertCircle, FileText, Calendar, Building2, X } from "lucide-react";
+import { Boxes, Filter, Eye, CheckCircle, AlertCircle, FileText, Calendar, Building2, X, Package } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useLotes } from "@/hooks/use-lotes";
+import { AtribuirClienteWhiteLabelDialog } from "@/components/producao/AtribuirClienteWhiteLabelDialog";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatDate, formatNumber, formatCurrency } from "@/lib/formatters";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -24,10 +26,12 @@ const STATUS_VARIANTS: Record<string, "success" | "warning" | "error" | "muted">
 
 export default function LotesListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [notaFilter, setNotaFilter] = useState<string>("");
   const [fornecedorFilter, setFornecedorFilter] = useState<string>("all");
   const [validadeFilter, setValidadeFilter] = useState<string>("all");
+  const [whiteLabelLote, setWhiteLabelLote] = useState<{loteId: string, loteNumero?: string, produtoNome?: string} | null>(null);
 
   const { data: allLotes, isLoading } = useLotes();
 
@@ -117,7 +121,19 @@ export default function LotesListPage() {
       header: "Lote",
       sortable: true,
       render: (item: any) => (
-        <span className="font-mono font-medium">{item.numero_lote}</span>
+        <div className="flex flex-col gap-1">
+          <span className="font-mono font-medium">{item.numero_lote}</span>
+          {item.white_label === true && !item.white_label_cliente_id && (
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] py-0 h-4">
+              White Label — sem cliente
+            </Badge>
+          )}
+          {item.white_label === true && item.white_label_cliente_id && (
+            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] py-0 h-4">
+              White Label — atribuído
+            </Badge>
+          )}
+        </div>
       ),
     },
     {
@@ -243,16 +259,35 @@ export default function LotesListPage() {
       header: "",
       className: "w-16",
       render: (item: any) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/estoque/lotes/${item.id}`);
-          }}
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {item.white_label === true && !item.white_label_cliente_id && (
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Atribuir Cliente"
+              onClick={(e) => {
+                e.stopPropagation();
+                setWhiteLabelLote({
+                  loteId: item.id,
+                  loteNumero: item.numero_lote,
+                  produtoNome: item.item?.descricao_interna
+                });
+              }}
+            >
+              <Package className="h-4 w-4 text-primary" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/estoque/lotes/${item.id}`);
+            }}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ];
@@ -381,6 +416,18 @@ export default function LotesListPage() {
             )}
           </div>
         }
+      />
+
+      <AtribuirClienteWhiteLabelDialog 
+        open={!!whiteLabelLote} 
+        onOpenChange={(v) => !v && setWhiteLabelLote(null)} 
+        loteId={whiteLabelLote?.loteId || ''} 
+        loteNumero={whiteLabelLote?.loteNumero} 
+        produtoNome={whiteLabelLote?.produtoNome} 
+        onSuccess={() => { 
+          setWhiteLabelLote(null); 
+          queryClient.invalidateQueries({ queryKey: ['lotes'] }); 
+        }} 
       />
     </div>
   );
