@@ -84,7 +84,7 @@ const menuGroups: MenuGroup[] = [
 {
   label: "Principal",
   items: [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
   { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" },
   { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" }]
 
