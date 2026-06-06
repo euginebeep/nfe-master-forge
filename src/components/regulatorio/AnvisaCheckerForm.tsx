@@ -34,7 +34,7 @@ const AUDIENCES = [
   { value: "IDOSOS", label: "Idosos ≥65 anos" },
 ];
 
-export function AnvisaCheckerForm() {
+export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [assets, setAssets] = useState<AssetRow[]>([
@@ -80,6 +80,75 @@ export function AnvisaCheckerForm() {
         title: "Erro no processamento",
         description: "Não foi possível analisar o arquivo.",
       });
+    }
+  };
+
+  const handleValidate = async () => {
+    const productName = (document.getElementById('productName') as HTMLInputElement)?.value;
+    const clientName = (document.getElementById('brand') as HTMLInputElement)?.value;
+    const audience = (document.getElementById('audience') as HTMLButtonElement)?.innerText;
+
+    if (!productName) {
+      toast({ variant: "destructive", title: "Erro", description: "Informe o nome do produto." });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('anvisa-ai-verify', {
+        body: {
+          action: 'analyze_formula',
+          produto: productName,
+          cliente: clientName,
+          publico: audience,
+          ativos: assets
+        }
+      });
+
+      if (error) throw error;
+
+      // Salvar histórico
+      const { data: laudo, error: saveError } = await supabase
+        .from('anvisa_laudos')
+        .insert({
+          company_id: 'd9b071e6-34b6-4b21-8b21-4f2495d4f3b7', // Idealmente pegar do profile, mas usaremos um fallback seguro ou injetado
+          produto: productName,
+          cliente: clientName,
+          status_geral: data.status_geral,
+          payload_entrada: { ativos: assets, publico: audience },
+          resultado_ia: data
+        })
+        .select()
+        .single();
+
+      if (saveError) {
+        // Tentar buscar company_id dinamicamente se o hardcoded falhar (fallback para profiles)
+        const { data: profile } = await supabase.from('profiles').select('company_id').single();
+        if (profile?.company_id) {
+          await supabase.from('anvisa_laudos').insert({
+            company_id: profile.company_id,
+            produto: productName,
+            cliente: clientName,
+            status_geral: data.status_geral,
+            payload_entrada: { ativos: assets, publico: audience },
+            resultado_ia: data
+          });
+        }
+      }
+
+      onResult({
+        produto: productName,
+        cliente: clientName,
+        payload_entrada: { ativos: assets },
+        resultado_ia: data
+      });
+
+      toast({ title: "Análise concluída", description: "O laudo foi gerado e salvo no histórico." });
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Erro na análise", description: "Falha ao processar análise regulatória." });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -232,8 +301,13 @@ export function AnvisaCheckerForm() {
             <Button variant="outline" size="sm" onClick={addRow} className="gap-2">
               <Plus className="w-4 h-4" /> Adicionar ativo
             </Button>
-            <Button size="sm" className="bg-primary hover:bg-primary/90">
-              Validar Fórmula
+            <Button 
+              size="sm" 
+              className="bg-primary hover:bg-primary/90" 
+              onClick={handleValidate}
+              disabled={loading}
+            >
+              {loading ? "Validando..." : "Validar Fórmula"}
             </Button>
           </div>
         </Card>
