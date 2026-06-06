@@ -124,7 +124,7 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="min-h-screen antialiased" style={{ background: "#FFFFFF", color: "#0F172A" }}>
+    <div className="min-h-screen antialiased overflow-x-hidden w-full" style={{ background: "#FFFFFF", color: "#0F172A" }}>
       {/* NAV */}
       <header
         className="sticky top-0 z-50 transition-shadow"
@@ -144,7 +144,7 @@ export default function LandingPage() {
               </span>
             </div>
           </Link>
-          <nav className="hidden md:flex items-center gap-7 text-sm font-medium" style={{ color: "#374151" }}>
+          <nav className="hidden lg:flex items-center gap-7 text-sm font-medium" style={{ color: "#374151" }}>
             <a href="#modulos" className="hover:opacity-70 transition-opacity">Módulos</a>
             <a href="#compliance" className="hover:opacity-70 transition-opacity">Compliance</a>
             <a href="#como-funciona" className="hover:opacity-70 transition-opacity">Como funciona</a>
@@ -180,7 +180,7 @@ export default function LandingPage() {
               <AlertOctagon className="h-4 w-4" />
               Alerta para indústrias de suplementos
             </div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6" style={{ color: "#0F172A" }}>
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-6" style={{ color: "#0F172A" }}>
               Sua indústria está preparada para
               <span className="block" style={{ color: "#0F172A" }}>
                 uma fiscalização hoje?
@@ -255,7 +255,7 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#DC2626" }}>
               <AlertTriangle className="h-4 w-4" /> O que pode acontecer amanhã
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: "#0F172A" }}>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4" style={{ color: "#0F172A" }}>
               Cada um destes erros pode <span style={{ color: "#DC2626" }}>parar sua fábrica</span>
             </h2>
             <p style={{ color: "#374151" }}>
@@ -293,7 +293,7 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3" style={{ background: "#EFF6FF", color: "#1E3A5F" }}>
               <Sparkles className="h-3.5 w-3.5" /> A solução
             </div>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: "#0F172A" }}>
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: "#0F172A" }}>
               Um único sistema. Toda a sua operação industrial sob controle.
             </h2>
             <p className="text-lg" style={{ color: "#374151" }}>
@@ -341,14 +341,14 @@ export default function LandingPage() {
       </section>
 
       {/* COMPLIANCE BLOCK */}
-      <section id="compliance" className="py-24" style={{ background: "#F8FAFC" }}>
+      <section id="compliance" className="py-24 overflow-hidden" style={{ background: "#F8FAFC" }}>
         <div className="container max-w-6xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <motion.div {...fadeUp}>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4" style={{ background: "#DCFCE7", color: "#15803D" }}>
                 <ShieldCheck className="h-3.5 w-3.5" /> Auditoria ANVISA aprovada
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-5" style={{ color: "#0F172A" }}>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-5" style={{ color: "#0F172A" }}>
                 Compliance não é planilha. É arquitetura.
               </h2>
               <p className="mb-6 leading-relaxed" style={{ color: "#374151" }}>
@@ -372,24 +372,24 @@ export default function LandingPage() {
                 ))}
               </ul>
             </motion.div>
-            <motion.div {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }} style={{ transform: "scale(1.15)", transformOrigin: "center" }}>
+            <motion.div {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }} className="mt-16 md:mt-0 w-full max-w-md mx-auto md:max-w-none">
               <Card
                 className="overflow-hidden bg-white"
                 style={{ border: "1px solid #E5E7EB", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
               >
                 <div className="p-6 border-b" style={{ background: "#F8FAFC", borderColor: "#E5E7EB" }}>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-2">
                       <FileSignature className="h-5 w-5" style={{ color: "#1E3A5F" }} />
                       <span className="font-bold text-sm" style={{ color: "#0F172A" }}>Dossiê de Lote · LT-2026-001847</span>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style={{ background: "#DCFCE7", color: "#15803D" }}>Liberado</span>
+                    <span className="w-fit text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style={{ background: "#DCFCE7", color: "#15803D" }}>Liberado</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div><div style={{ color: "#6B7280" }}>Produto</div><div className="font-bold" style={{ color: "#0F172A" }}>Vitamina D3 2000 UI</div></div>
-                    <div><div style={{ color: "#6B7280" }}>Validade</div><div className="font-bold" style={{ color: "#0F172A" }}>12/2027</div></div>
-                    <div><div style={{ color: "#6B7280" }}>RT (CRF)</div><div className="font-bold" style={{ color: "#0F172A" }}>Dra. M. Almeida</div></div>
-                    <div><div style={{ color: "#6B7280" }}>Assinado em</div><div className="font-bold" style={{ color: "#0F172A" }}>05/06/2026 14:32</div></div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div><div style={{ color: "#6B7280" }}>Produto</div><div className="font-bold text-[13px] break-words" style={{ color: "#0F172A" }}>Vitamina D3 2000 UI</div></div>
+                    <div><div style={{ color: "#6B7280" }}>Validade</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>12/2027</div></div>
+                    <div><div style={{ color: "#6B7280" }}>RT (CRF)</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>Dra. M. Almeida</div></div>
+                    <div><div style={{ color: "#6B7280" }}>Assinado em</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>05/06/2026 14:32</div></div>
                   </div>
                 </div>
                 <CardContent className="p-6 space-y-3 bg-white">
