@@ -7,6 +7,7 @@ import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Bra
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
+import { cn } from "@/lib/utils";
 
 interface AnvisaLaudoViewProps {
   data: {
