@@ -151,10 +151,14 @@ export default function AuthPageModern() {
           padding: '48px 52px',
         }}>
 
-          {/* Logo */}
+          {/* Logo with 50% increase (180 -> 270) and side text */}
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
-            style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <img src={brainxLogo} alt="BrainxERP" style={{ width: 180, height: 180, objectFit: 'contain' }} />
+            style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <img src={brainxLogo} alt="BrainxERP" style={{ width: 270, height: 270, objectFit: 'contain' }} />
+            <div style={{ color: '#fff' }}>
+              <div style={{ fontWeight: 800, fontSize: 32, lineHeight: 1, letterSpacing: '-0.02em' }}>Brainx Erp</div>
+              <div style={{ fontWeight: 500, fontSize: 18, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Gestão Industrial</div>
+            </div>
           </motion.div>
 
           {/* Hero text */}

@@ -62,11 +62,11 @@ const LandingPage = () => {
       <div className="max-w-7xl mx-auto px-6 py-12 relative z-10">
         {/* Header */}
         <header className="flex items-center justify-between mb-24">
-          <div className="flex items-center gap-5">
-            <img src={brainxLogo} alt="Logo" className="w-14 h-14 object-contain" />
-            <div className="border-l border-white/10 pl-5">
-              <h1 className="text-xl font-bold tracking-wider text-gray-200">BRAINX ERP</h1>
-              <p className="text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Plataforma industrial regulatória</p>
+          <div className="flex items-center gap-6">
+            <img src={brainxLogo} alt="Logo" className="w-[84px] h-[84px] object-contain" />
+            <div className="border-l border-white/10 pl-6">
+              <h1 className="text-3xl font-extrabold tracking-tight text-white">Brainx Erp</h1>
+              <p className="text-sm text-gray-400 font-medium mt-1">Gestão Industrial</p>
             </div>
           </div>
           
