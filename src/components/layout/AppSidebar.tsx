@@ -84,7 +84,7 @@ const menuGroups: MenuGroup[] = [
 {
   label: "Principal",
   items: [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
   { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" },
   { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" }]
 
@@ -221,7 +221,7 @@ export function AppSidebar() {
   };
 
   const isActive = (url: string) => {
-    if (url === "/") return location.pathname === "/";
+    if (url === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname.startsWith(url);
   };
 
@@ -245,7 +245,7 @@ export function AppSidebar() {
     return (
       <Sidebar className={cn("border-r border-sidebar-border", collapsed ? "w-16" : "w-64")} collapsible="icon">
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
-          <Link to="/" className="flex items-center gap-3 px-4 py-4">
+          <Link to="/dashboard" className="flex items-center gap-3 px-4 py-4">
             <img
               src={brainxLogo}
               alt="BrainxERP"
@@ -284,7 +284,7 @@ export function AppSidebar() {
         collapsible="icon">
 
         <SidebarHeader className="border-b border-sidebar-border/50 bg-sidebar">
-          <Link to="/" className="flex items-center gap-3 px-4 py-5">
+          <Link to="/dashboard" className="flex items-center gap-3 px-4 py-5">
             <img
               src={brainxLogo}
               alt="BrainxERP"

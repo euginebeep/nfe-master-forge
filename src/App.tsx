@@ -15,6 +15,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 // Lazy loaded pages
 const AuthPageModern = lazy(() => import("./components/auth/AuthPageModern"));
 const Index = lazy(() => import("./pages/Index"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 const RoadmapPage = lazy(() => import("./pages/RoadmapPage"));
 const FAQPage = lazy(() => import("./pages/faq/FAQPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -104,6 +105,9 @@ const App = () => (
           <GlobalSearchDialog />
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>
+              {/* Páginas Públicas */}
+              <Route path="/" element={<Suspense fallback={<PageFallback />}><LandingPage /></Suspense>} />
+              
               {/* Auth - público */}
               <Route path="/auth" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AuthPageModern /></ErrorBoundary></Suspense>} />
               <Route path="/termos-de-uso" element={<Suspense fallback={<PageFallback />}><TermosUsoPage /></Suspense>} />
@@ -138,7 +142,7 @@ const App = () => (
                   <MainLayout />
                 </ProtectedRoute>
               }>
-                <Route path="/" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><Index /></ErrorBoundary></Suspense>} />
+                <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><Index /></ErrorBoundary></Suspense>} />
                 <Route path="/roadmap" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RoadmapPage /></ErrorBoundary></Suspense>} />
                 <Route path="/faq" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><FAQPage /></ErrorBoundary></Suspense>} />
                 {/* Settings — admin only */}
