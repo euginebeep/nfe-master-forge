@@ -55,7 +55,8 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
     totalUnidades, totalComAcrescimo,
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
-    volumeTotalPoL, volumePorBatelada, fatorEnchimentoReal,
+    volumeTotalPoL, volumePorBatelada, fatorEnchimentoReal, nomeMisturador,
+    VOLUME_UTIL_MAX_L, VOLUME_UTIL_MIN_L,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange,
     podeAvancar, avancar, voltar, onSubmit, progressoEtapas,
   } = state;

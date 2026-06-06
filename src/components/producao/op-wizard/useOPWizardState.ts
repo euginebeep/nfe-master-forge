@@ -36,6 +36,14 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const [isLoading, setIsLoading] = useState(false);
   const [showClienteDropdown, setShowClienteDropdown] = useState(false);
   const [showQuickClienteModal, setShowQuickClienteModal] = useState(false);
+  const [misturador, setMisturador] = useState<{
+    volume_nominal_litros: number;
+    fator_enchimento_maximo: number;
+    fator_enchimento_minimo: number;
+    fator_enchimento_padrao: number;
+    densidade_padrao_kg_l: number;
+    nome: string;
+  } | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -75,69 +83,66 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const totalComAcrescimo = Math.ceil(totalUnidades * (1 + ACRESCIMO_INDUSTRIAL / 100));
 
   // ============================================================
-  // CÁLCULO DE BATELADAS — Misturador em V 100L (Vitalnow)
-  // Lógica: volume ocuapdo pelo pó = peso / densidade aparente
-  // Misturador suporta máx. 65L (65% de 100L para homogeneidade)
+  // CÁLCULO DE BATELADAS — usa dados reais do equipamento + fórmula
+  // Fallback seguro quando equipamento não está cadastrado
   // ============================================================
-  // Parâmetros do equipamento
-  const MISTURADOR_VOLUME_TOTAL_L    = 100;
-  const FATOR_ENCHIMENTO_MAXIMO      = 0.65;  // 65L úteis — acima disso perde homogeneidade
-  const FATOR_ENCHIMENTO_MINIMO      = 0.15;  // 15L mínimo — abaixo disso não mistura bem
-  const FATOR_ENCHIMENTO_IDEAL       = 0.40;  // 40L — centro do range ideal
+  // Parâmetros do equipamento (banco) ou defaults conservadores
+  const VOL_TOTAL_L        = misturador?.volume_nominal_litros    ?? 100;
+  const FATOR_MAX          = misturador?.fator_enchimento_maximo  ?? 0.65;
+  const FATOR_MIN          = misturador?.fator_enchimento_minimo  ?? 0.15;
+  const DENSIDADE_EQUIP    = misturador?.densidade_padrao_kg_l    ?? 0.65;
 
-  const VOLUME_UTIL_MAX_L = MISTURADOR_VOLUME_TOTAL_L * FATOR_ENCHIMENTO_MAXIMO; // 65L
-  const VOLUME_UTIL_MIN_L = MISTURADOR_VOLUME_TOTAL_L * FATOR_ENCHIMENTO_MINIMO; // 15L
+  // Volume útil máximo e mínimo por batelada (em litros)
+  const VOLUME_UTIL_MAX_L  = VOL_TOTAL_L * FATOR_MAX;   // ex: 100 × 0.65 = 65L
+  const VOLUME_UTIL_MIN_L  = VOL_TOTAL_L * FATOR_MIN;   // ex: 100 × 0.15 = 15L
 
-  // Parâmetros da fórmula (da fórmula selecionada ou defaults industriais)
-  const PESO_ENCHIMENTO_MG  = selectedFormula?.peso_enchimento_mg  ?? 500;
-  const DENSIDADE_FORMULA   = selectedFormula?.densidade_aparente_kg_l ?? 0.65;
+  // Parâmetros da fórmula — usa o real, fallback para o equipamento, fallback para default
+  const PESO_ENCHIMENTO_MG = selectedFormula?.peso_enchimento_mg       ?? 500;
+  const DENSIDADE_FORMULA  = selectedFormula?.densidade_aparente_kg_l  ?? DENSIDADE_EQUIP;
 
-  // 1. Peso total do pó a misturar (em kg)
+  // 1. Peso total do pó a misturar (kg)
   const pesoTotalMisturaKg = totalComAcrescimo > 0
     ? (totalComAcrescimo * PESO_ENCHIMENTO_MG) / 1_000_000
     : 0;
 
-  // 2. Volume total ocupado pelo pó (em litros) = peso / densidade
+  // 2. Volume total ocupado pelo pó (litros) = peso ÷ densidade real da fórmula
   const volumeTotalPoL = DENSIDADE_FORMULA > 0
     ? pesoTotalMisturaKg / DENSIDADE_FORMULA
     : 0;
 
-  // 3. Número de bateladas necessárias (por volume — é o limitante real)
+  // 3. Número de bateladas — limitado pelo VOLUME (critério real do misturador)
   const numeroBateladas = volumeTotalPoL > 0
     ? Math.ceil(volumeTotalPoL / VOLUME_UTIL_MAX_L)
     : 1;
 
   // 4. Volume e peso por batelada
-  const volumePorBatelada = numeroBateladas > 0
-    ? volumeTotalPoL / numeroBateladas
+  const volumePorBatelada  = numeroBateladas > 0 ? volumeTotalPoL   / numeroBateladas : 0;
+  const pesoPorBatelada    = numeroBateladas > 0 ? pesoTotalMisturaKg / numeroBateladas : 0;
+
+  // 5. Fator de enchimento real (0.0 a 1.0) — quanto do misturador será usado
+  const fatorEnchimentoReal = VOL_TOTAL_L > 0
+    ? volumePorBatelada / VOL_TOTAL_L
     : 0;
 
-  const pesoPorBatelada = numeroBateladas > 0
-    ? pesoTotalMisturaKg / numeroBateladas
-    : 0;
-
-  // 5. Fator de enchimento real da batelada (ex: 0.42 = 42% do volume)
-  const fatorEnchimentoReal = MISTURADOR_VOLUME_TOTAL_L > 0
-    ? volumePorBatelada / MISTURADOR_VOLUME_TOTAL_L
-    : 0;
-
-  // 6. Status por VOLUME (critério principal) + confirmação por peso
+  // 6. Status baseado em volume (critério principal)
   const bateladaStatus: 'ok' | 'aviso_baixo' | 'aviso_alto' | 'bloqueado' = (() => {
     if (volumePorBatelada <= 0) return 'ok';
-    if (volumePorBatelada > VOLUME_UTIL_MAX_L)  return 'bloqueado';  // >65L: impossível
-    if (volumePorBatelada > VOLUME_UTIL_MAX_L * 0.90) return 'aviso_alto'; // 58–65L: atenção
-    if (volumePorBatelada < VOLUME_UTIL_MIN_L)  return 'aviso_baixo'; // <15L: risco homog.
-    return 'ok'; // 15–58L: range seguro
+    if (volumePorBatelada > VOLUME_UTIL_MAX_L)              return 'bloqueado';
+    if (volumePorBatelada > VOLUME_UTIL_MAX_L * 0.90)       return 'aviso_alto';
+    if (volumePorBatelada < VOLUME_UTIL_MIN_L)              return 'aviso_baixo';
+    return 'ok';
   })();
+
+  const nomeMisturador = misturador?.nome ?? `Misturador em V ${VOL_TOTAL_L}L`;
 
   const bateladaAlerta: string | null = (() => {
     switch (bateladaStatus) {
       case 'bloqueado':
-        return `Volume por batelada (${volumePorBatelada.toFixed(1)}L) excede o máximo do misturador (${VOLUME_UTIL_MAX_L}L). OP bloqueada.`;
+        return `Volume por batelada (${volumePorBatelada.toFixed(1)}L) excede o limite do ${nomeMisturador} (${VOLUME_UTIL_MAX_L.toFixed(0)}L úteis). Reduza a quantidade ou cadastre um equipamento maior.`;
       case 'aviso_alto':
-        return `Volume por batelada (${volumePorBatelada.toFixed(1)}L) próximo ao limite. Confirme a densidade da fórmula (${DENSIDADE_FORMULA} kg/L) antes de produzir.`;
+        return `Volume por batelada (${volumePorBatelada.toFixed(1)}L) próximo ao limite de ${VOLUME_UTIL_MAX_L.toFixed(0)}L. Confirme a densidade da fórmula (${DENSIDADE_FORMULA.toFixed(2)} kg/L) antes de produzir.`;
       case 'aviso_baixo':
-        return `Volume por batelada (${volumePorBatelada.toFixed(1)}L) abaixo do mínimo recomendado (${VOLUME_UTIL_MIN_L}L). Risco de heterogeneidade da mistura.`;
+        return `Volume por batelada (${volumePorBatelada.toFixed(1)}L) abaixo do mínimo recomendado (${VOLUME_UTIL_MIN_L.toFixed(0)}L). Risco de heterogeneidade na mistura.`;
       default:
         return null;
     }
@@ -163,6 +168,18 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         .order("created_at", { ascending: false });
       setPedidos((data as PedidoVenda[]) || []);
     };
+    const fetchMisturador = async () => {
+      const { data } = await supabase
+        .from('equipamentos')
+        .select('nome, volume_nominal_litros, fator_enchimento_maximo, fator_enchimento_minimo, fator_enchimento_padrao, densidade_padrao_kg_l')
+        .eq('ativo', true)
+        .in('tipo', ['MISTURADOR_V', 'MISTURADOR_DUPLO_CONE'])
+        .order('nome')
+        .limit(1)
+        .maybeSingle();
+      if (data) setMisturador(data as any);
+    };
+    fetchMisturador();
     fetchFormulas();
     fetchPedidos();
     setEtapaAtual(1);
@@ -377,6 +394,9 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         numero_bateladas: numeroBateladas,
         peso_por_batelada_kg: pesoPorBatelada,
         alerta_batelada: bateladaAlerta,
+        volume_total_po_l: volumeTotalPoL,
+        volume_por_batelada_l: volumePorBatelada,
+        fator_enchimento_real: fatorEnchimentoReal,
       };
 
       const { data: newOP, error } = await supabase
@@ -428,6 +448,9 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     volumeTotalPoL,
     volumePorBatelada,
     fatorEnchimentoReal,
+    nomeMisturador,
+    VOLUME_UTIL_MAX_L,
+    VOLUME_UTIL_MIN_L,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange,
     podeAvancar, avancar, voltar, onSubmit,
     progressoEtapas: (etapaAtual / 4) * 100,
