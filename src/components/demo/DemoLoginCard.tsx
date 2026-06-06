@@ -128,8 +128,8 @@ export function DemoLoginCard() {
         return;
       }
       
-      // Clear query cache to force fresh fetch of profile and company
-      localStorage.removeItem('sb-f89a65aa-5a86-44ae-a22f-c29da70764ba-auth-token');
+      // Clear any local state to force total refresh
+      sessionStorage.clear();
       
       toast.success('Bem-vindo à demonstração!');
       // Use window.location.href to ensure a clean state
