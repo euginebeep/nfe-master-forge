@@ -31,7 +31,8 @@ import {
   HelpCircle,
   LogOut,
   Thermometer,
-  Settings2 } from
+  Settings2,
+  ClipboardCheck } from
 "lucide-react";
 import {
   Sidebar,
