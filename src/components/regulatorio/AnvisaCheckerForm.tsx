@@ -108,32 +108,21 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       if (error) throw error;
 
       // Salvar histórico
-      const { data: laudo, error: saveError } = await supabase
-        .from('anvisa_laudos')
-        .insert({
-          company_id: 'd9b071e6-34b6-4b21-8b21-4f2495d4f3b7', // Idealmente pegar do profile, mas usaremos um fallback seguro ou injetado
-          produto: productName,
-          cliente: clientName,
-          status_geral: data.status_geral,
-          payload_entrada: { ativos: assets, publico: audience },
-          resultado_ia: data
-        })
-        .select()
-        .single();
+      // Salvar histórico
+      const { data: profile } = await supabase.from('profiles').select('company_id').single();
+      const companyId = profile?.company_id;
 
-      if (saveError) {
-        // Tentar buscar company_id dinamicamente se o hardcoded falhar (fallback para profiles)
-        const { data: profile } = await supabase.from('profiles').select('company_id').single();
-        if (profile?.company_id) {
-          await supabase.from('anvisa_laudos').insert({
-            company_id: profile.company_id,
+      if (companyId) {
+        await supabase
+          .from('anvisa_laudos')
+          .insert({
+            company_id: companyId,
             produto: productName,
             cliente: clientName,
             status_geral: data.status_geral,
-            payload_entrada: { ativos: assets, publico: audience },
-            resultado_ia: data
+            payload_entrada: { ativos: assets, publico: audience } as any,
+            resultado_ia: data as any
           });
-        }
       }
 
       onResult({
