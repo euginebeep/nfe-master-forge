@@ -416,6 +416,9 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         volume_por_batelada_l: volumePorBatelada,
         fator_enchimento_real: fatorEnchimentoReal,
         equipamento_id: values.equipamento_id || null,
+        volume_util_max_l: VOLUME_UTIL_MAX_L,
+        fator_enchimento_alvo: FATOR_DEFINIDO,
+        densidade_utilizada_kg_l: DENSIDADE_FORMULA,
       };
 
       const { data: newOP, error } = await supabase
