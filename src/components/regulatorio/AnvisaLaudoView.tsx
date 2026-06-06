@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, FileCode, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain } from 'lucide-react';
+import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode } from 'lucide-react';
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
+import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 
 interface AnvisaLaudoViewProps {
   data: {
@@ -28,15 +29,13 @@ interface AnvisaLaudoViewProps {
 export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset, onSelectProduct }) => {
   const handlePrint = () => window.print();
 
-  const handleExportHTML = () => {
-    const htmlContent = document.getElementById('laudo-content')?.innerHTML;
-    if (!htmlContent) return;
-    const blob = new Blob([`<html><head><title>Laudo - ${data.produto}</title></head><body>${htmlContent}</body></html>`], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laudo-${data.produto}.html`;
-    a.click();
+  const handleExportLaudo = () => {
+    try {
+      exportLaudoA4(data);
+      toast.success("Laudo gerado. Use 'Salvar como PDF' na janela de impressão.");
+    } catch (e: any) {
+      toast.error("Falha ao gerar laudo: " + (e?.message || 'erro'));
+    }
   };
 
   const handleCopyLink = () => {
@@ -59,7 +58,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         <h2 className="text-xl font-bold">Laudo de Conformidade</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
-          <Button variant="outline" size="sm" onClick={handleExportHTML}><FileCode className="w-4 h-4 mr-2" /> Exportar HTML</Button>
+          <Button variant="default" size="sm" onClick={handleExportLaudo}><FileDown className="w-4 h-4 mr-2" /> Exportar Laudo (A4/PDF)</Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink}><Copy className="w-4 h-4 mr-2" /> Copiar link</Button>
           <Button variant="default" size="sm" onClick={onReset}><RefreshCw className="w-4 h-4 mr-2" /> Nova análise</Button>
         </div>
