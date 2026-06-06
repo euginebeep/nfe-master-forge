@@ -24,10 +24,12 @@ function BI({ name, size = 16, color, className = '' }: { name: string; size?: n
 }
 
 const FEATURES = [
-  { icon: 'box-seam-fill',    label: 'Gestão de Estoque',    sub: 'Controle de lotes, rastreabilidade e FEFO automático' },
-  { icon: 'gear-wide-connected', label: 'Produção Industrial', sub: 'Fórmulas, ordens de produção e controle de qualidade' },
-  { icon: 'speedometer2',     label: 'Dashboard Executivo',   sub: 'KPIs em tempo real, alertas e inteligência operacional' },
-  { icon: 'shield-fill-check', label: 'Conformidade ANVISA',  sub: 'Validações regulatórias e auditoria imutável' },
+  { icon: 'factory',          label: 'Manufatura 4.0',       sub: 'Gestão completa de OPs, fórmulas complexas e centros de custo' },
+  { icon: 'shield-check',     label: 'Compliance Regulatório', sub: 'Rastreabilidade total conforme RDC 658/2022 e normas ANVISA' },
+  { icon: 'box-seam',         label: 'Inteligência de Estoque', sub: 'Controle FEFO/FIFO por lote com gestão de quarentena' },
+  { icon: 'graph-up-arrow',   label: 'BI & Performance',     sub: 'Dashboards executivos com KPIs de produtividade e perdas' },
+  { icon: 'file-earmark-text', label: 'Gestão Fiscal & NF-e', sub: 'Emissão automatizada de notas fiscais e controle tributário' },
+  { icon: 'clipboard2-check',  label: 'Controle de Qualidade', sub: 'Checklists de BPF, Line Clearance e análise laboratorial' },
 ];
 
 /* ─── Input Field (Bootstrap style) ─── */
@@ -180,25 +182,34 @@ export default function AuthPage() {
             </p>
           </motion.div>
 
-          {/* Feature cards 2×2 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 40 }}>
+          {/* Feature cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 40 }}>
             {FEATURES.map((f, i) => (
               <motion.div key={f.label}
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.22 + i * 0.06 }}
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 8, padding: '16px 14px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: 12, padding: '20px 18px',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.borderColor = 'rgba(13,110,253,0.3)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
                 }}
               >
-                <div style={{ marginBottom: 10, width: 32, height: 32, borderRadius: 6, background: 'rgba(13,110,253,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <BI name={f.icon} size={16} color="#0d6efd" />
+                <div style={{ marginBottom: 14, width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <BI name={f.icon} size={18} color="#0d6efd" />
                 </div>
-                <div style={{ color: '#fff', fontSize: 13.5, fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ color: '#f8f9fa', fontSize: 14, fontWeight: 600, marginBottom: 6, letterSpacing: '-0.01em' }}>
                   {f.label}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, lineHeight: 1.5 }}>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, lineHeight: 1.55 }}>
                   {f.sub}
                 </div>
               </motion.div>
