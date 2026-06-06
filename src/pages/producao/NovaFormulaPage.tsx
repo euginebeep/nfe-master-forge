@@ -312,6 +312,7 @@ export default function NovaFormulaPage() {
               </Alert>
             </CardContent>
           </Card>
+        )}
 
         {form.tipo_apresentacao === 'LIQUIDO' && (
           <Card>

@@ -800,6 +800,7 @@ export default function EditarFormulaPage() {
                 </Alert>
               </CardContent>
             </Card>
+          )}
 
           {/* Ativos críticos */}
           {ativosCriticos > 0 && (
