@@ -24,12 +24,12 @@ function BI({ name, size = 16, color, className = '' }: { name: string; size?: n
 }
 
 const FEATURES = [
-  { icon: 'factory', label: 'Produção rastreável', sub: 'Ordens, lotes e etapas críticas em um fluxo industrial único.' },
+  { icon: 'boxes', label: 'Produção rastreável', sub: 'Ordens, lotes e etapas críticas em um fluxo industrial único.' },
   { icon: 'shield-check', label: 'Qualidade e BPF', sub: 'Controles técnicos para suplementos, auditoria e liberação segura.' },
-  { icon: 'layers', label: 'Estoque por lote', sub: 'FEFO, quarentena, COA e consumo com rastreabilidade total.' },
-  { icon: 'receipt', label: 'Emissão de NF-e', sub: 'Emissor fiscal integrado com cálculo automático de impostos e DANFE.' },
-  { icon: 'thermometer-half', label: 'Controle de temperatura', sub: 'Monitoramento por sensores IoT com alertas e histórico para BPF.' },
-  { icon: 'beaker', label: 'Formulador industrial', sub: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.' },
+  { icon: 'database-fill-check', label: 'Estoque por lote', sub: 'FEFO, quarentena, COA e consumo com rastreabilidade total.' },
+  { icon: 'file-earmark-spreadsheet-fill', label: 'Emissão de NF-e', sub: 'Emissor fiscal integrado com cálculo automático de impostos e DANFE.' },
+  { icon: 'thermometer-snow', label: 'Controle de temperatura', sub: 'Monitoramento por sensores IoT com alertas e histórico para BPF.' },
+  { icon: 'flask', label: 'Formulador industrial', sub: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.' },
 ];
 
 /* ─── Input Field (Bootstrap style) ─── */
