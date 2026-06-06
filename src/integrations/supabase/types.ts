@@ -1240,13 +1240,17 @@ export type Database = {
           descricao: string
           forma_pagamento: string | null
           id: string
+          nota_saida_id: string | null
           numero_documento: string | null
           observacoes: string | null
+          origem: string | null
           pedido_venda_id: string | null
           status: string | null
           updated_at: string | null
           valor: number
+          valor_original: number | null
           valor_pago: number | null
+          valor_restante: number | null
         }
         Insert: {
           cliente_id?: string | null
@@ -1260,13 +1264,17 @@ export type Database = {
           descricao: string
           forma_pagamento?: string | null
           id?: string
+          nota_saida_id?: string | null
           numero_documento?: string | null
           observacoes?: string | null
+          origem?: string | null
           pedido_venda_id?: string | null
           status?: string | null
           updated_at?: string | null
           valor: number
+          valor_original?: number | null
           valor_pago?: number | null
+          valor_restante?: number | null
         }
         Update: {
           cliente_id?: string | null
@@ -1280,13 +1288,17 @@ export type Database = {
           descricao?: string
           forma_pagamento?: string | null
           id?: string
+          nota_saida_id?: string | null
           numero_documento?: string | null
           observacoes?: string | null
+          origem?: string | null
           pedido_venda_id?: string | null
           status?: string | null
           updated_at?: string | null
           valor?: number
+          valor_original?: number | null
           valor_pago?: number | null
+          valor_restante?: number | null
         }
         Relationships: [
           {
@@ -1301,6 +1313,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_receber_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "notas_saida"
             referencedColumns: ["id"]
           },
         ]

@@ -505,9 +505,95 @@ export default function EmissorNFePage() {
       if (itensError) throw itensError;
       return nota;
     },
-    onSuccess: () => {
+    onSuccess: async (notaData) => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
-      toast.success("Rascunho salvo com sucesso!");
+
+      // 1. Gerar conta a receber automaticamente
+      if (notaData?.id && notaData?.valor_total > 0) {
+        const { error: crError } = await supabase
+          .from("contas_receber")
+          .insert({
+            company_id: notaData.company_id,
+            nota_saida_id: notaData.id,
+            cliente_id: notaData.cliente_id || null,
+            descricao: `NF-e ${notaData.numero || notaData.id} — ${cliente?.razao_social || 'Cliente'}`,
+            valor: notaData.valor_total,
+            valor_original: notaData.valor_total,
+            valor_restante: notaData.valor_total,
+            data_emissao: new Date().toISOString().split("T")[0],
+            data_vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            status: "ABERTO",
+            origem: "NF-E",
+          });
+
+        if (crError) {
+          console.error("Erro ao gerar conta a receber:", crError);
+          toast.warning("NF-e emitida, mas falha ao gerar conta a receber. Crie manualmente.");
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["contas-receber"] });
+        }
+      }
+
+      // 2. Baixa FEFO do estoque dos lotes vinculados (via itens da nota)
+      try {
+        const { data: itensNota } = await supabase
+          .from("notas_saida_itens")
+          .select("item_id, quantidade, descricao, unidade")
+          .eq("nota_saida_id", notaData.id);
+
+        if (itensNota && itensNota.length > 0) {
+          for (const item of itensNota) {
+            if (!item.item_id) continue;
+
+            // Buscar lotes disponíveis por FEFO (mais antigos primeiro)
+            const { data: lotes } = await supabase
+              .from("estoque_lotes")
+              .select("id, numero_lote, quantidade_interna, data_val")
+              .eq("item_id", item.item_id)
+              .eq("company_id", notaData.company_id)
+              .eq("status", "DISPONIVEL")
+              .gt("quantidade_interna", 0)
+              .order("data_val", { ascending: true });
+
+            if (!lotes || lotes.length === 0) continue;
+
+            let qtdRestante = item.quantidade;
+            for (const lote of lotes) {
+              if (qtdRestante <= 0) break;
+
+              const baixa = Math.min(qtdRestante, lote.quantidade_interna);
+
+              await supabase
+                .from("estoque_lotes")
+                .update({
+                  quantidade_interna: lote.quantidade_interna - baixa,
+                })
+                .eq("id", lote.id);
+
+              // Registrar movimentação
+              await supabase.from("estoque_movimentacoes").insert({
+                company_id: notaData.company_id,
+                item_id: item.item_id,
+                lote_id: lote.id,
+                tipo: "SAIDA",
+                quantidade: baixa,
+                unidade: item.unidade || "UN",
+                motivo: `Saída NF-e ${notaData.numero || notaData.id}`,
+                documento_ref_id: notaData.id,
+                origem: "NF-E",
+              });
+
+              qtdRestante -= baixa;
+            }
+          }
+          queryClient.invalidateQueries({ queryKey: ["estoque-lotes"] });
+          queryClient.invalidateQueries({ queryKey: ["estoque-movimentacoes"] });
+        }
+      } catch (err) {
+        console.error("Erro na baixa FEFO:", err);
+        toast.warning("NF-e emitida, mas verifique o estoque manualmente.");
+      }
+      toast.success("NF-e emitida com sucesso! Conta a receber gerada e estoque atualizado.");
     },
     onError: (err: any) => toast.error("Erro: " + err.message),
   });
