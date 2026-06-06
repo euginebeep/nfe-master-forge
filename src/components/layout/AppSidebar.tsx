@@ -385,23 +385,75 @@ export function AppSidebar() {
         </SidebarContent>
 
         <SidebarFooter className="border-t border-sidebar-border/50 p-3 bg-sidebar space-y-1">
-          {footerItems.filter(isFooterItemVisible).map(({ to, icon: Icon, label, tooltip, danger }) =>
-          <Tooltip key={to}>
+          {footerItems.filter(isFooterItemVisible).map((item) => {
+            const { to, icon: Icon, label, tooltip, danger } = item as FooterItem;
+            return (
+              <Tooltip key={to}>
+                <TooltipTrigger asChild>
+                  <Link
+                    to={to}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer",
+                      danger
+                        ? isActive(to)
+                          ? "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20"
+                          : "text-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                        : isActive(to)
+                          ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
+                    )}
+                  >
+                    <Icon className={cn(
+                      "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
+                      isActive(to)
+                        ? (danger ? "text-destructive-foreground" : "text-secondary-foreground")
+                        : (danger ? "text-destructive/50" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80")
+                    )} />
+                    {!collapsed && <span className="flex-1 text-[13px] font-medium leading-tight">{label}</span>}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[240px] text-xs">
+                  <p className="font-semibold">{label}</p>
+                  <p className="text-muted-foreground mt-0.5">{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+          
+          {/* Item Equipamentos adicionado via Menu normal para evitar conflito com interface FooterItem */}
+          {isItemVisible({
+            title: "Equipamentos",
+            url: "/settings/equipamentos",
+            icon: Factory,
+            tooltip: "Cadastro de misturadores e equipamentos",
+            modulo: "producao",
+            adminOnly: true
+          }) && (
+            <Tooltip>
               <TooltipTrigger asChild>
                 <Link
-                to={to}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer",
-                  danger
-                    ? isActive(to)
-                      ? "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20"
-                      : "text-destructive/60 hover:bg-destructive/10 hover:text-destructive"
-                    : isActive(to)
+                  to="/settings/equipamentos"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer",
+                    isActive("/settings/equipamentos")
                       ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
-                )}>
+                  )}
+                >
+                  <Factory className={cn(
+                    "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
+                    isActive("/settings/equipamentos") ? "text-secondary-foreground" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80"
+                  )} />
+                  {!collapsed && <span className="flex-1 text-[13px] font-medium leading-tight">Equipamentos</span>}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[240px] text-xs">
+                <p className="font-semibold">Equipamentos</p>
+                <p className="text-muted-foreground mt-0.5">Cadastro de misturadores, encapsuladoras e equipamentos de produção</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
-                  <Icon className={cn(
                     "w-[18px] h-[18px] shrink-0 transition-colors",
                     !isActive(to) && !danger && "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80"
                   )} />
