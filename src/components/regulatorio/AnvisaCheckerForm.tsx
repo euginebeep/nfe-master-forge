@@ -196,8 +196,6 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       await new Promise(r => setTimeout(resolve => r(null), 1000));
       
-      // Se for apenas 1 produto, passa ele diretamente. Se forem vários, o componente pai/página deve lidar.
-      // O contrato de onResult original esperava 1 laudo. Vamos adaptar.
       if (data.total_produtos === 1) {
         onResult({
           produto: data.produtos[0].nome,
@@ -206,18 +204,15 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           resultado_ia: data.produtos[0]
         });
       } else {
-        // Para múltiplos produtos, vamos passar o primeiro ou sinalizar para a página
-        // De acordo com o prompt: "ir para 'Laudos Gerados' com lista de cards"
-        // Mas onResult hoje troca o state selectedLaudo na página.
-        // Vou passar o primeiro laudo e a página vai gerenciar se quiser.
-        onResult({
-          produto: data.produtos[0].nome,
-          cliente: clientName,
-          payload_entrada: { ativos: data.produtos[0].ativos },
-          resultado_ia: data.produtos[0],
-          multiplos: data.produtos
-        });
+        // Para múltiplos produtos, apenas sinalizamos a conclusão e limpamos a seleção
+        // A página vai mudar para a aba de laudos e mostrar a lista
+        onResult(null); 
       }
+
+      toast({ 
+        title: "Análise concluída", 
+        description: `${data.total_produtos} produto(s) analisado(s) com sucesso` 
+      });
 
       toast({ 
         title: "Análise concluída", 
