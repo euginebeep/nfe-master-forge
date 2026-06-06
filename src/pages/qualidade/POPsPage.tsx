@@ -115,16 +115,30 @@ export default function POPsPage() {
   // Mutations
   const popMutation = useMutation({
     mutationFn: async (values: any) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+      
+      const company_id = profile?.company_id;
+      if (!company_id) throw new Error("Empresa não vinculada ao perfil");
+
+      const popData = { ...values, company_id };
+
       if (editingPop) {
         const { error } = await supabase
           .from("pops")
-          .update(values)
+          .update(popData)
           .eq("id", editingPop.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("pops")
-          .insert(values);
+          .insert(popData);
         if (error) throw error;
       }
     },
@@ -139,9 +153,21 @@ export default function POPsPage() {
 
   const execMutation = useMutation({
     mutationFn: async (values: any) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+      
+      const company_id = profile?.company_id;
+      if (!company_id) throw new Error("Empresa não vinculada ao perfil");
+
       const { error } = await supabase
         .from("pop_registros_execucao")
-        .insert(values);
+        .insert({ ...values, company_id });
       if (error) throw error;
     },
     onSuccess: () => {
