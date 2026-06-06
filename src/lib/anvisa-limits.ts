@@ -42,3 +42,29 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   berberina:           { auth: false, min: 0,  max: 0,     unit: '-',   norm: 'PROIBIDO / NÃO LISTADO',  obs: 'Não consta na IN 28 como constituinte' },
   cafeina:             { auth: true,  min: 0,  max: 200,   unit: 'mg',  norm: 'IN 28 Anexo IV (Dose individual)' },
 };
+
+export const VD_REFERENCE: Record<string, number> = {
+  vitamina_a: 800,
+  vitamina_d3: 15,
+  vitamina_c: 100,
+  vitamina_e: 15,
+  vitamina_b1: 1.2,
+  vitamina_b2: 1.2,
+  vitamina_b3: 16,
+  vitamina_b5: 5,
+  vitamina_b6: 1.3,
+  vitamina_b7: 30,
+  vitamina_b9: 400,
+  vitamina_b12: 2.4,
+  vitamina_k2: 120,
+  calcio: 1000,
+  ferro: 14,
+  magnesio: 422,
+  zinco: 11,
+  iodo: 150,
+  selenio: 60,
+  cobre: 900,
+  cromo: 35,
+  manganes: 2.3,
+};
+
