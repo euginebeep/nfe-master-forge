@@ -230,6 +230,88 @@ export type Database = {
           },
         ]
       }
+      amostras_retencao: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          data_coleta: string
+          data_descarte: string | null
+          data_validade_produto: string | null
+          id: string
+          localizacao_fisica: string | null
+          lote_produto_acabado_id: string | null
+          numero_lote: string
+          observacoes: string | null
+          op_id: string | null
+          produto_nome: string
+          quantidade_retida: number
+          responsavel_coleta: string | null
+          status: string
+          unidade: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          data_coleta?: string
+          data_descarte?: string | null
+          data_validade_produto?: string | null
+          id?: string
+          localizacao_fisica?: string | null
+          lote_produto_acabado_id?: string | null
+          numero_lote: string
+          observacoes?: string | null
+          op_id?: string | null
+          produto_nome: string
+          quantidade_retida?: number
+          responsavel_coleta?: string | null
+          status?: string
+          unidade?: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          data_coleta?: string
+          data_descarte?: string | null
+          data_validade_produto?: string | null
+          id?: string
+          localizacao_fisica?: string | null
+          lote_produto_acabado_id?: string | null
+          numero_lote?: string
+          observacoes?: string | null
+          op_id?: string | null
+          produto_nome?: string
+          quantidade_retida?: number
+          responsavel_coleta?: string | null
+          status?: string
+          unidade?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amostras_retencao_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amostras_retencao_lote_produto_acabado_id_fkey"
+            columns: ["lote_produto_acabado_id"]
+            isOneToOne: false
+            referencedRelation: "lotes_produto_acabado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amostras_retencao_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anomalias_operacionais: {
         Row: {
           analise_observacoes: string | null
