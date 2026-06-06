@@ -45,7 +45,9 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
 
 export const VD_REFERENCE: Record<string, number> = {
   vitamina_a: 800,
-  vitamina_d3: 15,
+  vitamina_d3: 15, // 15mcg = 600 UI
+  vitamina_d: 15,
+
   vitamina_c: 100,
   vitamina_e: 15,
   vitamina_b1: 1.2,

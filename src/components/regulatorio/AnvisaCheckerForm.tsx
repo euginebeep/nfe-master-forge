@@ -265,8 +265,15 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           payload_entrada: { ativos: produtos[0].ativos },
           resultado_ia: produtos[0]
         });
-      } else {
-        onResult(null); 
+      } else if (produtos.length > 0) {
+        // Enviar o primeiro produto para visualização imediata, ou um resumo
+        onResult({
+          produto: produtos[0].nome,
+          cliente: clientName,
+          payload_entrada: { ativos: produtos[0].ativos },
+          resultado_ia: produtos[0],
+          multiplos_produtos: produtos // Passar todos os produtos
+        });
       }
 
 

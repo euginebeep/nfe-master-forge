@@ -19,11 +19,13 @@ interface AnvisaLaudoViewProps {
     produto: string;
     cliente?: string;
     ativos: any[];
+    multiplos_produtos?: any[];
   };
   onReset: () => void;
+  onSelectProduct?: (produto: any) => void;
 }
 
-export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset }) => {
+export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset, onSelectProduct }) => {
   const handlePrint = () => window.print();
 
   const handleExportHTML = () => {
@@ -64,6 +66,28 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
       </div>
 
       <div id="laudo-content" className="space-y-8 bg-background p-8 border rounded-lg shadow-sm">
+        {data.multiplos_produtos && data.multiplos_produtos.length > 1 && (
+          <section className="print:hidden mb-8 border-b pb-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <FileCode className="w-5 h-5 text-primary" /> 
+              Produtos detectados ({data.multiplos_produtos.length})
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {data.multiplos_produtos.map((p, idx) => (
+                <Button 
+                  key={idx}
+                  variant={data.produto === (p.nome || p.produto) ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs truncate"
+                  onClick={() => onSelectProduct?.(p)}
+                >
+                  {p.nome || p.produto}
+                </Button>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="text-center space-y-2 border-b pb-6">
           <h1 className="text-3xl font-bold tracking-tight">Relatório de Conformidade Regulatória</h1>
           <p className="text-muted-foreground">BrainX ERP — Módulo ANVISA Checker</p>
