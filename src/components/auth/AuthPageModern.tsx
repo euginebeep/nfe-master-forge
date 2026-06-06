@@ -169,16 +169,13 @@ export default function AuthPageModern() {
             style={{ marginTop: 'auto', marginBottom: 44 }}>
             <h1 style={{
               color: '#fff', fontWeight: 700,
-              fontSize: 'clamp(28px, 3vw, 42px)',
-              lineHeight: 1.15, letterSpacing: '-0.03em', marginBottom: 16,
+              fontSize: 'clamp(32px, 4vw, 48px)',
+              lineHeight: 1.1, letterSpacing: '-0.04em', marginBottom: 20,
             }}>
-              Gestão industrial{' '}
-              <span style={{ color: '#0d6efd' }}>inteligente</span>
-              {' e integrada.'}
+              BrainX ERP para gestão industrial de suplementos.
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.65, maxWidth: 420 }}>
-              Controle total da produção com
-              rastreabilidade, qualidade e conformidade regulatória.
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, lineHeight: 1.6, maxWidth: 480 }}>
+              Controle produção, estoque, qualidade e conformidade com rastreabilidade de ponta a ponta.
             </p>
           </motion.div>
 
