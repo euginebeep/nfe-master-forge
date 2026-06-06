@@ -69,20 +69,27 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
           <section className="print:hidden mb-8 border-b pb-6">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <FileCode className="w-5 h-5 text-primary" /> 
-              Produtos detectados ({data.multiplos_produtos.length})
+              Todos os Produtos Checados ({data.multiplos_produtos.length})
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {data.multiplos_produtos.map((p, idx) => (
-                <Button 
-                  key={idx}
-                  variant={data.produto === (p.nome || p.produto) ? "default" : "outline"}
-                  size="sm"
-                  className="text-xs truncate"
-                  onClick={() => onSelectProduct?.(p)}
-                >
-                  {p.nome || p.produto}
-                </Button>
-              ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {data.multiplos_produtos.map((p, idx) => {
+                const isSelected = data.produto === (p.nome || p.produto);
+                return (
+                  <Button 
+                    key={idx}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "text-xs truncate transition-all",
+                      isSelected ? "ring-2 ring-primary ring-offset-2" : ""
+                    )}
+                    onClick={() => onSelectProduct?.(p)}
+                  >
+                    <CheckCircle className={cn("w-3 h-3 mr-1", isSelected ? "opacity-100" : "opacity-0")} />
+                    {p.nome || p.produto}
+                  </Button>
+                );
+              })}
             </div>
           </section>
         )}
