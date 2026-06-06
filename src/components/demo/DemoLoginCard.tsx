@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Play, Copy, Check, User, Mail, Phone, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -9,12 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { maskPhone } from '@/lib/masks';
 import { normalizeEmail, normalizePhone, isDemoExpired } from '@/lib/leads-utils';
+import { useAuth } from '@/hooks/use-auth';
 
 const DEMO_EMAIL = 'demo@brainxerp.com';
 const DEMO_PASSWORD = 'BrainxERPDemo2026!';
 
 export function DemoLoginCard() {
-  const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -100,14 +100,11 @@ export function DemoLoginCard() {
         console.error('Erro ao salvar lead:', leadError);
       }
 
-      // 2. Auth
-      let { error } = await supabase.auth.signInWithPassword({
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-      });
+      // 2. Auth via AuthContext, so profile/company are loaded before the app opens
+      let result = await signIn(DEMO_EMAIL, DEMO_PASSWORD);
 
       // Se ainda não existe, provisiona via bootstrap e tenta novamente
-      if (error) {
+      if (result?.error) {
         toast.info('Preparando conta demo... isso pode levar até 1 minuto.');
         const { error: bootErr } = await supabase.functions.invoke('bootstrap-demo-user');
         if (bootErr) {
@@ -115,20 +112,15 @@ export function DemoLoginCard() {
           toast.error('Falha ao preparar demo: ' + bootErr.message);
           return;
         }
-        const retry = await supabase.auth.signInWithPassword({
-          email: DEMO_EMAIL,
-          password: DEMO_PASSWORD,
-        });
-        error = retry.error;
+        result = await signIn(DEMO_EMAIL, DEMO_PASSWORD);
       }
 
-      if (error) {
-        toast.error('Demo indisponível: ' + error.message);
+      if (result?.error) {
+        toast.error('Demo indisponível: ' + result.error.message);
         return;
       }
       
       toast.success('Bem-vindo à demonstração!');
-      navigate('/');
     } catch (err: any) {
       toast.error('Erro ao acessar demo: ' + err.message);
     } finally {
