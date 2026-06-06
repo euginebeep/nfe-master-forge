@@ -13,7 +13,7 @@ export function useCompany() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("company_id")
+        .select("company_id, is_demo")
         .eq("id", session.user.id)
         .maybeSingle();
 
