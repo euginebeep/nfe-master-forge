@@ -12,10 +12,8 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoadingSpinner } from "./components/ui/loading-spinner";
 import { AuthProvider } from "./contexts/AuthContext";
 
-// Auth (not lazy - needed immediately)
-import AuthPage from "./components/auth/AuthPage";
-
 // Lazy loaded pages
+const AuthPageModern = lazy(() => import("./components/auth/AuthPageModern"));
 const Index = lazy(() => import("./pages/Index"));
 const RoadmapPage = lazy(() => import("./pages/RoadmapPage"));
 const FAQPage = lazy(() => import("./pages/faq/FAQPage"));
@@ -107,7 +105,7 @@ const App = () => (
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>
               {/* Auth - público */}
-              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/auth" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AuthPageModern /></ErrorBoundary></Suspense>} />
               <Route path="/termos-de-uso" element={<Suspense fallback={<PageFallback />}><TermosUsoPage /></Suspense>} />
               <Route path="/politica-de-privacidade" element={<Suspense fallback={<PageFallback />}><PoliticaPrivacidadePage /></Suspense>} />
 
@@ -217,7 +215,6 @@ const App = () => (
                 <Route path="/chat" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ChatInternoPage /></ErrorBoundary></Suspense>} />
                 {/* Assinatura */}
                 <Route path="/assinatura" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AssinaturaPage /></ErrorBoundary></Suspense>} />
-                {/* Usuários — admin only */}
                 {/* Usuários — admin only */}
                 <Route path="/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
