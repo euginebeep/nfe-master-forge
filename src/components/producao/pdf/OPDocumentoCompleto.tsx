@@ -80,8 +80,8 @@ export function OPDocumentoCompleto({
         setOp({
           ...initialOp,
           balanca_numero_serie: (balanca as any)?.numero_serie || null,
-          balanca_ultima_calibracao: calibracao?.data_calibracao || null,
-          balanca_proxima_calibracao: calibracao?.proxima_calibracao || null,
+          balanca_ultima_calibracao: (calibracao as any)?.data_calibracao || null,
+          balanca_proxima_calibracao: (calibracao as any)?.proxima_calibracao || null,
           temperatura_inicio: (opCompleta as any)?.temperatura_inicio || null,
           umidade_inicio: (opCompleta as any)?.umidade_inicio || null,
           sala_producao: (opCompleta as any)?.sala_producao || null,
