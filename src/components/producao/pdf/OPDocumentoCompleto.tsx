@@ -43,52 +43,55 @@ export function OPDocumentoCompleto({
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data: profile } = await supabase
+        const { data: profile } = await (supabase
           .from('profiles')
           .select('company_id')
-          .eq('id', user.id)
+          .eq('id', user.id) as any)
           .single();
         
         const companyId = profile?.company_id;
         if (!companyId) return;
 
+        // Use any to bypass recursion issues
+        const sb: any = supabase;
+
         // Buscar balança
-        const { data: balancaResult } = await (supabase
+        const { data: balancaResult } = await sb
           .from('equipamentos')
           .select('id, numero_serie')
           .eq('company_id', companyId)
           .ilike('nome', '%balança%')
           .eq('ativo', true)
-          .limit(1) as any)
+          .limit(1)
           .maybeSingle();
 
         let calibracaoData: any = null;
         if (balancaResult?.id) {
-          const { data: calibracaoResult } = await (supabase
+          const { data: calibracaoResult } = await sb
             .from('qc_calibracoes')
             .select('data_calibracao, proxima_calibracao')
             .eq('equipamento_id', balancaResult.id)
             .order('proxima_calibracao', { ascending: false })
-            .limit(1) as any)
+            .limit(1)
             .maybeSingle();
           calibracaoData = calibracaoResult;
         }
 
-        const { data: opResult } = await (supabase
+        const { data: opResult } = await sb
           .from('ordens_producao_industrial')
           .select('temperatura_inicio, umidade_inicio, sala_producao, rendimento_percentual')
-          .eq('id', (initialOp as any).id) as any)
+          .eq('id', (initialOp as any).id)
           .maybeSingle();
 
         setOp((prev: any) => ({
           ...initialOp,
-          balanca_numero_serie: (balancaResult as any)?.numero_serie || null,
+          balanca_numero_serie: balancaResult?.numero_serie || null,
           balanca_ultima_calibracao: calibracaoData?.data_calibracao || null,
           balanca_proxima_calibracao: calibracaoData?.proxima_calibracao || null,
-          temperatura_inicio: (opResult as any)?.temperatura_inicio || null,
-          umidade_inicio: (opResult as any)?.umidade_inicio || null,
-          sala_producao: (opResult as any)?.sala_producao || null,
-          rendimento_percentual: (opResult as any)?.rendimento_percentual || null,
+          temperatura_inicio: opResult?.temperatura_inicio || null,
+          umidade_inicio: opResult?.umidade_inicio || null,
+          sala_producao: opResult?.sala_producao || null,
+          rendimento_percentual: opResult?.rendimento_percentual || null,
         }));
       } catch (err) {
         console.error('Erro ao buscar dados complementares:', err);
