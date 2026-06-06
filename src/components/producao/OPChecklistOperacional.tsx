@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { CHECKLIST_PADRAO as CENTRALIZED_CHECKLIST } from '@/types/op-industrial';
 
 interface ChecklistItem {
   id: string;
@@ -45,38 +46,13 @@ const CATEGORIAS = [
 ] as const;
 
 // Checklist padrão industrial se não houver items do banco
-const CHECKLIST_PADRAO: Omit<ChecklistItem, 'id' | 'verificado' | 'verificado_por' | 'verificado_em'>[] = [
-  // Pré-Produção
-  { codigo: 'PRE-01', descricao: 'Conferência de insumos e lotes recebidos', categoria: 'PRE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PRE-02', descricao: 'Verificação de validade de todos os insumos', categoria: 'PRE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PRE-03', descricao: 'Área de produção limpa e liberada', categoria: 'PRE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PRE-04', descricao: 'Balança calibrada e com certificado válido', categoria: 'PRE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PRE-05', descricao: 'Utensílios limpos e identificados', categoria: 'PRE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PRE-06', descricao: 'COAs/Laudos de todos os lotes anexados', categoria: 'PRE_PRODUCAO', obrigatorio: true },
-  
-  // Durante Produção
-  { codigo: 'PROD-01', descricao: 'Pesagem realizada conforme ordem de mistura', categoria: 'DURANTE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PROD-02', descricao: 'Pré-mix de ativos críticos preparado (se aplicável)', categoria: 'DURANTE_PRODUCAO', obrigatorio: false },
-  { codigo: 'PROD-03', descricao: 'Distribuição geométrica realizada (se aplicável)', categoria: 'DURANTE_PRODUCAO', obrigatorio: false },
-  { codigo: 'PROD-04', descricao: 'Dupla conferência de pesagem crítica registrada', categoria: 'DURANTE_PRODUCAO', obrigatorio: false },
-  { codigo: 'PROD-05', descricao: 'Ordem de mistura seguida corretamente', categoria: 'DURANTE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PROD-06', descricao: 'Tempo de homogeneização cumprido', categoria: 'DURANTE_PRODUCAO', obrigatorio: true },
-  { codigo: 'PROD-07', descricao: 'Encapsulamento/envase realizado', categoria: 'DURANTE_PRODUCAO', obrigatorio: true },
-  
-  // Pós-Produção
-  { codigo: 'POS-01', descricao: 'Contagem final de unidades produzidas', categoria: 'POS_PRODUCAO', obrigatorio: true },
-  { codigo: 'POS-02', descricao: 'Envase em frascos finalizado', categoria: 'POS_PRODUCAO', obrigatorio: true },
-  { codigo: 'POS-03', descricao: 'Rotulagem aplicada e conferida', categoria: 'POS_PRODUCAO', obrigatorio: true },
-  { codigo: 'POS-04', descricao: 'Marcação de lote e validade conferida', categoria: 'POS_PRODUCAO', obrigatorio: true },
-  { codigo: 'POS-05', descricao: 'Upload do rótulo FINAL no sistema', categoria: 'POS_PRODUCAO', obrigatorio: true },
-  { codigo: 'POS-06', descricao: 'Embalagem secundária conferida', categoria: 'POS_PRODUCAO', obrigatorio: true },
-  
-  // QC
-  { codigo: 'QC-01', descricao: 'Amostra de retenção separada', categoria: 'QC', obrigatorio: true },
-  { codigo: 'QC-02', descricao: 'Teste de peso médio aprovado', categoria: 'QC', obrigatorio: true },
-  { codigo: 'QC-03', descricao: 'Aspecto visual do produto aprovado', categoria: 'QC', obrigatorio: true },
-  { codigo: 'QC-04', descricao: 'Liberação pelo Responsável Técnico', categoria: 'QC', obrigatorio: true },
-];
+// Checklist padrão industrial vindo do sistema centralizado
+const CHECKLIST_PADRAO_LOCAL = CENTRALIZED_CHECKLIST.map(item => ({
+  codigo: item.codigo || 'CH-00',
+  descricao: item.item,
+  categoria: item.categoria,
+  obrigatorio: item.obrigatorio,
+}));
 
 export function OPChecklistOperacional({
   opCodigo,
@@ -92,7 +68,7 @@ export function OPChecklistOperacional({
   // Usar checklist do banco ou padrão
   const items: ChecklistItem[] = checklist.length > 0 
     ? checklist 
-    : CHECKLIST_PADRAO.map((item, idx) => ({
+    : CHECKLIST_PADRAO_LOCAL.map((item, idx) => ({
         ...item,
         id: `padrao-${idx}`,
         verificado: false,
