@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +112,21 @@ export default function SaasDashboardPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete" | "grant-access"; company: SaasCompany } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [grantDays, setGrantDays] = useState(30);
+
+  const { data: leadsCount } = useQuery({
+    queryKey: ['demo-leads-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('demo_leads')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) {
+        console.error("Error fetching leads count:", error);
+        return 0;
+      }
+      return count || 0;
+    }
+  });
 
   // Check if already logged in as admin
   useEffect(() => {
@@ -344,7 +360,7 @@ export default function SaasDashboardPage() {
             <Building2 className="h-4 w-4" /> Empresas
           </TabsTrigger>
           <TabsTrigger value="leads" className="gap-2">
-            <FileText className="h-4 w-4" /> Leads Demo
+            <FileText className="h-4 w-4" /> Leads Demo {leadsCount !== undefined && leadsCount > 0 && <span className="ml-1 bg-primary/10 text-primary text-xs px-1.5 py-0.5 rounded-full">{leadsCount}</span>}
           </TabsTrigger>
           <TabsTrigger value="desafios" className="gap-2">
             <Unlock className="h-4 w-4" /> Solicitações Unlock
