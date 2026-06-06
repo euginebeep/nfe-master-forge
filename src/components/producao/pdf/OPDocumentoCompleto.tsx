@@ -27,18 +27,77 @@ interface OPDocumentoCompletoProps {
 }
 
 export function OPDocumentoCompleto({ 
-  op, 
+  op: initialOp, 
   materiasPrimas = [], 
   embalagens = [],
   checklist = []
 }: OPDocumentoCompletoProps) {
+  const [op, setOp] = useState<OPDadosPDF>(initialOp);
   const [activeTab, setActiveTab] = useState('separacao');
   const [allSectionsRendered, setAllSectionsRendered] = useState(false);
 
-  // Garantir que todas as seções são renderizadas para impressão
+  // Buscar dados complementares para o PDF
   useEffect(() => {
+    const fetchExtraData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single();
+        
+        const companyId = profile?.company_id;
+        if (!companyId) return;
+
+        // Buscar dados de balança do equipamento cadastrado
+        const { data: balanca } = await supabase
+          .from('equipamentos')
+          .select('*')
+          .eq('company_id', companyId)
+          .ilike('nome', '%balança%')
+          .eq('ativo', true)
+          .limit(1)
+          .maybeSingle();
+
+        // Buscar calibração mais recente da balança
+        const { data: calibracao } = balanca?.id
+          ? await supabase
+              .from('qc_calibracoes')
+              .select('*')
+              .eq('equipamento_id', balanca.id)
+              .order('proxima_calibracao', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : { data: null };
+
+        // Buscar condições ambientais do início da OP
+        const { data: opCompleta } = await supabase
+          .from('ordens_producao_industrial')
+          .select('temperatura_inicio, umidade_inicio, sala_producao, rendimento_percentual')
+          .eq('id', (initialOp as any).id)
+          .maybeSingle();
+
+        setOp(prev => ({
+          ...prev,
+          balanca_numero_serie: balanca?.numero_serie || null,
+          balanca_ultima_calibracao: calibracao?.data_calibracao || null,
+          balanca_proxima_calibracao: calibracao?.proxima_calibracao || null,
+          temperatura_inicio: opCompleta?.temperatura_inicio || null,
+          umidade_inicio: opCompleta?.umidade_inicio || null,
+          sala_producao: opCompleta?.sala_producao || null,
+          rendimento_percentual: opCompleta?.rendimento_percentual || null,
+        }));
+      } catch (err) {
+        console.error('Erro ao buscar dados complementares para PDF:', err);
+      }
+    };
+
+    fetchExtraData();
     setAllSectionsRendered(true);
-  }, []);
+  }, [initialOp]);
 
   const handlePrintSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);
