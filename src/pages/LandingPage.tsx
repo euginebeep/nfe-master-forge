@@ -144,7 +144,7 @@ export default function LandingPage() {
               </span>
             </div>
           </Link>
-          <nav className="hidden md:flex items-center gap-7 text-sm font-medium" style={{ color: "#374151" }}>
+          <nav className="hidden lg:flex items-center gap-7 text-sm font-medium" style={{ color: "#374151" }}>
             <a href="#modulos" className="hover:opacity-70 transition-opacity">Módulos</a>
             <a href="#compliance" className="hover:opacity-70 transition-opacity">Compliance</a>
             <a href="#como-funciona" className="hover:opacity-70 transition-opacity">Como funciona</a>
@@ -385,7 +385,7 @@ export default function LandingPage() {
                     </div>
                     <span className="w-fit text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style={{ background: "#DCFCE7", color: "#15803D" }}>Liberado</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div><div style={{ color: "#6B7280" }}>Produto</div><div className="font-bold text-[13px] break-words" style={{ color: "#0F172A" }}>Vitamina D3 2000 UI</div></div>
                     <div><div style={{ color: "#6B7280" }}>Validade</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>12/2027</div></div>
                     <div><div style={{ color: "#6B7280" }}>RT (CRF)</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>Dra. M. Almeida</div></div>
