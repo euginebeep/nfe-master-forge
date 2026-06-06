@@ -1,12 +1,24 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { AnvisaCheckerForm } from "@/components/regulatorio/AnvisaCheckerForm";
+import { TabelaNutricionalBuilder } from "@/components/regulatorio/TabelaNutricionalBuilder";
+import { AnvisaLaudosHistorico } from "@/components/regulatorio/AnvisaLaudosHistorico";
+import { AnvisaBaseConstituintes } from "@/components/regulatorio/AnvisaBaseConstituintes";
+import { AnvisaLaudoView } from "@/components/regulatorio/AnvisaLaudoView";
 import { FlaskConical, FileText, LayoutList, Database } from "lucide-react";
 
 export default function AnvisaCheckerPage() {
   const [activeTab, setActiveTab] = useState("formula");
+  const [selectedLaudo, setSelectedLaudo] = useState<any>(null);
+
+  const handleLaudoGenerated = (laudo: any) => {
+    setSelectedLaudo(laudo);
+  };
+
+  const handleReset = () => {
+    setSelectedLaudo(null);
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6 animate-in fade-in duration-500">
@@ -36,40 +48,34 @@ export default function AnvisaCheckerPage() {
         </TabsList>
 
         <TabsContent value="formula">
-          <AnvisaCheckerForm />
+          {selectedLaudo ? (
+            <AnvisaLaudoView 
+              data={{
+                ...selectedLaudo.resultado_ia,
+                produto: selectedLaudo.produto,
+                cliente: selectedLaudo.cliente,
+                ativos: selectedLaudo.payload_entrada.ativos
+              }} 
+              onReset={handleReset} 
+            />
+          ) : (
+            <AnvisaCheckerForm onResult={handleLaudoGenerated} />
+          )}
         </TabsContent>
 
         <TabsContent value="tabela">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <LayoutList className="w-12 h-12 mb-4 opacity-20" />
-                <p>Módulo de Tabela Nutricional em desenvolvimento.</p>
-              </div>
-            </CardContent>
-          </Card>
+          <TabelaNutricionalBuilder />
         </TabsContent>
 
         <TabsContent value="laudos">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <FileText className="w-12 h-12 mb-4 opacity-20" />
-                <p>Nenhum laudo gerado recentemente.</p>
-              </div>
-            </CardContent>
-          </Card>
+          <AnvisaLaudosHistorico onSelect={(laudo) => {
+            setSelectedLaudo(laudo);
+            setActiveTab("formula");
+          }} />
         </TabsContent>
 
         <TabsContent value="base">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Database className="w-12 h-12 mb-4 opacity-20" />
-                <p>Consulta direta à Base ANVISA.</p>
-              </div>
-            </CardContent>
-          </Card>
+          <AnvisaBaseConstituintes />
         </TabsContent>
       </Tabs>
     </div>
