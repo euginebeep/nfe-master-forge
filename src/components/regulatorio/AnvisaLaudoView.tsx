@@ -171,44 +171,53 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
 
         <section className="space-y-4">
           <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Tabela Nutricional (RDC 429/2020)</h3>
-          <div className="border-2 border-primary/20 p-4 rounded-lg bg-slate-950 max-w-sm mx-auto">
-            <h4 className="text-center font-bold text-lg border-b-2 border-primary/20 pb-1 mb-2">INFORMAÇÃO NUTRICIONAL</h4>
-            <Table>
-              <TableHeader>
-                <TableRow className="text-[10px] border-b-2 border-primary/20">
-                  <TableHead className="h-auto py-1">NUTRIENTE</TableHead>
-                  <TableHead className="h-auto py-1 text-right">QTD / DOSE</TableHead>
-                  <TableHead className="h-auto py-1 text-right">%VD*</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <div className="border-2 border-primary/20 p-6 rounded-lg bg-slate-950 max-w-md mx-auto shadow-2xl">
+            <h4 className="text-center font-black text-xl border-b-2 border-primary/20 pb-2 mb-4 tracking-tighter">INFORMAÇÃO NUTRICIONAL</h4>
+            <div className="space-y-4">
+              <div className="flex justify-between items-end border-b-2 border-primary/20 pb-1 font-bold text-[11px] uppercase tracking-wider">
+                <span className="w-1/2">Nutriente</span>
+                <span className="w-1/4 text-right">Qtd/Dose</span>
+                <span className="w-1/4 text-right">%VD*</span>
+              </div>
+              
+              <div className="divide-y divide-primary/10">
                 {data.ativos.map((ativo, i) => {
                   const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
                   const vdRef = key ? VD_REFERENCE[key] : null;
-                  const nomeAtivo = ativo.nome || ativo.name || '-';
+                  const nomeAtivo = ativo.nome || ativo.name || 'Indefinido';
                   let doseMg = parseFloat(ativo.dose) || 0;
-                  if (ativo.unit === 'mcg') doseMg /= 1000;
-                  if (ativo.unit === 'g') doseMg *= 1000;
+                  
+                  // Normalização para cálculo de VD
+                  const unit = (ativo.unit || '').toLowerCase();
+                  if (unit === 'mcg') doseMg /= 1000;
+                  if (unit === 'g') doseMg *= 1000;
                   
                   const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
 
                   return (
-                    <TableRow key={i} className="text-[10px] border-b border-primary/10">
-                      <TableCell className="py-1">{nomeAtivo}</TableCell>
-                      <TableCell className="py-1 text-right">{ativo.dose} {ativo.unit}</TableCell>
-                      <TableCell className="py-1 text-right">{percentVD !== null ? `${percentVD}%` : '**'}</TableCell>
-                    </TableRow>
+                    <div key={i} className="flex justify-between items-center py-2 text-[12px] font-medium transition-colors hover:bg-white/5">
+                      <span className="w-1/2 text-primary/90">{nomeAtivo}</span>
+                      <span className="w-1/4 text-right">{ativo.dose} {ativo.unit}</span>
+                      <span className="w-1/4 text-right font-bold text-primary">
+                        {percentVD !== null ? `${percentVD}%` : '**'}
+                      </span>
+                    </div>
                   );
                 })}
+              </div>
+            </div>
 
-              </TableBody>
-            </Table>
-            <p className="text-[8px] mt-2 leading-tight text-muted-foreground italic">
-              * %VD com base em uma dieta de 2.000 kcal ou 8.400 kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.
-              <br/>** VD não estabelecido pela ANVISA.
-            </p>
+            <div className="mt-6 pt-4 border-t border-primary/20 space-y-1">
+              <p className="text-[9px] leading-tight text-muted-foreground/80 italic">
+                * % Valores Diários com base em uma dieta de 2.000 kcal ou 8.400 kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.
+              </p>
+              <p className="text-[9px] text-muted-foreground/80 font-bold uppercase">
+                ** VD não estabelecido pela ANVISA.
+              </p>
+            </div>
           </div>
         </section>
+
 
         <section className="space-y-4">
           <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Cálculo de Cápsulas</h3>
