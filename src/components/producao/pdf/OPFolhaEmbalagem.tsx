@@ -62,9 +62,17 @@ export function OPFolhaEmbalagem({ op, embalagens = [] }: OPFolhaEmbalagemProps)
             <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Responsável Técnico</div>
             <div className="text-sm font-bold text-slate-800">{op.rt_nome || '-'}</div>
           </div>
-          <div className="p-3">
-            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Conselho/Registro</div>
-            <div className="text-sm font-bold text-slate-800">{op.rt_tipo_conselho || ''} {op.rt_numero_registro || '-'}</div>
+          <div className="p-3 bg-green-50">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Rendimento Real</div>
+            <div className="text-sm font-bold" style={{
+              color: ((op as any).rendimento_percentual ?? 100) >= 95
+                ? '#15803d' : ((op as any).rendimento_percentual ?? 100) >= 90
+                ? '#d97706' : '#dc2626'
+            }}>
+              {(op as any).rendimento_percentual
+                ? `${Number((op as any).rendimento_percentual).toFixed(1)}%`
+                : '— %'}
+            </div>
           </div>
         </div>
       </div>
