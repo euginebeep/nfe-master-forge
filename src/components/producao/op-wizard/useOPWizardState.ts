@@ -118,7 +118,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
 
   // 3. Número de bateladas — limitado pelo VOLUME (critério real do misturador)
   const numeroBateladas = volumeTotalPoL > 0
-    ? Math.ceil(volumeTotalPoL / VOLUME_UTIL_MAX_L)
+    ? Math.ceil(volumeTotalPoL / VOLUME_UTIL_CALC_L)
     : 1;
 
   // 4. Volume e peso por batelada
