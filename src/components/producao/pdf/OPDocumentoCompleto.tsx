@@ -67,7 +67,7 @@ export function OPDocumentoCompleto({
         const { data: calibracao } = balanca?.id
           ? await supabase
               .from('qc_calibracoes')
-              .select('*')
+              .select('data_calibracao, proxima_calibracao')
               .eq('equipamento_id', balanca.id)
               .order('proxima_calibracao', { ascending: false })
               .limit(1)
@@ -81,16 +81,16 @@ export function OPDocumentoCompleto({
           .eq('id', (initialOp as any).id)
           .maybeSingle();
 
-        setOp(prev => ({
-          ...prev,
-          balanca_numero_serie: balanca?.numero_serie || null,
+        setOp({
+          ...initialOp,
+          balanca_numero_serie: (balanca as any)?.numero_serie || null,
           balanca_ultima_calibracao: calibracao?.data_calibracao || null,
           balanca_proxima_calibracao: calibracao?.proxima_calibracao || null,
           temperatura_inicio: opCompleta?.temperatura_inicio || null,
           umidade_inicio: opCompleta?.umidade_inicio || null,
           sala_producao: opCompleta?.sala_producao || null,
           rendimento_percentual: opCompleta?.rendimento_percentual || null,
-        }));
+        });
       } catch (err) {
         console.error('Erro ao buscar dados complementares para PDF:', err);
       }
