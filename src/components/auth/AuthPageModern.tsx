@@ -78,7 +78,7 @@ function Field({
 /* ══════════════════════════════════════
    AUTH PAGE — Bootstrap Theme
 ══════════════════════════════════════ */
-export default function AuthPage() {
+export default function AuthPageModern() {
   useBootstrapIcons();
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
