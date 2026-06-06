@@ -409,28 +409,89 @@ Retorne JSON com:
     }
 
     if (action === 'analyze_file') {
-      const systemPrompt = `Você é um especialista regulatório em suplementos 
-alimentares brasileiros. Extraia os ativos e doses do arquivo fornecido 
-e analise com base na IN 28/2018 e suas atualizações até IN 438/2026.
+      const systemPrompt = `Você é um especialista regulatório em 
+suplementos alimentares brasileiros da Vitalnow Indústria Ltda.
+Analise o arquivo enviado (briefing, ficha técnica, foto ou ZIP com 
+múltiplos produtos) e extraia TODOS os produtos e seus ativos.
 
-Se o arquivo for um ZIP, DOCX ou PDF, identifique todos os produtos.
-Se for uma imagem, use visão computacional para ler a fórmula.
+Para CADA produto encontrado, retorne:
+1. Nome do produto
+2. Lista de ativos com dose e unidade
+3. Status ANVISA de cada ativo baseado na IN 28/2018:
+   - APROVADO: consta lista positiva + dose dentro dos limites
+   - ATENÇÃO: dose abaixo do mínimo OU acima do máximo
+   - BLOQUEADO: não consta lista positiva
 
-Retorne JSON com:
+LIMITES MÁXIMOS OBRIGATÓRIOS (IN 28/2018 Anexo IV — verificados):
+- Vitamina D3: MÁXIMO 50 mcg = 2.000 UI/dia (NÃO 4.000 UI)
+- Zinco: MÁXIMO 25 mg/dia
+- Boro: MÁXIMO 6 mg/dia
+- Niacina B3: MÁXIMO 35 mg NE/dia
+- Ácido Fólico B9: MÁXIMO 400 mcg DFE/dia
+- Cromo: MÁXIMO 200 mcg/dia
+- Cafeína: MÁXIMO 210 mg/dose
+- Melatonina: MÁXIMO 0,21 mg/dia — exclusivo ≥19 anos
+- L-Arginina: MÁXIMO 3.000 mg/dia
+- Taurina: MÁXIMO 3.000 mg/dia
+- Creatina: MÁXIMO 3.000 mg/dia
+- Luteína: MÁXIMO 30 mg/dia
+
+NÃO AUTORIZADOS (não constam Anexo I IN 28):
+- Berberina, Queratina, Silício Orgânico
+- L-Citrulina: verificar Power BI ANVISA
+
+AUTORIZADOS (confirmar explicitamente se perguntado):
+- L-Tirosina: SIM — Anexo I IN 28 CAS 60-18-4
+- Beta-Alanina: SIM — IN 102/2021
+- MSM: SIM — Anexo I IN 28
+- Melatonina: SIM — IN 102/2021 (com restrições)
+
+Para cada produto retorne também:
+- Sugestão de posologia (nº cápsulas, tamanho, unidades/frasco)
+- Tabela nutricional com %VD (dieta 2.000 kcal)
+- Alegações permitidas pela IN 28 Anexo V
+- Alegações proibidas relevantes
+- Avisos obrigatórios de rotulagem
+
+Retorne JSON com estrutura:
 {
-  "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
-  "alertas": [{"tipo": "err|warn|ok|info", "titulo": "", "corpo": ""}],
-  "analise_ia": "texto explicativo da análise",
-  "alegacoes_permitidas": ["..."],
-  "alegacoes_proibidas": ["..."],
-  "avisos_rotulo": ["..."],
-  "sugestao_capsulas": {"n": 2, "tamanho": "#00", "frasco": 60, "obs": "..."},
-  "ativos": [{"name": "...", "dose": "...", "unit": "...", "anvisaKey": "..."}]
+  "total_produtos": N,
+  "produtos": [
+    {
+      "nome": "...",
+      "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
+      "ativos": [
+        {
+          "nome": "...",
+          "dose": 0,
+          "unit": "mg",
+          "status": "APROVADO|ATENÇÃO|BLOQUEADO",
+          "limite_anvisa": "...",
+          "referencia": "IN 28 Anexo IV",
+          "correcao_sugerida": "..." 
+        }
+      ],
+      "alertas": [
+        {"tipo": "err|warn|ok|info", "titulo": "...", "corpo": "..."}
+      ],
+      "analise_ia": "...",
+      "tabela_nutricional": [
+        {"nutriente": "...", "quantidade": "...", "vd": "..."}
+      ],
+      "sugestao_capsulas": {
+        "n": 2, "tamanho": "#00", "frasco": 60, "obs": "..."
+      },
+      "alegacoes_permitidas": ["..."],
+      "alegacoes_proibidas": ["..."],
+      "avisos_rotulo": ["..."]
+    }
+  ]
 }`
 
-      const userMessage = `Arquivo: ${body.filename}
-Conteúdo (base64 ou metadados): ${String(body.file).slice(0, 1000)}...
-Opções: ${JSON.stringify(body.options)}`
+      const userMessage = `Analise este arquivo ${body.file_type}: ${body.file_name}\n` +
+        `Cliente: ${body.cliente || 'não informado'}\n` +
+        `Público-alvo: ${body.publico || 'adultos ≥19 anos'}\n` +
+        (body.file_base64 ? `[arquivo em base64 anexado]` : '')
 
       const aiRes = await fetch(AI_GATEWAY, {
         method: 'POST',
@@ -456,6 +517,7 @@ Opções: ${JSON.stringify(body.options)}`
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       })
     }
+
 
 
     if (!termo || String(termo).length < 2) {

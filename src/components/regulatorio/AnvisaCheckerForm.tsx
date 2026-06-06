@@ -29,6 +29,7 @@ const OUTPUT_TYPES = [
 export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void }) {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [audience, setAudience] = useState("ADULTOS");
   const [outputType, setOutputType] = useState("COMPLETO");
@@ -84,7 +85,9 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       'image/webp'
     ];
 
-    if (!validTypes.includes(selectedFile.type) && !selectedFile.name.endsWith('.docx')) {
+    const isDocx = selectedFile.name.endsWith('.docx');
+    
+    if (!validTypes.includes(selectedFile.type) && !isDocx) {
       toast({
         variant: "destructive",
         title: "Arquivo inválido",
@@ -103,18 +106,30 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     }
 
     setFile(selectedFile);
+    if (selectedFile.type.startsWith('image/')) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
   };
 
   const getFileIcon = () => {
-    if (!file) return <Upload className="w-12 h-12 text-muted-foreground mb-4" />;
-    if (file.type.includes('zip')) return <FileArchive className="w-12 h-12 text-primary mb-4" />;
-    if (file.type.includes('image')) return <ImageIcon className="w-12 h-12 text-primary mb-4" />;
-    return <FileText className="w-12 h-12 text-primary mb-4" />;
+    if (previewUrl) return <img src={previewUrl} className="w-48 h-48 object-cover rounded-3xl mb-4 shadow-2xl ring-4 ring-primary/20 animate-in zoom-in duration-500" alt="Preview" />;
+    if (!file) return <Upload className="w-20 h-20 text-muted-foreground mb-4 group-hover:scale-110 transition-transform duration-500" />;
+    
+    const iconClass = "w-20 h-20 text-primary mb-4 animate-in zoom-in duration-300";
+    if (file.type.includes('zip')) return <FileArchive className={iconClass} />;
+    if (file.type.includes('image')) return <ImageIcon className={iconClass} />;
+    return <FileText className={iconClass} />;
   };
 
   const getChipInfo = () => {
     if (!file) return null;
-    if (file.type.includes('zip')) return { text: "📦 Múltiplos produtos detectados", variant: "default" };
+    if (file.type.includes('zip')) {
+      // Estimar produtos pelo tamanho do zip ou apenas mostrar placeholder
+      return { text: "📦 Produtos detectados no ZIP", variant: "default" };
+    }
     if (file.name.endsWith('.docx')) return { text: "📄 Briefing individual", variant: "secondary" };
     if (file.type === 'application/pdf') return { text: "📋 Ficha técnica PDF", variant: "secondary" };
     if (file.type.includes('image')) return { text: "📷 Análise por visão computacional", variant: "outline" };
@@ -128,33 +143,36 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     setCurrentStep(0);
 
     try {
-      // Converter arquivo para base64 se necessário
       const reader = new FileReader();
-      const fileData = await new Promise((resolve) => {
-        reader.onload = () => resolve(reader.result);
+      const fileBase64 = await new Promise<string>((resolve) => {
+        reader.onload = () => {
+          const res = reader.result as string;
+          resolve(res.split(',')[1]);
+        };
         reader.readAsDataURL(file);
       });
 
-      // Chamar Edge Function anvisa-ai-verify
-      // NOTA: Estamos assumindo que a função aceita este payload agora ou lidaremos com a resposta
+      let fileType = "docx";
+      if (file.type.includes('zip')) fileType = "zip";
+      else if (file.type === 'application/pdf') fileType = "pdf";
+      else if (file.type.startsWith('image/')) fileType = "image";
+
       const { data, error } = await supabase.functions.invoke('anvisa-ai-verify', {
         body: {
-          action: 'analyze_file', // Tentando usar analyze_file conforme a nova interface
-          file: fileData,
-          filename: file.name,
-          options: {
-            publico: audience,
-            tipo_saida: outputType,
-            cliente: clientName
-          }
+          action: 'analyze_file',
+          file_type: fileType,
+          file_name: file.name,
+          file_base64: fileBase64,
+          publico: audience,
+          cliente: clientName
         }
       });
 
       if (error) throw error;
 
-      // Salvar histórico no Supabase
+      // Salvar histórico no Supabase para cada produto retornado
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      if (user && data.produtos) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('company_id')
@@ -162,29 +180,44 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           .single();
 
         if (profile?.company_id) {
-          await supabase.from('anvisa_laudos').insert({
-            company_id: profile.company_id,
-            produto: file.name,
-            cliente: clientName,
-            status_geral: data.status_geral || 'PROCESSADO',
-            payload_entrada: { filename: file.name, options: { audience, outputType } } as any,
-            resultado_ia: data as any,
-            criado_por: user.id
-          });
+          for (const produto of data.produtos) {
+            await supabase.from('anvisa_laudos').insert({
+              company_id: profile.company_id,
+              produto: produto.nome,
+              cliente: clientName,
+              status_geral: produto.status_geral,
+              payload_entrada: { filename: file.name, ativos: produto.ativos } as any,
+              resultado_ia: produto as any,
+              criado_por: user.id
+            });
+          }
         }
       }
 
-      // Pequeno delay final para garantir que o usuário veja a última etapa
       await new Promise(r => setTimeout(resolve => r(null), 1000));
       
-      onResult({
-        produto: file.name,
-        cliente: clientName,
-        payload_entrada: { ativos: data.ativos || [] },
-        resultado_ia: data
+      if (data.total_produtos === 1) {
+        onResult({
+          produto: data.produtos[0].nome,
+          cliente: clientName,
+          payload_entrada: { ativos: data.produtos[0].ativos },
+          resultado_ia: data.produtos[0]
+        });
+      } else {
+        // Para múltiplos produtos, apenas sinalizamos a conclusão e limpamos a seleção
+        // A página vai mudar para a aba de laudos e mostrar a lista
+        onResult(null); 
+      }
+
+      toast({ 
+        title: "Análise concluída", 
+        description: `${data.total_produtos} produto(s) analisado(s) com sucesso` 
       });
 
-      toast({ title: "Análise concluída", description: "O laudo foi gerado com sucesso." });
+      toast({ 
+        title: "Análise concluída", 
+        description: `${data.total_produtos} produto(s) analisado(s) com sucesso` 
+      });
     } catch (error) {
       console.error(error);
       toast({ 
@@ -200,6 +233,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   const removeFile = (e: React.MouseEvent) => {
     e.stopPropagation();
     setFile(null);
+    setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -209,7 +243,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       <div className="space-y-4">
         <div
           className={cn(
-            "relative min-h-[320px] flex flex-col items-center justify-center border-4 border-dashed rounded-3xl transition-all duration-300 group cursor-pointer",
+            "relative min-h-[280px] flex flex-col items-center justify-center border-4 border-dashed rounded-3xl transition-all duration-300 group cursor-pointer",
             dragActive ? "border-primary bg-primary/5 scale-[1.01]" : "border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/5",
             file ? "border-green-500/50 bg-green-500/5" : ""
           )}
@@ -238,7 +272,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
           <div className="flex flex-col items-center text-center px-8">
             <div className={cn(
-              "p-6 rounded-full bg-background shadow-xl mb-2 transition-transform group-hover:scale-110 duration-500",
+              "p-6 rounded-full bg-background shadow-xl mb-4 transition-transform group-hover:scale-110 duration-500",
               file ? "text-green-500" : "text-primary"
             )}>
               {getFileIcon()}
@@ -247,7 +281,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
             {!file ? (
               <>
                 <h3 className="text-2xl font-bold tracking-tight mb-2">Arraste aqui ou clique para selecionar</h3>
-                <p className="text-muted-foreground text-lg">.zip · .docx · .pdf · foto (máx 20MB)</p>
+                <p className="text-muted-foreground">.zip · .docx · .pdf · foto (máx 20MB)</p>
               </>
             ) : (
               <div className="space-y-2 animate-in zoom-in duration-300">
