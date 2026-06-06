@@ -505,7 +505,9 @@ ESTRUTURA DO JSON DE RETORNO:
 CONTEÚDO EXTRAÍDO:
 ${fileContent}
 
-Analise TODOS os produtos contidos acima. Se for ZIP, analise cada um individualmente. Retorne APENAS o JSON.`;
+IMPORTANTE: Analise TODOS os produtos contidos no conteúdo acima. Se o arquivo for um ZIP com vários briefings ou um documento com múltiplas fórmulas, você DEVE extrair e retornar a análise de CADA produto individualmente no array "produtos". Não resuma, não ignore e não agrupe produtos diferentes. Se houver 10 produtos, retorne 10 objetos no array "produtos".
+
+Retorne APENAS o JSON conforme a estrutura do sistema.`;
 
       const messages = [
         { role: 'system', content: systemPrompt },

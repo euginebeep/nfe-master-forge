@@ -11,11 +11,15 @@ import { FlaskConical, FileText, LayoutList, Database } from "lucide-react";
 export default function AnvisaCheckerPage() {
   const [activeTab, setActiveTab] = useState("formula");
   const [selectedLaudo, setSelectedLaudo] = useState<any>(null);
+  const [tabelaData, setTabelaData] = useState<any>(null);
+
 
   const handleLaudoGenerated = (laudo: any) => {
     setSelectedLaudo(laudo);
+    setTabelaData(laudo.resultado_ia);
     setActiveTab("laudos"); // Vai direto para a aba de laudos após gerar
   };
+
 
   const handleReset = () => {
     setSelectedLaudo(null);
@@ -53,7 +57,7 @@ export default function AnvisaCheckerPage() {
         </TabsContent>
 
         <TabsContent value="tabela">
-          <TabelaNutricionalBuilder />
+          <TabelaNutricionalBuilder initialData={tabelaData} />
         </TabsContent>
 
         <TabsContent value="laudos">
@@ -82,6 +86,7 @@ export default function AnvisaCheckerPage() {
           ) : (
             <AnvisaLaudosHistorico onSelect={(laudo) => {
               setSelectedLaudo(laudo);
+              setTabelaData(laudo.resultado_ia);
             }} />
           )}
         </TabsContent>
