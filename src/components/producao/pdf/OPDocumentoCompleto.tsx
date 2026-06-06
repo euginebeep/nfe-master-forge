@@ -77,7 +77,7 @@ export function OPDocumentoCompleto({
           .eq('id', (initialOp as any).id)
           .maybeSingle();
 
-        setOp({
+        setOp(prev => ({
           ...initialOp,
           balanca_numero_serie: (balanca as any)?.numero_serie || null,
           balanca_ultima_calibracao: (calibracao as any)?.data_calibracao || null,
@@ -86,7 +86,7 @@ export function OPDocumentoCompleto({
           umidade_inicio: (opCompleta as any)?.umidade_inicio || null,
           sala_producao: (opCompleta as any)?.sala_producao || null,
           rendimento_percentual: (opCompleta as any)?.rendimento_percentual || null,
-        });
+        }));
       } catch (err) {
         console.error('Erro ao buscar dados complementares:', err);
       }
