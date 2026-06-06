@@ -284,7 +284,7 @@ export function AppSidebar() {
         collapsible="icon">
 
         <SidebarHeader className="border-b border-sidebar-border/50 bg-sidebar">
-          <Link to="/" className="flex items-center gap-3 px-4 py-5">
+          <Link to="/dashboard" className="flex items-center gap-3 px-4 py-5">
             <img
               src={brainxLogo}
               alt="BrainxERP"
