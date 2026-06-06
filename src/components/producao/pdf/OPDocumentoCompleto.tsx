@@ -52,7 +52,8 @@ export function OPDocumentoCompleto({
         const companyId = profile?.company_id;
         if (!companyId) return;
 
-        const { data: balanca } = await supabase
+        // Buscar balança
+        const { data: balancaResult, error: balancaError } = await supabase
           .from('equipamentos')
           .select('id, numero_serie')
           .eq('company_id', companyId)
@@ -62,18 +63,18 @@ export function OPDocumentoCompleto({
           .maybeSingle();
 
         let calibracaoData: any = null;
-        if ((balanca as any)?.id) {
-          const { data } = await supabase
+        if (balancaResult?.id) {
+          const { data: calibracaoResult } = await supabase
             .from('qc_calibracoes')
             .select('data_calibracao, proxima_calibracao')
-            .eq('equipamento_id', (balanca as any).id)
+            .eq('equipamento_id', balancaResult.id)
             .order('proxima_calibracao', { ascending: false })
             .limit(1)
             .maybeSingle();
-          calibracaoData = data;
+          calibracaoData = calibracaoResult;
         }
 
-        const { data: opCompleta } = await supabase
+        const { data: opResult } = await supabase
           .from('ordens_producao_industrial')
           .select('temperatura_inicio, umidade_inicio, sala_producao, rendimento_percentual')
           .eq('id', (initialOp as any).id)
@@ -81,13 +82,13 @@ export function OPDocumentoCompleto({
 
         setOp((prev: any) => ({
           ...initialOp,
-          balanca_numero_serie: (balanca as any)?.numero_serie || null,
+          balanca_numero_serie: (balancaResult as any)?.numero_serie || null,
           balanca_ultima_calibracao: calibracaoData?.data_calibracao || null,
           balanca_proxima_calibracao: calibracaoData?.proxima_calibracao || null,
-          temperatura_inicio: (opCompleta as any)?.temperatura_inicio || null,
-          umidade_inicio: (opCompleta as any)?.umidade_inicio || null,
-          sala_producao: (opCompleta as any)?.sala_producao || null,
-          rendimento_percentual: (opCompleta as any)?.rendimento_percentual || null,
+          temperatura_inicio: (opResult as any)?.temperatura_inicio || null,
+          umidade_inicio: (opResult as any)?.umidade_inicio || null,
+          sala_producao: (opResult as any)?.sala_producao || null,
+          rendimento_percentual: (opResult as any)?.rendimento_percentual || null,
         }));
       } catch (err) {
         console.error('Erro ao buscar dados complementares:', err);
