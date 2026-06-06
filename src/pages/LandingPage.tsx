@@ -180,7 +180,7 @@ export default function LandingPage() {
               <AlertOctagon className="h-4 w-4" />
               Alerta para indústrias de suplementos
             </div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6" style={{ color: "#0F172A" }}>
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-6" style={{ color: "#0F172A" }}>
               Sua indústria está preparada para
               <span className="block" style={{ color: "#0F172A" }}>
                 uma fiscalização hoje?
@@ -255,7 +255,7 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#DC2626" }}>
               <AlertTriangle className="h-4 w-4" /> O que pode acontecer amanhã
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: "#0F172A" }}>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4" style={{ color: "#0F172A" }}>
               Cada um destes erros pode <span style={{ color: "#DC2626" }}>parar sua fábrica</span>
             </h2>
             <p style={{ color: "#374151" }}>
@@ -293,7 +293,7 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3" style={{ background: "#EFF6FF", color: "#1E3A5F" }}>
               <Sparkles className="h-3.5 w-3.5" /> A solução
             </div>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: "#0F172A" }}>
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: "#0F172A" }}>
               Um único sistema. Toda a sua operação industrial sob controle.
             </h2>
             <p className="text-lg" style={{ color: "#374151" }}>
@@ -348,7 +348,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4" style={{ background: "#DCFCE7", color: "#15803D" }}>
                 <ShieldCheck className="h-3.5 w-3.5" /> Auditoria ANVISA aprovada
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-5" style={{ color: "#0F172A" }}>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-5" style={{ color: "#0F172A" }}>
                 Compliance não é planilha. É arquitetura.
               </h2>
               <p className="mb-6 leading-relaxed" style={{ color: "#374151" }}>
