@@ -4856,6 +4856,7 @@ export type Database = {
           etapa_atualizada_em: string | null
           etapa_producao_atual: string | null
           excipiente_base: string | null
+          fator_enchimento_real: number | null
           finalizado_por: string | null
           formula_codigo: string | null
           formula_id: string | null
@@ -4913,6 +4914,8 @@ export type Database = {
           turno: string | null
           umidade_inicio: number | null
           updated_at: string | null
+          volume_por_batelada_l: number | null
+          volume_total_po_l: number | null
           white_label: boolean | null
         }
         Insert: {
@@ -4941,6 +4944,7 @@ export type Database = {
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
           excipiente_base?: string | null
+          fator_enchimento_real?: number | null
           finalizado_por?: string | null
           formula_codigo?: string | null
           formula_id?: string | null
@@ -4998,6 +5002,8 @@ export type Database = {
           turno?: string | null
           umidade_inicio?: number | null
           updated_at?: string | null
+          volume_por_batelada_l?: number | null
+          volume_total_po_l?: number | null
           white_label?: boolean | null
         }
         Update: {
@@ -5026,6 +5032,7 @@ export type Database = {
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
           excipiente_base?: string | null
+          fator_enchimento_real?: number | null
           finalizado_por?: string | null
           formula_codigo?: string | null
           formula_id?: string | null
@@ -5083,6 +5090,8 @@ export type Database = {
           turno?: string | null
           umidade_inicio?: number | null
           updated_at?: string | null
+          volume_por_batelada_l?: number | null
+          volume_total_po_l?: number | null
           white_label?: boolean | null
         }
         Relationships: [
