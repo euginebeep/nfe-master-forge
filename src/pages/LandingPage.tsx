@@ -124,7 +124,7 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="min-h-screen antialiased" style={{ background: "#FFFFFF", color: "#0F172A" }}>
+    <div className="min-h-screen antialiased overflow-x-hidden w-full" style={{ background: "#FFFFFF", color: "#0F172A" }}>
       {/* NAV */}
       <header
         className="sticky top-0 z-50 transition-shadow"
@@ -341,7 +341,7 @@ export default function LandingPage() {
       </section>
 
       {/* COMPLIANCE BLOCK */}
-      <section id="compliance" className="py-24" style={{ background: "#F8FAFC" }}>
+      <section id="compliance" className="py-24 overflow-hidden" style={{ background: "#F8FAFC" }}>
         <div className="container max-w-6xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <motion.div {...fadeUp}>
