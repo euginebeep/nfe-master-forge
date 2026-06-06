@@ -2860,6 +2860,7 @@ export type Database = {
           cst_ipi: string | null
           cst_pis: string | null
           custo_por_unidade_interna: number | null
+          data_notificacao_anvisa: string | null
           densidade_aparente: number | null
           descricao_comercial: string | null
           descricao_interna: string
@@ -2873,6 +2874,7 @@ export type Database = {
           moq: number | null
           mva_st: number | null
           ncm: string | null
+          numero_notificacao_anvisa: string | null
           observacoes_comerciais: string | null
           observacoes_fiscais: string | null
           origem_icms: string | null
@@ -2880,6 +2882,7 @@ export type Database = {
           potencia_rotulo: number | null
           preco_unitario_fornecedor: number | null
           sku_interno: string | null
+          status_regulatorio: string | null
           texto_alerta_padrao: string | null
           tipo_item: string
           unidade_declaracao: string | null
@@ -2915,6 +2918,7 @@ export type Database = {
           cst_ipi?: string | null
           cst_pis?: string | null
           custo_por_unidade_interna?: number | null
+          data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
           descricao_comercial?: string | null
           descricao_interna: string
@@ -2928,6 +2932,7 @@ export type Database = {
           moq?: number | null
           mva_st?: number | null
           ncm?: string | null
+          numero_notificacao_anvisa?: string | null
           observacoes_comerciais?: string | null
           observacoes_fiscais?: string | null
           origem_icms?: string | null
@@ -2935,6 +2940,7 @@ export type Database = {
           potencia_rotulo?: number | null
           preco_unitario_fornecedor?: number | null
           sku_interno?: string | null
+          status_regulatorio?: string | null
           texto_alerta_padrao?: string | null
           tipo_item?: string
           unidade_declaracao?: string | null
@@ -2970,6 +2976,7 @@ export type Database = {
           cst_ipi?: string | null
           cst_pis?: string | null
           custo_por_unidade_interna?: number | null
+          data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
           descricao_comercial?: string | null
           descricao_interna?: string
@@ -2983,6 +2990,7 @@ export type Database = {
           moq?: number | null
           mva_st?: number | null
           ncm?: string | null
+          numero_notificacao_anvisa?: string | null
           observacoes_comerciais?: string | null
           observacoes_fiscais?: string | null
           origem_icms?: string | null
@@ -2990,6 +2998,7 @@ export type Database = {
           potencia_rotulo?: number | null
           preco_unitario_fornecedor?: number | null
           sku_interno?: string | null
+          status_regulatorio?: string | null
           texto_alerta_padrao?: string | null
           tipo_item?: string
           unidade_declaracao?: string | null
