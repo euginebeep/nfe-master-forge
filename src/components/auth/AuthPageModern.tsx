@@ -29,7 +29,7 @@ const FEATURES = [
   { icon: 'database-fill-check', label: 'Estoque por lote', sub: 'FEFO, quarentena, COA e consumo com rastreabilidade total.' },
   { icon: 'file-earmark-spreadsheet-fill', label: 'Emissão de NF-e', sub: 'Emissor fiscal integrado com cálculo automático de impostos e DANFE.' },
   { icon: 'thermometer-snow', label: 'Controle de temperatura', sub: 'Monitoramento por sensores IoT com alertas e histórico para BPF.' },
-  { icon: 'flask', label: 'Formulador industrial', sub: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.' },
+  { icon: 'vials', label: 'Formulador industrial', sub: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.' },
 ];
 
 /* ─── Input Field (Bootstrap style) ─── */
