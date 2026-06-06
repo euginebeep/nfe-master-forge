@@ -492,21 +492,23 @@ Retorne JSON com estrutura:
   ]
 }`
 
-      const userMessage = [
+      const userMessage: any[] = [
         { type: 'text', text: `Analise este arquivo ${body.file_type}: ${body.file_name}\nCliente: ${body.cliente || 'não informado'}\nPúblico-alvo: ${body.publico || 'adultos ≥19 anos'}` }
-      ]
+      ];
 
       if (body.file_base64) {
         if (body.file_type === 'image') {
           userMessage.push({
             type: 'image_url',
             image_url: { url: `data:image/jpeg;base64,${body.file_base64}` }
-          })
+          });
         } else {
+          // Para outros arquivos, enviamos como texto (o modelo gpt-4o-mini/4o pode tentar extrair se for pequeno)
+          // Mas idealmente deveríamos processar localmente. Por agora, enviamos o que der.
           userMessage.push({
             type: 'text',
-            text: `[Conteúdo do arquivo em base64 anexado: ${body.file_base64.slice(0, 100)}...]`
-          })
+            text: `Conteúdo bruto (Base64 limitado): ${body.file_base64.substring(0, 50000)}`
+          });
         }
       }
 
@@ -517,14 +519,14 @@ Retorne JSON com estrutura:
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
           ],
           response_format: { type: 'json_object' }
         })
-      })
+      });
 
       if (!aiRes.ok) {
         const errorText = await aiRes.text();
