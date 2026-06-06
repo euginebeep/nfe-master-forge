@@ -152,6 +152,7 @@ export const AnvisaLaudosHistorico: React.FC<{ onSelect: (laudo: any) => void }>
           <p className="text-muted-foreground">Nenhum laudo gerado ainda.</p>
         </div>
       )}
+      </div>
     </div>
   );
 };
