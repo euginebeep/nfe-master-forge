@@ -174,7 +174,9 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       if (error) throw error;
 
-      // ── NORMALIZAÇÃO DO RETORNO (ARQUIVO 2 — Página 6 e 7 do prompt)
+      // ── NORMALIZAÇÃO DO RETORNO
+      console.log('AI Response:', data);
+
       let produtos = [];
 
       // Caso 1: retornou { produtos: [...] }
