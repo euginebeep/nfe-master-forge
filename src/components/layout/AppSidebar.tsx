@@ -204,7 +204,16 @@ const footerItems: FooterItem[] = [
 { to: "/settings/empresa", icon: Settings, label: "Configuracoes", tooltip: "Configurações gerais da empresa e sistema", modulo: "configuracoes" },
 { to: "/settings/admin-master", icon: ShieldAlert, label: "Admin Master", tooltip: "Painel administrativo master — operações críticas do sistema", danger: true, adminOnly: true },
 { to: "/usuarios", icon: Shield, label: "Usuarios", tooltip: "Gestão de usuários, permissões e acessos ao sistema", modulo: "usuarios" },
-{ to: "/cadastros/responsaveis-tecnicos", icon: UserCheck, label: "Resp. Técnicos", tooltip: "Gestão de responsáveis técnicos habilitados para produção", modulo: "producao" }];
+{ to: "/cadastros/responsaveis-tecnicos", icon: UserCheck, label: "Resp. Técnicos", tooltip: "Gestão de responsáveis técnicos habilitados para produção", modulo: "producao" },
+{
+  title: "Equipamentos",
+  url: "/settings/equipamentos",
+  icon: Factory,
+  tooltip: "Cadastro de misturadores, encapsuladoras e equipamentos de produção",
+  modulo: "producao",
+  adminOnly: true
+}];
+
 
 
 export function AppSidebar() {

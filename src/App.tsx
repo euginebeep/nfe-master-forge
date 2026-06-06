@@ -85,6 +85,8 @@ const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
 const InstallPage = lazy(() => import("./pages/install/InstallPage"));
 const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
 const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
+const EquipamentosPage = lazy(() => import("./pages/settings/EquipamentosPage"));
+
 
 import { queryClient } from "./lib/query-client";
 
@@ -155,6 +157,8 @@ const App = () => (
                 <Route path="/settings/admin-master" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AdminMasterPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/unlock-requests" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AdminUnlockRequestsPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/xml-backup" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><XmlBackupPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/equipamentos" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><EquipamentosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+
                 {/* Cadastros */}
                 <Route path="/cadastros/entidades" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><EntidadesListPageComplete /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/fornecedores" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><FornecedoresListPage /></ErrorBoundary></Suspense>} />
