@@ -43,12 +43,57 @@ export function useQCDesvios() {
         .insert(desvio)
         .select()
         .single();
+
       if (error) throw error;
+
+      // Se severidade CRÍTICO e há OP vinculada → bloquear OP automaticamente
+      if (desvio.severidade === 'CRITICO' && desvio.op_id) {
+        const { error: opErr } = await supabase
+          .from('ordens_producao_industrial')
+          .update({
+            status: 'BLOQUEADA',
+            observacoes: `[BLOQUEADA AUTOMATICAMENTE] Desvio CRÍTICO registrado: ${desvio.descricao.substring(0, 100)}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', desvio.op_id)
+          .in('status', ['PLANEJADA', 'EM_PRODUCAO', 'AGUARDANDO_QC']);
+
+        if (!opErr) {
+          // Registrar no histórico
+          await supabase.from('op_historico_etapas').insert({
+            op_id: desvio.op_id,
+            etapa: 'BLOQUEADA',
+            iniciada_em: new Date().toISOString(),
+            observacoes: `Bloqueio automático por desvio CRÍTICO — ${desvio.codigo}`,
+          });
+        }
+      }
+
+      // Se severidade CRÍTICO e há lote vinculado → colocar lote em QUARENTENA
+      if (desvio.severidade === 'CRITICO' && desvio.lote_id) {
+        await supabase
+          .from('lotes_produto_acabado')
+          .update({
+            status: 'QUARENTENA',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', desvio.lote_id)
+          .eq('status', 'LIBERADO');
+      }
+
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['qc-desvios'] });
-      toast.success('Desvio registrado');
+      if (variables.severidade === 'CRITICO') {
+        toast.error('⛔ Desvio CRÍTICO registrado — OP bloqueada automaticamente!');
+        if (variables.op_id) {
+          queryClient.invalidateQueries({ queryKey: ['ordens-producao-industrial'] });
+          queryClient.invalidateQueries({ queryKey: ['op', variables.op_id] });
+        }
+      } else {
+        toast.success('Desvio registrado');
+      }
     },
     onError: () => toast.error('Erro ao registrar desvio'),
   });
