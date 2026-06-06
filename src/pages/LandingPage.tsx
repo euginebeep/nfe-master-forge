@@ -548,7 +548,7 @@ export default function LandingPage() {
                 </div>
                 <p className="text-sm mb-2" style={{ color: "#374151" }}>Para indústrias com compliance ANVISA/BPF</p>
                 <p className="mb-5" style={{ fontSize: 13, color: "#6B7280" }}>
-                  Planos a partir de R$ 890/mês · Baseado em volume de OPs e SKUs
+                  Planos a partir de R$ 599/mês · Baseado em volume de OPs e SKUs
                 </p>
                 <ul className="space-y-2.5 text-sm mb-6" style={{ color: "#374151" }}>
                   {["Tudo do Trial +", "Multi-usuário com RBAC granular", "Assinatura digital do RT (SHA-256)", "Suporte prioritário + onboarding 1:1", "SLA de implantação 7 dias"].map((t) => (
