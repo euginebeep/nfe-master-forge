@@ -53,31 +53,31 @@ export function OPDocumentoCompleto({
         if (!companyId) return;
 
         // Buscar balança
-        const { data: balancaResult, error: balancaError } = await supabase
+        const { data: balancaResult } = await (supabase
           .from('equipamentos')
           .select('id, numero_serie')
           .eq('company_id', companyId)
           .ilike('nome', '%balança%')
           .eq('ativo', true)
-          .limit(1)
+          .limit(1) as any)
           .maybeSingle();
 
         let calibracaoData: any = null;
         if (balancaResult?.id) {
-          const { data: calibracaoResult } = await supabase
+          const { data: calibracaoResult } = await (supabase
             .from('qc_calibracoes')
             .select('data_calibracao, proxima_calibracao')
             .eq('equipamento_id', balancaResult.id)
             .order('proxima_calibracao', { ascending: false })
-            .limit(1)
+            .limit(1) as any)
             .maybeSingle();
           calibracaoData = calibracaoResult;
         }
 
-        const { data: opResult } = await supabase
+        const { data: opResult } = await (supabase
           .from('ordens_producao_industrial')
           .select('temperatura_inicio, umidade_inicio, sala_producao, rendimento_percentual')
-          .eq('id', (initialOp as any).id)
+          .eq('id', (initialOp as any).id) as any)
           .maybeSingle();
 
         setOp((prev: any) => ({
