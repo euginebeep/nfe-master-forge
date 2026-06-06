@@ -11,28 +11,31 @@ export function useCompany() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return null;
 
+      // Check demo mode from multiple sources
+      const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true' || 
+                           session.user.email === 'demo@brainxerp.com';
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id, is_demo")
         .eq("id", session.user.id)
         .maybeSingle();
 
-      // For demo mode, we use a fixed demo company ID if the profile is missing it or is_demo is set
-      const isDemo = profile?.is_demo || sessionStorage.getItem('brainx_demo_mode') === 'true';
+      const isDemo = profile?.is_demo || isDemoSession;
       const companyId = profile?.company_id || (isDemo ? '00000000-0000-0000-0000-000000000001' : null);
 
-      if (!companyId) {
-        // Sem company_id vinculado → retorna null (onboarding necessário)
-        return null;
-      }
+      if (!companyId) return null;
 
       const { data, error } = await supabase
         .from("company")
         .select("*")
-        .eq("id", profile.company_id)
+        .eq("id", companyId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching company:", error);
+        return null;
+      }
       return data as Company | null;
     },
   });

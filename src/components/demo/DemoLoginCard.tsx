@@ -133,13 +133,12 @@ export function DemoLoginCard() {
       // Persistence: set demo flag before redirecting
       sessionStorage.setItem('brainx_demo_mode', 'true');
       
-      // Clear any previous ERP company cache
-      queryClient.invalidateQueries({ queryKey: ["company"] });
-      
-      // Delay slightly to ensure supabase persistence and clear signals
-      await new Promise(r => setTimeout(r, 500));
+      // Force clear all queries to avoid landing on "Company Required"
+      await queryClient.clear();
       
       toast.success('Bem-vindo à demonstração!');
+      
+      // DETERMINISTIC REDIRECT: Use window.location.href to ensure a clean slate
       window.location.href = '/';
     } catch (err: any) {
       toast.error('Erro ao acessar demo: ' + err.message);

@@ -109,42 +109,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let initialLoaded = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (!mounted) return;
-        // Skip if initial load handles it
+        
+        // Always trust INITIAL_SESSION or manual event triggers
         if (!initialLoaded && event !== 'INITIAL_SESSION') return;
 
         if (session?.user) {
-            // Handle session update immediately for smoother transitions
-            const updateState = async () => {
-              const { profile, role, permissions } = await fetchUserData(session.user.id);
-              if (!mounted) return;
-              
-              // If the profile says demo or the persisted flag exists, ensure is_demo is true
-              const isDemo = profile?.is_demo || isDemoPersisted;
-              const updatedProfile = profile ? { ...profile, is_demo: isDemo } : null;
-              
-              if (isDemo) {
-                sessionStorage.setItem('brainx_demo_mode', 'true');
-              }
-
-              setState({
-                user: session.user,
-                session,
-                profile: updatedProfile,
-                role,
-                permissions,
-                isLoading: false,
-                isAuthenticated: true,
-              });
-            };
+          try {
+            const { profile, role, permissions } = await fetchUserData(session.user.id);
+            if (!mounted) return;
             
+            // Critical: check for demo mode flag in multiple places
+            const isDemo = profile?.is_demo || isDemoPersisted || session.user.email === 'demo@brainxerp.com';
+            
+            if (isDemo) {
+              sessionStorage.setItem('brainx_demo_mode', 'true');
+            } else if (event === 'SIGNED_IN') {
+              // Explicitly clear demo mode if a real user signs in
+              sessionStorage.removeItem('brainx_demo_mode');
+            }
+
+            const finalProfile = profile ? { ...profile, is_demo: isDemo } : null;
+
+            setState({
+              user: session.user,
+              session,
+              profile: finalProfile,
+              role,
+              permissions,
+              isLoading: false,
+              isAuthenticated: true,
+            });
+
             if (event === 'SIGNED_IN') {
               updateLastAccess(session.user.id);
             }
-            
-            updateState();
+          } catch (err) {
+            console.error('Error in auth state change:', err);
+            setState(prev => ({ ...prev, isLoading: false }));
+          }
         } else {
+          sessionStorage.removeItem('brainx_demo_mode');
           setState({
             user: null, session: null, profile: null, role: null,
             permissions: [], isLoading: false, isAuthenticated: false,
