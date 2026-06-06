@@ -170,10 +170,6 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           publico: audience,
           cliente: clientName
         }
-      }, {
-        headers: {
-          'x-client-info': 'lovable-anvisa-checker'
-        }
       });
 
       if (error) {
