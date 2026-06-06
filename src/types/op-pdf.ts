@@ -40,6 +40,9 @@ export interface OPDadosPDF {
   checklist_completo?: boolean;
   assinatura_digital_hash?: string;
   responsavel_producao_nome?: string;
+  temperatura_inicio?: number | null;
+  umidade_inicio?: number | null;
+  sala_producao?: string | null;
 }
 
 export interface OPMateriaPrimaPDF {

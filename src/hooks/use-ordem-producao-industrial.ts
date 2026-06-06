@@ -381,6 +381,30 @@ export function useOrdemProducaoIndustrialActions() {
       iniciada_em: new Date().toISOString(),
     });
 
+    // Snapshot ambiental ao iniciar produção (RDC 658/2022)
+    try {
+      const { data: ultimaLeitura } = await supabase
+        .from('sensor_readings')
+        .select('temperature, humidity, room_name, recorded_at')
+        .order('recorded_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (ultimaLeitura) {
+        await supabase
+          .from('ordens_producao_industrial')
+          .update({
+            temperatura_inicio: ultimaLeitura.temperature,
+            umidade_inicio: ultimaLeitura.humidity,
+            sala_producao: ultimaLeitura.room_name,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+      }
+    } catch {
+      // Sem sensor configurado — não bloquear
+    }
+
     toast.success(`Produção ${op.codigo} iniciada`);
     invalidate(id);
     return true;
