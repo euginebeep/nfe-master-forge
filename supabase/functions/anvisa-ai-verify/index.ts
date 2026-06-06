@@ -514,16 +514,18 @@ Retorne APENAS o JSON conforme a estrutura do sistema.`;
         { role: 'user', content: userMessage }
       ];
 
-      // Se for imagem, adicionar como conteúdo multimodal
-      if (fileBase64 && fileType === 'image') {
+      // Se for imagem ou se o nome sugerir imagem, adicionar como conteúdo multimodal
+      const isImage = fileType === 'image' || fileName.match(/\.(jpg|jpeg|png|webp)$/i);
+      if (fileBase64 && isImage) {
         messages[1] = {
           role: 'user',
           content: [
             { type: 'text', text: userMessage },
-            { type: 'image_url', image_url: { url: `data:image/${fileName.split('.').pop()};base64,${fileBase64}` } }
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${fileBase64}` } }
           ]
         } as any;
       }
+
 
       const aiRes = await fetch(AI_GATEWAY, {
         method: 'POST',
@@ -532,7 +534,8 @@ Retorne APENAS o JSON conforme a estrutura do sistema.`;
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-2.0-flash-exp',
+
           messages,
           response_format: { type: 'json_object' }
         })
