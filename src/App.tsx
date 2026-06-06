@@ -75,6 +75,7 @@ const DesviosPage = lazy(() => import("./pages/qualidade/DesviosPage"));
 const DesvioDetailPage = lazy(() => import("./pages/qualidade/DesvioDetailPage"));
 const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
 const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
+const POPsPage = lazy(() => import("./pages/qualidade/POPsPage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
 const MonitoramentoAmbientalPage = lazy(() => import("./pages/ambiental/MonitoramentoAmbientalPage"));
 const AmbientalConfigPage = lazy(() => import("./pages/ambiental/AmbientalConfigPage"));
