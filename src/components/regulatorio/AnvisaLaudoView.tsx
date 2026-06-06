@@ -132,8 +132,11 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
             </TableHeader>
             <TableBody>
               {data.ativos.map((ativo, i) => {
-                const limit = ativo.anvisaKey ? ANVISA_LIMITS[ativo.anvisaKey.toLowerCase()] : null;
+                const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+                const limit = key ? ANVISA_LIMITS[key] : null;
                 const doseNum = parseFloat(ativo.dose);
+                const nomeAtivo = ativo.nome || ativo.name || '-';
+                
                 let status = 'VERIFICAR';
                 if (limit) {
                   if (!limit.auth) status = 'BLOQUEADO';
@@ -144,7 +147,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
 
                 return (
                   <TableRow key={i}>
-                    <TableCell className="font-medium">{ativo.name}</TableCell>
+                    <TableCell className="font-medium">{nomeAtivo}</TableCell>
                     <TableCell>{ativo.dose} {ativo.unit}</TableCell>
                     <TableCell>{limit?.max ? `${limit.max} ${limit.unit}` : 'NE'}</TableCell>
                     <TableCell className="text-[10px] text-muted-foreground">{limit?.norm || '-'}</TableCell>
@@ -161,6 +164,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
                   </TableRow>
                 );
               })}
+
             </TableBody>
           </Table>
         </section>
@@ -179,8 +183,9 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
               </TableHeader>
               <TableBody>
                 {data.ativos.map((ativo, i) => {
-                  const key = ativo.anvisaKey?.toLowerCase();
+                  const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
                   const vdRef = key ? VD_REFERENCE[key] : null;
+                  const nomeAtivo = ativo.nome || ativo.name || '-';
                   let doseMg = parseFloat(ativo.dose) || 0;
                   if (ativo.unit === 'mcg') doseMg /= 1000;
                   if (ativo.unit === 'g') doseMg *= 1000;
@@ -189,12 +194,13 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
 
                   return (
                     <TableRow key={i} className="text-[10px] border-b border-primary/10">
-                      <TableCell className="py-1">{ativo.name}</TableCell>
+                      <TableCell className="py-1">{nomeAtivo}</TableCell>
                       <TableCell className="py-1 text-right">{ativo.dose} {ativo.unit}</TableCell>
                       <TableCell className="py-1 text-right">{percentVD !== null ? `${percentVD}%` : '**'}</TableCell>
                     </TableRow>
                   );
                 })}
+
               </TableBody>
             </Table>
             <p className="text-[8px] mt-2 leading-tight text-muted-foreground italic">
