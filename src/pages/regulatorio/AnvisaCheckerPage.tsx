@@ -49,19 +49,7 @@ export default function AnvisaCheckerPage() {
         </TabsList>
 
         <TabsContent value="formula">
-          {selectedLaudo ? (
-            <AnvisaLaudoView 
-              data={{
-                ...selectedLaudo.resultado_ia,
-                produto: selectedLaudo.produto,
-                cliente: selectedLaudo.cliente,
-                ativos: selectedLaudo.payload_entrada.ativos
-              }} 
-              onReset={handleReset} 
-            />
-          ) : (
-            <AnvisaCheckerForm onResult={handleLaudoGenerated} />
-          )}
+          <AnvisaCheckerForm onResult={handleLaudoGenerated} />
         </TabsContent>
 
         <TabsContent value="tabela">
@@ -69,10 +57,24 @@ export default function AnvisaCheckerPage() {
         </TabsContent>
 
         <TabsContent value="laudos">
-          <AnvisaLaudosHistorico onSelect={(laudo) => {
-            setSelectedLaudo(laudo);
-            setActiveTab("formula");
-          }} />
+          {selectedLaudo ? (
+            <AnvisaLaudoView 
+              data={{
+                ...selectedLaudo.resultado_ia,
+                produto: selectedLaudo.produto,
+                cliente: selectedLaudo.cliente,
+                ativos: selectedLaudo.payload_entrada?.ativos || []
+              }} 
+              onReset={() => {
+                setSelectedLaudo(null);
+                setActiveTab("formula");
+              }} 
+            />
+          ) : (
+            <AnvisaLaudosHistorico onSelect={(laudo) => {
+              setSelectedLaudo(laudo);
+            }} />
+          )}
         </TabsContent>
 
         <TabsContent value="base">
