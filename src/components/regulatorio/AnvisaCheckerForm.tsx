@@ -115,11 +115,13 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   };
 
   const getFileIcon = () => {
-    if (previewUrl) return <img src={previewUrl} className="w-24 h-24 object-cover rounded-lg mb-4" alt="Preview" />;
-    if (!file) return <Upload className="w-16 h-16 text-muted-foreground mb-4" />;
-    if (file.type.includes('zip')) return <FileArchive className="w-16 h-16 text-primary mb-4" />;
-    if (file.type.includes('image')) return <ImageIcon className="w-16 h-16 text-primary mb-4" />;
-    return <FileText className="w-16 h-16 text-primary mb-4" />;
+    if (previewUrl) return <img src={previewUrl} className="w-48 h-48 object-cover rounded-3xl mb-4 shadow-2xl ring-4 ring-primary/20 animate-in zoom-in duration-500" alt="Preview" />;
+    if (!file) return <Upload className="w-20 h-20 text-muted-foreground mb-4 group-hover:scale-110 transition-transform duration-500" />;
+    
+    const iconClass = "w-20 h-20 text-primary mb-4 animate-in zoom-in duration-300";
+    if (file.type.includes('zip')) return <FileArchive className={iconClass} />;
+    if (file.type.includes('image')) return <ImageIcon className={iconClass} />;
+    return <FileText className={iconClass} />;
   };
 
   const getChipInfo = () => {
