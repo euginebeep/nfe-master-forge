@@ -152,8 +152,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           const { profile, role, permissions } = await fetchUserData(session.user.id);
           if (!mounted) return;
+
+          // Aplicar mesma detecção de demo do onAuthStateChange
+          const isDemoPersistedInit = sessionStorage.getItem('brainx_demo_mode') === 'true';
+          const isDemoEmailInit = session.user.email === 'demo@brainxerp.com';
+          const isDemoInit = (profile?.is_demo || isDemoPersistedInit || isDemoEmailInit) && !profile?.company_id;
+
+          if (isDemoInit) {
+            sessionStorage.setItem('brainx_demo_mode', 'true');
+          } else if (!isDemoInit && !profile?.company_id) {
+            sessionStorage.removeItem('brainx_demo_mode');
+          }
+
+          const finalProfileInit = profile ? { ...profile, is_demo: isDemoInit } : null;
+
           setState({
-            user: session.user, session, profile, role, permissions,
+            user: session.user, session,
+            profile: finalProfileInit,
+            role, permissions,
             isLoading: false, isAuthenticated: true,
           });
         } else {
