@@ -83,6 +83,33 @@ export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalP
           <div className="value">{formatDate(op.data_validade)}</div>
         </div>
       </div>
+      
+      {(op.temperatura_inicio || op.umidade_inicio) && (
+        <div className="op-info-grid" style={{ borderTop: '1px solid #e2e8f0', background: '#f0fdf4' }}>
+          <div className="op-info-box">
+            <label>🌡 Temp. Início Produção</label>
+            <div className="value" style={{ color: op.temperatura_inicio && op.temperatura_inicio > 25 ? '#dc2626' : '#15803d' }}>
+              {op.temperatura_inicio ? `${op.temperatura_inicio.toFixed(1)} °C` : '-'}
+            </div>
+          </div>
+          <div className="op-info-box">
+            <label>💧 Umidade Início</label>
+            <div className="value" style={{ color: op.umidade_inicio && op.umidade_inicio > 60 ? '#dc2626' : '#15803d' }}>
+              {op.umidade_inicio ? `${op.umidade_inicio.toFixed(1)} %` : '-'}
+            </div>
+          </div>
+          <div className="op-info-box">
+            <label>Sala de Produção</label>
+            <div className="value">{op.sala_producao || 'Produção'}</div>
+          </div>
+          <div className="op-info-box">
+            <label>Conformidade Ambiental</label>
+            <div className="value" style={{ color: (op.temperatura_inicio ?? 20) <= 25 && (op.umidade_inicio ?? 50) <= 60 ? '#15803d' : '#dc2626', fontWeight: 700 }}>
+              {(op.temperatura_inicio ?? 20) <= 25 && (op.umidade_inicio ?? 50) <= 60 ? '✓ CONFORME' : '⚠ VERIFICAR'}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
