@@ -29,12 +29,12 @@ const modulosCore = [
 ];
 
 const modulosComplementares = [
+  { icon: Stethoscope, title: "Consulta ANVISA + IA", desc: "Verificação automática de substâncias proibidas (IN 28/2018, RDC 243/2018) com alerta vermelho." },
   { icon: FileText, title: "Emissão de NF-e / NFC-e", desc: "Emissor fiscal homologado integrado, com DANFE, contingência e armazenamento do XML por 5 anos." },
   { icon: ScanLine, title: "Importação de XML / NF-e", desc: "Entrada automática de notas: cria fornecedores, SKUs, lotes, contas a pagar e classifica risco por NCM." },
   { icon: Wallet, title: "Financeiro Completo", desc: "Contas a pagar e receber, fluxo de caixa, conciliação, DRE — alimentado pelo XML automaticamente." },
   { icon: ShoppingCart, title: "CRM, Orçamentos & Vendas", desc: "Pipeline comercial, contratos com workflow de aprovação >R$5k, pedidos, expedição e marketplace." },
   { icon: Thermometer, title: "Temperatura por Sensores IoT", desc: "Monitoramento ambiental em tempo real, heatmap 12h, alertas de não conformidade e exportação CSV." },
-  { icon: Stethoscope, title: "Consulta ANVISA + IA", desc: "Verificação automática de substâncias proibidas (IN 28/2018, RDC 243/2018) com alerta vermelho." },
 ];
 
 const riscos = [
