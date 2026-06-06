@@ -27,6 +27,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const [etapaAtual, setEtapaAtual] = useState<EtapaWizard>(1);
   const [formulas, setFormulas] = useState<Formula[]>([]);
   const [pedidos, setPedidos] = useState<PedidoVenda[]>([]);
+  const [equipamentos, setEquipamentos] = useState<any[]>([]);
   const [clientes, setClientes] = useState<EntidadeCliente[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
   const [selectedFormula, setSelectedFormula] = useState<Formula | null>(null);
@@ -70,6 +71,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       responsavel_producao_nome: "",
       responsavel_tecnico_id: "",
       observacoes: "",
+      equipamento_id: "",
     },
   });
 
@@ -168,18 +170,22 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         .order("created_at", { ascending: false });
       setPedidos((data as PedidoVenda[]) || []);
     };
-    const fetchMisturador = async () => {
+    const fetchEquipamentos = async () => {
       const { data } = await supabase
         .from('equipamentos')
-        .select('nome, volume_nominal_litros, fator_enchimento_maximo, fator_enchimento_minimo, fator_enchimento_padrao, densidade_padrao_kg_l')
+        .select('id, nome, volume_nominal_litros, fator_enchimento_maximo, fator_enchimento_minimo, fator_enchimento_padrao, densidade_padrao_kg_l')
         .eq('ativo', true)
         .in('tipo', ['MISTURADOR_V', 'MISTURADOR_DUPLO_CONE'])
-        .order('nome')
-        .limit(1)
-        .maybeSingle();
-      if (data) setMisturador(data as any);
+        .order('nome');
+      setEquipamentos(data || []);
+      
+      // Auto-select first equipment if none selected
+      if (data && data.length > 0 && !form.getValues("equipamento_id")) {
+        form.setValue("equipamento_id", data[0].id);
+        setMisturador(data[0] as any);
+      }
     };
-    fetchMisturador();
+    fetchEquipamentos();
     fetchFormulas();
     fetchPedidos();
     setEtapaAtual(1);
@@ -296,6 +302,14 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     }
   };
 
+  const handleEquipamentoChange = (equipamentoId: string) => {
+    form.setValue("equipamento_id", equipamentoId);
+    const equip = equipamentos.find(e => e.id === equipamentoId);
+    if (equip) {
+      setMisturador(equip);
+    }
+  };
+
   const podeAvancar = (): boolean => {
     switch (etapaAtual) {
       case 1:
@@ -397,6 +411,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         volume_total_po_l: volumeTotalPoL,
         volume_por_batelada_l: volumePorBatelada,
         fator_enchimento_real: fatorEnchimentoReal,
+        equipamento_id: values.equipamento_id || null,
       };
 
       const { data: newOP, error } = await supabase
@@ -438,7 +453,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   };
 
   return {
-    form, etapaAtual, formulas, pedidos, clientes, clienteSearch, setClienteSearch,
+    form, etapaAtual, formulas, pedidos, equipamentos, clientes, clienteSearch, setClienteSearch,
     selectedFormula, selectedPedido, selectedCliente, pedidoItens,
     isLoading, showClienteDropdown, setShowClienteDropdown,
     showQuickClienteModal, setShowQuickClienteModal,
@@ -451,7 +466,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     nomeMisturador,
     VOLUME_UTIL_MAX_L,
     VOLUME_UTIL_MIN_L,
-    handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange,
+    handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange, handleEquipamentoChange,
     podeAvancar, avancar, voltar, onSubmit,
     progressoEtapas: (etapaAtual / 4) * 100,
   };

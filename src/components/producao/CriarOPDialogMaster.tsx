@@ -48,7 +48,7 @@ import { type CriarOPDialogMasterProps, ACRESCIMO_INDUSTRIAL } from "./op-wizard
 export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDialogMasterProps) {
   const state = useOPWizardState(open, onSuccess, onOpenChange);
   const {
-    form, etapaAtual, formulas, pedidos, clientes, clienteSearch, setClienteSearch,
+    form, etapaAtual, formulas, pedidos, equipamentos, clientes, clienteSearch, setClienteSearch,
     selectedFormula, selectedPedido, selectedCliente, pedidoItens,
     isLoading, showClienteDropdown, setShowClienteDropdown,
     showQuickClienteModal, setShowQuickClienteModal,
@@ -57,7 +57,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     volumeTotalPoL, volumePorBatelada, fatorEnchimentoReal, nomeMisturador,
     VOLUME_UTIL_MAX_L, VOLUME_UTIL_MIN_L,
-    handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange,
+    handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange, handleEquipamentoChange,
     podeAvancar, avancar, voltar, onSubmit, progressoEtapas,
   } = state;
 
@@ -147,6 +147,24 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
             <FormMessage />
             {pedidos.length === 0 && (<Alert className="mt-2"><AlertTriangle className="h-4 w-4" /><AlertDescription>Nenhum pedido confirmado disponível.</AlertDescription></Alert>)}
             {selectedPedido && (<div className="mt-2 p-3 bg-muted rounded-lg"><p className="text-sm font-medium">{selectedPedido.cliente_nome}</p><p className="text-xs text-muted-foreground">{selectedPedido.cliente_documento}</p></div>)}
+          </FormItem>
+        )} />
+      )}
+
+      {equipamentos.length > 1 && (
+        <FormField control={form.control} name="equipamento_id" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Selecionar Misturador *</FormLabel>
+            <Select value={field.value} onValueChange={handleEquipamentoChange}>
+              <FormControl><SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger></FormControl>
+              <SelectContent>
+                {equipamentos.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.nome} ({e.volume_nominal_litros}L)</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormDescription>Selecione o equipamento que será utilizado nesta produção específica</FormDescription>
+            <FormMessage />
           </FormItem>
         )} />
       )}

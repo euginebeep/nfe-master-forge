@@ -104,6 +104,7 @@ export const formSchema = z.object({
   responsavel_producao_nome: z.string().min(1, "Responsável é obrigatório"),
   responsavel_tecnico_id: z.string().min(1, "Responsável Técnico é obrigatório"),
   observacoes: z.string().optional(),
+  equipamento_id: z.string().optional(),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
