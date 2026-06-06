@@ -84,7 +84,7 @@ const LandingPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-6xl md:text-7xl font-bold max-w-4xl leading-[1.1] mb-10 tracking-tight"
+            className="text-6xl md:text-7xl font-bold max-w-5xl leading-[1.05] mb-10 tracking-tight"
           >
             BrainX ERP para gestão industrial de suplementos.
           </motion.h2>
@@ -93,7 +93,7 @@ const LandingPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="text-2xl text-gray-400 max-w-2xl font-medium leading-relaxed"
+            className="text-2xl text-gray-400 max-w-3xl font-medium leading-relaxed"
           >
             Controle produção, estoque, qualidade e conformidade com rastreabilidade de ponta a ponta.
           </motion.p>
