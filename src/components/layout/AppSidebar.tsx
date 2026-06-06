@@ -454,18 +454,6 @@ export function AppSidebar() {
             </Tooltip>
           )}
 
-                    "w-[18px] h-[18px] shrink-0 transition-colors",
-                    !isActive(to) && !danger && "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80"
-                  )} />
-                  {!collapsed && <span className="text-[13px] font-medium">{label}</span>}
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-[240px] text-xs">
-                <p className="font-semibold">{label}</p>
-                <p className="text-muted-foreground mt-0.5">{tooltip}</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
 
           <div className="mt-1 pt-1 border-t border-sidebar-border/30">
             <Tooltip>
