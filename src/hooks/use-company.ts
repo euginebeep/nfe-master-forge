@@ -17,7 +17,11 @@ export function useCompany() {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (!profile?.company_id) {
+      // For demo mode, we use a fixed demo company ID if the profile is missing it or is_demo is set
+      const isDemo = profile?.is_demo || sessionStorage.getItem('brainx_demo_mode') === 'true';
+      const companyId = profile?.company_id || (isDemo ? '00000000-0000-0000-0000-000000000001' : null);
+
+      if (!companyId) {
         // Sem company_id vinculado → retorna null (onboarding necessário)
         return null;
       }
