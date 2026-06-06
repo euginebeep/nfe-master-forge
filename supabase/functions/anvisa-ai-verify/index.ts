@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
           Prefer: 'return=minimal',
         },
         body: JSON.stringify({
-          termo: termoLog.slice(0, 200),
+          termo: (termoLog || 'analyze_file').slice(0, 200),
           origem: origemLog,
           encontrou_match: encontrouLog,
           total_resultados: totalLog,
