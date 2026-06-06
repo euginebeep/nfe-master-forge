@@ -40,7 +40,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -325,7 +324,6 @@ export default function MonitoramentoAmbientalPage() {
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
-  const [chartDate, setChartDate] = useState<string>(""); // YYYY-MM-DD (vazio = últimas 24h)
 
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
   const navigate = useNavigate();
@@ -416,26 +414,12 @@ export default function MonitoramentoAmbientalPage() {
     };
   }, [filteredReadings]);
 
-  // Chart data — últimas 24h ou dia escolhido para effectiveRoom
+  // Chart data — last 24h for effectiveRoom
   const chartData = useMemo(() => {
     if (!effectiveRoom) return [];
-    let from: number;
-    let to: number;
-    if (chartDate) {
-      const [y, m, d] = chartDate.split("-").map(Number);
-      const start = new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
-      from = start.getTime();
-      to = from + 24 * 60 * 60 * 1000;
-    } else {
-      to = Date.now();
-      from = to - 24 * 60 * 60 * 1000;
-    }
+    const since = Date.now() - 24 * 60 * 60 * 1000;
     return readings
-      .filter((r) => {
-        if (r.room_name !== effectiveRoom) return false;
-        const t = new Date(r.recorded_at).getTime();
-        return t >= from && t < to;
-      })
+      .filter((r) => r.room_name === effectiveRoom && new Date(r.recorded_at).getTime() >= since)
       .slice()
       .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
       .map((r) => ({
@@ -443,7 +427,7 @@ export default function MonitoramentoAmbientalPage() {
         temp: r.temperature,
         hum: r.humidity,
       }));
-  }, [readings, effectiveRoom, chartDate]);
+  }, [readings, effectiveRoom]);
 
   const selectedRoomLimits = useMemo(() => {
     if (!effectiveRoom) return null;
@@ -721,30 +705,8 @@ export default function MonitoramentoAmbientalPage() {
               <Card className="flex-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center justify-between gap-2">
-                    <span>
-                      {effectiveRoom || "—"} —{" "}
-                      {chartDate
-                        ? new Date(chartDate + "T00:00:00").toLocaleDateString("pt-BR")
-                        : "Últimas 24h"}
-                    </span>
-                    <div className="flex items-center gap-2 text-[10px] font-normal text-muted-foreground">
-                      <Input
-                        type="date"
-                        value={chartDate}
-                        onChange={(e) => setChartDate(e.target.value)}
-                        className="h-7 w-[140px] text-[11px]"
-                        max={new Date().toISOString().slice(0, 10)}
-                      />
-                      {chartDate && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-[10px]"
-                          onClick={() => setChartDate("")}
-                        >
-                          24h
-                        </Button>
-                      )}
+                    <span>{effectiveRoom || "—"} — Últimas 24h</span>
+                    <div className="flex items-center gap-3 text-[10px] font-normal text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-600" /> Temp °C
                       </span>
@@ -757,7 +719,7 @@ export default function MonitoramentoAmbientalPage() {
                 <CardContent>
                   {chartData.length === 0 ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">
-                      Sem dados {chartDate ? "na data selecionada" : "nas últimas 24h"} para esta sala.
+                      Sem dados nas últimas 24h para esta sala.
                     </div>
                   ) : (
                     <div style={{ width: "100%", height: 140 }}>

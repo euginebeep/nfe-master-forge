@@ -16,7 +16,6 @@ export interface UserProfile {
   sexo: 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO' | null;
   data_nascimento: string | null;
   is_demo?: boolean;
-  company_id?: string | null;
 }
 
 export interface UserPermission {
@@ -53,9 +52,6 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Use session storage as a robust secondary flag for demo mode
-  const isDemoPersisted = sessionStorage.getItem('brainx_demo_mode') === 'true';
-
   const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
@@ -110,49 +106,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let initialLoaded = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mounted) return;
-        
-        // Always trust INITIAL_SESSION or manual event triggers
-        if (!initialLoaded && event !== 'INITIAL_SESSION') return;
+        // Skip if initial load handles it
+        if (!initialLoaded) return;
 
         if (session?.user) {
-          try {
+          // Use setTimeout to avoid Supabase deadlock
+          setTimeout(async () => {
+            if (!mounted) return;
+            if (event === 'SIGNED_IN') {
+              await updateLastAccess(session.user.id);
+            }
             const { profile, role, permissions } = await fetchUserData(session.user.id);
             if (!mounted) return;
-            
-            // Critical: check for demo mode flag in multiple places
-            const isDemoEmail = session.user.email === 'demo@brainxerp.com';
-            const isDemo = (profile?.is_demo || isDemoPersisted || isDemoEmail) && !profile?.company_id;
-            
-            if (isDemo) {
-              sessionStorage.setItem('brainx_demo_mode', 'true');
-            } else {
-              // If it's a real user or has a company, always clear demo mode
-              sessionStorage.removeItem('brainx_demo_mode');
-            }
-
-            const finalProfile = profile ? { ...profile, is_demo: isDemo } : null;
-
             setState({
               user: session.user,
               session,
-              profile: finalProfile,
+              profile,
               role,
               permissions,
               isLoading: false,
               isAuthenticated: true,
             });
-
-            if (event === 'SIGNED_IN') {
-              updateLastAccess(session.user.id);
-            }
-          } catch (err) {
-            console.error('Error in auth state change:', err);
-            setState(prev => ({ ...prev, isLoading: false }));
-          }
+          }, 0);
         } else {
-          sessionStorage.removeItem('brainx_demo_mode');
           setState({
             user: null, session: null, profile: null, role: null,
             permissions: [], isLoading: false, isAuthenticated: false,

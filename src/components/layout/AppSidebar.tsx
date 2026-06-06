@@ -250,8 +250,8 @@ export function AppSidebar() {
               src={brainxLogo}
               alt="BrainxERP"
               className={cn(
-                "object-contain rounded shrink-0 transition-all duration-200 p-0.5 dark:bg-white/95 dark:ring-1 dark:ring-white/20",
-                collapsed ? "w-[47px] h-[47px]" : "w-[62px] h-[62px] md:w-[73px] md:h-[73px]"
+                "object-contain rounded shrink-0 transition-all duration-200",
+                collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
               )}
               loading="lazy"
             />
@@ -289,8 +289,8 @@ export function AppSidebar() {
               src={brainxLogo}
               alt="BrainxERP"
               className={cn(
-                "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200 p-1 dark:bg-white/95 dark:ring-1 dark:ring-white/20",
-                collapsed ? "w-[47px] h-[47px]" : "w-[62px] h-[62px] md:w-[73px] md:h-[73px]"
+                "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200",
+                collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
               )}
               loading="lazy"
             />

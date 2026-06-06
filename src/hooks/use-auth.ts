@@ -72,7 +72,7 @@ export function useAuth() {
     } catch {
       toast.success('Login realizado com sucesso!');
     }
-    window.location.href = '/';
+    navigate('/');
     return result;
   };
 

@@ -8,35 +8,27 @@ export function useCompany() {
     queryKey: ["company"],
     queryFn: async () => {
       // Buscar o company_id do profile do usuário logado
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return null;
-
-      // Check demo mode from multiple sources
-      const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true' || 
-                           session.user.email === 'demo@brainxerp.com';
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("company_id, is_demo")
-        .eq("id", session.user.id)
-        .maybeSingle();
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
 
-      const isDemo = profile?.is_demo || isDemoSession;
-      const companyId = profile?.company_id || (isDemo ? '00000000-0000-0000-0000-000000000001' : null);
+      if (!profile?.company_id) {
+        // Sem company_id vinculado → retorna null (onboarding necessário)
+        return null;
+      }
 
-      if (!companyId) return null;
-
-      // Final attempt to get company using profile or derived ID
       const { data, error } = await supabase
         .from("company")
         .select("*")
-        .eq("id", companyId)
-        .maybeSingle();
+        .eq("id", profile.company_id)
+        .single();
 
-      if (error) {
-        console.error("Error fetching company:", error);
-        return null;
-      }
+      if (error) throw error;
       return data as Company | null;
     },
   });

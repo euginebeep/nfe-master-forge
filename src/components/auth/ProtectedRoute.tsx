@@ -36,22 +36,14 @@ export function ProtectedRoute({ children, minRole }: Props) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <div className="flex flex-col items-center text-center">
-            <p className="font-semibold text-lg">Iniciando BrainxERP</p>
-            <p className="text-sm text-muted-foreground">Validando credenciais e ambiente industrial...</p>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Verificando autenticação...</p>
         </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    // If we're at the root, show the landing page.
-    // Otherwise, redirect to auth.
-    if (location.pathname === "/") {
-      return <Navigate to="/landing" replace />;
-    }
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
