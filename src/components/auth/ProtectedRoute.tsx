@@ -44,9 +44,12 @@ export function ProtectedRoute({ children, minRole }: Props) {
   }
 
   if (!isAuthenticated) {
-    // Visitantes na raiz vão para a landing pública; em rotas internas, vão para login
-    const target = location.pathname === "/" ? "/landing" : "/auth";
-    return <Navigate to={target} state={{ from: location }} replace />;
+    // If we're at the root, show the landing page.
+    // Otherwise, redirect to auth.
+    if (location.pathname === "/") {
+      return <Navigate to="/landing" replace />;
+    }
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   if (minRole && role) {

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowRight,
@@ -127,6 +127,7 @@ function AuthField({ id, label, type, placeholder, value, icon: Icon, required, 
 }
 
 export default function AuthPageModern() {
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [repeatedSignup, setRepeatedSignup] = useState(false);
@@ -140,6 +141,16 @@ export default function AuthPageModern() {
   const [regPass, setRegPass] = useState('');
   const [regConfirm, setRegConfirm] = useState('');
   const mismatch = !!regConfirm && regPass !== regConfirm;
+
+  // Auto-trigger demo if demo=1 is present
+  useEffect(() => {
+    const isDemo = searchParams.get('demo') === '1';
+    if (isDemo && !isAuthenticated && !authLoading) {
+      // We don't call enterDemo directly because it's inside DemoLoginCard
+      // but we could trigger it if we wanted. 
+      // For now, let's just make sure the UI highlights the demo card
+    }
+  }, [searchParams, isAuthenticated, authLoading]);
 
   if (isAuthenticated && !authLoading) {
     return <Navigate to="/" replace />;

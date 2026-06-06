@@ -128,7 +128,8 @@ export function DemoLoginCard() {
       }
       
       toast.success('Bem-vindo à demonstração!');
-      navigate('/');
+      // Use window.location.href to ensure a clean state and avoid race conditions with ProtectedRoute
+      window.location.href = '/';
     } catch (err: any) {
       toast.error('Erro ao acessar demo: ' + err.message);
     } finally {
