@@ -35,7 +35,9 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CriarOPDialogMaster } from '@/components/producao/CriarOPDialogMaster';
+import { AtribuirClienteWhiteLabelDialog } from '@/components/producao/AtribuirClienteWhiteLabelDialog';
 import { AdminCleanupButton } from "@/components/admin/AdminCleanupButton";
+import { useQueryClient } from '@tanstack/react-query';
 import type { StatusOP } from '@/types/op-industrial';
 
 interface OrdemProducaoDisplay {
@@ -51,6 +53,9 @@ interface OrdemProducaoDisplay {
   total_capsulas_com_acrescimo: number;
   acrescimo_percentual: number;
   lote_produto_acabado: string;
+  lote_produto_acabado_id?: string;
+  loteId?: string;
+  tipo_op?: string;
   data_fabricacao: string;
   data_validade: string;
   tipo_capsula: string;
@@ -70,11 +75,13 @@ interface OrdemProducaoDisplay {
 
 export default function OrdensProducaoIndustrialPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [ordens, setOrdens] = useState<OrdemProducaoDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogCriarOpen, setDialogCriarOpen] = useState(false);
+  const [whiteLabelLote, setWhiteLabelLote] = useState<{loteId: string, loteNumero?: string, produtoNome?: string} | null>(null);
 
   // Buscar OPs do Supabase
   const refresh = useCallback(async () => {
@@ -351,14 +358,39 @@ export default function OrdensProducaoIndustrialPage() {
                       {op.responsavel_producao_nome || '-'}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate(`/producao/ordens/${op.id}`)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {op.tipo_op === 'WHITE_LABEL' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const lid = op.lote_produto_acabado_id || op.loteId;
+                              if (lid) {
+                                setWhiteLabelLote({
+                                  loteId: lid,
+                                  loteNumero: op.lote_produto_acabado,
+                                  produtoNome: op.produto_nome
+                                });
+                              } else {
+                                toast.error('Lote não identificado para esta OP.');
+                              }
+                            }}
+                          >
+                            <Package className="h-4 w-4 mr-1" />
+                            Atribuir Cliente
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/producao/ordens/${op.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Ver
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -373,6 +405,19 @@ export default function OrdensProducaoIndustrialPage() {
         open={dialogCriarOpen}
         onOpenChange={setDialogCriarOpen}
         onSuccess={handleOPCreated}
+      />
+
+      <AtribuirClienteWhiteLabelDialog 
+        open={!!whiteLabelLote} 
+        onOpenChange={(v) => !v && setWhiteLabelLote(null)} 
+        loteId={whiteLabelLote?.loteId || ''} 
+        loteNumero={whiteLabelLote?.loteNumero} 
+        produtoNome={whiteLabelLote?.produtoNome} 
+        onSuccess={() => { 
+          setWhiteLabelLote(null); 
+          refresh();
+          queryClient.invalidateQueries({ queryKey: ['ordens-producao'] }); 
+        }} 
       />
     </div>
   );
