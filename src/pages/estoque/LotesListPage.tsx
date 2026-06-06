@@ -7,7 +7,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { useBadge } from "@/components/ui/badge"; // Verify if needed, usually just Badge
+import { Badge } from "@/components/ui/badge";
 import { useLotes } from "@/hooks/use-lotes";
 import { AtribuirClienteWhiteLabelDialog } from "@/components/producao/AtribuirClienteWhiteLabelDialog";
 import { useQueryClient } from "@tanstack/react-query";
