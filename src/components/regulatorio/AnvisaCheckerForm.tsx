@@ -11,6 +11,8 @@ import { Upload, FileArchive, FileText, Image as ImageIcon, X, CheckCircle2, Loa
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveAnvisaKey } from "@/lib/anvisa-limits";
+
 
 const AUDIENCES = [
   { value: "ADULTOS", label: "Adultos ≥19 anos" },
@@ -172,9 +174,67 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       if (error) throw error;
 
-      // Salvar histórico no Supabase para cada produto retornado
+      // ── NORMALIZAÇÃO DO RETORNO (ARQUIVO 2 — Página 6 e 7 do prompt)
+      let produtos = [];
+
+      // Caso 1: retornou { produtos: [...] }
+      if (data?.produtos && Array.isArray(data.produtos)) {
+        produtos = data.produtos;
+      }
+      // Caso 2: retornou { total_produtos: N, produtos: [...] }
+      else if (data?.total_produtos && data?.produtos) {
+        produtos = data.produtos;
+      }
+      // Caso 3: retornou um único produto diretamente (sem array)
+      else if (data?.nome || data?.ativos) {
+        produtos = [data];
+      }
+      // Caso 4: retornou array direto
+      else if (Array.isArray(data)) {
+        produtos = data;
+      }
+      // Caso 5: fallback — criar produto vazio com a análise
+      else {
+        produtos = [{
+          nome: file.name.replace(/\.[^/.]+$/, ""),
+          status_geral: 'VERIFICAR',
+          ativos: [],
+          alertas: [{ tipo: 'warn', titulo: 'Parsing incompleto', corpo: String(data) }],
+          analise_ia: typeof data === 'string' ? data : JSON.stringify(data),
+          alegacoes_permitidas: [],
+          alegacoes_proibidas: [],
+          avisos_rotulo: [],
+          sugestao_capsulas: { n: 1, tamanho: '#00', frasco: 60, obs: "" },
+        }];
+      }
+
+      // ── NORMALIZAR CADA PRODUTO
+      produtos = produtos.map((p: any) => ({
+        nome: p.nome || p.produto || p.name || file.name.replace(/\.[^/.]+$/, ''),
+        cliente: p.cliente || clientName || 'PROLAB',
+        categoria: p.categoria || p.category || '',
+        status_geral: p.status_geral || p.status || 'VERIFICAR',
+        // Normalizar ativos — garantir nome e key sempre preenchidos
+        ativos: (p.ativos || p.ingredientes || p.ingredients || []).map((a: any) => {
+          const nomeAtivo = a.nome || a.name || a.ingrediente || a.ativo || '';
+          const keyResolvida = a.key || a.chave || resolveAnvisaKey(nomeAtivo);
+          return {
+            nome: nomeAtivo,
+            dose: Number(a.dose) || 0,
+            unit: a.unit || a.unidade || 'mg',
+            key: keyResolvida,
+          };
+        }).filter((a: any) => a.nome || a.dose > 0), // remover linhas completamente vazias
+        alertas: Array.isArray(p.alertas) ? p.alertas : [],
+        analise_ia: p.analise_ia || p.analise || p.analysis || '',
+        alegacoes_permitidas: Array.isArray(p.alegacoes_permitidas) ? p.alegacoes_permitidas : [],
+        alegacoes_proibidas: Array.isArray(p.alegacoes_proibidas) ? p.alegacoes_proibidas : [],
+        avisos_rotulo: Array.isArray(p.avisos_rotulo) ? p.avisos_rotulo : [],
+        sugestao_capsulas: p.sugestao_capsulas || { n: 1, tamanho: '#00', frasco: 60, obs: '' },
+      }));
+
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && data.produtos) {
+      if (user && produtos) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('company_id')
@@ -182,7 +242,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           .single();
 
         if (profile?.company_id) {
-          for (const produto of data.produtos) {
+          for (const produto of produtos) {
             await supabase.from('anvisa_laudos').insert({
               company_id: profile.company_id,
               produto: produto.nome,
@@ -198,18 +258,17 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       await new Promise(r => setTimeout(resolve => r(null), 1000));
       
-      if (data.total_produtos === 1) {
+      if (produtos.length === 1) {
         onResult({
-          produto: data.produtos[0].nome,
+          produto: produtos[0].nome,
           cliente: clientName,
-          payload_entrada: { ativos: data.produtos[0].ativos },
-          resultado_ia: data.produtos[0]
+          payload_entrada: { ativos: produtos[0].ativos },
+          resultado_ia: produtos[0]
         });
       } else {
-        // Para múltiplos produtos, apenas sinalizamos a conclusão e limpamos a seleção
-        // A página vai mudar para a aba de laudos e mostrar a lista
         onResult(null); 
       }
+
 
       toast({ 
         title: "Análise concluída", 
