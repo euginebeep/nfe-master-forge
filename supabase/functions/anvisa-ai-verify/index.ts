@@ -488,10 +488,23 @@ Retorne JSON com estrutura:
   ]
 }`
 
-      const userMessage = `Analise este arquivo ${body.file_type}: ${body.file_name}\n` +
-        `Cliente: ${body.cliente || 'não informado'}\n` +
-        `Público-alvo: ${body.publico || 'adultos ≥19 anos'}\n` +
-        (body.file_base64 ? `[arquivo em base64 anexado]` : '')
+      const userMessage = [
+        { type: 'text', text: `Analise este arquivo ${body.file_type}: ${body.file_name}\nCliente: ${body.cliente || 'não informado'}\nPúblico-alvo: ${body.publico || 'adultos ≥19 anos'}` }
+      ]
+
+      if (body.file_base64) {
+        if (body.file_type === 'image') {
+          userMessage.push({
+            type: 'image_url',
+            image_url: { url: `data:image/jpeg;base64,${body.file_base64}` }
+          })
+        } else {
+          userMessage.push({
+            type: 'text',
+            text: `[Conteúdo do arquivo em base64 anexado: ${body.file_base64.slice(0, 100)}...]`
+          })
+        }
+      }
 
       const aiRes = await fetch(AI_GATEWAY, {
         method: 'POST',
@@ -500,7 +513,7 @@ Retorne JSON com estrutura:
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4o',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
