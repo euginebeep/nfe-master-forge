@@ -221,7 +221,7 @@ export function AppSidebar() {
   };
 
   const isActive = (url: string) => {
-    if (url === "/") return location.pathname === "/";
+    if (url === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname.startsWith(url);
   };
 
