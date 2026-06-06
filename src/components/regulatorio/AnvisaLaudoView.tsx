@@ -195,23 +195,22 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
 
         <section className="space-y-4">
           <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Tabela Nutricional (RDC 429/2020)</h3>
-          <div className="border-2 border-primary/20 p-6 rounded-lg bg-slate-950 max-w-md mx-auto shadow-2xl">
-            <h4 className="text-center font-black text-xl border-b-2 border-primary/20 pb-2 mb-4 tracking-tighter">INFORMAÇÃO NUTRICIONAL</h4>
-            <div className="space-y-4">
-              <div className="flex justify-between items-end border-b-2 border-primary/20 pb-1 font-bold text-[11px] uppercase tracking-wider">
-                <span className="w-1/2">Nutriente</span>
-                <span className="w-1/4 text-right">Qtd/Dose</span>
-                <span className="w-1/4 text-right">%VD*</span>
+          <div className="border-2 border-black p-4 rounded-none bg-white max-w-md mx-auto shadow-sm text-black font-sans">
+            <h4 className="text-center font-black text-xl border-b-2 border-black pb-1 mb-2 tracking-tighter italic">INFORMAÇÃO NUTRICIONAL</h4>
+            <div className="border-2 border-black">
+              <div className="flex justify-between items-center border-b-2 border-black bg-white px-2 py-1 font-bold text-[10px] uppercase">
+                <span className="w-1/2 border-r-2 border-black pr-2">Nutriente</span>
+                <span className="w-1/4 border-r-2 border-black px-2 text-center">Qtd/Dose</span>
+                <span className="w-1/4 pl-2 text-center">%VD*</span>
               </div>
               
-              <div className="divide-y divide-primary/10">
+              <div className="divide-y-2 divide-black">
                 {data.ativos.map((ativo, i) => {
                   const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
                   const vdRef = key ? VD_REFERENCE[key] : null;
                   const nomeAtivo = ativo.nome || ativo.name || 'Indefinido';
                   let doseMg = parseFloat(ativo.dose) || 0;
                   
-                  // Normalização para cálculo de VD
                   const unit = (ativo.unit || '').toLowerCase();
                   if (unit === 'mcg') doseMg /= 1000;
                   if (unit === 'g') doseMg *= 1000;
@@ -219,10 +218,10 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                   const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
 
                   return (
-                    <div key={i} className="flex justify-between items-center py-2 text-[12px] font-medium transition-colors hover:bg-white/5">
-                      <span className="w-1/2 text-primary/90">{nomeAtivo}</span>
-                      <span className="w-1/4 text-right">{ativo.dose} {ativo.unit}</span>
-                      <span className="w-1/4 text-right font-bold text-primary">
+                    <div key={i} className="flex justify-between items-center text-[11px] font-bold">
+                      <span className="w-1/2 border-r-2 border-black px-2 py-1">{nomeAtivo}</span>
+                      <span className="w-1/4 border-r-2 border-black px-2 py-1 text-center">{ativo.dose} {ativo.unit}</span>
+                      <span className="w-1/4 px-2 py-1 text-center">
                         {percentVD !== null ? `${percentVD}%` : '**'}
                       </span>
                     </div>
@@ -231,11 +230,11 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-primary/20 space-y-1">
-              <p className="text-[9px] leading-tight text-muted-foreground/80 italic">
+            <div className="mt-2 space-y-1">
+              <p className="text-[8px] leading-tight text-black italic">
                 * % Valores Diários com base em uma dieta de 2.000 kcal ou 8.400 kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.
               </p>
-              <p className="text-[9px] text-muted-foreground/80 font-bold uppercase">
+              <p className="text-[8px] text-black font-bold uppercase">
                 ** VD não estabelecido pela ANVISA.
               </p>
             </div>
