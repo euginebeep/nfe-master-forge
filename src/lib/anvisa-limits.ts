@@ -8,39 +8,102 @@ export interface AnvisaLimit {
 }
 
 export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
-  vitamina_d3:         { auth: true,  min: 0,  max: 50,    unit: 'mcg', norm: 'IN 28 Anexo IV',          obs: '50 mcg = 2.000 UI — NÃO 4.000 UI' },
-  vitamina_a:          { auth: true,  min: 0,  max: 3000,  unit: 'mcg', norm: 'IN 28 Anexo IV' },
-  vitamina_c:          { auth: true,  min: 0,  max: 1000,  unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  vitamina_e:          { auth: true,  min: 0,  max: 1000,  unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  vitamina_b1:         { auth: true,  min: 0,  max: null,  unit: 'mg',  norm: 'IN 28 — NE' },
-  vitamina_b2:         { auth: true,  min: 0,  max: null,  unit: 'mg',  norm: 'IN 28 — NE' },
-  vitamina_b3:         { auth: true,  min: 0,  max: 35,    unit: 'mg',  norm: 'IN 28 Anexo IV (NE)' },
-  vitamina_b5:         { auth: true,  min: 0,  max: null,  unit: 'mg',  norm: 'IN 28 — NE' },
-  vitamina_b6:         { auth: true,  min: 0,  max: 100,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  vitamina_b7:         { auth: true,  min: 0,  max: null,  unit: 'mcg', norm: 'IN 28 — NE' },
-  vitamina_b9:         { auth: true,  min: 0,  max: 400,   unit: 'mcg', norm: 'IN 28 Anexo IV (DFE)' },
-  vitamina_b12:        { auth: true,  min: 0,  max: null,  unit: 'mcg', norm: 'IN 28 — NE' },
-  vitamina_k2:         { auth: true,  min: 0,  max: null,  unit: 'mcg', norm: 'IN 28 — NE' },
-  zinco:               { auth: true,  min: 0,  max: 25,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  ferro:               { auth: true,  min: 0,  max: 45,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  magnesio:            { auth: true,  min: 0,  max: 750,   unit: 'mg',  norm: 'IN 28 Anexo IV (elementar)' },
-  calcio:              { auth: true,  min: 0,  max: 2500,  unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  selenio:             { auth: true,  min: 0,  max: 200,   unit: 'mcg', norm: 'IN 28 Anexo IV' },
-  cromo:               { auth: true,  min: 0,  max: 200,   unit: 'mcg', norm: 'IN 28 Anexo IV' },
-  iodo:                { auth: true,  min: 0,  max: 600,   unit: 'mcg', norm: 'IN 28 Anexo IV' },
-  cobre:               { auth: true,  min: 0,  max: 8000,  unit: 'mcg', norm: 'IN 28 Anexo IV' },
-  manganes:            { auth: true,  min: 0,  max: 2.3,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  boro:                { auth: true,  min: 0,  max: 6,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  silicio:             { auth: true,  min: 0,  max: 36,    unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Silício orgânico (monometilsilanetriol) autorizado' },
-  melatonina:          { auth: true,  min: 0,  max: 0.21,  unit: 'mg',  norm: 'IN 102/2021',             obs: 'Apenas para >= 19 anos' },
-  triptofano:          { auth: true,  min: 0,  max: 860,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  tirosina:            { auth: true,  min: 0,  max: 1000,  unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  coenzima_q10:        { auth: true,  min: 0,  max: 200,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  colageno_ii:         { auth: true,  min: 0,  max: 40,    unit: 'mg',  norm: 'IN 28 Anexo IV (não desnaturado)' },
-  msm:                 { auth: true,  min: 0,  max: 2000,  unit: 'mg',  norm: 'IN 28 Anexo IV (Metilsulfonilmetano)' },
-  trans_resveratrol:   { auth: true,  min: 0,  max: 165,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  berberina:           { auth: false, min: 0,  max: 0,     unit: '-',   norm: 'PROIBIDO / NÃO LISTADO',  obs: 'Não consta na IN 28 como constituinte' },
-  cafeina:             { auth: true,  min: 0,  max: 200,   unit: 'mg',  norm: 'IN 28 Anexo IV (Dose individual)' },
+  // ============================================================
+  // VITAMINAS — IN 28/2018 Anexo IV (≥19 anos) consolidada
+  // ============================================================
+  vitamina_a:          { auth: true,  min: 0,  max: 3000,    unit: 'mcg', norm: 'IN 28 Anexo IV (RAE pré-formada)', obs: '3000 µg = 10.000 UI máx — apenas vit. A pré-formada' },
+  vitamina_d3:         { auth: true,  min: 0,  max: 50,      unit: 'mcg', norm: 'IN 28 Anexo IV',                   obs: '50 µg = 2.000 UI — NÃO 4.000 UI' },
+  vitamina_c:          { auth: true,  min: 0,  max: 2000,    unit: 'mg',  norm: 'IN 28 Anexo IV (IN 76/2020)' },
+  vitamina_e:          { auth: true,  min: 0,  max: 1000,    unit: 'mg',  norm: 'IN 28 Anexo IV (α-tocoferol)' },
+  vitamina_k2:         { auth: true,  min: 0,  max: 149,     unit: 'mcg', norm: 'IN 28 Anexo IV' },
+  vitamina_b1:         { auth: true,  min: 0,  max: 2,       unit: 'mg',  norm: 'IN 28 Anexo IV (Tiamina)' },
+  vitamina_b2:         { auth: true,  min: 0,  max: 2.74,    unit: 'mg',  norm: 'IN 28 Anexo IV (Riboflavina)' },
+  vitamina_b3:         { auth: true,  min: 0,  max: 35,      unit: 'mg',  norm: 'IN 28 Anexo IV (Niacina NE)' },
+  vitamina_b5:         { auth: true,  min: 0,  max: 5.64,    unit: 'mg',  norm: 'IN 28 Anexo IV (Ác. Pantotênico)' },
+  vitamina_b6:         { auth: true,  min: 0,  max: 100,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  vitamina_b7:         { auth: true,  min: 0,  max: 45,      unit: 'mcg', norm: 'IN 28 Anexo IV (Biotina)' },
+  vitamina_b9:         { auth: true,  min: 0,  max: 1000,    unit: 'mcg', norm: 'IN 28 Anexo IV (DFE — IN 76/2020)' },
+  vitamina_b12:        { auth: true,  min: 0,  max: 9.94,    unit: 'mcg', norm: 'IN 28 Anexo IV' },
+  colina:              { auth: true,  min: 0,  max: 3500,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+
+  // ============================================================
+  // MINERAIS — IN 28/2018 Anexo IV (≥19 anos) consolidada
+  // ============================================================
+  calcio:              { auth: true,  min: 0,  max: 2500,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  magnesio:            { auth: true,  min: 0,  max: 350,     unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Magnésio elementar — apenas formas suplementares (não inclui alimentar)' },
+  ferro:               { auth: true,  min: 0,  max: 45,      unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  zinco:               { auth: true,  min: 0,  max: 40,      unit: 'mg',  norm: 'IN 28 Anexo IV (IN 76/2020)' },
+  cobre:               { auth: true,  min: 0,  max: 10000,   unit: 'mcg', norm: 'IN 28 Anexo IV',          obs: '10 mg = 10.000 µg' },
+  selenio:             { auth: true,  min: 0,  max: 400,     unit: 'mcg', norm: 'IN 28 Anexo IV (IN 76/2020)' },
+  cromo:               { auth: true,  min: 0,  max: 250,     unit: 'mcg', norm: 'IN 28 Anexo IV' },
+  iodo:                { auth: true,  min: 0,  max: 1100,    unit: 'mcg', norm: 'IN 28 Anexo IV (IN 76/2020)' },
+  manganes:            { auth: true,  min: 0,  max: 11,      unit: 'mg',  norm: 'IN 28 Anexo IV (IN 76/2020)' },
+  molibdenio:          { auth: true,  min: 0,  max: 2000,    unit: 'mcg', norm: 'IN 28 Anexo IV' },
+  boro:                { auth: true,  min: 0,  max: 20,      unit: 'mg',  norm: 'IN 28 Anexo IV (IN 76/2020)' },
+  fosforo:             { auth: true,  min: 0,  max: 4000,    unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Razão Ca/P entre 1:1 e 2:1' },
+  fluoreto:            { auth: true,  min: 0,  max: 10,      unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  silicio:             { auth: true,  min: 0,  max: 36,      unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Silício orgânico (monometilsilanetriol) autorizado' },
+
+  // ============================================================
+  // AMINOÁCIDOS — IN 28/2018 Anexo IV (≥19 anos)
+  // ============================================================
+  leucina:             { auth: true,  min: 0,  max: 5660,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  lisina:              { auth: true,  min: 0,  max: 4940,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  valina:              { auth: true,  min: 0,  max: 3600,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  isoleucina:          { auth: true,  min: 0,  max: 3240,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  treonina:            { auth: true,  min: 0,  max: 2720,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  fenilalanina:        { auth: true,  min: 0,  max: 2820,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  l_tirosina:          { auth: true,  min: 0,  max: 2750,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  tirosina:            { auth: true,  min: 0,  max: 2750,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  metionina:           { auth: true,  min: 0,  max: 1530,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  l_cistina:           { auth: true,  min: 0,  max: 830,     unit: 'mg',  norm: 'IN 28 Anexo IV (Cisteína)' },
+  cisteina:            { auth: true,  min: 0,  max: 830,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  histidina:           { auth: true,  min: 0,  max: 2120,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  l_triptofano:        { auth: true,  min: 0,  max: 860,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  triptofano:          { auth: true,  min: 0,  max: 860,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  l_arginina:          { auth: true,  min: 0,  max: 3810,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  aspartato:           { auth: true,  min: 0,  max: 5320,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  glicina:             { auth: true,  min: 0,  max: 2980,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  serina:              { auth: true,  min: 0,  max: 3151,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  acido_glutamico:     { auth: true,  min: 0,  max: 15880,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  prolina:             { auth: true,  min: 0,  max: 5360,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  alanina:             { auth: true,  min: 0,  max: 3320,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  glutamina:           { auth: true,  min: 0,  max: 5000,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  taurina:             { auth: true,  min: 0,  max: 2000,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  l_carnitina:         { auth: true,  min: 0,  max: 2000,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  creatina:            { auth: true,  min: 0,  max: 3000,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
+
+  // ============================================================
+  // SUBSTÂNCIAS BIOATIVAS — IN 28/2018 Anexo IV (≥19 anos)
+  // ============================================================
+  cafeina:             { auth: true,  min: 0,  max: 200,     unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Dose individual 200 mg / 400 mg/dia exclusivo p/ atletas' },
+  coenzima_q10:        { auth: true,  min: 0,  max: 200,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  fitoesterois:        { auth: true,  min: 0,  max: 3000,    unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: '3 g/dia máx' },
+  licopeno:            { auth: true,  min: 0,  max: 8,       unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  luteina:             { auth: true,  min: 0,  max: 10,      unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  zeaxantina:          { auth: true,  min: 0,  max: 2,       unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  astaxantina:         { auth: true,  min: 0,  max: 8,       unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  alicina:             { auth: true,  min: 0,  max: 5.4,     unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: '1 mg alina = 0,45 mg alicina' },
+  omega3_epa_dha:      { auth: true,  min: 0,  max: 2000,    unit: 'mg',  norm: 'IN 28 Anexo IV (EPA+DHA)',obs: 'Mínimo 30 mg de DHA' },
+
+  // ============================================================
+  // OUTROS / IN ESPECÍFICAS
+  // ============================================================
+  melatonina:          { auth: true,  min: 0,  max: 0.21,    unit: 'mg',  norm: 'IN 211/2023',             obs: 'Apenas para ≥19 anos — Dose máx 0,21 mg/dia' },
+  colageno_tipo2:      { auth: true,  min: 0,  max: 40,      unit: 'mg',  norm: 'IN 28 Anexo IV (não desnaturado UC-II)' },
+  colageno_hidrolisado:{ auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'RDC 243/2018 (ingrediente alimentar)', obs: 'Sem limite específico — proteína' },
+  msm:                 { auth: true,  min: 0,  max: 2000,    unit: 'mg',  norm: 'IN 28 Anexo IV (Metilsulfonilmetano)' },
+  trans_resveratrol:   { auth: true,  min: 0,  max: 165,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  acido_hialuronico:   { auth: true,  min: 0,  max: 80,      unit: 'mg',  norm: 'IN 28 Anexo IV' },
+  beta_alanina:        { auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'IN 28 — Sem limite estabelecido (NE)' },
+
+  // ============================================================
+  // PROIBIDOS / NÃO LISTADOS — Sujeito a apreensão (RDC 243/2018)
+  // ============================================================
+  berberina:           { auth: false, min: 0,  max: 0,       unit: '-',   norm: 'PROIBIDO — Não consta IN 28',  obs: 'Substância classificada como medicamento. RDC 243/2018' },
+  queratina:           { auth: false, min: 0,  max: 0,       unit: '-',   norm: 'PROIBIDO — Não consta IN 28',  obs: 'Cosmético, não aprovado p/ uso oral' },
+  l_citrulina:         { auth: false, min: 0,  max: 0,       unit: '-',   norm: 'NÃO CONSTA IN 28 Anexo I',     obs: 'Não autorizada como suplemento alimentar' },
+  silicio_organico:    { auth: true,  min: 0,  max: 36,      unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Silício orgânico (monometilsilanetriol)' },
 };
 
 export const VD_REFERENCE: Record<string, number> = {
