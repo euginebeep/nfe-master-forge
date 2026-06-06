@@ -473,6 +473,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     nomeMisturador,
     VOLUME_UTIL_MAX_L,
     VOLUME_UTIL_MIN_L,
+    misturador,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange, handleEquipamentoChange,
     podeAvancar, avancar, voltar, onSubmit,
     progressoEtapas: (etapaAtual / 4) * 100,
