@@ -2207,6 +2207,7 @@ export type Database = {
           fator_enchimento_padrao: number | null
           id: string
           nome: string
+          numero_serie: string | null
           observacoes: string | null
           tipo: string
           updated_at: string | null
@@ -2226,6 +2227,7 @@ export type Database = {
           fator_enchimento_padrao?: number | null
           id?: string
           nome: string
+          numero_serie?: string | null
           observacoes?: string | null
           tipo?: string
           updated_at?: string | null
@@ -2245,6 +2247,7 @@ export type Database = {
           fator_enchimento_padrao?: number | null
           id?: string
           nome?: string
+          numero_serie?: string | null
           observacoes?: string | null
           tipo?: string
           updated_at?: string | null
