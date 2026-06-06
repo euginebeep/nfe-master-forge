@@ -199,33 +199,36 @@ export interface OPChecklist {
   created_at: string;
 }
 
-export const CHECKLIST_PADRAO: Array<{ item: string; categoria: CategoriaChecklist; ordem: number; obrigatorio: boolean }> = [
-  // PRE_PRODUCAO
-  { item: 'Conferência de lotes das matérias-primas', categoria: 'PRE_PRODUCAO', ordem: 1, obrigatorio: true },
-  { item: 'Verificação de validade de todos os insumos', categoria: 'PRE_PRODUCAO', ordem: 2, obrigatorio: true },
-  { item: 'Limpeza e sanitização da área de pesagem', categoria: 'PRE_PRODUCAO', ordem: 3, obrigatorio: true },
-  { item: 'Calibração da balança conferida', categoria: 'PRE_PRODUCAO', ordem: 4, obrigatorio: true },
-  { item: 'Utensílios de pesagem limpos e identificados', categoria: 'PRE_PRODUCAO', ordem: 5, obrigatorio: true },
+export const CHECKLIST_PADRAO: Array<{ item: string; categoria: CategoriaChecklist; ordem: number; obrigatorio: boolean; codigo?: string }> = [
+  // PRÉ-PRODUÇÃO (LIMPA TRAÇOS / LINE CLEARANCE)
+  { codigo: 'LT-01', item: 'Remoção total de insumos e embalagens da OP anterior', categoria: 'PRE_PRODUCAO', ordem: 1, obrigatorio: true },
+  { codigo: 'LT-02', item: 'Remoção de rótulos e documentos do lote anterior', categoria: 'PRE_PRODUCAO', ordem: 2, obrigatorio: true },
+  { codigo: 'LT-03', item: 'Limpeza e sanitização (Álcool 70%) de bancadas e utensílios', categoria: 'PRE_PRODUCAO', ordem: 3, obrigatorio: true },
+  { codigo: 'LT-04', item: 'Misturador/Equipamentos limpos, secos e identificados', categoria: 'PRE_PRODUCAO', ordem: 4, obrigatorio: true },
+  { codigo: 'LT-05', item: 'Verificação de ausência de resíduos em frestas/placas', categoria: 'PRE_PRODUCAO', ordem: 5, obrigatorio: true },
+  { codigo: 'LT-06', item: 'Conferência de lotes e validades das MPs da nova OP', categoria: 'PRE_PRODUCAO', ordem: 6, obrigatorio: true },
+  { codigo: 'LT-07', item: 'Balança nivelada, limpa e com calibração em dia', categoria: 'PRE_PRODUCAO', ordem: 7, obrigatorio: true },
   
-  // DURANTE_PRODUCAO
-  { item: 'Pesagem de ativos críticos com dupla conferência', categoria: 'DURANTE_PRODUCAO', ordem: 1, obrigatorio: true },
-  { item: 'Conferência de pesos dentro da tolerância (±10%)', categoria: 'DURANTE_PRODUCAO', ordem: 2, obrigatorio: true },
-  { item: 'Ordem de mistura seguida corretamente', categoria: 'DURANTE_PRODUCAO', ordem: 3, obrigatorio: true },
-  { item: 'Tempo de homogeneização respeitado', categoria: 'DURANTE_PRODUCAO', ordem: 4, obrigatorio: true },
-  { item: 'Limpeza de equipamentos entre etapas', categoria: 'DURANTE_PRODUCAO', ordem: 5, obrigatorio: true },
-  { item: 'Ajuste da encapsuladora realizado', categoria: 'DURANTE_PRODUCAO', ordem: 6, obrigatorio: true },
+  // DURANTE PRODUÇÃO
+  { codigo: 'PROD-01', item: 'Pesagem de ativos críticos com dupla conferência registrada', categoria: 'DURANTE_PRODUCAO', ordem: 8, obrigatorio: true },
+  { codigo: 'PROD-02', item: 'Conferência de pesos reais dentro da tolerância (±10%)', categoria: 'DURANTE_PRODUCAO', ordem: 9, obrigatorio: true },
+  { codigo: 'PROD-03', item: 'Ordem de mistura e tempos de homogeneização seguidos', categoria: 'DURANTE_PRODUCAO', ordem: 10, obrigatorio: true },
+  { codigo: 'PROD-04', item: 'Limpeza concorrente de equipamentos entre bateladas', categoria: 'DURANTE_PRODUCAO', ordem: 11, obrigatorio: true },
+  { codigo: 'PROD-05', item: 'Ajuste e teste de peso médio na encapsuladora', categoria: 'DURANTE_PRODUCAO', ordem: 12, obrigatorio: true },
+  { codigo: 'PROD-06', item: 'Monitoramento de temperatura e umidade da sala', categoria: 'DURANTE_PRODUCAO', ordem: 13, obrigatorio: true },
   
-  // POS_PRODUCAO
-  { item: 'Contagem final de cápsulas', categoria: 'POS_PRODUCAO', ordem: 1, obrigatorio: true },
-  { item: 'Registro de perdas justificado', categoria: 'POS_PRODUCAO', ordem: 2, obrigatorio: true },
-  { item: 'Limpeza final da área', categoria: 'POS_PRODUCAO', ordem: 3, obrigatorio: true },
+  // PÓS-PRODUÇÃO
+  { codigo: 'POS-01', item: 'Contagem final de unidades e conciliação de rendimento', categoria: 'POS_PRODUCAO', ordem: 14, obrigatorio: true },
+  { codigo: 'POS-02', item: 'Conferência de lote e validade nos frascos/rótulos', categoria: 'POS_PRODUCAO', ordem: 15, obrigatorio: true },
+  { codigo: 'POS-03', item: 'Amostra de retenção coletada e identificada', categoria: 'POS_PRODUCAO', ordem: 16, obrigatorio: true },
+  { codigo: 'POS-04', item: 'Upload do rótulo final e fotos do produto no sistema', categoria: 'POS_PRODUCAO', ordem: 17, obrigatorio: true },
+  { codigo: 'POS-05', item: 'Limpeza final e organização da área para próxima OP', categoria: 'POS_PRODUCAO', ordem: 18, obrigatorio: true },
   
-  // QC
-  { item: 'Teste de peso médio realizado', categoria: 'QC', ordem: 1, obrigatorio: true },
-  { item: 'Avaliação de aparência do pó', categoria: 'QC', ordem: 2, obrigatorio: true },
-  { item: 'Avaliação de fluidez do pó', categoria: 'QC', ordem: 3, obrigatorio: true },
-  { item: 'Avaliação de homogeneidade', categoria: 'QC', ordem: 4, obrigatorio: true },
-  { item: 'Liberação do lote para estoque', categoria: 'QC', ordem: 5, obrigatorio: true },
+  // CONTROLE DE QUALIDADE (QC)
+  { codigo: 'QC-01', item: 'Teste de peso médio aprovado (conforme farmacopeia)', categoria: 'QC', ordem: 19, obrigatorio: true },
+  { codigo: 'QC-02', item: 'Avaliação organoléptica (cor, odor, aspecto)', categoria: 'QC', ordem: 20, obrigatorio: true },
+  { codigo: 'QC-03', item: 'Teste de desintegração/fluidez conforme aplicável', categoria: 'QC', ordem: 21, obrigatorio: true },
+  { codigo: 'QC-04', item: 'Dossiê de produção completo e assinado pelo RT', categoria: 'QC', ordem: 22, obrigatorio: true },
 ];
 
 // ============================================================
