@@ -30,7 +30,7 @@ export function useCompany() {
         .from("company")
         .select("*")
         .eq("id", companyId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching company:", error);
