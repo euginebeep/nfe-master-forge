@@ -121,12 +121,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (!mounted) return;
             
             // Critical: check for demo mode flag in multiple places
-            const isDemo = profile?.is_demo || isDemoPersisted || session.user.email === 'demo@brainxerp.com';
+            const isDemoEmail = session.user.email === 'demo@brainxerp.com';
+            const isDemo = (profile?.is_demo || isDemoPersisted || isDemoEmail) && !profile?.company_id;
             
             if (isDemo) {
               sessionStorage.setItem('brainx_demo_mode', 'true');
-            } else if (event === 'SIGNED_IN') {
-              // Explicitly clear demo mode if a real user signs in
+            } else {
+              // If it's a real user or has a company, always clear demo mode
               sessionStorage.removeItem('brainx_demo_mode');
             }
 
