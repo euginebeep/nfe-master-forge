@@ -24,12 +24,9 @@ function BI({ name, size = 16, color, className = '' }: { name: string; size?: n
 }
 
 const FEATURES = [
-  { icon: 'boxes', label: 'Produção rastreável', sub: 'Ordens, lotes e etapas críticas em um fluxo industrial único.' },
+  { icon: 'graph-up', label: 'Produção rastreável', sub: 'Ordens, lotes e etapas críticas em um fluxo industrial único.' },
   { icon: 'shield-check', label: 'Qualidade e BPF', sub: 'Controles técnicos para suplementos, auditoria e liberação segura.' },
-  { icon: 'database-fill-check', label: 'Estoque por lote', sub: 'FEFO, quarentena, COA e consumo com rastreabilidade total.' },
-  { icon: 'file-earmark-spreadsheet-fill', label: 'Emissão de NF-e', sub: 'Emissor fiscal integrado com cálculo automático de impostos e DANFE.' },
-  { icon: 'thermometer-snow', label: 'Controle de temperatura', sub: 'Monitoramento por sensores IoT com alertas e histórico para BPF.' },
-  { icon: 'vials', label: 'Formulador industrial', sub: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.' },
+  { icon: 'stack', label: 'Estoque por lote', sub: 'FEFO, quarentena, COA e consumo com rastreabilidade total.' },
 ];
 
 /* ─── Input Field (Bootstrap style) ─── */
@@ -179,35 +176,28 @@ export default function AuthPage() {
             </p>
           </motion.div>
 
-          {/* Compact Feature cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+          {/* Compact Feature cards Grid - Exact match to reference image */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
             {FEATURES.map((f, i) => (
               <motion.div key={f.label}
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.22 + i * 0.06 }}
                 style={{
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: 10, padding: '14px 12px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12, padding: '24px 20px',
                   transition: 'all 0.3s ease',
-                  cursor: 'default'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                  e.currentTarget.style.borderColor = 'rgba(13,110,253,0.3)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                  cursor: 'default',
+                  minHeight: '160px'
                 }}
               >
-                <div style={{ marginBottom: 12, width: 42, height: 42, borderRadius: 8, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <BI name={f.icon} size={22} color="#0d6efd" />
+                <div style={{ marginBottom: 16, color: '#10b981' }}>
+                  <BI name={f.icon} size={24} />
                 </div>
-                <div style={{ color: '#f8f9fa', fontSize: 13, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>
+                <div style={{ color: '#f8f9fa', fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: '-0.01em' }}>
                   {f.label}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, lineHeight: 1.4, letterSpacing: '0.01em' }}>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 1.5 }}>
                   {f.sub}
                 </div>
               </motion.div>
