@@ -534,7 +534,7 @@ Retorne APENAS o JSON conforme a estrutura do sistema.`;
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-exp',
+          model: 'google/gemini-2.5-pro',
 
           messages,
           response_format: { type: 'json_object' }
