@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Upload, AlertCircle, Info, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,16 +17,12 @@ interface AssetRow {
   dose: string;
   unit: string;
   anvisaKey: string;
+  status?: 'APROVADO' | 'ATENCAO' | 'BLOQUEADO' | 'VERIFICAR';
 }
 
-const ANVISA_KEYS = [
-  "VITAMINA_A", "VITAMINA_D", "VITAMINA_E", "VITAMINA_K", "VITAMINA_C",
-  "VITAMINA_B1", "VITAMINA_B2", "VITAMINA_B3", "VITAMINA_B5", "VITAMINA_B6",
-  "BIOTINA", "ACIDO_FOLICO", "VITAMINA_B12", "CALCIO", "MAGNESIO",
-  "FERRO", "ZINCO", "COBRE", "SELENIO", "CROMO", "MANGANES", "IODO",
-  "POTASSIO", "FOSFORO", "FLUOR", "MOLIBDENIO", "COLINA", "LUTEINA",
-  "ZEAXANTINA", "LICOPENO", "ASTAXANTINA", "OMEGA_3", "COENZIMA_Q10"
-];
+import { ANVISA_LIMITS } from "@/lib/anvisa-limits";
+
+const ANVISA_KEYS = Object.keys(ANVISA_LIMITS);
 
 const AUDIENCES = [
   { value: "ADULTOS", label: "Adultos ≥19 anos" },
@@ -50,7 +48,26 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   };
 
   const updateAsset = (id: string, field: keyof AssetRow, value: string) => {
-    setAssets(assets.map(a => a.id === id ? { ...a, [field]: value } : a));
+    setAssets(assets.map(a => {
+      if (a.id === id) {
+        const updated = { ...a, [field]: value };
+        // Validar status em tempo real
+        if (updated.anvisaKey && updated.dose) {
+          const limit = ANVISA_LIMITS[updated.anvisaKey.toLowerCase()];
+          if (limit) {
+            const doseNum = parseFloat(updated.dose);
+            if (!limit.auth) updated.status = 'BLOQUEADO';
+            else if (limit.max !== null && doseNum > limit.max) updated.status = 'ATENCAO';
+            else if (doseNum < limit.min) updated.status = 'ATENCAO';
+            else updated.status = 'APROVADO';
+          } else {
+            updated.status = 'VERIFICAR';
+          }
+        }
+        return updated;
+      }
+      return a;
+    }));
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,20 +126,29 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       // Salvar histórico
       // Salvar histórico
-      const { data: profile } = await supabase.from('profiles').select('company_id').single();
-      const companyId = profile?.company_id;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single();
 
-      if (companyId) {
-        await supabase
-          .from('anvisa_laudos')
-          .insert({
-            company_id: companyId,
-            produto: productName,
-            cliente: clientName,
-            status_geral: data.status_geral,
-            payload_entrada: { ativos: assets, publico: audience } as any,
-            resultado_ia: data as any
-          });
+        const companyId = profile?.company_id;
+
+        if (companyId) {
+          await supabase
+            .from('anvisa_laudos')
+            .insert({
+              company_id: companyId,
+              produto: productName,
+              cliente: clientName,
+              status_geral: data.status_geral,
+              payload_entrada: { ativos: assets, publico: audience } as any,
+              resultado_ia: data as any,
+              criado_por: user.id
+            });
+        }
       }
 
       onResult({
@@ -226,6 +252,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
                 <TableHead className="w-[15%] text-center">Dose</TableHead>
                 <TableHead className="w-[15%]">Unidade</TableHead>
                 <TableHead>Chave ANVISA</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -272,6 +299,18 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  <TableCell className="py-2 text-center">
+                    {asset.status && (
+                      <Badge className={
+                        asset.status === 'APROVADO' ? 'bg-green-500/20 text-green-500 border-green-500/20' :
+                        asset.status === 'ATENCAO' ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/20' :
+                        asset.status === 'BLOQUEADO' ? 'bg-red-500/20 text-red-500 border-red-500/20' :
+                        'bg-orange-500/20 text-orange-500 border-orange-500/20'
+                      }>
+                        {asset.status}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="py-2">
                     <Button 
                       variant="ghost" 
@@ -286,18 +325,76 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
               ))}
             </TableBody>
           </Table>
-          <div className="p-4 bg-muted/10 border-t flex justify-between items-center">
-            <Button variant="outline" size="sm" onClick={addRow} className="gap-2">
-              <Plus className="w-4 h-4" /> Adicionar ativo
-            </Button>
-            <Button 
-              size="sm" 
-              className="bg-primary hover:bg-primary/90" 
-              onClick={handleValidate}
-              disabled={loading}
-            >
-              {loading ? "Validando..." : "Validar Fórmula"}
-            </Button>
+
+          {/* Seção D & E — Calculadora de cápsulas */}
+          <div className="p-6 bg-muted/20 border-t space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold flex items-center gap-2">
+                  <Info className="w-4 h-4" /> Calculadora de Cápsulas
+                </h4>
+                {(() => {
+                  const totalMg = assets.reduce((acc, curr) => {
+                    let val = parseFloat(curr.dose) || 0;
+                    if (curr.unit === 'g') val *= 1000;
+                    if (curr.unit === 'mcg') val /= 1000;
+                    return acc + val;
+                  }, 0) * 1.3; // 30% excipiente
+
+                  const sizes = [
+                    { label: '#000', capacity: 1400 },
+                    { label: '#00', capacity: 950 },
+                    { label: '#0', capacity: 680 },
+                    { label: '#1', capacity: 500 },
+                    { label: '#2', capacity: 380 },
+                    { label: '#3', capacity: 280 },
+                    { label: '#4', capacity: 200 }
+                  ];
+
+                  const suggested = totalMg > 6000 ? null : sizes.find(s => s.capacity >= totalMg) || sizes[0];
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-7 gap-1">
+                        {sizes.map(s => (
+                          <div 
+                            key={s.label} 
+                            className={cn(
+                              "text-[10px] p-2 text-center border rounded transition-all",
+                              suggested?.label === s.label ? "bg-primary border-primary text-white scale-110 shadow-lg" : "bg-background opacity-50"
+                            )}
+                          >
+                            {s.label}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-xs space-y-1">
+                        <p>Massa total estimada: <span className="font-bold">{totalMg.toFixed(2)} mg</span></p>
+                        {totalMg > 6000 ? (
+                          <p className="text-orange-500 font-bold">⚠️ Formato sachê recomendado</p>
+                        ) : (
+                          <p>Sugestão: <span className="font-bold">1 cápsula {suggested?.label}</span></p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex flex-col justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={addRow} className="gap-2 mb-2">
+                  <Plus className="w-4 h-4" /> Adicionar ativo
+                </Button>
+                <Button 
+                  size="lg" 
+                  className="w-full bg-primary hover:bg-primary/90 shadow-xl" 
+                  onClick={handleValidate}
+                  disabled={loading}
+                >
+                  {loading ? "Processando análise 🧠..." : "🔬 Gerar Laudo ANVISA Completo"}
+                </Button>
+              </div>
+            </div>
           </div>
         </Card>
       </div>

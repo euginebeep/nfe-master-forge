@@ -11,9 +11,16 @@ export const AnvisaBaseConstituintes: React.FC = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
 
-  const filtered = ANVISA_LIMITS.filter(item => {
+  const limitsArray = Object.entries(ANVISA_LIMITS).map(([key, value]) => ({
+    id: key,
+    constituinte: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    ...value
+  }));
+
+  const filtered = limitsArray.filter(item => {
     const matchesSearch = item.constituinte.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filter === "all" || item.status === filter;
+    const status = item.auth ? "AUTORIZADO" : "NAO_AUTORIZADO";
+    const matchesFilter = filter === "all" || status === filter;
     return matchesSearch && matchesFilter;
   });
 
@@ -49,24 +56,28 @@ export const AnvisaBaseConstituintes: React.FC = () => {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        {filtered.map((item) => (
-          <Card key={item.id} className={`overflow-hidden border-l-4 ${
-            item.status === 'AUTORIZADO' ? 'border-l-green-500 bg-green-950/10' : 'border-l-red-500 bg-red-950/10'
-          }`}>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-base">{item.constituinte}</CardTitle>
-                <Badge variant={item.status === 'AUTORIZADO' ? 'default' : 'destructive'} className="text-[10px]">
-                  {item.status === 'AUTORIZADO' ? '✔ Autorizado' : '✖ Bloqueado'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="text-xs space-y-1">
-              {item.limite && <p><span className="font-bold">Limite Máx:</span> {item.limite}</p>}
-              <p className="text-muted-foreground italic"><span className="font-bold not-italic">Ref:</span> {item.referencia}</p>
-            </CardContent>
-          </Card>
-        ))}
+        {filtered.map((item) => {
+          const status = item.auth ? "AUTORIZADO" : "NAO_AUTORIZADO";
+          return (
+            <Card key={item.id} className={`overflow-hidden border-l-4 ${
+              item.auth ? 'border-l-green-500 bg-green-950/10' : 'border-l-red-500 bg-red-950/10'
+            }`}>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-base">{item.constituinte}</CardTitle>
+                  <Badge variant={item.auth ? 'default' : 'destructive'} className="text-[10px]">
+                    {item.auth ? '✔ Autorizado' : '✖ Bloqueado'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="text-xs space-y-1">
+                {item.max !== null && <p><span className="font-bold">Limite Máx:</span> {item.max} {item.unit}</p>}
+                {item.min > 0 && <p><span className="font-bold">Limite Mín:</span> {item.min} {item.unit}</p>}
+                <p className="text-muted-foreground italic"><span className="font-bold not-italic">Ref:</span> {item.norm}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
