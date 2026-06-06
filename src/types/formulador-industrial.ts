@@ -64,6 +64,8 @@ export interface Formula {
   peso_capsula_nominal_mg?: number;
   tipo_capsula?: string;
   excipiente_padrao?: TipoVeiculoBase;
+  peso_enchimento_mg?: number;
+  densidade_aparente_kg_l?: number;
   
   // Campos LÍQUIDO
   volume_frasco_ml?: number;
