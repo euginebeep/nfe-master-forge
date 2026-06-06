@@ -2207,6 +2207,7 @@ export type Database = {
           fator_enchimento_padrao: number | null
           id: string
           nome: string
+          numero_serie: string | null
           observacoes: string | null
           tipo: string
           updated_at: string | null
@@ -2226,6 +2227,7 @@ export type Database = {
           fator_enchimento_padrao?: number | null
           id?: string
           nome: string
+          numero_serie?: string | null
           observacoes?: string | null
           tipo?: string
           updated_at?: string | null
@@ -2245,6 +2247,7 @@ export type Database = {
           fator_enchimento_padrao?: number | null
           id?: string
           nome?: string
+          numero_serie?: string | null
           observacoes?: string | null
           tipo?: string
           updated_at?: string | null
@@ -4881,6 +4884,7 @@ export type Database = {
           qr_code_token: string | null
           quantidade_frascos: number
           quantidade_silica_sache: string | null
+          rendimento_percentual: number | null
           responsavel_producao_id: string | null
           responsavel_producao_nome: string | null
           responsavel_tecnico_id: string | null
@@ -4893,11 +4897,13 @@ export type Database = {
             | null
           rt_uf_conselho: string | null
           rt_vinculado_em: string | null
+          sala_producao: string | null
           silica_item_id: string | null
           silica_item_nome: string | null
           status: string
           tampa_item_id: string | null
           tampa_item_nome: string | null
+          temperatura_inicio: number | null
           tipo_apresentacao: string
           tipo_capsula: string | null
           tipo_pote: string | null
@@ -4905,6 +4911,7 @@ export type Database = {
           total_capsulas: number
           total_capsulas_com_acrescimo: number
           turno: string | null
+          umidade_inicio: number | null
           updated_at: string | null
           white_label: boolean | null
         }
@@ -4962,6 +4969,7 @@ export type Database = {
           qr_code_token?: string | null
           quantidade_frascos: number
           quantidade_silica_sache?: string | null
+          rendimento_percentual?: number | null
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
@@ -4974,11 +4982,13 @@ export type Database = {
             | null
           rt_uf_conselho?: string | null
           rt_vinculado_em?: string | null
+          sala_producao?: string | null
           silica_item_id?: string | null
           silica_item_nome?: string | null
           status?: string
           tampa_item_id?: string | null
           tampa_item_nome?: string | null
+          temperatura_inicio?: number | null
           tipo_apresentacao?: string
           tipo_capsula?: string | null
           tipo_pote?: string | null
@@ -4986,6 +4996,7 @@ export type Database = {
           total_capsulas: number
           total_capsulas_com_acrescimo: number
           turno?: string | null
+          umidade_inicio?: number | null
           updated_at?: string | null
           white_label?: boolean | null
         }
@@ -5043,6 +5054,7 @@ export type Database = {
           qr_code_token?: string | null
           quantidade_frascos?: number
           quantidade_silica_sache?: string | null
+          rendimento_percentual?: number | null
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
           responsavel_tecnico_id?: string | null
@@ -5055,11 +5067,13 @@ export type Database = {
             | null
           rt_uf_conselho?: string | null
           rt_vinculado_em?: string | null
+          sala_producao?: string | null
           silica_item_id?: string | null
           silica_item_nome?: string | null
           status?: string
           tampa_item_id?: string | null
           tampa_item_nome?: string | null
+          temperatura_inicio?: number | null
           tipo_apresentacao?: string
           tipo_capsula?: string | null
           tipo_pote?: string | null
@@ -5067,6 +5081,7 @@ export type Database = {
           total_capsulas?: number
           total_capsulas_com_acrescimo?: number
           turno?: string | null
+          umidade_inicio?: number | null
           updated_at?: string | null
           white_label?: boolean | null
         }

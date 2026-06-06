@@ -18,6 +18,7 @@ import { OPFolhaEmbalagem } from './OPFolhaEmbalagem';
 import { OPFolhaChecklist } from './OPFolhaChecklist';
 import { getOPPrintStyles, getTerminalPrintStyles } from './op-print-styles';
 import type { OPDadosPDF, OPMateriaPrimaPDF, OPEmbalagemPDF, ChecklistItemPDF } from '@/types/op-pdf';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OPDocumentoCompletoProps {
   op: OPDadosPDF;
@@ -27,18 +28,73 @@ interface OPDocumentoCompletoProps {
 }
 
 export function OPDocumentoCompleto({ 
-  op, 
+  op: initialOp, 
   materiasPrimas = [], 
   embalagens = [],
   checklist = []
-}: OPDocumentoCompletoProps) {
+}: any) {
+  const [op, setOp] = useState<any>(initialOp);
   const [activeTab, setActiveTab] = useState('separacao');
   const [allSectionsRendered, setAllSectionsRendered] = useState(false);
 
-  // Garantir que todas as seções são renderizadas para impressão
   useEffect(() => {
+    async function fetchExtraData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single();
+        
+        const companyId = profile?.company_id;
+        if (!companyId) return;
+
+        const { data: balanca } = await supabase
+          .from('equipamentos')
+          .select('id, numero_serie')
+          .eq('company_id', companyId)
+          .ilike('nome', '%balança%')
+          .eq('ativo', true)
+          .limit(1)
+          .maybeSingle();
+
+        const { data: calibracao } = (balanca as any)?.id
+          ? await supabase
+              .from('qc_calibracoes')
+              .select('data_calibracao, proxima_calibracao')
+              .eq('equipamento_id', (balanca as any).id)
+              .order('proxima_calibracao', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : { data: null };
+
+        const { data: opCompleta } = await supabase
+          .from('ordens_producao_industrial')
+          .select('temperatura_inicio, umidade_inicio, sala_producao, rendimento_percentual')
+          .eq('id', (initialOp as any).id)
+          .maybeSingle();
+
+        setOp((prev: any) => ({
+          ...initialOp,
+          balanca_numero_serie: (balanca as any)?.numero_serie || null,
+          balanca_ultima_calibracao: (calibracao as any)?.data_calibracao || null,
+          balanca_proxima_calibracao: (calibracao as any)?.proxima_calibracao || null,
+          temperatura_inicio: (opCompleta as any)?.temperatura_inicio || null,
+          umidade_inicio: (opCompleta as any)?.umidade_inicio || null,
+          sala_producao: (opCompleta as any)?.sala_producao || null,
+          rendimento_percentual: (opCompleta as any)?.rendimento_percentual || null,
+        }));
+      } catch (err) {
+        console.error('Erro ao buscar dados complementares:', err);
+      }
+    }
+
+    fetchExtraData();
     setAllSectionsRendered(true);
-  }, []);
+  }, [initialOp]);
 
   const handlePrintSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);
@@ -54,7 +110,7 @@ export function OPDocumentoCompleto({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>OP ${op.codigo} - ${getSectionTitle(sectionId)}</title>
+          <title>OP ${(op as any).codigo} - ${getSectionTitle(sectionId)}</title>
           <style>${getOPPrintStyles()}</style>
         </head>
         <body>
@@ -83,7 +139,7 @@ export function OPDocumentoCompleto({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>OP ${op.codigo} - ${sectionTitle} [TERMINAL]</title>
+          <title>OP ${(op as any).codigo} - ${sectionTitle} [TERMINAL]</title>
           <style>${getTerminalPrintStyles()}</style>
         </head>
         <body class="terminal-mode">
@@ -167,8 +223,8 @@ export function OPDocumentoCompleto({
                   <div class="header-fase">${sec.fase}</div>
                 </div>
                 <div class="header-right-block">
-                  <div class="header-op-code">${op.codigo}</div>
-                  <div class="header-lote">Lote: ${op.lote_produto_acabado || '-'}</div>
+                  <div class="header-op-code">${(op as any).codigo}</div>
+                  <div class="header-lote">Lote: ${(op as any).lote_produto_acabado || '-'}</div>
                 </div>
               </div>
             </header>
@@ -177,35 +233,35 @@ export function OPDocumentoCompleto({
             <div class="metadata-grid">
               <div class="meta-cell">
                 <div class="meta-label">PRODUTO</div>
-                <div class="meta-value">${op.produto_nome || '-'}</div>
+                <div class="meta-value">${(op as any).produto_nome || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">LOTE DO PRODUTO</div>
-                <div class="meta-value meta-mono">${op.lote_produto_acabado || '-'}</div>
+                <div class="meta-value meta-mono">${(op as any).lote_produto_acabado || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">QUANTIDADE</div>
-                <div class="meta-value">${op.quantidade_frascos || 0} frascos × ${op.capsulas_por_frasco || 60} un</div>
+                <div class="meta-value">${(op as any).quantidade_frascos || 0} frascos × ${(op as any).capsulas_por_frasco || 60} un</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">TOTAL C/ ACRÉSCIMO</div>
-                <div class="meta-value meta-highlight">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
+                <div class="meta-value meta-highlight">${((op as any).total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">RESPONSÁVEL TÉCNICO</div>
-                <div class="meta-value">${op.rt_nome || op.responsavel_producao_nome || '-'}</div>
+                <div class="meta-value">${(op as any).rt_nome || (op as any).responsavel_producao_nome || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">CONSELHO/REGISTRO</div>
-                <div class="meta-value">${op.rt_tipo_conselho || ''} ${op.rt_numero_registro || '-'}</div>
+                <div class="meta-value">${(op as any).rt_tipo_conselho || ''} ${(op as any).rt_numero_registro || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">DATA FABRICAÇÃO</div>
-                <div class="meta-value">${op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'}</div>
+                <div class="meta-value">${(op as any).data_fabricacao ? new Date((op as any).data_fabricacao).toLocaleDateString('pt-BR') : '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">DATA VALIDADE</div>
-                <div class="meta-value">${op.data_validade ? new Date(op.data_validade).toLocaleDateString('pt-BR') : '-'}</div>
+                <div class="meta-value">${(op as any).data_validade ? new Date((op as any).data_validade).toLocaleDateString('pt-BR') : '-'}</div>
               </div>
             </div>
             
