@@ -72,6 +72,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       responsavel_tecnico_id: "",
       observacoes: "",
       equipamento_id: "",
+      fator_enchimento_manual: undefined,
     },
   });
 
