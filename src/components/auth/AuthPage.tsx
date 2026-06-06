@@ -27,6 +27,9 @@ const FEATURES = [
   { icon: 'graph-up', label: 'Produção rastreável', sub: 'Ordens, lotes e etapas críticas em um fluxo industrial único.' },
   { icon: 'shield-check', label: 'Qualidade e BPF', sub: 'Controles técnicos para suplementos, auditoria e liberação segura.' },
   { icon: 'stack', label: 'Estoque por lote', sub: 'FEFO, quarentena, COA e consumo com rastreabilidade total.' },
+  { icon: 'receipt', label: 'Emissão de NF-e', sub: 'Emissor fiscal integrado com cálculo automático de impostos e DANFE.' },
+  { icon: 'thermometer-snow', label: 'Controle de temperatura', sub: 'Monitoramento por sensores IoT com alertas e histórico para BPF.' },
+  { icon: 'vials', label: 'Formulador industrial', sub: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.' },
 ];
 
 /* ─── Input Field (Bootstrap style) ─── */
@@ -176,28 +179,28 @@ export default function AuthPage() {
             </p>
           </motion.div>
 
-          {/* Compact Feature cards Grid - Exact match to reference image */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
+          {/* Feature cards Grid - Exact style from reference image */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
             {FEATURES.map((f, i) => (
               <motion.div key={f.label}
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.22 + i * 0.06 }}
                 style={{
                   background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12, padding: '24px 20px',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 12, padding: '16px 14px',
                   transition: 'all 0.3s ease',
                   cursor: 'default',
-                  minHeight: '160px'
+                  minHeight: '140px'
                 }}
               >
-                <div style={{ marginBottom: 16, color: '#10b981' }}>
-                  <BI name={f.icon} size={24} />
+                <div style={{ marginBottom: 12, color: '#10b981' }}>
+                  <BI name={f.icon} size={22} />
                 </div>
-                <div style={{ color: '#f8f9fa', fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: '-0.01em' }}>
+                <div style={{ color: '#f8f9fa', fontSize: 14, fontWeight: 700, marginBottom: 6, letterSpacing: '-0.01em' }}>
                   {f.label}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 1.5 }}>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, lineHeight: 1.45 }}>
                   {f.sub}
                 </div>
               </motion.div>
