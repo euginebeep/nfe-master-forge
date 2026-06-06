@@ -139,7 +139,7 @@ export function OPDocumentoCompleto({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>OP ${op.codigo} - ${sectionTitle} [TERMINAL]</title>
+          <title>OP ${(op as any).codigo} - ${sectionTitle} [TERMINAL]</title>
           <style>${getTerminalPrintStyles()}</style>
         </head>
         <body class="terminal-mode">
