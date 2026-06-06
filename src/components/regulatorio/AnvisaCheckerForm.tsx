@@ -109,20 +109,29 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       // Salvar histórico
       // Salvar histórico
-      const { data: profile } = await supabase.from('profiles').select('company_id').single();
-      const companyId = profile?.company_id;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single();
 
-      if (companyId) {
-        await supabase
-          .from('anvisa_laudos')
-          .insert({
-            company_id: companyId,
-            produto: productName,
-            cliente: clientName,
-            status_geral: data.status_geral,
-            payload_entrada: { ativos: assets, publico: audience } as any,
-            resultado_ia: data as any
-          });
+        const companyId = profile?.company_id;
+
+        if (companyId) {
+          await supabase
+            .from('anvisa_laudos')
+            .insert({
+              company_id: companyId,
+              produto: productName,
+              cliente: clientName,
+              status_geral: data.status_geral,
+              payload_entrada: { ativos: assets, publico: audience } as any,
+              resultado_ia: data as any,
+              criado_por: user.id
+            });
+        }
       }
 
       onResult({
