@@ -105,9 +105,26 @@ export default function EquipamentosPage() {
       } else {
         const { error } = await supabase
           .from("equipamentos")
-          .insert([{ ...payload, company_id: companyId }]);
+          .insert([{ 
+            nome: payload.nome as string,
+            tipo: payload.tipo,
+            volume_nominal_litros: payload.volume_nominal_litros,
+            fator_enchimento_maximo: payload.fator_enchimento_maximo,
+            fator_enchimento_minimo: payload.fator_enchimento_minimo,
+            fator_enchimento_padrao: payload.fator_enchimento_padrao,
+            capacidade_maxima_kg: payload.capacidade_maxima_kg,
+            capacidade_minima_kg: payload.capacidade_minima_kg,
+            capacidade_padrao_kg: payload.capacidade_padrao_kg,
+            capacidade_maxima_com_aprovacao_kg: payload.capacidade_maxima_com_aprovacao_kg,
+            densidade_padrao_kg_l: payload.densidade_padrao_kg_l,
+            numero_serie: payload.numero_serie,
+            observacoes: payload.observacoes,
+            ativo: payload.ativo,
+            company_id: companyId 
+          }]);
         if (error) throw error;
       }
+
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
@@ -172,13 +189,16 @@ export default function EquipamentosPage() {
     <div className="container mx-auto p-6 space-y-6">
       <PageHeader
         title="Equipamentos de Produção"
-        subtitle="Misturadores, encapsuladoras e outros equipamentos cadastrados"
-      >
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Equipamento
-        </Button>
-      </PageHeader>
+        description="Misturadores, encapsuladoras e outros equipamentos cadastrados"
+        icon={Factory}
+        actions={
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Equipamento
+          </Button>
+        }
+      />
+
 
       <Card>
         <CardContent className="p-0">
