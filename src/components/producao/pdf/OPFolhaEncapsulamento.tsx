@@ -280,6 +280,49 @@ export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* BLOCO: AMOSTRA DE RETENÇÃO — RDC 275/2002                      */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-2 border-emerald-600 mb-4">
+        <div className="bg-emerald-600 px-4 py-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
+            <span>🧪</span> AMOSTRA DE RETENÇÃO — RDC 275/2002
+          </h2>
+        </div>
+        <div className="p-3 grid grid-cols-4 gap-3 text-xs bg-emerald-50">
+          <div>
+            <div className="text-[9px] text-emerald-800 uppercase font-semibold mb-1">Quantidade Retida</div>
+            <div className="border-b-2 border-emerald-400 min-h-[22px] font-mono">&nbsp;</div>
+            <div className="text-[8px] text-emerald-600 mt-0.5">mín. 1 frasco por lote</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-emerald-800 uppercase font-semibold mb-1">Localização Física</div>
+            <div className="border-b-2 border-emerald-400 min-h-[22px]">&nbsp;</div>
+            <div className="text-[8px] text-emerald-600 mt-0.5">ex: Prateleira A3-B2</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-emerald-800 uppercase font-semibold mb-1">Data de Coleta</div>
+            <div className="border-b-2 border-emerald-400 min-h-[22px]">&nbsp;</div>
+            <div className="text-[8px] text-emerald-600 mt-0.5">{new Date().toLocaleDateString('pt-BR')}</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-emerald-800 uppercase font-semibold mb-1">Descarte após</div>
+            <div className="border-b-2 border-emerald-400 min-h-[22px]">&nbsp;</div>
+            <div className="text-[8px] text-emerald-600 mt-0.5">validade + 12 meses</div>
+          </div>
+        </div>
+        <div className="p-3 border-t border-emerald-200 grid grid-cols-2 gap-3 text-xs bg-white">
+          <div>
+            <span className="font-semibold text-emerald-800">Responsável pela coleta:</span>
+            <div className="border-b-2 border-emerald-400 min-h-[18px] mt-1">&nbsp;</div>
+          </div>
+          <div>
+            <span className="font-semibold text-emerald-800">Assinatura / Data/Hora:</span>
+            <div className="border-b-2 border-emerald-400 min-h-[18px] mt-1">&nbsp;</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
       {/* BLOCO 7: ASSINATURAS                                           */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="border-2 border-slate-800 mt-6">
