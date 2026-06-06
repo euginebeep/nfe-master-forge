@@ -392,37 +392,69 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
 
       {tipoProduto === 'CAPSULA' && totalUnidades > 0 && (
         <Card className={cn(
+          "overflow-hidden",
           bateladaStatus === 'bloqueado' ? 'border-destructive bg-destructive/5' :
           bateladaStatus === 'aviso_alto' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20' :
           bateladaStatus === 'aviso_baixo' ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/20' :
           'border-green-500 bg-green-50 dark:bg-green-950/20'
         )}>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center gap-2 font-semibold text-sm">
-              <Scale className="h-4 w-4" />
-              Planejamento do Misturador em V 100L
+          <CardHeader className="pb-2 bg-muted/30">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Planejamento de Mistura: {nomeMisturador}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            {/* Step-by-step Calculation Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs border-b pb-4 mb-2">
+              <div className="space-y-1">
+                <p className="font-semibold text-muted-foreground uppercase tracking-wider">1. Volume do Pó</p>
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span>Peso Total:</span>
+                    <span className="font-mono">{pesoTotalMisturaKg.toFixed(3)} kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Densidade:</span>
+                    <span className="font-mono">{(selectedFormula?.densidade_aparente_kg_l ?? 0.65).toFixed(2)} kg/L</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 font-bold text-blue-600">
+                    <span>Volume Total:</span>
+                    <span>{volumeTotalPoL.toFixed(2)} L</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic text-right mt-1">Fórmula: Peso ÷ Densidade</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="font-semibold text-muted-foreground uppercase tracking-wider">2. Bateladas</p>
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span>Capacidade Útil:</span>
+                    <span className="font-mono">{VOLUME_UTIL_MAX_L.toFixed(0)} L</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Volume Total:</span>
+                    <span className="font-mono">{volumeTotalPoL.toFixed(2)} L</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 font-bold text-primary">
+                    <span>Total Bateladas:</span>
+                    <span>{numeroBateladas}×</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic text-right mt-1">Fórmula: Volume Total ÷ Cap. Útil (Arred. p/ cima)</p>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-5 gap-3 text-sm">
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Peso total pó</div>
-                <div className="font-mono font-bold text-base">{pesoTotalMisturaKg.toFixed(2)} kg</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Volume total pó</div>
-                <div className="font-mono font-bold text-base text-blue-600">{volumeTotalPoL.toFixed(1)} L</div>
-                <div className="text-[10px] text-muted-foreground">÷ {(selectedFormula?.densidade_aparente_kg_l ?? 0.65)} kg/L</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Nº bateladas</div>
-                <div className="font-mono font-bold text-base">{numeroBateladas}×</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Vol/batelada</div>
+
+            {/* Visual Indicators */}
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="text-center p-2 rounded bg-background/50 border">
+                <div className="text-[10px] text-muted-foreground uppercase">Por Batelada</div>
                 <div className="font-mono font-bold text-base text-blue-600">{volumePorBatelada.toFixed(1)} L</div>
-                <div className="text-[10px] text-muted-foreground">de 65L úteis</div>
+                <div className="text-[10px] text-muted-foreground">{pesoPorBatelada.toFixed(2)} kg</div>
               </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Enchimento</div>
+              <div className="text-center p-2 rounded bg-background/50 border">
+                <div className="text-[10px] text-muted-foreground uppercase">Enchimento</div>
                 <div className={cn(
                   "font-mono font-bold text-base",
                   fatorEnchimentoReal > 0.65 ? "text-red-600" :
@@ -433,29 +465,28 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
                 </div>
                 <div className="text-[10px] text-muted-foreground">ideal: 15–65%</div>
               </div>
+              <div className="text-center p-2 rounded bg-background/50 border">
+                <div className="text-[10px] text-muted-foreground uppercase">Status</div>
+                <div className="flex justify-center mt-1">
+                  {bateladaStatus === 'ok' ? <Check className="h-5 w-5 text-green-600" /> : <AlertTriangle className="h-5 w-5 text-orange-500" />}
+                </div>
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground text-center mt-1">
-              Misturador em V 100L · máx. 65L úteis (65%) · mín. 15L (15%) · densidade: {(selectedFormula?.densidade_aparente_kg_l ?? 0.65).toFixed(2)} kg/L
-            </div>
-            {bateladaStatus === 'bloqueado' && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{bateladaAlerta}</AlertDescription>
+
+            {bateladaAlerta && (
+              <Alert variant={bateladaStatus === 'bloqueado' ? 'destructive' : 'default'} className={cn(
+                bateladaStatus === 'aviso_alto' && "border-yellow-500 text-yellow-800 dark:text-yellow-200",
+                bateladaStatus === 'aviso_baixo' && "border-blue-400 text-blue-800 dark:text-blue-200"
+              )}>
+                {bateladaStatus !== 'bloqueado' && <AlertTriangle className="h-4 w-4" />}
+                <AlertDescription className="text-xs">{bateladaAlerta}</AlertDescription>
               </Alert>
             )}
-            {bateladaStatus === 'aviso_alto' && (
-              <Alert className="border-yellow-500 text-yellow-800 dark:text-yellow-200">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{bateladaAlerta}</AlertDescription>
-              </Alert>
-            )}
-            {bateladaStatus === 'aviso_baixo' && (
-              <Alert className="border-blue-400 text-blue-800 dark:text-blue-200">
-                <AlertDescription>{bateladaAlerta}</AlertDescription>
-              </Alert>
-            )}
+            
             {bateladaStatus === 'ok' && (
-              <p className="text-xs text-green-700 dark:text-green-400 text-center">✓ Carga dentro do range ideal de volume (15–65%)</p>
+              <p className="text-xs text-green-700 dark:text-green-400 text-center font-medium">
+                ✓ Configuração otimizada para o equipamento selecionado.
+              </p>
             )}
           </CardContent>
         </Card>
