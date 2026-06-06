@@ -84,6 +84,42 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
             <div className="text-sm font-bold text-slate-800">{op.rt_tipo_conselho || ''} {op.rt_numero_registro || '-'}</div>
           </div>
         </div>
+        <div className="grid grid-cols-4 divide-x divide-slate-300 border-t border-slate-300 bg-slate-50">
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Balança Analítica — N° Série</div>
+            <div className="text-sm font-bold text-slate-800 font-mono">
+              {(op as any).balanca_numero_serie || '_______________'}
+            </div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Última Calibração</div>
+            <div className="text-sm font-bold text-slate-800">
+              {(op as any).balanca_ultima_calibracao
+                ? new Date((op as any).balanca_ultima_calibracao).toLocaleDateString('pt-BR')
+                : '___/___/______'}
+            </div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Próxima Calibração</div>
+            <div className="text-sm font-bold text-slate-800">
+              {(op as any).balanca_proxima_calibracao
+                ? new Date((op as any).balanca_proxima_calibracao).toLocaleDateString('pt-BR')
+                : '___/___/______'}
+            </div>
+          </div>
+          <div className="p-3">
+            <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Status Calibração</div>
+            <div className="text-sm font-bold" style={{
+              color: (op as any).balanca_proxima_calibracao &&
+                new Date((op as any).balanca_proxima_calibracao) > new Date()
+                ? '#15803d' : '#dc2626'
+            }}>
+              {(op as any).balanca_proxima_calibracao &&
+                new Date((op as any).balanca_proxima_calibracao) > new Date()
+                ? '✓ CALIBRADA' : '⚠ VERIFICAR'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}

@@ -43,6 +43,9 @@ export interface OPDadosPDF {
   temperatura_inicio?: number | null;
   umidade_inicio?: number | null;
   sala_producao?: string | null;
+  balanca_numero_serie?: string | null;
+  balanca_ultima_calibracao?: string | null;
+  balanca_proxima_calibracao?: string | null;
 }
 
 export interface OPMateriaPrimaPDF {
