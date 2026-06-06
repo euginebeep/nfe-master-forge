@@ -223,8 +223,8 @@ export function OPDocumentoCompleto({
                   <div class="header-fase">${sec.fase}</div>
                 </div>
                 <div class="header-right-block">
-                  <div class="header-op-code">${op.codigo}</div>
-                  <div class="header-lote">Lote: ${op.lote_produto_acabado || '-'}</div>
+                  <div class="header-op-code">${(op as any).codigo}</div>
+                  <div class="header-lote">Lote: ${(op as any).lote_produto_acabado || '-'}</div>
                 </div>
               </div>
             </header>
@@ -233,35 +233,35 @@ export function OPDocumentoCompleto({
             <div class="metadata-grid">
               <div class="meta-cell">
                 <div class="meta-label">PRODUTO</div>
-                <div class="meta-value">${op.produto_nome || '-'}</div>
+                <div class="meta-value">${(op as any).produto_nome || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">LOTE DO PRODUTO</div>
-                <div class="meta-value meta-mono">${op.lote_produto_acabado || '-'}</div>
+                <div class="meta-value meta-mono">${(op as any).lote_produto_acabado || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">QUANTIDADE</div>
-                <div class="meta-value">${op.quantidade_frascos || 0} frascos × ${op.capsulas_por_frasco || 60} un</div>
+                <div class="meta-value">${(op as any).quantidade_frascos || 0} frascos × ${(op as any).capsulas_por_frasco || 60} un</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">TOTAL C/ ACRÉSCIMO</div>
-                <div class="meta-value meta-highlight">${(op.total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
+                <div class="meta-value meta-highlight">${((op as any).total_capsulas_com_acrescimo || 0).toLocaleString()} un</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">RESPONSÁVEL TÉCNICO</div>
-                <div class="meta-value">${op.rt_nome || op.responsavel_producao_nome || '-'}</div>
+                <div class="meta-value">${(op as any).rt_nome || (op as any).responsavel_producao_nome || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">CONSELHO/REGISTRO</div>
-                <div class="meta-value">${op.rt_tipo_conselho || ''} ${op.rt_numero_registro || '-'}</div>
+                <div class="meta-value">${(op as any).rt_tipo_conselho || ''} ${(op as any).rt_numero_registro || '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">DATA FABRICAÇÃO</div>
-                <div class="meta-value">${op.data_fabricacao ? new Date(op.data_fabricacao).toLocaleDateString('pt-BR') : '-'}</div>
+                <div class="meta-value">${(op as any).data_fabricacao ? new Date((op as any).data_fabricacao).toLocaleDateString('pt-BR') : '-'}</div>
               </div>
               <div class="meta-cell">
                 <div class="meta-label">DATA VALIDADE</div>
-                <div class="meta-value">${op.data_validade ? new Date(op.data_validade).toLocaleDateString('pt-BR') : '-'}</div>
+                <div class="meta-value">${(op as any).data_validade ? new Date((op as any).data_validade).toLocaleDateString('pt-BR') : '-'}</div>
               </div>
             </div>
             
