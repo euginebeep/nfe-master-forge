@@ -130,7 +130,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
   const [capsulaMaterial, setCapsulaMaterial] = useState<string>("");
   const [fotoUrl, setFotoUrl] = useState<string | undefined>();
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
       sku_interno: "",
       descricao_interna: "",
@@ -138,6 +138,9 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
       categoria_operacional: "",
       ncm: "",
       ean: "",
+      numero_notificacao_anvisa: "",
+      data_notificacao_anvisa: "",
+      status_regulatorio: "PENDENTE",
     },
   });
 
@@ -396,6 +399,46 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">NCM {TOOLTIPS.ncm}</Label>
               <Input {...register("ncm")} placeholder="00000000" maxLength={8} />
+            </div>
+          </div>
+
+          {/* Notificação ANVISA — RDC 843/2024 */}
+          <div className="col-span-1 border border-amber-200 rounded-lg p-3 bg-amber-50">
+            <div className="text-xs font-semibold text-amber-800 uppercase mb-2 flex items-center gap-1">
+              <span>⚠</span> Notificação ANVISA — Obrigatório a partir de setembro/2026
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label htmlFor="numero_notificacao_anvisa">N° Notificação ANVISA</Label>
+                <Input
+                  id="numero_notificacao_anvisa"
+                  placeholder="Ex: 6.2024.0001234"
+                  {...register("numero_notificacao_anvisa")}
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_notificacao_anvisa">Data da Notificação</Label>
+                <Input
+                  id="data_notificacao_anvisa"
+                  type="date"
+                  {...register("data_notificacao_anvisa")}
+                />
+              </div>
+              <div>
+                <Label htmlFor="status_regulatorio">Status Regulatório</Label>
+                <Select
+                  value={watch("status_regulatorio") || "PENDENTE"}
+                  onValueChange={(v) => setValue("status_regulatorio", v)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NOTIFICADO">Notificado</SelectItem>
+                    <SelectItem value="DISPENSADO">Dispensado (verificar)</SelectItem>
+                    <SelectItem value="REGISTRADO">Registrado (RDC anterior)</SelectItem>
+                    <SelectItem value="PENDENTE">Pendente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
