@@ -142,7 +142,7 @@ const App = () => (
                   <MainLayout />
                 </ProtectedRoute>
               }>
-                <Route path="/" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><Index /></ErrorBoundary></Suspense>} />
+                <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><Index /></ErrorBoundary></Suspense>} />
                 <Route path="/roadmap" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RoadmapPage /></ErrorBoundary></Suspense>} />
                 <Route path="/faq" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><FAQPage /></ErrorBoundary></Suspense>} />
                 {/* Settings — admin only */}
