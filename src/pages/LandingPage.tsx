@@ -9,33 +9,33 @@ import { Button } from "@/components/ui/button";
 
 const features = [
   {
-    title: "Manufatura 4.0",
-    description: "Gestão completa de OPs, fórmulas complexas, centros de custo e controle de perdas.",
+    title: "Produção rastreável",
+    description: "Ordens, lotes e etapas críticas em um fluxo industrial único.",
     icon: Activity,
   },
   {
-    title: "Compliance Regulatório",
-    description: "Rastreabilidade total conforme RDC 658/2022 e normas rigorosas da ANVISA.",
+    title: "Qualidade e BPF",
+    description: "Controles técnicos para suplementos, auditoria e liberação segura.",
     icon: ShieldCheck,
   },
   {
-    title: "Inteligência de Estoque",
-    description: "Controle FEFO/FIFO por lote, gestão de quarentena, COA e consumo rastreado.",
+    title: "Estoque por lote",
+    description: "FEFO, quarentena, COA e consumo com rastreabilidade total.",
     icon: Layers,
   },
   {
-    title: "Gestão Fiscal & NF-e",
-    description: "Emissão automatizada de notas fiscais com cálculo tributário integrado e DANFE.",
+    title: "Emissão de NF-e",
+    description: "Emissor fiscal integrado com cálculo automático de impostos e DANFE.",
     icon: Receipt,
   },
   {
-    title: "Monitoramento IoT",
-    description: "Controle de temperatura por sensores com alertas em tempo real e histórico BPF.",
+    title: "Controle de temperatura",
+    description: "Monitoramento por sensores IoT com alertas e histórico para BPF.",
     icon: Thermometer,
   },
   {
-    title: "Formulador Industrial",
-    description: "Cápsulas, líquidos e pós com potência por lote e travas de segurança técnica.",
+    title: "Formulador industrial",
+    description: "Cápsulas, líquidos e pós com potência por lote e travas de segurança.",
     icon: Beaker,
   },
 ];

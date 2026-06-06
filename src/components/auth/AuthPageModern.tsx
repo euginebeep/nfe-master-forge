@@ -24,12 +24,12 @@ function BI({ name, size = 16, color, className = '' }: { name: string; size?: n
 }
 
 const FEATURES = [
-  { icon: 'factory',          label: 'Manufatura 4.0',       sub: 'Gestão completa de OPs, fórmulas complexas e centros de custo' },
-  { icon: 'shield-check',     label: 'Compliance Regulatório', sub: 'Rastreabilidade total conforme RDC 658/2022 e normas ANVISA' },
-  { icon: 'box-seam',         label: 'Inteligência de Estoque', sub: 'Controle FEFO/FIFO por lote com gestão de quarentena' },
-  { icon: 'graph-up-arrow',   label: 'BI & Performance',     sub: 'Dashboards executivos com KPIs de produtividade e perdas' },
-  { icon: 'file-earmark-text', label: 'Gestão Fiscal & NF-e', sub: 'Emissão automatizada de notas fiscais e controle tributário' },
-  { icon: 'clipboard2-check',  label: 'Controle de Qualidade', sub: 'Checklists de BPF, Line Clearance e análise laboratorial' },
+  { icon: 'factory', label: 'Produção rastreável', sub: 'Ordens, lotes e etapas críticas em um fluxo industrial único.' },
+  { icon: 'shield-check', label: 'Qualidade e BPF', sub: 'Controles técnicos para suplementos, auditoria e liberação segura.' },
+  { icon: 'layers', label: 'Estoque por lote', sub: 'FEFO, quarentena, COA e consumo com rastreabilidade total.' },
+  { icon: 'receipt', label: 'Emissão de NF-e', sub: 'Emissor fiscal integrado com cálculo automático de impostos e DANFE.' },
+  { icon: 'thermometer-half', label: 'Controle de temperatura', sub: 'Monitoramento por sensores IoT com alertas e histórico para BPF.' },
+  { icon: 'beaker', label: 'Formulador industrial', sub: 'Cápsulas, líquidos e pós com potência por lote e travas de segurança.' },
 ];
 
 /* ─── Input Field (Bootstrap style) ─── */
