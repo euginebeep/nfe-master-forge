@@ -26,6 +26,7 @@ export function useCompany() {
 
       if (!companyId) return null;
 
+      // Final attempt to get company using profile or derived ID
       const { data, error } = await supabase
         .from("company")
         .select("*")
