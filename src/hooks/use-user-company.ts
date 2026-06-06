@@ -1,22 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 /**
  * Hook para obter o company_id do usuário logado.
  * Usado em todos os hooks de criação para garantir multi-tenant.
  */
 export function useUserCompanyId() {
+  const { user, profile, isAuthenticated, isLoading: authLoading } = useAuthContext();
+
   return useQuery({
-    queryKey: ["user-company-id"],
+    queryKey: ["user-company-id", user?.id ?? "anonymous", profile?.company_id ?? "no-company"],
+    enabled: isAuthenticated && !authLoading,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
+
+      if (profile?.company_id) return profile.company_id;
 
       const { data, error } = await supabase
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return (data?.company_id as string) || null;

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import { registrarAuditoria } from '@/lib/audit-logger';
+import { queryClient } from '@/lib/query-client';
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 type AppDepartamento = 'DIRETORIA' | 'COMERCIAL' | 'COMPRAS' | 'FINANCEIRO' | 'ESTOQUE' | 'PRODUCAO' | 'QUALIDADE' | 'RH' | 'TI';
@@ -9,6 +10,7 @@ type AppDepartamento = 'DIRETORIA' | 'COMERCIAL' | 'COMPRAS' | 'FINANCEIRO' | 'E
 export interface UserProfile {
   id: string;
   nome_completo: string;
+  company_id: string | null;
   cargo: string | null;
   departamento: AppDepartamento | null;
   avatar_url: string | null;
@@ -112,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!initialLoaded) return;
 
         if (session?.user) {
+          queryClient.removeQueries({ queryKey: ['company'] });
+          queryClient.removeQueries({ queryKey: ['user-company-id'] });
           // Use setTimeout to avoid Supabase deadlock
           setTimeout(async () => {
             if (!mounted) return;
@@ -131,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           }, 0);
         } else {
+          queryClient.clear();
           setState({
             user: null, session: null, profile: null, role: null,
             permissions: [], isLoading: false, isAuthenticated: false,
@@ -183,6 +188,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error };
+    queryClient.removeQueries({ queryKey: ['company'] });
+    queryClient.removeQueries({ queryKey: ['user-company-id'] });
+    if (data.session?.user) {
+      await updateLastAccess(data.session.user.id);
+      const { profile, role, permissions } = await fetchUserData(data.session.user.id);
+      setState({
+        user: data.session.user,
+        session: data.session,
+        profile,
+        role,
+        permissions,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+    }
     // Fire-and-forget audit
     if (data.user) {
       registrarAuditoria({
@@ -207,6 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { error } = await supabase.auth.signOut();
     if (error) return { error };
+    queryClient.clear();
     return {};
   };
 

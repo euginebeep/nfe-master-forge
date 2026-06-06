@@ -2,22 +2,32 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Company } from "@/types/erp";
 import { toast } from "sonner";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 export function useCompany() {
+  const { user, profile, isAuthenticated, isLoading: authLoading } = useAuthContext();
+
   return useQuery({
-    queryKey: ["company"],
+    queryKey: ["company", user?.id ?? "anonymous", profile?.company_id ?? "no-company"],
+    enabled: isAuthenticated && !authLoading,
     queryFn: async () => {
       // Buscar o company_id do profile do usuário logado
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
+      let companyId = profile?.company_id;
 
-      if (!profile?.company_id) {
+      if (!companyId) {
+        const { data: freshProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+        companyId = freshProfile?.company_id || null;
+      }
+
+      if (!companyId) {
         // Sem company_id vinculado → retorna null (onboarding necessário)
         return null;
       }
@@ -25,8 +35,8 @@ export function useCompany() {
       const { data, error } = await supabase
         .from("company")
         .select("*")
-        .eq("id", profile.company_id)
-        .single();
+        .eq("id", companyId)
+        .maybeSingle();
 
       if (error) throw error;
       return data as Company | null;
