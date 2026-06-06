@@ -43,16 +43,20 @@ export function OPDocumentoCompleto({
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data: profile } = await supabase
+        const { data: profile } = await (supabase
           .from('profiles')
           .select('company_id')
-          .eq('id', user.id)
+          .eq('id', user.id) as any)
           .single();
         
         const companyId = profile?.company_id;
         if (!companyId) return;
 
-        const { data: balanca } = await supabase
+        // Use any to bypass recursion issues
+        const sb: any = supabase;
+
+        // Buscar balança
+        const { data: balancaResult } = await sb
           .from('equipamentos')
           .select('id, numero_serie')
           .eq('company_id', companyId)
@@ -61,17 +65,19 @@ export function OPDocumentoCompleto({
           .limit(1)
           .maybeSingle();
 
-        const { data: calibracao } = (balanca as any)?.id
-          ? await supabase
-              .from('qc_calibracoes')
-              .select('data_calibracao, proxima_calibracao')
-              .eq('equipamento_id', (balanca as any).id)
-              .order('proxima_calibracao', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          : { data: null };
+        let calibracaoData: any = null;
+        if (balancaResult?.id) {
+          const { data: calibracaoResult } = await sb
+            .from('qc_calibracoes')
+            .select('data_calibracao, proxima_calibracao')
+            .eq('equipamento_id', balancaResult.id)
+            .order('proxima_calibracao', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          calibracaoData = calibracaoResult;
+        }
 
-        const { data: opCompleta } = await supabase
+        const { data: opResult } = await sb
           .from('ordens_producao_industrial')
           .select('temperatura_inicio, umidade_inicio, sala_producao, rendimento_percentual')
           .eq('id', (initialOp as any).id)
@@ -79,13 +85,13 @@ export function OPDocumentoCompleto({
 
         setOp((prev: any) => ({
           ...initialOp,
-          balanca_numero_serie: (balanca as any)?.numero_serie || null,
-          balanca_ultima_calibracao: (calibracao as any)?.data_calibracao || null,
-          balanca_proxima_calibracao: (calibracao as any)?.proxima_calibracao || null,
-          temperatura_inicio: (opCompleta as any)?.temperatura_inicio || null,
-          umidade_inicio: (opCompleta as any)?.umidade_inicio || null,
-          sala_producao: (opCompleta as any)?.sala_producao || null,
-          rendimento_percentual: (opCompleta as any)?.rendimento_percentual || null,
+          balanca_numero_serie: balancaResult?.numero_serie || null,
+          balanca_ultima_calibracao: calibracaoData?.data_calibracao || null,
+          balanca_proxima_calibracao: calibracaoData?.proxima_calibracao || null,
+          temperatura_inicio: opResult?.temperatura_inicio || null,
+          umidade_inicio: opResult?.umidade_inicio || null,
+          sala_producao: opResult?.sala_producao || null,
+          rendimento_percentual: opResult?.rendimento_percentual || null,
         }));
       } catch (err) {
         console.error('Erro ao buscar dados complementares:', err);

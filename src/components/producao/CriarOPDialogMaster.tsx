@@ -55,6 +55,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
     totalUnidades, totalComAcrescimo,
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
+    volumeTotalPoL, volumePorBatelada, fatorEnchimentoReal,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange,
     podeAvancar, avancar, voltar, onSubmit, progressoEtapas,
   } = state;
@@ -382,39 +383,60 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
               <Scale className="h-4 w-4" />
               Planejamento do Misturador em V 100L
             </div>
-            <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-5 gap-3 text-sm">
               <div className="text-center">
-                <div className="text-xs text-muted-foreground">Peso total mistura</div>
-                <div className="font-mono font-bold text-base">{pesoTotalMisturaKg.toFixed(1)} kg</div>
+                <div className="text-xs text-muted-foreground">Peso total pó</div>
+                <div className="font-mono font-bold text-base">{pesoTotalMisturaKg.toFixed(2)} kg</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Volume total pó</div>
+                <div className="font-mono font-bold text-base text-blue-600">{volumeTotalPoL.toFixed(1)} L</div>
+                <div className="text-[10px] text-muted-foreground">÷ {(selectedFormula?.densidade_aparente_kg_l ?? 0.65)} kg/L</div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-muted-foreground">Nº bateladas</div>
                 <div className="font-mono font-bold text-base">{numeroBateladas}×</div>
               </div>
               <div className="text-center">
-                <div className="text-xs text-muted-foreground">Kg/batelada</div>
-                <div className="font-mono font-bold text-base">{pesoPorBatelada.toFixed(1)} kg</div>
+                <div className="text-xs text-muted-foreground">Vol/batelada</div>
+                <div className="font-mono font-bold text-base text-blue-600">{volumePorBatelada.toFixed(1)} L</div>
+                <div className="text-[10px] text-muted-foreground">de 65L úteis</div>
               </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Enchimento</div>
+                <div className={cn(
+                  "font-mono font-bold text-base",
+                  fatorEnchimentoReal > 0.65 ? "text-red-600" :
+                  fatorEnchimentoReal > 0.58 ? "text-yellow-600" :
+                  fatorEnchimentoReal < 0.15 ? "text-blue-500" : "text-green-600"
+                )}>
+                  {(fatorEnchimentoReal * 100).toFixed(0)}%
+                </div>
+                <div className="text-[10px] text-muted-foreground">ideal: 15–65%</div>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground text-center mt-1">
+              Misturador em V 100L · máx. 65L úteis (65%) · mín. 15L (15%) · densidade: {(selectedFormula?.densidade_aparente_kg_l ?? 0.65).toFixed(2)} kg/L
             </div>
             {bateladaStatus === 'bloqueado' && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>Carga por batelada acima de 50 kg. Reduza a quantidade ou divida em mais bateladas. OP bloqueada.</AlertDescription>
+                <AlertDescription>{bateladaAlerta}</AlertDescription>
               </Alert>
             )}
             {bateladaStatus === 'aviso_alto' && (
               <Alert className="border-yellow-500 text-yellow-800 dark:text-yellow-200">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>Carga entre 40–50 kg. Requer confirmação técnica conforme densidade da fórmula.</AlertDescription>
+                <AlertDescription>{bateladaAlerta}</AlertDescription>
               </Alert>
             )}
             {bateladaStatus === 'aviso_baixo' && (
               <Alert className="border-blue-400 text-blue-800 dark:text-blue-200">
-                <AlertDescription>Batelada abaixo de 15 kg. Avaliar homogeneidade da mistura.</AlertDescription>
+                <AlertDescription>{bateladaAlerta}</AlertDescription>
               </Alert>
             )}
             {bateladaStatus === 'ok' && (
-              <p className="text-xs text-green-700 dark:text-green-400">✓ Carga dentro do range ideal (15–40 kg)</p>
+              <p className="text-xs text-green-700 dark:text-green-400 text-center">✓ Carga dentro do range ideal de volume (15–65%)</p>
             )}
           </CardContent>
         </Card>
