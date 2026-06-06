@@ -6959,6 +6959,18 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: string
       }
+      get_user_company_id: { Args: never; Returns: string }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
       lote_belongs_to_tenant: { Args: { _lid: string }; Returns: boolean }
       nota_entrada_belongs_to_tenant: {
