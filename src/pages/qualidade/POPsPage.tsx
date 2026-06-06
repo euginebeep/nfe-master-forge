@@ -198,17 +198,18 @@ export default function POPsPage() {
     <div className="space-y-6">
       <PageHeader 
         title="Procedimentos Operacionais Padrão (POPs)" 
-        subtitle="RDC 275/2002 · RDC 843/2024"
-      >
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setExecDialogOpen(true)}>
-            <History className="w-4 h-4 mr-2" /> Registrar Execução
-          </Button>
-          <Button onClick={() => handleOpenPopDialog()}>
-            <Plus className="w-4 h-4 mr-2" /> Novo POP
-          </Button>
-        </div>
-      </PageHeader>
+        description="RDC 275/2002 · RDC 843/2024"
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setExecDialogOpen(true)}>
+              <History className="w-4 h-4 mr-2" /> Registrar Execução
+            </Button>
+            <Button onClick={() => handleOpenPopDialog()}>
+              <Plus className="w-4 h-4 mr-2" /> Novo POP
+            </Button>
+          </div>
+        }
+      />
 
       <Card>
         <CardContent className="p-6 space-y-6">
