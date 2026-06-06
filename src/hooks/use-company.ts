@@ -11,48 +11,29 @@ export function useCompany() {
     queryKey: ["company", user?.id ?? "anonymous", profile?.company_id ?? "no-company"],
     enabled: isAuthenticated && !authLoading,
     queryFn: async () => {
-      // Buscar o company_id do profile do usuário logado
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
+      // Check demo mode from multiple sources
       const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true' || 
                            user.email === 'demo@brainxerp.com';
 
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from("profiles")
         .select("company_id, is_demo")
         .eq("id", user.id)
         .single();
 
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        throw profileError;
-      }
-
       const isDemo = profile?.is_demo || isDemoSession;
       const companyId = profile?.company_id || (isDemo ? '00000000-0000-0000-0000-000000000001' : null);
 
-      console.log('[useCompany] profile details:', {
-        userId: user.id,
-        email: user.email,
-        profile_company_id: profile?.company_id,
-        is_demo: profile?.is_demo,
-        isDemoSession,
-        finalCompanyId: companyId,
-      });
-
-      if (!companyId) {
-        // Sem company_id vinculado → retorna null (onboarding necessário)
-        return null;
-      }
+      if (!companyId) return null;
 
       const { data, error } = await supabase
         .from("company")
         .select("*")
         .eq("id", companyId)
         .single();
-
-      console.log('[useCompany] company result:', { data, error });
 
       if (error) throw error;
       return data as Company | null;
