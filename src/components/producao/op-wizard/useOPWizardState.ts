@@ -72,6 +72,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       responsavel_tecnico_id: "",
       observacoes: "",
       equipamento_id: "",
+      fator_enchimento_manual: undefined,
     },
   });
 
@@ -80,6 +81,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const quantidadeFrascos = form.watch("quantidade_frascos") || 0;
   const unidadesPorFrasco = form.watch("unidades_por_frasco") || 0;
   const dataFab = form.watch("data_fabricacao");
+  const fatorManual = form.watch("fator_enchimento_manual");
 
   const totalUnidades = quantidadeFrascos * unidadesPorFrasco;
   const totalComAcrescimo = Math.ceil(totalUnidades * (1 + ACRESCIMO_INDUSTRIAL / 100));
@@ -91,11 +93,13 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   // Parâmetros do equipamento (banco) ou defaults conservadores
   const VOL_TOTAL_L        = misturador?.volume_nominal_litros    ?? 100;
   const FATOR_MAX          = misturador?.fator_enchimento_maximo  ?? 0.65;
+  const FATOR_DEFINIDO     = fatorManual ? (fatorManual / 100) : (misturador?.fator_enchimento_padrao ?? FATOR_MAX);
   const FATOR_MIN          = misturador?.fator_enchimento_minimo  ?? 0.15;
   const DENSIDADE_EQUIP    = misturador?.densidade_padrao_kg_l    ?? 0.65;
 
   // Volume útil máximo e mínimo por batelada (em litros)
   const VOLUME_UTIL_MAX_L  = VOL_TOTAL_L * FATOR_MAX;   // ex: 100 × 0.65 = 65L
+  const VOLUME_UTIL_CALC_L = VOL_TOTAL_L * FATOR_DEFINIDO; 
   const VOLUME_UTIL_MIN_L  = VOL_TOTAL_L * FATOR_MIN;   // ex: 100 × 0.15 = 15L
 
   // Parâmetros da fórmula — usa o real, fallback para o equipamento, fallback para default
@@ -114,7 +118,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
 
   // 3. Número de bateladas — limitado pelo VOLUME (critério real do misturador)
   const numeroBateladas = volumeTotalPoL > 0
-    ? Math.ceil(volumeTotalPoL / VOLUME_UTIL_MAX_L)
+    ? Math.ceil(volumeTotalPoL / VOLUME_UTIL_CALC_L)
     : 1;
 
   // 4. Volume e peso por batelada
@@ -412,6 +416,9 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         volume_por_batelada_l: volumePorBatelada,
         fator_enchimento_real: fatorEnchimentoReal,
         equipamento_id: values.equipamento_id || null,
+        volume_util_max_l: VOLUME_UTIL_MAX_L,
+        fator_enchimento_alvo: FATOR_DEFINIDO,
+        densidade_utilizada_kg_l: DENSIDADE_FORMULA,
       };
 
       const { data: newOP, error } = await supabase
@@ -466,6 +473,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     nomeMisturador,
     VOLUME_UTIL_MAX_L,
     VOLUME_UTIL_MIN_L,
+    misturador,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange, handleEquipamentoChange,
     podeAvancar, avancar, voltar, onSubmit,
     progressoEtapas: (etapaAtual / 4) * 100,

@@ -56,7 +56,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     totalUnidades, totalComAcrescimo,
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     volumeTotalPoL, volumePorBatelada, fatorEnchimentoReal, nomeMisturador,
-    VOLUME_UTIL_MAX_L, VOLUME_UTIL_MIN_L,
+    VOLUME_UTIL_MAX_L, VOLUME_UTIL_MIN_L, misturador,
     handleClienteSelect, handleQuickClienteCreated, handleFormulaChange, handlePedidoChange, handleEquipamentoChange,
     podeAvancar, avancar, voltar, onSubmit, progressoEtapas,
   } = state;
@@ -403,6 +403,22 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
               <Calculator className="h-4 w-4" />
               Planejamento de Mistura: {nomeMisturador}
             </CardTitle>
+            <div className="flex items-center gap-3">
+              <FormField control={form.control} name="fator_enchimento_manual" render={({ field }) => (
+                <FormItem className="flex items-center gap-2 space-y-0">
+                  <FormLabel className="text-[10px] text-muted-foreground uppercase">Ajuste Manual (%)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      className="h-7 w-16 text-xs font-mono" 
+                      placeholder={(misturador?.fator_enchimento_padrao ? misturador.fator_enchimento_padrao * 100 : 65).toString()}
+                      value={field.value || ""} 
+                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                    />
+                  </FormControl>
+                </FormItem>
+              )} />
+            </div>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
             {/* Step-by-step Calculation Summary */}
