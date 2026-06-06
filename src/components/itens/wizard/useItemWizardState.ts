@@ -60,6 +60,9 @@ export function useItemWizardState(onSuccess?: () => void) {
   const [aliquotaCofins, setAliquotaCofins] = useState<number | undefined>();
   const [cest, setCest] = useState("");
   const [observacoesFiscais, setObservacoesFiscais] = useState("");
+  const [numeroNotificacaoAnvisa, setNumeroNotificacaoAnvisa] = useState("");
+  const [dataNotificacaoAnvisa, setDataNotificacaoAnvisa] = useState("");
+  const [statusRegulatorio, setStatusRegulatorio] = useState("PENDENTE");
 
   // Step 5: Processo
   const [criticidade, setCriticidade] = useState("NORMAL");
@@ -238,6 +241,9 @@ export function useItemWizardState(onSuccess?: () => void) {
         unidade_interna: unidadeInterna,
         ncm: ncm || undefined,
         ean: ean || undefined,
+        numero_notificacao_anvisa: numeroNotificacaoAnvisa || undefined,
+        data_notificacao_anvisa: dataNotificacaoAnvisa || undefined,
+        status_regulatorio: statusRegulatorio,
         criticidade: criticidade,
         controla_lote: controlaLote,
         controla_validade: controlaValidade,
@@ -304,7 +310,7 @@ export function useItemWizardState(onSuccess?: () => void) {
     setCfopSaidaPadrao(""); setCstIcms(""); setOrigemIcms("0"); setAliquotaIcms(undefined);
     setMvaSt(undefined); setCstIpi(""); setAliquotaIpi(undefined); setCstPis("");
     setAliquotaPis(undefined); setCstCofins(""); setAliquotaCofins(undefined); setCest("");
-    setObservacoesFiscais(""); setCriticidade("NORMAL"); setArmazenamento("AMBIENTE");
+    setObservacoesFiscais(""); setNumeroNotificacaoAnvisa(""); setDataNotificacaoAnvisa(""); setStatusRegulatorio("PENDENTE"); setCriticidade("NORMAL"); setArmazenamento("AMBIENTE");
     setControlaLote(true); setControlaValidade(true); setHigroscopico(false);
     setExigePremix(false); setAtivo(true); setFornecedores([]); setAliases([]);
     setCapsulaMarca(""); setCapsulaTamanho(""); setCapsulaCor(""); setCapsulaMaterial("");
@@ -331,6 +337,9 @@ export function useItemWizardState(onSuccess?: () => void) {
     aliquotaIpi, setAliquotaIpi, cstPis, setCstPis, aliquotaPis, setAliquotaPis,
     cstCofins, setCstCofins, aliquotaCofins, setAliquotaCofins, cest, setCest,
     observacoesFiscais, setObservacoesFiscais,
+    numeroNotificacaoAnvisa, setNumeroNotificacaoAnvisa,
+    dataNotificacaoAnvisa, setDataNotificacaoAnvisa,
+    statusRegulatorio, setStatusRegulatorio,
     // Step 5
     criticidade, setCriticidade, armazenamento, setArmazenamento,
     controlaLote, setControlaLote, controlaValidade, setControlaValidade,

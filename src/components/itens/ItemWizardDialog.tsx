@@ -235,6 +235,47 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                     <div className="space-y-2"><Label>EAN/GTIN</Label><Input value={s.ean} onChange={(e) => s.setEan(e.target.value)} placeholder="7891234567890" /></div>
                     <div className="space-y-2"><Label>CEST</Label><Input value={s.cest} onChange={(e) => s.setCest(e.target.value)} placeholder="00.000.00" /></div>
                   </div>
+
+                  {/* Notificação ANVISA — RDC 843/2024 */}
+                  <div className="border border-amber-200 rounded-lg p-3 bg-amber-50">
+                    <div className="text-xs font-semibold text-amber-800 uppercase mb-2 flex items-center gap-1">
+                      <span>⚠</span> Notificação ANVISA — Obrigatório a partir de setembro/2026
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label>N° Notificação ANVISA</Label>
+                        <Input
+                          placeholder="Ex: 6.2024.0001234"
+                          value={s.numeroNotificacaoAnvisa}
+                          onChange={(e) => s.setNumeroNotificacaoAnvisa(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Data da Notificação</Label>
+                        <Input
+                          type="date"
+                          value={s.dataNotificacaoAnvisa}
+                          onChange={(e) => s.setDataNotificacaoAnvisa(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Status Regulatório</Label>
+                        <Select
+                          value={s.statusRegulatorio}
+                          onValueChange={s.setStatusRegulatorio}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NOTIFICADO">Notificado</SelectItem>
+                            <SelectItem value="DISPENSADO">Dispensado (verificar)</SelectItem>
+                            <SelectItem value="REGISTRADO">Registrado (RDC anterior)</SelectItem>
+                            <SelectItem value="PENDENTE">Pendente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
                   <Separator />
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>CFOP Entrada Padrão</Label><Input value={s.cfopEntradaPadrao} onChange={(e) => s.setCfopEntradaPadrao(e.target.value)} placeholder="Ex: 1102" /></div>
