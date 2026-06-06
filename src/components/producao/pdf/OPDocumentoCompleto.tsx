@@ -77,7 +77,7 @@ export function OPDocumentoCompleto({
           .eq('id', (initialOp as any).id)
           .maybeSingle();
 
-        setOp(prev => ({
+        setOp((prev: any) => ({
           ...initialOp,
           balanca_numero_serie: (balanca as any)?.numero_serie || null,
           balanca_ultima_calibracao: (calibracao as any)?.data_calibracao || null,
