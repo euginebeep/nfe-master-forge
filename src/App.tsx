@@ -105,6 +105,9 @@ const App = () => (
           <GlobalSearchDialog />
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>
+              {/* Páginas Públicas */}
+              <Route path="/" element={<Suspense fallback={<PageFallback />}><LandingPage /></Suspense>} />
+              
               {/* Auth - público */}
               <Route path="/auth" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AuthPageModern /></ErrorBoundary></Suspense>} />
               <Route path="/termos-de-uso" element={<Suspense fallback={<PageFallback />}><TermosUsoPage /></Suspense>} />
