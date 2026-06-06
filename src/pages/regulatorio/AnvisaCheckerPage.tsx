@@ -12,7 +12,7 @@ export default function AnvisaCheckerPage() {
     <div className="container mx-auto py-6 space-y-6 animate-in fade-in duration-500">
       <PageHeader 
         title="ANVISA Checker" 
-        subtitle="Verificação regulatória automática de fórmulas e rotulagem"
+        description="Verificação regulatória automática de fórmulas e rotulagem"
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
