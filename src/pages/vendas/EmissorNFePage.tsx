@@ -538,7 +538,7 @@ export default function EmissorNFePage() {
       try {
         const { data: itensNota } = await supabase
           .from("notas_saida_itens")
-          .select("item_id, quantidade, descricao")
+          .select("item_id, quantidade, descricao, unidade")
           .eq("nota_saida_id", notaData.id);
 
         if (itensNota && itensNota.length > 0) {
@@ -548,11 +548,12 @@ export default function EmissorNFePage() {
             // Buscar lotes disponíveis por FEFO (mais antigos primeiro)
             const { data: lotes } = await supabase
               .from("estoque_lotes")
-              .select("id, lote_numero, quantidade_disponivel, data_validade")
+              .select("id, numero_lote, quantidade_interna, data_val")
               .eq("item_id", item.item_id)
               .eq("company_id", notaData.company_id)
-              .gt("quantidade_disponivel", 0)
-              .order("data_validade", { ascending: true });
+              .eq("status", "DISPONIVEL")
+              .gt("quantidade_interna", 0)
+              .order("data_val", { ascending: true });
 
             if (!lotes || lotes.length === 0) continue;
 
@@ -560,13 +561,12 @@ export default function EmissorNFePage() {
             for (const lote of lotes) {
               if (qtdRestante <= 0) break;
 
-              const baixa = Math.min(qtdRestante, lote.quantidade_disponivel);
+              const baixa = Math.min(qtdRestante, lote.quantidade_interna);
 
               await supabase
                 .from("estoque_lotes")
                 .update({
-                  quantidade_disponivel: lote.quantidade_disponivel - baixa,
-                  updated_at: new Date().toISOString(),
+                  quantidade_interna: lote.quantidade_interna - baixa,
                 })
                 .eq("id", lote.id);
 
@@ -575,11 +575,12 @@ export default function EmissorNFePage() {
                 company_id: notaData.company_id,
                 item_id: item.item_id,
                 lote_id: lote.id,
-                tipo_movimentacao: "SAIDA",
+                tipo: "SAIDA",
                 quantidade: baixa,
+                unidade: item.unidade || "UN",
                 motivo: `Saída NF-e ${notaData.numero || notaData.id}`,
-                referencia_id: notaData.id,
-                referencia_tipo: "NOTA_SAIDA",
+                documento_ref_id: notaData.id,
+                origem: "NF-E",
               });
 
               qtdRestante -= baixa;
