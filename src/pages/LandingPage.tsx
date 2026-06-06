@@ -372,7 +372,7 @@ export default function LandingPage() {
                 ))}
               </ul>
             </motion.div>
-            <motion.div {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }} style={{ transform: "scale(1.15)", transformOrigin: "center" }}>
+            <motion.div {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }} className="md:scale-[1.15] origin-center">
               <Card
                 className="overflow-hidden bg-white"
                 style={{ border: "1px solid #E5E7EB", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
