@@ -12,6 +12,8 @@ interface OPCabecalhoPDFProps {
 }
 
 export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalPaginas }: OPCabecalhoPDFProps) {
+  const qrUrl = `${window.location.origin}/verificar-op/${op.codigo}`;
+
   const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
@@ -33,9 +35,22 @@ export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalP
           </div>
           {subtitulo && <div className="subtitle">{subtitulo}</div>}
         </div>
-        <div className="op-header-right">
+        <div className="op-header-right" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
           <div className="op-codigo">{op.codigo}</div>
           <div className="op-lote">Lote: {op.lote_produto_acabado || '-'}</div>
+          <div style={{ marginTop: '4px', border: '1px solid #cbd5e1', padding: '2px', borderRadius: '4px', background: '#fff' }}>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=${encodeURIComponent(qrUrl)}&format=svg`}
+              alt="QR verificação"
+              width={72}
+              height={72}
+              style={{ display: 'block' }}
+              crossOrigin="anonymous"
+            />
+          </div>
+          <div style={{ fontSize: '7px', color: '#64748b', textAlign: 'center', maxWidth: '80px' }}>
+            Escaneie para verificar autenticidade
+          </div>
         </div>
       </div>
 
