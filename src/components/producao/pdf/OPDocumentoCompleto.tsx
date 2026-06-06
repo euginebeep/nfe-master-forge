@@ -110,7 +110,7 @@ export function OPDocumentoCompleto({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>OP ${op.codigo} - ${getSectionTitle(sectionId)}</title>
+          <title>OP ${(op as any).codigo} - ${getSectionTitle(sectionId)}</title>
           <style>${getOPPrintStyles()}</style>
         </head>
         <body>
