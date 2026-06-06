@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         if (!mounted) return;
         // Skip if initial load handles it
-        if (!initialLoaded) return;
+        if (!initialLoaded && event !== 'INITIAL_SESSION') return;
 
         if (session?.user) {
             // Handle session update immediately for smoother transitions
