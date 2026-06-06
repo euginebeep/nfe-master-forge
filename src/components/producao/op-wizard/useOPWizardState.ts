@@ -99,6 +99,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
 
   // Volume útil máximo e mínimo por batelada (em litros)
   const VOLUME_UTIL_MAX_L  = VOL_TOTAL_L * FATOR_MAX;   // ex: 100 × 0.65 = 65L
+  const VOLUME_UTIL_CALC_L = VOL_TOTAL_L * FATOR_DEFINIDO; 
   const VOLUME_UTIL_MIN_L  = VOL_TOTAL_L * FATOR_MIN;   // ex: 100 × 0.15 = 15L
 
   // Parâmetros da fórmula — usa o real, fallback para o equipamento, fallback para default
