@@ -61,15 +61,17 @@ export function OPDocumentoCompleto({
           .limit(1)
           .maybeSingle();
 
-        const { data: calibracao } = (balanca as any)?.id
-          ? await supabase
-              .from('qc_calibracoes')
-              .select('data_calibracao, proxima_calibracao')
-              .eq('equipamento_id', (balanca as any).id)
-              .order('proxima_calibracao', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          : { data: null };
+        let calibracaoData: any = null;
+        if ((balanca as any)?.id) {
+          const { data } = await supabase
+            .from('qc_calibracoes')
+            .select('data_calibracao, proxima_calibracao')
+            .eq('equipamento_id', (balanca as any).id)
+            .order('proxima_calibracao', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          calibracaoData = data;
+        }
 
         const { data: opCompleta } = await supabase
           .from('ordens_producao_industrial')
@@ -80,8 +82,8 @@ export function OPDocumentoCompleto({
         setOp((prev: any) => ({
           ...initialOp,
           balanca_numero_serie: (balanca as any)?.numero_serie || null,
-          balanca_ultima_calibracao: (calibracao as any)?.data_calibracao || null,
-          balanca_proxima_calibracao: (calibracao as any)?.proxima_calibracao || null,
+          balanca_ultima_calibracao: calibracaoData?.data_calibracao || null,
+          balanca_proxima_calibracao: calibracaoData?.proxima_calibracao || null,
           temperatura_inicio: (opCompleta as any)?.temperatura_inicio || null,
           umidade_inicio: (opCompleta as any)?.umidade_inicio || null,
           sala_producao: (opCompleta as any)?.sala_producao || null,
