@@ -344,7 +344,70 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { termo } = await req.json()
+    const body = await req.json()
+    const { termo, action } = body
+
+    if (action === 'analyze_formula') {
+      const systemPrompt = `Você é um especialista regulatório em suplementos 
+alimentares brasileiros. Analise a fórmula fornecida com base na IN 28/2018 
+e suas atualizações até IN 438/2026.
+
+LIMITES CRÍTICOS VERIFICADOS:
+- Vitamina D3: MÁXIMO 2.000 UI = 50 mcg/dia (IN 28 Anexo IV)
+- Zinco: MÁXIMO 25 mg/dia (IN 28 Anexo IV)  
+- Boro: MÁXIMO 6 mg/dia (IN 28 Anexo IV)
+- Niacina B3: MÁXIMO 35 mg NE/dia (IN 28 Anexo IV)
+- Ácido Fólico B9: MÁXIMO 400 mcg DFE/dia (IN 28 Anexo IV)
+- Cromo: MÁXIMO 200 mcg/dia (IN 28 Anexo IV)
+- Melatonina: MÁXIMO 0,21 mg/dia, exclusivo ≥19 anos (IN 102/2021)
+- Berberina: NÃO autorizada (não consta Anexo I IN 28)
+- Queratina: NÃO autorizada (não consta Anexo I IN 28)
+- Silício Orgânico: NÃO autorizado (não consta Anexo I IN 28)
+- L-Tirosina: AUTORIZADA — consta Anexo I IN 28 (CAS 60-18-4)
+
+Retorne JSON com:
+{
+  "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
+  "alertas": [{"tipo": "err|warn|ok|info", "titulo": "", "corpo": ""}],
+  "analise_ia": "texto explicativo da análise",
+  "alegacoes_permitidas": ["..."],
+  "alegacoes_proibidas": ["..."],
+  "avisos_rotulo": ["..."],
+  "sugestao_capsulas": {"n": 2, "tamanho": "#00", "frasco": 60, "obs": "..."}
+}`
+      
+      const userMessage = JSON.stringify({
+        produto: body.produto,
+        cliente: body.cliente,
+        publico: body.publico,
+        ativos: body.ativos
+      })
+
+      const aiRes = await fetch(AI_GATEWAY, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          response_format: { type: 'json_object' }
+        })
+      })
+
+      if (!aiRes.ok) throw new Error('ai_gateway_error')
+      const aiData = await aiRes.json()
+      const content = JSON.parse(aiData.choices[0].message.content)
+
+      return new Response(JSON.stringify(content), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
+    }
+
     if (!termo || String(termo).length < 2) {
       return new Response(JSON.stringify({ erro: 'termo_invalido' }), {
         status: 400,
