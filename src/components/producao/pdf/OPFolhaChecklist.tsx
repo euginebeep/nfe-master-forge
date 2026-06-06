@@ -5,6 +5,7 @@
 
 import React from "react";
 import type { OPDadosPDF, ChecklistItemPDF } from '@/types/op-pdf';
+import { CHECKLIST_PADRAO as CENTRALIZED_CHECKLIST } from '@/types/op-industrial';
 
 interface OPFolhaChecklistProps {
   op: OPDadosPDF;
@@ -337,34 +338,10 @@ export const OPFolhaChecklist = React.forwardRef<HTMLDivElement, OPFolhaChecklis
 );
 
 function gerarChecklistPadrao() {
-  return [
-    // PRÉ-PRODUÇÃO
-    { categoria: 'PRE_PRODUCAO', item: 'Conferência de lotes das matérias-primas', obrigatorio: true },
-    { categoria: 'PRE_PRODUCAO', item: 'Verificação de validade de todos os insumos', obrigatorio: true },
-    { categoria: 'PRE_PRODUCAO', item: 'Limpeza e sanitização da área de pesagem', obrigatorio: true },
-    { categoria: 'PRE_PRODUCAO', item: 'Calibração da balança conferida', obrigatorio: true },
-    { categoria: 'PRE_PRODUCAO', item: 'Utensílios de pesagem limpos e identificados', obrigatorio: true },
-    { categoria: 'PRE_PRODUCAO', item: 'Documentação da OP impressa e disponível', obrigatorio: true },
-    // DURANTE PRODUÇÃO
-    { categoria: 'DURANTE_PRODUCAO', item: 'Pesagem de ativos críticos com dupla conferência', obrigatorio: true },
-    { categoria: 'DURANTE_PRODUCAO', item: 'Conferência de pesos dentro da tolerância (±10%)', obrigatorio: true },
-    { categoria: 'DURANTE_PRODUCAO', item: 'Ordem de mistura seguida corretamente', obrigatorio: true },
-    { categoria: 'DURANTE_PRODUCAO', item: 'Tempo de homogeneização respeitado', obrigatorio: true },
-    { categoria: 'DURANTE_PRODUCAO', item: 'Estearato adicionado por último (máx. 2 min)', obrigatorio: true },
-    { categoria: 'DURANTE_PRODUCAO', item: 'Limpeza de equipamentos entre etapas', obrigatorio: true },
-    { categoria: 'DURANTE_PRODUCAO', item: 'Ajuste da encapsuladora realizado', obrigatorio: true },
-    { categoria: 'DURANTE_PRODUCAO', item: 'Controle de peso durante encapsulamento', obrigatorio: true },
-    // PÓS-PRODUÇÃO
-    { categoria: 'POS_PRODUCAO', item: 'Contagem final de unidades produzidas', obrigatorio: true },
-    { categoria: 'POS_PRODUCAO', item: 'Registro de perdas justificado', obrigatorio: true },
-    { categoria: 'POS_PRODUCAO', item: 'Conferência do rótulo aplicado', obrigatorio: true },
-    { categoria: 'POS_PRODUCAO', item: 'Upload do rótulo final no sistema', obrigatorio: true },
-    { categoria: 'POS_PRODUCAO', item: 'Limpeza final da área', obrigatorio: true },
-    // QC
-    { categoria: 'QC', item: 'Teste de peso médio realizado', obrigatorio: true },
-    { categoria: 'QC', item: 'Avaliação de aparência do pó', obrigatorio: true },
-    { categoria: 'QC', item: 'Avaliação de fluidez do pó', obrigatorio: true },
-    { categoria: 'QC', item: 'Avaliação de homogeneidade', obrigatorio: true },
-    { categoria: 'QC', item: 'Laudo de liberação emitido', obrigatorio: true },
-  ];
+  return CENTRALIZED_CHECKLIST.map(item => ({
+    categoria: item.categoria,
+    item: item.codigo ? `[${item.codigo}] ${item.item}` : item.item,
+    obrigatorio: item.obrigatorio,
+    descricao: item.item
+  }));
 }

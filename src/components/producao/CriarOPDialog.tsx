@@ -46,7 +46,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarLoteProdutoAcabado } from "@/types/op-industrial";
+import { gerarLoteProdutoAcabado, CHECKLIST_PADRAO } from "@/types/op-industrial";
 import { RTSelectorOP } from "@/components/responsavel-tecnico/RTSelectorOP";
 
 const formSchema = z.object({
@@ -409,33 +409,7 @@ export function CriarOPDialog({
 
   // Criar checklist padrão
   const criarChecklistPadrao = async (opId: string) => {
-    const checklistItems = [
-      // PRE_PRODUCAO
-      { item: 'Conferência de lotes das matérias-primas', categoria: 'PRE_PRODUCAO', ordem: 1, obrigatorio: true },
-      { item: 'Verificação de validade de todos os insumos', categoria: 'PRE_PRODUCAO', ordem: 2, obrigatorio: true },
-      { item: 'Limpeza e sanitização da área de pesagem', categoria: 'PRE_PRODUCAO', ordem: 3, obrigatorio: true },
-      { item: 'Calibração da balança conferida', categoria: 'PRE_PRODUCAO', ordem: 4, obrigatorio: true },
-      { item: 'Utensílios de pesagem limpos e identificados', categoria: 'PRE_PRODUCAO', ordem: 5, obrigatorio: true },
-      // DURANTE_PRODUCAO
-      { item: 'Pesagem de ativos críticos com dupla conferência', categoria: 'DURANTE_PRODUCAO', ordem: 1, obrigatorio: true },
-      { item: 'Conferência de pesos dentro da tolerância (±10%)', categoria: 'DURANTE_PRODUCAO', ordem: 2, obrigatorio: true },
-      { item: 'Ordem de mistura seguida corretamente', categoria: 'DURANTE_PRODUCAO', ordem: 3, obrigatorio: true },
-      { item: 'Tempo de homogeneização respeitado', categoria: 'DURANTE_PRODUCAO', ordem: 4, obrigatorio: true },
-      { item: 'Limpeza de equipamentos entre etapas', categoria: 'DURANTE_PRODUCAO', ordem: 5, obrigatorio: true },
-      { item: 'Ajuste da encapsuladora realizado', categoria: 'DURANTE_PRODUCAO', ordem: 6, obrigatorio: true },
-      // POS_PRODUCAO
-      { item: 'Contagem final de cápsulas', categoria: 'POS_PRODUCAO', ordem: 1, obrigatorio: true },
-      { item: 'Registro de perdas justificado', categoria: 'POS_PRODUCAO', ordem: 2, obrigatorio: true },
-      { item: 'Limpeza final da área', categoria: 'POS_PRODUCAO', ordem: 3, obrigatorio: true },
-      // QC
-      { item: 'Teste de peso médio realizado', categoria: 'QC', ordem: 1, obrigatorio: true },
-      { item: 'Avaliação de aparência do pó', categoria: 'QC', ordem: 2, obrigatorio: true },
-      { item: 'Avaliação de fluidez do pó', categoria: 'QC', ordem: 3, obrigatorio: true },
-      { item: 'Avaliação de homogeneidade', categoria: 'QC', ordem: 4, obrigatorio: true },
-      { item: 'Liberação do lote para estoque', categoria: 'QC', ordem: 5, obrigatorio: true },
-    ];
-
-    const checklistData = checklistItems.map(item => ({
+    const checklistData = CHECKLIST_PADRAO.map(item => ({
       op_id: opId,
       ...item,
       verificado: false,
