@@ -124,11 +124,15 @@ export function DemoLoginCard() {
 
       if (error) {
         toast.error('Demo indisponível: ' + error.message);
+        setLoading(false);
         return;
       }
       
+      // Clear query cache to force fresh fetch of profile and company
+      localStorage.removeItem('sb-f89a65aa-5a86-44ae-a22f-c29da70764ba-auth-token');
+      
       toast.success('Bem-vindo à demonstração!');
-      // Use window.location.href to ensure a clean state and avoid race conditions with ProtectedRoute
+      // Use window.location.href to ensure a clean state
       window.location.href = '/';
     } catch (err: any) {
       toast.error('Erro ao acessar demo: ' + err.message);
