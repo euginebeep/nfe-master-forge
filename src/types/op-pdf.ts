@@ -46,6 +46,7 @@ export interface OPDadosPDF {
   balanca_numero_serie?: string | null;
   balanca_ultima_calibracao?: string | null;
   balanca_proxima_calibracao?: string | null;
+  rendimento_percentual?: number | null;
 }
 
 export interface OPMateriaPrimaPDF {
