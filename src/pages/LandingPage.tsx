@@ -413,8 +413,8 @@ export default function LandingPage() {
                   </div>
                 </CardContent>
               </Card>
-              <p className="text-center text-xs mt-4" style={{ color: "#6B7280" }}>
-                Documento gerado automaticamente pelo BrainX · Auditável a qualquer momento via QR
+              <p className="text-center text-xs mt-4 leading-relaxed" style={{ color: "#6B7280" }}>
+                Gere automaticamente um PDF de "dossiê para inspeção ANVISA" por lote, consolidando COA, laudos, origem, rastreabilidade e documentos anexados.
               </p>
             </motion.div>
           </div>
