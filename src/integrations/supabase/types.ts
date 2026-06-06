@@ -5634,6 +5634,138 @@ export type Database = {
           },
         ]
       }
+      pop_registros_execucao: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          data_execucao: string
+          evidencia_url: string | null
+          executado_por: string
+          id: string
+          observacoes: string | null
+          pop_id: string
+          proxima_execucao: string | null
+          resultado: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          data_execucao?: string
+          evidencia_url?: string | null
+          executado_por: string
+          id?: string
+          observacoes?: string | null
+          pop_id: string
+          proxima_execucao?: string | null
+          resultado: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          data_execucao?: string
+          evidencia_url?: string | null
+          executado_por?: string
+          id?: string
+          observacoes?: string | null
+          pop_id?: string
+          proxima_execucao?: string | null
+          resultado?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pop_registros_execucao_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pop_registros_execucao_pop_id_fkey"
+            columns: ["pop_id"]
+            isOneToOne: false
+            referencedRelation: "pops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pops: {
+        Row: {
+          categoria: string
+          codigo: string
+          company_id: string
+          created_at: string | null
+          data_aprovacao: string | null
+          data_elaboracao: string | null
+          data_proxima_revisao: string | null
+          documento_url: string | null
+          frequencia: string | null
+          id: string
+          observacoes: string | null
+          responsavel_aprovacao: string | null
+          responsavel_elaboracao: string | null
+          rt_id: string | null
+          status: string
+          titulo: string
+          updated_at: string | null
+          versao: string
+        }
+        Insert: {
+          categoria: string
+          codigo: string
+          company_id: string
+          created_at?: string | null
+          data_aprovacao?: string | null
+          data_elaboracao?: string | null
+          data_proxima_revisao?: string | null
+          documento_url?: string | null
+          frequencia?: string | null
+          id?: string
+          observacoes?: string | null
+          responsavel_aprovacao?: string | null
+          responsavel_elaboracao?: string | null
+          rt_id?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string | null
+          versao?: string
+        }
+        Update: {
+          categoria?: string
+          codigo?: string
+          company_id?: string
+          created_at?: string | null
+          data_aprovacao?: string | null
+          data_elaboracao?: string | null
+          data_proxima_revisao?: string | null
+          documento_url?: string | null
+          frequencia?: string | null
+          id?: string
+          observacoes?: string | null
+          responsavel_aprovacao?: string | null
+          responsavel_elaboracao?: string | null
+          rt_id?: string | null
+          status?: string
+          titulo?: string
+          updated_at?: string | null
+          versao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pops_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pops_rt_id_fkey"
+            columns: ["rt_id"]
+            isOneToOne: false
+            referencedRelation: "responsaveis_tecnicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       previsoes_producao: {
         Row: {
           alerta: string | null
