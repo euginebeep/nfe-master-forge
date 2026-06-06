@@ -172,7 +172,10 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Invoke error:', error);
+        throw error;
+      }
 
       // ── NORMALIZAÇÃO DO RETORNO
       console.log('AI Response:', data);

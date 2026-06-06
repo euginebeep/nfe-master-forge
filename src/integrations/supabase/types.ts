@@ -627,15 +627,7 @@ export type Database = {
           resultado_ia?: Json | null
           status_geral?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "anvisa_laudos_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "company"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       anvisa_search_log: {
         Row: {
