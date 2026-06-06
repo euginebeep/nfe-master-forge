@@ -130,7 +130,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
   const [capsulaMaterial, setCapsulaMaterial] = useState<string>("");
   const [fotoUrl, setFotoUrl] = useState<string | undefined>();
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
       sku_interno: "",
       descricao_interna: "",
@@ -138,6 +138,9 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess }: ItemFormDialog
       categoria_operacional: "",
       ncm: "",
       ean: "",
+      numero_notificacao_anvisa: "",
+      data_notificacao_anvisa: "",
+      status_regulatorio: "PENDENTE",
     },
   });
 
