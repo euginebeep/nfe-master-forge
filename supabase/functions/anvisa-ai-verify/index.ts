@@ -399,7 +399,11 @@ Retorne JSON com:
         })
       })
 
-      if (!aiRes.ok) throw new Error('ai_gateway_error')
+      if (!aiRes.ok) {
+        const errorText = await aiRes.text();
+        console.error('AI Gateway Error (analyze_formula):', errorText);
+        throw new Error(`ai_gateway_error: ${aiRes.status} ${errorText}`);
+      }
       const aiData = await aiRes.json()
       const content = JSON.parse(aiData.choices[0].message.content)
 
