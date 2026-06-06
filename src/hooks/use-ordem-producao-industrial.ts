@@ -385,7 +385,7 @@ export function useOrdemProducaoIndustrialActions() {
     try {
       const { data: ultimaLeitura } = await supabase
         .from('sensor_readings')
-        .select('temperatura, umidade, sala, recorded_at')
+        .select('temperature, humidity, room_name, recorded_at')
         .order('recorded_at', { ascending: false })
         .limit(1)
         .single();
@@ -394,9 +394,9 @@ export function useOrdemProducaoIndustrialActions() {
         await supabase
           .from('ordens_producao_industrial')
           .update({
-            temperatura_inicio: ultimaLeitura.temperatura,
-            umidade_inicio: ultimaLeitura.umidade,
-            sala_producao: ultimaLeitura.sala,
+            temperatura_inicio: ultimaLeitura.temperature,
+            umidade_inicio: ultimaLeitura.humidity,
+            sala_producao: ultimaLeitura.room_name,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id);
