@@ -210,6 +210,7 @@ const App = () => (
                 <Route path="/qualidade/desvios/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DesvioDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/analises" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AnalisesPage /></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/calibracoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><CalibracoesPage /></ErrorBoundary></Suspense>} />
+                <Route path="/qualidade/pops" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><POPsPage /></ErrorBoundary></Suspense>} />
                 {/* Regulatório */}
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ConsultaAnvisaPage /></ErrorBoundary></Suspense>} />
                 <Route path="/ambiental/monitoramento" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MonitoramentoAmbientalPage /></ErrorBoundary></Suspense>} />
