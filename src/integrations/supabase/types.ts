@@ -7011,9 +7011,6 @@ export type Database = {
         Args: { p_password: string }
         Returns: undefined
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
-      unaccent: { Args: { "": string }; Returns: string }
       update_ultimo_acesso: { Args: { p_user_id: string }; Returns: undefined }
       validar_compatibilidade_rt: {
         Args: {
