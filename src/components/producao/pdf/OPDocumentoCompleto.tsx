@@ -37,7 +37,6 @@ export function OPDocumentoCompleto({
   const [activeTab, setActiveTab] = useState('separacao');
   const [allSectionsRendered, setAllSectionsRendered] = useState(false);
 
-  // Buscar dados complementares para o PDF
   useEffect(() => {
     const fetchExtraData = async () => {
       try {
@@ -53,7 +52,6 @@ export function OPDocumentoCompleto({
         const companyId = profile?.company_id;
         if (!companyId) return;
 
-        // Buscar dados de balança do equipamento cadastrado
         const { data: balanca } = await supabase
           .from('equipamentos')
           .select('id, numero_serie')
@@ -63,7 +61,6 @@ export function OPDocumentoCompleto({
           .limit(1)
           .maybeSingle();
 
-        // Buscar calibração mais recente da balança
         const { data: calibracao } = (balanca as any)?.id
           ? await supabase
               .from('qc_calibracoes')
@@ -74,7 +71,6 @@ export function OPDocumentoCompleto({
               .maybeSingle()
           : { data: null };
 
-        // Buscar condições ambientais do início da OP
         const { data: opCompleta } = await supabase
           .from('ordens_producao_industrial')
           .select('temperatura_inicio, umidade_inicio, sala_producao, rendimento_percentual')
@@ -92,7 +88,7 @@ export function OPDocumentoCompleto({
           rendimento_percentual: (opCompleta as any)?.rendimento_percentual || null,
         });
       } catch (err) {
-        console.error('Erro ao buscar dados complementares para PDF:', err);
+        console.error('Erro ao buscar dados complementares:', err);
       }
     };
 
