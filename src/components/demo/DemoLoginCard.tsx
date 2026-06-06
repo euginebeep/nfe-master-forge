@@ -124,11 +124,18 @@ export function DemoLoginCard() {
 
       if (error) {
         toast.error('Demo indisponível: ' + error.message);
+        setLoading(false);
         return;
       }
       
+      // Clear session storage to force fresh state
+      sessionStorage.clear();
+      
+      // Delay slightly to ensure supabase persistence
+      await new Promise(r => setTimeout(r, 800));
+      
       toast.success('Bem-vindo à demonstração!');
-      // Use window.location.href to ensure a clean state and avoid race conditions with ProtectedRoute
+      // Use window.location.href to ensure a clean state
       window.location.href = '/';
     } catch (err: any) {
       toast.error('Erro ao acessar demo: ' + err.message);

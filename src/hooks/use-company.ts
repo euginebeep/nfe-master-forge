@@ -8,14 +8,14 @@ export function useCompany() {
     queryKey: ["company"],
     queryFn: async () => {
       // Buscar o company_id do profile do usuário logado
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return null;
 
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .eq("id", user.id)
-        .single();
+        .eq("id", session.user.id)
+        .maybeSingle();
 
       if (!profile?.company_id) {
         // Sem company_id vinculado → retorna null (onboarding necessário)
