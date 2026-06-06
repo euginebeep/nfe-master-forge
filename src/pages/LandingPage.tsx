@@ -42,32 +42,36 @@ const features = [
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-[#0d1b2a] text-white relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-[#061423] text-white relative overflow-hidden font-sans selection:bg-[#10b981]/30">
       {/* Subtle Grid Background */}
       <div 
-        className="absolute inset-0 pointer-events-none opacity-20"
+        className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), 
-            linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)
+            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), 
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
           `,
-          backgroundSize: '40px 40px'
+          backgroundSize: '60px 60px'
         }}
       />
+
+      {/* Decorative Glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#10b981]/10 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-6 py-12 relative z-10">
         {/* Header */}
         <header className="flex items-center justify-between mb-24">
-          <div className="flex items-center gap-4">
-            <img src={brainxLogo} alt="Logo" className="w-16 h-16 object-contain" />
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">BRAINX ERP</h1>
-              <p className="text-xs text-gray-400 font-medium">Plataforma industrial regulatória</p>
+          <div className="flex items-center gap-5">
+            <img src={brainxLogo} alt="Logo" className="w-14 h-14 object-contain" />
+            <div className="border-l border-white/10 pl-5">
+              <h1 className="text-xl font-bold tracking-wider text-gray-200">BRAINX ERP</h1>
+              <p className="text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Plataforma industrial regulatória</p>
             </div>
           </div>
           
           <Link to="/auth">
-            <Button variant="outline" className="bg-white/5 border-white/10 hover:bg-white/10 text-white gap-2">
+            <Button variant="outline" className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white gap-2 h-11 px-6 rounded-xl transition-all">
               <LogIn className="w-4 h-4" />
               Acessar Plataforma
             </Button>
@@ -75,12 +79,12 @@ const LandingPage = () => {
         </header>
 
         {/* Hero Section */}
-        <div className="mb-24">
+        <div className="mb-32">
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-5xl md:text-6xl font-bold max-w-3xl leading-tight mb-8"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-6xl md:text-7xl font-bold max-w-4xl leading-[1.1] mb-10 tracking-tight"
           >
             BrainX ERP para gestão industrial de suplementos.
           </motion.h2>
@@ -88,30 +92,30 @@ const LandingPage = () => {
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-xl text-gray-400 max-w-2xl"
+            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+            className="text-2xl text-gray-400 max-w-2xl font-medium leading-relaxed"
           >
             Controle produção, estoque, qualidade e conformidade com rastreabilidade de ponta a ponta.
           </motion.p>
         </div>
 
         {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 * index }}
-              className="group p-8 rounded-2xl bg-white/5 border border-white/10 hover:border-[#10b981]/50 transition-all hover:bg-white/10"
+              transition={{ duration: 0.6, delay: 0.1 * index }}
+              className="group p-10 rounded-[32px] bg-[#ffffff03] border border-white/5 hover:border-[#10b981]/30 transition-all duration-500 hover:bg-[#ffffff06] backdrop-blur-sm shadow-2xl shadow-black/20"
             >
-              <div className="w-12 h-12 rounded-xl bg-[#10b981]/10 flex items-center justify-center mb-6 text-[#10b981]">
-                <feature.icon className="w-6 h-6" />
+              <div className="w-14 h-14 rounded-2xl bg-[#10b981]/10 flex items-center justify-center mb-8 text-[#10b981] group-hover:scale-110 transition-transform duration-500">
+                <feature.icon className="w-7 h-7" />
               </div>
-              <h3 className="text-lg font-bold mb-3 group-hover:text-[#10b981] transition-colors">
+              <h3 className="text-xl font-bold mb-4 group-hover:text-[#10b981] transition-colors duration-300">
                 {feature.title}
               </h3>
-              <p className="text-sm text-gray-400 leading-relaxed">
+              <p className="text-base text-gray-500 leading-relaxed group-hover:text-gray-400 transition-colors duration-300">
                 {feature.description}
               </p>
             </motion.div>
