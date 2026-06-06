@@ -14,6 +14,7 @@ export default function AnvisaCheckerPage() {
 
   const handleLaudoGenerated = (laudo: any) => {
     setSelectedLaudo(laudo);
+    setActiveTab("formula"); // Mantém na aba formula para mostrar o resultado imediato
   };
 
   const handleReset = () => {
