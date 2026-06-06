@@ -97,7 +97,7 @@ export default function AuthPageModern() {
 
   // Redirect authenticated users to dashboard
   if (isAuthenticated && !authLoading) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
