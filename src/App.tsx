@@ -15,7 +15,83 @@ import { AuthProvider } from "./contexts/AuthContext";
 // Lazy loaded pages
 const AuthPageModern = lazy(() => import("./components/auth/AuthPageModern"));
 const Index = lazy(() => import("./pages/Index"));
-...
+const RoadmapPage = lazy(() => import("./pages/RoadmapPage"));
+const FAQPage = lazy(() => import("./pages/faq/FAQPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
+const EmpresaSettingsPage = lazy(() => import("./pages/settings/EmpresaSettingsPage"));
+const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettingsPage"));
+const ClearDataPage = lazy(() => import("./pages/settings/ClearDataPage"));
+const MigrarDadosPage = lazy(() => import("./pages/settings/MigrarDadosPage"));
+const ImportarDadosPage = lazy(() => import("./pages/settings/ImportarDadosPage"));
+const AdminMasterPage = lazy(() => import("./pages/settings/AdminMasterPage"));
+const AdminUnlockRequestsPage = lazy(() => import("./pages/settings/AdminUnlockRequestsPage"));
+const XmlBackupPage = lazy(() => import("./pages/settings/XmlBackupPage"));
+const FornecedoresListPage = lazy(() => import("./pages/cadastros/FornecedoresListPage"));
+const ClientesListPage = lazy(() => import("./pages/cadastros/ClientesListPage"));
+const TransportadorasListPage = lazy(() => import("./pages/cadastros/TransportadorasListPage"));
+const EntidadeDetailPageComplete = lazy(() => import("./pages/cadastros/EntidadeDetailPageComplete"));
+const EntidadesListPageComplete = lazy(() => import("./pages/cadastros/EntidadesListPageComplete"));
+const ItensListPageComplete = lazy(() => import("./pages/cadastros/ItensListPageComplete"));
+const ProdutoDetailPage = lazy(() => import("./pages/cadastros/ProdutoDetailPage"));
+const ResponsaveisTecnicosPage = lazy(() => import("./pages/cadastros/ResponsaveisTecnicosPage"));
+const FormuladorIndustrialPage = lazy(() => import("./pages/producao/FormuladorIndustrialPage"));
+const NovaFormulaPage = lazy(() => import("./pages/producao/NovaFormulaPage"));
+const EditarFormulaPage = lazy(() => import("./pages/producao/EditarFormulaPage"));
+const VisualizarFormulaPage = lazy(() => import("./pages/producao/VisualizarFormulaPage"));
+const OrdensProducaoIndustrialPage = lazy(() => import("./pages/producao/OrdensProducaoIndustrialPage"));
+const OrdemProducaoDetailPage = lazy(() => import("./pages/producao/OrdemProducaoDetailPage"));
+const DashboardIndustrialPage = lazy(() => import("./pages/producao/DashboardIndustrialPage"));
+const DashboardExecutivoPage = lazy(() => import("./pages/producao/DashboardExecutivoPage"));
+const QuarentenaPage = lazy(() => import("./pages/estoque/QuarentenaPage"));
+const LotesListPage = lazy(() => import("./pages/estoque/LotesListPage"));
+const LoteDetailPage = lazy(() => import("./pages/estoque/LoteDetailPage"));
+const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage"));
+const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
+const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
+const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
+const ContasPagarPage = lazy(() => import("./pages/financeiro/ContasPagarPage"));
+const ContasReceberPage = lazy(() => import("./pages/financeiro/ContasReceberPage"));
+const FluxoCaixaPage = lazy(() => import("./pages/financeiro/FluxoCaixaPage"));
+const ConciliacaoPage = lazy(() => import("./pages/financeiro/ConciliacaoPage"));
+const DREPage = lazy(() => import("./pages/financeiro/DREPage"));
+const CRMPage = lazy(() => import("./pages/vendas/CRMPage"));
+const NovoPedidoVendedorPage = lazy(() => import("./pages/vendas/NovoPedidoVendedorPage"));
+const ExpedicaoPage = lazy(() => import("./pages/expedicao/ExpedicaoPage"));
+const OrcamentosPage = lazy(() => import("./pages/vendas/OrcamentosPage"));
+const PedidosVendaPage = lazy(() => import("./pages/vendas/PedidosVendaPage"));
+const MarketplacePage = lazy(() => import("./pages/vendas/MarketplacePage"));
+const NotasSaidaPage = lazy(() => import("./pages/vendas/NotasSaidaPage"));
+const EmissorNFePage = lazy(() => import("./pages/vendas/EmissorNFePage"));
+const RelatoriosPage = lazy(() => import("./pages/relatorios/RelatoriosPage"));
+const RelatorioCapsulasPage = lazy(() => import("./pages/relatorios/RelatorioCapsulasPage"));
+const AuditoriaPage = lazy(() => import("./pages/auditoria/AuditoriaPage"));
+const UsuariosPage = lazy(() => import("./pages/usuarios/UsuariosPage"));
+const LoteAuditoriaPublicaPage = lazy(() => import("./pages/audit/LoteAuditoriaPublicaPage"));
+const VerificarOPPage = lazy(() => import("./pages/producao/VerificarOPPage"));
+const NotificacoesPage = lazy(() => import("./pages/notificacoes/NotificacoesPage"));
+const DesviosPage = lazy(() => import("./pages/qualidade/DesviosPage"));
+const DesvioDetailPage = lazy(() => import("./pages/qualidade/DesvioDetailPage"));
+const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
+const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
+const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
+const MonitoramentoAmbientalPage = lazy(() => import("./pages/ambiental/MonitoramentoAmbientalPage"));
+const AmbientalConfigPage = lazy(() => import("./pages/ambiental/AmbientalConfigPage"));
+const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
+const AssinaturaPage = lazy(() => import("./pages/assinatura/AssinaturaPage"));
+const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
+const InstallPage = lazy(() => import("./pages/install/InstallPage"));
+const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
+const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
+
+import { queryClient } from "./lib/query-client";
+
+const PageFallback = () => (
+  <div className="flex-1 flex items-center justify-center p-6">
+    <LoadingSpinner text="Carregando página..." />
+  </div>
+);
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -139,7 +215,6 @@ const App = () => (
                 <Route path="/chat" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ChatInternoPage /></ErrorBoundary></Suspense>} />
                 {/* Assinatura */}
                 <Route path="/assinatura" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AssinaturaPage /></ErrorBoundary></Suspense>} />
-                {/* Usuários — admin only */}
                 {/* Usuários — admin only */}
                 <Route path="/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/usuarios" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><UsuariosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
