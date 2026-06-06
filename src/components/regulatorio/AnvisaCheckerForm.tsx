@@ -260,15 +260,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       await new Promise(r => setTimeout(resolve => r(null), 1000));
       
-      if (produtos.length === 1) {
-        onResult({
-          produto: produtos[0].nome,
-          cliente: clientName,
-          payload_entrada: { ativos: produtos[0].ativos },
-          resultado_ia: produtos[0]
-        });
-      } else if (produtos.length > 0) {
-        // Se houver múltiplos produtos, passa a lista completa para o componente de visualização
+      if (produtos.length > 0) {
         onResult({
           produto: produtos[0].nome,
           cliente: clientName,
@@ -276,6 +268,15 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           resultado_ia: produtos[0],
           multiplos_produtos: produtos 
         });
+
+        // Tenta encontrar e clicar na aba de laudos automaticamente
+        setTimeout(() => {
+          const tabs = document.querySelectorAll('[role="tab"]');
+          const laudosTab = Array.from(tabs).find(t => t.textContent?.includes('Laudos'));
+          if (laudosTab instanceof HTMLElement) {
+            laudosTab.click();
+          }
+        }, 300);
       }
 
 
