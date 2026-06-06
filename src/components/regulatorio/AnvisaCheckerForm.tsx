@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Upload, AlertCircle, Info, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,16 +16,12 @@ interface AssetRow {
   dose: string;
   unit: string;
   anvisaKey: string;
+  status?: 'APROVADO' | 'ATENCAO' | 'BLOQUEADO' | 'VERIFICAR';
 }
 
-const ANVISA_KEYS = [
-  "VITAMINA_A", "VITAMINA_D", "VITAMINA_E", "VITAMINA_K", "VITAMINA_C",
-  "VITAMINA_B1", "VITAMINA_B2", "VITAMINA_B3", "VITAMINA_B5", "VITAMINA_B6",
-  "BIOTINA", "ACIDO_FOLICO", "VITAMINA_B12", "CALCIO", "MAGNESIO",
-  "FERRO", "ZINCO", "COBRE", "SELENIO", "CROMO", "MANGANES", "IODO",
-  "POTASSIO", "FOSFORO", "FLUOR", "MOLIBDENIO", "COLINA", "LUTEINA",
-  "ZEAXANTINA", "LICOPENO", "ASTAXANTINA", "OMEGA_3", "COENZIMA_Q10"
-];
+import { ANVISA_LIMITS } from "@/lib/anvisa-limits";
+
+const ANVISA_KEYS = Object.keys(ANVISA_LIMITS);
 
 const AUDIENCES = [
   { value: "ADULTOS", label: "Adultos ≥19 anos" },
@@ -50,7 +47,26 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   };
 
   const updateAsset = (id: string, field: keyof AssetRow, value: string) => {
-    setAssets(assets.map(a => a.id === id ? { ...a, [field]: value } : a));
+    setAssets(assets.map(a => {
+      if (a.id === id) {
+        const updated = { ...a, [field]: value };
+        // Validar status em tempo real
+        if (updated.anvisaKey && updated.dose) {
+          const limit = ANVISA_LIMITS[updated.anvisaKey.toLowerCase()];
+          if (limit) {
+            const doseNum = parseFloat(updated.dose);
+            if (!limit.auth) updated.status = 'BLOQUEADO';
+            else if (limit.max !== null && doseNum > limit.max) updated.status = 'ATENCAO';
+            else if (doseNum < limit.min) updated.status = 'ATENCAO';
+            else updated.status = 'APROVADO';
+          } else {
+            updated.status = 'VERIFICAR';
+          }
+        }
+        return updated;
+      }
+      return a;
+    }));
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
