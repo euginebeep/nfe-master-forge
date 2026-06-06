@@ -12,21 +12,25 @@ export function useCompany() {
     enabled: isAuthenticated && !authLoading,
     queryFn: async () => {
       // Buscar o company_id do profile do usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true';
-      let companyId = profile?.company_id;
+      const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true' || 
+                           user.email === 'demo@brainxerp.com';
 
-      if (!companyId) {
-        const { data: freshProfile, error: profileError } = await supabase
-          .from("profiles")
-          .select("company_id")
-          .eq("id", user.id)
-          .maybeSingle();
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("company_id, is_demo")
+        .eq("id", user.id)
+        .single();
 
-        if (profileError) throw profileError;
-        companyId = freshProfile?.company_id || null;
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        throw profileError;
       }
+
+      const isDemo = profile?.is_demo || isDemoSession;
+      const companyId = profile?.company_id || (isDemo ? '00000000-0000-0000-0000-000000000001' : null);
 
       console.log('[useCompany] profile details:', {
         userId: user.id,
@@ -46,7 +50,7 @@ export function useCompany() {
         .from("company")
         .select("*")
         .eq("id", companyId)
-        .maybeSingle();
+        .single();
 
       console.log('[useCompany] company result:', { data, error });
 
