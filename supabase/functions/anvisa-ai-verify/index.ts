@@ -413,6 +413,32 @@ Retorne JSON com:
     }
 
     if (body.action === 'analyze_file') {
+      const fileBase64 = body.file_base64 || '';
+      const fileType = body.file_type || 'docx';
+      const fileName = body.file_name || 'arquivo';
+      const publico = body.publico || 'ADULTOS';
+      const cliente = body.cliente || '';
+
+      // Montar conteúdo para a IA com base no tipo de arquivo
+      let fileContent = '';
+      if (fileBase64 && fileType === 'image') {
+        fileContent = '[imagem anexada para análise visual]';
+      } else if (fileBase64) {
+        try {
+          const bytes = Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0));
+          const decoder = new TextDecoder('utf-8', { fatal: false });
+          const rawText = decoder.decode(bytes);
+          
+          if (rawText.length > 100) {
+            fileContent = rawText.replace(/[^\x20-\x7E\n\r\t]/g, ' ').substring(0, 30000);
+          } else {
+            fileContent = `[Arquivo binário ${fileType} de ${bytes.length} bytes]`;
+          }
+        } catch (e) {
+          fileContent = `[Erro ao ler conteúdo: ${e.message}]`;
+        }
+      }
+
       const systemPrompt = `Você é um especialista regulatório da Vitalnow Indústria Ltda. Sua tarefa é analisar TODOS os produtos contidos no arquivo enviado e retornar um JSON completo com a análise regulatória de CADA produto individualmente.
 
 INSTRUÇÕES CRÍTICAS:
@@ -443,15 +469,14 @@ LIMITES MÁXIMOS OBRIGATÓRIOS — IN 28/2018 Anexo IV:
 - colageno_tipo2: MÍNIMO 40 mg UC-II não hidrolisado
 
 CONSTITUINTES NÃO AUTORIZADOS (Anexo I IN 28 — STATUS = BLOQUEADO):
-- berberina, queratina, silicio_organico, l_citrulina (verificar)
+- berberina, queratina, silicio_organico, l_citrulina
 
 CONSTITUINTES AUTORIZADOS — confirmar explicitamente:
 - l_tirosina: APROVADO — CAS 60-18-4 Anexo I IN 28
 - beta_alanina: APROVADO — IN 102/2021
 - msm: APROVADO — Anexo I IN 28 sem limite máximo
-- melatonina: APROVADO — IN 102/2021 com restrições
 
-ESTRUTURA DO JSON DE RETORNO — seguir exatamente:
+ESTRUTURA DO JSON DE RETORNO:
 {
   "total_produtos": number,
   "produtos": [
@@ -470,28 +495,33 @@ ESTRUTURA DO JSON DE RETORNO — seguir exatamente:
       "alegacoes_permitidas": [ "" ],
       "alegacoes_proibidas": [ "" ],
       "avisos_rotulo": [ "" ],
-      "sugestao_capsulas": {
-        "n": number,
-        "tamanho": "#000|#00|#0|#1|#2|#3|#4|sachê",
-        "frasco": number,
-        "obs": ""
-      }
+      "sugestao_capsulas": { "n": number, "tamanho": "#00", "frasco": number, "obs": "" }
     }
   ]
-}
+}`;
 
-REGRAS FINAIS:
-- Se o arquivo ZIP contiver 29 briefings, o array "produtos" deve ter 29 objetos
-- Cada ativo DEVE ter "nome" e "key" preenchidos — nunca deixar em branco
-- status_geral é BLOQUEADO se qualquer ativo tiver dose acima do limite máximo
-- status_geral é APROVADO COM RESSALVAS se houver alertas de atenção
-- status_geral é APROVADO apenas se tudo estiver em conformidade`
+      const userMessage = `Arquivo: ${fileName} (${fileType}). Cliente: ${cliente}. Público: ${publico}.
+      
+CONTEÚDO EXTRAÍDO:
+${fileContent}
 
-      const userMessage = `Arquivo recebido: ${body.file_name} Tipo: ${body.file_type} Cliente: ${body.cliente || 'PROLAB'} Público-alvo: ${body.publico || 'adultos ≥19 anos'}
+Analise TODOS os produtos contidos acima. Se for ZIP, analise cada um individualmente. Retorne APENAS o JSON.`;
 
-Analise TODOS os produtos contidos neste arquivo. ${body.file_type === 'zip' ? 'Este é um ZIP com múltiplos briefings de produtos. Analise cada um separadamente e retorne um objeto por produto no array "produtos".' : 'Analise o produto e retorne a análise completa.'}
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ];
 
-Retorne SOMENTE o JSON válido, sem markdown, sem explicações antes ou depois.`
+      // Se for imagem, adicionar como conteúdo multimodal
+      if (fileBase64 && fileType === 'image') {
+        messages[1] = {
+          role: 'user',
+          content: [
+            { type: 'text', text: userMessage },
+            { type: 'image_url', image_url: { url: `data:image/${fileName.split('.').pop()};base64,${fileBase64}` } }
+          ]
+        } as any;
+      }
 
       const aiRes = await fetch(AI_GATEWAY, {
         method: 'POST',
@@ -501,43 +531,19 @@ Retorne SOMENTE o JSON válido, sem markdown, sem explicações antes ou depois.
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage }
-          ],
+          messages,
           response_format: { type: 'json_object' }
         })
       });
 
       if (!aiRes.ok) {
         const errorText = await aiRes.text();
-        console.error('AI Gateway Error Response:', errorText);
         throw new Error(`ai_gateway_error: ${aiRes.status} ${errorText}`);
       }
       
-      const aiData = await aiRes.json()
-      const raw = aiData.choices[0].message.content
-      
-      let parsed;
-      try {
-        const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        parsed = JSON.parse(clean);
-      } catch {
-        parsed = {
-          total_produtos: 1,
-          produtos: [{
-            nome: body.file_name,
-            status_geral: 'VERIFICAR',
-            ativos: [],
-            alertas: [{ tipo: 'warn', titulo: 'Erro no parsing JSON', corpo: raw.substring(0, 500) }],
-            analise_ia: raw.substring(0, 1000),
-            alegacoes_permitidas: [],
-            alegacoes_proibidas: [],
-            avisos_rotulo: [],
-            sugestao_capsulas: { n: 1, tamanho: '#00', frasco: 60, obs: '' },
-          }]
-        };
-      }
+      const aiData = await aiRes.json();
+      const rawContent = aiData.choices[0].message.content;
+      const parsed = JSON.parse(rawContent);
 
       return new Response(JSON.stringify(parsed), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
