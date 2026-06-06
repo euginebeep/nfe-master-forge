@@ -150,6 +150,25 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
           </FormItem>
         )} />
       )}
+      )}
+
+      {equipamentos.length > 1 && (
+        <FormField control={form.control} name="equipamento_id" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Selecionar Misturador *</FormLabel>
+            <Select value={field.value} onValueChange={handleEquipamentoChange}>
+              <FormControl><SelectTrigger><SelectValue placeholder="Selecione o equipamento" /></SelectTrigger></FormControl>
+              <SelectContent>
+                {equipamentos.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.nome} ({e.volume_nominal_litros}L)</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormDescription>Selecione o equipamento que será utilizado nesta produção específica</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )} />
+      )}
     </div>
   );
 
