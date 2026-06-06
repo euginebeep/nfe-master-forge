@@ -412,131 +412,86 @@ Retorne JSON com:
       })
     }
 
-    if (action === 'analyze_file') {
-      const systemPrompt = `Você é um especialista regulatório em suplementos alimentares brasileiros da Vitalnow Indústria Ltda.
-Analise o arquivo enviado (briefing, ficha técnica, foto ou ZIP com múltiplos produtos) e extraia TODOS os produtos e seus ativos.
+    if (body.action === 'analyze_file') {
+      const systemPrompt = `Você é um especialista regulatório da Vitalnow Indústria Ltda. Sua tarefa é analisar TODOS os produtos contidos no arquivo enviado e retornar um JSON completo com a análise regulatória de CADA produto individualmente.
 
-Para CADA produto encontrado, retorne:
-1. Nome do produto
-2. Lista de ativos com dose e unidade
-3. Status ANVISA de cada ativo baseado na IN 28/2018:
-   - APROVADO: consta lista positiva + dose dentro dos limites
-   - ATENCAO: consta lista positiva, mas dose está no limite ou exige aviso
-   - BLOQUEADO: substância proibida ou não listada na IN 28 como constituinte autorizado
+INSTRUÇÕES CRÍTICAS:
+1. Se o arquivo for um ZIP com múltiplos briefings, analise CADA produto separadamente
+2. NUNCA omitir produtos — se o arquivo contém 29 produtos, retorne 29 objetos no array
+3. SEMPRE preencher o campo "nome" de cada ativo com o nome completo do ingrediente
+4. SEMPRE preencher o campo "key" com a chave ANVISA correspondente (lista abaixo)
+5. Retornar APENAS JSON válido — sem texto antes ou depois
 
-4. Cálculo Sugerido de Cápsulas:
-   - Baseado no volume total dos ativos, sugira a quantidade de cápsulas, o tamanho (#00, #0, #1) e o frasco (60, 90, 120 doses).
+MAPEAMENTO DE CHAVES ANVISA (campo "key" de cada ativo):
+vitamina_d3 | vitamina_a | vitamina_c | vitamina_e | vitamina_b1 | vitamina_b2 | vitamina_b3 | vitamina_b5 | vitamina_b6 | vitamina_b7 | vitamina_b9 | vitamina_b12 | vitamina_k2 | zinco | ferro | magnesio | calcio | selenio | iodo | manganes | cobre | cromo | boro | fosforo | coenzima_q10 | cafeina | melatonina | luteina | zeaxantina | astaxantina | l_arginina | taurina | creatina | l_triptofano | l_tirosina | beta_alanina | leucina | isoleucina | valina | l_cistina | msm | acido_hialuronico | colageno_tipo2 | colageno_hidrolisado | omega3_epa_dha | espirulina | psyllium | curcuma | ext_laranja_moro | cha_verde | gengibre | feno_grego | propolis | berberina | queratina | silicio_organico | l_citrulina
 
-5. Alegações Permitidas (IN 28 Anexo V e VI)
-6. Alegações Proibidas (terapêuticas, curativas, funcionais não autorizadas)
-7. Avisos de Rotulagem Obrigatórios
+LIMITES MÁXIMOS OBRIGATÓRIOS — IN 28/2018 Anexo IV:
+- vitamina_d3: MÁXIMO 50 mcg = 2.000 UI/dia (NÃO 4.000 UI — erro crítico comum)
+- zinco: MÁXIMO 25 mg/dia
+- boro: MÁXIMO 6 mg/dia
+- vitamina_b3: MÁXIMO 35 mg NE/dia
+- vitamina_b9: MÁXIMO 400 mcg DFE/dia
+- cromo: MÁXIMO 200 mcg/dia
+- cafeina: MÁXIMO 210 mg/dose
+- melatonina: MÁXIMO 0,21 mg/dia — exclusivo ≥19 anos
+- l_arginina: MÁXIMO 3.000 mg/dia
+- taurina: MÁXIMO 3.000 mg/dia
+- creatina: MÁXIMO 3.000 mg/dia
+- luteina: MÁXIMO 30 mg/dia
+- cobre: MÁXIMO 0,9 mg/dia
+- acido_hialuronico: MÍNIMO 50 mg obrigatório
+- colageno_tipo2: MÍNIMO 40 mg UC-II não hidrolisado
 
-Responda SOMENTE com JSON no formato:
+CONSTITUINTES NÃO AUTORIZADOS (Anexo I IN 28 — STATUS = BLOQUEADO):
+- berberina, queratina, silicio_organico, l_citrulina (verificar)
+
+CONSTITUINTES AUTORIZADOS — confirmar explicitamente:
+- l_tirosina: APROVADO — CAS 60-18-4 Anexo I IN 28
+- beta_alanina: APROVADO — IN 102/2021
+- msm: APROVADO — Anexo I IN 28 sem limite máximo
+- melatonina: APROVADO — IN 102/2021 com restrições
+
+ESTRUTURA DO JSON DE RETORNO — seguir exatamente:
 {
   "total_produtos": number,
   "produtos": [
     {
-      "nome": "string",
-      "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
-      "ativos": [{"name": "string", "dose": "string", "unit": "string", "anvisaKey": "string (ex: vitamina_d3, zinco)", "status": "string"}],
-      "analise_ia": "string",
-      "alertas": [{"tipo": "err|warn|ok", "titulo": "string", "corpo": "string"}],
-      "alegacoes_permitidas": ["string"],
-      "alegacoes_proibidas": ["string"],
-      "avisos_rotulo": ["string"],
-      "sugestao_capsulas": {"n": number, "tamanho": "string", "frasco": number, "obs": "string"}
-    }
-  ]
-}`
-
-   - ATENÇÃO: dose abaixo do mínimo OU acima do máximo
-   - BLOQUEADO: não consta lista positiva
-
-LIMITES MÁXIMOS OBRIGATÓRIOS (IN 28/2018 Anexo IV — verificados):
-- Vitamina D3: MÁXIMO 50 mcg = 2.000 UI/dia (NÃO 4.000 UI)
-- Zinco: MÁXIMO 25 mg/dia
-- Boro: MÁXIMO 6 mg/dia
-- Niacina B3: MÁXIMO 35 mg NE/dia
-- Ácido Fólico B9: MÁXIMO 400 mcg DFE/dia
-- Cromo: MÁXIMO 200 mcg/dia
-- Cafeína: MÁXIMO 210 mg/dose
-- Melatonina: MÁXIMO 0,21 mg/dia — exclusivo ≥19 anos
-- L-Arginina: MÁXIMO 3.000 mg/dia
-- Taurina: MÁXIMO 3.000 mg/dia
-- Creatina: MÁXIMO 3.000 mg/dia
-- Luteína: MÁXIMO 30 mg/dia
-
-NÃO AUTORIZADOS (não constam Anexo I IN 28):
-- Berberina, Queratina, Silício Orgânico
-- L-Citrulina: verificar Power BI ANVISA
-
-AUTORIZADOS (confirmar explicitamente se perguntado):
-- L-Tirosina: SIM — Anexo I IN 28 CAS 60-18-4
-- Beta-Alanina: SIM — IN 102/2021
-- MSM: SIM — Anexo I IN 28
-- Melatonina: SIM — IN 102/2021 (com restrições)
-
-Para cada produto retorne também:
-- Sugestão de posologia (nº cápsulas, tamanho, unidades/frasco)
-- Tabela nutricional com %VD (dieta 2.000 kcal)
-- Alegações permitidas pela IN 28 Anexo V
-- Alegações proibidas relevantes
-- Avisos obrigatórios de rotulagem
-
-Retorne JSON com estrutura:
-{
-  "total_produtos": N,
-  "produtos": [
-    {
-      "nome": "...",
+      "nome": "",
+      "cliente": "",
+      "categoria": "",
       "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
       "ativos": [
-        {
-          "nome": "...",
-          "dose": 0,
-          "unit": "mg",
-          "status": "APROVADO|ATENÇÃO|BLOQUEADO",
-          "limite_anvisa": "...",
-          "referencia": "IN 28 Anexo IV",
-          "correcao_sugerida": "..." 
-        }
+        { "nome": "", "dose": number, "unit": "mg|mcg|UI|g", "key": "" }
       ],
       "alertas": [
-        {"tipo": "err|warn|ok|info", "titulo": "...", "corpo": "..."}
+        { "tipo": "err|warn|ok|info", "titulo": "", "corpo": "" }
       ],
-      "analise_ia": "...",
-      "tabela_nutricional": [
-        {"nutriente": "...", "quantidade": "...", "vd": "..."}
-      ],
+      "analise_ia": "",
+      "alegacoes_permitidas": [ "" ],
+      "alegacoes_proibidas": [ "" ],
+      "avisos_rotulo": [ "" ],
       "sugestao_capsulas": {
-        "n": 2, "tamanho": "#00", "frasco": 60, "obs": "..."
-      },
-      "alegacoes_permitidas": ["..."],
-      "alegacoes_proibidas": ["..."],
-      "avisos_rotulo": ["..."]
+        "n": number,
+        "tamanho": "#000|#00|#0|#1|#2|#3|#4|sachê",
+        "frasco": number,
+        "obs": ""
+      }
     }
   ]
-}`
+}
 
-      const userMessage: any[] = [
-        { type: 'text', text: `Analise este arquivo ${body.file_type}: ${body.file_name}\nCliente: ${body.cliente || 'não informado'}\nPúblico-alvo: ${body.publico || 'adultos ≥19 anos'}` }
-      ];
+REGRAS FINAIS:
+- Se o arquivo ZIP contiver 29 briefings, o array "produtos" deve ter 29 objetos
+- Cada ativo DEVE ter "nome" e "key" preenchidos — nunca deixar em branco
+- status_geral é BLOQUEADO se qualquer ativo tiver dose acima do limite máximo
+- status_geral é APROVADO COM RESSALVAS se houver alertas de atenção
+- status_geral é APROVADO apenas se tudo estiver em conformidade`
 
-      if (body.file_base64) {
-        if (body.file_type === 'image') {
-          userMessage.push({
-            type: 'image_url',
-            image_url: { url: `data:image/jpeg;base64,${body.file_base64}` }
-          });
-        } else {
-          // Para outros arquivos, enviamos como texto (o modelo gpt-4o-mini/4o pode tentar extrair se for pequeno)
-          // Mas idealmente deveríamos processar localmente. Por agora, enviamos o que der.
-          userMessage.push({
-            type: 'text',
-            text: `Conteúdo bruto (Base64 limitado): ${body.file_base64.substring(0, 50000)}`
-          });
-        }
-      }
+      const userMessage = `Arquivo recebido: ${body.file_name} Tipo: ${body.file_type} Cliente: ${body.cliente || 'PROLAB'} Público-alvo: ${body.publico || 'adultos ≥19 anos'}
+
+Analise TODOS os produtos contidos neste arquivo. ${body.file_type === 'zip' ? 'Este é um ZIP com múltiplos briefings de produtos. Analise cada um separadamente e retorne um objeto por produto no array "produtos".' : 'Analise o produto e retorne a análise completa.'}
+
+Retorne SOMENTE o JSON válido, sem markdown, sem explicações antes ou depois.`
 
       const aiRes = await fetch(AI_GATEWAY, {
         method: 'POST',
@@ -561,14 +516,33 @@ Retorne JSON com estrutura:
       }
       
       const aiData = await aiRes.json()
-      const content = JSON.parse(aiData.choices[0].message.content)
+      const raw = aiData.choices[0].message.content
+      
+      let parsed;
+      try {
+        const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        parsed = JSON.parse(clean);
+      } catch {
+        parsed = {
+          total_produtos: 1,
+          produtos: [{
+            nome: body.file_name,
+            status_geral: 'VERIFICAR',
+            ativos: [],
+            alertas: [{ tipo: 'warn', titulo: 'Erro no parsing JSON', corpo: raw.substring(0, 500) }],
+            analise_ia: raw.substring(0, 1000),
+            alegacoes_permitidas: [],
+            alegacoes_proibidas: [],
+            avisos_rotulo: [],
+            sugestao_capsulas: { n: 1, tamanho: '#00', frasco: 60, obs: '' },
+          }]
+        };
+      }
 
-      return new Response(JSON.stringify(content), { 
+      return new Response(JSON.stringify(parsed), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
+      });
     }
-
-
 
     if (!termo || String(termo).length < 2) {
       return new Response(JSON.stringify({ erro: 'termo_invalido' }), {
