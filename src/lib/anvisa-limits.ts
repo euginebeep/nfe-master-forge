@@ -31,7 +31,7 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   cobre:               { auth: true,  min: 0,  max: 8000,  unit: 'mcg', norm: 'IN 28 Anexo IV' },
   manganes:            { auth: true,  min: 0,  max: 2.3,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
   boro:                { auth: true,  min: 0,  max: 6,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  silicio:             { auth: false, min: 0,  max: 0,     unit: '-',   norm: 'NÃO CONSTAIN 28 Anexo I', obs: 'Consulte possibilidade como Aditivo' },
+  silicio:             { auth: true,  min: 0,  max: 36,    unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Silício orgânico (monometilsilanetriol) autorizado' },
   melatonina:          { auth: true,  min: 0,  max: 0.21,  unit: 'mg',  norm: 'IN 102/2021',             obs: 'Apenas para >= 19 anos' },
   triptofano:          { auth: true,  min: 0,  max: 860,   unit: 'mg',  norm: 'IN 28 Anexo IV' },
   tirosina:            { auth: true,  min: 0,  max: 1000,  unit: 'mg',  norm: 'IN 28 Anexo IV' },
