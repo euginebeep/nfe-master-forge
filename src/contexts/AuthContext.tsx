@@ -112,24 +112,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!initialLoaded) return;
 
         if (session?.user) {
-          // Use setTimeout to avoid Supabase deadlock
-          setTimeout(async () => {
-            if (!mounted) return;
+            // Handle session update immediately for smoother transitions
+            const updateState = async () => {
+              const { profile, role, permissions } = await fetchUserData(session.user.id);
+              if (!mounted) return;
+              setState({
+                user: session.user,
+                session,
+                profile,
+                role,
+                permissions,
+                isLoading: false,
+                isAuthenticated: true,
+              });
+            };
+            
             if (event === 'SIGNED_IN') {
-              await updateLastAccess(session.user.id);
+              updateLastAccess(session.user.id);
             }
-            const { profile, role, permissions } = await fetchUserData(session.user.id);
-            if (!mounted) return;
-            setState({
-              user: session.user,
-              session,
-              profile,
-              role,
-              permissions,
-              isLoading: false,
-              isAuthenticated: true,
-            });
-          }, 0);
+            
+            updateState();
         } else {
           setState({
             user: null, session: null, profile: null, role: null,
