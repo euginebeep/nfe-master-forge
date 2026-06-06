@@ -378,15 +378,15 @@ export default function LandingPage() {
                 style={{ border: "1px solid #E5E7EB", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
               >
                 <div className="p-6 border-b" style={{ background: "#F8FAFC", borderColor: "#E5E7EB" }}>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-2">
                       <FileSignature className="h-5 w-5" style={{ color: "#1E3A5F" }} />
                       <span className="font-bold text-sm" style={{ color: "#0F172A" }}>Dossiê de Lote · LT-2026-001847</span>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style={{ background: "#DCFCE7", color: "#15803D" }}>Liberado</span>
+                    <span className="w-fit text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style={{ background: "#DCFCE7", color: "#15803D" }}>Liberado</span>
                   </div>
-                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 text-xs">
-                    <div><div style={{ color: "#6B7280" }}>Produto</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>Vitamina D3 2000 UI</div></div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div><div style={{ color: "#6B7280" }}>Produto</div><div className="font-bold text-[13px] break-words" style={{ color: "#0F172A" }}>Vitamina D3 2000 UI</div></div>
                     <div><div style={{ color: "#6B7280" }}>Validade</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>12/2027</div></div>
                     <div><div style={{ color: "#6B7280" }}>RT (CRF)</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>Dra. M. Almeida</div></div>
                     <div><div style={{ color: "#6B7280" }}>Assinado em</div><div className="font-bold text-[13px]" style={{ color: "#0F172A" }}>05/06/2026 14:32</div></div>
