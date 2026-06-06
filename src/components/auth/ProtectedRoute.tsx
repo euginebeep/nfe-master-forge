@@ -33,6 +33,22 @@ export function ProtectedRoute({ children, minRole }: Props) {
   useInactivityTimeout();
 
   if (isLoading) {
+    const isDemoFlag = sessionStorage.getItem('brainx_demo_mode') === 'true';
+    
+    if (isDemoFlag) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div className="flex flex-col items-center text-center">
+              <p className="font-semibold text-lg">Iniciando BrainxERP</p>
+              <p className="text-sm text-muted-foreground">Carregando modo demonstração...</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
