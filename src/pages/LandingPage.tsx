@@ -64,9 +64,9 @@ const LandingPage = () => {
         <header className="flex items-center justify-between mb-24">
           <div className="flex items-center gap-6">
             <img src={brainxLogo} alt="Logo" className="w-[84px] h-[84px] object-contain" />
-            <div className="border-l border-white/10 pl-6">
+            <div className="border-l border-white/10 pl-6 flex items-baseline gap-4">
               <h1 className="text-3xl font-extrabold tracking-tight text-white">Brainx Erp</h1>
-              <p className="text-sm text-gray-400 font-medium mt-1">Gestão Industrial</p>
+              <p className="text-lg text-gray-400 font-normal">Gestão Industrial</p>
             </div>
           </div>
           
