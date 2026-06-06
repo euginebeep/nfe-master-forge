@@ -86,6 +86,7 @@ const InstallPage = lazy(() => import("./pages/install/InstallPage"));
 const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
 const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
 const EquipamentosPage = lazy(() => import("./pages/settings/EquipamentosPage"));
+const AnvisaCheckerPage = lazy(() => import("./pages/regulatorio/AnvisaCheckerPage"));
 
 
 import { queryClient } from "./lib/query-client";
@@ -202,6 +203,7 @@ const App = () => (
                 <Route path="/expedicao" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ExpedicaoPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/orcamentos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrcamentosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/pedidos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><PedidosVendaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/regulatorio/anvisa-checker" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><AnvisaCheckerPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/marketplace" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><MarketplacePage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/notas-saida" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasSaidaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/emissor-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><EmissorNFePage /></ErrorBoundary></Suspense></ProtectedRoute>} />
