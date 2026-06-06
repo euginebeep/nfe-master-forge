@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FlaskConical, Save, AlertTriangle, Beaker, Droplets, Package } from "lucide-react";
+import { ArrowLeft, FlaskConical, Save, AlertTriangle, Beaker, Droplets, Package, Scale } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,9 @@ export default function NovaFormulaPage() {
     peso_capsula_nominal_mg: 500,
     tipo_capsula: "00",
     excipiente_padrao: "AMIDO" as TipoVeiculoBase,
+    // Misturador — dados industriais
+    peso_enchimento_mg: 500,        // peso do pó (sem cápsula vazia)
+    densidade_aparente_kg_l: 0.65,  // medido em lab (picnômetro/Scott)
     // Líquido
     volume_frasco_ml: 30,
     volume_por_dose_ml: 1,
@@ -66,6 +69,8 @@ export default function NovaFormulaPage() {
           peso_capsula_nominal_mg: form.peso_capsula_nominal_mg,
           tipo_capsula: form.tipo_capsula,
           excipiente_padrao: form.excipiente_padrao,
+          peso_enchimento_mg: form.peso_enchimento_mg,           // ADICIONAR
+          densidade_aparente_kg_l: form.densidade_aparente_kg_l, // ADICIONAR
         }),
         ...(form.tipo_apresentacao === 'LIQUIDO' && {
           volume_frasco_ml: form.volume_frasco_ml,
@@ -244,6 +249,69 @@ export default function NovaFormulaPage() {
             </CardContent>
           </Card>
         )}
+
+        {form.tipo_apresentacao === 'CAPSULA' && (
+          <Card className="border-blue-200 bg-blue-50/30">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Scale className="h-4 w-4 text-blue-600" />
+                Parâmetros do Misturador em V
+              </CardTitle>
+              <CardDescription>
+                Usados para calcular automaticamente o número de bateladas na OP.
+                Meça no laboratório antes de aprovar a fórmula.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="peso_enchimento_mg">
+                    Peso de Enchimento (mg)
+                    <span className="ml-1 text-xs text-muted-foreground">— pó apenas, sem cápsula vazia</span>
+                  </Label>
+                  <Input
+                    id="peso_enchimento_mg"
+                    type="number"
+                    step="1"
+                    min="100"
+                    max="2000"
+                    value={form.peso_enchimento_mg}
+                    onChange={(e) => setForm(prev => ({ ...prev, peso_enchimento_mg: parseFloat(e.target.value) || 500 }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Cápsula 00 padrão: 480–520 mg de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="densidade_aparente_kg_l">
+                    Densidade Aparente (kg/L)
+                    <span className="ml-1 text-xs text-muted-foreground">— método picnômetro ou Scott</span>
+                  </Label>
+                  <Input
+                    id="densidade_aparente_kg_l"
+                    type="number"
+                    step="0.01"
+                    min="0.20"
+                    max="1.50"
+                    value={form.densidade_aparente_kg_l}
+                    onChange={(e) => setForm(prev => ({ ...prev, densidade_aparente_kg_l: parseFloat(e.target.value) || 0.65 }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Típico suplementos: 0,45–0,80 kg/L. Pós densos (creatina): ~0,90. Pós leves (colágeno): ~0,40.
+                    Default conservador: 0,65 kg/L.
+                  </p>
+                </div>
+              </div>
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800 text-xs">
+                  Com esses dados o sistema calcula automaticamente quantas bateladas
+                  cabem no Misturador em V 100L (máx. 65L úteis) ao criar uma OP.
+                  Sem esses dados, usa o default de 0,65 kg/L.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
 
         {form.tipo_apresentacao === 'LIQUIDO' && (
           <Card>
