@@ -260,7 +260,7 @@ export default function LandingPage() {
             </h2>
             <p style={{ color: "#374151" }}>
               Auto de infração da ANVISA, multas de até R$ 1,5 milhão, interdição e recolhimento de lote.
-              Não é dramatismo — é o que está acontecendo no setor de suplementos.
+              Não é dramatismo — é o que está acontecendo no setor de suplementos e alimentos.
             </p>
           </motion.div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
