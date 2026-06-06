@@ -159,6 +159,10 @@ export default function AuthPageModern() {
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
+    
+    // Clear any persistent demo flag when a real user tries to log in
+    sessionStorage.removeItem('brainx_demo_mode');
+    
     await signIn(loginEmail, loginPass);
     setLoading(false);
   };
