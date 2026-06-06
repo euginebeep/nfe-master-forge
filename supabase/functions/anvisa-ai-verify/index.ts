@@ -408,6 +408,56 @@ Retorne JSON com:
       })
     }
 
+    if (action === 'analyze_file') {
+      const systemPrompt = `Você é um especialista regulatório em suplementos 
+alimentares brasileiros. Extraia os ativos e doses do arquivo fornecido 
+e analise com base na IN 28/2018 e suas atualizações até IN 438/2026.
+
+Se o arquivo for um ZIP, DOCX ou PDF, identifique todos os produtos.
+Se for uma imagem, use visão computacional para ler a fórmula.
+
+Retorne JSON com:
+{
+  "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
+  "alertas": [{"tipo": "err|warn|ok|info", "titulo": "", "corpo": ""}],
+  "analise_ia": "texto explicativo da análise",
+  "alegacoes_permitidas": ["..."],
+  "alegacoes_proibidas": ["..."],
+  "avisos_rotulo": ["..."],
+  "sugestao_capsulas": {"n": 2, "tamanho": "#00", "frasco": 60, "obs": "..."},
+  "ativos": [{"name": "...", "dose": "...", "unit": "...", "anvisaKey": "..."}]
+}`
+
+      const userMessage = `Arquivo: ${body.filename}
+Conteúdo (base64 ou metadados): ${String(body.file).slice(0, 1000)}...
+Opções: ${JSON.stringify(body.options)}`
+
+      const aiRes = await fetch(AI_GATEWAY, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          response_format: { type: 'json_object' }
+        })
+      })
+
+      if (!aiRes.ok) throw new Error('ai_gateway_error')
+      const aiData = await aiRes.json()
+      const content = JSON.parse(aiData.choices[0].message.content)
+
+      return new Response(JSON.stringify(content), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
+    }
+
+
     if (!termo || String(termo).length < 2) {
       return new Response(JSON.stringify({ erro: 'termo_invalido' }), {
         status: 400,
