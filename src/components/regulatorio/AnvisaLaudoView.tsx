@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, FileCode, Copy, RefreshCw, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { Printer, FileCode, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain } from 'lucide-react';
 import { toast } from "sonner";
+import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
 
 interface AnvisaLaudoViewProps {
   data: {
@@ -105,8 +106,13 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
 
         <section className="space-y-4">
           <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Análise Técnica</h3>
-          <Card className="bg-slate-900/50">
-            <CardContent className="pt-6 italic text-muted-foreground whitespace-pre-wrap">
+          <Card className="bg-primary/5 border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Brain className="w-4 h-4 text-primary" /> Análise BrainX IA
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="italic text-muted-foreground whitespace-pre-wrap text-sm">
               {data.analise_ia}
             </CardContent>
           </Card>
@@ -119,19 +125,83 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset 
               <TableRow>
                 <TableHead>Ativo/Ingrediente</TableHead>
                 <TableHead>Dose</TableHead>
+                <TableHead>Limite ANVISA</TableHead>
+                <TableHead>Referência</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.ativos.map((ativo, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{ativo.nome}</TableCell>
-                  <TableCell>{ativo.dose} {ativo.unidade}</TableCell>
-                  <TableCell><Badge variant="outline">Verificado</Badge></TableCell>
-                </TableRow>
-              ))}
+              {data.ativos.map((ativo, i) => {
+                const limit = ativo.anvisaKey ? ANVISA_LIMITS[ativo.anvisaKey.toLowerCase()] : null;
+                const doseNum = parseFloat(ativo.dose);
+                let status = 'VERIFICAR';
+                if (limit) {
+                  if (!limit.auth) status = 'BLOQUEADO';
+                  else if (limit.max !== null && doseNum > limit.max) status = 'ATENCAO';
+                  else if (doseNum < limit.min) status = 'ATENCAO';
+                  else status = 'APROVADO';
+                }
+
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{ativo.name}</TableCell>
+                    <TableCell>{ativo.dose} {ativo.unit}</TableCell>
+                    <TableCell>{limit?.max ? `${limit.max} ${limit.unit}` : 'NE'}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground">{limit?.norm || '-'}</TableCell>
+                    <TableCell>
+                      <Badge className={
+                        status === 'APROVADO' ? 'bg-green-500/20 text-green-500' :
+                        status === 'ATENCAO' ? 'bg-yellow-500/20 text-yellow-500' :
+                        status === 'BLOQUEADO' ? 'bg-red-500/20 text-red-500' :
+                        'bg-orange-500/20 text-orange-500'
+                      }>
+                        {status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+        </section>
+
+        <section className="space-y-4">
+          <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Tabela Nutricional (RDC 429/2020)</h3>
+          <div className="border-2 border-primary/20 p-4 rounded-lg bg-slate-950 max-w-sm mx-auto">
+            <h4 className="text-center font-bold text-lg border-b-2 border-primary/20 pb-1 mb-2">INFORMAÇÃO NUTRICIONAL</h4>
+            <Table>
+              <TableHeader>
+                <TableRow className="text-[10px] border-b-2 border-primary/20">
+                  <TableHead className="h-auto py-1">NUTRIENTE</TableHead>
+                  <TableHead className="h-auto py-1 text-right">QTD / DOSE</TableHead>
+                  <TableHead className="h-auto py-1 text-right">%VD*</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.ativos.map((ativo, i) => {
+                  const key = ativo.anvisaKey?.toLowerCase();
+                  const vdRef = key ? VD_REFERENCE[key] : null;
+                  let doseMg = parseFloat(ativo.dose) || 0;
+                  if (ativo.unit === 'mcg') doseMg /= 1000;
+                  if (ativo.unit === 'g') doseMg *= 1000;
+                  
+                  const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
+
+                  return (
+                    <TableRow key={i} className="text-[10px] border-b border-primary/10">
+                      <TableCell className="py-1">{ativo.name}</TableCell>
+                      <TableCell className="py-1 text-right">{ativo.dose} {ativo.unit}</TableCell>
+                      <TableCell className="py-1 text-right">{percentVD !== null ? `${percentVD}%` : '**'}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <p className="text-[8px] mt-2 leading-tight text-muted-foreground italic">
+              * %VD com base em uma dieta de 2.000 kcal ou 8.400 kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.
+              <br/>** VD não estabelecido pela ANVISA.
+            </p>
+          </div>
         </section>
 
         <section className="space-y-4">
