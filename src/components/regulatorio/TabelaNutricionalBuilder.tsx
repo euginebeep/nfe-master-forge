@@ -13,12 +13,38 @@ interface Nutriente {
   vd: string;
 }
 
-export const TabelaNutricionalBuilder: React.FC = () => {
+export const TabelaNutricionalBuilder: React.FC<{ initialData?: any }> = ({ initialData }) => {
   const [porcao, setPorcao] = useState("2 cápsulas (1000 mg)");
-  const [nutrientes, setNutrientes] = useState<Nutriente[]>([
-    { id: '1', nome: 'Vitamina D3', quantidade: '50 mcg', vd: '250%' },
-    { id: '2', nome: 'Zinco', quantidade: '11 mg', vd: '100%' }
-  ]);
+  const [nutrientes, setNutrientes] = useState<Nutriente[]>(() => {
+    if (initialData?.ativos) {
+      return initialData.ativos.map((a: any, i: number) => ({
+        id: i.toString(),
+        nome: a.nome,
+        quantidade: `${a.dose} ${a.unit}`,
+        vd: '**'
+      }));
+    }
+    return [
+      { id: '1', nome: 'Vitamina D3', quantidade: '50 mcg', vd: '250%' },
+      { id: '2', nome: 'Zinco', quantidade: '11 mg', vd: '100%' }
+    ];
+  });
+
+  // Atualizar quando os dados iniciais mudarem
+  React.useEffect(() => {
+    if (initialData?.ativos) {
+      setNutrientes(initialData.ativos.map((a: any, i: number) => ({
+        id: i.toString(),
+        nome: a.nome,
+        quantidade: `${a.dose} ${a.unit}`,
+        vd: '**'
+      })));
+      if (initialData.sugestao_capsulas) {
+        setPorcao(`${initialData.sugestao_capsulas.n} caps (${initialData.sugestao_capsulas.tamanho})`);
+      }
+    }
+  }, [initialData]);
+
 
   const addNutriente = () => {
     setNutrientes([...nutrientes, { id: Date.now().toString(), nome: '', quantidade: '', vd: '' }]);
