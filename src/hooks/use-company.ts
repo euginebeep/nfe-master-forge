@@ -14,6 +14,7 @@ export function useCompany() {
       // Buscar o company_id do profile do usuário logado
       if (!user) return null;
 
+      const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true';
       let companyId = profile?.company_id;
 
       if (!companyId) {
@@ -27,6 +28,15 @@ export function useCompany() {
         companyId = freshProfile?.company_id || null;
       }
 
+      console.log('[useCompany] profile:', {
+        userId: user.id,
+        email: user.email,
+        company_id: profile?.company_id,
+        is_demo: profile?.is_demo,
+        isDemoSession,
+        companyId,
+      });
+
       if (!companyId) {
         // Sem company_id vinculado → retorna null (onboarding necessário)
         return null;
@@ -37,6 +47,8 @@ export function useCompany() {
         .select("*")
         .eq("id", companyId)
         .maybeSingle();
+
+      console.log('[useCompany] company result:', { data, error });
 
       if (error) throw error;
       return data as Company | null;
