@@ -164,6 +164,7 @@ const menuGroups: MenuGroup[] = [
   modulo: "estoque",
   items: [
   { title: "Desvios / CAPA", url: "/qualidade/desvios", icon: ShieldAlert, badge: "QC", tooltip: "Registro e tratamento de desvios e ações corretivas (CAPA)", modulo: "estoque" },
+  { title: "POPs", url: "/qualidade/pops", icon: ClipboardCheck, badge: "RDC 275", tooltip: "Gestão de Procedimentos Operacionais Padrão", modulo: "qualidade" },
   { title: "Análises", url: "/qualidade/analises", icon: FlaskConical, tooltip: "Análises laboratoriais e resultados de controle de qualidade", modulo: "estoque" },
   { title: "Calibrações", url: "/qualidade/calibracoes", icon: Settings, tooltip: "Controle de calibração de instrumentos e equipamentos", modulo: "estoque" }]
 
