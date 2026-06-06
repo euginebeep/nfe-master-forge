@@ -38,7 +38,7 @@ export function OPDocumentoCompleto({
   const [allSectionsRendered, setAllSectionsRendered] = useState(false);
 
   useEffect(() => {
-    const fetchExtraData = async () => {
+    async function fetchExtraData() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -90,7 +90,7 @@ export function OPDocumentoCompleto({
       } catch (err) {
         console.error('Erro ao buscar dados complementares:', err);
       }
-    };
+    }
 
     fetchExtraData();
     setAllSectionsRendered(true);
