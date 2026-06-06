@@ -32,7 +32,7 @@ export function OPDocumentoCompleto({
   materiasPrimas = [], 
   embalagens = [],
   checklist = []
-}: OPDocumentoCompletoProps) {
+}: any) {
   const [op, setOp] = useState<OPDadosPDF>(initialOp);
   const [activeTab, setActiveTab] = useState('separacao');
   const [allSectionsRendered, setAllSectionsRendered] = useState(false);
