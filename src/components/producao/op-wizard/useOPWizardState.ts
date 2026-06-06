@@ -93,6 +93,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   // Parâmetros do equipamento (banco) ou defaults conservadores
   const VOL_TOTAL_L        = misturador?.volume_nominal_litros    ?? 100;
   const FATOR_MAX          = misturador?.fator_enchimento_maximo  ?? 0.65;
+  const FATOR_DEFINIDO     = fatorManual ? (fatorManual / 100) : (misturador?.fator_enchimento_padrao ?? FATOR_MAX);
   const FATOR_MIN          = misturador?.fator_enchimento_minimo  ?? 0.15;
   const DENSIDADE_EQUIP    = misturador?.densidade_padrao_kg_l    ?? 0.65;
 
