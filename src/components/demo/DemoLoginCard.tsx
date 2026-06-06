@@ -128,8 +128,11 @@ export function DemoLoginCard() {
         return;
       }
       
-      // Clear any local state to force total refresh
+      // Clear session storage to force fresh state
       sessionStorage.clear();
+      
+      // Delay slightly to ensure supabase persistence
+      await new Promise(r => setTimeout(r, 800));
       
       toast.success('Bem-vindo à demonstração!');
       // Use window.location.href to ensure a clean state
