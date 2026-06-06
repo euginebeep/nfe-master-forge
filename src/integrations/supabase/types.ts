@@ -4850,12 +4850,14 @@ export type Database = {
           data_fim_producao: string | null
           data_inicio_producao: string | null
           data_validade: string
+          densidade_utilizada_kg_l: number | null
           descricao_rotulo: string | null
           equipamento_id: string | null
           especificacoes_embalagem: Json | null
           etapa_atualizada_em: string | null
           etapa_producao_atual: string | null
           excipiente_base: string | null
+          fator_enchimento_alvo: number | null
           fator_enchimento_real: number | null
           finalizado_por: string | null
           formula_codigo: string | null
@@ -4916,6 +4918,7 @@ export type Database = {
           updated_at: string | null
           volume_por_batelada_l: number | null
           volume_total_po_l: number | null
+          volume_util_max_l: number | null
           white_label: boolean | null
         }
         Insert: {
@@ -4938,12 +4941,14 @@ export type Database = {
           data_fim_producao?: string | null
           data_inicio_producao?: string | null
           data_validade: string
+          densidade_utilizada_kg_l?: number | null
           descricao_rotulo?: string | null
           equipamento_id?: string | null
           especificacoes_embalagem?: Json | null
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
           excipiente_base?: string | null
+          fator_enchimento_alvo?: number | null
           fator_enchimento_real?: number | null
           finalizado_por?: string | null
           formula_codigo?: string | null
@@ -5004,6 +5009,7 @@ export type Database = {
           updated_at?: string | null
           volume_por_batelada_l?: number | null
           volume_total_po_l?: number | null
+          volume_util_max_l?: number | null
           white_label?: boolean | null
         }
         Update: {
@@ -5026,12 +5032,14 @@ export type Database = {
           data_fim_producao?: string | null
           data_inicio_producao?: string | null
           data_validade?: string
+          densidade_utilizada_kg_l?: number | null
           descricao_rotulo?: string | null
           equipamento_id?: string | null
           especificacoes_embalagem?: Json | null
           etapa_atualizada_em?: string | null
           etapa_producao_atual?: string | null
           excipiente_base?: string | null
+          fator_enchimento_alvo?: number | null
           fator_enchimento_real?: number | null
           finalizado_por?: string | null
           formula_codigo?: string | null
@@ -5092,6 +5100,7 @@ export type Database = {
           updated_at?: string | null
           volume_por_batelada_l?: number | null
           volume_total_po_l?: number | null
+          volume_util_max_l?: number | null
           white_label?: boolean | null
         }
         Relationships: [
