@@ -52,6 +52,9 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Use session storage as a robust secondary flag for demo mode
+  const isDemoPersisted = sessionStorage.getItem('brainx_demo_mode') === 'true';
+
   const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
@@ -116,10 +119,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const updateState = async () => {
               const { profile, role, permissions } = await fetchUserData(session.user.id);
               if (!mounted) return;
+              
+              // If the profile says demo or the persisted flag exists, ensure is_demo is true
+              const isDemo = profile?.is_demo || isDemoPersisted;
+              const updatedProfile = profile ? { ...profile, is_demo: isDemo } : null;
+              
+              if (isDemo) {
+                sessionStorage.setItem('brainx_demo_mode', 'true');
+              }
+
               setState({
                 user: session.user,
                 session,
-                profile,
+                profile: updatedProfile,
                 role,
                 permissions,
                 isLoading: false,

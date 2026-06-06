@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Play, Copy, Check, User, Mail, Phone, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,6 +15,7 @@ const DEMO_EMAIL = 'demo@brainxerp.com';
 const DEMO_PASSWORD = 'BrainxERPDemo2026!';
 
 export function DemoLoginCard() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -128,14 +130,16 @@ export function DemoLoginCard() {
         return;
       }
       
-      // Clear session storage to force fresh state
-      sessionStorage.clear();
+      // Persistence: set demo flag before redirecting
+      sessionStorage.setItem('brainx_demo_mode', 'true');
       
-      // Delay slightly to ensure supabase persistence
-      await new Promise(r => setTimeout(r, 800));
+      // Clear any previous ERP company cache
+      queryClient.invalidateQueries({ queryKey: ["company"] });
+      
+      // Delay slightly to ensure supabase persistence and clear signals
+      await new Promise(r => setTimeout(r, 500));
       
       toast.success('Bem-vindo à demonstração!');
-      // Use window.location.href to ensure a clean state
       window.location.href = '/';
     } catch (err: any) {
       toast.error('Erro ao acessar demo: ' + err.message);
