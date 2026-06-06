@@ -134,12 +134,12 @@ export default function LandingPage() {
           boxShadow: scrolled ? "0 1px 3px rgba(0,0,0,0.04)" : "none",
         }}
       >
-        <div className="container max-w-7xl mx-auto flex items-center justify-between h-16 px-4">
+        <div className="container max-w-7xl mx-auto flex items-center justify-between h-20 px-4">
           <Link to="/landing" className="flex items-center gap-2.5">
-            <img src={brainxLogo} alt="BrainX ERP" className="h-10 w-10 object-contain rounded" />
+            <img src={brainxLogo} alt="BrainX ERP" className="h-14 w-14 object-contain rounded" />
             <div className="flex flex-col leading-tight">
-              <span className="font-bold text-base tracking-tight" style={{ color: "#0F172A" }}>BrainX ERP</span>
-              <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: "#6B7280" }}>
+              <span className="font-bold text-xl tracking-tight" style={{ color: "#0F172A" }}>BrainX ERP</span>
+              <span className="text-[12px] font-semibold tracking-wider uppercase" style={{ color: "#6B7280" }}>
                 Industrial Compliance
               </span>
             </div>
