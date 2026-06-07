@@ -6503,6 +6503,239 @@ export type Database = {
           },
         ]
       }
+      saas_activity_log: {
+        Row: {
+          action: string
+          admin_id: string | null
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          admin_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      saas_ai_config: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          model: string
+          provider: string
+          settings: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          model?: string
+          provider?: string
+          settings?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          model?: string
+          provider?: string
+          settings?: Json | null
+        }
+        Relationships: []
+      }
+      saas_company_notas: {
+        Row: {
+          autor_id: string | null
+          company_id: string | null
+          created_at: string | null
+          id: string
+          nota: string
+          updated_at: string | null
+        }
+        Insert: {
+          autor_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          nota: string
+          updated_at?: string | null
+        }
+        Update: {
+          autor_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          nota?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_company_notas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saas_comunicados: {
+        Row: {
+          alvo_tenant: string | null
+          ativo: boolean | null
+          conteudo: string
+          created_at: string | null
+          criado_por: string | null
+          expira_em: string | null
+          id: string
+          tipo: string | null
+          titulo: string
+        }
+        Insert: {
+          alvo_tenant?: string | null
+          ativo?: boolean | null
+          conteudo: string
+          created_at?: string | null
+          criado_por?: string | null
+          expira_em?: string | null
+          id?: string
+          tipo?: string | null
+          titulo: string
+        }
+        Update: {
+          alvo_tenant?: string | null
+          ativo?: boolean | null
+          conteudo?: string
+          created_at?: string | null
+          criado_por?: string | null
+          expira_em?: string | null
+          id?: string
+          tipo?: string | null
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_comunicados_alvo_tenant_fkey"
+            columns: ["alvo_tenant"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saas_ticket_mensagens: {
+        Row: {
+          anexos: Json | null
+          autor_id: string | null
+          created_at: string | null
+          id: string
+          is_interna: boolean | null
+          mensagem: string
+          ticket_id: string | null
+        }
+        Insert: {
+          anexos?: Json | null
+          autor_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_interna?: boolean | null
+          mensagem: string
+          ticket_id?: string | null
+        }
+        Update: {
+          anexos?: Json | null
+          autor_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_interna?: boolean | null
+          mensagem?: string
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_ticket_mensagens_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "saas_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saas_tickets: {
+        Row: {
+          atribuido_a: string | null
+          company_id: string | null
+          created_at: string | null
+          criado_por: string | null
+          departamento: string | null
+          descricao: string | null
+          id: string
+          numero: number
+          prioridade: string | null
+          status: string | null
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          atribuido_a?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          departamento?: string | null
+          descricao?: string | null
+          id?: string
+          numero?: number
+          prioridade?: string | null
+          status?: string | null
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          atribuido_a?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          departamento?: string | null
+          descricao?: string | null
+          id?: string
+          numero?: number
+          prioridade?: string | null
+          status?: string | null
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sensor_readings: {
         Row: {
           company_id: string | null
