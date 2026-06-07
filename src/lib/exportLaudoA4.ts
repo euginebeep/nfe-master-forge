@@ -405,9 +405,27 @@ function buildHTML(data: LaudoData): string {
     </div>
   </section>
 
+  <!-- RESUMO TÉCNICO DE AJUSTES -->
+  ${resumoTecnicoRows ? `
+  <section>
+    <h2 class="section" style="border-left-color: #16a34a; color: #16a34a;">5. Resumo Técnico de Ajustes (Rastreabilidade)</h2>
+    <p style="font-size:9pt; margin-bottom:8px;">Os itens abaixo foram ajustados automaticamente para garantir conformidade com os limites máximos permitidos pela <strong>IN 28/2018</strong> e Power BI ANVISA.</p>
+    <table>
+      <thead>
+        <tr style="background:#16a34a;">
+          <th>Nutriente</th>
+          <th style="text-align:center;">Dose Original</th>
+          <th style="text-align:center;">Dose Corrigida</th>
+          <th>Regra Aplicada</th>
+        </tr>
+      </thead>
+      <tbody>${resumoTecnicoRows}</tbody>
+    </table>
+  </section>` : ''}
+
   <!-- CÁPSULAS -->
   <section>
-    <h2 class="section">5. Sugestão de Apresentação</h2>
+    <h2 class="section">${resumoTecnicoRows ? '6' : '5'}. Sugestão de Apresentação</h2>
     <div class="capsulas">
       <div>
         <div class="lbl">Dose Sugerida</div>
@@ -427,7 +445,7 @@ function buildHTML(data: LaudoData): string {
 
   <!-- ALEGAÇÕES -->
   <section>
-    <h2 class="section">6. Alegações de Rotulagem</h2>
+    <h2 class="section">${resumoTecnicoRows ? '7' : '6'}. Alegações de Rotulagem</h2>
     <div class="duas-colunas">
       <div class="col-ok">
         <h3>✓ Permitidas</h3>
