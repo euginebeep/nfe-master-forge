@@ -260,7 +260,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                         {corrigido ? (
                           <>
                             <span className="line-through text-gray-400 font-medium block">{ativo.dose} {unitOriginal}</span>
-                            <span className="text-green-600">{doseCorrigida} {unitCorrigida}</span>
+                            <span className="text-green-600">Tabela Nutricional Corrigida: {doseCorrigida} {unitCorrigida}</span>
                           </>
                         ) : (
                           <>{ativo.dose} {ativo.unit}</>
