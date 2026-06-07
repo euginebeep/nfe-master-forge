@@ -158,7 +158,7 @@ export default function AuthPage() {
             style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <img src={brainxLogo} alt="BrainX ERP" style={{ width: 270, height: 270, objectFit: 'contain' }} />
             <div style={{ color: '#fff', display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 36, letterSpacing: '-0.02em' }}>Brainx Erp</div>
+              <div style={{ fontWeight: 800, fontSize: 36, letterSpacing: '-0.02em' }}>BrainX ERP</div>
               <div style={{ fontWeight: 400, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>Gestão Industrial</div>
             </div>
           </motion.div>
