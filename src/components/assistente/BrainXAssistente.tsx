@@ -77,7 +77,7 @@ const SUGESTOES_RAPIDAS: Record<string, string[]> = {
   '/cadastros/produtos': ['O que é o N° de Notificação ANVISA?', 'O que é NCM?', 'Como cadastrar um produto novo?'],
 };
 
-export function BrainX ERPAssistente() {
+export function BrainXERPAssistente() {
   const [aberto, setAberto] = useState(false);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [input, setInput] = useState('');
