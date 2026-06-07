@@ -4,6 +4,93 @@ const corsHeaders = {
 }
 
 const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+
+// JSZip via npm (Deno-friendly) para extrair conteúdo real de arquivos .zip e .docx
+import JSZip from 'npm:jszip@3.10.1'
+
+function stripXmlTags(xml: string): string {
+  // Preserva quebras de parágrafo e tabulações antes de remover tags
+  return xml
+    .replace(/<w:p[^>]*\/>/g, '\n')
+    .replace(/<\/w:p>/g, '\n')
+    .replace(/<w:tab[^>]*\/?>/g, '\t')
+    .replace(/<w:br[^>]*\/?>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/\r/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+async function extractDocxText(buf: ArrayBuffer | Uint8Array): Promise<string> {
+  try {
+    const zip = await JSZip.loadAsync(buf)
+    const parts: string[] = []
+    // documento principal + headers/footers
+    const candidates = [
+      'word/document.xml',
+      'word/header1.xml', 'word/header2.xml', 'word/header3.xml',
+      'word/footer1.xml', 'word/footer2.xml', 'word/footer3.xml',
+    ]
+    for (const name of candidates) {
+      const f = zip.file(name)
+      if (f) parts.push(stripXmlTags(await f.async('string')))
+    }
+    return parts.join('\n\n').trim()
+  } catch (e) {
+    return `[falha ao extrair docx: ${e instanceof Error ? e.message : String(e)}]`
+  }
+}
+
+function decodePlainText(buf: Uint8Array): string {
+  const dec = new TextDecoder('utf-8', { fatal: false })
+  return dec.decode(buf).replace(/\u0000/g, '').trim()
+}
+
+async function extractZipContents(zipBuf: Uint8Array): Promise<Array<{ file: string; content: string }>> {
+  const zip = await JSZip.loadAsync(zipBuf)
+  const out: Array<{ file: string; content: string }> = []
+  const entries = Object.values(zip.files).filter((f: any) => !f.dir)
+  for (const entry of entries as any[]) {
+    const name: string = entry.name
+    // Ignorar metadados de macOS e similares
+    if (name.startsWith('__MACOSX/') || name.endsWith('/.DS_Store') || name.endsWith('/Thumbs.db')) continue
+    const lower = name.toLowerCase()
+    try {
+      if (lower.endsWith('.docx')) {
+        const buf = await entry.async('uint8array')
+        const txt = await extractDocxText(buf)
+        out.push({ file: name, content: txt.slice(0, 20000) })
+      } else if (lower.endsWith('.txt') || lower.endsWith('.md') || lower.endsWith('.csv') || lower.endsWith('.json')) {
+        const buf = await entry.async('uint8array')
+        out.push({ file: name, content: decodePlainText(buf).slice(0, 20000) })
+      } else if (lower.endsWith('.pdf')) {
+        // PDF binário — extração robusta requer lib pesada. Sinalizar para a IA.
+        out.push({ file: name, content: '[PDF binário — não foi possível extrair texto no servidor; o nome do arquivo identifica o produto]' })
+      } else if (lower.endsWith('.xml') || lower.endsWith('.html') || lower.endsWith('.htm')) {
+        const buf = await entry.async('uint8array')
+        out.push({ file: name, content: stripXmlTags(decodePlainText(buf)).slice(0, 20000) })
+      }
+      // demais binários ignorados
+    } catch (e) {
+      out.push({ file: name, content: `[erro ao ler entrada: ${e instanceof Error ? e.message : String(e)}]` })
+    }
+  }
+  return out
+}
+
+function base64ToUint8Array(b64: string): Uint8Array {
+  const bin = atob(b64)
+  const arr = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+  return arr
+}
+
 const POWERBI_RESOURCE_KEY = '458ce16a-f74b-4e92-977a-e12e2927d746'
 const POWERBI_API = 'https://wabi-brazil-south-api.analysis.windows.net'
 
@@ -421,21 +508,40 @@ Retorne JSON com:
 
       // Montar conteúdo para a IA com base no tipo de arquivo
       let fileContent = '';
+      let totalEntriesInZip = 0;
       if (fileBase64 && fileType === 'image') {
         fileContent = '[imagem anexada para análise visual]';
       } else if (fileBase64) {
         try {
-          const bytes = Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0));
-          const decoder = new TextDecoder('utf-8', { fatal: false });
-          const rawText = decoder.decode(bytes);
-          
-          if (rawText.length > 100) {
-            fileContent = rawText.replace(/[^\x20-\x7E\n\r\t]/g, ' ').substring(0, 30000);
+          const bytes = base64ToUint8Array(fileBase64);
+
+          if (fileType === 'zip' || fileName.toLowerCase().endsWith('.zip')) {
+            const entries = await extractZipContents(bytes);
+            totalEntriesInZip = entries.length;
+            console.log(`[anvisa-ai-verify] ZIP "${fileName}" → ${entries.length} arquivos extraídos`);
+            if (entries.length === 0) {
+              fileContent = '[ZIP vazio ou sem arquivos suportados (.docx/.pdf/.txt)]';
+            } else {
+              fileContent = entries
+                .map((e, i) => `===== PRODUTO ${i + 1} / ${entries.length} — ARQUIVO: ${e.file} =====\n${e.content}`)
+                .join('\n\n');
+              // Limite total de payload enviado para a IA
+              if (fileContent.length > 250000) fileContent = fileContent.slice(0, 250000) + '\n\n[...conteúdo truncado por limite de tamanho...]';
+            }
+          } else if (fileType === 'docx' || fileName.toLowerCase().endsWith('.docx')) {
+            fileContent = await extractDocxText(bytes);
+            if (!fileContent) fileContent = '[DOCX sem texto extraível]';
           } else {
-            fileContent = `[Arquivo binário ${fileType} de ${bytes.length} bytes]`;
+            const rawText = decodePlainText(bytes);
+            if (rawText.length > 100) {
+              fileContent = rawText.replace(/[^\x20-\x7E\n\r\t\u00C0-\u017F]/g, ' ').substring(0, 60000);
+            } else {
+              fileContent = `[Arquivo binário ${fileType} de ${bytes.length} bytes — extração de texto não disponível]`;
+            }
           }
-        } catch (e) {
-          fileContent = `[Erro ao ler conteúdo: ${e.message}]`;
+        } catch (e: any) {
+          console.error('[anvisa-ai-verify] erro extraindo arquivo:', e?.message || e);
+          fileContent = `[Erro ao ler conteúdo: ${e?.message || e}]`;
         }
       }
 
@@ -500,14 +606,18 @@ ESTRUTURA DO JSON DE RETORNO:
   ]
 }`;
 
+      const contagemHint = totalEntriesInZip > 0
+        ? `O servidor já extraiu ${totalEntriesInZip} arquivos do ZIP. Você DEVE retornar EXATAMENTE ${totalEntriesInZip} objetos no array "produtos" — um para cada bloco "===== PRODUTO N / ${totalEntriesInZip} =====" abaixo. NUNCA agrupe, resuma ou omita produtos.`
+        : 'Analise TODOS os produtos contidos no conteúdo abaixo. Se houver múltiplas fórmulas, retorne UM objeto por produto no array "produtos".';
+
       const userMessage = `Arquivo: ${fileName} (${fileType}). Cliente: ${cliente}. Público: ${publico}.
-      
+
+${contagemHint}
+
 CONTEÚDO EXTRAÍDO:
 ${fileContent}
 
-IMPORTANTE: Analise TODOS os produtos contidos no conteúdo acima. Se o arquivo for um ZIP com vários briefings ou um documento com múltiplas fórmulas, você DEVE extrair e retornar a análise de CADA produto individualmente no array "produtos". Não resuma, não ignore e não agrupe produtos diferentes. Se houver 10 produtos, retorne 10 objetos no array "produtos".
-
-Retorne APENAS o JSON conforme a estrutura do sistema.`;
+Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" DEVE bater com a quantidade real de objetos em "produtos".`;
 
       const messages = [
         { role: 'system', content: systemPrompt },
