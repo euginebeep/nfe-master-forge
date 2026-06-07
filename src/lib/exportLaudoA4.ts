@@ -62,16 +62,31 @@ function buildHTML(data: LaudoData): string {
   const nutriRows = (data.ativos || []).map((ativo: any) => {
     const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
     const vdRef = key ? VD_REFERENCE[key] : null;
+    const limit = key ? ANVISA_LIMITS[key] : null;
     const nomeAtivo = ativo.nome || ativo.name || '-';
-    let doseMg = parseFloat(ativo.dose) || 0;
-    const unit = (ativo.unit || '').toLowerCase();
-    if (unit === 'mcg') doseMg /= 1000;
-    if (unit === 'g') doseMg *= 1000;
+    const doseOriginal = parseFloat(ativo.dose) || 0;
+    const unitOriginal = ativo.unit || '';
+    // Aplica correção IN 28/2018: se acima do limite ANVISA, ajusta para o máximo permitido
+    let doseCorrigida = doseOriginal;
+    let unitCorrigida = unitOriginal;
+    let corrigido = false;
+    if (limit && limit.auth && limit.max != null && doseOriginal > limit.max) {
+      doseCorrigida = limit.max;
+      unitCorrigida = limit.unit;
+      corrigido = true;
+    }
+    let doseMg = doseCorrigida;
+    const u = (unitCorrigida || '').toLowerCase();
+    if (u === 'mcg') doseMg /= 1000;
+    if (u === 'g') doseMg *= 1000;
     const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
+    const doseCell = corrigido
+      ? `<span style="text-decoration:line-through;color:#999;font-weight:500;">${esc(ativo.dose)} ${esc(unitOriginal)}</span><br/><strong style="color:#16a34a;">${doseCorrigida} ${esc(unitCorrigida)}</strong>`
+      : `${esc(ativo.dose)} ${esc(unitOriginal)}`;
     return `
       <tr>
         <td style="font-weight:600;">${esc(nomeAtivo)}</td>
-        <td style="text-align:center;">${esc(ativo.dose)} ${esc(ativo.unit || '')}</td>
+        <td style="text-align:center;">${doseCell}</td>
         <td style="text-align:center;font-weight:700;">${percentVD !== null ? percentVD + '%' : '**'}</td>
       </tr>`;
   }).join('');
@@ -350,9 +365,9 @@ function buildHTML(data: LaudoData): string {
 
   <!-- TABELA NUTRICIONAL -->
   <section>
-    <h2 class="section">4. Tabela Nutricional (RDC 429/2020)</h2>
+    <h2 class="section">4. Tabela Nutricional Corrigida (RDC 429/2020 · IN 28/2018)</h2>
     <div class="nutri">
-      <h3>INFORMAÇÃO NUTRICIONAL</h3>
+      <h3>INFORMAÇÃO NUTRICIONAL (CORRIGIDA)</h3>
       <table style="width:100%;">
         <thead>
           <tr>
@@ -365,6 +380,7 @@ function buildHTML(data: LaudoData): string {
       </table>
       <p style="font-size:7pt;margin:6px 0 0;font-style:italic;">* % Valores Diários com base em uma dieta de 2.000 kcal ou 8.400 kJ.</p>
       <p style="font-size:7pt;margin:2px 0 0;font-weight:700;">** VD NÃO ESTABELECIDO PELA ANVISA.</p>
+      <p style="font-size:7pt;margin:4px 0 0;color:#16a34a;font-weight:700;">⚙ Doses ajustadas automaticamente conforme limites máximos da IN 28/2018 e Painel ANVISA Power BI.</p>
     </div>
   </section>
 
