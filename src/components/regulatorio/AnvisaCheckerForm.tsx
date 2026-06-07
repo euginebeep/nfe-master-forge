@@ -28,6 +28,26 @@ const OUTPUT_TYPES = [
   { value: "TABELA", label: "Tabela nutricional" },
 ];
 
+const normalizeProductName = (value: unknown) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const uniqueProductsByName = (items: any[]) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const name = item?.nome || item?.produto || item?.name;
+    const key = normalizeProductName(name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void }) {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -238,6 +258,8 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         sugestao_capsulas: p.sugestao_capsulas || { n: 1, tamanho: '#00', frasco: 60, obs: '' },
       }));
 
+      produtos = uniqueProductsByName(produtos);
+
       const { data: { user } } = await supabase.auth.getUser();
       if (user && produtos) {
         const { data: profile } = await supabase
@@ -285,12 +307,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       toast({ 
         title: "Análise concluída", 
-        description: `${data.total_produtos} produto(s) analisado(s) com sucesso` 
-      });
-
-      toast({ 
-        title: "Análise concluída", 
-        description: `${data.total_produtos} produto(s) analisado(s) com sucesso` 
+        description: `${produtos.length} produto(s) analisado(s) com sucesso` 
       });
     } catch (error: any) {
       console.error(error);
