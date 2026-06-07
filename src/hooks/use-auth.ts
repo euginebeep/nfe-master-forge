@@ -72,7 +72,7 @@ export function useAuth() {
     } catch {
       toast.success('Login realizado com sucesso!');
     }
-    navigate('/');
+    navigate('/dashboard');
     return result;
   };
 
