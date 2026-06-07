@@ -7350,6 +7350,8 @@ export type Database = {
         | "operador"
         | "visualizador"
         | "saas_owner"
+        | "saas_suporte"
+        | "saas_financeiro"
       nivel_alerta: "CRITICO" | "ALTO" | "MEDIO" | "BAIXO"
       severidade_anomalia: "CRITICA" | "ALTA" | "MEDIA" | "BAIXA" | "INFO"
       status_formula_industrial: "RASCUNHO" | "APROVADA" | "BLOQUEADA"
@@ -7571,6 +7573,8 @@ export const Constants = {
         "operador",
         "visualizador",
         "saas_owner",
+        "saas_suporte",
+        "saas_financeiro",
       ],
       nivel_alerta: ["CRITICO", "ALTO", "MEDIO", "BAIXO"],
       severidade_anomalia: ["CRITICA", "ALTA", "MEDIA", "BAIXA", "INFO"],
