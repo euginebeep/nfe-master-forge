@@ -90,6 +90,28 @@ function buildHTML(data: LaudoData): string {
         <td style="text-align:center;font-weight:700;">${percentVD !== null ? percentVD + '%' : '**'}</td>
       </tr>`;
   }).join('');
+127: 
+128:   const resumoTecnicoRows = (data.ativos || []).filter((ativo: any) => {
+129:     const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+130:     const limit = key ? ANVISA_LIMITS[key] : null;
+131:     const doseOriginal = parseFloat(ativo.dose) || 0;
+132:     return limit && limit.auth && limit.max != null && doseOriginal > limit.max;
+133:   }).map((ativo: any) => {
+134:     const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+135:     const limit = ANVISA_LIMITS[key];
+136:     const nomeAtivo = ativo.nome || ativo.name || '-';
+137:     const doseOriginal = parseFloat(ativo.dose);
+138:     const unitOriginal = ativo.unit || '';
+139:     const doseCorrigida = limit.max;
+140:     const unitCorrigida = limit.unit;
+141:     return `
+142:       <tr>
+143:         <td style="font-weight:600;">${esc(nomeAtivo)}</td>
+144:         <td style="text-align:center;color:#666;text-decoration:line-through;">${esc(doseOriginal)} ${esc(unitOriginal)}</td>
+145:         <td style="text-align:center;color:#16a34a;font-weight:700;">${esc(doseCorrigida)} ${esc(unitCorrigida)}</td>
+146:         <td style="font-size:9px;color:#555;">Teto IN 28/2018 (${limit.max} ${limit.unit})</td>
+147:       </tr>`;
+148:   }).join('');
 
   const alertasHTML = (data.alertas || []).map(a => {
     const colors = a.tipo === 'err'
