@@ -351,9 +351,10 @@ export default function SaasDashboardPage() {
                         </TableCell>
                         <TableCell>
                           {c.tickets_abertos > 0 ? (
-                            <Badge variant="warning" className="animate-pulse">1 Ticket</Badge>
+                            <Badge variant="outline" className="animate-pulse bg-warning/10 text-warning border-warning/20">1 Ticket</Badge>
                           ) : <span className="text-xs text-muted-foreground italic">Limpo</span>}
                         </TableCell>
+
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" onClick={() => setDetailCompany(c)}><Eye className="h-4 w-4" /></Button>
@@ -383,8 +384,9 @@ export default function SaasDashboardPage() {
                      <Card className="p-4 border-primary/20 bg-primary/5">
                         <div className="flex justify-between items-start mb-2">
                            <Badge>Gemini 2.0 Flash</Badge>
-                           <Badge variant="success" className="text-[10px]">PADRÃO</Badge>
+                           <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20">PADRÃO</Badge>
                         </div>
+
                         <p className="text-xs text-muted-foreground mb-4">Modelo primário para extração ANVISA e análise de Fichas Técnicas.</p>
                         <Button variant="outline" size="sm" className="w-full">Configurar Tokens</Button>
                      </Card>
