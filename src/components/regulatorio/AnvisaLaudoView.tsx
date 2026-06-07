@@ -221,9 +221,9 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Tabela Nutricional (RDC 429/2020)</h3>
+          <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Tabela Nutricional Corrigida (RDC 429/2020 · IN 28/2018)</h3>
           <div className="border-2 border-black p-4 rounded-none bg-white max-w-md mx-auto shadow-sm text-black font-sans">
-            <h4 className="text-center font-black text-xl border-b-2 border-black pb-1 mb-2 tracking-tighter italic">INFORMAÇÃO NUTRICIONAL</h4>
+            <h4 className="text-center font-black text-xl border-b-2 border-black pb-1 mb-2 tracking-tighter italic">INFORMAÇÃO NUTRICIONAL (CORRIGIDA)</h4>
             <div className="border-2 border-black">
               <div className="flex justify-between items-center border-b-2 border-black bg-white px-2 py-1 font-bold text-[10px] uppercase">
                 <span className="w-1/2 border-r-2 border-black pr-2">Nutriente</span>
@@ -235,19 +235,37 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                 {data.ativos.map((ativo, i) => {
                   const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
                   const vdRef = key ? VD_REFERENCE[key] : null;
+                  const limit = key ? ANVISA_LIMITS[key] : null;
                   const nomeAtivo = ativo.nome || ativo.name || 'Indefinido';
-                  let doseMg = parseFloat(ativo.dose) || 0;
-                  
-                  const unit = (ativo.unit || '').toLowerCase();
-                  if (unit === 'mcg') doseMg /= 1000;
-                  if (unit === 'g') doseMg *= 1000;
-                  
+                  const doseOriginal = parseFloat(ativo.dose) || 0;
+                  const unitOriginal = ativo.unit || '';
+                  let doseCorrigida = doseOriginal;
+                  let unitCorrigida = unitOriginal;
+                  let corrigido = false;
+                  if (limit && limit.auth && limit.max != null && doseOriginal > limit.max) {
+                    doseCorrigida = limit.max;
+                    unitCorrigida = limit.unit;
+                    corrigido = true;
+                  }
+                  let doseMg = doseCorrigida;
+                  const u = (unitCorrigida || '').toLowerCase();
+                  if (u === 'mcg') doseMg /= 1000;
+                  if (u === 'g') doseMg *= 1000;
                   const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
 
                   return (
                     <div key={i} className="flex justify-between items-center text-[11px] font-bold">
                       <span className="w-1/2 border-r-2 border-black px-2 py-1">{nomeAtivo}</span>
-                      <span className="w-1/4 border-r-2 border-black px-2 py-1 text-center">{ativo.dose} {ativo.unit}</span>
+                      <span className="w-1/4 border-r-2 border-black px-2 py-1 text-center">
+                        {corrigido ? (
+                          <>
+                            <span className="line-through text-gray-400 font-medium block">{ativo.dose} {unitOriginal}</span>
+                            <span className="text-green-600">{doseCorrigida} {unitCorrigida}</span>
+                          </>
+                        ) : (
+                          <>{ativo.dose} {ativo.unit}</>
+                        )}
+                      </span>
                       <span className="w-1/4 px-2 py-1 text-center">
                         {percentVD !== null ? `${percentVD}%` : '**'}
                       </span>
@@ -263,6 +281,9 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
               </p>
               <p className="text-[8px] text-black font-bold uppercase">
                 ** VD não estabelecido pela ANVISA.
+              </p>
+              <p className="text-[8px] text-green-700 font-bold">
+                ⚙ Doses ajustadas automaticamente conforme limites máximos da IN 28/2018 e Painel ANVISA Power BI.
               </p>
             </div>
           </div>
