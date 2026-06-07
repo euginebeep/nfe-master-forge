@@ -508,21 +508,40 @@ Retorne JSON com:
 
       // Montar conteúdo para a IA com base no tipo de arquivo
       let fileContent = '';
+      let totalEntriesInZip = 0;
       if (fileBase64 && fileType === 'image') {
         fileContent = '[imagem anexada para análise visual]';
       } else if (fileBase64) {
         try {
-          const bytes = Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0));
-          const decoder = new TextDecoder('utf-8', { fatal: false });
-          const rawText = decoder.decode(bytes);
-          
-          if (rawText.length > 100) {
-            fileContent = rawText.replace(/[^\x20-\x7E\n\r\t]/g, ' ').substring(0, 30000);
+          const bytes = base64ToUint8Array(fileBase64);
+
+          if (fileType === 'zip' || fileName.toLowerCase().endsWith('.zip')) {
+            const entries = await extractZipContents(bytes);
+            totalEntriesInZip = entries.length;
+            console.log(`[anvisa-ai-verify] ZIP "${fileName}" → ${entries.length} arquivos extraídos`);
+            if (entries.length === 0) {
+              fileContent = '[ZIP vazio ou sem arquivos suportados (.docx/.pdf/.txt)]';
+            } else {
+              fileContent = entries
+                .map((e, i) => `===== PRODUTO ${i + 1} / ${entries.length} — ARQUIVO: ${e.file} =====\n${e.content}`)
+                .join('\n\n');
+              // Limite total de payload enviado para a IA
+              if (fileContent.length > 250000) fileContent = fileContent.slice(0, 250000) + '\n\n[...conteúdo truncado por limite de tamanho...]';
+            }
+          } else if (fileType === 'docx' || fileName.toLowerCase().endsWith('.docx')) {
+            fileContent = await extractDocxText(bytes);
+            if (!fileContent) fileContent = '[DOCX sem texto extraível]';
           } else {
-            fileContent = `[Arquivo binário ${fileType} de ${bytes.length} bytes]`;
+            const rawText = decodePlainText(bytes);
+            if (rawText.length > 100) {
+              fileContent = rawText.replace(/[^\x20-\x7E\n\r\t\u00C0-\u017F]/g, ' ').substring(0, 60000);
+            } else {
+              fileContent = `[Arquivo binário ${fileType} de ${bytes.length} bytes — extração de texto não disponível]`;
+            }
           }
-        } catch (e) {
-          fileContent = `[Erro ao ler conteúdo: ${e.message}]`;
+        } catch (e: any) {
+          console.error('[anvisa-ai-verify] erro extraindo arquivo:', e?.message || e);
+          fileContent = `[Erro ao ler conteúdo: ${e?.message || e}]`;
         }
       }
 
