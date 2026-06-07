@@ -22,15 +22,18 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
 
-    // Verify caller is admin
+    // Verify caller is admin or SaaS role
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } })
     const { data: { user: callingUser }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !callingUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const { data: isAdmin } = await supabaseClient.rpc('has_role', { _user_id: callingUser.id, _role: 'admin' })
-    if (!isAdmin) {
+    const { data: userRoles } = await supabaseClient.from('user_roles').select('role').eq('user_id', callingUser.id)
+    const roles = userRoles?.map(r => r.role) || []
+    const isSaasAdmin = roles.some(r => ['admin', 'saas_owner', 'saas_suporte', 'saas_financeiro'].includes(r))
+
+    if (!isSaasAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url)
     const action = url.searchParams.get('action') || 'list'
 
-    // ─── LIST: Get all companies with user counts ───
+    // ─── LIST: Get all companies with extended SaaS data ───
     if (action === 'list') {
       const { data: companies, error: compErr } = await supabaseAdmin
         .from('company')
@@ -48,22 +51,22 @@ Deno.serve(async (req) => {
 
       if (compErr) throw compErr
 
-      // Get user counts per company
       const { data: profiles } = await supabaseAdmin
         .from('profiles')
         .select('id, company_id, nome_completo, status, ultimo_acesso, created_at')
 
-      // Get all auth users to get emails
       const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-
       const emailMap = new Map<string, string>()
       authUsers?.forEach(u => emailMap.set(u.id, u.email || ''))
 
-      // Build company data with user info
+      // Support info
+      const { data: tickets } = await supabaseAdmin.from('saas_tickets').select('id, company_id, status')
+      
       const companyData = (companies || []).map(c => {
         const companyProfiles = (profiles || []).filter(p => p.company_id === c.id)
         const ownerProfile = companyProfiles[0]
         const ownerEmail = ownerProfile ? emailMap.get(ownerProfile.id) || '' : ''
+        const companyTickets = (tickets || []).filter(t => t.company_id === c.id)
 
         return {
           ...c,
@@ -74,6 +77,7 @@ Deno.serve(async (req) => {
             if (!p.ultimo_acesso) return latest
             return !latest || p.ultimo_acesso > latest ? p.ultimo_acesso : latest
           }, null as string | null),
+          tickets_abertos: companyTickets.filter(t => t.status === 'ABERTO').length,
           usuarios: companyProfiles.map(p => ({
             id: p.id,
             nome: p.nome_completo,
@@ -85,10 +89,8 @@ Deno.serve(async (req) => {
         }
       })
 
-      // Enrich with Stripe subscription data if key available
       if (stripeKey) {
         const stripe = new Stripe(stripeKey, { apiVersion: '2025-08-27.basil' })
-
         for (const company of companyData) {
           if (!company.owner_email) continue
           try {
@@ -98,63 +100,15 @@ Deno.serve(async (req) => {
               const subs = await stripe.subscriptions.list({ customer: customerId, limit: 1 })
               if (subs.data.length > 0) {
                 const sub = subs.data[0]
-                const priceId = sub.items.data[0]?.price?.id || ''
-                let planName = 'Desconhecido'
-                if (priceId === 'price_1T4q2mBGcvy35NE3xWhv0tBh') planName = 'Mensal'
-                else if (priceId === 'price_1T4rJtBGcvy35NE3pvwpmVfP') planName = 'Semestral'
-                else if (priceId === 'price_1T4rd3BGcvy35NE3zs2T6e4n') planName = 'Anual'
-
                 company.stripe = {
                   status: sub.status,
-                  plan: planName,
+                  plan: sub.items.data[0]?.price?.nickname || 'Premium',
                   current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
                   cancel_at_period_end: sub.cancel_at_period_end,
-                  trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
-                  amount: sub.items.data[0]?.price?.unit_amount || 0,
-                  currency: sub.items.data[0]?.price?.currency || 'brl',
-                }
-              } else {
-                // Check if in trial (account created < 14 days ago)
-                const createdAt = new Date(company.created_at)
-                const now = new Date()
-                const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
-                company.stripe = {
-                  status: daysSinceCreation <= 14 ? 'trialing' : 'expired',
-                  plan: null,
-                  trial_days_remaining: Math.max(0, 14 - daysSinceCreation),
                 }
               }
-            } else {
-              const createdAt = new Date(company.created_at)
-              const now = new Date()
-              const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
-              company.stripe = {
-                status: daysSinceCreation <= 14 ? 'trialing' : 'expired',
-                plan: null,
-                trial_days_remaining: Math.max(0, 14 - daysSinceCreation),
-              }
             }
-          } catch (stripeErr) {
-            console.error('Stripe error for', company.owner_email, stripeErr)
-            company.stripe = { status: 'unknown', plan: null }
-          }
-        }
-      }
-
-      // Override status if admin granted temporary access
-      const now = new Date()
-      for (const company of companyData) {
-        if (company.acesso_liberado_ate) {
-          const liberadoAte = new Date(company.acesso_liberado_ate)
-          if (liberadoAte > now) {
-            const daysRemaining = Math.ceil((liberadoAte.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-            company.stripe = {
-              ...(company.stripe || {}),
-              status: 'active',
-              plan: `Liberado (${daysRemaining}d)`,
-              current_period_end: company.acesso_liberado_ate,
-            }
-          }
+          } catch (e) { console.error(e) }
         }
       }
 
@@ -163,93 +117,58 @@ Deno.serve(async (req) => {
       })
     }
 
-    // ─── BLOCK/UNBLOCK company users ───
-    if (action === 'block' || action === 'unblock') {
-      const body = await req.json()
-      const { company_id } = body
-      if (!company_id) {
-        return new Response(JSON.stringify({ error: 'company_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
-
-      const newStatus = action === 'block' ? 'BLOQUEADO' : 'ATIVO'
-      const { error: updateErr } = await supabaseAdmin
-        .from('profiles')
-        .update({ status: newStatus })
-        .eq('company_id', company_id)
-
-      if (updateErr) throw updateErr
-
-      return new Response(JSON.stringify({ success: true, status: newStatus }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    // ─── TICKETS: List and manage tickets ───
+    if (action === 'list-tickets') {
+      const { data: tickets, error } = await supabaseAdmin
+        .from('saas_tickets')
+        .select('*, company:company(razao_social, nome_fantasia)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return new Response(JSON.stringify({ tickets }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // ─── DELETE company and all its users ───
-    if (action === 'delete-company') {
-      const body = await req.json()
-      const { company_id } = body
-      if (!company_id) {
-        return new Response(JSON.stringify({ error: 'company_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
-
-      // Don't allow deleting own company
-      const { data: callerProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('company_id')
-        .eq('id', callingUser.id)
-        .single()
-
-      if (callerProfile?.company_id === company_id) {
-        return new Response(JSON.stringify({ error: 'Não é possível excluir sua própria empresa' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
-
-      // Get all users of this company
-      const { data: companyUsers } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('company_id', company_id)
-
-      // Delete each user from auth (cascades to profiles, roles, permissions)
-      for (const u of (companyUsers || [])) {
-        await supabaseAdmin.auth.admin.deleteUser(u.id)
-      }
-
-      // Delete company record
-      await supabaseAdmin.from('company').delete().eq('id', company_id)
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    if (action === 'update-ticket') {
+      const { id, status, atribuido_a } = await req.json()
+      const { data, error } = await supabaseAdmin
+        .from('saas_tickets')
+        .update({ status, atribuido_a, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+      return new Response(JSON.stringify({ success: true, data }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // ─── GRANT ACCESS: Temporarily unlock a company ───
-    if (action === 'grant-access') {
+    // ─── AI CONFIG: Get and update models ───
+    if (action === 'list-ai-configs') {
+      const { data: configs, error } = await supabaseAdmin.from('saas_ai_config').select('*').order('created_at', { ascending: false })
+      if (error) throw error
+      return new Response(JSON.stringify({ configs }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    // Existing actions (block, unblock, delete-company, grant-access)
+    if (['block', 'unblock', 'delete-company', 'grant-access'].includes(action)) {
       const body = await req.json()
-      const { company_id, days } = body
-      if (!company_id) {
-        return new Response(JSON.stringify({ error: 'company_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      const { company_id } = body
+      
+      if (action === 'block' || action === 'unblock') {
+        const newStatus = action === 'block' ? 'BLOQUEADO' : 'ATIVO'
+        await supabaseAdmin.from('profiles').update({ status: newStatus }).eq('company_id', company_id)
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
 
-      const grantDays = days || 30
-      const until = new Date()
-      until.setDate(until.getDate() + grantDays)
+      if (action === 'grant-access') {
+        const { days } = body
+        const until = new Date()
+        until.setDate(until.getDate() + (days || 30))
+        await supabaseAdmin.from('company').update({ acesso_liberado_ate: until.toISOString() }).eq('id', company_id)
+        return new Response(JSON.stringify({ success: true, until: until.toISOString() }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
 
-      const { error: updateErr } = await supabaseAdmin
-        .from('company')
-        .update({ acesso_liberado_ate: until.toISOString() })
-        .eq('id', company_id)
-
-      if (updateErr) throw updateErr
-
-      // Also unblock users if they were blocked
-      await supabaseAdmin
-        .from('profiles')
-        .update({ status: 'ATIVO' })
-        .eq('company_id', company_id)
-
-      return new Response(JSON.stringify({ success: true, acesso_liberado_ate: until.toISOString(), days: grantDays }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      if (action === 'delete-company') {
+        const { data: profiles } = await supabaseAdmin.from('profiles').select('id').eq('company_id', company_id)
+        for (const p of (profiles || [])) await supabaseAdmin.auth.admin.deleteUser(p.id)
+        await supabaseAdmin.from('company').delete().eq('id', company_id)
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
     }
 
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
