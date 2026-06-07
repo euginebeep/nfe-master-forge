@@ -47,7 +47,7 @@ export function MainLayout() {
           </motion.main>
         </div>
         <ChatGlobalProvider />
-        <BrainX ERPAssistente />
+        <BrainXERPAssistente />
         <OnboardingWalkthrough />
       </div>
     </SidebarProvider>
