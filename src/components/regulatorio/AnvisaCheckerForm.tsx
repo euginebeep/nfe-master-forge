@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Upload, FileArchive, FileText, Image as ImageIcon, X, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Upload, FileArchive, FileText, Image as ImageIcon, X, CheckCircle2, Loader2, AlertCircle, FileSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveAnvisaKey } from "@/lib/anvisa-limits";
+import JSZip from "jszip";
+
 
 
 const AUDIENCES = [
@@ -59,7 +61,10 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   const [analyzing, setAnalyzing] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [errorDetails, setErrorDetails] = useState<{ message: string; step: string } | null>(null);
+  const [zipContents, setZipContents] = useState<string[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const steps = [
     "📂 Extraindo dados do arquivo...",
@@ -97,7 +102,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     }
   };
 
-  const handleFileSelection = (selectedFile: File) => {
+  const handleFileSelection = async (selectedFile: File) => {
     const validTypes = [
       'application/zip', 
       'application/x-zip-compressed',
@@ -128,6 +133,63 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       return;
     }
 
+    setZipContents([]);
+    
+    // Validação específica para ZIP
+    if (selectedFile.type.includes('zip') || selectedFile.name.endsWith('.zip')) {
+      setIsValidating(true);
+      try {
+        const zip = await JSZip.loadAsync(selectedFile);
+        const filesFound: string[] = [];
+        const supportedExtensions = ['.docx', '.pdf', '.txt', '.md', '.csv', '.json', '.xml', '.html'];
+        
+        Object.keys(zip.files).forEach(filename => {
+          const entry = zip.files[filename];
+          if (!entry.dir && !filename.startsWith('__MACOSX/') && !filename.endsWith('.DS_Store')) {
+            const lowerName = filename.toLowerCase();
+            if (supportedExtensions.some(ext => lowerName.endsWith(ext))) {
+              filesFound.push(filename);
+            }
+          }
+        });
+
+        if (filesFound.length === 0) {
+          toast({
+            variant: "destructive",
+            title: "ZIP Inválido",
+            description: "O arquivo ZIP deve conter pelo menos um documento válido (.docx, .pdf, .txt)."
+          });
+          setIsValidating(false);
+          return;
+        }
+        
+        // Verifica se há algo que pareça um briefing ou ficha técnica (recomendação)
+        const hasBriefing = filesFound.some(f => 
+          f.toLowerCase().includes('briefing') || 
+          f.toLowerCase().includes('ficha') || 
+          f.toLowerCase().includes('formula')
+        );
+
+        if (!hasBriefing) {
+          toast({
+            title: "Aviso de conteúdo",
+            description: "Nenhum arquivo 'Briefing' ou 'Ficha Técnica' identificado no ZIP. A análise pode ser incompleta.",
+          });
+        }
+
+        setZipContents(filesFound);
+      } catch (err) {
+        toast({
+          variant: "destructive",
+          title: "Erro ao ler ZIP",
+          description: "Não foi possível processar o conteúdo do arquivo ZIP."
+        });
+        setIsValidating(false);
+        return;
+      }
+      setIsValidating(false);
+    }
+
     setFile(selectedFile);
     if (selectedFile.type.startsWith('image/')) {
       const url = URL.createObjectURL(selectedFile);
@@ -136,6 +198,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       setPreviewUrl(null);
     }
   };
+
 
   const getFileIcon = () => {
     if (previewUrl) return <img src={previewUrl} className="w-48 h-48 object-cover rounded-3xl mb-4 shadow-2xl ring-4 ring-primary/20 animate-in zoom-in duration-500" alt="Preview" />;
@@ -149,15 +212,20 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
   const getChipInfo = () => {
     if (!file) return null;
-    if (file.type.includes('zip')) {
-      // Estimar produtos pelo tamanho do zip ou apenas mostrar placeholder
-      return { text: "📦 Produtos detectados no ZIP", variant: "default" };
+    if (file.type.includes('zip') || file.name.endsWith('.zip')) {
+      return { 
+        text: zipContents.length > 0 
+          ? `📦 ${zipContents.length} produto(s) detectados` 
+          : "📦 Processando ZIP...", 
+        variant: "default" 
+      };
     }
     if (file.name.endsWith('.docx')) return { text: "📄 Briefing individual", variant: "secondary" };
     if (file.type === 'application/pdf') return { text: "📋 Ficha técnica PDF", variant: "secondary" };
     if (file.type.includes('image')) return { text: "📷 Análise por visão computacional", variant: "outline" };
     return null;
   };
+
 
   const handleCheckNow = async () => {
     if (!file) return;
@@ -330,8 +398,10 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     e.stopPropagation();
     setFile(null);
     setPreviewUrl(null);
+    setZipContents([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -371,7 +441,11 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
               "p-6 rounded-full bg-background shadow-xl mb-4 transition-transform group-hover:scale-110 duration-500",
               file ? "text-green-500" : "text-primary"
             )}>
-              {getFileIcon()}
+              {isValidating ? (
+                <Loader2 className="w-20 h-20 animate-spin text-primary mb-4" />
+              ) : (
+                getFileIcon()
+              )}
             </div>
             
             {!file ? (
@@ -386,9 +460,22 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
                   {file.name}
                 </h3>
                 <p className="text-muted-foreground">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                {zipContents.length > 0 && (
+                  <div className="mt-4 max-h-32 overflow-y-auto text-xs text-muted-foreground text-left bg-muted/30 p-3 rounded-lg border border-muted/50 w-full max-w-sm">
+                    <p className="font-bold mb-1 flex items-center gap-1">
+                      <FileSearch className="w-3 h-3" /> Arquivos para análise:
+                    </p>
+                    <ul className="list-disc list-inside space-y-0.5">
+                      {zipContents.map((f, i) => (
+                        <li key={i} className="truncate">{f.split('/').pop()}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
+
         </div>
 
         {file && (
