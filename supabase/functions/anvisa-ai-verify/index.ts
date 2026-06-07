@@ -606,14 +606,18 @@ ESTRUTURA DO JSON DE RETORNO:
   ]
 }`;
 
+      const contagemHint = totalEntriesInZip > 0
+        ? `O servidor já extraiu ${totalEntriesInZip} arquivos do ZIP. Você DEVE retornar EXATAMENTE ${totalEntriesInZip} objetos no array "produtos" — um para cada bloco "===== PRODUTO N / ${totalEntriesInZip} =====" abaixo. NUNCA agrupe, resuma ou omita produtos.`
+        : 'Analise TODOS os produtos contidos no conteúdo abaixo. Se houver múltiplas fórmulas, retorne UM objeto por produto no array "produtos".';
+
       const userMessage = `Arquivo: ${fileName} (${fileType}). Cliente: ${cliente}. Público: ${publico}.
-      
+
+${contagemHint}
+
 CONTEÚDO EXTRAÍDO:
 ${fileContent}
 
-IMPORTANTE: Analise TODOS os produtos contidos no conteúdo acima. Se o arquivo for um ZIP com vários briefings ou um documento com múltiplas fórmulas, você DEVE extrair e retornar a análise de CADA produto individualmente no array "produtos". Não resuma, não ignore e não agrupe produtos diferentes. Se houver 10 produtos, retorne 10 objetos no array "produtos".
-
-Retorne APENAS o JSON conforme a estrutura do sistema.`;
+Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" DEVE bater com a quantidade real de objetos em "produtos".`;
 
       const messages = [
         { role: 'system', content: systemPrompt },
