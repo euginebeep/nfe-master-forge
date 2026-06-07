@@ -9,6 +9,25 @@ import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { cn } from "@/lib/utils";
 
+const normalizeProductName = (value: unknown) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const uniqueProductsByName = (items: any[] = []) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = normalizeProductName(item?.nome || item?.produto || item?.name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 interface AnvisaLaudoViewProps {
   data: {
     status_geral: string;
@@ -29,6 +48,7 @@ interface AnvisaLaudoViewProps {
 
 export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset, onSelectProduct }) => {
   const handlePrint = () => window.print();
+  const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
 
   const handleExportLaudo = () => {
     try {
@@ -66,14 +86,14 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
       </div>
 
       <div id="laudo-content" className="space-y-8 bg-background p-8 border rounded-lg shadow-sm">
-        {data.multiplos_produtos && data.multiplos_produtos.length > 1 && (
+        {produtosUnicos.length > 1 && (
           <section className="print:hidden mb-8 border-b pb-6">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <FileCode className="w-5 h-5 text-primary" /> 
-              Todos os Produtos Checados ({data.multiplos_produtos.length})
+              Todos os Produtos Checados ({produtosUnicos.length})
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {data.multiplos_produtos.map((p, idx) => {
+              {produtosUnicos.map((p, idx) => {
                 const isSelected = data.produto === (p.nome || p.produto);
                 return (
                   <Button 
