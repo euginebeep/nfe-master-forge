@@ -54,8 +54,8 @@ export default defineConfig(({ mode }) => ({
         importScripts: ["/sw-cache-purge.js"],
       },
       manifest: {
-        name: "BrainxERP - Gestão Industrial",
-        short_name: "BrainxERP",
+        name: "BrainX ERP - Gestão Industrial",
+        short_name: "BrainX ERP",
         description: "Sistema de gestão empresarial e industrial para indústrias de suplementos e nutracêuticos",
         start_url: "/",
         display: "standalone",

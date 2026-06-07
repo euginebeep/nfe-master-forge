@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
-  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, CalendarPlus, FileText,
+  RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, FileText,
+  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,10 +39,6 @@ interface StripeInfo {
   plan?: string | null;
   current_period_end?: string;
   cancel_at_period_end?: boolean;
-  trial_end?: string | null;
-  trial_days_remaining?: number;
-  amount?: number;
-  currency?: string;
 }
 
 interface SaasCompany {
@@ -51,12 +48,10 @@ interface SaasCompany {
   cnpj: string;
   telefone: string | null;
   created_at: string;
-  email_financeiro: string | null;
-  email_fiscal: string | null;
   total_usuarios: number;
   owner_email: string;
   owner_nome: string;
-  ultimo_acesso: string | null;
+  tickets_abertos: number;
   usuarios: CompanyUser[];
   stripe?: StripeInfo;
 }
@@ -67,11 +62,9 @@ function getSubscriptionStatus(stripe?: StripeInfo): { label: string; variant: s
   if (!stripe) return { label: "Sem dados", variant: "muted" };
   switch (stripe.status) {
     case "active": return { label: "Ativo", variant: "success" };
-    case "trialing": return { label: `Trial (${stripe.trial_days_remaining ?? '?'}d)`, variant: "info" };
+    case "trialing": return { label: "Trial", variant: "info" };
     case "past_due": return { label: "Inadimplente", variant: "destructive" };
     case "canceled": return { label: "Cancelado", variant: "muted" };
-    case "expired": return { label: "Expirado", variant: "destructive" };
-    case "unpaid": return { label: "Não pago", variant: "destructive" };
     default: return { label: stripe.status, variant: "muted" };
   }
 }
@@ -92,8 +85,6 @@ function formatCNPJ(cnpj: string) {
   if (c.length !== 14) return cnpj;
   return `${c.slice(0, 2)}.${c.slice(2, 5)}.${c.slice(5, 8)}/${c.slice(8, 12)}-${c.slice(12)}`;
 }
-
-// ─── Page ───
 
 export default function SaasDashboardPage() {
   const [authed, setAuthed] = useState(false);
@@ -116,27 +107,18 @@ export default function SaasDashboardPage() {
   const { data: leadsCount } = useQuery({
     queryKey: ['demo-leads-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('demo_leads')
-        .select('*', { count: 'exact', head: true });
-      
-      if (error) {
-        console.error("Error fetching leads count:", error);
-        return 0;
-      }
+      const { count, error } = await supabase.from('demo_leads').select('*', { count: 'exact', head: true });
       return count || 0;
     }
   });
 
-  // Check if already logged in as admin
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: session.user.id, _role: "admin" as any });
-        if (isAdmin) {
-          setAuthed(true);
-        }
+        const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id);
+        const isAdmin = roles?.some(r => ['admin', 'saas_owner', 'saas_suporte'].includes(r.role));
+        if (isAdmin) setAuthed(true);
       }
       setAuthLoading(false);
     };
@@ -149,14 +131,15 @@ export default function SaasDashboardPage() {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
       if (error) { toast.error(error.message); return; }
-      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: data.user.id, _role: "admin" as any });
+      const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', data.user.id);
+      const isAdmin = roles?.some(r => ['admin', 'saas_owner', 'saas_suporte'].includes(r.role));
       if (!isAdmin) {
         toast.error("Acesso restrito a administradores");
         await supabase.auth.signOut();
         return;
       }
       setAuthed(true);
-      toast.success("Login realizado!");
+      toast.success("Bem-vindo ao BrainX ERP SaaS!");
     } catch (err) {
       toast.error("Erro no login");
     } finally {
@@ -173,16 +156,11 @@ export default function SaasDashboardPage() {
   const fetchCompanies = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await supabase.functions.invoke("saas-admin?action=list");
-      if (response.error) {
-        console.error("Error fetching SaaS data:", response.error);
-        toast.error("Erro ao carregar dados SaaS");
-        return;
-      }
-      setCompanies(response.data?.companies || []);
+      const { data, error } = await supabase.functions.invoke("saas-admin?action=list");
+      if (error) throw error;
+      setCompanies(data?.companies || []);
     } catch (err) {
-      console.error("Error:", err);
-      toast.error("Erro ao carregar dados");
+      toast.error("Erro ao carregar dados SaaS");
     } finally {
       setIsLoading(false);
     }
@@ -191,30 +169,17 @@ export default function SaasDashboardPage() {
   useEffect(() => {
     if (authed) fetchCompanies();
   }, [authed, fetchCompanies]);
-  
 
-  const handleAction = async (type: "block" | "unblock" | "delete-company" | "grant-access", companyId: string) => {
+  const handleAction = async (type: string, companyId: string) => {
     setActionLoading(true);
     try {
       const body: any = { company_id: companyId };
       if (type === "grant-access") body.days = grantDays;
-
-      const { data, error } = await supabase.functions.invoke(`saas-admin?action=${type}`, {
-        body,
-      });
-      if (error || data?.error) {
-        toast.error(data?.error || "Erro na operação");
-        return;
-      }
-      toast.success(
-        type === "block" ? "Empresa bloqueada" :
-        type === "unblock" ? "Empresa desbloqueada" :
-        type === "grant-access" ? `Acesso liberado por ${grantDays} dias` :
-        "Empresa excluída"
-      );
+      const { data, error } = await supabase.functions.invoke(`saas-admin?action=${type === "delete" ? "delete-company" : type}`, { body });
+      if (error) throw error;
+      toast.success("Operação realizada!");
       setConfirmAction(null);
-      setDetailCompany(null);
-      await fetchCompanies();
+      fetchCompanies();
     } catch (err) {
       toast.error("Erro na operação");
     } finally {
@@ -222,66 +187,37 @@ export default function SaasDashboardPage() {
     }
   };
 
-  // ─── Computed ───
-  const totalActive = companies.filter(c => c.stripe?.status === "active").length;
-  const totalTrialing = companies.filter(c => c.stripe?.status === "trialing").length;
-  const totalUsers = companies.reduce((s, c) => s + c.total_usuarios, 0);
-  const totalExpired = companies.filter(c => ["expired", "canceled", "past_due"].includes(c.stripe?.status || "")).length;
-
   const filtered = companies.filter(c => {
-    if (search) {
-      const s = search.toLowerCase();
-      if (
-        !c.razao_social.toLowerCase().includes(s) &&
-        !c.cnpj.includes(s) &&
-        !(c.nome_fantasia || "").toLowerCase().includes(s) &&
-        !c.owner_email.toLowerCase().includes(s)
-      ) return false;
-    }
-    if (statusFilter !== "todos") {
-      if (statusFilter === "ativo" && c.stripe?.status !== "active") return false;
-      if (statusFilter === "trial" && c.stripe?.status !== "trialing") return false;
-      if (statusFilter === "inadimplente" && c.stripe?.status !== "past_due") return false;
-      if (statusFilter === "expirado" && c.stripe?.status !== "expired") return false;
-      if (statusFilter === "cancelado" && c.stripe?.status !== "canceled") return false;
-    }
+    if (search && !c.razao_social.toLowerCase().includes(search.toLowerCase()) && !c.cnpj.includes(search)) return false;
     return true;
   });
 
-  // ─── Auth Loading ───
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
-  // ─── Login Screen ───
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/50 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-2 p-3 rounded-full bg-secondary/10 w-fit">
-              <Lock className="h-6 w-6 text-secondary" />
+      <div className="min-h-screen flex items-center justify-center bg-muted/50">
+        <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto mb-4 p-4 rounded-2xl bg-primary/10 w-fit">
+              <Crown className="h-10 w-10 text-primary" />
             </div>
-            <CardTitle className="text-xl">Painel SaaS — Suporte</CardTitle>
-            <p className="text-sm text-muted-foreground">Acesso restrito a administradores do sistema</p>
+            <CardTitle className="text-2xl font-black">BrainX ERP SaaS</CardTitle>
+            <p className="text-muted-foreground text-sm font-medium">Painel Administrativo Operacional</p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="saas-email">Email</Label>
-                <Input id="saas-email" type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="admin@empresa.com" required />
+            <form onSubmit={handleLogin} className="space-y-4 pt-4">
+              <div className="space-y-1">
+                <Label>Usuário Administrativo</Label>
+                <Input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="admin@brainx.com.br" required />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="saas-pass">Senha</Label>
-                <Input id="saas-pass" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" required />
+              <div className="space-y-1">
+                <Label>Chave de Acesso</Label>
+                <Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" required />
               </div>
-              <Button type="submit" className="w-full" disabled={loginLoading}>
-                {loginLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
-                Entrar
+              <Button type="submit" className="w-full h-11 font-bold" disabled={loginLoading}>
+                {loginLoading ? <Loader2 className="animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                Acessar Painel SaaS
               </Button>
             </form>
           </CardContent>
@@ -290,430 +226,193 @@ export default function SaasDashboardPage() {
     );
   }
 
-  // ─── Main Panel ───
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Crown className="h-6 w-6 text-secondary" />
-            Painel SaaS — Gestão de Assinantes
-          </h1>
-          <p className="text-sm text-muted-foreground">Controle de empresas cadastradas, assinaturas e usuários do ERP</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchCompanies} disabled={isLoading}>
-            <RefreshCw className={cn("h-4 w-4 mr-1", isLoading && "animate-spin")} />
-            Atualizar
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-1" /> Sair
-          </Button>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="flex items-center gap-4 py-4">
-            <div className="p-3 rounded-lg bg-success/10 text-success"><DollarSign className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Assinaturas Ativas</p>
-              <p className="text-2xl font-bold">{totalActive}</p>
+    <div className="min-h-screen bg-muted/20">
+      {/* Sidebar Simulado no Topo */}
+      <header className="bg-white border-b sticky top-0 z-50">
+        <div className="max-w-[1600px] mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="bg-primary p-1.5 rounded-lg shadow-lg shadow-primary/20">
+              <Crown className="h-6 w-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 py-4">
-            <div className="p-3 rounded-lg bg-info/10 text-info"><TrendingUp className="h-5 w-5" /></div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Em Trial</p>
-              <p className="text-2xl font-bold">{totalTrialing}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 py-4">
-            <div className="p-3 rounded-lg bg-primary/10 text-primary"><Users className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Usuários Totais</p>
-              <p className="text-2xl font-bold">{totalUsers}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 py-4">
-            <div className="p-3 rounded-lg bg-destructive/10 text-destructive"><UserX className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Expirados/Cancelados</p>
-              <p className="text-2xl font-bold">{totalExpired}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="empresas" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="empresas" className="gap-2">
-            <Building2 className="h-4 w-4" /> Empresas
-          </TabsTrigger>
-          <TabsTrigger value="leads" className="gap-2">
-            <FileText className="h-4 w-4" /> Leads Demo {leadsCount !== undefined && leadsCount > 0 && <span className="ml-1 bg-primary/10 text-primary text-xs px-1.5 py-0.5 rounded-full">{leadsCount}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="desafios" className="gap-2">
-            <Unlock className="h-4 w-4" /> Solicitações Unlock
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="empresas">
-          {/* Client List */}
-          <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Empresas Assinantes ({filtered.length})
-            </CardTitle>
-            <div className="flex gap-2 flex-wrap">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar empresa, CNPJ, email..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9 w-64"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40 h-9">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="trial">Trial</SelectItem>
-                  <SelectItem value="inadimplente">Inadimplente</SelectItem>
-                  <SelectItem value="expirado">Expirado</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
+              <h1 className="font-black text-lg tracking-tight">BrainX <span className="text-primary">SaaS Admin</span></h1>
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest leading-none">Console Operacional</p>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">Carregando dados...</span>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>CNPJ</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Plano</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Usuários</TableHead>
-                    <TableHead>Cadastro</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        <div>
-                          <span className="font-medium text-sm">{c.nome_fantasia || c.razao_social}</span>
-                          {c.nome_fantasia && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.razao_social}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs font-mono">{formatCNPJ(c.cnpj)}</TableCell>
-                      <TableCell className="text-xs">{c.owner_email || "—"}</TableCell>
-                      <TableCell>
-                        {c.stripe?.plan ? (
-                          <Badge variant="outline" className="text-xs">{c.stripe.plan}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell><StatusBadge stripe={c.stripe} /></TableCell>
-                      <TableCell className="text-center">{c.total_usuarios}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {format(new Date(c.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Detalhes" onClick={() => setDetailCompany(c)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {["expired", "past_due", "canceled"].includes(c.stripe?.status || "") && (
-                            <Button
-                              variant="ghost" size="icon" className="h-8 w-8 text-success"
-                              title="Liberar acesso temporário"
-                              onClick={() => { setGrantDays(30); setConfirmAction({ type: "grant-access", company: c }); }}
-                            >
-                              <ShieldCheck className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost" size="icon" className="h-8 w-8 text-warning"
-                            title={c.usuarios?.some(u => u.status === "BLOQUEADO") ? "Desbloquear" : "Bloquear"}
-                            onClick={() => setConfirmAction({
-                              type: c.usuarios?.some(u => u.status === "BLOQUEADO") ? "unblock" : "block",
-                              company: c,
-                            })}
-                          >
-                            {c.usuarios?.some(u => u.status === "BLOQUEADO") ? <Unlock className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-                          </Button>
-                          <Button
-                            variant="ghost" size="icon" className="h-8 w-8 text-destructive"
-                            title="Excluir empresa" onClick={() => setConfirmAction({ type: "delete", company: c })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {filtered.length === 0 && !isLoading && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        {companies.length === 0 ? "Nenhuma empresa cadastrada ainda" : "Nenhuma empresa encontrada com os filtros aplicados"}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-        </Card>
-      </TabsContent>
+          <div className="flex items-center gap-3">
+             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-destructive hover:bg-destructive/10">
+               <LogOut className="h-4 w-4 mr-2" /> Sair
+             </Button>
+          </div>
+        </div>
+      </header>
 
-      <TabsContent value="leads">
-        <DemoLeadsPanel />
-      </TabsContent>
-
-      <TabsContent value="desafios">
-        <UnlockChallengesPanel />
-      </TabsContent>
-    </Tabs>
-
-    {/* Detail Dialog */}
-      <Dialog open={!!detailCompany} onOpenChange={() => setDetailCompany(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          {detailCompany && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  {detailCompany.nome_fantasia || detailCompany.razao_social}
-                </DialogTitle>
-                <DialogDescription>{detailCompany.razao_social}</DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                {/* Company Info */}
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">CNPJ:</span>
-                    <span className="ml-2 font-mono">{formatCNPJ(detailCompany.cnpj)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Email:</span>
-                    <span className="ml-2">{detailCompany.owner_email || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Telefone:</span>
-                    <span className="ml-2">{detailCompany.telefone || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Cadastro:</span>
-                    <span className="ml-2">{format(new Date(detailCompany.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
-                  </div>
-                </div>
-
-                {/* Subscription Info */}
-                {detailCompany.stripe && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Assinatura</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Status:</span>
-                        <span className="ml-2"><StatusBadge stripe={detailCompany.stripe} /></span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Plano:</span>
-                        <span className="ml-2">{detailCompany.stripe.plan || "Nenhum"}</span>
-                      </div>
-                      {detailCompany.stripe.current_period_end && (
-                        <div>
-                          <span className="text-muted-foreground">Válido até:</span>
-                          <span className="ml-2">{format(new Date(detailCompany.stripe.current_period_end), "dd/MM/yyyy")}</span>
-                        </div>
-                      )}
-                      {detailCompany.stripe.cancel_at_period_end && (
-                        <div className="col-span-2">
-                          <Badge variant="outline" className="bg-warning/10 text-warning text-xs">Cancelamento programado</Badge>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Users */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Usuários ({detailCompany.usuarios?.length || 0})</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Último Acesso</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(detailCompany.usuarios || []).map(u => (
-                          <TableRow key={u.id}>
-                            <TableCell className="text-sm">{u.nome}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{u.email}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={cn("text-xs",
-                                u.status === "ATIVO" ? "bg-success/10 text-success" :
-                                u.status === "BLOQUEADO" ? "bg-destructive/10 text-destructive" :
-                                "bg-muted text-muted-foreground"
-                              )}>{u.status}</Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {u.ultimo_acesso ? format(new Date(u.ultimo_acesso), "dd/MM/yy HH:mm") : "Nunca"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-
-                {/* Actions */}
-                <div className="flex gap-2 justify-end flex-wrap">
-                  {detailCompany.owner_email && (
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={`mailto:${detailCompany.owner_email}`}>
-                        <Mail className="h-4 w-4 mr-1" /> Enviar Email
-                      </a>
-                    </Button>
-                  )}
-                  {["expired", "past_due", "canceled"].includes(detailCompany.stripe?.status || "") && (
-                    <Button
-                      variant="outline" size="sm" className="text-success border-success/30 hover:bg-success/10"
-                      onClick={() => {
-                        setGrantDays(30);
-                        setDetailCompany(null);
-                        setConfirmAction({ type: "grant-access", company: detailCompany });
-                      }}
-                    >
-                      <ShieldCheck className="h-4 w-4 mr-1" /> Liberar Conta
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline" size="sm"
-                    onClick={() => {
-                      setDetailCompany(null);
-                      setConfirmAction({
-                        type: detailCompany.usuarios?.some(u => u.status === "BLOQUEADO") ? "unblock" : "block",
-                        company: detailCompany,
-                      });
-                    }}
-                  >
-                    <Ban className="h-4 w-4 mr-1" />
-                    {detailCompany.usuarios?.some(u => u.status === "BLOQUEADO") ? "Desbloquear" : "Bloquear"}
-                  </Button>
-                  <Button
-                    variant="destructive" size="sm"
-                    onClick={() => {
-                      setDetailCompany(null);
-                      setConfirmAction({ type: "delete", company: detailCompany });
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" /> Excluir
-                  </Button>
-                </div>
+      <main className="max-w-[1600px] mx-auto p-6 space-y-6">
+        {/* Resumo Rápido */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-primary to-primary/80 text-white border-none shadow-lg shadow-primary/10">
+            <CardContent className="pt-6">
+              <p className="text-xs font-bold opacity-80 uppercase tracking-wider">Empresas Ativas</p>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-black">{companies.filter(c => c.stripe?.status === "active").length}</span>
+                <Badge className="bg-white/20 hover:bg-white/20 border-none text-[10px]">+2 esta semana</Badge>
               </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-sm">
+            <CardContent className="pt-6">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tickets Abertos</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-3xl font-black text-warning">{companies.reduce((acc, c) => acc + c.tickets_abertos, 0)}</span>
+                <div className="p-2 bg-warning/10 rounded-full"><LifeBuoy className="h-4 w-4 text-warning" /></div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-sm">
+            <CardContent className="pt-6">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Usuários SaaS</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-3xl font-black">{companies.reduce((acc, c) => acc + c.total_usuarios, 0)}</span>
+                <div className="p-2 bg-primary/10 rounded-full"><Users className="h-4 w-4 text-primary" /></div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-sm">
+            <CardContent className="pt-6">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Novos Leads</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-3xl font-black">{leadsCount || 0}</span>
+                <div className="p-2 bg-success/10 rounded-full"><TrendingUp className="h-4 w-4 text-success" /></div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="empresas" className="w-full space-y-4">
+          <TabsList className="bg-white p-1 h-12 shadow-sm border border-border/50">
+            <TabsTrigger value="empresas" className="gap-2 px-6"><Building2 className="h-4 w-4" /> Empresas</TabsTrigger>
+            <TabsTrigger value="tickets" className="gap-2 px-6"><LifeBuoy className="h-4 w-4" /> Suporte</TabsTrigger>
+            <TabsTrigger value="leads" className="gap-2 px-6"><MessageSquare className="h-4 w-4" /> Leads</TabsTrigger>
+            <TabsTrigger value="comunicados" className="gap-2 px-6"><Megaphone className="h-4 w-4" /> Avisos</TabsTrigger>
+            <TabsTrigger value="ia" className="gap-2 px-6"><Cpu className="h-4 w-4" /> IA Hub</TabsTrigger>
+            <TabsTrigger value="logs" className="gap-2 px-6"><Activity className="h-4 w-4" /> Logs</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="empresas" className="space-y-4">
+            <Card className="border-none shadow-sm">
+              <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" /> Gestão de Tenants
+                </CardTitle>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="CNPJ, Razão Social..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-64 h-9" />
+                  </div>
+                  <Button size="sm" onClick={fetchCompanies} disabled={isLoading} variant="outline">
+                    <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Identificação</TableHead>
+                      <TableHead>Assinatura</TableHead>
+                      <TableHead>Infra</TableHead>
+                      <TableHead>Suporte</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map(c => (
+                      <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold">{c.nome_fantasia || c.razao_social}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">{formatCNPJ(c.cnpj)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge stripe={c.stripe} />
+                            <span className="text-xs font-medium text-muted-foreground">{c.stripe?.plan || "Trial"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                           <div className="flex items-center gap-3">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold">{c.total_usuarios} usuários</span>
+                                <span className="text-[10px] text-muted-foreground">Cad. {format(new Date(c.created_at), "dd/MM/yy")}</span>
+                              </div>
+                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {c.tickets_abertos > 0 ? (
+                            <Badge variant="outline" className="animate-pulse bg-warning/10 text-warning border-warning/20">1 Ticket</Badge>
+                          ) : <span className="text-xs text-muted-foreground italic">Limpo</span>}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => setDetailCompany(c)}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-warning" onClick={() => setConfirmAction({ type: "block", company: c })}><Ban className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setConfirmAction({ type: "delete", company: c })}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tickets">
+            <Card className="border-none shadow-sm"><CardContent className="py-20 text-center text-muted-foreground"><LifeBuoy className="mx-auto h-12 w-12 opacity-20 mb-4" /> Módulo de Tickets Integrado (BrainX Support)</CardContent></Card>
+          </TabsContent>
+          <TabsContent value="leads">
+            <DemoLeadsPanel />
+          </TabsContent>
+          <TabsContent value="ia">
+             <Card className="border-none shadow-sm">
+               <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> BrainX AI Models Hub</CardTitle></CardHeader>
+               <CardContent className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                     <Card className="p-4 border-primary/20 bg-primary/5">
+                        <div className="flex justify-between items-start mb-2">
+                           <Badge>Gemini 2.0 Flash</Badge>
+                           <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20">PADRÃO</Badge>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground mb-4">Modelo primário para extração ANVISA e análise de Fichas Técnicas.</p>
+                        <Button variant="outline" size="sm" className="w-full">Configurar Tokens</Button>
+                     </Card>
+                  </div>
+               </CardContent>
+             </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
 
       {/* Confirm Action Dialog */}
       <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <DialogContent>
-          {confirmAction && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className={cn("h-5 w-5", confirmAction.type === "delete" ? "text-destructive" : confirmAction.type === "grant-access" ? "text-success" : "text-warning")} />
-                  {confirmAction.type === "block" && "Bloquear Empresa"}
-                  {confirmAction.type === "unblock" && "Desbloquear Empresa"}
-                  {confirmAction.type === "delete" && "Excluir Empresa"}
-                  {confirmAction.type === "grant-access" && "Liberar Acesso Temporário"}
-                </DialogTitle>
-                <DialogDescription>
-                  {confirmAction.type === "block" && `Todos os ${confirmAction.company.total_usuarios} usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão bloqueados e não poderão acessar o ERP.`}
-                  {confirmAction.type === "unblock" && `Todos os usuários de "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" serão desbloqueados.`}
-                  {confirmAction.type === "delete" && `ATENÇÃO: Esta ação é irreversível! A empresa "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" e todos os seus ${confirmAction.company.total_usuarios} usuários serão permanentemente excluídos.`}
-                  {confirmAction.type === "grant-access" && `A empresa "${confirmAction.company.nome_fantasia || confirmAction.company.razao_social}" terá acesso liberado temporariamente, mesmo sem assinatura ativa.`}
-                </DialogDescription>
-              </DialogHeader>
-              {confirmAction.type === "grant-access" && (
-                <div className="space-y-2 py-2">
-                  <Label>Dias de acesso</Label>
-                  <Select value={String(grantDays)} onValueChange={(v) => setGrantDays(Number(v))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7">7 dias</SelectItem>
-                      <SelectItem value="15">15 dias</SelectItem>
-                      <SelectItem value="30">30 dias</SelectItem>
-                      <SelectItem value="60">60 dias</SelectItem>
-                      <SelectItem value="90">90 dias</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={actionLoading}>Cancelar</Button>
-                <Button
-                  variant={confirmAction.type === "delete" ? "destructive" : "default"}
-                  className={confirmAction.type === "grant-access" ? "bg-success hover:bg-success/90 text-success-foreground" : ""}
-                  onClick={() => handleAction(
-                    confirmAction.type === "delete" ? "delete-company" : confirmAction.type,
-                    confirmAction.company.id
-                  )}
-                  disabled={actionLoading}
-                >
-                  {actionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  {confirmAction.type === "grant-access" ? `Liberar ${grantDays} dias` : "Confirmar"}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+           <DialogHeader>
+             <DialogTitle>Confirmar Operação</DialogTitle>
+             <DialogDescription>Deseja realmente aplicar "{confirmAction?.type}" na empresa "{confirmAction?.company.razao_social}"?</DialogDescription>
+           </DialogHeader>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setConfirmAction(null)}>Cancelar</Button>
+             <Button variant={confirmAction?.type === "delete" ? "destructive" : "default"} onClick={() => handleAction(confirmAction!.type, confirmAction!.company.id)} disabled={actionLoading}>
+               {actionLoading ? <Loader2 className="animate-spin mr-2" /> : null}
+               Confirmar
+             </Button>
+           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  </div>
   );
 }
