@@ -262,7 +262,7 @@ export function AppSidebar() {
             />
             {!collapsed &&
             <div className="flex flex-col">
-                <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainxERP</span>
+                <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX ERP</span>
                 <span className="text-xs text-sidebar-foreground/60 font-medium">Industrial</span>
               </div>
             }
@@ -301,7 +301,7 @@ export function AppSidebar() {
             />
             {!collapsed &&
             <div className="flex flex-col">
-                <span className="font-bold text-lg text-sidebar-foreground tracking-tight leading-tight">BrainxERP</span>
+                <span className="font-bold text-lg text-sidebar-foreground tracking-tight leading-tight">BrainX ERP</span>
                 <span className="text-[11px] text-sidebar-foreground/50 font-medium tracking-wide">Industrial</span>
               </div>
             }
