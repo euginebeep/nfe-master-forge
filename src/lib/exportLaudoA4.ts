@@ -116,11 +116,13 @@ function buildHTML(data: LaudoData): string {
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    color: #111827;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
     font-size: 10.5pt;
     line-height: 1.45;
     background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   /* Cabeçalho institucional */
   .doc-header {
@@ -183,23 +185,23 @@ function buildHTML(data: LaudoData): string {
     margin-bottom: 18px;
   }
   .info-grid .label {
-    font-size: 8pt; text-transform: uppercase;
-    color: #64748b; letter-spacing: 0.4px; font-weight: 700;
+    font-size: 9pt; text-transform: uppercase;
+    color: #000; letter-spacing: 0; font-weight: 700;
   }
-  .info-grid .value { font-size: 11pt; font-weight: 700; color: #0f172a; }
+  .info-grid .value { font-size: 11pt; font-weight: 700; color: #000; }
 
   h2.section {
-    font-size: 11.5pt; color: #0f172a; margin: 18px 0 8px;
+    font-size: 12pt; color: #000; margin: 18px 0 8px;
     padding: 4px 0 4px 10px; border-left: 4px solid #1e40af;
-    text-transform: uppercase; letter-spacing: 0.4px;
+    text-transform: uppercase; letter-spacing: 0; font-weight: 800;
     page-break-after: avoid;
   }
 
   table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
   table th {
     background: #0f172a; color: #fff; padding: 6px 8px;
-    text-align: left; font-weight: 700; font-size: 9pt;
-    text-transform: uppercase; letter-spacing: 0.3px;
+    text-align: left; font-weight: 700; font-size: 9.5pt;
+    text-transform: uppercase; letter-spacing: 0;
   }
   table td {
     padding: 6px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle;
@@ -233,7 +235,7 @@ function buildHTML(data: LaudoData): string {
     text-align:center;
   }
   .capsulas .lbl { font-size: 8pt; text-transform: uppercase; color:#64748b; font-weight: 700; }
-  .capsulas .val { font-size: 16pt; font-weight: 800; color:#0f172a; margin-top: 2px; }
+  .capsulas .val { font-size: 16pt; font-weight: 800; color:#000; margin-top: 2px; }
 
   .duas-colunas { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .duas-colunas ul { margin: 0; padding-left: 18px; font-size: 10pt; }
