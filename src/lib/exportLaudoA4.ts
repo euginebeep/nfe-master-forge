@@ -62,16 +62,31 @@ function buildHTML(data: LaudoData): string {
   const nutriRows = (data.ativos || []).map((ativo: any) => {
     const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
     const vdRef = key ? VD_REFERENCE[key] : null;
+    const limit = key ? ANVISA_LIMITS[key] : null;
     const nomeAtivo = ativo.nome || ativo.name || '-';
-    let doseMg = parseFloat(ativo.dose) || 0;
-    const unit = (ativo.unit || '').toLowerCase();
-    if (unit === 'mcg') doseMg /= 1000;
-    if (unit === 'g') doseMg *= 1000;
+    const doseOriginal = parseFloat(ativo.dose) || 0;
+    const unitOriginal = ativo.unit || '';
+    // Aplica correção IN 28/2018: se acima do limite ANVISA, ajusta para o máximo permitido
+    let doseCorrigida = doseOriginal;
+    let unitCorrigida = unitOriginal;
+    let corrigido = false;
+    if (limit && limit.auth && limit.max != null && doseOriginal > limit.max) {
+      doseCorrigida = limit.max;
+      unitCorrigida = limit.unit;
+      corrigido = true;
+    }
+    let doseMg = doseCorrigida;
+    const u = (unitCorrigida || '').toLowerCase();
+    if (u === 'mcg') doseMg /= 1000;
+    if (u === 'g') doseMg *= 1000;
     const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
+    const doseCell = corrigido
+      ? `<span style="text-decoration:line-through;color:#999;font-weight:500;">${esc(ativo.dose)} ${esc(unitOriginal)}</span><br/><strong style="color:#16a34a;">${doseCorrigida} ${esc(unitCorrigida)}</strong>`
+      : `${esc(ativo.dose)} ${esc(unitOriginal)}`;
     return `
       <tr>
         <td style="font-weight:600;">${esc(nomeAtivo)}</td>
-        <td style="text-align:center;">${esc(ativo.dose)} ${esc(ativo.unit || '')}</td>
+        <td style="text-align:center;">${doseCell}</td>
         <td style="text-align:center;font-weight:700;">${percentVD !== null ? percentVD + '%' : '**'}</td>
       </tr>`;
   }).join('');
