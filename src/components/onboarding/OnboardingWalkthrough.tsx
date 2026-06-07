@@ -10,7 +10,7 @@ import { ChevronRight, ChevronLeft, X, CheckCircle2 } from 'lucide-react';
 const PASSOS = [
   {
     id: 'boas-vindas',
-    titulo: '🎉 Bem-vindo ao BrainxERP!',
+    titulo: '🎉 Bem-vindo ao BrainX ERP!',
     descricao:
       'Você está no sistema de gestão industrial para fábricas de suplementos. Em 60 segundos você vai entender como tudo funciona.',
     rota: null as string | null,
@@ -68,7 +68,7 @@ const PASSOS = [
     id: 'fim',
     titulo: '✅ Você está pronto!',
     descricao:
-      'Sempre que tiver dúvidas, clique no botão azul ✨ no canto inferior direito. O Assistente BrainxERP responde qualquer pergunta em linguagem simples, 24 horas por dia.',
+      'Sempre que tiver dúvidas, clique no botão azul ✨ no canto inferior direito. O Assistente BrainX ERP responde qualquer pergunta em linguagem simples, 24 horas por dia.',
     rota: null,
     destaque: 'Botão azul flutuante no canto inferior direito',
   },

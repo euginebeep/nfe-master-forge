@@ -57,7 +57,7 @@ export function TooltipAjuda({
   );
 }
 
-// ── Tooltips pré-configurados para campos do BrainxERP ──────────
+// ── Tooltips pré-configurados para campos do BrainX ERP ──────────
 export const TOOLTIPS = {
   numeroNotificacaoAnvisa: (
     <TooltipAjuda

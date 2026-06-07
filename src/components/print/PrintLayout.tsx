@@ -90,7 +90,7 @@ export function PrintLayout({
           <p>
             Impresso em: {new Date().toLocaleString("pt-BR")}
           </p>
-          <p>BrainxERP - Gestão Industrial</p>
+          <p>BrainX ERP - Gestão Industrial</p>
         </div>
         {footerQrCodeValue && (
           <div className="flex flex-col items-center">

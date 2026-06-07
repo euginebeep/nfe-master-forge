@@ -24,13 +24,13 @@ const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/pub
 export const RecoveryEmail = ({ siteName, confirmationUrl }: RecoveryEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
     <Head />
-    <Preview>Redefinir sua senha — BrainxERP</Preview>
+    <Preview>Redefinir sua senha — BrainX ERP</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="BrainxERP" width="160" height="auto" style={logo} />
+        <Img src={LOGO_URL} alt="BrainX ERP" width="160" height="auto" style={logo} />
         <Heading style={h1}>Redefinir sua senha</Heading>
         <Text style={text}>
-          Recebemos uma solicitação para redefinir a senha da sua conta no BrainxERP.
+          Recebemos uma solicitação para redefinir a senha da sua conta no BrainX ERP.
           Clique no botão abaixo para criar uma nova senha.
         </Text>
         <Button style={button} href={confirmationUrl}>

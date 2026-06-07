@@ -41,7 +41,7 @@ export function ProtectedRoute({ children, minRole }: Props) {
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div className="flex flex-col items-center text-center">
-              <p className="font-semibold text-lg">Iniciando BrainxERP</p>
+              <p className="font-semibold text-lg">Iniciando BrainX ERP</p>
               <p className="text-sm text-muted-foreground">Carregando modo demonstração...</p>
             </div>
           </div>

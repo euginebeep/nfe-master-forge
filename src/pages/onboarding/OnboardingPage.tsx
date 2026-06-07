@@ -154,7 +154,7 @@ export default function OnboardingWizard() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-3">
             <Building2 className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Bem-vindo ao BrainxERP</h1>
+          <h1 className="text-2xl font-bold">Bem-vindo ao BrainX ERP</h1>
           <p className="text-muted-foreground text-sm">Configure sua empresa para começar</p>
         </div>
 

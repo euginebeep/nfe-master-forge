@@ -35,7 +35,7 @@ export function SubscriptionBlocker() {
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">Período de teste expirado</h2>
             <p className="text-muted-foreground">
-              Seu trial de 14 dias terminou. Para continuar usando o BrainxERP,
+              Seu trial de 14 dias terminou. Para continuar usando o BrainX ERP,
               escolha um plano de assinatura.
             </p>
           </div>

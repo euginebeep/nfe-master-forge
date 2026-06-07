@@ -16,12 +16,12 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirme seu e-mail — BrainxERP',
-  invite: 'Você foi convidado — BrainxERP',
-  magiclink: 'Seu link de acesso — BrainxERP',
-  recovery: 'Redefinir sua senha — BrainxERP',
-  email_change: 'Confirme a alteração de e-mail — BrainxERP',
-  reauthentication: 'Seu código de verificação — BrainxERP',
+  signup: 'Confirme seu e-mail — BrainX ERP',
+  invite: 'Você foi convidado — BrainX ERP',
+  magiclink: 'Seu link de acesso — BrainX ERP',
+  recovery: 'Redefinir sua senha — BrainX ERP',
+  email_change: 'Confirme a alteração de e-mail — BrainX ERP',
+  reauthentication: 'Seu código de verificação — BrainX ERP',
 }
 
 // Template mapping
@@ -35,7 +35,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "BrainxERP"
+const SITE_NAME = "BrainX ERP"
 const SENDER_DOMAIN = "notify.www.brainxerp.com"
 const ROOT_DOMAIN = "www.brainxerp.com"
 const FROM_DOMAIN = "www.brainxerp.com" // Domain shown in From address (may be root or sender subdomain)
@@ -251,9 +251,9 @@ async function handleWebhook(req: Request): Promise<Response> {
       {
         run_id,
         to: payload.data.email,
-        from: `BrainxERP <noreply@${FROM_DOMAIN}>`,
+        from: `BrainX ERP <noreply@${FROM_DOMAIN}>`,
         sender_domain: SENDER_DOMAIN,
-        reply_to: `BrainxERP <noreply@${FROM_DOMAIN}>`,
+        reply_to: `BrainX ERP <noreply@${FROM_DOMAIN}>`,
         subject: EMAIL_SUBJECTS[emailType] || 'Notification',
         html,
         text,

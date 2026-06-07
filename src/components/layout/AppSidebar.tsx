@@ -253,7 +253,7 @@ export function AppSidebar() {
           <Link to="/dashboard" className="flex items-center gap-3 px-4 py-4">
             <img
               src={brainxLogo}
-              alt="BrainxERP"
+              alt="BrainX ERP"
               className={cn(
                 "object-contain rounded shrink-0 transition-all duration-200",
                 collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
@@ -292,7 +292,7 @@ export function AppSidebar() {
           <Link to="/dashboard" className="flex items-center gap-3 px-4 py-5">
             <img
               src={brainxLogo}
-              alt="BrainxERP"
+              alt="BrainX ERP"
               className={cn(
                 "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200",
                 collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
