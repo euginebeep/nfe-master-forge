@@ -90,6 +90,27 @@ function buildHTML(data: LaudoData): string {
         <td style="text-align:center;font-weight:700;">${percentVD !== null ? percentVD + '%' : '**'}</td>
       </tr>`;
   }).join('');
+  const resumoTecnicoRows = (data.ativos || []).filter((ativo: any) => {
+    const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+    const limit = key ? ANVISA_LIMITS[key] : null;
+    const doseOriginal = parseFloat(ativo.dose) || 0;
+    return limit && limit.auth && limit.max != null && doseOriginal > limit.max;
+  }).map((ativo: any) => {
+    const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+    const limit = ANVISA_LIMITS[key];
+    const nomeAtivo = ativo.nome || ativo.name || '-';
+    const doseOriginal = parseFloat(ativo.dose);
+    const unitOriginal = ativo.unit || '';
+    const doseCorrigida = limit.max;
+    const unitCorrigida = limit.unit;
+    return `
+      <tr>
+        <td style="font-weight:600;">${esc(nomeAtivo)}</td>
+        <td style="text-align:center;color:#666;text-decoration:line-through;">${esc(doseOriginal)} ${esc(unitOriginal)}</td>
+        <td style="text-align:center;color:#16a34a;font-weight:700;">${esc(doseCorrigida)} ${esc(unitCorrigida)}</td>
+        <td style="font-size:9px;color:#555;">Teto IN 28/2018 (${limit.max} ${limit.unit})</td>
+      </tr>`;
+  }).join('');
 
   const alertasHTML = (data.alertas || []).map(a => {
     const colors = a.tipo === 'err'
@@ -384,9 +405,27 @@ function buildHTML(data: LaudoData): string {
     </div>
   </section>
 
+  <!-- RESUMO TÉCNICO DE AJUSTES -->
+  ${resumoTecnicoRows ? `
+  <section>
+    <h2 class="section" style="border-left-color: #16a34a; color: #16a34a;">5. Resumo Técnico de Ajustes (Rastreabilidade)</h2>
+    <p style="font-size:9pt; margin-bottom:8px;">Os itens abaixo foram ajustados automaticamente para garantir conformidade com os limites máximos permitidos pela <strong>IN 28/2018</strong> e Power BI ANVISA.</p>
+    <table>
+      <thead>
+        <tr style="background:#16a34a;">
+          <th>Nutriente</th>
+          <th style="text-align:center;">Dose Original</th>
+          <th style="text-align:center;">Dose Corrigida</th>
+          <th>Regra Aplicada</th>
+        </tr>
+      </thead>
+      <tbody>${resumoTecnicoRows}</tbody>
+    </table>
+  </section>` : ''}
+
   <!-- CÁPSULAS -->
   <section>
-    <h2 class="section">5. Sugestão de Apresentação</h2>
+    <h2 class="section">${resumoTecnicoRows ? '6' : '5'}. Sugestão de Apresentação</h2>
     <div class="capsulas">
       <div>
         <div class="lbl">Dose Sugerida</div>
@@ -406,7 +445,7 @@ function buildHTML(data: LaudoData): string {
 
   <!-- ALEGAÇÕES -->
   <section>
-    <h2 class="section">6. Alegações de Rotulagem</h2>
+    <h2 class="section">${resumoTecnicoRows ? '7' : '6'}. Alegações de Rotulagem</h2>
     <div class="duas-colunas">
       <div class="col-ok">
         <h3>✓ Permitidas</h3>

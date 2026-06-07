@@ -42,7 +42,7 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   boro:                { auth: true,  min: 0,  max: 6,       unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Máximo 6 mg para adultos (IN 28)' },
   fosforo:             { auth: true,  min: 0,  max: 4000,    unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Razão Ca/P entre 1:1 e 2:1' },
   fluoreto:            { auth: true,  min: 0,  max: 10,      unit: 'mg',  norm: 'IN 28 Anexo IV' },
-  silicio:             { auth: true,  min: 0,  max: 36,      unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Silício orgânico (monometilsilanetriol) autorizado' },
+  silicio:             { auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'IN 28 Anexo IV / RDC 240/2018', obs: 'Silício orgânico (monometilsilanetriol) autorizado sem limite máximo definido (NE)' },
 
   // ============================================================
   // AMINOÁCIDOS — IN 28/2018 Anexo IV (≥19 anos)
@@ -103,7 +103,7 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   berberina:           { auth: false, min: 0,  max: 0,       unit: '-',   norm: 'PROIBIDO — Não consta IN 28',  obs: 'Substância classificada como medicamento. RDC 243/2018' },
   queratina:           { auth: false, min: 0,  max: 0,       unit: '-',   norm: 'PROIBIDO — Não consta IN 28',  obs: 'Cosmético, não aprovado p/ uso oral' },
   l_citrulina:         { auth: false, min: 0,  max: 0,       unit: '-',   norm: 'NÃO CONSTA IN 28 Anexo I',     obs: 'Não autorizada como suplemento alimentar' },
-  silicio_organico:    { auth: true,  min: 0,  max: 36,      unit: 'mg',  norm: 'IN 28 Anexo IV',          obs: 'Silício orgânico (monometilsilanetriol)' },
+  silicio_organico:    { auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'IN 28 Anexo IV / RDC 240/2018', obs: 'Silício orgânico (monometilsilanetriol) sem limite máximo definido (NE)' },
 };
 
 export const VD_REFERENCE: Record<string, number> = {

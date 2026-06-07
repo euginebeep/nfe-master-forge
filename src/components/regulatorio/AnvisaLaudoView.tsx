@@ -290,6 +290,50 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         </section>
 
 
+        {(() => {
+          const corrigidos = data.ativos.filter(ativo => {
+            const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+            const limit = key ? ANVISA_LIMITS[key] : null;
+            const doseOriginal = parseFloat(ativo.dose) || 0;
+            return limit && limit.auth && limit.max != null && doseOriginal > limit.max;
+          });
+
+          if (corrigidos.length === 0) return null;
+
+          return (
+            <section className="space-y-4">
+              <h3 className="text-lg font-bold border-l-4 border-green-600 pl-3 text-green-600">Resumo Técnico de Ajustes (Rastreabilidade)</h3>
+              <p className="text-sm text-muted-foreground">Os itens abaixo foram ajustados automaticamente para garantir conformidade com os limites máximos da IN 28/2018 e Painel Power BI.</p>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-green-500/10 hover:bg-green-500/10">
+                      <TableHead>Nutriente</TableHead>
+                      <TableHead className="text-center">Dose Original</TableHead>
+                      <TableHead className="text-center">Dose Corrigida</TableHead>
+                      <TableHead>Regra / Limite</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {corrigidos.map((ativo, i) => {
+                      const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+                      const limit = ANVISA_LIMITS[key];
+                      return (
+                        <TableRow key={i}>
+                          <TableCell className="font-bold">{ativo.nome || ativo.name}</TableCell>
+                          <TableCell className="text-center line-through text-muted-foreground">{ativo.dose} {ativo.unit}</TableCell>
+                          <TableCell className="text-center font-bold text-green-600">{limit.max} {limit.unit}</TableCell>
+                          <TableCell className="text-[10px] text-muted-foreground italic">Teto IN 28/2018 ({limit.max} {limit.unit})</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+          );
+        })()}
+
         <section className="space-y-4">
           <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Cálculo de Cápsulas</h3>
           <Card className="bg-muted/30">
