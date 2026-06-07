@@ -26,14 +26,14 @@ const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/pub
 export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: InviteEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
     <Head />
-    <Preview>Você foi convidado para o BrainxERP</Preview>
+    <Preview>Você foi convidado para o BrainX ERP</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="BrainxERP" width="160" height="auto" style={logo} />
+        <Img src={LOGO_URL} alt="BrainX ERP" width="160" height="auto" style={logo} />
         <Heading style={h1}>Você foi convidado!</Heading>
         <Text style={text}>
           Você foi convidado para acessar o{' '}
-          <Link href={siteUrl} style={link}><strong>BrainxERP</strong></Link>.
+          <Link href={siteUrl} style={link}><strong>BrainX ERP</strong></Link>.
           Clique no botão abaixo para aceitar o convite e criar sua conta.
         </Text>
         <Button style={button} href={confirmationUrl}>

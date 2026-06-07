@@ -27,13 +27,13 @@ const LOGO_URL = 'https://lvptvswvqjhvobdvgfws.supabase.co/storage/v1/object/pub
 export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }: EmailChangeEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
     <Head />
-    <Preview>Confirme a alteração de e-mail — BrainxERP</Preview>
+    <Preview>Confirme a alteração de e-mail — BrainX ERP</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="BrainxERP" width="160" height="auto" style={logo} />
+        <Img src={LOGO_URL} alt="BrainX ERP" width="160" height="auto" style={logo} />
         <Heading style={h1}>Confirme a alteração de e-mail</Heading>
         <Text style={text}>
-          Você solicitou a alteração do seu e-mail no BrainxERP de{' '}
+          Você solicitou a alteração do seu e-mail no BrainX ERP de{' '}
           <Link href={`mailto:${email}`} style={link}>{email}</Link>{' '}
           para{' '}
           <Link href={`mailto:${newEmail}`} style={link}>{newEmail}</Link>.

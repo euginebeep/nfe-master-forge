@@ -32,15 +32,15 @@ export const SignupEmail = ({
 }: SignupEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
     <Head />
-    <Preview>Confirme seu e-mail — BrainxERP</Preview>
+    <Preview>Confirme seu e-mail — BrainX ERP</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="BrainxERP" width="160" height="auto" style={logo} />
+        <Img src={LOGO_URL} alt="BrainX ERP" width="160" height="auto" style={logo} />
         <Heading style={h1}>Confirme seu e-mail</Heading>
         <Text style={text}>
           Obrigado por se cadastrar no{' '}
           <Link href={siteUrl} style={link}>
-            <strong>BrainxERP</strong>
+            <strong>BrainX ERP</strong>
           </Link>
           !
         </Text>
