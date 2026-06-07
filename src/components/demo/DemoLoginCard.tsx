@@ -11,7 +11,7 @@ import { normalizeEmail, normalizePhone, isDemoExpired } from '@/lib/leads-utils
 import { useAuth } from '@/hooks/use-auth';
 
 const DEMO_EMAIL = 'demo@brainxerp.com';
-const DEMO_PASSWORD = 'BrainxERPDemo2026!';
+const DEMO_PASSWORD = 'BrainX ERPDemo2026!';
 
 export function DemoLoginCard() {
   const { signIn } = useAuth();
@@ -239,7 +239,7 @@ export function DemoLoginCard() {
               className="mt-1 border-yellow-600 data-[state=checked]:bg-yellow-600"
             />
             <Label htmlFor="consent" className="text-[10px] text-yellow-800 leading-tight cursor-pointer">
-              Eu autorizo o contato comercial futuro e o envio de e-mails sobre promoções e novidades do BrainxERP.
+              Eu autorizo o contato comercial futuro e o envio de e-mails sobre promoções e novidades do BrainX ERP.
             </Label>
           </div>
 

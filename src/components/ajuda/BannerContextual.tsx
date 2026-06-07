@@ -29,7 +29,7 @@ const BANNERS: Record<string, {
   },
   '/estoque': {
     tipo: 'info',
-    titulo: 'FEFO ativo no BrainxERP',
+    titulo: 'FEFO ativo no BrainX ERP',
     texto: 'O sistema usa FEFO (First Expired, First Out): lotes com validade mais próxima são baixados primeiro automaticamente nas vendas.',
   },
 };

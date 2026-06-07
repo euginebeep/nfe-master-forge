@@ -49,10 +49,10 @@ export default function InstallPage() {
             <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
             <h2 className="text-2xl font-bold">App Instalado!</h2>
             <p className="text-muted-foreground">
-              O BrainxERP já está instalado no seu dispositivo. Você pode acessá-lo pela tela inicial.
+              O BrainX ERP já está instalado no seu dispositivo. Você pode acessá-lo pela tela inicial.
             </p>
             <Button onClick={() => window.location.href = "/"} className="w-full">
-              Abrir BrainxERP
+              Abrir BrainX ERP
             </Button>
           </CardContent>
         </Card>
@@ -64,8 +64,8 @@ export default function InstallPage() {
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-3 py-8">
-          <img src="/icon-192.png" alt="BrainxERP" className="h-20 w-20 mx-auto rounded-2xl shadow-lg" />
-          <h1 className="text-3xl font-bold">Instalar BrainxERP</h1>
+          <img src="/icon-192.png" alt="BrainX ERP" className="h-20 w-20 mx-auto rounded-2xl shadow-lg" />
+          <h1 className="text-3xl font-bold">Instalar BrainX ERP</h1>
           <p className="text-muted-foreground text-lg">
             Acesse o sistema completo direto do seu celular, como um app nativo.
           </p>
@@ -84,7 +84,7 @@ export default function InstallPage() {
               </div>
               <Button onClick={handleInstall} size="lg" className="w-full gap-2">
                 <Download className="h-5 w-5" />
-                Instalar BrainxERP
+                Instalar BrainX ERP
               </Button>
             </CardContent>
           </Card>

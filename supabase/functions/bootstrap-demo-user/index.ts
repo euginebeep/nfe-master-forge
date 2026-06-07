@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 const DEMO_EMAIL = 'demo@brainxerp.com';
-const DEMO_PASSWORD = 'BrainxERPDemo2026!';
+const DEMO_PASSWORD = 'BrainX ERPDemo2026!';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
         email_confirm: true,
-        user_metadata: { full_name: 'Usuário Demo BrainxERP' },
+        user_metadata: { full_name: 'Usuário Demo BrainX ERP' },
       });
       if (createErr) {
         return new Response(JSON.stringify({ error: createErr.message }), {
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     // 2. Ensure profile linked to demo company
     await admin.from('profiles').upsert({
       id: demoUser!.id,
-      nome_completo: 'Usuário Demo BrainxERP',
+      nome_completo: 'Usuário Demo BrainX ERP',
       cargo: 'Demonstração',
       departamento: 'DIRETORIA',
       company_id: DEMO_COMPANY_ID,

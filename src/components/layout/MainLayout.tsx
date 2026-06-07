@@ -6,7 +6,7 @@ import { useNavigationAudit } from "@/hooks/use-navigation-audit";
 import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
-import { BrainxERPAssistente } from "@/components/assistente/BrainXAssistente";
+import { BrainX ERPAssistente } from "@/components/assistente/BrainXAssistente";
 import { OnboardingWalkthrough } from "@/components/onboarding/OnboardingWalkthrough";
 import { BannerContextual } from "@/components/ajuda/BannerContextual";
 import { AppSidebar } from "./AppSidebar";
@@ -47,7 +47,7 @@ export function MainLayout() {
           </motion.main>
         </div>
         <ChatGlobalProvider />
-        <BrainxERPAssistente />
+        <BrainX ERPAssistente />
         <OnboardingWalkthrough />
       </div>
     </SidebarProvider>
