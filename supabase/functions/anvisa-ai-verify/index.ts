@@ -477,7 +477,7 @@ Retorne JSON com:
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-2.0-flash',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
@@ -644,7 +644,7 @@ Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" 
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-2.0-flash',
 
           messages,
           response_format: { type: 'json_object' }
