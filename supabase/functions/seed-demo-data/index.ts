@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
 
     const clientesIds = entidades.slice(0, 30).map((e) => e.id);
     const fornecedoresIds = entidades.slice(30, 50).map((e) => e.id);
+    const transportadorasIds = entidades.slice(50, 60).map((e) => e.id);
 
     // ───────────────── 4. Itens ─────────────────
     const mpNames = [
@@ -396,19 +397,34 @@ Deno.serve(async (req) => {
     });
     await supabase.from('vendedores_externos').insert(vendedores);
 
-    // ───────────────── 10. Pedidos de Venda + Contas a Receber ─────────────────
+    // ───────────────── 10. Pedidos de Venda (incluindo fila de expedição) ─────────────────
     const pedidos: any[] = [];
     const pedidoItens: any[] = [];
     const contasReceber: any[] = [];
-    for (let i = 0; i < 40; i++) {
+    const romaneioItems: any[] = [];
+
+    for (let i = 0; i < 45; i++) {
       const pid = uid(9000 + i, 'pd');
       const cli = pick(clientesIds, i);
       const cliNome = pick(empresasNomes, i);
       const valor = 800 + i * 250;
-      const status = pick(['RASCUNHO', 'APROVADO', 'EM_PRODUCAO', 'FATURADO', 'ENTREGUE'], i);
+      
+      // Status variados para cobrir todas as telas:
+      // 0-5: PRONTO (na fila de expedição)
+      // 6-10: SEPARACAO (com romaneio gerado)
+      // 11-15: DESPACHADO (em trânsito)
+      // Resto: ENTREGUE, CANCELADO, RASCUNHO
+      let status = 'ENTREGUE';
+      if (i <= 5) status = 'PRONTO';
+      else if (i <= 10) status = 'SEPARACAO';
+      else if (i <= 15) status = 'DESPACHADO';
+      else if (i === 16) status = 'RASCUNHO';
+      else if (i === 17) status = 'CANCELADO';
+
       pedidos.push({
         id: pid,
         company_id: c,
+        numero: String(3000 + i),
         codigo: `PED-2026-${String(i + 1).padStart(4, '0')}`,
         cliente_id: cli,
         cliente_nome: cliNome,
@@ -416,8 +432,15 @@ Deno.serve(async (req) => {
         status,
         data_emissao: addDays(-90 + i * 2),
         data_entrega_estimada: addDays(-90 + i * 2 + 10),
+        data_despacho: status === 'DESPACHADO' || status === 'ENTREGUE' ? addDays(-90 + i * 2 + 5) : null,
+        data_entrega_confirmada: status === 'ENTREGUE' ? addDays(-90 + i * 2 + 8) : null,
         vendedor_id: pick(vendedores.map((v) => v.id), i),
+        transportadora_id: status === 'DESPACHADO' || status === 'ENTREGUE' ? transportadorasIds[i % transportadorasIds.length] : null,
+        volumes: status === 'DESPACHADO' || status === 'ENTREGUE' ? 2 : null,
+        nfe_numero: status === 'DESPACHADO' || status === 'ENTREGUE' ? String(5000 + i) : null,
+        nfe_chave: status === 'DESPACHADO' || status === 'ENTREGUE' ? `35260${String(i).padStart(38, '0')}` : null,
       });
+
       const pa = pick(paItens, i);
       pedidoItens.push({
         pedido_id: pid,
@@ -427,23 +450,40 @@ Deno.serve(async (req) => {
         valor_unitario: valor / (5 + (i % 20)),
         valor_total: valor,
       });
+
+      // Se estiver em SEPARACAO ou além, gerar romaneio
+      if (status === 'SEPARACAO' || status === 'DESPACHADO' || status === 'ENTREGUE') {
+        romaneioItems.push({
+          company_id: c,
+          pedido_id: pid,
+          item_id: pa.id,
+          produto_nome: pa.descricao_interna,
+          quantidade: 5 + (i % 20),
+          conferido: true,
+          conferido_em: addDays(-90 + i * 2 + 4),
+        });
+      }
+
       contasReceber.push({
         company_id: c,
         descricao: `Pedido ${`PED-2026-${String(i + 1).padStart(4, '0')}`} — ${cliNome}`,
         valor,
-        valor_recebido: i < 25 ? valor : 0,
+        valor_recebido: status === 'ENTREGUE' ? valor : 0,
         data_emissao: addDays(-90 + i * 2),
         data_vencimento: addDays(-60 + i * 2),
-        data_recebimento: i < 25 ? addDays(-55 + i * 2) : null,
-        status: i < 25 ? 'RECEBIDO' : 'PENDENTE',
+        data_recebimento: status === 'ENTREGUE' ? addDays(-55 + i * 2) : null,
+        status: status === 'ENTREGUE' ? 'RECEBIDO' : 'PENDENTE',
         entidade_id: cli,
         pedido_venda_id: pid,
       });
     }
-    await supabase.from('pedidos_venda').insert(pedidos);
-    await supabase.from('pedido_itens').insert(pedidoItens);
+    await supabase.from('pedidos_vendedor').insert(pedidos);
+    await supabase.from('pedido_vendedor_itens').insert(pedidoItens);
     await supabase.from('contas_receber').insert(contasReceber);
-    log.push(`Pedidos: ${pedidos.length} | Contas receber: ${contasReceber.length}`);
+    if (romaneioItems.length > 0) {
+      await supabase.from('expedicao_romaneio').insert(romaneioItems);
+    }
+    log.push(`Pedidos: ${pedidos.length} | Contas receber: ${contasReceber.length} | Romaneios: ${romaneioItems.length}`);
 
     // ───────────────── 11. Equipamentos (Misturador V) ─────────────────
     const equipamentos = [
@@ -672,6 +712,25 @@ Deno.serve(async (req) => {
     await supabase.from('op_embalagens').insert(opEmbs);
     const { error: assErr } = await supabase.from('op_assinaturas_rt').insert(opAssinaturas);
     if (assErr) log.push(`AssRT err: ${assErr.message}`); else log.push(`Assinaturas RT: ${opAssinaturas.length}`);
+
+    // Checklist Simulado para as OPs
+    const checklists: any[] = [];
+    for (const op of ops) {
+      const categorias = ['PRE_PRODUCAO', 'DURANTE_PRODUCAO', 'POS_PRODUCAO', 'QC'];
+      categorias.forEach((cat, idx) => {
+        checklists.push({
+          op_id: op.id,
+          company_id: c,
+          categoria: cat,
+          descricao: `Verificação de ${cat.toLowerCase().replace('_', ' ')} concluída conforme POP`,
+          verificado: op.status === 'CONCLUIDA',
+          verificado_em: op.status === 'CONCLUIDA' ? addDays(-10) : null,
+          responsavel_nome: op.status === 'CONCLUIDA' ? 'Operador Demo' : null,
+        });
+      });
+    }
+    await supabase.from('op_checklist').insert(checklists);
+
     // Após inserir assinaturas, atualizar refs nas OPs
     for (const op of ops.filter((o) => o.assinatura_rt_id)) {
       await supabase.from('ordens_producao_industrial').update({
@@ -681,10 +740,28 @@ Deno.serve(async (req) => {
       }).eq('id', op.id);
     }
     await supabase.from('op_pesagens_criticas').insert(opPesagens);
-    log.push(`OP MPs: ${opMPs.length} | Embalagens: ${opEmbs.length} | Pesagens críticas: ${opPesagens.length}`);
+    log.push(`OP MPs: ${opMPs.length} | Embalagens: ${opEmbs.length} | Pesagens críticas: ${opPesagens.length} | Checklist: ${checklists.length}`);
 
     const { error: lpErr } = await supabase.from('lotes_produto_acabado').insert(lotesPA);
     if (lpErr) log.push(`LotePA err: ${lpErr.message}`); else log.push(`Lotes PA: ${lotesPA.length} (white_label: ${lotesPA.filter((l) => l.white_label).length})`);
+
+    // ───────────────── 14. QC Analises (Qualidade) ─────────────────
+    const qcAnalises = [];
+    for (let i = 0; i < 15; i++) {
+      const lote = lotes[i % lotes.length];
+      qcAnalises.push({
+        company_id: c,
+        lote_id: lote.id,
+        tipo_analise: i % 2 === 0 ? 'FISICO_QUIMICO' : 'MICROBIOLOGICO',
+        parametro: i % 2 === 0 ? 'Teor de Ativo' : 'Contagem Total',
+        resultado_encontrado: i % 2 === 0 ? '99.8%' : '<10 UFC/g',
+        status: 'APROVADO',
+        data_analise: addDays(-20),
+        responsavel: 'Analista Demo Camila',
+      });
+    }
+    await supabase.from('qc_analises').insert(qcAnalises);
+    log.push(`QC Analises: ${qcAnalises.length}`);
 
     // ───────────────── 14. Monitoramento Ambiental (Simulação) ─────────────────
     const monitoramento = [];
