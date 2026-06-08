@@ -35,10 +35,10 @@ export function ParceirosBrainX({ posicao = 'DASHBOARD_LATERAL', className }: Pa
       try {
         const companyId = profile?.company_id;
         const { data, error } = await supabase.functions.invoke('brainx-parceiros', {
-          query_params: { 
-            action: 'get-ativo',
-            company_id: companyId || '',
-            posicao
+          method: 'GET',
+          headers: {
+            'x-company-id': companyId || '',
+            'x-posicao': posicao
           }
         });
 
