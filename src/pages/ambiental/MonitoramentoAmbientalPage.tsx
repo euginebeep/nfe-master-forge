@@ -323,7 +323,8 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
 /*  PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export default function MonitoramentoAmbientalPage() {
-  const isDemo = sessionStorage.getItem('brainx_demo_mode') === 'true';
+  const { profile } = useAuth();
+  const isDemo = profile?.is_demo || sessionStorage.getItem('brainx_demo_mode') === 'true';
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
@@ -335,11 +336,10 @@ export default function MonitoramentoAmbientalPage() {
 
   // Sensores configurados pelo tenant
   const { data: sensores = [], isLoading: isLoadingSensores } = useQuery({
-    queryKey: ["ambiental-sensores-page", companyId, sessionStorage.getItem('brainx_demo_mode')],
-    enabled: !!companyId || sessionStorage.getItem('brainx_demo_mode') === 'true',
+    queryKey: ["ambiental-sensores-page", companyId, isDemo],
+    enabled: !!companyId || isDemo,
     queryFn: async () => {
-      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
-      if (isDemoMode) {
+      if (isDemo) {
         return [
           { id: 'd1', device_id: 'SNSR-ALM-01', room_name: 'Almoxarifado MP', ativo: true },
           { id: 'd2', device_id: 'SNSR-PES-01', room_name: 'Sala de Pesagem', ativo: true },
