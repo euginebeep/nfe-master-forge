@@ -40,8 +40,6 @@ export function useMonitoramentoAmbiental(period: MonitoramentoPeriodo = "hoje")
       const now = new Date();
       const since = new Date(now.getTime() - hours * 60 * 60 * 1000).toISOString();
       
-      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
-      
       // Se estiver em modo demo e não houver dados, simulamos leituras fictícias
       if (isDemoMode) {
         const demoReadings: SensorReading[] = [];
