@@ -34,7 +34,9 @@ export function useMonitoramentoAmbiental(period: MonitoramentoPeriodo = "hoje")
     enabled: !!companyId || sessionStorage.getItem('brainx_demo_mode') === 'true',
     staleTime: 30_000,
     queryFn: async (): Promise<SensorReading[]> => {
-      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
+      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true' || 
+                         window.location.hostname.includes('lovable') ||
+                         document.title.toLowerCase().includes('demo');
       if (!companyId && !isDemoMode) return [];
       const hours = PERIODO_HORAS[period];
       const now = new Date();

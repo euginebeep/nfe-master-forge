@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
+import { useAuth } from "@/hooks/use-auth";
 import {
   useMonitoramentoAmbiental,
   getLatestByRoom,
@@ -323,7 +324,10 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
 /*  PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export default function MonitoramentoAmbientalPage() {
-  const isDemo = sessionStorage.getItem('brainx_demo_mode') === 'true';
+  const { profile } = useAuth();
+  const isDemo = profile?.is_demo || 
+                 sessionStorage.getItem('brainx_demo_mode') === 'true' || 
+                 profile?.nome_completo?.toLowerCase().includes('demo');
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
@@ -335,11 +339,10 @@ export default function MonitoramentoAmbientalPage() {
 
   // Sensores configurados pelo tenant
   const { data: sensores = [], isLoading: isLoadingSensores } = useQuery({
-    queryKey: ["ambiental-sensores-page", companyId, sessionStorage.getItem('brainx_demo_mode')],
-    enabled: !!companyId || sessionStorage.getItem('brainx_demo_mode') === 'true',
+    queryKey: ["ambiental-sensores-page", companyId, isDemo],
+    enabled: !!companyId || isDemo,
     queryFn: async () => {
-      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
-      if (isDemoMode) {
+      if (isDemo) {
         return [
           { id: 'd1', device_id: 'SNSR-ALM-01', room_name: 'Almoxarifado MP', ativo: true },
           { id: 'd2', device_id: 'SNSR-PES-01', room_name: 'Sala de Pesagem', ativo: true },
@@ -557,8 +560,8 @@ export default function MonitoramentoAmbientalPage() {
   /* ---------------- EMPTY ---------------- */
   const isEmpty = !isLoading && readings.length === 0;
   const isCarregandoEstado = isLoading || isLoadingSensores;
-  const semConfiguracao = !isCarregandoEstado && sensores.length === 0;
-  const aguardandoLeituras = !isCarregandoEstado && sensores.length > 0 && readings.length === 0;
+  const semConfiguracao = !isCarregandoEstado && sensores.length === 0 && !isDemo;
+  const aguardandoLeituras = !isCarregandoEstado && sensores.length > 0 && readings.length === 0 && !isDemo;
 
   return (
     <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-5">
@@ -592,7 +595,7 @@ export default function MonitoramentoAmbientalPage() {
         }
       />
 
-      {(semConfiguracao && sessionStorage.getItem('brainx_demo_mode') !== 'true') ? (
+      {(semConfiguracao && !isDemo) ? (
         <Card className="border-amber-200">
           <CardContent className="py-6">
             <EmptyState
@@ -605,7 +608,7 @@ export default function MonitoramentoAmbientalPage() {
             />
           </CardContent>
         </Card>
-      ) : (aguardandoLeituras && sessionStorage.getItem('brainx_demo_mode') !== 'true') ? (
+      ) : (aguardandoLeituras && !isDemo) ? (
         <Card className="border-blue-200">
           <CardContent className="py-6">
             <EmptyState
@@ -644,7 +647,7 @@ export default function MonitoramentoAmbientalPage() {
               </TabsList>
             </Tabs>
             
-            {sessionStorage.getItem('brainx_demo_mode') !== 'true' && (
+            {!isDemo && (
               <Select value={roomFilter} onValueChange={setRoomFilter}>
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Todas as salas" />
