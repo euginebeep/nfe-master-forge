@@ -1030,6 +1030,7 @@ export type Database = {
           smtp_secure: boolean | null
           smtp_user: string | null
           telefone: string | null
+          tipo_empresa: string | null
           updated_at: string
         }
         Insert: {
@@ -1077,6 +1078,7 @@ export type Database = {
           smtp_secure?: boolean | null
           smtp_user?: string | null
           telefone?: string | null
+          tipo_empresa?: string | null
           updated_at?: string
         }
         Update: {
@@ -1124,6 +1126,7 @@ export type Database = {
           smtp_secure?: boolean | null
           smtp_user?: string | null
           telefone?: string | null
+          tipo_empresa?: string | null
           updated_at?: string
         }
         Relationships: [
