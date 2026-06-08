@@ -750,6 +750,7 @@ Deno.serve(async (req) => {
     for (let i = 0; i < 20; i++) {
       const lote = lotes[i % lotes.length];
       qcAnalises.push({
+        id: uid(15000 + i, 'qc'),
         company_id: c,
         lote_id: lote.id,
         tipo_analise: i % 2 === 0 ? 'FISICO_QUIMICO' : 'MICROBIOLOGICO',
@@ -783,14 +784,15 @@ Deno.serve(async (req) => {
     await supabase.from('kpis_executivos').upsert(kpisExec, { onConflict: 'data_referencia' });
 
     const alertasExec = [
-      { company_id: c, tipo_alerta: 'ESTOQUE_CRITICO', nivel: 'ALTO', titulo: 'Insumo Crítico: Magnésio', descricao: 'Estoque abaixo do ponto de reposição (5 dias restantes).', acao_sugerida: 'Acionar fornecedor Vitalfarma', status: 'ATIVO' },
-      { company_id: c, tipo_alerta: 'VENCIMENTO_PROXIMO', nivel: 'MEDIO', titulo: 'Lote Vencendo: Vitamina C', descricao: 'Lote L2026075 vence em 28 dias.', acao_sugerida: 'Priorizar na próxima OP', status: 'ATIVO' },
+      { id: uid(16000, 'al'), company_id: c, tipo_alerta: 'ESTOQUE_CRITICO', nivel: 'ALTO', titulo: 'Insumo Crítico: Magnésio', descricao: 'Estoque abaixo do ponto de reposição (5 dias restantes).', acao_sugerida: 'Acionar fornecedor Vitalfarma', status: 'ATIVO', created_at: new Date().toISOString() },
+      { id: uid(16001, 'al'), company_id: c, tipo_alerta: 'VENCIMENTO_PROXIMO', nivel: 'MEDIO', titulo: 'Lote Vencendo: Vitamina C', descricao: 'Lote L2026075 vence em 28 dias.', acao_sugerida: 'Priorizar na próxima OP', status: 'ATIVO', created_at: new Date().toISOString() },
     ];
     await supabase.from('alertas_executivos').insert(alertasExec);
 
     const previsoes = [];
     paItens.slice(0, 5).forEach((pa, i) => {
       previsoes.push({
+        id: uid(17000 + i, 'pr'),
         company_id: c,
         produto_id: pa.id,
         periodo: '2026-06',
@@ -800,15 +802,43 @@ Deno.serve(async (req) => {
         confianca_percentual: 88,
         prioridade: i === 0 ? 'URGENTE' : 'MEDIA',
         alerta: i === 0 ? 'Ruptura de estoque prevista em 4 dias' : null,
+        gerado_em: new Date().toISOString(),
       });
     });
     await supabase.from('previsoes_producao').insert(previsoes);
 
     const anomalias = [
-      { company_id: c, tipo_anomalia: 'RENDIMENTO_BAIXO', descricao: 'Perda de 5% acima do padrão na mistura', valor_esperado: 100, valor_real: 95, desvio_percentual: -5, severidade: 'ALTA', status: 'PENDENTE', op_id: ops[0].id },
+      { id: uid(18000, 'an'), company_id: c, tipo_anomalia: 'RENDIMENTO_BAIXO', descricao: 'Perda de 5% acima do padrão na mistura', valor_esperado: 100, valor_real: 95, desvio_percentual: -5, severidade: 'ALTA', status: 'PENDENTE', op_id: ops[0].id, created_at: new Date().toISOString() },
     ];
     await supabase.from('anomalias_operacionais').insert(anomalias);
-    log.push(`Executivo: KPIs, Alertas, Previsões e Anomalias gerados`);
+
+    // Adicionando Rankings de Fornecedores
+    const rankings = [];
+    fornecedoresIds.slice(0, 5).forEach((fId, i) => {
+      rankings.push({
+        id: uid(19000 + i, 'rk'),
+        company_id: c,
+        fornecedor_id: fId,
+        score_total: 95 - i * 5,
+        classificacao: i === 0 ? 'PREFERENCIAL' : 'REGULAR',
+        ultima_avaliacao: new Date().toISOString(),
+      });
+    });
+    await supabase.from('ranking_fornecedores').insert(rankings);
+
+    // Adicionando Sugestões de Otimização
+    const sugestoes = [
+      { id: uid(20000, 'sg'), company_id: c, entidade_tipo: 'FORMULA', entidade_id: formulas[0].id, entidade_codigo: formulas[0].codigo_formula, tipo_sugestao: 'AJUSTE_EXCIPIENTE', titulo: 'Otimizar Mistura', descricao: 'Reduzir amido em 5% para melhorar fluidez', justificativa_tecnica: 'Melhoria de rendimento no encapsulamento', status: 'PENDENTE', created_at: new Date().toISOString() }
+    ];
+    await supabase.from('sugestoes_otimizacao').insert(sugestoes);
+
+    // Adicionando Governança (Trilha de Auditoria)
+    const trilha = [
+      { id: uid(21000, 'tr'), company_id: c, entidade_tipo: 'OP', entidade_id: ops[0].id, entidade_codigo: ops[0].codigo, acao: 'CRIACAO', usuario_nome: 'Administrador Demo', timestamp: new Date().toISOString(), hash_integridade: 'demo_hash_123' }
+    ];
+    await supabase.from('trilha_auditoria_tecnica').insert(trilha);
+
+    log.push(`Executivo: KPIs, Alertas, Previsões, Anomalias, Rankings, Otimizações e Governança gerados`);
 
     // ───────────────── 16. Monitoramento Ambiental ─────────────────
     // Deletar para evitar duplicados
