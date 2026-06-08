@@ -435,28 +435,36 @@ Deno.serve(async (req) => {
     const { termo, action } = body
 
     if (action === 'analyze_formula') {
-      const systemPrompt = `Você é um especialista regulatório em suplementos 
-alimentares brasileiros. Analise a fórmula fornecida com base na IN 28/2018 
-e suas atualizações até IN 438/2026.
+      let powerBiData = '';
+      try {
+        const rows = await fetchPowerBiRows();
+        // Filtrar apenas o que pode ser relevante para a IA (reduzir tokens)
+        powerBiData = rows.map(r => `${r['Constituintes Autorizados']}: ${r['0 a 6 meses']} | ${r['Maiores 19 anos ']}`).join('\n').slice(0, 15000);
+      } catch (e) {
+        console.warn('Sync Power BI failed during analyze_formula:', e);
+      }
 
-LIMITES CRÍTICOS VERIFICADOS:
-- Vitamina D3: MÁXIMO 2.000 UI = 50 mcg/dia (IN 28 Anexo IV)
-- Zinco: MÁXIMO 25 mg/dia (IN 28 Anexo IV)  
-- Boro: MÁXIMO 6 mg/dia (IN 28 Anexo IV)
-- Niacina B3: MÁXIMO 35 mg NE/dia (IN 28 Anexo IV)
-- Ácido Fólico B9: MÁXIMO 400 mcg DFE/dia (IN 28 Anexo IV)
-- Cromo: MÁXIMO 200 mcg/dia (IN 28 Anexo IV)
-- Melatonina: MÁXIMO 0,21 mg/dia, exclusivo ≥19 anos (IN 102/2021)
-- Berberina: NÃO autorizada (não consta Anexo I IN 28)
-- Queratina: NÃO autorizada (não consta Anexo I IN 28)
-- Silício Orgânico: NÃO autorizado (não consta Anexo I IN 28)
-- L-Tirosina: AUTORIZADA — consta Anexo I IN 28 (CAS 60-18-4)
+      const systemPrompt = `Você é um especialista regulatório em suplementos 
+alimentares brasileiros da Vitalnow Indústria Ltda. Analise a fórmula fornecida com base na IN 28/2018 
+e suas atualizações reais em tempo real (incluindo IN 438/2026).
+
+CONTEXTO ATUAL ANVISA (Power BI Sync):
+${powerBiData || 'Dados de sincronização indisponíveis no momento.'}
+
+LIMITES CRÍTICOS (HARD RULES):
+- Vitamina D3: MÁXIMO 2.000 UI (50 mcg/dia)
+- Zinco: MÁXIMO 25 mg/dia
+- Boro: MÁXIMO 6 mg/dia
+- Niacina B3: MÁXIMO 35 mg NE/dia
+- Ácido Fólico B9: MÁXIMO 400 mcg DFE/dia
+- Cromo: MÁXIMO 200 mcg/dia
+- Melatonina: MÁXIMO 0,21 mg/dia (Exclusivo ≥19 anos)
 
 Retorne JSON com:
 {
   "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
   "alertas": [{"tipo": "err|warn|ok|info", "titulo": "", "corpo": ""}],
-  "analise_ia": "texto explicativo da análise",
+  "analise_ia": "texto explicativo citando as normas consultadas",
   "alegacoes_permitidas": ["..."],
   "alegacoes_proibidas": ["..."],
   "avisos_rotulo": ["..."],
