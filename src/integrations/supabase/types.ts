@@ -3774,6 +3774,44 @@ export type Database = {
           },
         ]
       }
+      manual_feedback: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string
+          pergunta_idx: number
+          secao_id: string
+          user_id: string | null
+          util: boolean
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          pergunta_idx: number
+          secao_id: string
+          user_id?: string | null
+          util: boolean
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          pergunta_idx?: number
+          secao_id?: string
+          user_id?: string | null
+          util?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_feedback_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manual_ia_historico: {
         Row: {
           avaliacao: number | null
