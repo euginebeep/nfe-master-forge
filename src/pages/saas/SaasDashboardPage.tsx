@@ -439,6 +439,9 @@ export default function SaasDashboardPage() {
           <TabsContent value="logs">
             <LogsPanel />
           </TabsContent>
+          <TabsContent value="parceiros">
+            <ParceirosAdminPanel />
+          </TabsContent>
         </Tabs>
       </main>
 
