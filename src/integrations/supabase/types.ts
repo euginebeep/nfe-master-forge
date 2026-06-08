@@ -892,6 +892,247 @@ export type Database = {
           },
         ]
       }
+      brainx_campanhas: {
+        Row: {
+          aprovado: boolean | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          ativo: boolean | null
+          created_at: string | null
+          criativo_id: string | null
+          data_fim: string | null
+          data_inicio: string
+          excluir_tenants: string[] | null
+          id: string
+          nome: string
+          parceiro_id: string | null
+          posicao: string
+          segmentacao: string | null
+          total_cliques: number | null
+          total_impressoes: number | null
+          updated_at: string | null
+          valor_mensal: number | null
+        }
+        Insert: {
+          aprovado?: boolean | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          ativo?: boolean | null
+          created_at?: string | null
+          criativo_id?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          excluir_tenants?: string[] | null
+          id?: string
+          nome: string
+          parceiro_id?: string | null
+          posicao?: string
+          segmentacao?: string | null
+          total_cliques?: number | null
+          total_impressoes?: number | null
+          updated_at?: string | null
+          valor_mensal?: number | null
+        }
+        Update: {
+          aprovado?: boolean | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          ativo?: boolean | null
+          created_at?: string | null
+          criativo_id?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          excluir_tenants?: string[] | null
+          id?: string
+          nome?: string
+          parceiro_id?: string | null
+          posicao?: string
+          segmentacao?: string | null
+          total_cliques?: number | null
+          total_impressoes?: number | null
+          updated_at?: string | null
+          valor_mensal?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brainx_campanhas_criativo_id_fkey"
+            columns: ["criativo_id"]
+            isOneToOne: false
+            referencedRelation: "brainx_criativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brainx_campanhas_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "brainx_parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brainx_criativos: {
+        Row: {
+          altura: number | null
+          arquivo_url: string
+          ativo: boolean | null
+          created_at: string | null
+          criado_por: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          largura: number | null
+          parceiro_id: string | null
+          tipo: string
+          titulo: string
+          url_destino: string
+        }
+        Insert: {
+          altura?: number | null
+          arquivo_url: string
+          ativo?: boolean | null
+          created_at?: string | null
+          criado_por?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          largura?: number | null
+          parceiro_id?: string | null
+          tipo: string
+          titulo: string
+          url_destino: string
+        }
+        Update: {
+          altura?: number | null
+          arquivo_url?: string
+          ativo?: boolean | null
+          created_at?: string | null
+          criado_por?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          largura?: number | null
+          parceiro_id?: string | null
+          tipo?: string
+          titulo?: string
+          url_destino?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brainx_criativos_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "brainx_parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brainx_metricas: {
+        Row: {
+          campanha_id: string | null
+          company_id: string | null
+          created_at: string | null
+          id: string
+          tipo: string
+        }
+        Insert: {
+          campanha_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          tipo: string
+        }
+        Update: {
+          campanha_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brainx_metricas_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "brainx_campanhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brainx_metricas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brainx_optout: {
+        Row: {
+          company_id: string
+          motivo: string | null
+          optout_em: string | null
+        }
+        Insert: {
+          company_id: string
+          motivo?: string | null
+          optout_em?: string | null
+        }
+        Update: {
+          company_id?: string
+          motivo?: string | null
+          optout_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brainx_optout_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brainx_parceiros: {
+        Row: {
+          ativo: boolean | null
+          contato_email: string | null
+          contato_nome: string | null
+          contato_tel: string | null
+          created_at: string | null
+          criado_por: string | null
+          id: string
+          logo_url: string | null
+          nome: string
+          segmento: string
+          site_url: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_tel?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          id?: string
+          logo_url?: string | null
+          nome: string
+          segmento: string
+          site_url?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_tel?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          id?: string
+          logo_url?: string | null
+          nome?: string
+          segmento?: string
+          site_url?: string | null
+        }
+        Relationships: []
+      }
       catalogo_precos: {
         Row: {
           ativo: boolean | null
@@ -7558,6 +7799,11 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_cliques: { Args: { campanha_uuid: string }; Returns: undefined }
+      increment_impressoes: {
+        Args: { campanha_uuid: string }
+        Returns: undefined
       }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
       lote_belongs_to_tenant: { Args: { _lid: string }; Returns: boolean }
