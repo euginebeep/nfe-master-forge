@@ -467,9 +467,8 @@ export default function AmbientalConfigPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Quando ativado, o n8n sincroniza os dados automaticamente conforme
-                o intervalo configurado. Certifique-se de que o workflow n8n está
-                ativo no seu servidor.
+                Quando ativado, o sistema sincroniza os dados automaticamente conforme
+                o intervalo configurado.
               </p>
             </CardContent>
           </Card>
