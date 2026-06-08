@@ -2,16 +2,33 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Cpu, Zap, Image as ImageIcon, Sparkles, CheckCircle2, Settings } from "lucide-react";
+import { 
+  Cpu, Zap, Image as ImageIcon, Sparkles, CheckCircle2, Settings, 
+  Terminal, Shield, Gauge, Activity, Brain, Code, Eye, MousePointer2 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ModelTier = "default" | "fast" | "premium" | "image";
+type ModelTier = "default" | "fast" | "premium" | "image" | "agent";
 
 interface ModelDef {
   id: string;
   name: string;
-  provider: "Google" | "OpenAI";
+  provider: "Google" | "OpenAI" | "Anthropic" | "DeepSeek" | "Manus" | "Cursor";
   tier: ModelTier;
   use: string;
   ctxK?: number;
@@ -19,14 +36,14 @@ interface ModelDef {
 
 const MODELS: ModelDef[] = [
   { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "Google", tier: "default", use: "Padrão. Extração ANVISA, fichas técnicas, chat geral.", ctxK: 1024 },
-  { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite", provider: "Google", tier: "fast", use: "Alto volume: classificação NCM, resumos, triagem." },
-  { id: "google/gemini-3.5-flash", name: "Gemini 3.5 Flash", provider: "Google", tier: "fast", use: "Coding e raciocínio rápido em workflows agentivos." },
-  { id: "google/gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", provider: "Google", tier: "premium", use: "Raciocínio profundo para regulatório e auditoria." },
-  { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "Google", tier: "premium", use: "Multimodal forte, contexto longo (COAs, dossiês)." },
+  { id: "anthropic/claude-3-7-sonnet", name: "Claude 3.7 Sonnet", provider: "Anthropic", tier: "premium", use: "Codificação avançada e raciocínio sutil com baixa latência." },
+  { id: "deepseek/deepseek-v3", name: "DeepSeek-V3", provider: "DeepSeek", tier: "fast", use: "SOTA Open Weights. Eficiência extrema para lógica e matemática." },
+  { id: "manus/brainx-agent-1", name: "Manus BrainX", provider: "Manus", tier: "agent", use: "Agente autônomo focado em execução de tarefas ERP ponta-a-ponta." },
+  { id: "cursor/composer-v2", name: "Cursor Composer", provider: "Cursor", tier: "agent", use: "Interface de IA para edição massiva de código e refatoração." },
   { id: "openai/gpt-5.4", name: "GPT-5.4", provider: "OpenAI", tier: "premium", use: "Reasoning avançado, geração de código, análise complexa." },
+  { id: "google/gemini-3.5-flash", name: "Gemini 3.5 Flash", provider: "Google", tier: "fast", use: "Coding e raciocínio rápido em workflows agentivos." },
   { id: "openai/gpt-5-mini", name: "GPT-5 Mini", provider: "OpenAI", tier: "fast", use: "Custo médio, bom para chat assistente operacional." },
   { id: "google/gemini-3.1-flash-image-preview", name: "Nano Banana 2", provider: "Google", tier: "image", use: "Geração/edição de imagens (logos, rótulos, mockups)." },
-  { id: "openai/gpt-image-2", name: "GPT-Image-2", provider: "OpenAI", tier: "image", use: "Geração SOTA de imagens (rótulos comerciais)." },
 ];
 
 const TIER_META: Record<ModelTier, { label: string; cls: string; icon: any }> = {
@@ -34,6 +51,7 @@ const TIER_META: Record<ModelTier, { label: string; cls: string; icon: any }> = 
   fast: { label: "RÁPIDO", cls: "bg-info/10 text-info border-info/20", icon: Zap },
   premium: { label: "PREMIUM", cls: "bg-warning/10 text-warning border-warning/20", icon: Sparkles },
   image: { label: "IMAGEM", cls: "bg-purple-500/10 text-purple-600 border-purple-500/20", icon: ImageIcon },
+  agent: { label: "AGENTE", cls: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20", icon: Brain },
 };
 
 export function AIHubPanel() {
