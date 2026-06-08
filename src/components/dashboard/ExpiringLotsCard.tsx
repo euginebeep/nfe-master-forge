@@ -235,7 +235,7 @@ export function ExpiringLotsCard() {
     <>
       <Card
         className={cn(
-          "border-2 w-full h-full shadow-xl transition-all duration-300 flex flex-col",
+          "border-2 w-full h-auto shadow-xl transition-all duration-300 flex flex-col",
           stats.critico > 0
             ? "border-destructive/70 bg-gradient-to-br from-destructive/15 via-background to-background ring-2 ring-destructive/10"
             : stats.urgente > 0

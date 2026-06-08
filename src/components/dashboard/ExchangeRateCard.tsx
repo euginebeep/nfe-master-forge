@@ -43,8 +43,8 @@ export function ExchangeRateCard() {
       transition={{ delay: 0.2 }}
       className="h-full"
     >
-      <Card className="h-full overflow-hidden flex flex-col">
-        <CardHeader className="pb-2 bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/30 dark:to-teal-950/20 shrink-0">
+      <Card className="h-auto overflow-hidden flex flex-col">
+        <CardHeader className="pb-2 bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/30 dark:to-teal-950/20 shrink-0 min-h-[52px]">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-emerald-500/10">

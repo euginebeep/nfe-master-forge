@@ -153,8 +153,8 @@ export function MarketIndicesCard() {
       transition={{ delay: 0.3 }}
       className="h-full"
     >
-      <Card className="h-full overflow-hidden flex flex-col">
-        <CardHeader className="pb-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 shrink-0">
+      <Card className="h-auto overflow-hidden flex flex-col">
+        <CardHeader className="pb-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 shrink-0 min-h-[52px]">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-primary/10">

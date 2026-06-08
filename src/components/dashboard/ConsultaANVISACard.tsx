@@ -131,7 +131,7 @@ export function ConsultaANVISACard() {
         transition={{ delay: 0.4 }}
         className="h-full"
       >
-        <Card className="h-full flex flex-col">
+        <Card className="h-auto flex flex-col">
           <CardHeader className="pb-2 shrink-0">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Scale className="h-4 w-4" />

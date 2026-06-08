@@ -143,17 +143,17 @@ const Index = () => {
       )}
 
       {/* Alerts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
         {/* Expiring Lots - Priority Card */}
-        <div className="md:col-span-2 lg:col-span-5 xl:col-span-4 flex">
+        <div className="md:col-span-2 lg:col-span-5 xl:col-span-4">
           <ExpiringLotsCard />
         </div>
         
         {/* Other Indicators Container */}
-        <div className="md:col-span-2 lg:col-span-7 xl:col-span-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-          <div className="flex"><ExchangeRateCard /></div>
-          <div className="flex"><MarketIndicesCard /></div>
-          <div className="flex sm:col-span-2 xl:col-span-1"><ConsultaANVISACard /></div>
+        <div className="md:col-span-2 lg:col-span-7 xl:col-span-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6 items-start">
+          <ExchangeRateCard />
+          <MarketIndicesCard />
+          <div className="sm:col-span-2 xl:col-span-1"><ConsultaANVISACard /></div>
         </div>
       </div>
 
