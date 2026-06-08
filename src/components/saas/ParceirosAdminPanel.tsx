@@ -216,7 +216,7 @@ function ParceirosTab() {
      <Card className="border-none shadow-sm overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
           <CardTitle className="text-sm font-bold uppercase tracking-wider">Parceiros Comerciais</CardTitle>
-          <Button size="sm" className="gap-2 font-bold"><Plus className="h-4 w-4" /> Novo Parceiro</Button>
+          <NovoParceiroDialog />
         </CardHeader>
         <CardContent className="p-0">
           <Table>
