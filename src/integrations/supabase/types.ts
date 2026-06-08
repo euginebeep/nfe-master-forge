@@ -1030,6 +1030,7 @@ export type Database = {
           smtp_secure: boolean | null
           smtp_user: string | null
           telefone: string | null
+          tipo_empresa: string | null
           updated_at: string
         }
         Insert: {
@@ -1077,6 +1078,7 @@ export type Database = {
           smtp_secure?: boolean | null
           smtp_user?: string | null
           telefone?: string | null
+          tipo_empresa?: string | null
           updated_at?: string
         }
         Update: {
@@ -1124,6 +1126,7 @@ export type Database = {
           smtp_secure?: boolean | null
           smtp_user?: string | null
           telefone?: string | null
+          tipo_empresa?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6604,34 +6607,43 @@ export type Database = {
       saas_comunicados: {
         Row: {
           alvo_tenant: string | null
+          alvo_tipo_empresa: string | null
           ativo: boolean | null
           conteudo: string
           created_at: string | null
           criado_por: string | null
           expira_em: string | null
           id: string
+          label_acao: string | null
+          link_acao: string | null
           tipo: string | null
           titulo: string
         }
         Insert: {
           alvo_tenant?: string | null
+          alvo_tipo_empresa?: string | null
           ativo?: boolean | null
           conteudo: string
           created_at?: string | null
           criado_por?: string | null
           expira_em?: string | null
           id?: string
+          label_acao?: string | null
+          link_acao?: string | null
           tipo?: string | null
           titulo: string
         }
         Update: {
           alvo_tenant?: string | null
+          alvo_tipo_empresa?: string | null
           ativo?: boolean | null
           conteudo?: string
           created_at?: string | null
           criado_por?: string | null
           expira_em?: string | null
           id?: string
+          label_acao?: string | null
+          link_acao?: string | null
           tipo?: string | null
           titulo?: string
         }
@@ -6641,6 +6653,35 @@ export type Database = {
             columns: ["alvo_tenant"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saas_comunicados_lidos: {
+        Row: {
+          comunicado_id: string
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          comunicado_id: string
+          id?: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          comunicado_id?: string
+          id?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_comunicados_lidos_comunicado_id_fkey"
+            columns: ["comunicado_id"]
+            isOneToOne: false
+            referencedRelation: "saas_comunicados"
             referencedColumns: ["id"]
           },
         ]

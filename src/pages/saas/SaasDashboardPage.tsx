@@ -24,6 +24,7 @@ import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
 import { DemoLeadsPanel } from "@/components/saas/DemoLeadsPanel";
 import { AIHubPanel } from "@/components/saas/AIHubPanel";
 import { LogsPanel } from "@/components/saas/LogsPanel";
+import { ComunicadosPanel } from "@/components/saas/ComunicadosPanel";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -64,6 +65,7 @@ interface SaasCompany {
   tickets_abertos: number;
   usuarios: CompanyUser[];
   stripe?: StripeInfo;
+  tipo_empresa?: string | null;
 }
 
 // ─── Helpers ───
@@ -381,6 +383,7 @@ export default function SaasDashboardPage() {
                           <div className="flex flex-col">
                             <span className="font-bold">{c.nome_fantasia || c.razao_social}</span>
                             <span className="text-[10px] text-muted-foreground font-mono">{formatCNPJ(c.cnpj)}</span>
+                            {c.tipo_empresa && <Badge variant="outline" className="w-fit text-[9px] h-4 mt-1 uppercase font-bold">{c.tipo_empresa}</Badge>}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -429,7 +432,7 @@ export default function SaasDashboardPage() {
             <AIHubPanel />
           </TabsContent>
           <TabsContent value="comunicados">
-            <Card className="border-none shadow-sm"><CardContent className="py-20 text-center text-muted-foreground"><Megaphone className="mx-auto h-12 w-12 opacity-20 mb-4" /> Painel de comunicados aos tenants (em breve).</CardContent></Card>
+            <ComunicadosPanel />
           </TabsContent>
           <TabsContent value="logs">
             <LogsPanel />
@@ -488,10 +491,40 @@ export default function SaasDashboardPage() {
                   <p className="text-lg font-black mt-1">{detailCompany.tickets_abertos}</p>
                 </div>
               </div>
-              <div>
-                <p className="text-xs font-bold mb-2 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Proprietário</p>
-                <div className="text-sm">{detailCompany.owner_nome || "—"}</div>
-                <div className="text-xs text-muted-foreground">{detailCompany.owner_email || "—"}</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-bold mb-2 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Proprietário</p>
+                  <div className="text-sm">{detailCompany.owner_nome || "—"}</div>
+                  <div className="text-xs text-muted-foreground">{detailCompany.owner_email || "—"}</div>
+                </div>
+                <div>
+                  <Label className="text-xs font-bold mb-2 flex items-center gap-1.5"><Megaphone className="h-3.5 w-3.5" /> Tipo de Empresa</Label>
+                  <Select 
+                    defaultValue={detailCompany.tipo_empresa || "outro"} 
+                    onValueChange={async (val) => {
+                      try {
+                        const { error } = await supabase.functions.invoke("saas-admin?action=update-company", {
+                          body: { company_id: detailCompany.id, updates: { tipo_empresa: val } }
+                        });
+                        if (error) throw error;
+                        toast.success("Tipo de empresa atualizado");
+                        fetchCompanies();
+                      } catch (err) {
+                        toast.error("Erro ao atualizar tipo");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="farmacia">Farmácia</SelectItem>
+                      <SelectItem value="industria">Indústria</SelectItem>
+                      <SelectItem value="distribuidora">Distribuidora</SelectItem>
+                      <SelectItem value="outro">Outro / Geral</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <p className="text-xs font-bold mb-2">Usuários do Tenant</p>

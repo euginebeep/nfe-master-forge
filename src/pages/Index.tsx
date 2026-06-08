@@ -15,6 +15,7 @@ import { NewsFeedCard } from "@/components/dashboard/NewsFeedCard";
 import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
 import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import { useAuth } from "@/hooks/use-auth";
+import { AvisosPopup } from "@/components/AvisosPopup";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 
@@ -119,6 +120,7 @@ const Index = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <AvisosPopup />
       {/* User Welcome Section */}
       {isAuthenticated && (
         <UserWelcomeCard
