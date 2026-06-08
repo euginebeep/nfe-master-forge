@@ -358,7 +358,18 @@ export default function POPsPage() {
                             </div>
                           ) : "-"}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right flex gap-2 justify-end">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                              setSelectedPopForView(pop);
+                              setVisualizeOpen(true);
+                            }}
+                            title="Visualizar Documento (PDF)"
+                          >
+                            <Eye className="w-4 h-4 text-primary" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleOpenPopDialog(pop)}>
                             <FileEdit className="w-4 h-4" />
                           </Button>
