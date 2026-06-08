@@ -346,6 +346,7 @@ export default function SaasDashboardPage() {
             <TabsTrigger value="tickets" className="gap-2 px-6"><LifeBuoy className="h-4 w-4" /> Suporte</TabsTrigger>
             <TabsTrigger value="leads" className="gap-2 px-6"><MessageSquare className="h-4 w-4" /> Leads</TabsTrigger>
             <TabsTrigger value="comunicados" className="gap-2 px-6"><Megaphone className="h-4 w-4" /> Avisos</TabsTrigger>
+            <TabsTrigger value="parceiros" className="gap-2 px-6"><Megaphone className="h-4 w-4" /> Parceiros</TabsTrigger>
             <TabsTrigger value="ia" className="gap-2 px-6"><Cpu className="h-4 w-4" /> IA Hub</TabsTrigger>
             <TabsTrigger value="logs" className="gap-2 px-6"><Activity className="h-4 w-4" /> Logs</TabsTrigger>
           </TabsList>
