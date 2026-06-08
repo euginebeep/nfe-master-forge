@@ -36,7 +36,16 @@ export function AvisosPopup() {
       
       const lidosIds = lidos?.map(l => l.comunicado_id) || [];
 
-      // 2. Buscar avisos ativos que não foram lidos
+      // 2. Buscar dados da empresa do usuário (para tipo_empresa)
+      const { data: companyData } = await supabase
+        .from('company')
+        .select('tipo_empresa')
+        .eq('id', profile?.company_id)
+        .maybeSingle();
+
+      const userTipoEmpresa = companyData?.tipo_empresa;
+
+      // 3. Buscar avisos ativos que não foram lidos
       let query = supabase
         .from('saas_comunicados')
         .select('*')
@@ -50,14 +59,11 @@ export function AvisosPopup() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // 3. Filtrar no cliente por tenant ou tipo (para evitar RLS complexa ou dados sensíveis)
-      // Nota: A RLS já filtra por Global ou Seu Tenant, mas podemos ter alvo_tipo_empresa adicional
+      // 4. Filtrar no cliente por tenant ou tipo
       const filtered = (data as Comunicado[]).filter(a => {
-        // Se houver alvo_tipo_empresa, precisamos saber o tipo da empresa atual
-        // Por enquanto, se não estiver definido no profile, mostramos apenas se for null
+        // Se houver alvo_tipo_empresa, verificamos se bate com o tipo da empresa do usuário
         if (a.alvo_tipo_empresa) {
-          // Exemplo: se profile?.tipo_empresa === a.alvo_tipo_empresa
-          return false; // Ignorar por enquanto até termos o campo tipo_empresa
+          return a.alvo_tipo_empresa === userTipoEmpresa;
         }
         return true;
       });
