@@ -132,34 +132,34 @@ export function ConsultaANVISACard() {
         className="h-full"
       >
         <Card className="h-auto flex flex-col">
-          <CardHeader className="pb-2 shrink-0">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CardHeader className="pb-1 pt-4 px-5 shrink-0">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-tight text-primary">
               <Scale className="h-4 w-4" />
               Consulta ANVISA
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 flex-1 flex flex-col">
+          <CardContent className="space-y-2 flex-1 flex flex-col px-5 pb-4">
             <p className="text-[11px] leading-tight text-muted-foreground">
               Consulte substâncias, doses máximas e alegações permitidas
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Input
-                placeholder="Ex: Maca, Vitamina D, Melatonina..."
+                placeholder="Ex: Maca, Vitamina D..."
                 value={termo}
                 onChange={(e) => buscar(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="h-9 text-sm"
+                className="h-7 text-[10px] rounded-md"
               />
               <Button 
                 size="sm" 
                 onClick={handleSearch}
                 disabled={isLoading || termo.trim().length < 2}
-                className="h-9"
+                className="h-7 w-8 p-0 shrink-0"
               >
                 {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <Search className="h-4 w-4" />
+                  <Search className="h-3 w-3" />
                 )}
               </Button>
             </div>
@@ -182,10 +182,10 @@ export function ConsultaANVISACard() {
               href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-primary hover:underline pt-1"
+              className="flex items-center gap-1 text-[9px] font-bold text-primary hover:underline pt-0.5 opacity-80"
             >
-              <ExternalLink className="h-3 w-3" />
-              Legislação ANVISA - Suplementos
+              <ExternalLink className="h-2.5 w-2.5" />
+              Legislação ANVISA
             </a>
           </CardContent>
         </Card>

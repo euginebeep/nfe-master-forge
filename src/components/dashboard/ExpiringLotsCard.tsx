@@ -248,26 +248,26 @@ export function ExpiringLotsCard() {
             <div className="flex items-center gap-2">
               <motion.div
                 className={cn(
-                  "p-2 rounded-xl shadow-md",
+                  "p-2 rounded-lg shadow-sm",
                   stats.critico > 0 ? "bg-destructive text-destructive-foreground" : "bg-warning text-warning-foreground"
                 )}
                 animate={{ scale: stats.critico > 0 ? [1, 1.1, 1] : 1 }}
                 transition={{ repeat: stats.critico > 0 ? Infinity : 0, duration: 2 }}
               >
-                <AlertTriangle className="h-5 w-5" />
+                <AlertTriangle className="h-4 w-4" />
               </motion.div>
               <div>
-                <span className={cn("text-lg sm:text-xl font-black tracking-tighter block leading-none uppercase", stats.critico > 0 ? "text-destructive" : "text-warning")}>
+                <span className={cn("text-base sm:text-lg font-black tracking-tighter block leading-none uppercase", stats.critico > 0 ? "text-destructive" : "text-warning")}>
                   Lotes a Vencer
                 </span>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Risco de Validade</span>
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block">Risco de Validade</span>
               </div>
             </div>
             <div className="flex items-center gap-1 ml-auto">
               <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-6 w-6">
                 <RefreshCcw className={"h-3 w-3 " + (isFetching ? "animate-spin" : "")} />
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-6 text-[9px] font-bold px-1.5">
+              <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-6 text-[9px] font-bold px-1.5 rounded-md">
                 Ver Todo
                 <ChevronRight className="h-3 w-3 ml-0.5" />
               </Button>
@@ -279,30 +279,30 @@ export function ExpiringLotsCard() {
           <div className="grid grid-cols-3 gap-2">
             <div
               className={cn(
-                "p-2.5 rounded-xl text-center shadow-sm border transition-transform hover:scale-105",
+                "p-2 rounded-lg text-center shadow-sm border transition-transform hover:scale-105",
                 stats.critico > 0 ? "bg-destructive/15 border-destructive/20" : "bg-muted/30 border-transparent"
               )}
             >
-              <p className={cn("text-xl sm:text-2xl font-black leading-tight", stats.critico > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.critico}</p>
-              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">≤30 dias</p>
+              <p className={cn("text-lg sm:text-xl font-black leading-tight", stats.critico > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.critico}</p>
+              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">≤30 dias</p>
             </div>
             <div
               className={cn(
-                "p-2.5 rounded-xl text-center shadow-sm border transition-transform hover:scale-105",
+                "p-2 rounded-lg text-center shadow-sm border transition-transform hover:scale-105",
                 stats.urgente > 0 ? "bg-warning/15 border-warning/20" : "bg-muted/30 border-transparent"
               )}
             >
-              <p className={cn("text-xl sm:text-2xl font-black leading-tight", stats.urgente > 0 ? "text-warning" : "text-muted-foreground")}>{stats.urgente}</p>
-              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">31-60 dias</p>
+              <p className={cn("text-lg sm:text-xl font-black leading-tight", stats.urgente > 0 ? "text-warning" : "text-muted-foreground")}>{stats.urgente}</p>
+              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">31-60 dias</p>
             </div>
             <div
               className={cn(
-                "p-2.5 rounded-xl text-center shadow-sm border transition-transform hover:scale-105",
+                "p-2 rounded-lg text-center shadow-sm border transition-transform hover:scale-105",
                 stats.atencao > 0 ? "bg-accent/15 border-accent/20" : "bg-muted/30 border-transparent"
               )}
             >
-              <p className={cn("text-xl sm:text-2xl font-black leading-tight", stats.atencao > 0 ? "text-accent-foreground" : "text-muted-foreground")}>{stats.atencao}</p>
-              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">61-90 dias</p>
+              <p className={cn("text-lg sm:text-xl font-black leading-tight", stats.atencao > 0 ? "text-accent-foreground" : "text-muted-foreground")}>{stats.atencao}</p>
+              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">61-90 dias</p>
             </div>
           </div>
 
@@ -320,13 +320,13 @@ export function ExpiringLotsCard() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold truncate text-sm sm:text-base text-foreground uppercase tracking-tight">{lot.item_descricao}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Lote: {lot.numero_lote}</span>
+                      <p className="font-bold truncate text-[11px] sm:text-xs text-foreground uppercase tracking-tight">{lot.item_descricao}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[8px] font-semibold text-muted-foreground bg-muted px-1 py-0.2 rounded">Lote: {lot.numero_lote}</span>
                       </div>
                     </div>
-                    <Badge className={cn("px-2.5 py-1 text-xs font-bold whitespace-nowrap rounded-full", getCategoryColor(lot.categoria))}>
-                      {lot.dias_para_vencer} dias
+                    <Badge className={cn("px-1.5 py-0.2 text-[8px] font-bold whitespace-nowrap rounded-full", getCategoryColor(lot.categoria))}>
+                      {lot.dias_para_vencer} d
                     </Badge>
                   </div>
                 </motion.div>
