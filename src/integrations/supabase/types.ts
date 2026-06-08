@@ -420,6 +420,45 @@ export type Database = {
           },
         ]
       }
+      anvisa_alertas_normativos: {
+        Row: {
+          constituintes_afetados: string[] | null
+          created_at: string | null
+          critico: boolean | null
+          descricao: string | null
+          fonte_url: string | null
+          id: string
+          lido: boolean | null
+          norma: string | null
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          constituintes_afetados?: string[] | null
+          created_at?: string | null
+          critico?: boolean | null
+          descricao?: string | null
+          fonte_url?: string | null
+          id?: string
+          lido?: boolean | null
+          norma?: string | null
+          tipo?: string
+          titulo: string
+        }
+        Update: {
+          constituintes_afetados?: string[] | null
+          created_at?: string | null
+          critico?: boolean | null
+          descricao?: string | null
+          fonte_url?: string | null
+          id?: string
+          lido?: boolean | null
+          norma?: string | null
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
       anvisa_constituintes: {
         Row: {
           advertencias: string[] | null
@@ -456,8 +495,10 @@ export type Database = {
           rotulagem_complementar: string[] | null
           search_vector: unknown
           sinonimos: string[] | null
+          status_normativo: string | null
           subcategoria: string | null
           sync_id: string | null
+          ultima_verificacao: string | null
           updated_at: string | null
           verificado_em: string | null
         }
@@ -496,8 +537,10 @@ export type Database = {
           rotulagem_complementar?: string[] | null
           search_vector?: unknown
           sinonimos?: string[] | null
+          status_normativo?: string | null
           subcategoria?: string | null
           sync_id?: string | null
+          ultima_verificacao?: string | null
           updated_at?: string | null
           verificado_em?: string | null
         }
@@ -536,8 +579,10 @@ export type Database = {
           rotulagem_complementar?: string[] | null
           search_vector?: unknown
           sinonimos?: string[] | null
+          status_normativo?: string | null
           subcategoria?: string | null
           sync_id?: string | null
+          ultima_verificacao?: string | null
           updated_at?: string | null
           verificado_em?: string | null
         }
@@ -626,6 +671,30 @@ export type Database = {
           produto?: string
           resultado_ia?: Json | null
           status_geral?: string | null
+        }
+        Relationships: []
+      }
+      anvisa_powerbi_sync_log: {
+        Row: {
+          created_at: string | null
+          erro: string | null
+          id: string
+          registros_processados: number | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          registros_processados?: number | null
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          registros_processados?: number | null
+          status?: string
         }
         Relationships: []
       }
@@ -7761,8 +7830,10 @@ export type Database = {
           rotulagem_complementar: string[] | null
           search_vector: unknown
           sinonimos: string[] | null
+          status_normativo: string | null
           subcategoria: string | null
           sync_id: string | null
+          ultima_verificacao: string | null
           updated_at: string | null
           verificado_em: string | null
         }[]
