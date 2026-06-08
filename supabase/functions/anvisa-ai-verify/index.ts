@@ -652,7 +652,7 @@ Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" 
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash',
+          model: 'google/gemini-2.5-flash',
 
           messages,
           response_format: { type: 'json_object' }
