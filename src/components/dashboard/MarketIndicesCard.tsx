@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Minus, RefreshCw, Bitcoin, CircleDollarSign, 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 
 interface CryptoPrice {
   symbol: string;

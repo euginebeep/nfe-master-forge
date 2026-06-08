@@ -3,6 +3,7 @@ import { DollarSign, Euro, RefreshCw, TrendingUp, TrendingDown, Minus, Banknote 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useExchangeRates, formatCurrency, getVariationColor } from '@/hooks/use-exchange-rates';
+import { cn } from '@/lib/utils';
 
 export function ExchangeRateCard() {
   const { USD, EUR, isLoading, error, lastUpdate } = useExchangeRates();
