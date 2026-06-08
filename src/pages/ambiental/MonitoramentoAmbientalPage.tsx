@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Activity,
   Settings,
+  Loader2,
 } from "lucide-react";
 import {
   ComposedChart,
@@ -621,6 +622,11 @@ export default function MonitoramentoAmbientalPage() {
             </div>
           </CardContent>
         </Card>
+      ) : isCarregandoEstado ? (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <p className="text-sm text-muted-foreground italic">Carregando telemetria ambiental...</p>
+        </div>
       ) : (
         <>
           {/* Period tabs + Room filter */}
