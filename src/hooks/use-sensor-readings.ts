@@ -36,7 +36,44 @@ export function useMonitoramentoAmbiental(period: MonitoramentoPeriodo = "hoje")
     queryFn: async (): Promise<SensorReading[]> => {
       if (!companyId) return [];
       const hours = PERIODO_HORAS[period];
-      const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      const now = new Date();
+      const since = new Date(now.getTime() - hours * 60 * 60 * 1000).toISOString();
+      
+      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
+      
+      // Se estiver em modo demo e não houver dados, simulamos leituras fictícias
+      if (isDemoMode) {
+        const demoReadings: SensorReading[] = [];
+        const rooms = [
+          { name: 'Almoxarifado MP', tmin: 15, tmax: 25, hmin: 30, hmax: 60 },
+          { name: 'Sala de Pesagem', tmin: 18, tmax: 22, hmin: 35, hmax: 55 },
+          { name: 'Produção Líquidos', tmin: 18, tmax: 24, hmin: 30, hmax: 60 },
+          { name: 'Estoque PA', tmin: 15, tmax: 25, hmin: 30, hmax: 60 }
+        ];
+
+        // Gerar 24 leituras (uma por hora) para cada sala
+        for (const room of rooms) {
+          for (let i = 0; i < Math.min(hours, 24); i++) {
+            const time = new Date(now.getTime() - i * 60 * 60 * 1000);
+            demoReadings.push({
+              id: `demo-${room.name}-${i}`,
+              company_id: companyId,
+              room_name: room.name,
+              device_id: `SNSR-${room.name.substring(0,3).toUpperCase()}-01`,
+              temperature: room.tmin + 2 + Math.random() * 3,
+              humidity: room.hmin + 10 + Math.random() * 10,
+              temp_min: room.tmin,
+              temp_max: room.tmax,
+              hum_min: room.hmin,
+              hum_max: room.hmax,
+              responsible: 'Monitoramento Automático',
+              recorded_at: time.toISOString()
+            });
+          }
+        }
+        return demoReadings;
+      }
+
       const { data, error } = await (supabase as any)
         .from("sensor_readings")
         .select("*")

@@ -334,6 +334,15 @@ export default function MonitoramentoAmbientalPage() {
     queryKey: ["ambiental-sensores", companyId],
     enabled: !!companyId,
     queryFn: async () => {
+      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
+      if (isDemoMode) {
+        return [
+          { id: 'd1', device_id: 'SNSR-ALM-01', room_name: 'Almoxarifado MP', ativo: true },
+          { id: 'd2', device_id: 'SNSR-PES-01', room_name: 'Sala de Pesagem', ativo: true },
+          { id: 'd3', device_id: 'SNSR-PRO-01', room_name: 'Produção Líquidos', ativo: true },
+          { id: 'd4', device_id: 'SNSR-EST-01', room_name: 'Estoque PA', ativo: true },
+        ];
+      }
       const { data, error } = await (supabase as any)
         .from("ambiental_sensores")
         .select("id, device_id, room_name, ativo")
