@@ -132,13 +132,13 @@ export function ConsultaANVISACard() {
         className="h-full"
       >
         <Card className="h-auto flex flex-col">
-          <CardHeader className="pb-2 shrink-0">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CardHeader className="pb-1 pt-4 px-5 shrink-0">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-tight text-primary">
               <Scale className="h-4 w-4" />
               Consulta ANVISA
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 flex-1 flex flex-col">
+          <CardContent className="space-y-2 flex-1 flex flex-col px-5 pb-4">
             <p className="text-[11px] leading-tight text-muted-foreground">
               Consulte substâncias, doses máximas e alegações permitidas
             </p>
@@ -182,10 +182,10 @@ export function ConsultaANVISACard() {
               href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-primary hover:underline pt-1"
+              className="flex items-center gap-1 text-[9px] font-bold text-primary hover:underline pt-0.5 opacity-80"
             >
-              <ExternalLink className="h-3 w-3" />
-              Legislação ANVISA - Suplementos
+              <ExternalLink className="h-2.5 w-2.5" />
+              Legislação ANVISA
             </a>
           </CardContent>
         </Card>
