@@ -156,12 +156,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Aplicar detecção de demo: perfil marcado como demo OU email demo OU flag na sessão
           const isDemoPersistedInit = sessionStorage.getItem('brainx_demo_mode') === 'true';
           const isDemoEmailInit = session.user.email === 'demo@brainxerp.com';
-          const isDemoInit = profile?.is_demo || isDemoEmailInit || isDemoPersistedInit || profile?.company_id === '00000000-0000-0000-0000-000000000001';
+          const isDemoCompany = profile?.company_id === '00000000-0000-0000-0000-000000000001';
+          const isDemoInit = profile?.is_demo || isDemoEmailInit || isDemoPersistedInit || isDemoCompany;
 
-          if (isDemoInit) {
-            sessionStorage.setItem('brainx_demo_mode', 'true');
-          } else if (!isDemoInit && !profile?.company_id) {
+          // Se for uma empresa real (não demo), garantimos que o modo demo está desativado na sessão
+          if (!isDemoInit && profile?.company_id && profile.company_id !== '00000000-0000-0000-0000-000000000001') {
             sessionStorage.removeItem('brainx_demo_mode');
+          } else if (isDemoInit) {
+            sessionStorage.setItem('brainx_demo_mode', 'true');
           }
 
           const finalProfileInit = profile ? { ...profile, is_demo: isDemoInit } : null;
