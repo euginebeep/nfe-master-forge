@@ -60,14 +60,17 @@ const DEFAULT_FORM: Partial<Equipamento> = {
   nome: "Misturador em V 100L",
   tipo: "MISTURADOR_V",
   volume_nominal_litros: 100,
-  fator_enchimento_maximo: 0.65,
-  fator_enchimento_minimo: 0.15,
-  fator_enchimento_padrao: 0.40,
-  densidade_padrao_kg_l: 0.65,
+  fator_enchimento_maximo: 0.65, // 65L úteis máx (limite de segurança)
+  fator_enchimento_minimo: 0.15, // 15L úteis mín (homogeneidade)
+  fator_enchimento_padrao: 0.60, // 60L úteis padrão ← CORRIGIDO
+  densidade_padrao_kg_l: 0.65, // 0.65 kg/L típico de pós de suplemento
+  capacidade_padrao_kg: 39, // 60L × 0.65 kg/L
+  capacidade_minima_kg: 10, // 15L × 0.65 kg/L
+  capacidade_maxima_kg: 42, // 65L × 0.65 kg/L
+  capacidade_maxima_com_aprovacao_kg: 50,
   ativo: true,
   numero_serie: "",
-  observacoes: "",
-  capacidade_maxima_com_aprovacao_kg: null,
+  observacoes: "Fator enchimento 60% padrão (60L úteis). Limite máx 65% (65L). Mín 15% (15L).",
 };
 
 export default function EquipamentosPage() {
