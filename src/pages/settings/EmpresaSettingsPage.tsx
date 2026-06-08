@@ -97,6 +97,17 @@ export default function EmpresaSettingsPage() {
     }
   }, [company, supabaseCompany]);
 
+  // Carregar Opt-out status
+  useEffect(() => {
+    if (supabaseCompany?.id) {
+       const fetchOptout = async () => {
+          const { data } = await supabase.from('brainx_optout').select('company_id').eq('company_id', supabaseCompany.id).maybeSingle();
+          setFormData(prev => ({ ...prev, optout_parceiros: !!data }));
+       };
+       fetchOptout();
+    }
+  }, [supabaseCompany?.id]);
+
   // Load logo from Supabase storage when logo_file_id exists but no local preview
   useEffect(() => {
     if (logoPreview || !supabaseCompany?.logo_file_id) return;
