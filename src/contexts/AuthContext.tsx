@@ -153,10 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { profile, role, permissions } = await fetchUserData(session.user.id);
           if (!mounted) return;
 
-          // Aplicar mesma detecção de demo do onAuthStateChange
+          // Aplicar detecção de demo: perfil marcado como demo OU email demo OU flag na sessão
           const isDemoPersistedInit = sessionStorage.getItem('brainx_demo_mode') === 'true';
           const isDemoEmailInit = session.user.email === 'demo@brainxerp.com';
-          const isDemoInit = (profile?.is_demo || isDemoPersistedInit || isDemoEmailInit) && !profile?.company_id;
+          const isDemoInit = profile?.is_demo || isDemoEmailInit || isDemoPersistedInit || profile?.company_id === '00000000-0000-0000-0000-000000000001';
 
           if (isDemoInit) {
             sessionStorage.setItem('brainx_demo_mode', 'true');
