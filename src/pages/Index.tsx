@@ -120,6 +120,7 @@ const Index = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <AvisosPopup />
       {/* User Welcome Section */}
       {isAuthenticated && (
         <UserWelcomeCard
