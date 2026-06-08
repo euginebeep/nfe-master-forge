@@ -702,7 +702,10 @@ export default function MonitoramentoAmbientalPage() {
                   key={r.room_name}
                   reading={r}
                   selected={effectiveRoom === r.room_name}
-                  onClick={() => setSelectedRoom(r.room_name)}
+                  onClick={() => {
+                    setSelectedRoom(r.room_name);
+                    setDrawerRoom(r.room_name);
+                  }}
                 />
               ))}
             </div>
