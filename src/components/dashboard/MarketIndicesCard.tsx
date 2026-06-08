@@ -165,54 +165,47 @@ export function MarketIndicesCard() {
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </div>
         </CardHeader>
-        <CardContent className="space-y-2.5 pt-3">
-          {/* Ibovespa */}
-          <div className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${getChangeBg(ibovespa?.change || 0)}`}>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
-                <Landmark className="h-5 w-5 text-white" />
+        <CardContent className="space-y-1.5 pt-3">
+          {/* Ibovespa - Compact Row */}
+          <div className={cn("flex items-center justify-between p-2 rounded-xl transition-colors", getChangeBg(ibovespa?.change || 0))}>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">
+                <Landmark className="h-4 w-4 text-white" />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground">IBOVESPA</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter leading-none">IBOV</p>
                 {isLoading ? (
-                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-4 w-12 mt-0.5" />
                 ) : (
-                  <p className="text-xl font-bold tracking-tight">
+                  <p className="text-sm font-black tracking-tighter">
                     {ibovespa ? formatPrice(ibovespa.price, 'BRL') : '--'}
                   </p>
                 )}
               </div>
             </div>
             {ibovespa && (
-              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${getChangeColor(ibovespa.change)} ${getChangeBg(ibovespa.change)}`}>
-                {getTrendIcon(ibovespa.change)}
-                <span>{ibovespa.change >= 0 ? '+' : ''}{ibovespa.change.toFixed(2)}%</span>
+              <div className={cn("text-[10px] font-bold", getChangeColor(ibovespa.change))}>
+                {ibovespa.change >= 0 ? '+' : ''}{ibovespa.change.toFixed(1)}%
               </div>
             )}
           </div>
 
-          {/* Cryptos */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Cryptos - Single Compact Row */}
+          <div className="grid grid-cols-3 gap-1.5">
             {cryptos?.map((crypto) => (
               <div 
                 key={crypto.symbol} 
-                className="flex flex-col items-center p-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                className="flex flex-col items-center p-1.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               >
-                <div className={`flex items-center justify-center w-9 h-9 rounded-xl ${crypto.bgColor} mb-2`}>
-                  {getCryptoIcon(crypto.symbol, `h-5 w-5 ${crypto.iconColor}`)}
+                <div className={cn("flex items-center justify-center w-6 h-6 rounded-lg mb-1", crypto.bgColor)}>
+                  {getCryptoIcon(crypto.symbol, `h-3.5 w-3.5 ${crypto.iconColor}`)}
                 </div>
-                <p className="text-[10px] font-medium text-muted-foreground">{crypto.symbol}</p>
-                {isLoading ? (
-                  <Skeleton className="h-4 w-14 mt-1" />
-                ) : (
-                  <p className="text-sm font-bold">
-                    ${crypto.price >= 1000 ? (crypto.price / 1000).toFixed(1) + 'k' : formatPrice(crypto.price)}
-                  </p>
-                )}
-                <div className={`flex items-center gap-0.5 text-[10px] mt-1 ${getChangeColor(crypto.change24h)}`}>
-                  {getTrendIcon(crypto.change24h)}
-                  <span>{crypto.change24h >= 0 ? '+' : ''}{crypto.change24h.toFixed(1)}%</span>
-                </div>
+                <p className="text-[10px] font-black leading-none">
+                  {crypto.price >= 1000 ? (crypto.price / 1000).toFixed(1) + 'k' : formatPrice(crypto.price)}
+                </p>
+                <span className={cn("text-[8px] font-bold mt-0.5", getChangeColor(crypto.change24h))}>
+                  {crypto.change24h >= 0 ? '+' : ''}{crypto.change24h.toFixed(0)}%
+                </span>
               </div>
             ))}
           </div>

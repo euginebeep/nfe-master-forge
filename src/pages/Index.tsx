@@ -143,14 +143,14 @@ const Index = () => {
       )}
 
       {/* Alerts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
         {/* Expiring Lots - Priority Card */}
         <div className="md:col-span-2 lg:col-span-4 xl:col-span-3">
           <ExpiringLotsCard />
         </div>
         
         {/* Other Indicators Container */}
-        <div className="md:col-span-2 lg:col-span-8 xl:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-start">
+        <div className="md:col-span-2 lg:col-span-8 xl:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-stretch">
           <div className="md:col-span-4 xl:col-span-3">
             <ExchangeRateCard />
           </div>
