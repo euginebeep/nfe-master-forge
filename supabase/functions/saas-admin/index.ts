@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     if (action === 'list') {
       const { data: companies, error: compErr } = await supabaseAdmin
         .from('company')
-        .select('id, razao_social, nome_fantasia, cnpj, telefone, created_at, email_financeiro, email_fiscal, acesso_liberado_ate')
+        .select('id, razao_social, nome_fantasia, cnpj, telefone, created_at, email_financeiro, email_fiscal, acesso_liberado_ate, tipo_empresa')
         .order('created_at', { ascending: false })
 
       if (compErr) throw compErr
