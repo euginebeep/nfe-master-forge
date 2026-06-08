@@ -116,6 +116,25 @@ const POP_CONTENTS: Record<string, any> = {
     verificacao: "Relatórios mensais de telemetria.",
     registros: "Mapas térmicos e histórico de sensores.",
     referencias: "RDC 430/2022."
+  },
+  MANUAL_GERAL: {
+    objetivo: "Estabelecer as diretrizes gerais de funcionamento da fábrica fictícia, consolidando todos os procedimentos de Boas Práticas de Fabricação (BPF) em um único guia mestre de operação.",
+    campo_aplicacao: "Abrange todas as áreas da unidade fabril: recepção, estoque, pesagem, produção, laboratório e expedição.",
+    responsaveis: "Diretoria, Gerência de Produção e Departamento de Garantia da Qualidade.",
+    materiais: "Documentação do sistema BrainX ERP, infraestrutura física da fábrica, equipamentos produtivos.",
+    procedimento: [
+      "Fluxo de Produção: Seguir rigorosamente a sequência lógica de fabricação para evitar cruzamento de fluxos.",
+      "Controle de Acesso: Apenas pessoal autorizado e devidamente uniformizado pode acessar as áreas classificadas.",
+      "Execução de POPs: Todos os colaboradores devem consultar e executar os POPs específicos (A a L) conforme o cronograma do sistema.",
+      "Registros em Tempo Real: Toda operação de pesagem e mistura deve ser registrada instantaneamente no ERP para garantir a rastreabilidade.",
+      "Limpeza e Organização: Aplicar o conceito de 'limpeza concorrente' durante todo o turno de trabalho.",
+      "Gestão de Resíduos: Descartar materiais conforme o plano de gerenciamento de resíduos sólidos de saúde (PGRSS)."
+    ],
+    monitoramento: "Auditorias internas mensais e acompanhamento diário via indicadores (KPIs) no dashboard do sistema.",
+    acoes_corretivas: "Abertura de Relatório de Desvio e plano de ação (CAPA) para qualquer processo fora do padrão estabelecido.",
+    verificacao: "Verificação sistêmica via trilha de auditoria digital (Logs) e revisão anual do manual.",
+    registros: "Registros digitais de produção, qualidade e telemetria armazenados na nuvem.",
+    referencias: "RDC 658/2022, RDC 275/2002, ISO 22716, Guia 34/2023 ANVISA."
   }
 };
 
