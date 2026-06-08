@@ -64,8 +64,8 @@ export function ExchangeRateCard() {
               USD ? getChangeBg(USD.pctChange) : 'bg-muted/30'
             )}>
               <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-emerald-500/10">
-                  <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-emerald-500/10 overflow-hidden">
+                  <img src="https://flagcdn.com/us.svg" alt="USA" className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-0.5">Dólar (USD)</p>
@@ -91,8 +91,8 @@ export function ExchangeRateCard() {
               EUR ? getChangeBg(EUR.pctChange) : 'bg-muted/30'
             )}>
               <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10">
-                  <Euro className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10 overflow-hidden">
+                  <img src="https://flagcdn.com/eu.svg" alt="EU" className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-0.5">Euro (EUR)</p>
