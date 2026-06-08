@@ -383,6 +383,7 @@ export default function SaasDashboardPage() {
                           <div className="flex flex-col">
                             <span className="font-bold">{c.nome_fantasia || c.razao_social}</span>
                             <span className="text-[10px] text-muted-foreground font-mono">{formatCNPJ(c.cnpj)}</span>
+                            {c.tipo_empresa && <Badge variant="outline" className="w-fit text-[9px] h-4 mt-1 uppercase font-bold">{c.tipo_empresa}</Badge>}
                           </div>
                         </TableCell>
                         <TableCell>
