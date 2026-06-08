@@ -159,15 +159,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             profile?.company_id === '00000000-0000-0000-0000-000000000001';
 
           // Se for uma empresa real (não demo), forçamos a remoção da flag de modo demo da sessão
+          // e garantimos que is_demo é false para evitar carregamento de dados simulados
           const hasRealCompany = profile?.company_id && profile.company_id !== '00000000-0000-0000-0000-000000000001';
           
-          if (isUserDemo) {
-            sessionStorage.setItem('brainx_demo_mode', 'true');
-          } else if (hasRealCompany) {
+          if (hasRealCompany) {
             sessionStorage.removeItem('brainx_demo_mode');
+          } else if (isUserDemo) {
+            sessionStorage.setItem('brainx_demo_mode', 'true');
           }
 
-          const isDemoInit = isUserDemo || sessionStorage.getItem('brainx_demo_mode') === 'true';
+          const isDemoInit = !hasRealCompany && (isUserDemo || sessionStorage.getItem('brainx_demo_mode') === 'true');
 
           const finalProfileInit = profile ? { ...profile, is_demo: isDemoInit } : null;
 
