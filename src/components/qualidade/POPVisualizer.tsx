@@ -119,7 +119,115 @@ const POP_CONTENTS: Record<string, any> = {
     registros: "Mapas de temperatura.",
     referencias: "RDC 430/2022."
   },
-    MANUAL_GERAL: {
+  G_RECOLHIMENTO: {
+    objetivo: "Estabelecer as diretrizes para o recolhimento (recall) de produtos em caso de desvio de qualidade.",
+    campo_aplicacao: "Expedição, logística e SAC.",
+    responsaveis: "Garantia da Qualidade e Logística.",
+    materiais: "Lista de contatos de clientes, formulário de notificação ANVISA.",
+    procedimento: [
+      "1. Identificação: Segregar lotes afetados e suspender faturamento.",
+      "2. Notificação: Comunicar clientes e órgãos reguladores em até 24h.",
+      "3. Recolhimento: Coletar produtos nos pontos de venda ou distribuidores.",
+      "4. Investigação: Realizar análise de causa raiz e balanço de massa.",
+      "5. Disposição: Destruir ou reprocessar conforme avaliação técnica."
+    ],
+    monitoramento: "Simulado de recall anual.",
+    acoes_corretivas: "Ajuste em processos produtivos conforme causa raiz.",
+    verificacao: "Relatório final de eficácia do recall.",
+    registros: "Ficha de Rastreabilidade e Recolhimento.",
+    referencias: "RDC 655/2022."
+  },
+  H_MATERIAS_PRIMAS: {
+    objetivo: "Garantir a qualidade e conformidade de todos os insumos recebidos.",
+    campo_aplicacao: "Almoxarifado e Recebimento.",
+    responsaveis: "Almoxarife e Controle de Qualidade.",
+    materiais: "Termômetros a laser, laudos técnicos.",
+    procedimento: [
+      "1. Conferência: Verificar NF vs Pedido.",
+      "2. Inspeção Física: Checar integridade de lacres e embalagens.",
+      "3. Temperatura: Medir temperatura do transporte se aplicável.",
+      "4. Amostragem: Coletar amostra para análise QC conforme plano.",
+      "5. Identificação: Etiquetar como 'QUARENTENA' até liberação."
+    ],
+    monitoramento: "Inspeção de 100% dos lotes recebidos.",
+    acoes_corretivas: "Devolução imediata ao fornecedor em caso de não conformidade.",
+    verificacao: "Auditoria de documentos e homologação de fornecedores.",
+    registros: "Ficha de Recebimento de Insumos.",
+    referencias: "RDC 658/2022."
+  },
+  I_PESAGEM: {
+    objetivo: "Assegurar a precisão na pesagem de ativos e componentes da fórmula.",
+    campo_aplicacao: "Central de Pesagem.",
+    responsaveis: "Operadores de pesagem qualificados.",
+    materiais: "Balanças calibradas, espátulas de aço inox, EPIs.",
+    procedimento: [
+      "1. Preparação: Limpeza da cabine e verificação de balança.",
+      "2. Identificação: Conferir ordem de produção (OP).",
+      "3. Pesagem: Realizar pesagem com dupla conferência (operador e sistema).",
+      "4. Rotulagem: Identificar cada insumo pesado com lote e peso.",
+      "5. Registro: Assinar log de pesagem imediatamente."
+    ],
+    monitoramento: "Verificação diária das balanças com pesos padrão.",
+    acoes_corretivas: "Repesagem em caso de erro detectado na conferência.",
+    verificacao: "Revisão da OP pelo supervisor de produção.",
+    registros: "Log de Pesagem e Ordem de Produção.",
+    referencias: "RDC 658/2022."
+  },
+  J_CONTROLE_QUALIDADE: {
+    objetivo: "Padronizar as análises laboratoriais para liberação de produtos.",
+    campo_aplicacao: "Laboratório de Controle de Qualidade.",
+    responsaveis: "Analistas de laboratório e Farmacêutico RT.",
+    materiais: "Equipamentos analíticos (HPLC, Espectrofotômetro, etc).",
+    procedimento: [
+      "1. Amostragem: Coletar amostra representativa do lote.",
+      "2. Análise Físico-Química: Testar pH, densidade, viscosidade, teor.",
+      "3. Análise Microbiológica: Pesquisa de patógenos e contagem total.",
+      "4. Conferência: Comparar resultados com a especificação técnica.",
+      "5. Laudo: Emitir certificado de análise e liberar no sistema."
+    ],
+    monitoramento: "Acompanhamento de tendências de qualidade.",
+    acoes_corretivas: "Abertura de OOS (Out of Specification) para resultados reprovados.",
+    verificacao: "Controle de qualidade interlaboratorial.",
+    registros: "Certificado de Análise e Livro de Registro QC.",
+    referencias: "RDC 658/2022."
+  },
+  K_ROTULAGEM: {
+    objetivo: "Evitar erros de rotulagem e garantir informações corretas ao consumidor.",
+    campo_aplicacao: "Setor de Embalagem e Rotulagem.",
+    responsaveis: "Equipe de embalagem.",
+    materiais: "Rótulos aprovados, datadores.",
+    procedimento: [
+      "1. Liberação: Conferir modelo de rótulo aprovado.",
+      "2. Datação: Programar lote e validade conforme OP.",
+      "3. Inspeção Online: Verificar alinhamento e legibilidade.",
+      "4. Reconciliação: Contar rótulos usados vs produtos acabados.",
+      "5. Descarte: Destruir rótulos datados e não utilizados."
+    ],
+    monitoramento: "Inspeção visual contínua na linha.",
+    acoes_corretivas: "Parada de linha e correção imediata em caso de erro.",
+    verificacao: "Auditoria de final de linha pelo QC.",
+    registros: "Relatório de Embalagem e Reconciliação.",
+    referencias: "RDC 727/2022."
+  },
+  L_AMOSTRA_RETENCAO: {
+    objetivo: "Manter contraprovas para análises futuras ou investigações.",
+    campo_aplicacao: "Laboratório de Contraprovas.",
+    responsaveis: "Garantia da Qualidade.",
+    materiais: "Frascos de retenção, armários climatizados.",
+    procedimento: [
+      "1. Coleta: Separar quantidade suficiente para duas análises completas.",
+      "2. Identificação: Colocar etiqueta de retenção inviolável.",
+      "3. Armazenamento: Guardar em local com temperatura controlada.",
+      "4. Inventário: Realizar conferência semestral do estoque de retenção.",
+      "5. Descarte: Eliminar amostras após 1 ano do vencimento do lote."
+    ],
+    monitoramento: "Controle de temperatura do local de armazenamento.",
+    acoes_corretivas: "Substituição de frascos em caso de avaria.",
+    verificacao: "Auditoria anual de contraprovas.",
+    registros: "Inventário de Amostras de Retenção.",
+    referencias: "RDC 658/2022."
+  },
+  MANUAL_GERAL: {
     objetivo: "Estabelecer as diretrizes gerais de funcionamento da fábrica fictícia, consolidando todos os procedimentos de Boas Práticas de Fabricação (BPF) em um único guia mestre de operação.",
     campo_aplicacao: "Abrange todas as áreas da unidade fabril: recepção, estoque, pesagem, produção, laboratório e expedição.",
     responsaveis: "Diretoria, Gerência de Produção e Departamento de Garantia da Qualidade.",
