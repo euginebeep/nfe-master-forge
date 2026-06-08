@@ -983,6 +983,11 @@ export default function MonitoramentoAmbientalPage() {
         <span className="mx-1">|</span>
         <span>Registros mantidos por 5 anos conforme legislação vigente</span>
       </div>
+      <SensorDrawer 
+        reading={drawerRoom ? latestByRoom[drawerRoom] : null}
+        history={drawerRoom ? readings.filter(r => r.room_name === drawerRoom) : []}
+        onClose={() => setDrawerRoom(null)}
+      />
     </div>
   );
 }
