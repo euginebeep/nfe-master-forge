@@ -244,6 +244,61 @@ export function AIHubPanel() {
                         </div>
                       </TabsContent>
 
+                      <TabsContent value="api" className="space-y-4 mt-0">
+                        <Alert className="bg-primary/5 border-primary/20 rounded-xl">
+                          <Lock className="h-4 w-4 text-primary" />
+                          <AlertTitle className="text-xs font-black uppercase tracking-wider">Criptografia de Ponta</AlertTitle>
+                          <AlertDescription className="text-[10px] text-muted-foreground leading-tight">
+                            Suas chaves são criptografadas em repouso e nunca deixam o navegador em texto puro. O gateway BrainX utiliza isolamento de memória para processamento.
+                          </AlertDescription>
+                        </Alert>
+
+                        <div className="space-y-4 pt-2">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                              {m.provider} API Key
+                              <Badge variant="outline" className="text-[8px] font-mono h-4">VAULT-ACTIVE</Badge>
+                            </Label>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <Input 
+                                  type={showKeys[m.provider] ? "text" : "password"}
+                                  placeholder={`Insira sua chave ${m.provider}...`}
+                                  className="h-10 rounded-xl font-mono text-xs pr-10"
+                                  value={apiKeys[m.provider] || ""}
+                                  onChange={(e) => setApiKeys({ ...apiKeys, [m.provider]: e.target.value })}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute right-0 top-0 h-10 w-10 hover:bg-transparent"
+                                  onClick={() => toggleKeyVisibility(m.provider)}
+                                >
+                                  {showKeys[m.provider] ? <Eye className="h-3.5 w-3.5 text-muted-foreground" /> : <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-50" />}
+                                </Button>
+                              </div>
+                              <Button 
+                                className="h-10 rounded-xl font-bold text-xs"
+                                onClick={() => saveApiKey(m.provider, apiKeys[m.provider] || "")}
+                              >
+                                SALVAR
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-xl border border-dashed flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase">Quota Ativa</span>
+                              <span className="text-xs font-black">UNLIMITED</span>
+                            </div>
+                            <div className="p-3 rounded-xl border border-dashed flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase">Rate Limit</span>
+                              <span className="text-xs font-black">10k RPM</span>
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+
                       <TabsContent value="security" className="space-y-4 mt-0">
                          <div className="p-4 rounded-2xl bg-warning/5 border border-warning/20">
                            <div className="flex items-center gap-2 mb-2">
