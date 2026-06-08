@@ -150,7 +150,7 @@ function CampanhasTab() {
         <div>
           <CardTitle className="text-sm font-bold uppercase tracking-wider">Gestão de Campanhas</CardTitle>
         </div>
-        <Button size="sm" className="gap-2 font-bold"><Plus className="h-4 w-4" /> Nova Campanha</Button>
+        <NovaCampanhaDialog />
       </CardHeader>
       <CardContent className="p-0">
         <Table>
