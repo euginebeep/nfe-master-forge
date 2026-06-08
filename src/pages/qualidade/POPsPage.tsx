@@ -42,9 +42,11 @@ import {
   AlertTriangle,
   Search,
   Filter,
+  Eye,
 } from "lucide-react";
 import { format, isBefore, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { POPVisualizer } from "@/components/qualidade/POPVisualizer";
 
 const CATEGORIAS_POP = {
   A_HIGIENIZACAO: { label: "Higienização", color: "bg-blue-100 text-blue-800" },
