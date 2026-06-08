@@ -326,6 +326,7 @@ export default function MonitoramentoAmbientalPage() {
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [drawerRoom, setDrawerRoom] = useState<string | null>(null);
 
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
   const navigate = useNavigate();
