@@ -65,6 +65,7 @@ interface SaasCompany {
   tickets_abertos: number;
   usuarios: CompanyUser[];
   stripe?: StripeInfo;
+  tipo_empresa?: string | null;
 }
 
 // ─── Helpers ───
