@@ -519,6 +519,12 @@ export default function POPsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <POPVisualizer 
+        pop={selectedPopForView} 
+        open={visualizeOpen} 
+        onOpenChange={setVisualizeOpen} 
+      />
     </div>
   );
 }
