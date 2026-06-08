@@ -22,6 +22,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
 import { DemoLeadsPanel } from "@/components/saas/DemoLeadsPanel";
+import { AIHubPanel } from "@/components/saas/AIHubPanel";
+import { LogsPanel } from "@/components/saas/LogsPanel";
 import {
   Breadcrumb,
   BreadcrumbItem,
