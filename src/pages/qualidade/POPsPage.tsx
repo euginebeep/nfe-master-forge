@@ -231,6 +231,19 @@ export default function POPsPage() {
         description="RDC 275/2002 · RDC 843/2024"
         actions={
           <div className="flex gap-2">
+            <Button variant="outline" className="bg-primary/5 border-primary/20 hover:bg-primary/10 font-bold" onClick={() => {
+              setSelectedPopForView({
+                codigo: "MAN-BPF-001",
+                titulo: "Manual de Boas Práticas de Fabricação (BPF)",
+                categoria: "MANUAL_GERAL",
+                versao: "2026.1",
+                responsavel_elaboracao: "Garantia da Qualidade",
+                responsavel_aprovacao: "Diretoria Técnica"
+              });
+              setVisualizeOpen(true);
+            }}>
+              <Eye className="w-4 h-4 mr-2" /> Manual de BPF
+            </Button>
             <Button variant="outline" onClick={() => setExecDialogOpen(true)}>
               <History className="w-4 h-4 mr-2" /> Registrar Execução
             </Button>
