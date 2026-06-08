@@ -598,7 +598,7 @@ export default function MonitoramentoAmbientalPage() {
             <EmptyState
               icon={Wifi}
               title="Aguardando primeiras leituras"
-              description={`${sensores.length} sensor(es) configurado(s). O n8n está coletando os dados — as leituras aparecerão automaticamente em até 60 segundos.`}
+              description={`${sensores.length} sensor(es) configurado(s). O sistema está coletando os dados — as leituras aparecerão automaticamente em até 60 segundos.`}
               className="[&_.rounded-full]:bg-blue-100 [&_svg]:text-blue-600"
             />
             <div className="flex justify-center mt-2">
