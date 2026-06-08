@@ -71,13 +71,13 @@ const DEFAULT_FORM: Partial<Equipamento> = {
 };
 
 export default function EquipamentosPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEquipamento, setEditingEquipamento] = useState<Equipamento | null>(null);
   const [form, setForm] = useState<Partial<Equipamento>>(DEFAULT_FORM);
 
-  const companyId = user?.user_metadata?.company_id;
+  const companyId = profile?.company_id;
 
   const { data: equipamentos, isLoading } = useQuery({
     queryKey: ["equipamentos", companyId],
