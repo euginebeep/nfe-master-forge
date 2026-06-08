@@ -747,7 +747,7 @@ Deno.serve(async (req) => {
 
     // ───────────────── 14. QC Analises (Qualidade) ─────────────────
     const qcAnalises = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) {
       const lote = lotes[i % lotes.length];
       qcAnalises.push({
         company_id: c,
@@ -762,6 +762,75 @@ Deno.serve(async (req) => {
     }
     await supabase.from('qc_analises').insert(qcAnalises);
     log.push(`QC Analises: ${qcAnalises.length}`);
+
+    // ───────────────── 15. Inteligência Industrial (Dashboard Executivo) ─────────────────
+    const hojeKpi = new Date().toISOString().split('T')[0];
+    const kpisExec = {
+      company_id: c,
+      data_referencia: hojeKpi,
+      ops_finalizadas: 12,
+      ops_bloqueadas: 1,
+      rendimento_medio_percent: 97.5,
+      custo_medio_unitario: 12.40,
+      taxa_aprovacao_qc: 99.2,
+      total_anomalias: 4,
+      anomalias_criticas: 0,
+      fornecedores_risco: 2,
+      nao_conformidades: 1,
+      margem_media_percent: 28.5,
+      custo_total_producao: 45000,
+    };
+    await supabase.from('kpis_executivos').upsert(kpisExec, { onConflict: 'data_referencia' });
+
+    const alertasExec = [
+      { company_id: c, tipo_alerta: 'ESTOQUE_CRITICO', nivel: 'ALTO', titulo: 'Insumo Crítico: Magnésio', descricao: 'Estoque abaixo do ponto de reposição (5 dias restantes).', acao_sugerida: 'Acionar fornecedor Vitalfarma', status: 'ATIVO' },
+      { company_id: c, tipo_alerta: 'VENCIMENTO_PROXIMO', nivel: 'MEDIO', titulo: 'Lote Vencendo: Vitamina C', descricao: 'Lote L2026075 vence em 28 dias.', acao_sugerida: 'Priorizar na próxima OP', status: 'ATIVO' },
+    ];
+    await supabase.from('alertas_executivos').insert(alertasExec);
+
+    const previsoes = [];
+    paItens.slice(0, 5).forEach((pa, i) => {
+      previsoes.push({
+        company_id: c,
+        produto_id: pa.id,
+        periodo: '2026-06',
+        demanda_prevista: 1200 + i * 100,
+        lote_sugerido: 1500,
+        ponto_reposicao: 300,
+        confianca_percentual: 88,
+        prioridade: i === 0 ? 'URGENTE' : 'MEDIA',
+        alerta: i === 0 ? 'Ruptura de estoque prevista em 4 dias' : null,
+      });
+    });
+    await supabase.from('previsoes_producao').insert(previsoes);
+
+    const anomalias = [
+      { company_id: c, tipo_anomalia: 'RENDIMENTO_BAIXO', descricao: 'Perda de 5% acima do padrão na mistura', valor_esperado: 100, valor_real: 95, desvio_percentual: -5, severidade: 'ALTA', status: 'PENDENTE', op_id: ops[0].id },
+    ];
+    await supabase.from('anomalias_operacionais').insert(anomalias);
+    log.push(`Executivo: KPIs, Alertas, Previsões e Anomalias gerados`);
+
+    // ───────────────── 16. Monitoramento Ambiental ─────────────────
+    // Deletar para evitar duplicados
+    await supabase.from('monitoramento_ambiental').delete().eq('company_id', c);
+    const monitoramento = [];
+    for (let i = 0; i < 48; i++) {
+      const hora = new Date();
+      hora.setHours(hora.getHours() - i);
+      ['Almoxarifado MP', 'Sala de Pesagem', 'Produção Líquidos'].forEach((sala) => {
+        monitoramento.push({
+          company_id: c,
+          sensor_id: `SNSR-${sala.substring(0,3).toUpperCase()}`,
+          local_nome: sala,
+          temperatura: 18 + Math.random() * 4,
+          umidade: 40 + Math.random() * 15,
+          timestamp: hora.toISOString(),
+          status: 'NORMAL',
+        });
+      });
+    }
+    await supabase.from('monitoramento_ambiental').insert(monitoramento);
+    log.push(`Monitoramento: ${monitoramento.length} registros (48h)`);
 
     // ───────────────── 14. Monitoramento Ambiental (Simulação) ─────────────────
     const monitoramento = [];
