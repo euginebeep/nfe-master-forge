@@ -143,11 +143,16 @@ const Index = () => {
       )}
 
       {/* Alerts Row */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <ExpiringLotsCard />
-        <ExchangeRateCard />
-        <MarketIndicesCard />
-        <ConsultaANVISACard />
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex-1 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <ExpiringLotsCard />
+          <ExchangeRateCard />
+          <MarketIndicesCard />
+          <ConsultaANVISACard />
+        </div>
+        <div className="lg:w-[320px] shrink-0">
+          <ParceirosBrainX posicao="DASHBOARD_LATERAL" />
+        </div>
       </div>
 
       {/* Aniversariantes */}
