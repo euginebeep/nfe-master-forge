@@ -31,7 +31,8 @@ import {
   useResponsavelTecnicoCRUD 
 } from "@/hooks/use-responsaveis-tecnicos";
 import { useAuth } from "@/hooks/use-auth";
-import { useFileUrl } from "@/hooks/use-files";
+import { useGetFileUrl } from "@/hooks/use-files";
+import { supabase } from "@/integrations/supabase/client";
 import { RTFormDialog } from "@/components/responsavel-tecnico/RTFormDialog";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,7 +43,7 @@ export default function ResponsaveisTecnicosPage() {
   const { data: rts, isLoading } = useResponsaveisTecnicos();
   const { toggleStatus } = useResponsavelTecnicoCRUD();
   const { role } = useAuth();
-  const getFileUrl = useFileUrl();
+  const getFileUrl = useGetFileUrl();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRT, setSelectedRT] = useState<ResponsavelTecnico | null>(null);
@@ -50,8 +51,16 @@ export default function ResponsaveisTecnicosPage() {
   const canManage = role === 'admin' || role === 'gerente';
 
   const handleViewContract = async (fileId: string) => {
-    const url = await getFileUrl.mutateAsync(fileId);
-    if (url) window.open(url, '_blank');
+    const { data: file } = await supabase
+      .from('arquivos')
+      .select('storage_key')
+      .eq('id', fileId)
+      .single();
+
+    if (file?.storage_key) {
+      const url = await getFileUrl.mutateAsync(file.storage_key);
+      if (url) window.open(url, '_blank');
+    }
   };
 
   const handleEdit = (rt: ResponsavelTecnico) => {
