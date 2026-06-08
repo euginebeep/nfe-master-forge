@@ -813,12 +813,12 @@ Deno.serve(async (req) => {
     // ───────────────── 16. Monitoramento Ambiental ─────────────────
     // Deletar para evitar duplicados
     await supabase.from('monitoramento_ambiental').delete().eq('company_id', c);
-    const monitoramento = [];
+    const monitoramento_v2 = [];
     for (let i = 0; i < 48; i++) {
       const hora = new Date();
       hora.setHours(hora.getHours() - i);
       ['Almoxarifado MP', 'Sala de Pesagem', 'Produção Líquidos'].forEach((sala) => {
-        monitoramento.push({
+        monitoramento_v2.push({
           company_id: c,
           sensor_id: `SNSR-${sala.substring(0,3).toUpperCase()}`,
           local_nome: sala,
@@ -829,38 +829,10 @@ Deno.serve(async (req) => {
         });
       });
     }
-    await supabase.from('monitoramento_ambiental').insert(monitoramento);
-    log.push(`Monitoramento: ${monitoramento.length} registros (48h)`);
+    await supabase.from('monitoramento_ambiental').insert(monitoramento_v2);
+    log.push(`Monitoramento: ${monitoramento_v2.length} registros (48h)`);
 
-    // ───────────────── 14. Monitoramento Ambiental (Simulação) ─────────────────
-    const monitoramento = [];
-    const hoje = new Date();
-    for (let i = 0; i < 24; i++) {
-      const hora = new Date(hoje);
-      hora.setHours(hoje.getHours() - i);
-      monitoramento.push({
-        company_id: c,
-        sensor_id: 'SENS-ALMOX-01',
-        local_nome: 'Almoxarifado MP',
-        temperatura: 22.5 + Math.random() * 2,
-        umidade: 45 + Math.random() * 10,
-        timestamp: hora.toISOString(),
-        status: 'NORMAL',
-      });
-      monitoramento.push({
-        company_id: c,
-        sensor_id: 'SENS-PROD-01',
-        local_nome: 'Sala de Pesagem',
-        temperatura: 19.5 + Math.random() * 1.5,
-        umidade: 40 + Math.random() * 5,
-        timestamp: hora.toISOString(),
-        status: 'NORMAL',
-      });
-    }
-    await supabase.from('monitoramento_ambiental').insert(monitoramento);
-    log.push(`Monitoramento: ${monitoramento.length} registros`);
-
-    // ───────────────── 15. SaaS Comunicados (Avisos/Propaganda) ─────────────────
+    // ───────────────── 17. SaaS Comunicados (Avisos/Propaganda) ─────────────────
     const comunicados = [
       {
         company_id: c,
