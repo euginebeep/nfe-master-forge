@@ -68,7 +68,11 @@ export function useResponsavelTecnicoCRUD() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['responsaveis-tecnicos'] });
-      toast.success('Responsável técnico cadastrado com sucesso');
+      // Mensagem personalizada conforme solicitado
+      toast.success('Responsável técnico cadastrado com sucesso!', {
+        description: 'O profissional já está habilitado no sistema.',
+        duration: 4000
+      });
     },
     onError: (error: Error) => {
       toast.error('Erro ao cadastrar RT: ' + error.message);

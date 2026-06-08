@@ -114,9 +114,11 @@ export function RTFormDialog({ open, onOpenChange, rtParaEditar }: RTFormDialogP
           status: 'ATIVO',
         } as any);
       }
+      // O hook já emite o toast de sucesso.
+      // Fechar o dialog retorna o usuário para a "tela anterior" (a listagem)
       onOpenChange(false);
     } catch (error) {
-      // Erro já tratado pelo hook
+      console.error("Erro ao salvar RT:", error);
     }
   };
 
