@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { SensorDrawer } from "@/components/ambiental/SensorDrawer";
 
 const TEMP_MARGIN = 1.5;
 const HUM_MARGIN = 3;
