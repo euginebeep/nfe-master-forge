@@ -42,12 +42,12 @@ function Field({
 }) {
   return (
     <div className="mb-3">
-      <label htmlFor={id} className="form-label" style={{ fontSize: 14, fontWeight: 500, color: '#212529', marginBottom: 6, display: 'block' }}>
+      <label htmlFor={id} className="form-label" style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.75)', marginBottom: 8, display: 'block', letterSpacing: '0.01em' }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 2 }}>
-          <BI name={icon} size={16} color="#6c757d" />
+        <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 2 }}>
+          <BI name={icon} size={15} color="rgba(255,255,255,0.4)" />
         </span>
         <input
           id={id} type={type} placeholder={placeholder}
@@ -55,21 +55,23 @@ function Field({
           required={required} minLength={minLength}
           className="form-control"
           style={{
-            width: '100%', height: 44,
-            paddingLeft: 40, paddingRight: 14,
-            background: '#fff',
-            border: '1px solid #dee2e6',
-            borderRadius: 6, color: '#212529', fontSize: 14,
+            width: '100%', height: 46,
+            paddingLeft: 42, paddingRight: 14,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 10, color: '#fff', fontSize: 14,
             outline: 'none', boxSizing: 'border-box',
-            transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out',
+            transition: 'all 0.2s ease',
           }}
           onFocus={e => {
-            e.target.style.borderColor = '#0d6efd';
-            e.target.style.boxShadow = '0 0 0 0.25rem rgba(13,110,253,0.25)';
+            e.target.style.borderColor = 'rgba(59,130,246,0.6)';
+            e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.15)';
+            e.target.style.background = 'rgba(255,255,255,0.06)';
           }}
           onBlur={e => {
-            e.target.style.borderColor = '#dee2e6';
+            e.target.style.borderColor = 'rgba(255,255,255,0.1)';
             e.target.style.boxShadow = 'none';
+            e.target.style.background = 'rgba(255,255,255,0.04)';
           }}
         />
       </div>
@@ -227,67 +229,84 @@ export default function AuthPageModern() {
         flex: 1, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         padding: '40px 32px',
-        background: '#f8f9fa',
+        background: 'radial-gradient(ellipse at top right, #1e293b 0%, #0a0f1a 60%, #000 100%)',
+        position: 'relative', overflow: 'hidden',
       }}>
+        {/* Ambient glow */}
+        <div style={{
+          position: 'absolute', top: '20%', right: '-10%',
+          width: 420, height: 420, borderRadius: '50%', pointerEvents: 'none',
+          background: 'radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 70%)',
+          filter: 'blur(20px)',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '-10%', left: '-5%',
+          width: 360, height: 360, borderRadius: '50%', pointerEvents: 'none',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)',
+          filter: 'blur(20px)',
+        }} />
 
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-8">
           <img src={brainxLogo} alt="BrainX ERP" style={{ width: 56, height: 56, objectFit: 'contain' }} />
-          <div style={{ color: '#212529', fontWeight: 700, fontSize: 16 }}>BrainX ERP</div>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>BrainX ERP</div>
         </div>
 
         {signupSuccess ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}
-            style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}
+            style={{ width: '100%', maxWidth: 420, textAlign: 'center', position: 'relative', zIndex: 1 }}
           >
             <div style={{
-              background: '#fff',
-              border: '1px solid #dee2e6',
-              borderRadius: 8,
+              background: 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 16,
               padding: '40px 28px',
-              boxShadow: '0 0.125rem 0.25rem rgba(0,0,0,0.075)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
             }}>
               <div style={{
                 width: 64, height: 64, borderRadius: '50%',
-                background: 'rgba(13,110,253,0.1)',
+                background: 'rgba(59,130,246,0.15)',
+                border: '1px solid rgba(59,130,246,0.3)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 20px',
               }}>
-                <BI name="envelope-check-fill" size={28} color="#0d6efd" />
+                <BI name="envelope-check-fill" size={28} color="#60a5fa" />
               </div>
-              <h2 style={{ color: '#212529', fontWeight: 700, fontSize: 22, margin: '0 0 12px' }}>
+              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 22, margin: '0 0 12px' }}>
                 Verifique seu e-mail
               </h2>
-              <p style={{ color: '#495057', fontSize: 14, lineHeight: 1.7, margin: '0 0 8px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, lineHeight: 1.7, margin: '0 0 8px' }}>
                 Para acessar o <strong>BrainX ERP</strong>, acesse seu e-mail
               </p>
               <p style={{
-                color: '#0d6efd', fontWeight: 600, fontSize: 15,
-                background: 'rgba(13,110,253,0.06)', borderRadius: 6,
+                color: '#60a5fa', fontWeight: 600, fontSize: 15,
+                background: 'rgba(59,130,246,0.1)', borderRadius: 8,
+                border: '1px solid rgba(59,130,246,0.2)',
                 padding: '10px 16px', margin: '0 0 16px', wordBreak: 'break-all',
               }}>
                 {regEmail}
               </p>
-              <p style={{ color: '#495057', fontSize: 14, lineHeight: 1.7, margin: '0 0 24px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, lineHeight: 1.7, margin: '0 0 24px' }}>
                 e clique no link de confirmação para ativar sua conta.
               </p>
               <div style={{
-                background: '#fff3cd', border: '1px solid #ffda6a', borderRadius: 6,
-                padding: '12px 16px', fontSize: 13, color: '#664d03', lineHeight: 1.6,
+                background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 8,
+                padding: '12px 16px', fontSize: 13, color: '#fbbf24', lineHeight: 1.6,
                 display: 'flex', alignItems: 'flex-start', gap: 8, textAlign: 'left',
               }}>
-                <BI name="info-circle-fill" size={16} color="#ff9800" className="" />
+                <BI name="info-circle-fill" size={16} color="#fbbf24" className="" />
                 <span>Não encontrou? Verifique a pasta <strong>spam</strong> ou <strong>lixo eletrônico</strong>.</span>
               </div>
               <button onClick={() => { setSignupSuccess(false); setTab('login'); }} style={{
                 width: '100%', height: 44, marginTop: 20,
-                background: '#0d6efd', color: '#fff', fontWeight: 600, fontSize: 15,
-                border: 'none', borderRadius: 6, cursor: 'pointer',
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontWeight: 600, fontSize: 15,
+                border: 'none', borderRadius: 10, cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(59,130,246,0.35)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
-                onMouseEnter={e => (e.target as HTMLElement).style.background = '#0b5ed7'}
-                onMouseLeave={e => (e.target as HTMLElement).style.background = '#0d6efd'}
               >
                 <BI name="box-arrow-in-right" size={16} /> Ir para Login
               </button>
@@ -296,42 +315,46 @@ export default function AuthPageModern() {
         ) : (
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-          style={{ width: '100%', maxWidth: 420 }}
+          style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}
         >
           {/* Heading */}
           <div style={{ marginBottom: 24 }}>
-            <h2 style={{ color: '#212529', fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em', margin: 0 }}>
-              <BI name="person-circle" size={24} color="#0d6efd" />{' '}Bem-vindo de volta
+            <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 26, letterSpacing: '-0.02em', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <BI name="person-circle" size={26} color="#60a5fa" />Bem-vindo de volta
             </h2>
-            <p style={{ color: '#6c757d', fontSize: 14, marginTop: 6 }}>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, marginTop: 8 }}>
               Acesse sua conta para continuar
             </p>
           </div>
 
           {/* Card */}
           <div style={{
-            background: '#fff',
-            border: '1px solid #dee2e6',
-            borderRadius: 8,
+            background: 'rgba(255,255,255,0.03)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 16,
             padding: '28px 28px 24px',
-            boxShadow: '0 0.125rem 0.25rem rgba(0,0,0,0.075)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
           }}>
 
             {/* Tab switcher — Bootstrap nav-pills style */}
             <div style={{
               display: 'flex',
-              background: '#e9ecef',
-              borderRadius: 6, padding: 3,
+              background: 'rgba(0,0,0,0.25)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: 10, padding: 4,
               marginBottom: 24,
             }}>
               {(['login', 'register'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{
-                  flex: 1, padding: '8px 0', borderRadius: 4,
+                  flex: 1, padding: '9px 0', borderRadius: 7,
                   border: 'none', cursor: 'pointer',
-                  fontSize: 14, fontWeight: 500,
-                  transition: 'all 0.15s',
-                  background: tab === t ? '#0d6efd' : 'transparent',
-                  color: tab === t ? '#fff' : '#495057',
+                  fontSize: 13.5, fontWeight: 600,
+                  transition: 'all 0.2s',
+                  background: tab === t ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
+                  color: tab === t ? '#fff' : 'rgba(255,255,255,0.55)',
+                  boxShadow: tab === t ? '0 4px 14px rgba(59,130,246,0.35)' : 'none',
                 }}>
                   <BI name={t === 'login' ? 'box-arrow-in-right' : 'person-plus'} size={14} />{' '}
                   {t === 'login' ? 'Entrar' : 'Cadastrar'}
@@ -353,15 +376,14 @@ export default function AuthPageModern() {
                     value={loginPass} onChange={e => setLoginPass(e.target.value)} icon="lock-fill" required />
 
                   <button type="submit" disabled={loading} style={{
-                    width: '100%', height: 44, marginTop: 8,
-                    background: loading ? '#0d6efd99' : '#0d6efd',
+                    width: '100%', height: 46, marginTop: 12,
+                    background: loading ? 'rgba(59,130,246,0.5)' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                     color: '#fff', fontWeight: 600, fontSize: 15,
-                    border: 'none', borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
+                    border: 'none', borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer',
+                    boxShadow: loading ? 'none' : '0 4px 14px rgba(59,130,246,0.35)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    transition: 'background-color 0.15s ease-in-out',
+                    transition: 'all 0.2s ease',
                   }}
-                    onMouseEnter={e => { if (!loading) (e.target as HTMLElement).style.background = '#0b5ed7'; }}
-                    onMouseLeave={e => { if (!loading) (e.target as HTMLElement).style.background = '#0d6efd'; }}
                   >
                     {loading
                       ? <><BI name="arrow-repeat" size={16} className="bi-spin" /> Entrando...</>
@@ -387,8 +409,8 @@ export default function AuthPageModern() {
                   </div>
                   {mismatch && (
                     <div style={{
-                      color: '#842029', fontSize: 13, padding: '10px 14px', marginTop: 8,
-                      background: '#f8d7da', border: '1px solid #f5c2c7', borderRadius: 6,
+                      color: '#fca5a5', fontSize: 13, padding: '10px 14px', marginTop: 8,
+                      background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8,
                       display: 'flex', alignItems: 'center', gap: 6,
                     }}>
                       <BI name="exclamation-triangle-fill" size={14} /> As senhas não coincidem
@@ -396,32 +418,31 @@ export default function AuthPageModern() {
                   )}
                   {repeatedSignup && (
                     <div style={{
-                      color: '#664d03', fontSize: 13, padding: '14px 16px', marginTop: 12,
-                      background: '#fff3cd', border: '2px solid #ffda6a', borderRadius: 8,
+                      color: '#fcd34d', fontSize: 13, padding: '14px 16px', marginTop: 12,
+                      background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10,
                       lineHeight: 1.6,
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 6, fontSize: 14 }}>
-                        <BI name="exclamation-triangle-fill" size={18} color="#ff9800" />
+                        <BI name="exclamation-triangle-fill" size={18} color="#fbbf24" />
                         E-mail já cadastrado!
                       </div>
                       <p style={{ margin: 0 }}>
                         Este e-mail já possui uma conta. Verifique sua <strong>caixa de entrada</strong> e <strong>spam</strong> para o link de confirmação.
                       </p>
                       <p style={{ margin: '8px 0 0' }}>
-                        Caso já tenha confirmado, tente <button type="button" onClick={() => { setTab('login'); setRepeatedSignup(false); }} style={{ color: '#0d6efd', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: 0, fontSize: 13 }}>fazer login</button>.
+                        Caso já tenha confirmado, tente <button type="button" onClick={() => { setTab('login'); setRepeatedSignup(false); }} style={{ color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: 0, fontSize: 13 }}>fazer login</button>.
                       </p>
                     </div>
                   )}
                   <button type="submit" disabled={loading || mismatch} style={{
-                    width: '100%', height: 44, marginTop: 12,
-                    background: loading || mismatch ? '#0d6efd66' : '#0d6efd',
+                    width: '100%', height: 46, marginTop: 14,
+                    background: loading || mismatch ? 'rgba(59,130,246,0.4)' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                     color: '#fff', fontWeight: 600, fontSize: 15,
-                    border: 'none', borderRadius: 6, cursor: loading || mismatch ? 'not-allowed' : 'pointer',
+                    border: 'none', borderRadius: 10, cursor: loading || mismatch ? 'not-allowed' : 'pointer',
+                    boxShadow: loading || mismatch ? 'none' : '0 4px 14px rgba(59,130,246,0.35)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    transition: 'background-color 0.15s ease-in-out',
+                    transition: 'all 0.2s ease',
                   }}
-                    onMouseEnter={e => { if (!loading && !mismatch) (e.target as HTMLElement).style.background = '#0b5ed7'; }}
-                    onMouseLeave={e => { if (!loading && !mismatch) (e.target as HTMLElement).style.background = '#0d6efd'; }}
                   >
                     {loading
                       ? <><BI name="arrow-repeat" size={16} className="bi-spin" /> Cadastrando...</>
@@ -437,11 +458,11 @@ export default function AuthPageModern() {
           <DemoLoginCard />
 
           {/* Below card */}
-          <p style={{ textAlign: 'center', color: '#6c757d', fontSize: 12.5, marginTop: 16, lineHeight: 1.6 }}>
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 12.5, marginTop: 16, lineHeight: 1.6 }}>
             Ao continuar, você concorda com os{' '}
-            <a href="/termos-de-uso" target="_blank" style={{ color: '#0d6efd', textDecoration: 'none' }}>Termos de Uso</a>
+            <a href="/termos-de-uso" target="_blank" style={{ color: '#60a5fa', textDecoration: 'none' }}>Termos de Uso</a>
             {' '}e{' '}
-            <a href="/politica-de-privacidade" target="_blank" style={{ color: '#0d6efd', textDecoration: 'none' }}>Política de Privacidade</a>.
+            <a href="/politica-de-privacidade" target="_blank" style={{ color: '#60a5fa', textDecoration: 'none' }}>Política de Privacidade</a>.
           </p>
         </motion.div>
         )}
