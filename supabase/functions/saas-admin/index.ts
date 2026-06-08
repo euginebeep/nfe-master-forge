@@ -144,10 +144,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ configs }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // Existing actions (block, unblock, delete-company, grant-access)
-    if (['block', 'unblock', 'delete-company', 'grant-access'].includes(action)) {
+    // Existing actions (block, unblock, delete-company, grant-access, update-company)
+    if (['block', 'unblock', 'delete-company', 'grant-access', 'update-company'].includes(action)) {
       const body = await req.json()
       const { company_id } = body
+
+      if (action === 'update-company') {
+        const { updates } = body
+        const { data, error } = await supabaseAdmin.from('company').update(updates).eq('id', company_id)
+        if (error) throw error
+        return new Response(JSON.stringify({ success: true, data }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
       
       if (action === 'block' || action === 'unblock') {
         const newStatus = action === 'block' ? 'BLOQUEADO' : 'ATIVO'
