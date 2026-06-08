@@ -588,7 +588,7 @@ export default function MonitoramentoAmbientalPage() {
         }
       />
 
-      {(semConfiguracao && !sessionStorage.getItem('brainx_demo_mode')) ? (
+      {(semConfiguracao && sessionStorage.getItem('brainx_demo_mode') !== 'true') ? (
         <Card className="border-amber-200">
           <CardContent className="py-6">
             <EmptyState
@@ -601,7 +601,7 @@ export default function MonitoramentoAmbientalPage() {
             />
           </CardContent>
         </Card>
-      ) : (aguardandoLeituras && !sessionStorage.getItem('brainx_demo_mode')) ? (
+      ) : (aguardandoLeituras && sessionStorage.getItem('brainx_demo_mode') !== 'true') ? (
         <Card className="border-blue-200">
           <CardContent className="py-6">
             <EmptyState
@@ -634,19 +634,22 @@ export default function MonitoramentoAmbientalPage() {
                 ))}
               </TabsList>
             </Tabs>
-            <Select value={roomFilter} onValueChange={setRoomFilter}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Todas as salas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as salas</SelectItem>
-                {rooms.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
+            {sessionStorage.getItem('brainx_demo_mode') !== 'true' && (
+              <Select value={roomFilter} onValueChange={setRoomFilter}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Todas as salas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as salas</SelectItem>
+                  {rooms.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* KPI Strip */}
