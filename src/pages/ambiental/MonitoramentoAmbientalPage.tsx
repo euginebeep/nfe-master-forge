@@ -552,7 +552,7 @@ export default function MonitoramentoAmbientalPage() {
       <PageHeader
         icon={Factory}
         title="Monitoramento Ambiental"
-        description="RDC 658/2022 · Sonoff SNZB-02 via eWeLink · n8n sync"
+        description="RDC 658/2022"
         actions={
           <>
             <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1.5 hover:bg-emerald-100">
@@ -598,7 +598,7 @@ export default function MonitoramentoAmbientalPage() {
             <EmptyState
               icon={Wifi}
               title="Aguardando primeiras leituras"
-              description={`${sensores.length} sensor(es) configurado(s). O n8n está coletando os dados — as leituras aparecerão automaticamente em até 60 segundos.`}
+              description={`${sensores.length} sensor(es) configurado(s). O sistema está coletando os dados — as leituras aparecerão automaticamente em até 60 segundos.`}
               className="[&_.rounded-full]:bg-blue-100 [&_svg]:text-blue-600"
             />
             <div className="flex justify-center mt-2">

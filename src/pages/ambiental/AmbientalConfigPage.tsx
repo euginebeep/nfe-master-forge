@@ -319,7 +319,7 @@ export default function AmbientalConfigPage() {
     <div className="container mx-auto p-6 space-y-6">
       <PageHeader
         title="Configuração — Monitoramento Ambiental"
-        description="Configure suas credenciais eWeLink e mapeie os sensores por sala"
+        description="Configure seus sensores e mapeie os limites por sala conforme RDC 658/2022"
         icon={Settings}
       />
 
@@ -467,9 +467,8 @@ export default function AmbientalConfigPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Quando ativado, o n8n sincroniza os dados automaticamente conforme
-                o intervalo configurado. Certifique-se de que o workflow n8n está
-                ativo no seu servidor.
+                Quando ativado, o sistema sincroniza os dados automaticamente conforme
+                o intervalo configurado.
               </p>
             </CardContent>
           </Card>
