@@ -3726,6 +3726,202 @@ export type Database = {
           },
         ]
       }
+      manual_busca_log: {
+        Row: {
+          clicou_em: string | null
+          company_id: string | null
+          created_at: string | null
+          id: string
+          resultados: number | null
+          termo: string
+          user_id: string | null
+          usou_ia: boolean | null
+        }
+        Insert: {
+          clicou_em?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          resultados?: number | null
+          termo: string
+          user_id?: string | null
+          usou_ia?: boolean | null
+        }
+        Update: {
+          clicou_em?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          resultados?: number | null
+          termo?: string
+          user_id?: string | null
+          usou_ia?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_busca_log_clicou_em_fkey"
+            columns: ["clicou_em"]
+            isOneToOne: false
+            referencedRelation: "manual_perguntas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_busca_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_ia_historico: {
+        Row: {
+          avaliacao: number | null
+          company_id: string | null
+          created_at: string | null
+          duracao_ms: number | null
+          id: string
+          pergunta: string
+          resposta: string
+          secao_contexto: string | null
+          tokens_usados: number | null
+          user_id: string | null
+        }
+        Insert: {
+          avaliacao?: number | null
+          company_id?: string | null
+          created_at?: string | null
+          duracao_ms?: number | null
+          id?: string
+          pergunta: string
+          resposta: string
+          secao_contexto?: string | null
+          tokens_usados?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          avaliacao?: number | null
+          company_id?: string | null
+          created_at?: string | null
+          duracao_ms?: number | null
+          id?: string
+          pergunta?: string
+          resposta?: string
+          secao_contexto?: string | null
+          tokens_usados?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_ia_historico_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_perguntas: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          id: string
+          imagem_url: string | null
+          modulo: string | null
+          nivel: string | null
+          ordem: number
+          pergunta: string
+          resposta: string
+          secao_id: string | null
+          tags: string[] | null
+          updated_at: string | null
+          util_nao: number | null
+          util_sim: number | null
+          video_url: string | null
+          visualizacoes: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          imagem_url?: string | null
+          modulo?: string | null
+          nivel?: string | null
+          ordem: number
+          pergunta: string
+          resposta: string
+          secao_id?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          util_nao?: number | null
+          util_sim?: number | null
+          video_url?: string | null
+          visualizacoes?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          imagem_url?: string | null
+          modulo?: string | null
+          nivel?: string | null
+          ordem?: number
+          pergunta?: string
+          resposta?: string
+          secao_id?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          util_nao?: number | null
+          util_sim?: number | null
+          video_url?: string | null
+          visualizacoes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_perguntas_secao_id_fkey"
+            columns: ["secao_id"]
+            isOneToOne: false
+            referencedRelation: "manual_secoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_secoes: {
+        Row: {
+          ativo: boolean | null
+          badge: string | null
+          created_at: string | null
+          icon: string | null
+          id: string
+          ordem: number
+          subtitulo: string | null
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          badge?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          ordem: number
+          subtitulo?: string | null
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          badge?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          ordem?: number
+          subtitulo?: string | null
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notas_entrada: {
         Row: {
           chave_nfe: string
@@ -7887,6 +8083,10 @@ export type Database = {
       increment_cliques: { Args: { campanha_uuid: string }; Returns: undefined }
       increment_impressoes: {
         Args: { campanha_uuid: string }
+        Returns: undefined
+      }
+      increment_manual_voto: {
+        Args: { campo_voto: string; pergunta_id: string }
         Returns: undefined
       }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
