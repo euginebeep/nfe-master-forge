@@ -16,9 +16,9 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
     const url = new URL(req.url)
-    const action = url.searchParams.get('action') || 'get-ativo'
-    const company_id = url.searchParams.get('company_id')
-    const posicao = url.searchParams.get('posicao') || 'DASHBOARD_LATERAL'
+    const action = url.searchParams.get('action') || (req.method === 'POST' ? 'registrar-clique' : 'get-ativo')
+    const company_id = req.headers.get('x-company-id') || url.searchParams.get('company_id')
+    const posicao = req.headers.get('x-posicao') || url.searchParams.get('posicao') || 'DASHBOARD_LATERAL'
 
     // ─── ACTION: get-ativo ───
     if (action === 'get-ativo') {
