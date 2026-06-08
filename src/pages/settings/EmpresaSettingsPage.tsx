@@ -327,6 +327,38 @@ export default function EmpresaSettingsPage() {
 
   return (
     <div className="w-full max-w-full overflow-x-hidden">
+      {/* Conteúdo de Parceiros - Opt-out */}
+      <Card className="mb-6 border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-sm font-bold uppercase tracking-wider">Conteúdo de Parceiros BrainX</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+             <div className="space-y-1">
+                <p className="text-sm">Exibir recomendações e conteúdo de parceiros verificados no seu dashboard.</p>
+                <p className="text-xs text-muted-foreground">Isso ajuda a descobrir soluções de insumos, equipamentos e consultoria para o setor industrial.</p>
+             </div>
+             <Switch 
+               checked={!formData.optout_parceiros}
+               onCheckedChange={async (checked) => {
+                 const optout = !checked;
+                 setFormData(prev => ({ ...prev, optout_parceiros: optout }));
+                 
+                 const cid = supabaseCompany?.id;
+                 if (!cid) return;
+
+                 if (optout) {
+                    await supabase.from('brainx_optout').insert({ company_id: cid, motivo: 'Opt-out do usuário' });
+                 } else {
+                    await supabase.from('brainx_optout').delete().eq('company_id', cid);
+                 }
+                 toast.success(optout ? "Preferência salva: conteúdo de parceiros desativado." : "Preferência salva: conteúdo de parceiros ativado.");
+               }}
+             />
+          </div>
+        </CardContent>
+      </Card>
+
       <PageHeader
         title="Empresa"
         description="Configuracoes da empresa e dados fiscais"
