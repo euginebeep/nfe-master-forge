@@ -166,49 +166,59 @@ export function MarketIndicesCard() {
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </div>
         </CardHeader>
-        <CardContent className="space-y-1.5 pt-3">
-          {/* Ibovespa - Compact Row */}
-          <div className={cn("flex items-center justify-between p-2 rounded-xl transition-colors", getChangeBg(ibovespa?.change || 0))}>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">
-                <Landmark className="h-4 w-4 text-white" />
+        <CardContent className="p-4 pt-3 space-y-3 flex-1 flex flex-col justify-between">
+          {/* Ibovespa - Better tabulated row */}
+          <div className={cn(
+            "flex items-center justify-between p-2 rounded-xl transition-all border border-transparent",
+            getChangeBg(ibovespa?.change || 0)
+          )}>
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10">
+                <Landmark className="h-4 w-4 text-blue-600" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter leading-none">IBOV</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-0.5">IBOVESPA</p>
                 {isLoading ? (
-                  <Skeleton className="h-4 w-12 mt-0.5" />
+                  <Skeleton className="h-4 w-16" />
                 ) : (
-                  <p className="text-sm font-black tracking-tighter">
+                  <p className="text-base font-black tracking-tighter leading-none">
                     {ibovespa ? formatPrice(ibovespa.price, 'BRL') : '--'}
                   </p>
                 )}
               </div>
             </div>
             {ibovespa && (
-              <div className={cn("text-[10px] font-bold", getChangeColor(ibovespa.change))}>
-                {ibovespa.change >= 0 ? '+' : ''}{ibovespa.change.toFixed(1)}%
+              <div className={cn("text-xs font-black px-2 py-0.5 rounded-md", getChangeColor(ibovespa.change), "bg-white/40 dark:bg-black/20 shadow-sm border border-black/5")}>
+                {ibovespa.change >= 0 ? '+' : ''}{ibovespa.change.toFixed(2)}%
               </div>
             )}
           </div>
 
-          {/* Cryptos - Single Compact Row */}
-          <div className="grid grid-cols-3 gap-1.5">
-            {cryptos?.map((crypto) => (
-              <div 
-                key={crypto.symbol} 
-                className="flex flex-col items-center p-1.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <div className={cn("flex items-center justify-center w-6 h-6 rounded-lg mb-1", crypto.bgColor)}>
-                  {getCryptoIcon(crypto.symbol, `h-3.5 w-3.5 ${crypto.iconColor}`)}
+          {/* Cryptos - Table style layout */}
+          <div className="bg-muted/30 rounded-xl p-2 border border-border/5">
+            <div className="grid grid-cols-3 gap-0 border-b border-border/10 pb-1.5 mb-1.5">
+              <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Ativo</p>
+              <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Preço (USD)</p>
+              <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Var. 24h</p>
+            </div>
+            <div className="space-y-1.5">
+              {cryptos?.map((crypto) => (
+                <div key={crypto.symbol} className="grid grid-cols-3 items-center gap-0">
+                  <div className="flex items-center gap-1.5 justify-start pl-1">
+                    <div className={cn("w-2 h-2 rounded-full", crypto.iconColor.replace('text-', 'bg-'))} />
+                    <span className="text-[10px] font-black">{crypto.symbol}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-[10px] font-bold">
+                      {crypto.price >= 1000 ? (crypto.price / 1000).toFixed(1) + 'k' : formatPrice(crypto.price)}
+                    </span>
+                  </div>
+                  <div className={cn("text-[9px] font-black text-right pr-2", getChangeColor(crypto.change24h))}>
+                    {crypto.change24h >= 0 ? '+' : ''}{crypto.change24h.toFixed(1)}%
+                  </div>
                 </div>
-                <p className="text-[10px] font-black leading-none">
-                  {crypto.price >= 1000 ? (crypto.price / 1000).toFixed(1) + 'k' : formatPrice(crypto.price)}
-                </p>
-                <span className={cn("text-[8px] font-bold mt-0.5", getChangeColor(crypto.change24h))}>
-                  {crypto.change24h >= 0 ? '+' : ''}{crypto.change24h.toFixed(0)}%
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
