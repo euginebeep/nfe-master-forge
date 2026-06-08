@@ -236,8 +236,26 @@ export default function SaasDashboardPage() {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      {/* Sidebar Simulado no Topo */}
-      <header className="bg-white border-b sticky top-0 z-50">
+      {/* Ribbon global de ambiente — visível em todas as telas do /saas */}
+      <div className="sticky top-0 z-[60] bg-gradient-to-r from-destructive via-destructive to-destructive/80 text-white border-b-2 border-destructive-foreground/20 shadow-md">
+        <div className="max-w-[1600px] mx-auto px-4 py-1.5 flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-3.5 w-3.5 animate-pulse" />
+            <span>Modo Administrativo SaaS · Acesso Restrito</span>
+            <Badge className="bg-white/20 hover:bg-white/20 border-none text-[10px] ml-2">
+              Tenant Global · BrainX Master
+            </Badge>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden md:inline opacity-80">Você NÃO está no ERP operacional do cliente</span>
+            <a href="/" className="bg-white/20 hover:bg-white/30 transition-colors px-2 py-0.5 rounded text-[10px] flex items-center gap-1">
+              <LogOut className="h-3 w-3 rotate-180" /> Voltar ao ERP
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <header className="bg-white border-b border-l-4 border-l-destructive sticky top-7 z-50">
         <div className="max-w-[1600px] mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="bg-primary p-1.5 rounded-lg shadow-lg shadow-primary/20">
