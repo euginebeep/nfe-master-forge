@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -71,15 +71,15 @@ const DEFAULT_FORM: Partial<Equipamento> = {
 };
 
 export default function EquipamentosPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEquipamento, setEditingEquipamento] = useState<Equipamento | null>(null);
   const [form, setForm] = useState<Partial<Equipamento>>(DEFAULT_FORM);
 
-  const companyId = user?.user_metadata?.company_id;
+  const companyId = profile?.company_id;
 
-  const { data: equipamentos, isLoading } = useQuery({
+  const { data: equipamentos, isLoading, refetch } = useQuery({
     queryKey: ["equipamentos", companyId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -94,6 +94,11 @@ export default function EquipamentosPage() {
     enabled: !!companyId,
   });
 
+  // Forçar refetch quando o companyId mudar ou o componente montar
+  useEffect(() => {
+    if (companyId) refetch();
+  }, [companyId, refetch]);
+
   const saveMutation = useMutation({
     mutationFn: async (payload: Partial<Equipamento>) => {
       if (editingEquipamento) {
@@ -103,6 +108,8 @@ export default function EquipamentosPage() {
           .eq("id", editingEquipamento.id);
         if (error) throw error;
       } else {
+        if (!companyId) throw new Error("ID da empresa não encontrado");
+        
         const { error } = await supabase
           .from("equipamentos")
           .insert([{ 
@@ -127,6 +134,7 @@ export default function EquipamentosPage() {
 
     },
     onSuccess: () => {
+      // Invalidar o queryKey exato que contém o companyId
       queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
       toast.success(editingEquipamento ? "Equipamento atualizado" : "Equipamento cadastrado");
       setIsDialogOpen(false);
