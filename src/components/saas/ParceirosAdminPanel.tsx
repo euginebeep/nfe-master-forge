@@ -126,7 +126,8 @@ function CampanhasTab() {
     queryKey: ['parceiros-campanhas-admin'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('brainx-parceiros', {
-        query_params: { action: 'list-admin' }
+        method: 'GET',
+        headers: { 'action': 'list-admin' }
       });
       if (error) throw error;
       return data.campanhas;
