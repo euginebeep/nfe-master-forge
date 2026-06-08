@@ -25,6 +25,7 @@ import { DemoLeadsPanel } from "@/components/saas/DemoLeadsPanel";
 import { AIHubPanel } from "@/components/saas/AIHubPanel";
 import { LogsPanel } from "@/components/saas/LogsPanel";
 import { ComunicadosPanel } from "@/components/saas/ComunicadosPanel";
+import { ParceirosAdminPanel } from "@/components/saas/ParceirosAdminPanel";
 import {
   Breadcrumb,
   BreadcrumbItem,
