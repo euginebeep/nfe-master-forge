@@ -18,6 +18,7 @@ import { addDays, differenceInDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface ExpiringLot {
   id: string;
@@ -233,59 +234,59 @@ export function ExpiringLotsCard() {
   return (
     <>
       <Card
-        className={`border-2 ${
+        className={`border-2 h-full shadow-lg ${
           stats.critico > 0
-            ? "border-destructive/50 bg-gradient-to-br from-destructive/5 to-background"
+            ? "border-destructive/60 bg-gradient-to-br from-destructive/10 via-background to-background"
             : stats.urgente > 0
-              ? "border-warning/50 bg-gradient-to-br from-warning/5 to-background"
-              : "border-accent/50 bg-gradient-to-br from-accent/5 to-background"
+              ? "border-warning/60 bg-gradient-to-br from-warning/10 via-background to-background"
+              : "border-accent/60 bg-gradient-to-br from-accent/10 via-background to-background"
         }`}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-lg">
+        <CardHeader className="pb-3 px-4 sm:px-6">
+          <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-lg sm:text-xl font-bold">
               <motion.div
-                className={`p-2 rounded-lg ${stats.critico > 0 ? "bg-destructive/10" : "bg-warning/10"}`}
-                animate={{ scale: stats.critico > 0 ? [1, 1.1, 1] : 1 }}
+                className={`p-2 rounded-xl ${stats.critico > 0 ? "bg-destructive/20" : "bg-warning/20"}`}
+                animate={{ scale: stats.critico > 0 ? [1, 1.15, 1] : 1 }}
                 transition={{ repeat: stats.critico > 0 ? Infinity : 0, duration: 2 }}
               >
                 <AlertTriangle
-                  className={`h-5 w-5 ${stats.critico > 0 ? "text-destructive" : "text-warning"}`}
+                  className={`h-6 w-6 ${stats.critico > 0 ? "text-destructive" : "text-warning"}`}
                 />
               </motion.div>
-              <span>Lotes a Vencer</span>
+              <span className={stats.critico > 0 ? "text-destructive" : ""}>Lotes a Vencer</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isFetching}>
+            <div className="flex items-center gap-1 ml-auto">
+              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-8 w-8">
                 <RefreshCcw className={"h-4 w-4 " + (isFetching ? "animate-spin" : "")} />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowFullList(true)}>
-                Ver Todos
+              <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-8 text-xs font-semibold">
+                Ver Todo
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           {/* Stats Summary */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             <div
-              className={`p-3 rounded-lg text-center ${stats.critico > 0 ? "bg-destructive/10" : "bg-muted/50"}`}
+              className={`p-3 rounded-xl text-center shadow-inner ${stats.critico > 0 ? "bg-destructive/15 border border-destructive/20" : "bg-muted/30"}`}
             >
-              <p className="text-2xl font-bold text-destructive">{stats.critico}</p>
-              <p className="text-xs text-muted-foreground">≤30 dias</p>
+              <p className={cn("text-2xl sm:text-3xl font-black", stats.critico > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.critico}</p>
+              <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">≤30 dias</p>
             </div>
             <div
-              className={`p-3 rounded-lg text-center ${stats.urgente > 0 ? "bg-warning/10" : "bg-muted/50"}`}
+              className={`p-3 rounded-xl text-center shadow-inner ${stats.urgente > 0 ? "bg-warning/15 border border-warning/20" : "bg-muted/30"}`}
             >
-              <p className="text-2xl font-bold text-warning">{stats.urgente}</p>
-              <p className="text-xs text-muted-foreground">31-60 dias</p>
+              <p className={cn("text-2xl sm:text-3xl font-black", stats.urgente > 0 ? "text-warning" : "text-muted-foreground")}>{stats.urgente}</p>
+              <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">31-60 dias</p>
             </div>
             <div
-              className={`p-3 rounded-lg text-center ${stats.atencao > 0 ? "bg-accent/10" : "bg-muted/50"}`}
+              className={`p-3 rounded-xl text-center shadow-inner ${stats.atencao > 0 ? "bg-accent/15 border border-accent/20" : "bg-muted/30"}`}
             >
-              <p className="text-2xl font-bold text-accent-foreground">{stats.atencao}</p>
-              <p className="text-xs text-muted-foreground">61-90 dias</p>
+              <p className={cn("text-2xl sm:text-3xl font-black", stats.atencao > 0 ? "text-accent-foreground" : "text-muted-foreground")}>{stats.atencao}</p>
+              <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">61-90 dias</p>
             </div>
           </div>
 
@@ -298,15 +299,19 @@ export function ExpiringLotsCard() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className={`p-3 rounded-lg border-l-4 bg-card cursor-pointer hover:bg-muted/50 transition-colors ${getCategoryBorderColor(lot.categoria)}`}
+                  className={`p-4 rounded-xl border-l-4 bg-card shadow-sm cursor-pointer hover:shadow-md hover:bg-muted/30 transition-all ${getCategoryBorderColor(lot.categoria)}`}
                   onClick={() => navigate(`/cadastros/itens/${lot.item_id}`)}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate text-sm">{lot.item_descricao}</p>
-                      <p className="text-xs text-muted-foreground">Lote: {lot.numero_lote}</p>
+                      <p className="font-bold truncate text-sm sm:text-base text-foreground uppercase tracking-tight">{lot.item_descricao}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Lote: {lot.numero_lote}</span>
+                      </div>
                     </div>
-                    <Badge className={getCategoryColor(lot.categoria)}>{lot.dias_para_vencer} dias</Badge>
+                    <Badge className={cn("px-2.5 py-1 text-xs font-bold whitespace-nowrap rounded-full", getCategoryColor(lot.categoria))}>
+                      {lot.dias_para_vencer} dias
+                    </Badge>
                   </div>
                 </motion.div>
               ))}

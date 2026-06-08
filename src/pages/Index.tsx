@@ -143,14 +143,21 @@ const Index = () => {
       )}
 
       {/* Alerts Row */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="flex-1 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
+        {/* Expiring Lots - Priority Card */}
+        <div className="lg:col-span-4 xl:col-span-3">
           <ExpiringLotsCard />
+        </div>
+        
+        {/* Other Indicators */}
+        <div className="lg:col-span-5 xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <ExchangeRateCard />
           <MarketIndicesCard />
           <ConsultaANVISACard />
         </div>
-        <div className="lg:w-[320px] shrink-0">
+
+        {/* Partners Panel */}
+        <div className="lg:col-span-3">
           <ParceirosBrainX posicao="DASHBOARD_LATERAL" />
         </div>
       </div>
