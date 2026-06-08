@@ -18,6 +18,7 @@ import { addDays, differenceInDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface ExpiringLot {
   id: string;
