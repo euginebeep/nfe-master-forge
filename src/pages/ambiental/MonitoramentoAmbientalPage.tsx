@@ -588,7 +588,7 @@ export default function MonitoramentoAmbientalPage() {
         }
       />
 
-      {semConfiguracao ? (
+      {(semConfiguracao && !sessionStorage.getItem('brainx_demo_mode')) ? (
         <Card className="border-amber-200">
           <CardContent className="py-6">
             <EmptyState
@@ -601,7 +601,7 @@ export default function MonitoramentoAmbientalPage() {
             />
           </CardContent>
         </Card>
-      ) : aguardandoLeituras ? (
+      ) : (aguardandoLeituras && !sessionStorage.getItem('brainx_demo_mode')) ? (
         <Card className="border-blue-200">
           <CardContent className="py-6">
             <EmptyState
