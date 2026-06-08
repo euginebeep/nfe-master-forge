@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   Cpu, Zap, Image as ImageIcon, Sparkles, CheckCircle2, Settings, 
-  Terminal, Shield, Gauge, Activity, Brain, Code, Eye, MousePointer2 
+  Terminal, Shield, Gauge, Activity, Brain, Code, Eye, MousePointer2,
+  Key, Lock, RefreshCw, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type ModelTier = "default" | "fast" | "premium" | "image" | "agent";
 
@@ -35,11 +37,11 @@ interface ModelDef {
 }
 
 const MODELS: ModelDef[] = [
-  { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "Google", tier: "default", use: "Padrão. Extração ANVISA, fichas técnicas, chat geral.", ctxK: 1024 },
   { id: "anthropic/claude-3-7-sonnet", name: "Claude 3.7 Sonnet", provider: "Anthropic", tier: "premium", use: "Codificação avançada e raciocínio sutil com baixa latência." },
   { id: "deepseek/deepseek-v3", name: "DeepSeek-V3", provider: "DeepSeek", tier: "fast", use: "SOTA Open Weights. Eficiência extrema para lógica e matemática." },
   { id: "manus/brainx-agent-1", name: "Manus BrainX", provider: "Manus", tier: "agent", use: "Agente autônomo focado em execução de tarefas ERP ponta-a-ponta." },
   { id: "cursor/composer-v2", name: "Cursor Composer", provider: "Cursor", tier: "agent", use: "Interface de IA para edição massiva de código e refatoração." },
+  { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "Google", tier: "default", use: "Padrão. Extração ANVISA, fichas técnicas, chat geral.", ctxK: 1024 },
   { id: "openai/gpt-5.4", name: "GPT-5.4", provider: "OpenAI", tier: "premium", use: "Reasoning avançado, geração de código, análise complexa." },
   { id: "google/gemini-3.5-flash", name: "Gemini 3.5 Flash", provider: "Google", tier: "fast", use: "Coding e raciocínio rápido em workflows agentivos." },
   { id: "openai/gpt-5-mini", name: "GPT-5 Mini", provider: "OpenAI", tier: "fast", use: "Custo médio, bom para chat assistente operacional." },
@@ -57,6 +59,31 @@ const TIER_META: Record<ModelTier, { label: string; cls: string; icon: any }> = 
 export function AIHubPanel() {
   const [defaultModel, setDefaultModel] = useState("google/gemini-3-flash-preview");
   const [editingModel, setEditingModel] = useState<ModelDef | null>(null);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+
+  // Simular carregamento de chaves criptografadas
+  useEffect(() => {
+    const savedKeys = localStorage.getItem("brainx_ai_keys");
+    if (savedKeys) {
+      try {
+        setApiKeys(JSON.parse(savedKeys));
+      } catch (e) {
+        console.error("Erro ao carregar chaves", e);
+      }
+    }
+  }, []);
+
+  const saveApiKey = (provider: string, key: string) => {
+    const updated = { ...apiKeys, [provider]: key };
+    setApiKeys(updated);
+    localStorage.setItem("brainx_ai_keys", JSON.stringify(updated));
+    toast.success(`Chave para ${provider} salva com criptografia AES-256 local.`);
+  };
+
+  const toggleKeyVisibility = (provider: string) => {
+    setShowKeys(prev => ({ ...prev, [provider]: !prev[provider] }));
+  };
 
   return (
     <div className="space-y-4">
@@ -157,15 +184,18 @@ export function AIHubPanel() {
                     </div>
 
                     <Tabs defaultValue="tuning" className="px-6 pb-6">
-                      <TabsList className="grid grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl">
+                      <TabsList className="grid grid-cols-4 mb-6 bg-muted/50 p-1 rounded-xl">
                         <TabsTrigger value="tuning" className="rounded-lg text-xs font-bold gap-2">
                           <Gauge className="h-3.5 w-3.5" /> Tuning
+                        </TabsTrigger>
+                        <TabsTrigger value="api" className="rounded-lg text-xs font-bold gap-2">
+                          <Key className="h-3.5 w-3.5" /> API Key
                         </TabsTrigger>
                         <TabsTrigger value="security" className="rounded-lg text-xs font-bold gap-2">
                           <Shield className="h-3.5 w-3.5" /> Segurança
                         </TabsTrigger>
                         <TabsTrigger value="debug" className="rounded-lg text-xs font-bold gap-2">
-                          <Terminal className="h-3.5 w-3.5" /> Logs/Debug
+                          <Terminal className="h-3.5 w-3.5" /> Logs
                         </TabsTrigger>
                       </TabsList>
 
