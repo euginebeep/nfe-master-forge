@@ -101,7 +101,7 @@ ${contextManual}`
         'Authorization': `Bearer ${lovableKey}`,
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3-5-sonnet',
+        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         max_tokens: 1000,
       }),
