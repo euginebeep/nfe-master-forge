@@ -325,7 +325,9 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
 /* ------------------------------------------------------------------ */
 export default function MonitoramentoAmbientalPage() {
   const { profile } = useAuth();
-  const isDemo = profile?.is_demo || sessionStorage.getItem('brainx_demo_mode') === 'true';
+  const isDemo = profile?.is_demo || 
+                 sessionStorage.getItem('brainx_demo_mode') === 'true' || 
+                 profile?.nome_completo?.toLowerCase().includes('demo');
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
