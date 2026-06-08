@@ -30,8 +30,8 @@ export function useMonitoramentoAmbiental(period: MonitoramentoPeriodo = "hoje")
   const { data: companyId } = useUserCompanyId();
 
   const query = useQuery({
-    queryKey: ["sensor-readings", companyId, period],
-    enabled: !!companyId,
+    queryKey: ["sensor-readings", companyId, period, sessionStorage.getItem('brainx_demo_mode')],
+    enabled: !!companyId || sessionStorage.getItem('brainx_demo_mode') === 'true',
     staleTime: 30_000,
     queryFn: async (): Promise<SensorReading[]> => {
       const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
