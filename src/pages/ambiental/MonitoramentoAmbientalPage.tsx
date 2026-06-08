@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { SensorDrawer } from "@/components/ambiental/SensorDrawer";
 
 const TEMP_MARGIN = 1.5;
 const HUM_MARGIN = 3;
@@ -322,9 +323,11 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
 /*  PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export default function MonitoramentoAmbientalPage() {
+  const isDemo = sessionStorage.getItem('brainx_demo_mode') === 'true';
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [drawerRoom, setDrawerRoom] = useState<string | null>(null);
 
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
   const navigate = useNavigate();
@@ -572,7 +575,7 @@ export default function MonitoramentoAmbientalPage() {
               </span>
               Ao vivo
             </Badge>
-            <Button variant="outline" size="sm" onClick={exportCSV} disabled={isEmpty}>
+            <Button variant="outline" size="sm" onClick={exportCSV} disabled={!isDemo && isEmpty}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               CSV
             </Button>
@@ -580,7 +583,7 @@ export default function MonitoramentoAmbientalPage() {
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700"
               onClick={() => window.print()}
-              disabled={isEmpty}
+              disabled={!isDemo && isEmpty}
             >
               <Printer className="w-4 h-4 mr-2" />
               Imprimir / PDF
@@ -701,7 +704,10 @@ export default function MonitoramentoAmbientalPage() {
                   key={r.room_name}
                   reading={r}
                   selected={effectiveRoom === r.room_name}
-                  onClick={() => setSelectedRoom(r.room_name)}
+                  onClick={() => {
+                    setSelectedRoom(r.room_name);
+                    setDrawerRoom(r.room_name);
+                  }}
                 />
               ))}
             </div>
@@ -979,6 +985,11 @@ export default function MonitoramentoAmbientalPage() {
         <span className="mx-1">|</span>
         <span>Registros mantidos por 5 anos conforme legislação vigente</span>
       </div>
+      <SensorDrawer 
+        reading={drawerRoom ? latestByRoom[drawerRoom] : null}
+        history={drawerRoom ? readings.filter(r => r.room_name === drawerRoom) : []}
+        onClose={() => setDrawerRoom(null)}
+      />
     </div>
   );
 }
