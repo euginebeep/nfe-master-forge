@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
+import { useAuth } from "@/hooks/use-auth";
 import {
   useMonitoramentoAmbiental,
   getLatestByRoom,
