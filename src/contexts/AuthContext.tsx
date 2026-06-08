@@ -153,18 +153,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { profile, role, permissions } = await fetchUserData(session.user.id);
           if (!mounted) return;
 
-          // Aplicar detecção de demo: perfil marcado como demo OU email demo OU flag na sessão
-          const isDemoPersistedInit = sessionStorage.getItem('brainx_demo_mode') === 'true';
-          const isDemoEmailInit = session.user.email === 'demo@brainxerp.com';
-          const isDemoCompany = profile?.company_id === '00000000-0000-0000-0000-000000000001';
-          const isDemoInit = profile?.is_demo || isDemoEmailInit || isDemoPersistedInit || isDemoCompany;
+          // Aplicar detecção de demo: perfil marcado como demo OU email demo OU empresa demo
+          const isUserDemo = profile?.is_demo || 
+                            session.user.email === 'demo@brainxerp.com' || 
+                            profile?.company_id === '00000000-0000-0000-0000-000000000001';
 
-          // Se for uma empresa real (não demo), garantimos que o modo demo está desativado na sessão
-          if (!isDemoInit && profile?.company_id && profile.company_id !== '00000000-0000-0000-0000-000000000001') {
-            sessionStorage.removeItem('brainx_demo_mode');
-          } else if (isDemoInit) {
+          // Se for uma empresa real (não demo), forçamos a remoção da flag de modo demo da sessão
+          const hasRealCompany = profile?.company_id && profile.company_id !== '00000000-0000-0000-0000-000000000001';
+          
+          if (isUserDemo) {
             sessionStorage.setItem('brainx_demo_mode', 'true');
+          } else if (hasRealCompany) {
+            sessionStorage.removeItem('brainx_demo_mode');
           }
+
+          const isDemoInit = isUserDemo || sessionStorage.getItem('brainx_demo_mode') === 'true';
 
           const finalProfileInit = profile ? { ...profile, is_demo: isDemoInit } : null;
 
