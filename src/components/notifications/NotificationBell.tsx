@@ -118,7 +118,7 @@ export function NotificationBell() {
             </Button>
           )}
         </div>
-        <ScrollArea className="flex-1 overflow-y-auto">
+        <ScrollArea className="flex-1 overflow-y-auto" type="always">
           {notifications.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
