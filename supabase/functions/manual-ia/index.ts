@@ -93,6 +93,7 @@ ${contextManual}`
   let tokensUsados = 0
 
   try {
+    console.log('[manual-ia] Chamando gateway...');
     const aiRes = await fetch(AI_GATEWAY, {
       method: 'POST',
       headers: {
@@ -100,16 +101,17 @@ ${contextManual}`
         'Authorization': `Bearer ${lovableKey}`,
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash',
+        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         max_tokens: 1000,
       }),
     })
     const aiData = await aiRes.json()
+    console.log('[manual-ia] Status:', aiRes.status)
+    console.log('[manual-ia] Resposta gateway:', JSON.stringify(aiData))
     resposta = aiData?.choices?.[0]?.message?.content || ''
     tokensUsados = aiData?.usage?.total_tokens || 0
   } catch (e: any) {
-    // Fallback para Anthropic se necessário
     console.error('[manual-ia] Erro no gateway Lovable:', e)
   }
 
