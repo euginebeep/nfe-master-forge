@@ -9,7 +9,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileText,
-  Download
+  Download,
+  Eye,
+  Trash2,
+  FileSearch
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +30,8 @@ import {
   useResponsaveisTecnicos, 
   useResponsavelTecnicoCRUD 
 } from "@/hooks/use-responsaveis-tecnicos";
+import { useAuth } from "@/hooks/use-auth";
+import { useFileUrl } from "@/hooks/use-files";
 import { RTFormDialog } from "@/components/responsavel-tecnico/RTFormDialog";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -36,9 +41,18 @@ import { CONSELHOS } from "@/types/responsavel-tecnico";
 export default function ResponsaveisTecnicosPage() {
   const { data: rts, isLoading } = useResponsaveisTecnicos();
   const { toggleStatus } = useResponsavelTecnicoCRUD();
+  const { role } = useAuth();
+  const getFileUrl = useFileUrl();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRT, setSelectedRT] = useState<ResponsavelTecnico | null>(null);
+
+  const canManage = role === 'admin' || role === 'gerente';
+
+  const handleViewContract = async (fileId: string) => {
+    const url = await getFileUrl.mutateAsync(fileId);
+    if (url) window.open(url, '_blank');
+  };
 
   const handleEdit = (rt: ResponsavelTecnico) => {
     setSelectedRT(rt);
@@ -142,20 +156,52 @@ export default function ResponsaveisTecnicosPage() {
       header: "Ações",
       render: (rt: ResponsavelTecnico) => (
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" onClick={() => handleEdit(rt)}>
-            <Edit2 className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => handleToggleStatus(rt)}
-          >
-            {rt.status === 'ATIVO' ? (
-              <ToggleRight className="w-4 h-4 text-success" />
-            ) : (
-              <ToggleLeft className="w-4 h-4 text-muted-foreground" />
-            )}
-          </Button>
+          {canManage && (
+            <>
+              <Button variant="ghost" size="icon" onClick={() => handleEdit(rt)} title="Editar">
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              
+              {rt.regime_trabalho === 'PJ' && rt.contrato_prestacao_servico_id && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => handleViewContract(rt.contrato_prestacao_servico_id!)}
+                  title="Visualizar Contrato PJ"
+                >
+                  <FileSearch className="w-4 h-4 text-primary" />
+                </Button>
+              )}
+
+              {rt.regime_trabalho === 'CLT' && (
+                <Button variant="ghost" size="icon" title="Carteira com Registro">
+                  <FileText className="w-4 h-4 text-info" />
+                </Button>
+              )}
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => handleToggleStatus(rt)}
+                title={rt.status === 'ATIVO' ? "Desativar" : "Ativar"}
+              >
+                {rt.status === 'ATIVO' ? (
+                  <ToggleRight className="w-4 h-4 text-success" />
+                ) : (
+                  <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Button>
+
+              <Button variant="ghost" size="icon" className="text-destructive" title="Excluir">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+          {!canManage && (
+            <Button variant="ghost" size="icon" onClick={() => handleEdit(rt)} title="Visualizar">
+              <Eye className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       )
     },

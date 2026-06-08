@@ -39,6 +39,8 @@ const rtSchema = z.object({
   numero_registro: z.string().min(3, "Número de registro inválido"),
   uf_conselho: z.string().length(2, "Selecione a UF"),
   validade_registro: z.string().min(1, "Informe a validade do registro"),
+  regime_trabalho: z.enum(['CLT', 'PJ']),
+  contrato_prestacao_servico_id: z.string().optional(),
 });
 
 type RTFormData = z.infer<typeof rtSchema>;
@@ -64,6 +66,8 @@ export function RTFormDialog({ open, onOpenChange, rtParaEditar }: RTFormDialogP
       numero_registro: "",
       uf_conselho: "SP",
       validade_registro: "",
+      regime_trabalho: "CLT",
+      contrato_prestacao_servico_id: "",
     },
   });
 
@@ -78,6 +82,8 @@ export function RTFormDialog({ open, onOpenChange, rtParaEditar }: RTFormDialogP
         numero_registro: rtParaEditar.numero_registro,
         uf_conselho: rtParaEditar.uf_conselho,
         validade_registro: rtParaEditar.validade_registro,
+        regime_trabalho: rtParaEditar.regime_trabalho || "CLT",
+        contrato_prestacao_servico_id: rtParaEditar.contrato_prestacao_servico_id || "",
       });
     } else {
       form.reset({
@@ -89,6 +95,8 @@ export function RTFormDialog({ open, onOpenChange, rtParaEditar }: RTFormDialogP
         numero_registro: "",
         uf_conselho: "SP",
         validade_registro: "",
+        regime_trabalho: "CLT",
+        contrato_prestacao_servico_id: "",
       });
     }
   }, [rtParaEditar, form]);
@@ -269,8 +277,95 @@ export function RTFormDialog({ open, onOpenChange, rtParaEditar }: RTFormDialogP
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="regime_trabalho"
+                  render={({ field }) => (
+                    <FormItem className="col-span-3">
+                      <FormLabel>Regime de Trabalho *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="CLT">CLT (Consolidação das Leis do Trabalho)</SelectItem>
+                          <SelectItem value="PJ">PJ (Pessoa Jurídica - Prestação de Serviço)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
+
+            {/* Upload de Contrato PJ (condicional) */}
+            {form.watch("regime_trabalho") === "PJ" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                  Contrato de Prestação de Serviço
+                </h3>
+                <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                  {form.watch("contrato_prestacao_servico_id") ? (
+                    <div className="flex flex-col items-center">
+                      <FileText className="w-8 h-8 text-success mb-2" />
+                      <p className="text-sm text-success font-medium mb-2">Contrato enviado com sucesso!</p>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => form.setValue("contrato_prestacao_servico_id", "")}
+                      >
+                        Remover e enviar outro
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Arraste ou clique para enviar o contrato de prestação de serviço
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PDF ou JPG até 5MB
+                      </p>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        id="contrato-pj"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const result = await uploadFile.mutateAsync({ file, sensivel: true });
+                            if (result?.id) {
+                              form.setValue("contrato_prestacao_servico_id", result.id);
+                            }
+                          }
+                        }}
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="mt-3"
+                        disabled={uploadFile.isPending}
+                        onClick={() => document.getElementById('contrato-pj')?.click()}
+                      >
+                        {uploadFile.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        Selecionar Contrato
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <FormMessage />
+              </div>
+            )}
 
             {/* Upload de Documento */}
             <div className="space-y-4">
@@ -293,7 +388,8 @@ export function RTFormDialog({ open, onOpenChange, rtParaEditar }: RTFormDialogP
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      await uploadFile.mutateAsync({ file, sensivel: true });
+                      const result = await uploadFile.mutateAsync({ file, sensivel: true });
+                      // Note: We might want to store this in a form field if the DB schema supports multiple docs
                     }
                   }}
                 />

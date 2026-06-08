@@ -28,6 +28,8 @@ export interface ResponsavelTecnico {
   uf_conselho: string;
   validade_registro: string; // DATE
   documento_comprobatorio_id?: string;
+  regime_trabalho: 'CLT' | 'PJ';
+  contrato_prestacao_servico_id?: string;
   created_at: string;
   updated_at: string;
   created_by?: string;
