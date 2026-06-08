@@ -117,18 +117,52 @@ const POP_CONTENTS: Record<string, any> = {
     registros: "Mapas térmicos e histórico de sensores.",
     referencias: "RDC 430/2022."
   },
-  MANUAL_GERAL: {
+    MANUAL_GERAL: {
     objetivo: "Estabelecer as diretrizes gerais de funcionamento da fábrica fictícia, consolidando todos os procedimentos de Boas Práticas de Fabricação (BPF) em um único guia mestre de operação.",
     campo_aplicacao: "Abrange todas as áreas da unidade fabril: recepção, estoque, pesagem, produção, laboratório e expedição.",
     responsaveis: "Diretoria, Gerência de Produção e Departamento de Garantia da Qualidade.",
     materiais: "Documentação do sistema BrainX ERP, infraestrutura física da fábrica, equipamentos produtivos.",
-    procedimento: [
-      "Fluxo de Produção: Seguir rigorosamente a sequência lógica de fabricação para evitar cruzamento de fluxos.",
-      "Controle de Acesso: Apenas pessoal autorizado e devidamente uniformizado pode acessar as áreas classificadas.",
-      "Execução de POPs: Todos os colaboradores devem consultar e executar os POPs específicos (A a L) conforme o cronograma do sistema.",
-      "Registros em Tempo Real: Toda operação de pesagem e mistura deve ser registrada instantaneamente no ERP para garantir a rastreabilidade.",
-      "Limpeza e Organização: Aplicar o conceito de 'limpeza concorrente' durante todo o turno de trabalho.",
-      "Gestão de Resíduos: Descartar materiais conforme o plano de gerenciamento de resíduos sólidos de saúde (PGRSS)."
+    paginas: [
+      {
+        titulo_secao: "01. POLÍTICA DE QUALIDADE E BPF",
+        conteudo: [
+          "A empresa compromete-se com a segurança máxima dos produtos industrializados.",
+          "Todo colaborador é um agente da qualidade e deve zelar pela higiene.",
+          "O Manual de Boas Práticas de Fabricação (BPF) é a lei máxima da planta.",
+          "Desvios devem ser comunicados imediatamente à Garantia da Qualidade.",
+          "A conformidade com as RDC 275/2002 e RDC 658/2022 é obrigatória."
+        ]
+      },
+      {
+        titulo_secao: "02. FLUXO PRODUTIVO E ÁREAS",
+        conteudo: [
+          "Fluxo de Produção: Seguir rigorosamente a sequência lógica para evitar cruzamento.",
+          "Controle de Acesso: Apenas pessoal autorizado e devidamente uniformizado.",
+          "Identificação de Status: Áreas, máquinas e materiais devem estar sempre identificados.",
+          "Áreas Classificadas: Controle rigoroso de pressão, temperatura e umidade.",
+          "Manutenção Preventiva: Equipamentos devem estar calibrados e revisados."
+        ]
+      },
+      {
+        titulo_secao: "03. HIGIENE E COMPORTAMENTO",
+        conteudo: [
+          "Higiene Pessoal: Banho diário, unhas cortadas, sem adornos ou maquiagem.",
+          "Lavagem de Mãos: Obrigatória na entrada e a cada troca de atividade.",
+          "Uniformes: Devem ser trocados diariamente e estar em perfeito estado.",
+          "Comportamento: Proibido comer, beber ou fumar em áreas produtivas.",
+          "Saúde do Colaborador: Afastamento imediato em caso de sintomas infecciosos."
+        ]
+      },
+      {
+        titulo_secao: "04. GESTÃO DE DOCUMENTOS E REGISTROS",
+        conteudo: [
+          "Execução de POPs: Consultar e executar os POPs (A a L) conforme cronograma.",
+          "Registros em Tempo Real: Toda operação deve ser registrada instantaneamente no ERP.",
+          "Rastreabilidade: Garantir o rastreio desde o lote da matéria-prima até o produto acabado.",
+          "Armazenamento de Dados: Logs digitais e trilha de auditoria são invioláveis.",
+          "Revisão de Documentos: Revisão periódica para melhoria contínua dos processos."
+        ]
+      }
     ],
     monitoramento: "Auditorias internas mensais e acompanhamento diário via indicadores (KPIs) no dashboard do sistema.",
     acoes_corretivas: "Abertura de Relatório de Desvio e plano de ação (CAPA) para qualquer processo fora do padrão estabelecido.",
@@ -208,8 +242,8 @@ export function POPVisualizer({ pop, open, onOpenChange }: POPVisualizerProps) {
                   <span className="font-black">{format(new Date(), "dd/MM/yyyy")}</span>
                 </div>
                 <div className="p-2 flex justify-between gap-2 text-[10px]">
-                  <span className="font-bold uppercase text-slate-500">Página:</span>
-                  <span className="font-black">1 de 1</span>
+                  <span className="font-bold uppercase text-slate-500">Páginas:</span>
+                  <span className="font-black">{content.paginas ? content.paginas.length : "1"} de {content.paginas ? content.paginas.length : "1"}</span>
                 </div>
               </div>
             </div>
@@ -252,13 +286,32 @@ export function POPVisualizer({ pop, open, onOpenChange }: POPVisualizerProps) {
             <section className="space-y-2">
               <h3 className="bg-slate-100 p-2 border-l-4 border-black font-black uppercase text-xs tracking-wider flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-[10px]">05</span>
-                Descrição do Procedimento
+                Descrição do Procedimento / Conteúdo do Manual
               </h3>
-              <ol className="list-decimal list-inside space-y-2 px-2">
-                {content.procedimento.map((step: string, i: number) => (
-                  <li key={i} className="pl-2">{step}</li>
-                ))}
-              </ol>
+              
+              {content.paginas ? (
+                <div className="space-y-8">
+                  {content.paginas.map((pagina: any, pIdx: number) => (
+                    <div key={pIdx} className="border border-slate-200 rounded-md p-4 bg-slate-50/30 break-inside-avoid">
+                      <h4 className="font-bold text-sm mb-3 text-primary border-b pb-2">{pagina.titulo_secao}</h4>
+                      <ul className="list-disc list-inside space-y-2 text-xs">
+                        {pagina.conteudo.map((item: string, i: number) => (
+                          <li key={i} className="pl-2 leading-relaxed">{item}</li>
+                        ))}
+                      </ul>
+                      <div className="mt-4 text-[8px] text-right text-slate-400 italic">
+                        {pop.codigo} - Página {pIdx + 1} de {content.paginas.length}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <ol className="list-decimal list-inside space-y-2 px-2">
+                  {content.procedimento.map((step: string, i: number) => (
+                    <li key={i} className="pl-2">{step}</li>
+                  ))}
+                </ol>
+              )}
             </section>
 
             <div className="grid grid-cols-2 gap-6">
