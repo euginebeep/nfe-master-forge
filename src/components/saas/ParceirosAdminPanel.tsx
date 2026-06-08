@@ -271,7 +271,7 @@ function CriativosTab() {
     <Card className="border-none shadow-sm overflow-hidden">
        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
           <CardTitle className="text-sm font-bold uppercase tracking-wider">Biblioteca de Criativos</CardTitle>
-          <Button size="sm" className="gap-2 font-bold"><Plus className="h-4 w-4" /> Novo Criativo</Button>
+          <NovoCriativoDialog />
         </CardHeader>
         <CardContent className="p-3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
