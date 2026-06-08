@@ -106,10 +106,10 @@ ${contextManual}`
       }),
     })
     const aiData = await aiRes.json()
+    console.log('[manual-ia] Resposta gateway:', JSON.stringify(aiData))
     resposta = aiData?.choices?.[0]?.message?.content || ''
     tokensUsados = aiData?.usage?.total_tokens || 0
   } catch (e: any) {
-    // Fallback para Anthropic se necessário
     console.error('[manual-ia] Erro no gateway Lovable:', e)
   }
 
