@@ -552,7 +552,7 @@ export default function MonitoramentoAmbientalPage() {
       <PageHeader
         icon={Factory}
         title="Monitoramento Ambiental"
-        description="RDC 658/2022 · Sonoff SNZB-02 via eWeLink · n8n sync"
+        description="RDC 658/2022"
         actions={
           <>
             <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1.5 hover:bg-emerald-100">
