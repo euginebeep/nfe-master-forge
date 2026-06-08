@@ -327,7 +327,7 @@ export default function MonitoramentoAmbientalPage() {
   const { profile } = useAuth();
   const isDemo = profile?.is_demo || 
                  sessionStorage.getItem('brainx_demo_mode') === 'true' || 
-                 profile?.nome_completo?.toLowerCase().includes('demo');
+                 profile?.company_id === '00000000-0000-0000-0000-000000000001';
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
