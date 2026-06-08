@@ -103,6 +103,8 @@ export default function EquipamentosPage() {
           .eq("id", editingEquipamento.id);
         if (error) throw error;
       } else {
+        if (!companyId) throw new Error("ID da empresa não encontrado");
+        
         const { error } = await supabase
           .from("equipamentos")
           .insert([{ 
