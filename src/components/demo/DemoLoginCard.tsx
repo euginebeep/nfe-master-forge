@@ -101,17 +101,22 @@ export function DemoLoginCard() {
       }
 
       // 2. Auth via AuthContext, so profile/company are loaded before the app opens
+      console.log('Tentando login demo com:', DEMO_EMAIL);
       let result = await signIn(DEMO_EMAIL, DEMO_PASSWORD);
 
-      // Se ainda não existe, provisiona via bootstrap e tenta novamente
+      // Se falhar (credenciais inválidas ou usuário não existe), provisiona/reseta via bootstrap
       if (result?.error) {
+        console.log('Login falhou, executando bootstrap...', result.error);
         toast.info('Preparando conta demo... isso pode levar até 1 minuto.');
-        const { error: bootErr } = await supabase.functions.invoke('bootstrap-demo-user');
-        if (bootErr) {
+        const { data: bootData, error: bootErr } = await supabase.functions.invoke('bootstrap-demo-user');
+        
+        if (bootErr || bootData?.error) {
           setLoading(false);
-          toast.error('Falha ao preparar demo: ' + bootErr.message);
+          toast.error('Falha ao preparar demo: ' + (bootErr?.message || bootData?.error));
           return;
         }
+        
+        console.log('Bootstrap ok, tentando login novamente...');
         result = await signIn(DEMO_EMAIL, DEMO_PASSWORD);
       }
 
