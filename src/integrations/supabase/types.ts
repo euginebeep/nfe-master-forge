@@ -6757,6 +6757,7 @@ export type Database = {
       responsaveis_tecnicos: {
         Row: {
           company_id: string | null
+          contrato_prestacao_servico_id: string | null
           cpf: string
           created_at: string
           created_by: string | null
@@ -6765,6 +6766,7 @@ export type Database = {
           id: string
           nome_completo: string
           numero_registro: string
+          regime_trabalho: string | null
           status: string
           telefone: string | null
           tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
@@ -6774,6 +6776,7 @@ export type Database = {
         }
         Insert: {
           company_id?: string | null
+          contrato_prestacao_servico_id?: string | null
           cpf: string
           created_at?: string
           created_by?: string | null
@@ -6782,6 +6785,7 @@ export type Database = {
           id?: string
           nome_completo: string
           numero_registro: string
+          regime_trabalho?: string | null
           status?: string
           telefone?: string | null
           tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
@@ -6791,6 +6795,7 @@ export type Database = {
         }
         Update: {
           company_id?: string | null
+          contrato_prestacao_servico_id?: string | null
           cpf?: string
           created_at?: string
           created_by?: string | null
@@ -6799,6 +6804,7 @@ export type Database = {
           id?: string
           nome_completo?: string
           numero_registro?: string
+          regime_trabalho?: string | null
           status?: string
           telefone?: string | null
           tipo_conselho?: Database["public"]["Enums"]["tipo_conselho_profissional"]
@@ -6807,6 +6813,13 @@ export type Database = {
           validade_registro?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "responsaveis_tecnicos_contrato_prestacao_servico_id_fkey"
+            columns: ["contrato_prestacao_servico_id"]
+            isOneToOne: false
+            referencedRelation: "arquivos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "responsaveis_tecnicos_documento_comprobatorio_id_fkey"
             columns: ["documento_comprobatorio_id"]
