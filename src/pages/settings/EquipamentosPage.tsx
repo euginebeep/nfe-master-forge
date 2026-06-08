@@ -127,6 +127,7 @@ export default function EquipamentosPage() {
 
     },
     onSuccess: () => {
+      // Invalidar o queryKey exato que contém o companyId
       queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
       toast.success(editingEquipamento ? "Equipamento atualizado" : "Equipamento cadastrado");
       setIsDialogOpen(false);
