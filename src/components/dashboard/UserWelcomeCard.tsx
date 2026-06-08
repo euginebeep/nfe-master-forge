@@ -157,7 +157,37 @@ export function UserWelcomeCard({ name, role, cargo, avatarUrl, sexo, isLoading 
               <div className={cn(
                 "h-full min-h-[100px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all hover:bg-primary/5 cursor-pointer",
                 isFeminine ? "border-pink-200/50 bg-pink-50/30" : "border-primary/20 bg-primary/5"
-              )}>
+              )} onClick={() => {
+                // Simulação de abertura de propaganda no demo
+                if (sessionStorage.getItem('brainx_demo_mode') === 'true') {
+                  const demoAd = document.createElement('div');
+                  demoAd.style.position = 'fixed';
+                  demoAd.style.inset = '0';
+                  demoAd.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                  demoAd.style.zIndex = '9999';
+                  demoAd.style.display = 'flex';
+                  demoAd.style.alignItems = 'center';
+                  demoAd.style.justifyContent = 'center';
+                  demoAd.style.padding = '20px';
+                  
+                  demoAd.innerHTML = `
+                    <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; width: 100%; text-align: center; position: relative; border: 4px solid #3b82f6;">
+                      <button id="close-ad" style="position: absolute; top: 15px; right: 15px; border: none; background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: bold; color: #64748b;">X</button>
+                      <div style="background: #eff6ff; width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; color: #3b82f6;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                      </div>
+                      <h2 style="font-size: 24px; font-weight: 900; margin-bottom: 12px; color: #1e293b;">OFERTA EXCLUSIVA: BrainX Pro</h2>
+                      <p style="color: #64748b; font-size: 16px; margin-bottom: 24px; line-height: 1.6;">Aproveite o potencial máximo da sua indústria com o plano Pro. Suporte 24/7 e consultoria de BPF inclusa.</p>
+                      <button style="background: #3b82f6; color: white; padding: 12px 32px; border-radius: 12px; font-weight: 800; border: none; cursor: pointer; font-size: 16px; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);">CONHECER PLANOS</button>
+                    </div>
+                  `;
+                  
+                  document.body.appendChild(demoAd);
+                  document.getElementById('close-ad')?.addEventListener('click', () => {
+                    document.body.removeChild(demoAd);
+                  });
+                }
+              }}>
                 <div className="flex flex-col items-center gap-2">
                   <div className={cn(
                     "p-2 rounded-full",
@@ -166,8 +196,8 @@ export function UserWelcomeCard({ name, role, cargo, avatarUrl, sexo, isLoading 
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground/60">Novidades e Avisos</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight px-4">
-                    Este espaço será utilizado para comunicados importantes e novos recursos da plataforma.
+                  <p className="text-[11px] text-muted-foreground leading-tight px-4 font-medium">
+                    (Simulação de Propaganda) Clique para ver uma oferta fictícia do sistema.
                   </p>
                 </div>
               </div>
