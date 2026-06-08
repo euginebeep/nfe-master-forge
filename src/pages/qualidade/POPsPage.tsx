@@ -81,6 +81,8 @@ export default function POPsPage() {
   const [popDialogOpen, setPopDialogOpen] = useState(false);
   const [execDialogOpen, setExecDialogOpen] = useState(false);
   const [editingPop, setEditingPop] = useState<any>(null);
+  const [visualizeOpen, setVisualizeOpen] = useState(false);
+  const [selectedPopForView, setSelectedPopForView] = useState<any>(null);
   
   // Queries
   const { data: pops, isLoading } = useQuery({
