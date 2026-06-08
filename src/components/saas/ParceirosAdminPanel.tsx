@@ -242,7 +242,7 @@ function ParceirosTab() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {p.ativo ? <Badge className="bg-success/10 text-success border-success/20">Ativo</Badge> : <Badge variant="muted">Inativo</Badge>}
+                    {p.ativo ? <Badge className="bg-success/10 text-success border-success/20">Ativo</Badge> : <Badge variant="secondary">Inativo</Badge>}
                   </TableCell>
                   <TableCell className="text-right">
                      <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4" /></Button>
