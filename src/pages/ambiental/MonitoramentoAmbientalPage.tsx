@@ -645,7 +645,7 @@ export default function MonitoramentoAmbientalPage() {
               </TabsList>
             </Tabs>
             
-            {sessionStorage.getItem('brainx_demo_mode') !== 'true' && (
+            {!isDemo && (
               <Select value={roomFilter} onValueChange={setRoomFilter}>
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Todas as salas" />
