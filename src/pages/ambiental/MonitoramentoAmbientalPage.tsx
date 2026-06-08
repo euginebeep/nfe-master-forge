@@ -331,8 +331,8 @@ export default function MonitoramentoAmbientalPage() {
 
   // Sensores configurados pelo tenant
   const { data: sensores = [], isLoading: isLoadingSensores } = useQuery({
-    queryKey: ["ambiental-sensores", companyId],
-    enabled: !!companyId,
+    queryKey: ["ambiental-sensores-page", companyId, sessionStorage.getItem('brainx_demo_mode')],
+    enabled: !!companyId || sessionStorage.getItem('brainx_demo_mode') === 'true',
     queryFn: async () => {
       const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true';
       if (isDemoMode) {
