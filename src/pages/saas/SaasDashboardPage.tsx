@@ -430,7 +430,7 @@ export default function SaasDashboardPage() {
             <AIHubPanel />
           </TabsContent>
           <TabsContent value="comunicados">
-            <Card className="border-none shadow-sm"><CardContent className="py-20 text-center text-muted-foreground"><Megaphone className="mx-auto h-12 w-12 opacity-20 mb-4" /> Painel de comunicados aos tenants (em breve).</CardContent></Card>
+            <ComunicadosPanel />
           </TabsContent>
           <TabsContent value="logs">
             <LogsPanel />
