@@ -35,6 +35,7 @@ export interface LocalCompany {
   certificado_nome?: string;
   certificado_tipo?: string;
   certificado_senha?: string;
+  optout_parceiros?: boolean;
   created_at?: string;
   updated_at?: string;
 }
