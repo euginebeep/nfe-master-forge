@@ -3,9 +3,12 @@ import {
   Activity, ShieldCheck, Layers, Receipt, 
   Thermometer, Beaker, ArrowRight, LogIn
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import brainxLogo from "@/assets/brainx-logo.png";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { useEffect } from "react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const features = [
   {
@@ -41,6 +44,23 @@ const features = [
 ];
 
 const LandingPage = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#000000] flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#000000] text-white relative overflow-hidden font-sans selection:bg-[#10b981]/30">
       {/* Subtle Grid Background */}
