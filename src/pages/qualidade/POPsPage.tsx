@@ -42,9 +42,11 @@ import {
   AlertTriangle,
   Search,
   Filter,
+  Eye,
 } from "lucide-react";
 import { format, isBefore, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { POPVisualizer } from "@/components/qualidade/POPVisualizer";
 
 const CATEGORIAS_POP = {
   A_HIGIENIZACAO: { label: "Higienização", color: "bg-blue-100 text-blue-800" },
@@ -79,6 +81,8 @@ export default function POPsPage() {
   const [popDialogOpen, setPopDialogOpen] = useState(false);
   const [execDialogOpen, setExecDialogOpen] = useState(false);
   const [editingPop, setEditingPop] = useState<any>(null);
+  const [visualizeOpen, setVisualizeOpen] = useState(false);
+  const [selectedPopForView, setSelectedPopForView] = useState<any>(null);
   
   // Queries
   const { data: pops, isLoading } = useQuery({
@@ -354,7 +358,18 @@ export default function POPsPage() {
                             </div>
                           ) : "-"}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right flex gap-2 justify-end">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                              setSelectedPopForView(pop);
+                              setVisualizeOpen(true);
+                            }}
+                            title="Visualizar Documento (PDF)"
+                          >
+                            <Eye className="w-4 h-4 text-primary" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleOpenPopDialog(pop)}>
                             <FileEdit className="w-4 h-4" />
                           </Button>
@@ -504,6 +519,12 @@ export default function POPsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <POPVisualizer 
+        pop={selectedPopForView} 
+        open={visualizeOpen} 
+        onOpenChange={setVisualizeOpen} 
+      />
     </div>
   );
 }
