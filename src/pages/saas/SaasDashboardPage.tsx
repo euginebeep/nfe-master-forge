@@ -405,9 +405,10 @@ export default function SaasDashboardPage() {
 
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => setDetailCompany(c)}><Eye className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" className="text-warning" onClick={() => setConfirmAction({ type: "block", company: c })}><Ban className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setConfirmAction({ type: "delete", company: c })}><Trash2 className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" title="Ver detalhes" onClick={() => setDetailCompany(c)}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-success" title="Liberar acesso (override)" onClick={() => setConfirmAction({ type: "grant-access", company: c })}><Unlock className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-warning" title="Bloquear tenant" onClick={() => setConfirmAction({ type: "block", company: c })}><Ban className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" title="Excluir empresa" onClick={() => setConfirmAction({ type: "delete", company: c })}><Trash2 className="h-4 w-4" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -443,6 +444,12 @@ export default function SaasDashboardPage() {
              <DialogTitle>Confirmar Operação</DialogTitle>
              <DialogDescription>Deseja realmente aplicar "{confirmAction?.type}" na empresa "{confirmAction?.company.razao_social}"?</DialogDescription>
            </DialogHeader>
+           {confirmAction?.type === "grant-access" && (
+             <div className="space-y-2 py-2">
+               <Label>Dias de liberação (7-90)</Label>
+               <Input type="number" min={7} max={90} value={grantDays} onChange={(e) => setGrantDays(Number(e.target.value))} />
+             </div>
+           )}
            <DialogFooter>
              <Button variant="outline" onClick={() => setConfirmAction(null)}>Cancelar</Button>
              <Button variant={confirmAction?.type === "delete" ? "destructive" : "default"} onClick={() => handleAction(confirmAction!.type, confirmAction!.company.id)} disabled={actionLoading}>
@@ -450,6 +457,66 @@ export default function SaasDashboardPage() {
                Confirmar
              </Button>
            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!detailCompany} onOpenChange={() => setDetailCompany(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              {detailCompany?.nome_fantasia || detailCompany?.razao_social}
+            </DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              {detailCompany && formatCNPJ(detailCompany.cnpj)} · Cadastrada em {detailCompany && format(new Date(detailCompany.created_at), "dd/MM/yyyy", { locale: ptBR })}
+            </DialogDescription>
+          </DialogHeader>
+          {detailCompany && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Assinatura</p>
+                  <div className="mt-1"><StatusBadge stripe={detailCompany.stripe} /></div>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Usuários</p>
+                  <p className="text-lg font-black mt-1">{detailCompany.total_usuarios}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Tickets</p>
+                  <p className="text-lg font-black mt-1">{detailCompany.tickets_abertos}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-bold mb-2 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Proprietário</p>
+                <div className="text-sm">{detailCompany.owner_nome || "—"}</div>
+                <div className="text-xs text-muted-foreground">{detailCompany.owner_email || "—"}</div>
+              </div>
+              <div>
+                <p className="text-xs font-bold mb-2">Usuários do Tenant</p>
+                <div className="max-h-48 overflow-y-auto border rounded-lg">
+                  <Table>
+                    <TableHeader className="bg-muted/50 sticky top-0">
+                      <TableRow><TableHead className="text-xs">Nome</TableHead><TableHead className="text-xs">Email</TableHead><TableHead className="text-xs">Último acesso</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detailCompany.usuarios?.length ? detailCompany.usuarios.map(u => (
+                        <TableRow key={u.id}>
+                          <TableCell className="text-xs font-medium">{u.nome}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{u.email}</TableCell>
+                          <TableCell className="text-xs">{u.ultimo_acesso ? format(new Date(u.ultimo_acesso), "dd/MM HH:mm") : "—"}</TableCell>
+                        </TableRow>
+                      )) : <TableRow><TableCell colSpan={3} className="text-xs text-center text-muted-foreground py-4">Sem usuários</TableCell></TableRow>}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailCompany(null)}>Fechar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
