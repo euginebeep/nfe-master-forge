@@ -81,73 +81,96 @@ export function UserWelcomeCard({ name, role, cargo, avatarUrl, sexo, isLoading 
         )} />
         
         <CardContent className="p-6 relative">
-          <div className="flex items-start gap-4">
-            <Avatar className={cn(
-              "h-16 w-16 border-2",
-              isFeminine ? "border-pink-300/60" : "border-primary/20"
-            )}>
-              <AvatarImage src={avatarUrl || undefined} alt={name || 'Usuário'} />
-              <AvatarFallback className={cn(
-                "text-lg font-semibold",
-                isFeminine ? "bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300" : "bg-primary/10 text-primary"
+          <div className="flex flex-col md:flex-row items-start gap-6">
+            <div className="flex items-start gap-4 flex-1">
+              <Avatar className={cn(
+                "h-16 w-16 border-2",
+                isFeminine ? "border-pink-300/60" : "border-primary/20"
               )}>
-                {getInitials(name)}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-[32px] font-bold leading-tight">
-                  {greeting},{' '}
-                  <span className={cn(
-                    "truncate",
-                    isFeminine ? "text-pink-600 dark:text-pink-400" : ""
-                  )}>
-                    {name?.split(' ')[0] || 'Usuário'}!
-                  </span>
-                </h2>
-                {isFeminine ? (
-                  <Heart className="h-5 w-5 text-pink-500 animate-pulse fill-pink-400" />
-                ) : (
-                  <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-                )}
-              </div>
+                <AvatarImage src={avatarUrl || undefined} alt={name || 'Usuário'} />
+                <AvatarFallback className={cn(
+                  "text-lg font-semibold",
+                  isFeminine ? "bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300" : "bg-primary/10 text-primary"
+                )}>
+                  {getInitials(name)}
+                </AvatarFallback>
+              </Avatar>
               
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {role && (
-                  <Badge variant={getRoleBadgeVariant(role)} className={cn(
-                    "text-xs",
-                    isFeminine && "bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-100 dark:bg-pink-900/40 dark:text-pink-300"
-                  )}>
-                    {roleDisplayNames[role]}
-                  </Badge>
-                )}
-                {cargo && (
-                  <span className="text-sm text-muted-foreground">• {cargo}</span>
-                )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-[32px] font-bold leading-tight">
+                    {greeting},{' '}
+                    <span className={cn(
+                      "truncate",
+                      isFeminine ? "text-pink-600 dark:text-pink-400" : ""
+                    )}>
+                      {name?.split(' ')[0] || 'Usuário'}!
+                    </span>
+                  </h2>
+                  {isFeminine ? (
+                    <Heart className="h-5 w-5 text-pink-500 animate-pulse fill-pink-400" />
+                  ) : (
+                    <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {role && (
+                    <Badge variant={getRoleBadgeVariant(role)} className={cn(
+                      "text-xs",
+                      isFeminine && "bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-100 dark:bg-pink-900/40 dark:text-pink-300"
+                    )}>
+                      {roleDisplayNames[role]}
+                    </Badge>
+                  )}
+                  {cargo && (
+                    <span className="text-sm text-muted-foreground">• {cargo}</span>
+                  )}
+                </div>
+                
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className={cn(
+                    "mt-4 p-3 rounded-lg border max-w-2xl",
+                    isFeminine
+                      ? "bg-pink-50/80 border-pink-200/50 dark:bg-pink-950/20 dark:border-pink-800/30"
+                      : "bg-background/50 border-border/50"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <Quote className={cn(
+                      "h-4 w-4 shrink-0 mt-0.5",
+                      isFeminine ? "text-pink-500" : "text-primary"
+                    )} />
+                    <p className="text-sm text-muted-foreground italic leading-relaxed">
+                      "{phrase}"
+                    </p>
+                  </div>
+                </motion.div>
               </div>
-              
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className={cn(
-                  "mt-4 p-3 rounded-lg border",
-                  isFeminine
-                    ? "bg-pink-50/80 border-pink-200/50 dark:bg-pink-950/20 dark:border-pink-800/30"
-                    : "bg-background/50 border-border/50"
-                )}
-              >
-                <div className="flex items-start gap-2">
-                  <Quote className={cn(
-                    "h-4 w-4 shrink-0 mt-0.5",
-                    isFeminine ? "text-pink-500" : "text-primary"
-                  )} />
-                  <p className="text-sm text-muted-foreground italic leading-relaxed">
-                    "{phrase}"
+            </div>
+
+            {/* Espaço para Propaganda / Avisos */}
+            <div className="w-full md:w-[320px] shrink-0 self-stretch">
+              <div className={cn(
+                "h-full min-h-[100px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-4 text-center transition-all hover:bg-primary/5 cursor-pointer",
+                isFeminine ? "border-pink-200/50 bg-pink-50/30" : "border-primary/20 bg-primary/5"
+              )}>
+                <div className="flex flex-col items-center gap-2">
+                  <div className={cn(
+                    "p-2 rounded-full",
+                    isFeminine ? "bg-pink-100 text-pink-600" : "bg-primary/10 text-primary"
+                  )}>
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground/60">Novidades e Avisos</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight px-4">
+                    Este espaço será utilizado para comunicados importantes e novos recursos da plataforma.
                   </p>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </CardContent>
