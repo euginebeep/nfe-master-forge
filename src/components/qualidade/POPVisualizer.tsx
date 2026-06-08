@@ -215,7 +215,13 @@ export function POPVisualizer({ pop, open, onOpenChange }: POPVisualizerProps) {
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto bg-white p-12 print:p-0" id="pop-printable">
+        <div className="flex-1 overflow-y-auto bg-white p-12 print:p-0 relative" id="pop-printable">
+          {/* Watermark */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 opacity-10">
+            <span className="text-6xl font-black rotate-[-45deg] whitespace-nowrap text-red-600 uppercase select-none">
+              Pop Demo Sem Valor
+            </span>
+          </div>
           {/* Document Header Table Style */}
           <div className="border-2 border-black w-full mb-8 font-sans">
             <div className="flex divide-x-2 divide-black border-b-2 border-black">
