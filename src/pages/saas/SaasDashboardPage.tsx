@@ -22,6 +22,14 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
 import { DemoLeadsPanel } from "@/components/saas/DemoLeadsPanel";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 // ─── Types ───
 
@@ -239,12 +247,32 @@ export default function SaasDashboardPage() {
               <h1 className="font-black text-lg tracking-tight">BrainX <span className="text-primary">SaaS Admin</span></h1>
               <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest leading-none">Console Operacional</p>
             </div>
+            <Badge variant="outline" className="ml-2 bg-destructive/10 text-destructive border-destructive/30 font-bold uppercase text-[10px] tracking-wider">
+              <ShieldCheck className="h-3 w-3 mr-1" /> Tenant: BrainX Global · Ambiente Administrativo
+            </Badge>
           </div>
           <div className="flex items-center gap-3">
              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-destructive hover:bg-destructive/10">
                <LogOut className="h-4 w-4 mr-2" /> Sair
              </Button>
           </div>
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 py-2 border-t bg-muted/30">
+          <Breadcrumb>
+            <BreadcrumbList className="text-xs">
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/" className="font-medium">ERP Operacional</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/saas" className="font-bold text-primary">SaaS Admin</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-semibold">Console Operacional</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
       </header>
 
