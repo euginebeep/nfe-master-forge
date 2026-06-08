@@ -34,9 +34,13 @@ export function useMonitoramentoAmbiental(period: MonitoramentoPeriodo = "hoje")
     enabled: !!companyId || sessionStorage.getItem('brainx_demo_mode') === 'true',
     staleTime: 30_000,
     queryFn: async (): Promise<SensorReading[]> => {
-      const isDemoMode = sessionStorage.getItem('brainx_demo_mode') === 'true' || 
-                         window.location.hostname.includes('lovable') ||
-                         document.title.toLowerCase().includes('demo');
+      // Prioritiza o modo demo apenas se explicitamente solicitado ou se a empresa for a de demonstração
+      const isExplicitDemo = sessionStorage.getItem('brainx_demo_mode') === 'true';
+      const isDemoCompany = companyId === '00000000-0000-0000-0000-000000000001';
+      
+      // Removemos a verificação por hostname 'lovable' que forçava demo para usuários reais no preview
+      const isDemoMode = isExplicitDemo || isDemoCompany;
+      
       if (!companyId && !isDemoMode) return [];
       const hours = PERIODO_HORAS[period];
       const now = new Date();
