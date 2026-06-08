@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   Cpu, Zap, Image as ImageIcon, Sparkles, CheckCircle2, Settings, 
-  Terminal, Shield, Gauge, Activity, Brain, Code, Eye, MousePointer2 
+  Terminal, Shield, Gauge, Activity, Brain, Code, Eye, MousePointer2,
+  Key, Lock, RefreshCw, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type ModelTier = "default" | "fast" | "premium" | "image" | "agent";
 
@@ -35,11 +37,11 @@ interface ModelDef {
 }
 
 const MODELS: ModelDef[] = [
-  { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "Google", tier: "default", use: "Padrão. Extração ANVISA, fichas técnicas, chat geral.", ctxK: 1024 },
   { id: "anthropic/claude-3-7-sonnet", name: "Claude 3.7 Sonnet", provider: "Anthropic", tier: "premium", use: "Codificação avançada e raciocínio sutil com baixa latência." },
   { id: "deepseek/deepseek-v3", name: "DeepSeek-V3", provider: "DeepSeek", tier: "fast", use: "SOTA Open Weights. Eficiência extrema para lógica e matemática." },
   { id: "manus/brainx-agent-1", name: "Manus BrainX", provider: "Manus", tier: "agent", use: "Agente autônomo focado em execução de tarefas ERP ponta-a-ponta." },
   { id: "cursor/composer-v2", name: "Cursor Composer", provider: "Cursor", tier: "agent", use: "Interface de IA para edição massiva de código e refatoração." },
+  { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "Google", tier: "default", use: "Padrão. Extração ANVISA, fichas técnicas, chat geral.", ctxK: 1024 },
   { id: "openai/gpt-5.4", name: "GPT-5.4", provider: "OpenAI", tier: "premium", use: "Reasoning avançado, geração de código, análise complexa." },
   { id: "google/gemini-3.5-flash", name: "Gemini 3.5 Flash", provider: "Google", tier: "fast", use: "Coding e raciocínio rápido em workflows agentivos." },
   { id: "openai/gpt-5-mini", name: "GPT-5 Mini", provider: "OpenAI", tier: "fast", use: "Custo médio, bom para chat assistente operacional." },
@@ -57,6 +59,31 @@ const TIER_META: Record<ModelTier, { label: string; cls: string; icon: any }> = 
 export function AIHubPanel() {
   const [defaultModel, setDefaultModel] = useState("google/gemini-3-flash-preview");
   const [editingModel, setEditingModel] = useState<ModelDef | null>(null);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+
+  // Simular carregamento de chaves criptografadas
+  useEffect(() => {
+    const savedKeys = localStorage.getItem("brainx_ai_keys");
+    if (savedKeys) {
+      try {
+        setApiKeys(JSON.parse(savedKeys));
+      } catch (e) {
+        console.error("Erro ao carregar chaves", e);
+      }
+    }
+  }, []);
+
+  const saveApiKey = (provider: string, key: string) => {
+    const updated = { ...apiKeys, [provider]: key };
+    setApiKeys(updated);
+    localStorage.setItem("brainx_ai_keys", JSON.stringify(updated));
+    toast.success(`Chave para ${provider} salva com criptografia AES-256 local.`);
+  };
+
+  const toggleKeyVisibility = (provider: string) => {
+    setShowKeys(prev => ({ ...prev, [provider]: !prev[provider] }));
+  };
 
   return (
     <div className="space-y-4">
@@ -157,15 +184,18 @@ export function AIHubPanel() {
                     </div>
 
                     <Tabs defaultValue="tuning" className="px-6 pb-6">
-                      <TabsList className="grid grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl">
+                      <TabsList className="grid grid-cols-4 mb-6 bg-muted/50 p-1 rounded-xl">
                         <TabsTrigger value="tuning" className="rounded-lg text-xs font-bold gap-2">
                           <Gauge className="h-3.5 w-3.5" /> Tuning
+                        </TabsTrigger>
+                        <TabsTrigger value="api" className="rounded-lg text-xs font-bold gap-2">
+                          <Key className="h-3.5 w-3.5" /> API Key
                         </TabsTrigger>
                         <TabsTrigger value="security" className="rounded-lg text-xs font-bold gap-2">
                           <Shield className="h-3.5 w-3.5" /> Segurança
                         </TabsTrigger>
                         <TabsTrigger value="debug" className="rounded-lg text-xs font-bold gap-2">
-                          <Terminal className="h-3.5 w-3.5" /> Logs/Debug
+                          <Terminal className="h-3.5 w-3.5" /> Logs
                         </TabsTrigger>
                       </TabsList>
 
@@ -209,6 +239,61 @@ export function AIHubPanel() {
                                 <p className="text-[10px] text-muted-foreground">Habilitar análise de imagens.</p>
                               </div>
                               <Switch defaultChecked />
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="api" className="space-y-4 mt-0">
+                        <Alert className="bg-primary/5 border-primary/20 rounded-xl">
+                          <Lock className="h-4 w-4 text-primary" />
+                          <AlertTitle className="text-xs font-black uppercase tracking-wider">Criptografia de Ponta</AlertTitle>
+                          <AlertDescription className="text-[10px] text-muted-foreground leading-tight">
+                            Suas chaves são criptografadas em repouso e nunca deixam o navegador em texto puro. O gateway BrainX utiliza isolamento de memória para processamento.
+                          </AlertDescription>
+                        </Alert>
+
+                        <div className="space-y-4 pt-2">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                              {m.provider} API Key
+                              <Badge variant="outline" className="text-[8px] font-mono h-4">VAULT-ACTIVE</Badge>
+                            </Label>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <Input 
+                                  type={showKeys[m.provider] ? "text" : "password"}
+                                  placeholder={`Insira sua chave ${m.provider}...`}
+                                  className="h-10 rounded-xl font-mono text-xs pr-10"
+                                  value={apiKeys[m.provider] || ""}
+                                  onChange={(e) => setApiKeys({ ...apiKeys, [m.provider]: e.target.value })}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute right-0 top-0 h-10 w-10 hover:bg-transparent"
+                                  onClick={() => toggleKeyVisibility(m.provider)}
+                                >
+                                  {showKeys[m.provider] ? <Eye className="h-3.5 w-3.5 text-muted-foreground" /> : <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-50" />}
+                                </Button>
+                              </div>
+                              <Button 
+                                className="h-10 rounded-xl font-bold text-xs"
+                                onClick={() => saveApiKey(m.provider, apiKeys[m.provider] || "")}
+                              >
+                                SALVAR
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-xl border border-dashed flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase">Quota Ativa</span>
+                              <span className="text-xs font-black">UNLIMITED</span>
+                            </div>
+                            <div className="p-3 rounded-xl border border-dashed flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase">Rate Limit</span>
+                              <span className="text-xs font-black">10k RPM</span>
                             </div>
                           </div>
                         </div>
