@@ -310,7 +310,7 @@ export default function SaasDashboardPage() {
             <CardContent className="pt-6">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tickets Abertos</p>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-3xl font-black text-warning">{companies.reduce((acc, c) => acc + c.tickets_abertos, 0)}</span>
+                <span className="text-3xl font-black text-warning">{companies.reduce((acc, c) => acc + (Number(c.tickets_abertos) || 0), 0)}</span>
                 <div className="p-2 bg-warning/10 rounded-full"><LifeBuoy className="h-4 w-4 text-warning" /></div>
               </div>
             </CardContent>
@@ -319,7 +319,7 @@ export default function SaasDashboardPage() {
             <CardContent className="pt-6">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Usuários SaaS</p>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-3xl font-black">{companies.reduce((acc, c) => acc + c.total_usuarios, 0)}</span>
+                <span className="text-3xl font-black">{companies.reduce((acc, c) => acc + (Number(c.total_usuarios) || 0), 0)}</span>
                 <div className="p-2 bg-primary/10 rounded-full"><Users className="h-4 w-4 text-primary" /></div>
               </div>
             </CardContent>
