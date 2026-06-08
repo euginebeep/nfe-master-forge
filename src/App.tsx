@@ -110,7 +110,7 @@ const App = () => (
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>
               {/* Páginas Públicas */}
-              <Route path="/" element={<Suspense fallback={<PageFallback />}><LandingPage /></Suspense>} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               {/* Auth - público */}
               <Route path="/auth" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><AuthPageModern /></ErrorBoundary></Suspense>} />
