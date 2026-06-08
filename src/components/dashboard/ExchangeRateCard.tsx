@@ -56,57 +56,70 @@ export function ExchangeRateCard() {
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </div>
         </CardHeader>
-        <CardContent className="space-y-1.5 pt-3">
-          <div className="grid grid-cols-2 gap-2">
+        <CardContent className="p-4 pt-3 flex-1 flex flex-col justify-between">
+          <div className="space-y-2">
             {/* USD */}
-            <div className={cn("flex flex-col p-2 rounded-xl transition-colors", USD ? getChangeBg(USD.pctChange) : 'bg-muted/30')}>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-sm">
-                  <DollarSign className="h-3.5 w-3.5 text-white" />
+            <div className={cn(
+              "flex items-center justify-between p-2 rounded-xl transition-all border border-transparent hover:border-emerald-500/20",
+              USD ? getChangeBg(USD.pctChange) : 'bg-muted/30'
+            )}>
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-emerald-500/10">
+                  <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Dólar</p>
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-5 w-full" />
-              ) : (
-                <div className="flex items-baseline justify-between gap-1">
-                  <p className="text-sm font-black tracking-tighter">R$ {USD ? formatCurrency(USD.bid, 2) : '--'}</p>
-                  {USD && (
-                    <span className={cn("text-[10px] font-bold whitespace-nowrap", getVariationColor(USD.pctChange))}>
-                      {parseFloat(USD.pctChange) >= 0 ? '+' : ''}{parseFloat(USD.pctChange).toFixed(1)}%
-                    </span>
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-0.5">Dólar (USD)</p>
+                  {isLoading ? (
+                    <Skeleton className="h-4 w-16" />
+                  ) : (
+                    <p className="text-base font-black tracking-tighter leading-none">
+                      R$ {USD ? formatCurrency(USD.bid, 2) : '--'}
+                    </p>
                   )}
+                </div>
+              </div>
+              {!isLoading && USD && (
+                <div className={cn("text-xs font-black px-2 py-0.5 rounded-md", getVariationColor(USD.pctChange), "bg-white/40 dark:bg-black/20 shadow-sm border border-black/5")}>
+                  {parseFloat(USD.pctChange) >= 0 ? '+' : ''}{parseFloat(USD.pctChange).toFixed(2)}%
                 </div>
               )}
             </div>
 
             {/* EUR */}
-            <div className={cn("flex flex-col p-2 rounded-xl transition-colors", EUR ? getChangeBg(EUR.pctChange) : 'bg-muted/30')}>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm">
-                  <Euro className="h-3.5 w-3.5 text-white" />
+            <div className={cn(
+              "flex items-center justify-between p-2 rounded-xl transition-all border border-transparent hover:border-blue-500/20",
+              EUR ? getChangeBg(EUR.pctChange) : 'bg-muted/30'
+            )}>
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10">
+                  <Euro className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Euro</p>
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-5 w-full" />
-              ) : (
-                <div className="flex items-baseline justify-between gap-1">
-                  <p className="text-sm font-black tracking-tighter">R$ {EUR ? formatCurrency(EUR.bid, 2) : '--'}</p>
-                  {EUR && (
-                    <span className={cn("text-[10px] font-bold whitespace-nowrap", getVariationColor(EUR.pctChange))}>
-                      {parseFloat(EUR.pctChange) >= 0 ? '+' : ''}{parseFloat(EUR.pctChange).toFixed(1)}%
-                    </span>
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-0.5">Euro (EUR)</p>
+                  {isLoading ? (
+                    <Skeleton className="h-4 w-16" />
+                  ) : (
+                    <p className="text-base font-black tracking-tighter leading-none">
+                      R$ {EUR ? formatCurrency(EUR.bid, 2) : '--'}
+                    </p>
                   )}
+                </div>
+              </div>
+              {!isLoading && EUR && (
+                <div className={cn("text-xs font-black px-2 py-0.5 rounded-md", getVariationColor(EUR.pctChange), "bg-white/40 dark:bg-black/20 shadow-sm border border-black/5")}>
+                  {parseFloat(EUR.pctChange) >= 0 ? '+' : ''}{parseFloat(EUR.pctChange).toFixed(2)}%
                 </div>
               )}
             </div>
           </div>
 
           {lastUpdate && (
-            <p className="text-[9px] text-muted-foreground text-right">
-              At: {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-            </p>
+            <div className="flex items-center justify-end gap-1 mt-2 opacity-50">
+              <RefreshCw className="h-2.5 w-2.5 animate-pulse" />
+              <p className="text-[9px] font-bold uppercase tracking-widest">
+                {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
