@@ -423,22 +423,13 @@ export default function SaasDashboardPage() {
             <DemoLeadsPanel />
           </TabsContent>
           <TabsContent value="ia">
-             <Card className="border-none shadow-sm">
-               <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> BrainX AI Models Hub</CardTitle></CardHeader>
-               <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                     <Card className="p-4 border-primary/20 bg-primary/5">
-                        <div className="flex justify-between items-start mb-2">
-                           <Badge>Gemini 2.0 Flash</Badge>
-                           <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20">PADRÃO</Badge>
-                        </div>
-
-                        <p className="text-xs text-muted-foreground mb-4">Modelo primário para extração ANVISA e análise de Fichas Técnicas.</p>
-                        <Button variant="outline" size="sm" className="w-full">Configurar Tokens</Button>
-                     </Card>
-                  </div>
-               </CardContent>
-             </Card>
+            <AIHubPanel />
+          </TabsContent>
+          <TabsContent value="comunicados">
+            <Card className="border-none shadow-sm"><CardContent className="py-20 text-center text-muted-foreground"><Megaphone className="mx-auto h-12 w-12 opacity-20 mb-4" /> Painel de comunicados aos tenants (em breve).</CardContent></Card>
+          </TabsContent>
+          <TabsContent value="logs">
+            <LogsPanel />
           </TabsContent>
         </Tabs>
       </main>
