@@ -560,8 +560,8 @@ export default function MonitoramentoAmbientalPage() {
   /* ---------------- EMPTY ---------------- */
   const isEmpty = !isLoading && readings.length === 0;
   const isCarregandoEstado = isLoading || isLoadingSensores;
-  const semConfiguracao = !isCarregandoEstado && sensores.length === 0;
-  const aguardandoLeituras = !isCarregandoEstado && sensores.length > 0 && readings.length === 0;
+  const semConfiguracao = !isCarregandoEstado && sensores.length === 0 && !isDemo;
+  const aguardandoLeituras = !isCarregandoEstado && sensores.length > 0 && readings.length === 0 && !isDemo;
 
   return (
     <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-5">
