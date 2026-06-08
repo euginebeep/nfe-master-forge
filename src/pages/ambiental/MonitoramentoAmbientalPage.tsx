@@ -323,6 +323,7 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
 /*  PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export default function MonitoramentoAmbientalPage() {
+  const isDemo = sessionStorage.getItem('brainx_demo_mode') === 'true';
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
