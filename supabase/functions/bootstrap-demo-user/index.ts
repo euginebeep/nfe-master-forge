@@ -37,8 +37,12 @@ Deno.serve(async (req) => {
       }
       demoUser = created.user;
     } else {
-      // Reset password in case it drifted
-      await admin.auth.admin.updateUserById(demoUser.id, { password: DEMO_PASSWORD });
+      // Force status active and reset password in case it drifted or was changed
+      await admin.auth.admin.updateUserById(demoUser.id, { 
+        password: DEMO_PASSWORD,
+        email_confirm: true,
+        user_metadata: { full_name: 'Usuário Demo BrainX ERP' }
+      });
     }
 
     // 2. Ensure profile linked to demo company
