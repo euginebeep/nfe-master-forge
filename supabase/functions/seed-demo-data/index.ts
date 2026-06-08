@@ -686,6 +686,60 @@ Deno.serve(async (req) => {
     const { error: lpErr } = await supabase.from('lotes_produto_acabado').insert(lotesPA);
     if (lpErr) log.push(`LotePA err: ${lpErr.message}`); else log.push(`Lotes PA: ${lotesPA.length} (white_label: ${lotesPA.filter((l) => l.white_label).length})`);
 
+    // ───────────────── 14. Monitoramento Ambiental (Simulação) ─────────────────
+    const monitoramento = [];
+    const hoje = new Date();
+    for (let i = 0; i < 24; i++) {
+      const hora = new Date(hoje);
+      hora.setHours(hoje.getHours() - i);
+      monitoramento.push({
+        company_id: c,
+        sensor_id: 'SENS-ALMOX-01',
+        local_nome: 'Almoxarifado MP',
+        temperatura: 22.5 + Math.random() * 2,
+        umidade: 45 + Math.random() * 10,
+        timestamp: hora.toISOString(),
+        status: 'NORMAL',
+      });
+      monitoramento.push({
+        company_id: c,
+        sensor_id: 'SENS-PROD-01',
+        local_nome: 'Sala de Pesagem',
+        temperatura: 19.5 + Math.random() * 1.5,
+        umidade: 40 + Math.random() * 5,
+        timestamp: hora.toISOString(),
+        status: 'NORMAL',
+      });
+    }
+    await supabase.from('monitoramento_ambiental').insert(monitoramento);
+    log.push(`Monitoramento: ${monitoramento.length} registros`);
+
+    // ───────────────── 15. SaaS Comunicados (Avisos/Propaganda) ─────────────────
+    const comunicados = [
+      {
+        company_id: c,
+        titulo: 'Bem-vindo à Nova Era do BrainX ERP',
+        mensagem: 'Explore todas as funcionalidades industriais, desde a pesagem crítica até a emissão de NF-e integrada.',
+        tipo: 'INFO',
+        ativo: true,
+        data_publicacao: new Date().toISOString(),
+        label_acao: 'Ver Novidades',
+        link_acao: '/roadmap',
+      },
+      {
+        company_id: c,
+        titulo: 'Treinamento BPF Disponível',
+        mensagem: 'Garanta que sua equipe esteja em conformidade com as Boas Práticas de Fabricação.',
+        tipo: 'ALERTA',
+        ativo: true,
+        data_publicacao: new Date().toISOString(),
+        label_acao: 'Acessar Curso',
+        link_acao: 'https://brainxerp.com/treinamento',
+      }
+    ];
+    await supabase.from('saas_comunicados').insert(comunicados);
+    log.push(`Comunicados: ${comunicados.length}`);
+
     return new Response(
       JSON.stringify({ success: true, company_id: c, log }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
