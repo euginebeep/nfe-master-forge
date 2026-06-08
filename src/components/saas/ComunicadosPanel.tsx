@@ -64,7 +64,7 @@ export function ComunicadosPanel() {
 
   const createMutation = useMutation({
     mutationFn: async (comunicado: Partial<Comunicado>) => {
-      const { data, error } = await supabase.from('saas_comunicados').insert([comunicado]);
+      const { data, error } = await supabase.from('saas_comunicados').insert([comunicado as any]);
       if (error) throw error;
       return data;
     },
