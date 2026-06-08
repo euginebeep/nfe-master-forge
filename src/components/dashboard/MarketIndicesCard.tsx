@@ -151,9 +151,10 @@ export function MarketIndicesCard() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
+      className="h-full"
     >
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30">
+      <Card className="h-full overflow-hidden flex flex-col">
+        <CardHeader className="pb-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-primary/10">

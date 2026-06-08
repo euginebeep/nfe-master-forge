@@ -129,16 +129,17 @@ export function ConsultaANVISACard() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
+        className="h-full"
       >
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2 shrink-0">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Scale className="h-4 w-4" />
               Consulta ANVISA
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="space-y-3 flex-1 flex flex-col">
+            <p className="text-[11px] leading-tight text-muted-foreground">
               Consulte substâncias, doses máximas e alegações permitidas
             </p>
             <div className="flex gap-2">
@@ -163,13 +164,13 @@ export function ConsultaANVISACard() {
               </Button>
             </div>
             
-            <div className="flex flex-wrap gap-1 pt-1">
-              {['Vitamina D', 'Melatonina', 'Maca Peruana'].map((item) => (
+            <div className="flex flex-wrap gap-1 pt-1 mt-auto">
+              {['Vitamina D', 'Melatonina', 'Maca'].map((item) => (
                 <Button
                   key={item}
                   variant="ghost"
                   size="sm"
-                  className="h-6 text-xs px-2"
+                  className="h-5 text-[10px] px-1.5 opacity-70 hover:opacity-100"
                   onClick={() => handleQuickSearch(item)}
                 >
                   {item}

@@ -235,7 +235,7 @@ export function ExpiringLotsCard() {
     <>
       <Card
         className={cn(
-          "border-2 w-full shadow-xl transition-all duration-300 flex flex-col",
+          "border-2 w-full h-full shadow-xl transition-all duration-300 flex flex-col",
           stats.critico > 0
             ? "border-destructive/70 bg-gradient-to-br from-destructive/15 via-background to-background ring-2 ring-destructive/10"
             : stats.urgente > 0
@@ -264,12 +264,12 @@ export function ExpiringLotsCard() {
               </div>
             </div>
             <div className="flex items-center gap-1 ml-auto">
-              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-8 w-8">
-                <RefreshCcw className={"h-4 w-4 " + (isFetching ? "animate-spin" : "")} />
+              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-7 w-7">
+                <RefreshCcw className={"h-3 w-3 " + (isFetching ? "animate-spin" : "")} />
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-8 text-xs font-semibold">
+              <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-7 text-[10px] font-bold px-2">
                 Ver Todo
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-3 w-3 ml-0.5" />
               </Button>
             </div>
           </CardTitle>
