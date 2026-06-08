@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -79,7 +79,7 @@ export default function EquipamentosPage() {
 
   const companyId = profile?.company_id;
 
-  const { data: equipamentos, isLoading } = useQuery({
+  const { data: equipamentos, isLoading, refetch } = useQuery({
     queryKey: ["equipamentos", companyId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -93,6 +93,11 @@ export default function EquipamentosPage() {
     },
     enabled: !!companyId,
   });
+
+  // Forçar refetch quando o companyId mudar ou o componente montar
+  useEffect(() => {
+    if (companyId) refetch();
+  }, [companyId, refetch]);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: Partial<Equipamento>) => {
