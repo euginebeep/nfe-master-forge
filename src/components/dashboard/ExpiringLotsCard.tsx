@@ -234,27 +234,34 @@ export function ExpiringLotsCard() {
   return (
     <>
       <Card
-        className={`border-2 h-full shadow-lg ${
+        className={cn(
+          "border-2 w-full shadow-xl transition-all duration-300 flex flex-col",
           stats.critico > 0
-            ? "border-destructive/60 bg-gradient-to-br from-destructive/10 via-background to-background"
+            ? "border-destructive/70 bg-gradient-to-br from-destructive/15 via-background to-background ring-2 ring-destructive/10"
             : stats.urgente > 0
-              ? "border-warning/60 bg-gradient-to-br from-warning/10 via-background to-background"
-              : "border-accent/60 bg-gradient-to-br from-accent/10 via-background to-background"
-        }`}
+              ? "border-warning/70 bg-gradient-to-br from-warning/15 via-background to-background ring-2 ring-warning/10"
+              : "border-accent/70 bg-gradient-to-br from-accent/15 via-background to-background"
+        )}
       >
-        <CardHeader className="pb-3 px-4 sm:px-6">
-          <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 text-lg sm:text-xl font-bold">
+        <CardHeader className="pb-4 pt-6 px-6">
+          <CardTitle className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
               <motion.div
-                className={`p-2 rounded-xl ${stats.critico > 0 ? "bg-destructive/20" : "bg-warning/20"}`}
-                animate={{ scale: stats.critico > 0 ? [1, 1.15, 1] : 1 }}
+                className={cn(
+                  "p-3 rounded-2xl shadow-lg",
+                  stats.critico > 0 ? "bg-destructive text-destructive-foreground" : "bg-warning text-warning-foreground"
+                )}
+                animate={{ scale: stats.critico > 0 ? [1, 1.1, 1] : 1, rotate: stats.critico > 0 ? [0, -5, 5, 0] : 0 }}
                 transition={{ repeat: stats.critico > 0 ? Infinity : 0, duration: 2 }}
               >
-                <AlertTriangle
-                  className={`h-6 w-6 ${stats.critico > 0 ? "text-destructive" : "text-warning"}`}
-                />
+                <AlertTriangle className="h-7 w-7" />
               </motion.div>
-              <span className={stats.critico > 0 ? "text-destructive" : ""}>Lotes a Vencer</span>
+              <div>
+                <span className={cn("text-xl sm:text-2xl font-black tracking-tighter block leading-none uppercase", stats.critico > 0 ? "text-destructive" : "text-warning")}>
+                  Lotes a Vencer
+                </span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1 block">Risco de Validade</span>
+              </div>
             </div>
             <div className="flex items-center gap-1 ml-auto">
               <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-8 w-8">
@@ -267,26 +274,35 @@ export function ExpiringLotsCard() {
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 px-4 sm:px-6">
-          {/* Stats Summary */}
-          <div className="grid grid-cols-3 gap-3">
+        <CardContent className="space-y-6 px-6 pb-6 flex-1">
+          {/* Stats Summary - Larger & More Prominent */}
+          <div className="grid grid-cols-3 gap-4">
             <div
-              className={`p-3 rounded-xl text-center shadow-inner ${stats.critico > 0 ? "bg-destructive/15 border border-destructive/20" : "bg-muted/30"}`}
+              className={cn(
+                "p-4 rounded-2xl text-center shadow-md border-2 transition-transform hover:scale-105",
+                stats.critico > 0 ? "bg-destructive/20 border-destructive/30" : "bg-muted/40 border-transparent"
+              )}
             >
-              <p className={cn("text-2xl sm:text-3xl font-black", stats.critico > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.critico}</p>
-              <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">≤30 dias</p>
+              <p className={cn("text-3xl sm:text-4xl font-black leading-tight", stats.critico > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.critico}</p>
+              <p className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-tighter">≤30 dias</p>
             </div>
             <div
-              className={`p-3 rounded-xl text-center shadow-inner ${stats.urgente > 0 ? "bg-warning/15 border border-warning/20" : "bg-muted/30"}`}
+              className={cn(
+                "p-4 rounded-2xl text-center shadow-md border-2 transition-transform hover:scale-105",
+                stats.urgente > 0 ? "bg-warning/20 border-warning/30" : "bg-muted/40 border-transparent"
+              )}
             >
-              <p className={cn("text-2xl sm:text-3xl font-black", stats.urgente > 0 ? "text-warning" : "text-muted-foreground")}>{stats.urgente}</p>
-              <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">31-60 dias</p>
+              <p className={cn("text-3xl sm:text-4xl font-black leading-tight", stats.urgente > 0 ? "text-warning" : "text-muted-foreground")}>{stats.urgente}</p>
+              <p className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-tighter">31-60 dias</p>
             </div>
             <div
-              className={`p-3 rounded-xl text-center shadow-inner ${stats.atencao > 0 ? "bg-accent/15 border border-accent/20" : "bg-muted/30"}`}
+              className={cn(
+                "p-4 rounded-2xl text-center shadow-md border-2 transition-transform hover:scale-105",
+                stats.atencao > 0 ? "bg-accent/20 border-accent/30" : "bg-muted/40 border-transparent"
+              )}
             >
-              <p className={cn("text-2xl sm:text-3xl font-black", stats.atencao > 0 ? "text-accent-foreground" : "text-muted-foreground")}>{stats.atencao}</p>
-              <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">61-90 dias</p>
+              <p className={cn("text-3xl sm:text-4xl font-black leading-tight", stats.atencao > 0 ? "text-accent-foreground" : "text-muted-foreground")}>{stats.atencao}</p>
+              <p className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-tighter">61-90 dias</p>
             </div>
           </div>
 
