@@ -183,8 +183,8 @@ export default function ResponsaveisTecnicosPage() {
               )}
 
               {rt.regime_trabalho === 'CLT' && (
-                <Button variant="ghost" size="icon" title="Carteira com Registro">
-                  <FileText className="w-4 h-4 text-info" />
+                <Button variant="ghost" size="icon" title="Visualizar Carteira com Registro">
+                  <Eye className="w-4 h-4 text-info" />
                 </Button>
               )}
 
