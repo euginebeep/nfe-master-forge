@@ -575,7 +575,7 @@ export default function MonitoramentoAmbientalPage() {
               </span>
               Ao vivo
             </Badge>
-            <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Button variant="outline" size="sm" onClick={exportCSV} disabled={!isDemo && isEmpty}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               CSV
             </Button>
@@ -583,6 +583,7 @@ export default function MonitoramentoAmbientalPage() {
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700"
               onClick={() => window.print()}
+              disabled={!isDemo && isEmpty}
             >
               <Printer className="w-4 h-4 mr-2" />
               Imprimir / PDF
