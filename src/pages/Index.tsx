@@ -16,6 +16,7 @@ import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
 import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import { useAuth } from "@/hooks/use-auth";
 import { AvisosPopup } from "@/components/AvisosPopup";
+import { ParceirosBrainX } from "@/components/parceiros/ParceirosBrainX";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 
