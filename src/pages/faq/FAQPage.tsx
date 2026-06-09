@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Search, Bot, ThumbsUp, ThumbsDown, Send, Loader2, BookOpen, 
   ChevronRight, Sparkles, Rocket, Building2, Users, FileText, 
@@ -281,9 +282,12 @@ export default function FAQPage() {
             <Card className="flex flex-col h-[calc(100vh-280px)] shadow-lg overflow-hidden border-blue-100">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                    <Bot className="h-6 w-6 text-white" />
-                  </div>
+                  <Avatar className="w-10 h-10 border-2 border-white/20">
+                    <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                    <AvatarFallback className="bg-white/20 text-white">
+                      <Bot className="h-6 w-6" />
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <h3 className="text-white font-bold text-sm">BrainX Assistente</h3>
                     <div className="flex items-center gap-1">
@@ -308,11 +312,18 @@ export default function FAQPage() {
                 <div className="space-y-6">
                   {mensagens.map((msg, i) => (
                     <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
-                        msg.role === 'user' ? 'bg-primary' : 'bg-blue-600'
-                      }`}>
-                        {msg.role === 'user' ? <Users className="h-5 w-5 text-white" /> : <Bot className="h-5 w-5 text-white" />}
-                      </div>
+                      {msg.role === 'user' ? (
+                        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
+                          <Users className="h-5 w-5 text-white" />
+                        </div>
+                      ) : (
+                        <Avatar className="w-9 h-9 border border-blue-100 shrink-0 shadow-sm">
+                          <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                          <AvatarFallback className="bg-blue-600 text-white">
+                            <Bot className="h-5 w-5" />
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
                       <div className="flex flex-col max-w-[85%] gap-1">
                         <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
                           msg.role === 'user' 
@@ -341,9 +352,12 @@ export default function FAQPage() {
                   ))}
                   {enviando && (
                     <div className="flex gap-3">
-                      <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-sm">
-                        <Bot className="h-5 w-5 text-white animate-bounce" />
-                      </div>
+                      <Avatar className="w-9 h-9 border border-blue-100 shrink-0 shadow-sm">
+                        <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                        <AvatarFallback className="bg-blue-600 text-white">
+                          <Bot className="h-5 w-5 animate-bounce" />
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="bg-white border border-blue-50 rounded-2xl rounded-tl-none px-4 py-3 flex gap-1 items-center shadow-sm">
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
