@@ -242,9 +242,12 @@ export function BrainXERPAssistente() {
             ))}
             {carregando && (
               <div className="flex gap-2 items-center text-xs text-muted-foreground">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                </div>
+                <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
+                  <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  </AvatarFallback>
+                </Avatar>
                 Pensando...
               </div>
             )}
