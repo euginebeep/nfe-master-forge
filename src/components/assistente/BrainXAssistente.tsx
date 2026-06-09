@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle, X, Send, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Sparkles, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 
 const CONTEXTO_ROTAS: Record<string, string> = {
@@ -175,10 +176,14 @@ export function BrainXERPAssistente() {
       {!aberto && (
         <button
           onClick={() => setAberto(true)}
-          className="fixed bottom-6 right-6 z-[9997] w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-110 flex items-center justify-center group"
+          className="fixed bottom-6 right-6 z-[9997] w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-110 flex items-center justify-center group overflow-hidden border-4 border-white dark:border-slate-900"
           title="Assistente BrainX ERP — Clique para ajuda"
         >
-          <MessageCircle className="w-6 h-6" />
+          <img 
+            src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" 
+            alt="Mascote IA" 
+            className="w-full h-full object-cover"
+          />
           <span className="absolute right-16 bg-foreground text-background text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
             Precisa de ajuda?
           </span>
@@ -190,9 +195,12 @@ export function BrainXERPAssistente() {
           <div className="px-4 py-3 border-b bg-primary/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
+                <Avatar className="w-8 h-8 border border-white/20">
+                  <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    <Bot className="w-4 h-4" />
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Assistente BrainX ERP</p>
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -218,9 +226,12 @@ export function BrainXERPAssistente() {
             {mensagens.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  </div>
+                  <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
+                    <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      <Bot className="w-3.5 h-3.5" />
+                    </AvatarFallback>
+                  </Avatar>
                 )}
                 <div className={`max-w-[78%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
                   msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
@@ -231,9 +242,12 @@ export function BrainXERPAssistente() {
             ))}
             {carregando && (
               <div className="flex gap-2 items-center text-xs text-muted-foreground">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                </div>
+                <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
+                  <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  </AvatarFallback>
+                </Avatar>
                 Pensando...
               </div>
             )}
