@@ -53,7 +53,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     isLoading, showClienteDropdown, setShowClienteDropdown,
     showQuickClienteModal, setShowQuickClienteModal,
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
-    totalUnidades, totalComAcrescimo,
+    totalUnidades, totalComAcrescimo, totalFinalComPerdas,
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     volumeTotalPoL, volumePorBatelada, fatorEnchimentoReal, nomeMisturador,
     VOLUME_UTIL_MAX_L, VOLUME_UTIL_MIN_L, misturador,
