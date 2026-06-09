@@ -84,6 +84,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const unidadesPorFrasco = form.watch("unidades_por_frasco") || 0;
   const dataFab = form.watch("data_fabricacao");
   const fatorManual = form.watch("fator_enchimento_manual");
+  const perdaProcesso = form.watch("perda_processo_percentual") || 0;
 
   const totalUnidades = quantidadeFrascos * unidadesPorFrasco;
   const totalComAcrescimo = Math.ceil(totalUnidades * (1 + ACRESCIMO_INDUSTRIAL / 100));
