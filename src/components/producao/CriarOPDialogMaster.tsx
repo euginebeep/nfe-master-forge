@@ -53,7 +53,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     isLoading, showClienteDropdown, setShowClienteDropdown,
     showQuickClienteModal, setShowQuickClienteModal,
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
-    totalUnidades, totalComAcrescimo,
+    totalUnidades, totalComAcrescimo, totalFinalComPerdas,
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     volumeTotalPoL, volumePorBatelada, fatorEnchimentoReal, nomeMisturador,
     VOLUME_UTIL_MAX_L, VOLUME_UTIL_MIN_L, misturador,
@@ -243,12 +243,44 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
         <div className="space-y-2"><FormLabel>Total Produzido</FormLabel><div className="h-10 flex items-center px-3 bg-muted rounded-md"><span className="font-mono font-bold">{tipoProduto === "LIQUIDO" ? `${(totalUnidades / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalUnidades / 1000).toFixed(2)} kg` : totalUnidades.toLocaleString()}</span></div></div>
       </div>
 
-      <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /><span>Acréscimo Industrial (+{ACRESCIMO_INDUSTRIAL}%):</span></div>
-          <span className="font-mono font-bold text-primary">{tipoProduto === "LIQUIDO" ? `${(totalComAcrescimo / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalComAcrescimo / 1000).toFixed(2)} kg` : `${totalComAcrescimo.toLocaleString()} cápsulas`}</span>
-        </div>
-      </CardContent></Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5"><Calculator className="h-3.5 w-3.5 text-primary" /><span>Acréscimo Industrial (+{ACRESCIMO_INDUSTRIAL}%):</span></div>
+            <span className="font-mono font-bold">{tipoProduto === "LIQUIDO" ? `${(totalComAcrescimo / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalComAcrescimo / 1000).toFixed(2)} kg` : `${totalComAcrescimo.toLocaleString()} caps`}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm border-t pt-2 mt-1">
+            <span className="font-semibold text-primary">Total p/ Produção:</span>
+            <span className="font-mono font-bold text-primary text-base">
+              {tipoProduto === "LIQUIDO" ? `${(totalFinalComPerdas / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalFinalComPerdas / 1000).toFixed(2)} kg` : `${totalFinalComPerdas.toLocaleString()} caps`}
+            </span>
+          </div>
+        </CardContent></Card>
+
+        <FormField control={form.control} name="perda_processo_percentual" render={({ field }) => (
+          <FormItem>
+            <Card className="bg-orange-50/50 border-orange-200">
+              <CardContent className="p-2 px-4 flex items-center justify-between h-full">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-xs text-orange-800">Perda de Processo (%)</FormLabel>
+                  <FormDescription className="text-[10px] leading-tight">Ajuste manual para cobrir perdas</FormDescription>
+                </div>
+                <FormControl>
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      type="number" 
+                      className="h-9 w-20 bg-background border-orange-300 focus-visible:ring-orange-500 font-mono text-center" 
+                      {...field} 
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
+                    />
+                    <span className="text-sm font-bold text-orange-600">%</span>
+                  </div>
+                </FormControl>
+              </CardContent>
+            </Card>
+          </FormItem>
+        )} />
+      </div>
 
       {/* Packaging */}
       <Separator />
@@ -384,7 +416,8 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
             <div className="flex justify-between"><span className="text-muted-foreground">Frascos:</span><span className="font-mono">{quantidadeFrascos}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Un./Frasco:</span><span className="font-mono">{unidadesPorFrasco}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Total:</span><span className="font-mono font-bold">{totalUnidades.toLocaleString()}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Com acréscimo:</span><span className="font-mono font-bold text-primary">{totalComAcrescimo.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Com acréscimo:</span><span className="font-mono font-bold">{totalComAcrescimo.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground font-semibold">Total Final:</span><span className="font-mono font-bold text-primary">{totalFinalComPerdas.toLocaleString()}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Lote:</span><span className="font-mono">{form.watch("lote_produto_acabado") || "-"}</span></div>
             {selectedFormula && <div className="flex justify-between"><span className="text-muted-foreground">Fórmula:</span><span className="font-medium">{selectedFormula.codigo_formula}</span></div>}
           </div>
@@ -429,6 +462,10 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
                   <div className="flex justify-between">
                     <span>Peso Total:</span>
                     <span className="font-mono">{pesoTotalMisturaKg.toFixed(3)} kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Perda Processo:</span>
+                    <span className="font-mono">+{form.watch("perda_processo_percentual") || 0}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Densidade:</span>

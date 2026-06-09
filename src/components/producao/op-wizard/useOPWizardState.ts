@@ -74,6 +74,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       observacoes: "",
       equipamento_id: "",
       fator_enchimento_manual: undefined,
+      perda_processo_percentual: 0,
     },
   });
 
@@ -83,9 +84,11 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const unidadesPorFrasco = form.watch("unidades_por_frasco") || 0;
   const dataFab = form.watch("data_fabricacao");
   const fatorManual = form.watch("fator_enchimento_manual");
+  const perdaProcesso = form.watch("perda_processo_percentual") || 0;
 
   const totalUnidades = quantidadeFrascos * unidadesPorFrasco;
   const totalComAcrescimo = Math.ceil(totalUnidades * (1 + ACRESCIMO_INDUSTRIAL / 100));
+  const totalFinalComPerdas = Math.ceil(totalComAcrescimo * (1 + perdaProcesso / 100));
 
   // ============================================================
   // CÁLCULO DE BATELADAS — usa dados reais do equipamento + fórmula
@@ -108,8 +111,8 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const DENSIDADE_FORMULA  = selectedFormula?.densidade_aparente_kg_l  ?? DENSIDADE_EQUIP;
 
   // 1. Peso total do pó a misturar (kg)
-  const pesoTotalMisturaKg = totalComAcrescimo > 0
-    ? (totalComAcrescimo * PESO_ENCHIMENTO_MG) / 1_000_000
+  const pesoTotalMisturaKg = totalFinalComPerdas > 0
+    ? (totalFinalComPerdas * PESO_ENCHIMENTO_MG) / 1_000_000
     : 0;
 
   // 2. Volume total ocupado pelo pó (litros) = peso ÷ densidade real da fórmula
@@ -430,14 +433,14 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       if (error) throw error;
 
       if (values.formula_id && newOP) {
-        await criarMateriasPrimasDaFormula(newOP.id, values.formula_id, totalComAcrescimo, values.excipiente_base);
+        await criarMateriasPrimasDaFormula(newOP.id, values.formula_id, totalFinalComPerdas, values.excipiente_base);
       } else if (newOP) {
-        await criarExcipientesTecnologicosPadrao(newOP.id, totalComAcrescimo);
+        await criarExcipientesTecnologicosPadrao(newOP.id, totalFinalComPerdas);
       }
 
       if (newOP) {
         await criarChecklistPadrao(newOP.id);
-        await criarControlePerdas(newOP.id, totalUnidades);
+        await criarControlePerdas(newOP.id, totalUnidades, totalFinalComPerdas);
         try {
           await supabase.rpc('baixar_estoque_op_embalagens', { p_op_id: newOP.id });
           await supabase.rpc('baixar_estoque_op_materias_primas', { p_op_id: newOP.id });
@@ -466,7 +469,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     isLoading, showClienteDropdown, setShowClienteDropdown,
     showQuickClienteModal, setShowQuickClienteModal,
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
-    totalUnidades, totalComAcrescimo, dataFab,
+    totalUnidades, totalComAcrescimo, totalFinalComPerdas, dataFab,
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     volumeTotalPoL,
     volumePorBatelada,
@@ -610,11 +613,11 @@ async function criarChecklistPadrao(opId: string) {
   await supabase.from("op_checklist").insert(items);
 }
 
-async function criarControlePerdas(opId: string, quantidadePlanejada: number) {
+async function criarControlePerdas(opId: string, quantidadePlanejada: number, quantidadeFinal: number) {
   await supabase.from("op_controle_perdas").insert({
     op_id: opId,
     quantidade_planejada: quantidadePlanejada,
     acrescimo_percentual: ACRESCIMO_INDUSTRIAL,
-    quantidade_com_acrescimo: Math.ceil(quantidadePlanejada * (1 + ACRESCIMO_INDUSTRIAL / 100)),
+    quantidade_com_acrescimo: quantidadeFinal,
   });
 }
