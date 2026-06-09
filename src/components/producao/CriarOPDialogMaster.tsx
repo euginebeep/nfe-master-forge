@@ -252,21 +252,25 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
         </CardContent></Card>
 
         <FormField control={form.control} name="perda_processo_percentual" render={({ field }) => (
-          <Card className="bg-orange-50/50 border-orange-200"><CardContent className="p-2 px-4 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <FormLabel className="text-xs text-orange-800">Perda de Processo (%)</FormLabel>
-              <FormDescription className="text-[10px] leading-tight">Aumenta o peso total do pó</FormDescription>
-            </div>
-            <FormControl>
-              <Input 
-                type="number" 
-                className="h-9 w-20 bg-background border-orange-300 focus-visible:ring-orange-500" 
-                {...field} 
-                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
-              />
-            </FormControl>
-          </CardContent></FormField>
-        )}
+          <FormItem>
+            <Card className="bg-orange-50/50 border-orange-200">
+              <CardContent className="p-2 px-4 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-xs text-orange-800">Perda de Processo (%)</FormLabel>
+                  <FormDescription className="text-[10px] leading-tight">Aumenta o peso total do pó</FormDescription>
+                </div>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    className="h-9 w-20 bg-background border-orange-300 focus-visible:ring-orange-500" 
+                    {...field} 
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
+                  />
+                </FormControl>
+              </CardContent>
+            </Card>
+          </FormItem>
+        )} />
       </div>
 
       {/* Packaging */}
