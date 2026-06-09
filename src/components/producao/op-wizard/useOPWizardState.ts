@@ -440,7 +440,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
 
       if (newOP) {
         await criarChecklistPadrao(newOP.id);
-        await criarControlePerdas(newOP.id, totalUnidades);
+        await criarControlePerdas(newOP.id, totalUnidades, totalFinalComPerdas);
         try {
           await supabase.rpc('baixar_estoque_op_embalagens', { p_op_id: newOP.id });
           await supabase.rpc('baixar_estoque_op_materias_primas', { p_op_id: newOP.id });
