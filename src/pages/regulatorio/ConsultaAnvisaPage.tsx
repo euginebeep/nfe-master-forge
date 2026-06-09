@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Shield, XCircle, CheckCircle2, BookOpen, ExternalLink, Sparkles, AlertTriangle, Printer } from 'lucide-react';
+import { Search, Shield, XCircle, CheckCircle2, BookOpen, ExternalLink, Sparkles, AlertTriangle, Printer, Download, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,6 +50,7 @@ export default function ConsultaAnvisaPage() {
   const [aiResults, setAiResults] = useState<AiResult[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAviso, setAiAviso] = useState<string | null>(null);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
 
   // Consulta oficial ANVISA/Power BI como fonte primária da página.
   useEffect(() => {
@@ -108,6 +109,43 @@ export default function ConsultaAnvisaPage() {
     };
     window.addEventListener('afterprint', cleanup);
     setTimeout(() => window.print(), 50);
+  };
+
+  const handleBaixarPdf = async () => {
+    const el = document.getElementById('anvisa-print-area');
+    if (!el) return;
+    setGerandoPdf(true);
+    document.body.classList.add('pdf-export-anvisa');
+    try {
+      const mod = await import('html2pdf.js');
+      const html2pdf = (mod as { default: unknown }).default || mod;
+      const filename = `consulta-anvisa-${termo.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      await (html2pdf as (() => {
+        set: (o: Record<string, unknown>) => { from: (e: HTMLElement) => { save: () => Promise<void> } };
+      }))()
+        .set({
+          margin: [10, 10, 12, 10],
+          filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            windowWidth: el.scrollWidth,
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
+          pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break', 'table', 'tr'] },
+        })
+        .from(el)
+        .save();
+      toast.success('PDF gerado com sucesso.');
+    } catch (err) {
+      console.error('[pdf-anvisa]', err);
+      toast.error('Falha ao gerar o PDF. Tente novamente.');
+    } finally {
+      document.body.classList.remove('pdf-export-anvisa');
+      setGerandoPdf(false);
+    }
   };
 
   return (
@@ -232,15 +270,31 @@ export default function ConsultaAnvisaPage() {
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               {aiResults.length} correspondência(s) identificada(s) na base oficial ANVISA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleImprimir}
-              className="shrink-0 no-print"
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              Imprimir / Exportar PDF (A4)
-            </Button>
+            <div className="flex items-center gap-2 no-print">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleBaixarPdf}
+                disabled={gerandoPdf}
+                className="shrink-0"
+              >
+                {gerandoPdf ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                {gerandoPdf ? 'Gerando PDF...' : 'Baixar PDF (A4)'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImprimir}
+                className="shrink-0"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimir
+              </Button>
+            </div>
           </div>
           <div className="hidden print:block mb-4 border-b border-border pb-3">
             <h1 className="text-lg font-bold text-foreground">Consulta ANVISA – Suplementos Alimentares</h1>
@@ -272,7 +326,7 @@ export default function ConsultaAnvisaPage() {
                     ? 'AUTORIZADA COM REGULAMENTAÇÃO ESPECÍFICA'
                     : 'NÃO LISTADA NA LEGISLAÇÃO';
               return (
-                <Card key={idx} className={`shadow-md ${cls}`}>
+                <Card key={idx} className={`shadow-md avoid-break ${cls}`}>
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-4">
                       <div className="rounded-full bg-background/60 p-3">
