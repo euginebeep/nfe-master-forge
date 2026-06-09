@@ -14,11 +14,7 @@ import { ResultCard } from '@/components/regulatorio/ResultCard';
 import { SyncStatusBanner } from '@/components/regulatorio/SyncStatusBanner';
 import { supabase } from '@/integrations/supabase/client';
 
-const TAGS_RAPIDAS = [
-  'Vitamina D', 'Melatonina', 'Ômega 3', 'Maca Peruana', 'Creatina',
-  'Colágeno', 'Whey', 'Vitamina C', 'Zinco', 'Magnésio', 'Vitamina B12',
-  'Biotina', 'Coenzima Q10', 'Ashwagandha', 'Probióticos'
-];
+const TAGS_RAPIDAS: string[] = [];
 
 const LINKS_LEGISLACAO = [
   { label: 'RDC 243/2018', url: 'https://www.in.gov.br/materia/-/asset_publisher/Kujrw0TZC2Mb/content/id/34379969/do1-2018-07-27-resolucao-da-diretoria-colegiada-rdc-n-243-de-26-de-julho-de-2018-34379917' },
