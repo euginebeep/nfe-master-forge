@@ -252,7 +252,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
           <div className="flex items-center justify-between text-sm border-t pt-2 mt-1">
             <span className="font-semibold text-primary">Total p/ Produção:</span>
             <span className="font-mono font-bold text-primary text-base">
-              {tipoProduto === "LIQUIDO" ? `${(state.totalFinalComPerdas / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(state.totalFinalComPerdas / 1000).toFixed(2)} kg` : `${state.totalFinalComPerdas.toLocaleString()} caps`}
+              {tipoProduto === "LIQUIDO" ? `${(totalFinalComPerdas / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalFinalComPerdas / 1000).toFixed(2)} kg` : `${totalFinalComPerdas.toLocaleString()} caps`}
             </span>
           </div>
         </CardContent></Card>
