@@ -176,7 +176,7 @@ export function BrainXERPAssistente() {
       {!aberto && (
         <button
           onClick={() => setAberto(true)}
-          className="fixed bottom-6 right-6 z-[9997] w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-110 flex items-center justify-center group overflow-hidden border-4 border-white dark:border-slate-900"
+          className="fixed bottom-6 right-6 z-[9997] w-16 h-16 rounded-full bg-white text-primary-foreground shadow-lg hover:bg-white/90 transition-all hover:scale-110 flex items-center justify-center group overflow-hidden border-4 border-white dark:border-slate-900"
           title="Assistente BrainX ERP — Clique para ajuda"
         >
           <img 
@@ -195,7 +195,7 @@ export function BrainXERPAssistente() {
           <div className="px-4 py-3 border-b bg-primary/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Avatar className="w-8 h-8 border border-white/20">
+                <Avatar className="w-8 h-8 border border-white/20 bg-white">
                   <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     <Bot className="w-4 h-4" />
@@ -226,7 +226,7 @@ export function BrainXERPAssistente() {
             {mensagens.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
+                  <Avatar className="w-7 h-7 shrink-0 border border-primary/10 bg-white">
                     <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                     <AvatarFallback className="bg-primary/10 text-primary">
                       <Bot className="w-3.5 h-3.5" />
@@ -242,7 +242,7 @@ export function BrainXERPAssistente() {
             ))}
             {carregando && (
               <div className="flex gap-2 items-center text-xs text-muted-foreground">
-                <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
+                <Avatar className="w-7 h-7 shrink-0 border border-primary/10 bg-white">
                   <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                   <AvatarFallback className="bg-primary/10 text-primary">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
