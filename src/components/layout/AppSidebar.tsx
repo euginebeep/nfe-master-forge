@@ -256,7 +256,7 @@ export function AppSidebar() {
               alt="BrainX ERP"
               className={cn(
                 "object-contain rounded shrink-0 transition-all duration-200",
-                collapsed ? "w-[50px] h-[50px]" : "w-[67px] h-[67px] md:w-[78px] md:h-[78px]"
+                collapsed ? "w-[65px] h-[65px]" : "w-[87px] h-[87px] md:w-[101px] md:h-[101px]"
               )}
               loading="lazy"
             />
@@ -295,7 +295,7 @@ export function AppSidebar() {
               alt="BrainX ERP"
               className={cn(
                 "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200",
-                collapsed ? "w-[50px] h-[50px]" : "w-[67px] h-[67px] md:w-[78px] md:h-[78px]"
+                collapsed ? "w-[65px] h-[65px]" : "w-[87px] h-[87px] md:w-[101px] md:h-[101px]"
               )}
               loading="lazy"
             />
@@ -308,7 +308,7 @@ export function AppSidebar() {
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="px-3 py-3 bg-sidebar overflow-y-auto scrollbar-thin">
+        <SidebarContent className="px-3 pt-[38px] pb-3 bg-sidebar overflow-y-auto scrollbar-thin">
           {menuGroups.map((group) => {
             const visibleItems = group.items.filter(isItemVisible);
             if (visibleItems.length === 0) return null;
