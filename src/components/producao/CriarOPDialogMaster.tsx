@@ -243,12 +243,31 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
         <div className="space-y-2"><FormLabel>Total Produzido</FormLabel><div className="h-10 flex items-center px-3 bg-muted rounded-md"><span className="font-mono font-bold">{tipoProduto === "LIQUIDO" ? `${(totalUnidades / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalUnidades / 1000).toFixed(2)} kg` : totalUnidades.toLocaleString()}</span></div></div>
       </div>
 
-      <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /><span>Acréscimo Industrial (+{ACRESCIMO_INDUSTRIAL}%):</span></div>
-          <span className="font-mono font-bold text-primary">{tipoProduto === "LIQUIDO" ? `${(totalComAcrescimo / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalComAcrescimo / 1000).toFixed(2)} kg` : `${totalComAcrescimo.toLocaleString()} cápsulas`}</span>
-        </div>
-      </CardContent></Card>
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /><span>Acréscimo Industrial (+{ACRESCIMO_INDUSTRIAL}%):</span></div>
+            <span className="font-mono font-bold text-primary">{tipoProduto === "LIQUIDO" ? `${(totalComAcrescimo / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalComAcrescimo / 1000).toFixed(2)} kg` : `${totalComAcrescimo.toLocaleString()} caps`}</span>
+          </div>
+        </CardContent></Card>
+
+        <FormField control={form.control} name="perda_processo_percentual" render={({ field }) => (
+          <Card className="bg-orange-50/50 border-orange-200"><CardContent className="p-2 px-4 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <FormLabel className="text-xs text-orange-800">Perda de Processo (%)</FormLabel>
+              <FormDescription className="text-[10px] leading-tight">Aumenta o peso total do pó</FormDescription>
+            </div>
+            <FormControl>
+              <Input 
+                type="number" 
+                className="h-9 w-20 bg-background border-orange-300 focus-visible:ring-orange-500" 
+                {...field} 
+                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
+              />
+            </FormControl>
+          </CardContent></FormField>
+        )}
+      </div>
 
       {/* Packaging */}
       <Separator />
