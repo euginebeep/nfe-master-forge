@@ -195,9 +195,12 @@ export function BrainXERPAssistente() {
           <div className="px-4 py-3 border-b bg-primary/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
+                <Avatar className="w-8 h-8 border border-white/20">
+                  <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    <Bot className="w-4 h-4" />
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Assistente BrainX ERP</p>
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
