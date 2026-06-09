@@ -144,7 +144,7 @@ export function ConsultaANVISACard() {
             </p>
             <div className="flex gap-1.5">
               <Input
-                placeholder=""
+                placeholder="Ex: Vitamina D3"
                 value={termo}
                 onChange={(e) => buscar(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -165,7 +165,7 @@ export function ConsultaANVISACard() {
             </div>
             
             <div className="flex flex-wrap gap-1 pt-1 mt-auto">
-              {['Vitamina D', 'Melatonina', 'Maca'].map((item) => (
+              {['Vitamina D', 'Melatonina'].map((item) => (
                 <Button
                   key={item}
                   variant="ghost"
