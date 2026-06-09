@@ -613,11 +613,11 @@ async function criarChecklistPadrao(opId: string) {
   await supabase.from("op_checklist").insert(items);
 }
 
-async function criarControlePerdas(opId: string, quantidadePlanejada: number) {
+async function criarControlePerdas(opId: string, quantidadePlanejada: number, quantidadeFinal: number) {
   await supabase.from("op_controle_perdas").insert({
     op_id: opId,
     quantidade_planejada: quantidadePlanejada,
     acrescimo_percentual: ACRESCIMO_INDUSTRIAL,
-    quantidade_com_acrescimo: Math.ceil(quantidadePlanejada * (1 + ACRESCIMO_INDUSTRIAL / 100)),
+    quantidade_com_acrescimo: quantidadeFinal,
   });
 }
