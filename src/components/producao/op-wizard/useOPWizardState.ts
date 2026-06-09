@@ -74,6 +74,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       observacoes: "",
       equipamento_id: "",
       fator_enchimento_manual: undefined,
+      perda_processo_percentual: 0,
     },
   });
 
