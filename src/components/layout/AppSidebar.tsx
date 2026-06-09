@@ -308,7 +308,7 @@ export function AppSidebar() {
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="px-3 pt-[38px] pb-3 bg-sidebar overflow-y-auto scrollbar-thin">
+        <SidebarContent className="px-3 pt-[19px] pb-3 bg-sidebar overflow-y-auto scrollbar-thin">
           {menuGroups.map((group) => {
             const visibleItems = group.items.filter(isItemVisible);
             if (visibleItems.length === 0) return null;
