@@ -600,3 +600,19 @@
     margin: 12mm 10mm;
   }
 }
+
+/* ============================================================
+   Exportação PDF (html2pdf) — força cabeçalho e cores no clone
+   ============================================================ */
+body.pdf-export-anvisa #anvisa-print-area .hidden.print\:block {
+  display: block !important;
+}
+body.pdf-export-anvisa #anvisa-print-area,
+body.pdf-export-anvisa #anvisa-print-area * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+body.pdf-export-anvisa #anvisa-print-area .no-print {
+  display: none !important;
+}
