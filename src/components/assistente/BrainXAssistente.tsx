@@ -180,7 +180,7 @@ export function BrainXERPAssistente() {
           title="Assistente BrainX ERP — Clique para ajuda"
         >
           <img 
-            src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" 
+            src="/brainx-mascot.png" 
             alt="Mascote IA" 
             className="w-full h-full object-cover"
           />
@@ -196,7 +196,7 @@ export function BrainXERPAssistente() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Avatar className="w-8 h-8 border border-white/20">
-                  <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                  <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     <Bot className="w-4 h-4" />
                   </AvatarFallback>
@@ -227,7 +227,7 @@ export function BrainXERPAssistente() {
               <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
                   <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
-                    <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                    <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                     <AvatarFallback className="bg-primary/10 text-primary">
                       <Bot className="w-3.5 h-3.5" />
                     </AvatarFallback>
@@ -243,7 +243,7 @@ export function BrainXERPAssistente() {
             {carregando && (
               <div className="flex gap-2 items-center text-xs text-muted-foreground">
                 <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
-                  <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                  <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                   <AvatarFallback className="bg-primary/10 text-primary">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   </AvatarFallback>
