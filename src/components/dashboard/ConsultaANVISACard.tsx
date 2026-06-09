@@ -144,7 +144,7 @@ export function ConsultaANVISACard() {
             </p>
             <div className="flex gap-1.5">
               <Input
-                placeholder="Ex: Maca, Vitamina D..."
+                placeholder=""
                 value={termo}
                 onChange={(e) => buscar(e.target.value)}
                 onKeyPress={handleKeyPress}
