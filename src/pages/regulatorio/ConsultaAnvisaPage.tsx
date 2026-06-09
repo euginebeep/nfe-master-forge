@@ -100,6 +100,16 @@ export default function ConsultaAnvisaPage() {
     });
   };
 
+  const handleImprimir = () => {
+    document.body.classList.add('print-anvisa-mode');
+    const cleanup = () => {
+      document.body.classList.remove('print-anvisa-mode');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(() => window.print(), 50);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -216,11 +226,31 @@ export default function ConsultaAnvisaPage() {
       )}
 
       {!isLoading && !aiLoading && termo.length >= 2 && aiResults.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            {aiResults.length} correspondência(s) identificada(s) na base oficial ANVISA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
-          </p>
+        <div className="space-y-3" id="anvisa-print-area">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              {aiResults.length} correspondência(s) identificada(s) na base oficial ANVISA para <strong>"{termo}"</strong> — variações de grafia, sinônimos e formas químicas.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleImprimir}
+              className="shrink-0 no-print"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir / Exportar PDF (A4)
+            </Button>
+          </div>
+          <div className="hidden print:block mb-4 border-b border-border pb-3">
+            <h1 className="text-lg font-bold text-foreground">Consulta ANVISA – Suplementos Alimentares</h1>
+            <p className="text-xs text-muted-foreground">
+              Termo pesquisado: <strong>"{termo}"</strong> · {aiResults.length} resultado(s) · Emitido em {new Date().toLocaleString('pt-BR')}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Fonte: Power BI ANVISA – IN 28/2018, RDC 243/2018 e atualizações oficiais.
+            </p>
+          </div>
           {aiResults
             .slice()
             .sort((a, b) => (a.status === 'PROIBIDO' ? -1 : 0) - (b.status === 'PROIBIDO' ? -1 : 0))
