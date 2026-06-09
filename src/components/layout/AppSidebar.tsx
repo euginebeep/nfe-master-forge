@@ -256,7 +256,7 @@ export function AppSidebar() {
               alt="BrainX ERP"
               className={cn(
                 "object-contain rounded shrink-0 transition-all duration-200",
-                collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
+                collapsed ? "w-[50px] h-[50px]" : "w-[67px] h-[67px] md:w-[78px] md:h-[78px]"
               )}
               loading="lazy"
             />
@@ -295,7 +295,7 @@ export function AppSidebar() {
               alt="BrainX ERP"
               className={cn(
                 "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200",
-                collapsed ? "w-9 h-9" : "w-12 h-12 md:w-14 md:h-14"
+                collapsed ? "w-[50px] h-[50px]" : "w-[67px] h-[67px] md:w-[78px] md:h-[78px]"
               )}
               loading="lazy"
             />
