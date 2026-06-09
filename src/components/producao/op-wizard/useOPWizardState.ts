@@ -469,7 +469,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     isLoading, showClienteDropdown, setShowClienteDropdown,
     showQuickClienteModal, setShowQuickClienteModal,
     tipoOP, tipoProduto, quantidadeFrascos, unidadesPorFrasco,
-    totalUnidades, totalComAcrescimo, dataFab,
+    totalUnidades, totalComAcrescimo, totalFinalComPerdas, dataFab,
     pesoTotalMisturaKg, numeroBateladas, pesoPorBatelada, bateladaStatus, bateladaAlerta,
     volumeTotalPoL,
     volumePorBatelada,
