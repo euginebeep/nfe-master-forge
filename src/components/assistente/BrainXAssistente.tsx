@@ -174,21 +174,23 @@ export function BrainXERPAssistente() {
   return (
     <>
       {!aberto && (
-        <button
-          onClick={() => setAberto(true)}
-          className="fixed bottom-6 right-6 z-[9997] w-16 h-16 rounded-full bg-white text-primary-foreground shadow-lg hover:bg-white/90 transition-all hover:scale-110 flex items-center justify-center group overflow-hidden border-4 border-white dark:border-slate-900"
-          title="Assistente BrainX ERP — Clique para ajuda"
-        >
-          <img 
-            src="/brainx-mascot.png" 
-            alt="Mascote IA" 
-            className="w-full h-full object-cover"
-          />
-          <span className="absolute right-[72px] top-1/2 -translate-y-1/2 bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg shadow-md whitespace-nowrap pointer-events-none">
+        <div className="fixed bottom-6 right-6 z-[9997] flex items-center gap-3">
+          <span className="relative bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg shadow-md whitespace-nowrap pointer-events-none">
             Precisa de ajuda?
             <span className="absolute right-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 bg-foreground rotate-45" />
           </span>
-        </button>
+          <button
+            onClick={() => setAberto(true)}
+            className="w-16 h-16 rounded-full bg-white shadow-lg hover:bg-white/90 transition-all hover:scale-110 flex items-center justify-center overflow-hidden border-4 border-white dark:border-slate-900"
+            title="Assistente BrainX ERP — Clique para ajuda"
+          >
+            <img
+              src="/brainx-mascot.png"
+              alt="Mascote IA"
+              className="w-full h-full object-cover"
+            />
+          </button>
+        </div>
       )}
 
       {aberto && (
