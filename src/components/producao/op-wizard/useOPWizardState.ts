@@ -88,6 +88,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
 
   const totalUnidades = quantidadeFrascos * unidadesPorFrasco;
   const totalComAcrescimo = Math.ceil(totalUnidades * (1 + ACRESCIMO_INDUSTRIAL / 100));
+  const totalFinalComPerdas = Math.ceil(totalComAcrescimo * (1 + perdaProcesso / 100));
 
   // ============================================================
   // CÁLCULO DE BATELADAS — usa dados reais do equipamento + fórmula
