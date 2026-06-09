@@ -184,8 +184,9 @@ export function BrainXERPAssistente() {
             alt="Mascote IA" 
             className="w-full h-full object-cover"
           />
-          <span className="absolute right-16 bg-foreground text-background text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          <span className="absolute right-[72px] top-1/2 -translate-y-1/2 bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg shadow-md whitespace-nowrap pointer-events-none">
             Precisa de ajuda?
+            <span className="absolute right-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 bg-foreground rotate-45" />
           </span>
         </button>
       )}
