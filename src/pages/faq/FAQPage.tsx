@@ -312,11 +312,18 @@ export default function FAQPage() {
                 <div className="space-y-6">
                   {mensagens.map((msg, i) => (
                     <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
-                        msg.role === 'user' ? 'bg-primary' : 'bg-blue-600'
-                      }`}>
-                        {msg.role === 'user' ? <Users className="h-5 w-5 text-white" /> : <Bot className="h-5 w-5 text-white" />}
-                      </div>
+                      {msg.role === 'user' ? (
+                        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
+                          <Users className="h-5 w-5 text-white" />
+                        </div>
+                      ) : (
+                        <Avatar className="w-9 h-9 border border-blue-100 shrink-0 shadow-sm">
+                          <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                          <AvatarFallback className="bg-blue-600 text-white">
+                            <Bot className="h-5 w-5" />
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
                       <div className="flex flex-col max-w-[85%] gap-1">
                         <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
                           msg.role === 'user' 
