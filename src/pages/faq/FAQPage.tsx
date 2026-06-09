@@ -318,7 +318,7 @@ export default function FAQPage() {
                         </div>
                       ) : (
                         <Avatar className="w-9 h-9 border border-blue-100 shrink-0 shadow-sm">
-                          <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                          <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                           <AvatarFallback className="bg-blue-600 text-white">
                             <Bot className="h-5 w-5" />
                           </AvatarFallback>
