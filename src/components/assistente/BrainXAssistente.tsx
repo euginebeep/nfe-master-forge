@@ -180,7 +180,7 @@ export function BrainXERPAssistente() {
           title="Assistente BrainX ERP — Clique para ajuda"
         >
           <img 
-            src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" 
+            src="/brainx-mascot.png" 
             alt="Mascote IA" 
             className="w-full h-full object-cover"
           />
