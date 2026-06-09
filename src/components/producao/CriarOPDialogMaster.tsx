@@ -454,6 +454,10 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
                     <span className="font-mono">{pesoTotalMisturaKg.toFixed(3)} kg</span>
                   </div>
                   <div className="flex justify-between">
+                    <span>Perda Processo:</span>
+                    <span className="font-mono">+{form.watch("perda_processo_percentual") || 0}%</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Densidade:</span>
                     <span className="font-mono">{(selectedFormula?.densidade_aparente_kg_l ?? 0.65).toFixed(2)} kg/L</span>
                   </div>
