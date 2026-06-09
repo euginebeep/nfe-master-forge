@@ -416,7 +416,8 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
             <div className="flex justify-between"><span className="text-muted-foreground">Frascos:</span><span className="font-mono">{quantidadeFrascos}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Un./Frasco:</span><span className="font-mono">{unidadesPorFrasco}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Total:</span><span className="font-mono font-bold">{totalUnidades.toLocaleString()}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Com acréscimo:</span><span className="font-mono font-bold text-primary">{totalComAcrescimo.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Com acréscimo:</span><span className="font-mono font-bold">{totalComAcrescimo.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground font-semibold">Total Final:</span><span className="font-mono font-bold text-primary">{totalFinalComPerdas.toLocaleString()}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Lote:</span><span className="font-mono">{form.watch("lote_produto_acabado") || "-"}</span></div>
             {selectedFormula && <div className="flex justify-between"><span className="text-muted-foreground">Fórmula:</span><span className="font-medium">{selectedFormula.codigo_formula}</span></div>}
           </div>
