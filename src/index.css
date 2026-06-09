@@ -560,3 +560,43 @@
     page-break-inside: avoid;
   }
 }
+
+/* ============================================================
+   Impressão A4 da Consulta ANVISA — preserva exatamente o
+   design da tela (cores, badges, tabelas), oculta o restante.
+   ============================================================ */
+@media print {
+  body.print-anvisa-mode {
+    background: white !important;
+  }
+  body.print-anvisa-mode * {
+    visibility: hidden !important;
+  }
+  body.print-anvisa-mode #anvisa-print-area,
+  body.print-anvisa-mode #anvisa-print-area * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  body.print-anvisa-mode #anvisa-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 11pt;
+  }
+  body.print-anvisa-mode #anvisa-print-area .no-print {
+    display: none !important;
+  }
+  body.print-anvisa-mode #anvisa-print-area .shadow-md,
+  body.print-anvisa-mode #anvisa-print-area [class*="shadow"] {
+    box-shadow: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
+}
