@@ -142,9 +142,43 @@ function expandSearchTerms(termo: string): string[] {
     'omega 3': ['ômega 3', 'epa', 'dha', 'ácido eicosapentaenóico', 'ácido docosahexaenóico'],
     coq10: ['coenzima q10', 'ubiquinona'],
     q10: ['coenzima q10', 'ubiquinona'],
+    b1: ['vitamina b1', 'tiamina', 'mononitrato de tiamina', 'cloridrato de tiamina'],
+    b2: ['vitamina b2', 'riboflavina'],
+    b3: ['vitamina b3', 'niacina', 'nicotinamida', 'ácido nicotínico'],
+    b5: ['vitamina b5', 'ácido pantotênico', 'pantotenato de cálcio', 'd pantotenato de cálcio'],
+    b6: ['vitamina b6', 'piridoxina', 'cloridrato de piridoxina', 'piridoxal 5 fosfato'],
+    b7: ['vitamina b7', 'biotina', 'vitamina h'],
+    b8: ['vitamina b8', 'biotina'],
+    b9: ['vitamina b9', 'ácido fólico', 'folato', 'l metilfolato'],
+    b12: ['vitamina b12', 'cobalamina', 'cianocobalamina', 'metilcobalamina', 'hidroxocobalamina', 'adenosilcobalamina'],
+    cobalamina: ['vitamina b12', 'cianocobalamina', 'metilcobalamina'],
+    cianocobalamina: ['vitamina b12', 'cobalamina'],
+    metilcobalamina: ['vitamina b12', 'cobalamina'],
+    'vitamina b12': ['cobalamina', 'cianocobalamina', 'metilcobalamina', 'hidroxocobalamina'],
+    'vitamina b1': ['tiamina'],
+    'vitamina b2': ['riboflavina'],
+    'vitamina b3': ['niacina', 'nicotinamida'],
+    'vitamina b5': ['ácido pantotênico', 'pantotenato de cálcio'],
+    'vitamina b6': ['piridoxina', 'cloridrato de piridoxina'],
+    'vitamina b7': ['biotina'],
+    'vitamina a': ['retinol', 'palmitato de retinila', 'acetato de retinila', 'beta caroteno', 'betacaroteno'],
+    'vitamina c': ['ácido ascórbico', 'acido ascorbico', 'ascorbato de sódio', 'ascorbato de cálcio'],
+    'vitamina d': ['colecalciferol', 'vitamina d3', 'ergocalciferol', 'vitamina d2'],
+    'vitamina d3': ['colecalciferol'],
+    'vitamina e': ['tocoferol', 'alfa tocoferol', 'acetato de tocoferila', 'd alfa tocoferol'],
+    'vitamina k': ['filoquinona', 'menaquinona', 'vitamina k1', 'vitamina k2'],
+    'vitamina k2': ['menaquinona', 'menaquinona 7', 'mk7'],
   }
   for (const [key, values] of Object.entries(aliases)) {
-    if (base === key || base.includes(key) || key.includes(base)) values.forEach((v) => terms.add(v))
+    // Match exato, prefixo/sufixo, ou token isolado (evita "b1" matchando "b12").
+    const baseTokens = base.split(' ').filter(Boolean)
+    const keyTokens = key.split(' ').filter(Boolean)
+    const tokenMatch = keyTokens.every((kt) => baseTokens.includes(kt)) ||
+                       baseTokens.every((bt) => keyTokens.includes(bt))
+    if (base === key || tokenMatch) {
+      values.forEach((v) => terms.add(v))
+      terms.add(key)
+    }
   }
   return Array.from(terms).filter((t) => normalize(t).length >= 2)
 }
@@ -286,20 +320,23 @@ function matchPowerBiRows(rows: PowerBiRow[], termo: string): PowerBiRow[] {
 // (>=4 chars) do termo do usuário com o nome técnico ou nutriente da linha,
 // OU que um deles seja substring direto do outro. Sem isso, descarta a linha.
 function safetyFilterRows(rows: PowerBiRow[], termo: string): PowerBiRow[] {
-  const termNorm = normalize(termo)
-  if (!termNorm) return []
-  const termTokens = termNorm.split(' ').filter((t) => t.length >= 4)
+  const expanded = expandSearchTerms(termo).map(normalize).filter(Boolean)
+  if (expanded.length === 0) return []
   return rows.filter((row) => {
     const name = normalize(row['Constituintes Autorizados'])
     const nutrient = normalize(row['Nutriente/Substância Bioativa/Enzima'])
     const haystack = `${name} ${nutrient}`.trim()
     if (!haystack) return false
-    // Caso 1: o termo (>=4 chars) aparece literalmente no nome/nutriente, ou vice-versa.
-    if (termNorm.length >= 4 && (haystack.includes(termNorm) || name.includes(termNorm) || nutrient.includes(termNorm))) return true
-    if (name && termNorm.includes(name) && name.length >= 4) return true
-    if (nutrient && termNorm.includes(nutrient) && nutrient.length >= 4) return true
-    // Caso 2: pelo menos um token significativo do termo bate no nome/nutriente.
-    if (termTokens.length > 0 && termTokens.some((tok) => name.includes(tok) || nutrient.includes(tok))) return true
+    for (const term of expanded) {
+      if (!term) continue
+      const tokens = term.split(' ').filter((t) => t.length >= 3)
+      // Termo inteiro (>=3 chars) aparece no nome/nutriente.
+      if (term.length >= 3 && (haystack.includes(term) || name.includes(term) || nutrient.includes(term))) return true
+      if (name && name.length >= 3 && term.includes(name)) return true
+      if (nutrient && nutrient.length >= 3 && term.includes(nutrient)) return true
+      // Todos os tokens significativos (>=3 chars) batem.
+      if (tokens.length > 0 && tokens.every((tok) => haystack.includes(tok))) return true
+    }
     return false
   })
 }
