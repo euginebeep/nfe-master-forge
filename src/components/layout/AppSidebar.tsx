@@ -289,7 +289,7 @@ export function AppSidebar() {
         collapsible="icon">
 
         <SidebarHeader className="border-b border-sidebar-border/50 bg-sidebar">
-          <Link to="/dashboard" className="flex items-center gap-3 px-4 py-5">
+          <Link to="/dashboard" className="flex items-center gap-3 px-4 pt-5 pb-1">
             <img
               src={brainxLogo}
               alt="BrainX ERP"
@@ -308,7 +308,7 @@ export function AppSidebar() {
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="px-3 pt-[19px] pb-3 bg-sidebar overflow-y-auto scrollbar-thin">
+        <SidebarContent className="px-3 pt-[6px] pb-3 bg-sidebar overflow-y-auto scrollbar-thin">
           {menuGroups.map((group) => {
             const visibleItems = group.items.filter(isItemVisible);
             if (visibleItems.length === 0) return null;
