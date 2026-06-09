@@ -352,9 +352,12 @@ export default function FAQPage() {
                   ))}
                   {enviando && (
                     <div className="flex gap-3">
-                      <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-sm">
-                        <Bot className="h-5 w-5 text-white animate-bounce" />
-                      </div>
+                      <Avatar className="w-9 h-9 border border-blue-100 shrink-0 shadow-sm">
+                        <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                        <AvatarFallback className="bg-blue-600 text-white">
+                          <Bot className="h-5 w-5 animate-bounce" />
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="bg-white border border-blue-50 rounded-2xl rounded-tl-none px-4 py-3 flex gap-1 items-center shadow-sm">
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
