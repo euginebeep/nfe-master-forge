@@ -433,9 +433,9 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       if (error) throw error;
 
       if (values.formula_id && newOP) {
-        await criarMateriasPrimasDaFormula(newOP.id, values.formula_id, totalComAcrescimo, values.excipiente_base);
+        await criarMateriasPrimasDaFormula(newOP.id, values.formula_id, totalFinalComPerdas, values.excipiente_base);
       } else if (newOP) {
-        await criarExcipientesTecnologicosPadrao(newOP.id, totalComAcrescimo);
+        await criarExcipientesTecnologicosPadrao(newOP.id, totalFinalComPerdas);
       }
 
       if (newOP) {
