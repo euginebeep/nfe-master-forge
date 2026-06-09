@@ -196,7 +196,7 @@ export function BrainXERPAssistente() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Avatar className="w-8 h-8 border border-white/20">
-                  <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                  <AvatarImage src="/brainx-mascot.png" className="object-cover" />
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     <Bot className="w-4 h-4" />
                   </AvatarFallback>
