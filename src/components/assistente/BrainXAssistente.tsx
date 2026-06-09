@@ -176,10 +176,14 @@ export function BrainXERPAssistente() {
       {!aberto && (
         <button
           onClick={() => setAberto(true)}
-          className="fixed bottom-6 right-6 z-[9997] w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-110 flex items-center justify-center group"
+          className="fixed bottom-6 right-6 z-[9997] w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-110 flex items-center justify-center group overflow-hidden border-4 border-white dark:border-slate-900"
           title="Assistente BrainX ERP — Clique para ajuda"
         >
-          <MessageCircle className="w-6 h-6" />
+          <img 
+            src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" 
+            alt="Mascote IA" 
+            className="w-full h-full object-cover"
+          />
           <span className="absolute right-16 bg-foreground text-background text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
             Precisa de ajuda?
           </span>
