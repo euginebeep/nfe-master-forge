@@ -110,8 +110,9 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const DENSIDADE_FORMULA  = selectedFormula?.densidade_aparente_kg_l  ?? DENSIDADE_EQUIP;
 
   // 1. Peso total do pó a misturar (kg)
+  const pesoTeoricoKg = (totalComAcrescimo * PESO_ENCHIMENTO_MG) / 1_000_000;
   const pesoTotalMisturaKg = totalComAcrescimo > 0
-    ? (totalComAcrescimo * PESO_ENCHIMENTO_MG) / 1_000_000
+    ? pesoTeoricoKg * (1 + perdaProcesso / 100)
     : 0;
 
   // 2. Volume total ocupado pelo pó (litros) = peso ÷ densidade real da fórmula
