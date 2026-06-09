@@ -106,6 +106,7 @@ export const formSchema = z.object({
   observacoes: z.string().optional(),
   equipamento_id: z.string().optional(),
   fator_enchimento_manual: z.number().min(0.05, "Mínimo 5%").max(0.85, "Máximo 85%").optional(),
+  perda_processo_percentual: z.number().min(0, "Mínimo 0%").max(30, "Máximo 30%").default(0),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
