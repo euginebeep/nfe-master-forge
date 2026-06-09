@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Shield, XCircle, CheckCircle2, BookOpen, ExternalLink, Sparkles, AlertTriangle } from 'lucide-react';
+import { Search, Shield, XCircle, CheckCircle2, BookOpen, ExternalLink, Sparkles, AlertTriangle, Printer } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
