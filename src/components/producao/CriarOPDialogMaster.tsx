@@ -243,29 +243,38 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
         <div className="space-y-2"><FormLabel>Total Produzido</FormLabel><div className="h-10 flex items-center px-3 bg-muted rounded-md"><span className="font-mono font-bold">{tipoProduto === "LIQUIDO" ? `${(totalUnidades / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalUnidades / 1000).toFixed(2)} kg` : totalUnidades.toLocaleString()}</span></div></div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /><span>Acréscimo Industrial (+{ACRESCIMO_INDUSTRIAL}%):</span></div>
-            <span className="font-mono font-bold text-primary">{tipoProduto === "LIQUIDO" ? `${(totalComAcrescimo / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalComAcrescimo / 1000).toFixed(2)} kg` : `${totalComAcrescimo.toLocaleString()} caps`}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-primary/5 border-primary/20"><CardContent className="p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5"><Calculator className="h-3.5 w-3.5 text-primary" /><span>Acréscimo Industrial (+{ACRESCIMO_INDUSTRIAL}%):</span></div>
+            <span className="font-mono font-bold">{tipoProduto === "LIQUIDO" ? `${(totalComAcrescimo / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(totalComAcrescimo / 1000).toFixed(2)} kg` : `${totalComAcrescimo.toLocaleString()} caps`}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm border-t pt-2 mt-1">
+            <span className="font-semibold text-primary">Total p/ Produção:</span>
+            <span className="font-mono font-bold text-primary text-base">
+              {tipoProduto === "LIQUIDO" ? `${(state.totalFinalComPerdas / 1000).toFixed(2)} L` : tipoProduto === "PO" ? `${(state.totalFinalComPerdas / 1000).toFixed(2)} kg` : `${state.totalFinalComPerdas.toLocaleString()} caps`}
+            </span>
           </div>
         </CardContent></Card>
 
         <FormField control={form.control} name="perda_processo_percentual" render={({ field }) => (
           <FormItem>
             <Card className="bg-orange-50/50 border-orange-200">
-              <CardContent className="p-2 px-4 flex items-center justify-between">
+              <CardContent className="p-2 px-4 flex items-center justify-between h-full">
                 <div className="space-y-0.5">
                   <FormLabel className="text-xs text-orange-800">Perda de Processo (%)</FormLabel>
-                  <FormDescription className="text-[10px] leading-tight">Aumenta o peso total do pó</FormDescription>
+                  <FormDescription className="text-[10px] leading-tight">Ajuste manual para cobrir perdas</FormDescription>
                 </div>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    className="h-9 w-20 bg-background border-orange-300 focus-visible:ring-orange-500" 
-                    {...field} 
-                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      type="number" 
+                      className="h-9 w-20 bg-background border-orange-300 focus-visible:ring-orange-500 font-mono text-center" 
+                      {...field} 
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
+                    />
+                    <span className="text-sm font-bold text-orange-600">%</span>
+                  </div>
                 </FormControl>
               </CardContent>
             </Card>
