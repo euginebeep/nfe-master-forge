@@ -226,9 +226,12 @@ export function BrainXERPAssistente() {
             {mensagens.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  </div>
+                  <Avatar className="w-7 h-7 shrink-0 border border-primary/10">
+                    <AvatarImage src="/lovable-uploads/d1ca2359-96cc-4241-9d37-c9a9bc7af64f.png" className="object-cover" />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      <Bot className="w-3.5 h-3.5" />
+                    </AvatarFallback>
+                  </Avatar>
                 )}
                 <div className={`max-w-[78%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
                   msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
