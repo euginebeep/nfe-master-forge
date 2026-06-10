@@ -1,4 +1,5 @@
 import { useLocation, Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
 import brainxLogo from "@/assets/brainx-logo.png";
 import {
   Building2,
@@ -221,6 +222,49 @@ export function AppSidebar() {
 
   const isAdmin = role === 'admin';
 
+  // Estado de expansão por grupo, persistido em localStorage.
+  const STORAGE_KEY = "brainx-sidebar-groups-open";
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return {};
+  });
+
+  // Abre automaticamente o grupo que contém a rota ativa (sem fechar os outros já abertos).
+  useEffect(() => {
+    const activeGroup = menuGroups.find((g) =>
+      g.items.some((it) => location.pathname.startsWith(it.url))
+    );
+    if (activeGroup && openGroups[activeGroup.label] !== true) {
+      setOpenGroups((prev) => ({ ...prev, [activeGroup.label]: true }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(openGroups));
+    } catch {}
+  }, [openGroups]);
+
+  const isGroupOpen = (label: string) => openGroups[label] ?? false;
+  const toggleGroup = useCallback((label: string, open: boolean) => {
+    setOpenGroups((prev) => ({ ...prev, [label]: open }));
+  }, []);
+
+  const expandAll = () => {
+    const all: Record<string, boolean> = {};
+    menuGroups.forEach((g) => (all[g.label] = true));
+    setOpenGroups(all);
+  };
+  const collapseAll = () => {
+    const all: Record<string, boolean> = {};
+    menuGroups.forEach((g) => (all[g.label] = false));
+    setOpenGroups(all);
+  };
+
   const handleSignOut = async () => {
     await signOut();
     // Force full page reload to clear all cached state
@@ -311,14 +355,40 @@ export function AppSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="px-3 pt-[6px] pb-3 bg-sidebar overflow-y-auto scrollbar-thin">
+          {!collapsed && (
+            <div className="flex items-center justify-end gap-2 px-2 pb-1">
+              <button
+                type="button"
+                onClick={expandAll}
+                className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/80 transition-colors"
+                aria-label="Expandir todas as seções"
+              >
+                Expandir
+              </button>
+              <span className="text-sidebar-foreground/20">·</span>
+              <button
+                type="button"
+                onClick={collapseAll}
+                className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/80 transition-colors"
+                aria-label="Recolher todas as seções"
+              >
+                Recolher
+              </button>
+            </div>
+          )}
           {menuGroups.map((group) => {
             const visibleItems = group.items.filter(isItemVisible);
             if (visibleItems.length === 0) return null;
 
             return (
-              <Collapsible key={group.label} defaultOpen className="mb-2">
+              <Collapsible
+                key={group.label}
+                open={collapsed ? true : isGroupOpen(group.label)}
+                onOpenChange={(o) => toggleGroup(group.label, o)}
+                className="mb-2"
+              >
                 <SidebarGroup>
-                  <CollapsibleTrigger className="w-full group">
+                  <CollapsibleTrigger className="w-full group" aria-label={`Alternar seção ${group.label}`}>
                     <SidebarGroupLabel className="flex items-center justify-between px-3 py-2.5 text-[11px] font-bold text-sidebar-foreground/40 uppercase tracking-[0.15em] hover:text-sidebar-foreground/70 transition-colors duration-200">
                       {!collapsed && group.label}
                       {!collapsed && <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-data-[state=closed]:-rotate-90" />}
