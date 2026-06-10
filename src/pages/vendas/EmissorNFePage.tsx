@@ -600,6 +600,14 @@ export default function EmissorNFePage() {
 
   const handlePrint = () => {
     if (!printRef.current) return;
+    // Registra evento de PREVIEW na auditoria fiscal (não bloqueia a impressão)
+    import("@/hooks/use-nfe-auditoria").then(({ registrarEventoNfe }) =>
+      registrarEventoNfe({
+        evento: "PREVIEW",
+        modelo: "55",
+        observacao: "Impressão da prévia DANFE antes da transmissão",
+      }).catch(() => {}),
+    );
     const style = document.createElement("style");
     style.setAttribute("data-danfe-print", "true");
     style.textContent = `@media print { body > *:not([data-danfe-print-root]) { display: none !important; } [data-danfe-print-root] { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: #fff; } [data-danfe-print-root] * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4 portrait; margin: 8mm; } }`;
