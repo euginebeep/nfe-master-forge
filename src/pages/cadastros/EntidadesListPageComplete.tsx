@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useHybridEntidades, type HybridEntidade } from "@/hooks/use-hybrid-data";
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { formatDocument } from "@/lib/formatters";
+import { TenantAccessDiagnostic } from "@/components/diagnostics/TenantAccessDiagnostic";
 
 const PAPEL_LABELS: Record<string, string> = {
   CLIENTE: "Cliente",
