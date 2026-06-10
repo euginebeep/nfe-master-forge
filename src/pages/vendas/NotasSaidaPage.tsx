@@ -24,7 +24,6 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNuvemFiscal } from "@/hooks/use-nuvem-fiscal";
 import { useCompany } from "@/hooks/use-company";
-import { Button as _Btn } from "@/components/ui/button";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
 
