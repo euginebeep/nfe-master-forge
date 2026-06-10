@@ -95,7 +95,7 @@ export function TenantAccessDiagnostic({
     // 2. Profile
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("id, full_name, company_id")
+      .select("id, nome_completo, company_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -110,7 +110,7 @@ export function TenantAccessDiagnostic({
       setRunning(false);
       return;
     }
-    next.push({ label: "Perfil carregado", status: "ok", detail: profile.full_name || profile.id });
+    next.push({ label: "Perfil carregado", status: "ok", detail: profile.nome_completo || profile.id });
 
     // 3. Tenant
     if (!profile.company_id) {
