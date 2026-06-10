@@ -55,9 +55,7 @@ export function useSubscription() {
     const normalized = errorText.toLowerCase();
     return (
       normalized.includes('user from sub claim') ||
-      normalized.includes('user_not_found') ||
-      normalized.includes('authentication error') ||
-      normalized.includes('auth_invalid')
+      normalized.includes('user_not_found')
     );
   }, []);
 
@@ -100,7 +98,7 @@ export function useSubscription() {
           }
         } catch (_) { /* ignore */ }
 
-        const fullError = `${error?.message || ''} ${bodyText}`;
+      const fullError = `${error?.message || ''} ${bodyText}`;
         if (shouldInvalidateSession(fullError)) {
           console.warn('Stale JWT detected, clearing local session...');
           await clearInvalidSession();
@@ -112,8 +110,9 @@ export function useSubscription() {
         return;
       }
 
-      // Also check if data contains an auth error from the edge function
-      if (data?.auth_invalid || (data?.error && shouldInvalidateSession(String(data.error)))) {
+      // Only clear the session when the edge function explicitly flags it.
+      // Generic error text matches caused false-positive reloads.
+      if (data?.auth_invalid === true) {
         console.warn('Auth error from subscription check, clearing local session...');
         await clearInvalidSession();
         return;
@@ -147,8 +146,8 @@ export function useSubscription() {
 
   useEffect(() => {
     checkSubscription();
-    // Refresh every 60 seconds
-    const interval = setInterval(checkSubscription, 60000);
+    // Refresh every 5 minutes (was 60s — too aggressive and caused noisy reloads)
+    const interval = setInterval(checkSubscription, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [checkSubscription]);
 
