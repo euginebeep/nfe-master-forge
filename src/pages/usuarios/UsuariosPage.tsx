@@ -9,6 +9,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserFormDialog } from "@/components/usuarios/UserFormDialog";
 import { UserActivityLogDialog } from "@/components/usuarios/UserActivityLogDialog";
+import { ChangePasswordDialog } from "@/components/usuarios/ChangePasswordDialog";
 import { useUsers, FACTORY_ROLES, type UserWithProfile, type ModulePermission, type CreateUserData, type UpdateUserData } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +23,8 @@ export default function UsuariosPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
   const [logUser, setLogUser] = useState<UserWithProfile | null>(null);
+  const [pwdDialogOpen, setPwdDialogOpen] = useState(false);
+  const [pwdUser, setPwdUser] = useState<UserWithProfile | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserWithProfile | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<ModulePermission[]>([]);
@@ -154,7 +157,7 @@ export default function UsuariosPage() {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => handleEditUser(item)}
+            onClick={() => { setPwdUser(item); setPwdDialogOpen(true); }}
             disabled={!isAdmin}
             title="Alterar senha"
           >
@@ -335,6 +338,18 @@ export default function UsuariosPage() {
           onOpenChange={setLogDialogOpen}
           userId={logUser.id}
           userName={logUser.nome_completo}
+        />
+      )}
+
+      {pwdUser && (
+        <ChangePasswordDialog
+          open={pwdDialogOpen}
+          onOpenChange={setPwdDialogOpen}
+          userId={pwdUser.id}
+          userName={pwdUser.nome_completo}
+          onConfirm={(user_id, new_password) =>
+            updateUser({ user_id, new_password })
+          }
         />
       )}
     </div>
