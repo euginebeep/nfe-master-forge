@@ -554,13 +554,55 @@ export default function ConsultaAnvisaPage() {
 
       {!aiLoading && aiResults.length === 0 && resultados && resultados.length > 0 && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {resultados.length} resultado(s) encontrado(s) para "{termo}"
-          </p>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm text-muted-foreground">
+              Exibindo <strong>{resultados.length}</strong> de <strong>{resultadosTotal}</strong> resultado(s) para "{termo}"
+              {exaustivo && <span className="ml-1 text-primary">· busca exaustiva</span>}
+            </p>
+          </div>
           {/* Show prohibited substances first */}
-          {resultados
-            .sort((a, b) => (b.is_proibido ? 1 : 0) - (a.is_proibido ? 1 : 0))
-            .map(c => <ResultCard key={c.id} constituinte={c} />)}
+          <TooltipProvider delayDuration={150}>
+            {resultados
+              .slice()
+              .sort((a, b) => (b.is_proibido ? 1 : 0) - (a.is_proibido ? 1 : 0))
+              .map((c) => {
+                const m = c._match;
+                return (
+                  <div key={c.id} className="space-y-1">
+                    {exaustivo && m && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 bg-primary/5 hover:bg-primary/10 transition-colors cursor-help"
+                            >
+                              <Sparkles className="w-3 h-3 text-primary" />
+                              <span className="font-semibold">Match {m.score}%</span>
+                              <span className="text-muted-foreground">· {m.fields.length} campo(s)</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-xs">
+                            <p className="font-semibold mb-1">Explicação do match</p>
+                            <p><span className="text-muted-foreground">Campos:</span> {m.fields.join(', ') || '—'}</p>
+                            <p className="mt-1"><span className="text-muted-foreground">Sinônimos usados:</span> {m.synonyms.length ? m.synonyms.join(', ') : 'apenas o termo digitado'}</p>
+                            <p className="mt-1 text-muted-foreground">Score 0–100 baseado em correspondência exata vs. parcial em cada campo.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    )}
+                    <ResultCard constituinte={c} />
+                  </div>
+                );
+              })}
+          </TooltipProvider>
+          {podeCarregarMais && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" size="sm" onClick={carregarMais}>
+                <Plus className="w-4 h-4 mr-1.5" /> Carregar mais ({resultadosTotal - resultados.length} restantes)
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
