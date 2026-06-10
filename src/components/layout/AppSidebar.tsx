@@ -370,7 +370,7 @@ export function AppSidebar() {
               >
                 <SidebarGroup>
                   <CollapsibleTrigger className="w-full group" aria-label={`Alternar seção ${group.label}`}>
-                    <SidebarGroupLabel className="flex items-center justify-between px-3 py-2 text-[11px] font-bold text-sidebar-foreground/40 uppercase tracking-wider hover:text-sidebar-foreground/70 transition-colors duration-200">
+                    <SidebarGroupLabel className="flex items-center justify-between px-3 py-2 text-[11px] font-bold text-sidebar-foreground/75 uppercase tracking-wider hover:text-sidebar-foreground transition-colors duration-200">
                       {!collapsed && group.label}
                       {!collapsed && <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-data-[state=closed]:-rotate-90" />}
                     </SidebarGroupLabel>
