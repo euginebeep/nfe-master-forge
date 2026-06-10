@@ -87,8 +87,7 @@ const menuGroups: MenuGroup[] = [
   label: "Principal",
   items: [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
-  { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" },
-  { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" }]
+  ]
 
 },
 {
@@ -104,61 +103,25 @@ const menuGroups: MenuGroup[] = [
 
 },
 {
-  label: "Producao",
-  modulo: "producao",
-  items: [
-  { title: "Formulador", url: "/producao/formulas", icon: FlaskConical, badge: "ANVISA", tooltip: "Formulador industrial com validação ANVISA", modulo: "producao" },
-  { title: "Ordens de Producao", url: "/producao/ordens", icon: Factory, tooltip: "Criação e acompanhamento de ordens de produção", modulo: "producao" },
-  { title: "Dashboard Industrial", url: "/producao/dashboard", icon: BarChart3, tooltip: "Indicadores operacionais e análise de anomalias", modulo: "producao" },
-  { title: "Dashboard Executivo", url: "/producao/executivo", icon: BarChart3, badge: "KPI", tooltip: "KPIs executivos e alertas estratégicos", modulo: "producao" }]
-
-},
-{
-  label: "Estoque",
-  modulo: "estoque",
-  items: [
-  { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "estoque" },
-  { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos", modulo: "estoque" },
-  { title: "Movimentacoes", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque", modulo: "estoque" },
-  { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Rastreabilidade completa conforme exigências GMP e ANVISA", modulo: "estoque" }]
-
-},
-{
-  label: "Compras",
+  label: "Suprimentos",
   modulo: "compras",
   items: [
   { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
-  { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" }]
+  { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
+  { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "estoque" },
+  { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos", modulo: "estoque" },
+  { title: "Movimentações", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque", modulo: "estoque" },
+  { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Rastreabilidade completa conforme exigências GMP e ANVISA", modulo: "estoque" }]
 
-},
-{
-  label: "Financeiro",
-  modulo: "financeiro",
+ },
+ {
+  label: "Produção",
+  modulo: "producao",
   items: [
-  { title: "Contas a Pagar", url: "/financeiro/pagar", icon: DollarSign, tooltip: "Gestão de contas a pagar e vencimentos futuros", modulo: "financeiro" },
-  { title: "Contas a Receber", url: "/financeiro/receber", icon: DollarSign, tooltip: "Controle de recebimentos e inadimplência de clientes", modulo: "financeiro" },
-  { title: "Fluxo de Caixa", url: "/financeiro/fluxo", icon: BarChart3, tooltip: "Projeção e análise de fluxo de caixa da empresa", modulo: "financeiro" },
-  { title: "Conciliação", url: "/financeiro/conciliacao", icon: FileSearch, tooltip: "Conciliação bancária e financeira", modulo: "financeiro" },
-  { title: "DRE Gerencial", url: "/financeiro/dre", icon: PieChart, badge: "DRE", tooltip: "Demonstrativo de resultados gerencial da empresa", modulo: "financeiro" }]
-
-},
-{
-  label: "Vendas",
-  modulo: "vendas",
-  items: [
-  { title: "CRM", url: "/vendas/crm", icon: MessageSquare, tooltip: "Gestão de relacionamento e pipeline de vendas", modulo: "vendas" },
-  { title: "Orçamentos", url: "/vendas/orcamentos", icon: FileText, tooltip: "Criação e acompanhamento de orçamentos para clientes", modulo: "vendas" },
-  { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart, tooltip: "Controle de pedidos de venda e status de entrega", modulo: "vendas" },
-  { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput, tooltip: "Emissão e gestão de notas fiscais de saída (NF-e)", modulo: "vendas" },
-  { title: "Auditoria Fiscal", url: "/vendas/auditoria-fiscal", icon: ScrollText, tooltip: "Trilha de emissão, protocolo, cancelamento e reimpressão por empresa", modulo: "vendas" },
-  { title: "Marketplace", url: "/vendas/marketplace", icon: Store, tooltip: "Catálogo de produtos para venda online e marketplace", modulo: "vendas" }]
-
-},
-{
-  label: "EXPEDIÇÃO",
-  modulo: "vendas",
-  items: [
-  { title: "Expedição", url: "/expedicao", icon: Truck, tooltip: "Separação, despacho e rastreio de pedidos", modulo: "vendas" }]
+  { title: "Formulador", url: "/producao/formulas", icon: FlaskConical, badge: "ANVISA", tooltip: "Formulador industrial com validação ANVISA", modulo: "producao" },
+  { title: "Ordens de Produção", url: "/producao/ordens", icon: Factory, tooltip: "Criação e acompanhamento de ordens de produção", modulo: "producao" },
+  { title: "Dashboard Industrial", url: "/producao/dashboard", icon: BarChart3, tooltip: "Indicadores operacionais e análise de anomalias", modulo: "producao" },
+  { title: "Dashboard Executivo", url: "/producao/executivo", icon: BarChart3, badge: "KPI", tooltip: "KPIs executivos e alertas estratégicos", modulo: "producao" }]
 
 },
 {
@@ -172,23 +135,60 @@ const menuGroups: MenuGroup[] = [
 
 },
 {
-  label: "Regulatorio",
+  label: "Regulatório",
   modulo: "producao",
   items: [
   { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018", modulo: "producao" },
-  { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade conforme RDC 658/2022", modulo: "producao" },
   { title: "ANVISA Checker", url: "/regulatorio/anvisa-checker", icon: FlaskConical, tooltip: "Checador de fórmulas e verificação regulatória ANVISA", modulo: "producao" },
+  { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade conforme RDC 658/2022", modulo: "producao" },
   { title: "Config. Sensores", url: "/ambiental/configuracao", icon: Settings2, tooltip: "Configurar credenciais eWeLink e mapear sensores por sala", modulo: "producao", adminOnly: true }]
 
-},
-{
-  label: "Relatorios",
+ },
+ {
+  label: "Comercial",
+  modulo: "vendas",
+  items: [
+  { title: "CRM", url: "/vendas/crm", icon: MessageSquare, tooltip: "Gestão de relacionamento e pipeline de vendas", modulo: "vendas" },
+  { title: "Orçamentos", url: "/vendas/orcamentos", icon: FileText, tooltip: "Criação e acompanhamento de orçamentos para clientes", modulo: "vendas" },
+  { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart, tooltip: "Controle de pedidos de venda e status de entrega", modulo: "vendas" },
+  { title: "Expedição", url: "/expedicao", icon: Truck, tooltip: "Separação, despacho e rastreio de pedidos", modulo: "vendas" },
+  { title: "Marketplace", url: "/vendas/marketplace", icon: Store, tooltip: "Catálogo de produtos para venda online e marketplace", modulo: "vendas" }]
+
+ },
+ {
+  label: "Fiscal",
+  modulo: "vendas",
+  items: [
+  { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput, tooltip: "Emissão e gestão de notas fiscais de saída (NF-e)", modulo: "vendas" },
+  { title: "Auditoria Fiscal", url: "/vendas/auditoria-fiscal", icon: ScrollText, tooltip: "Trilha de emissão, protocolo, cancelamento e reimpressão por empresa", modulo: "vendas" }]
+
+ },
+ {
+  label: "Financeiro",
+  modulo: "financeiro",
+  items: [
+  { title: "Contas a Pagar", url: "/financeiro/pagar", icon: DollarSign, tooltip: "Gestão de contas a pagar e vencimentos futuros", modulo: "financeiro" },
+  { title: "Contas a Receber", url: "/financeiro/receber", icon: DollarSign, tooltip: "Controle de recebimentos e inadimplência de clientes", modulo: "financeiro" },
+  { title: "Fluxo de Caixa", url: "/financeiro/fluxo", icon: BarChart3, tooltip: "Projeção e análise de fluxo de caixa da empresa", modulo: "financeiro" },
+  { title: "Conciliação", url: "/financeiro/conciliacao", icon: FileSearch, tooltip: "Conciliação bancária e financeira", modulo: "financeiro" },
+  { title: "DRE Gerencial", url: "/financeiro/dre", icon: PieChart, badge: "DRE", tooltip: "Demonstrativo de resultados gerencial da empresa", modulo: "financeiro" }]
+
+ },
+ {
+  label: "BI & Auditoria",
   modulo: "relatorios",
   items: [
-  { title: "Relatorios", url: "/relatorios", icon: BarChart3, tooltip: "Relatórios gerenciais de produção, estoque e vendas", modulo: "relatorios" },
+  { title: "Relatórios", url: "/relatorios", icon: BarChart3, tooltip: "Relatórios gerenciais de produção, estoque e vendas", modulo: "relatorios" },
   { title: "Auditoria", url: "/auditoria", icon: Shield, tooltip: "Trilha de auditoria imutável de todas as operações do sistema", modulo: "relatorios" }]
 
 },
+ {
+  label: "Comunicação",
+  items: [
+  { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" },
+  { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" }]
+
+ },
 ];
 
 
