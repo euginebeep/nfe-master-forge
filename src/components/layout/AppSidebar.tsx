@@ -111,6 +111,7 @@ const menuGroups: MenuGroup[] = [
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
   { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "estoque" },
   { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos", modulo: "estoque" },
+  { title: "Lotes Reservados", url: "/estoque/lotes-reservados", icon: Tag, tooltip: "Reserva de números oficiais de lote (SKU-AAMM-NNNN-D) com trava anti-clonagem", modulo: "estoque" },
   { title: "Movimentações", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque", modulo: "estoque" },
   { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Rastreabilidade completa conforme exigências GMP e ANVISA", modulo: "estoque" }]
 
