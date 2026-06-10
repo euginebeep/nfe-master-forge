@@ -3726,6 +3726,114 @@ export type Database = {
           },
         ]
       }
+      lotes_reservados: {
+        Row: {
+          ano_mes: string
+          cancelado_em: string | null
+          cancelado_motivo: string | null
+          codigo_curto: string
+          company_id: string
+          created_at: string
+          data_fabricacao: string | null
+          descricao_produto: string | null
+          digito_verificador: number
+          formula_id: string | null
+          id: string
+          item_id: string | null
+          lote_pa_id: string | null
+          numero_completo: string
+          observacao: string | null
+          op_id: string | null
+          regularizado_em: string | null
+          reservado_por: string | null
+          sequencia: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ano_mes: string
+          cancelado_em?: string | null
+          cancelado_motivo?: string | null
+          codigo_curto: string
+          company_id: string
+          created_at?: string
+          data_fabricacao?: string | null
+          descricao_produto?: string | null
+          digito_verificador: number
+          formula_id?: string | null
+          id?: string
+          item_id?: string | null
+          lote_pa_id?: string | null
+          numero_completo: string
+          observacao?: string | null
+          op_id?: string | null
+          regularizado_em?: string | null
+          reservado_por?: string | null
+          sequencia: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ano_mes?: string
+          cancelado_em?: string | null
+          cancelado_motivo?: string | null
+          codigo_curto?: string
+          company_id?: string
+          created_at?: string
+          data_fabricacao?: string | null
+          descricao_produto?: string | null
+          digito_verificador?: number
+          formula_id?: string | null
+          id?: string
+          item_id?: string | null
+          lote_pa_id?: string | null
+          numero_completo?: string
+          observacao?: string | null
+          op_id?: string | null
+          regularizado_em?: string | null
+          reservado_por?: string | null
+          sequencia?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lotes_reservados_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_reservados_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_reservados_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_reservados_lote_pa_id_fkey"
+            columns: ["lote_pa_id"]
+            isOneToOne: false
+            referencedRelation: "lotes_produto_acabado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_reservados_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manual_busca_log: {
         Row: {
           clicou_em: string | null
@@ -8206,7 +8314,12 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      calcular_dv_lote: { Args: { p_base: string }; Returns: number }
       can_create_company: { Args: never; Returns: boolean }
+      cancelar_lote_reservado: {
+        Args: { p_motivo: string; p_reserva_id: string }
+        Returns: undefined
+      }
       custo_op_belongs_to_tenant: { Args: { _cid: string }; Returns: boolean }
       entidade_belongs_to_tenant: { Args: { _eid: string }; Returns: boolean }
       formula_belongs_to_tenant: { Args: { _fid: string }; Returns: boolean }
@@ -8296,6 +8409,32 @@ export type Database = {
           p_user_agent?: string
         }
         Returns: string
+      }
+      regularizar_lote_reservado: {
+        Args: {
+          p_formula_id?: string
+          p_item_id?: string
+          p_lote_pa_id?: string
+          p_op_id?: string
+          p_reserva_id: string
+        }
+        Returns: undefined
+      }
+      reservar_proximo_lote: {
+        Args: {
+          p_ano_mes: string
+          p_codigo_curto: string
+          p_data_fabricacao?: string
+          p_descricao_produto?: string
+          p_observacao?: string
+          p_permitir_paralelo?: boolean
+        }
+        Returns: {
+          digito_verificador: number
+          id: string
+          numero_completo: string
+          sequencia: number
+        }[]
       }
       reservar_proximo_numero_nfe: {
         Args: { p_modelo: string; p_serie: number }

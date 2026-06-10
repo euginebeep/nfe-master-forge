@@ -46,6 +46,7 @@ const DashboardIndustrialPage = lazy(() => import("./pages/producao/DashboardInd
 const DashboardExecutivoPage = lazy(() => import("./pages/producao/DashboardExecutivoPage"));
 const QuarentenaPage = lazy(() => import("./pages/estoque/QuarentenaPage"));
 const LotesListPage = lazy(() => import("./pages/estoque/LotesListPage"));
+const LotesReservadosPage = lazy(() => import("./pages/estoque/LotesReservadosPage"));
 const LoteDetailPage = lazy(() => import("./pages/estoque/LoteDetailPage"));
 const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage"));
 const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
@@ -186,6 +187,7 @@ const App = () => (
                 {/* Estoque */}
                 <Route path="/estoque/quarentena" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><QuarentenaPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesListPage /></ErrorBoundary></Suspense>} />
+                <Route path="/estoque/lotes-reservados" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesReservadosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LoteDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/movimentacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MovimentacoesPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/rastreabilidade" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RastreabilidadePage /></ErrorBoundary></Suspense>} />
