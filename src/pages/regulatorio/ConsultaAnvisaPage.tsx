@@ -23,7 +23,7 @@ const LINKS_LEGISLACAO = [
 ];
 
 export default function ConsultaAnvisaPage() {
-  const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
+  const { termo, resultados, isLoading, buscar, limpar, exaustivo, setExaustivo } = useAnvisaSearch();
   const { ultimoSync, sincronizar, sincronizando } = useAnvisaSync();
   type AiResult = {
     autorizado: boolean;
@@ -178,6 +178,27 @@ export default function ConsultaAnvisaPage() {
             {termo && (
               <Button variant="ghost" onClick={() => limpar()}>Limpar</Button>
             )}
+          </div>
+
+          {/* Modo de busca exaustiva */}
+          <div className="flex items-center justify-between gap-3 mt-3 p-2.5 rounded-md border bg-muted/30">
+            <div className="flex items-start gap-2">
+              <Sparkles className={`w-4 h-4 mt-0.5 ${exaustivo ? 'text-primary' : 'text-muted-foreground'}`} />
+              <div>
+                <p className="text-sm font-medium">Modo de busca exaustiva</p>
+                <p className="text-xs text-muted-foreground">
+                  Varre todas as colunas (técnico, popular, sinônimos, genérico, rótulo, categoria, subcategoria, fonte, CAS, restrições) e amplia sinônimos/variações relacionadas ao termo.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant={exaustivo ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setExaustivo(!exaustivo)}
+              className="shrink-0"
+            >
+              {exaustivo ? 'Ativado' : 'Ativar'}
+            </Button>
           </div>
 
           {/* Tags rápidas */}

@@ -18,29 +18,44 @@ async function resolverNomesCientificos(termo: string): Promise<string[]> {
   }
 }
 
-async function buscarPorTermo(termo: string): Promise<AnvisaConstituinte[]> {
+async function buscarPorTermo(termo: string, exaustivo = false): Promise<AnvisaConstituinte[]> {
   if (!termo || termo.length < 2) return [];
 
   const { data: fullText } = await supabase
     .from('anvisa_constituintes')
     .select('*')
     .textSearch('search_vector', termo, { type: 'websearch', config: 'portuguese' })
-    .limit(20);
+    .limit(exaustivo ? 100 : 20);
+
+  const orFilters = exaustivo
+    ? [
+        `nome_tecnico.ilike.%${termo}%`,
+        `nome_generico.ilike.%${termo}%`,
+        `nome_rotulo.ilike.%${termo}%`,
+        `categoria.ilike.%${termo}%`,
+        `subcategoria.ilike.%${termo}%`,
+        `fonte_de.ilike.%${termo}%`,
+        `cas_number.ilike.%${termo}%`,
+        `restricoes_uso.ilike.%${termo}%`,
+        `motivo_proibicao.ilike.%${termo}%`,
+      ].join(',')
+    : `nome_tecnico.ilike.%${termo}%,nome_generico.ilike.%${termo}%,nome_rotulo.ilike.%${termo}%`;
 
   const { data: ilike } = await supabase
     .from('anvisa_constituintes')
     .select('*')
-    .or(`nome_tecnico.ilike.%${termo}%,nome_generico.ilike.%${termo}%,nome_rotulo.ilike.%${termo}%`)
-    .limit(20);
+    .or(orFilters)
+    .limit(exaustivo ? 100 : 20);
 
   const { data: arraySearch } = await supabase
     .rpc('buscar_constituinte_por_nome_popular', { termo_busca: termo })
-    .limit(20);
+    .limit(exaustivo ? 100 : 20);
 
   const all = [...(fullText || []), ...(ilike || []), ...(arraySearch || [])] as unknown as AnvisaConstituinte[];
   
   // Post-filter: if a term looks like "vitamina X", only keep results matching that specific vitamin
-  const vitaminMatch = termo.trim().toLowerCase().match(/^vitamina\s+([a-z]\d*)\s*$/i);
+  // (skipped in exaustivo mode — user explicitly wants everything related)
+  const vitaminMatch = !exaustivo && termo.trim().toLowerCase().match(/^vitamina\s+([a-z]\d*)\s*$/i);
   if (vitaminMatch) {
     const vitLetter = vitaminMatch[1].toLowerCase();
     const filtered = all.filter((item) => {
@@ -58,25 +73,28 @@ async function buscarPorTermo(termo: string): Promise<AnvisaConstituinte[]> {
   return all;
 }
 
-async function buscarFuzzy(termo: string): Promise<AnvisaConstituinte[]> {
+async function buscarFuzzy(termo: string, exaustivo = false): Promise<AnvisaConstituinte[]> {
   if (!termo || termo.length < 2) return [];
 
-  // Skip fuzzy for very common generic terms like "vitamina e" to avoid noise
-  const vitaminMatch = termo.trim().toLowerCase().match(/^vitamina\s+[a-z]\d?\s*$/i);
-  if (vitaminMatch) return [];
+  // Skip fuzzy for very common generic terms like "vitamina e" to avoid noise (but allow in exaustivo)
+  if (!exaustivo) {
+    const vitaminMatch = termo.trim().toLowerCase().match(/^vitamina\s+[a-z]\d?\s*$/i);
+    if (vitaminMatch) return [];
+  }
 
   const { data } = await supabase
     .rpc('buscar_constituinte_fuzzy', { termo_busca: termo })
-    .limit(10);
+    .limit(exaustivo ? 50 : 10);
 
-  // Filter low-relevance fuzzy results
+  // Filter low-relevance fuzzy results (broader threshold in exaustivo mode)
+  const threshold = exaustivo ? 0.12 : 0.25;
   return ((data || []) as any[]).filter((d) => {
-    if (d.similaridade !== undefined) return d.similaridade > 0.25;
+    if (d.similaridade !== undefined) return d.similaridade > threshold;
     return true;
   }) as unknown as AnvisaConstituinte[];
 }
 
-async function buscarConstituintes(termo: string): Promise<AnvisaConstituinte[]> {
+async function buscarConstituintes(termo: string, exaustivo = false): Promise<AnvisaConstituinte[]> {
   if (!termo || termo.length < 2) return [];
 
   // Step 1: Use AI to resolve popular/abbreviated names to scientific names
@@ -84,8 +102,8 @@ async function buscarConstituintes(termo: string): Promise<AnvisaConstituinte[]>
 
   // Step 2: Search for ALL resolved terms in parallel (text search + fuzzy)
   const resultadosPorTermo = await Promise.all([
-    ...termosExpandidos.map((t) => buscarPorTermo(t)),
-    ...termosExpandidos.map((t) => buscarFuzzy(t)),
+    ...termosExpandidos.map((t) => buscarPorTermo(t, exaustivo)),
+    ...termosExpandidos.map((t) => buscarFuzzy(t, exaustivo)),
   ]);
 
   // Step 3: Deduplicate results by ID
@@ -100,6 +118,7 @@ async function buscarConstituintes(termo: string): Promise<AnvisaConstituinte[]>
 export function useAnvisaSearch() {
   const [termo, setTermo] = useState('');
   const [termoDebounced, setTermoDebounced] = useState('');
+  const [exaustivo, setExaustivo] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => setTermoDebounced(termo), 400);
@@ -107,8 +126,8 @@ export function useAnvisaSearch() {
   }, [termo]);
 
   const { data: resultados, isLoading, isError } = useQuery({
-    queryKey: ['anvisa-search', termoDebounced],
-    queryFn: () => buscarConstituintes(termoDebounced),
+    queryKey: ['anvisa-search', termoDebounced, exaustivo],
+    queryFn: () => buscarConstituintes(termoDebounced, exaustivo),
     enabled: termoDebounced.length >= 2,
     staleTime: 10 * 60 * 1000,
   });
@@ -129,5 +148,7 @@ export function useAnvisaSearch() {
     isError,
     buscar,
     limpar,
+    exaustivo,
+    setExaustivo,
   };
 }
