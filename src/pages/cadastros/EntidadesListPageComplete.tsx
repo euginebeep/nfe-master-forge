@@ -175,10 +175,13 @@ export default function EntidadesListPageComplete() {
         description="Clientes, fornecedores, transportadoras e parceiros"
         icon={Users}
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Entidade
-          </Button>
+          <div className="flex gap-2">
+            <TenantAccessDiagnostic table="entidades" contextLabel="Entidades" visibleCount={entidades.length} />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Entidade
+            </Button>
+          </div>
         }
       />
 
