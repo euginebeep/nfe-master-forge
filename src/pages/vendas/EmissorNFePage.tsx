@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
-  Building2, ChevronRight, Receipt
+  Building2, ChevronRight, Receipt, ShieldCheck, ScrollText
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -600,6 +600,14 @@ export default function EmissorNFePage() {
 
   const handlePrint = () => {
     if (!printRef.current) return;
+    // Registra evento de PREVIEW na auditoria fiscal (não bloqueia a impressão)
+    import("@/hooks/use-nfe-auditoria").then(({ registrarEventoNfe }) =>
+      registrarEventoNfe({
+        evento: "PREVIEW",
+        modelo: "55",
+        observacao: "Impressão da prévia DANFE antes da transmissão",
+      }).catch(() => {}),
+    );
     const style = document.createElement("style");
     style.setAttribute("data-danfe-print", "true");
     style.textContent = `@media print { body > *:not([data-danfe-print-root]) { display: none !important; } [data-danfe-print-root] { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: #fff; } [data-danfe-print-root] * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4 portrait; margin: 8mm; } }`;
@@ -653,6 +661,12 @@ export default function EmissorNFePage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate("/settings/certificado-status")}>
+            <ShieldCheck className="h-4 w-4 mr-2" /> Status certificado
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/vendas/auditoria-fiscal")}>
+            <ScrollText className="h-4 w-4 mr-2" /> Auditoria
+          </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" /> Imprimir DANFE
           </Button>

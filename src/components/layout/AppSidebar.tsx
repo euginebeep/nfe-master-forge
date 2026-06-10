@@ -32,7 +32,8 @@ import {
   LogOut,
   Thermometer,
   Settings2,
-  ClipboardCheck } from
+  ClipboardCheck,
+  ScrollText } from
 "lucide-react";
 import {
   Sidebar,
@@ -149,6 +150,7 @@ const menuGroups: MenuGroup[] = [
   { title: "Orçamentos", url: "/vendas/orcamentos", icon: FileText, tooltip: "Criação e acompanhamento de orçamentos para clientes", modulo: "vendas" },
   { title: "Pedidos", url: "/vendas/pedidos", icon: ShoppingCart, tooltip: "Controle de pedidos de venda e status de entrega", modulo: "vendas" },
   { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput, tooltip: "Emissão e gestão de notas fiscais de saída (NF-e)", modulo: "vendas" },
+  { title: "Auditoria Fiscal", url: "/vendas/auditoria-fiscal", icon: ScrollText, tooltip: "Trilha de emissão, protocolo, cancelamento e reimpressão por empresa", modulo: "vendas" },
   { title: "Marketplace", url: "/vendas/marketplace", icon: Store, tooltip: "Catálogo de produtos para venda online e marketplace", modulo: "vendas" }]
 
 },

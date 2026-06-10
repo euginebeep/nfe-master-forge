@@ -87,6 +87,8 @@ const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
 const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
 const EquipamentosPage = lazy(() => import("./pages/settings/EquipamentosPage"));
 const AnvisaCheckerPage = lazy(() => import("./pages/regulatorio/AnvisaCheckerPage"));
+const CertificadoStatusPage = lazy(() => import("./pages/settings/CertificadoStatusPage"));
+const AuditoriaFiscalPage = lazy(() => import("./pages/vendas/AuditoriaFiscalPage"));
 
 
 import { queryClient } from "./lib/query-client";
@@ -159,6 +161,7 @@ const App = () => (
                 <Route path="/settings/unlock-requests" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AdminUnlockRequestsPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/xml-backup" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><XmlBackupPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/settings/equipamentos" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><EquipamentosPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/settings/certificado-status" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><CertificadoStatusPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
 
                 {/* Cadastros */}
                 <Route path="/cadastros/entidades" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><EntidadesListPageComplete /></ErrorBoundary></Suspense>} />
@@ -207,6 +210,7 @@ const App = () => (
                 <Route path="/vendas/marketplace" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><MarketplacePage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/notas-saida" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasSaidaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/emissor-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><EmissorNFePage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/vendas/auditoria-fiscal" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><AuditoriaFiscalPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Relatórios */}
                 <Route path="/relatorios" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatoriosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/relatorios/capsulas" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RelatorioCapsulasPage /></ErrorBoundary></Suspense>} />

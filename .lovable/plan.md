@@ -1,116 +1,95 @@
-## Sistema de Desbloqueio Crítico (Challenge-Response)
+## Visão geral
 
-Operador gera um **código de desafio** → envia ao admin SaaS → admin devolve uma **senha temporária** → operador insere a senha → desbloqueia **janela de 30 min** para executar ações destrutivas.
+Quatro entregas integradas no módulo fiscal (Nuvem Fiscal), todas isoladas por `company_id`:
 
----
-
-### 1. Banco de dados
-
-Nova tabela `public.unlock_challenges`:
-
-| coluna | tipo | descrição |
-|---|---|---|
-| `id` | uuid PK | |
-| `company_id` | uuid FK | tenant solicitante |
-| `challenge_code` | text UNIQUE | formato `BRX-XXXX-XXXX` (12 chars + hifens), apresentado ao operador |
-| `requested_by` | uuid | user_id do operador |
-| `requested_by_nome` | text | snapshot |
-| `motivo` | text | justificativa obrigatória |
-| `escopo` | text[] | `DELETE_DADOS`, `EDITAR_BLOQUEADOS`, `RESET_TENANT`, `OUTRAS_ACOES` |
-| `status` | text | `AGUARDANDO_ADMIN`, `LIBERADO`, `CONSUMIDO`, `EXPIRADO`, `CANCELADO` |
-| `temp_password_hash` | text | SHA-256 da senha de 8 dígitos (nunca o plaintext) |
-| `temp_password_visualizada_em` | timestamptz | quando admin SaaS viu (uso único) |
-| `aprovado_por` | uuid | admin SaaS |
-| `aprovado_por_nome` | text | snapshot |
-| `aprovado_em` | timestamptz | |
-| `consumido_em` | timestamptz | quando operador validou a senha |
-| `desbloqueio_expira_em` | timestamptz | `consumido_em + 30min` |
-| `expira_em` | timestamptz | 6h após criação |
-| `ip_solicitante` / `ip_aprovador` | text | auditoria |
-| `created_at` | timestamptz default now() | |
-
-**RLS:**
-- Operador (qualquer authenticated com `company_id`) vê só os desafios do próprio tenant.
-- Admin SaaS (role global `saas_admin` — já existe via `has_role`) vê todos.
-- INSERT só com `company_id = get_user_company_id()`.
-
-**Trigger** `notify_unlock_*`: emite notification para admins do tenant ao consumir, e para `saas_admin` ao criar.
+1. **Numeração atômica** — eliminar duplicidade da próxima NF-e/NFC-e em chamadas simultâneas.
+2. **Tela "Status do Certificado A1"** — validar CNPJ, ambiente e próxima numeração antes de emitir.
+3. **Página "Auditoria Fiscal"** — registrar transmissão, protocolo, cancelamento, CC-e e reimpressão por tenant.
+4. **Prévia em tempo real do DANFE/DANFCE** — renderizar com branding + dados fiscais da `company` antes de transmitir/reimprimir.
 
 ---
 
-### 2. Edge Functions (3)
+## 1. Numeração atômica por tenant (sem duplicidade)
 
-**`unlock-request`** (POST — operador)
-- Body: `{ motivo, escopo[] }`
-- Valida JWT, cria registro `AGUARDANDO_ADMIN` com código aleatório `BRX-XXXX-XXXX` (alfanumérico maiúsculo sem 0/O/1/I).
-- Notifica admin SaaS (insert em `saas_notifications`).
-- Retorna `{ challenge_code, expira_em }`.
+**Problema atual:** a "próxima numeração" é lida e gravada em `company` via duas chamadas (SELECT + UPDATE). Duas emissões simultâneas no mesmo tenant podem reservar o mesmo número.
 
-**`unlock-approve`** (POST — admin SaaS)
-- Body: `{ challenge_code }`
-- Valida JWT + `has_role('saas_admin')`.
-- Gera senha 8 dígitos numéricos, grava `sha256(senha)` + `aprovado_*`, status `LIBERADO`.
-- Retorna `{ temp_password, expira_em }` **uma única vez** (próximas chamadas para o mesmo código retornam erro).
+**Solução:**
 
-**`unlock-consume`** (POST — operador)
-- Body: `{ challenge_code, temp_password }`
-- Valida JWT, compara hash, exige status `LIBERADO`, não expirado.
-- Marca `CONSUMIDO`, seta `desbloqueio_expira_em = now() + 30min`.
-- Registra em `audit_trail_imutavel`.
-- Notifica todos admins do tenant.
-- Retorna `{ unlock_token, expira_em }`. Token = JWT curto assinado com `LOVABLE_OP_MASTER_SECRET` contendo `{ challenge_id, company_id, user_id, exp }`.
+- Nova tabela `nfe_numeracao` (por `company_id` + `modelo` + `serie`): `proximo_numero`, `ultimo_emitido`, `lock_token`, `updated_at`.
+- Função RPC `reservar_proximo_numero_nfe(modelo, serie)` com `SECURITY DEFINER`, `SET search_path = public`, usando `SELECT ... FOR UPDATE` + `UPDATE ... RETURNING` numa única transação. Garante reserva atômica por tenant.
+- Função `liberar_numero_nfe(numero, modelo, serie, motivo)` para inutilização quando a SEFAZ rejeita após reserva.
+- Edge function `nuvem-fiscal` passa a chamar a RPC ao invés de ler/gravar `company.proxima_numeracao_*` diretamente.
+- Migração inicial popula `nfe_numeracao` a partir dos campos atuais de `company` (preservando a sequência em uso).
 
-Todas com `verify_jwt = false` no `config.toml` (validamos em código).
+**RLS:** policies por `company_id = get_user_company_id()` para SELECT; mutações apenas via RPC (sem policy de INSERT/UPDATE para `authenticated`). GRANT EXECUTE da RPC para `authenticated`.
 
 ---
 
-### 3. Frontend
+## 2. Tela "Status do Certificado A1"
 
-**Hook `useUnlockSession()`** (`src/hooks/use-unlock-session.ts`)
-- Lê `unlock_token` de `sessionStorage` (não localStorage — escopo de aba).
-- Decodifica `exp`, retorna `{ isUnlocked, expiresAt, remainingMs, clearUnlock() }`.
-- Timer atualiza a cada 1s e dispara `clearUnlock()` ao expirar.
+**Rota:** `/configuracoes/empresa/certificado-status` (e card resumido em `/vendas/emissor-nfe` no topo).
 
-**Componente `<UnlockGuard>`** (`src/components/security/UnlockGuard.tsx`)
-- Wrappa botões/ações destrutivas. Se não desbloqueado, mostra o `UnlockDialog` em vez de executar.
+**Verificações exibidas (semelhantes ao diagnóstico de tenant):**
 
-**`UnlockDialog`** — fluxo em 3 abas:
-1. **Solicitar código** → form com motivo + escopo[] → POST `unlock-request` → exibe código grande com botão copiar e timer 6h.
-2. **Aguardando admin** → polling a cada 10s no status do desafio.
-3. **Inserir senha** → input 8 dígitos → POST `unlock-consume` → grava token, fecha dialog, executa ação pendente.
+- Empresa ativa e CNPJ cadastrado.
+- Certificado A1 presente (existe ciphertext em `company`).
+- CNPJ do certificado bate com CNPJ da empresa (chamada à edge `validate-certificate` já existente).
+- Validade do certificado (verde > 60 d, amarelo 30–60 d, vermelho < 30 d / expirado).
+- Ambiente configurado (homologação / produção) + alerta se produção sem certificado válido.
+- Última numeração emitida e próxima numeração reservada (lê `nfe_numeracao`) por modelo/série (NF-e 55, NFC-e 65).
+- Status da conexão com Nuvem Fiscal (ping/token OAuth2).
 
-**Banner global** `<UnlockBanner>` no `AppLayout`: barra fixa no topo (vermelha) enquanto `isUnlocked` exibindo "MODO DESBLOQUEIO ATIVO · 27:42 restantes · [Encerrar agora]".
-
-**Página SaaS Admin** `/saas/admin/desbloqueios`:
-- Lista de challenges com filtro de status.
-- Ação "Liberar" → cola/lê o código → POST `unlock-approve` → exibe senha de 8 dígitos em modal com countdown 30min e botão "Copiar para enviar ao cliente".
-
-**Integração com Admin Master** (`/settings/admin-master`):
-- Novo card "Operações Críticas Desbloqueadas" mostrando status atual + botão "Solicitar Desbloqueio".
-- Todas as ações destrutivas existentes (limpar localStorage, reset demo, etc.) passam por `<UnlockGuard>`.
+Botão "Revalidar" reexecuta tudo. Botão "Abrir configurações" leva ao upload de certificado / edição de série.
 
 ---
 
-### 4. Auditoria
+## 3. Página "Auditoria Fiscal"
 
-- `audit_trail_imutavel` recebe eventos: `UNLOCK_REQUESTED`, `UNLOCK_APPROVED`, `UNLOCK_CONSUMED`, `UNLOCK_EXPIRED`.
-- Hash encadeado já existe via `registrar_evento_auditoria`.
-- Notificações: admins do tenant (sino + e-mail via `send-email`) + admin SaaS (sino interno).
+**Rota:** `/vendas/auditoria-fiscal` (e botão "Auditoria" no header de Notas de Saída).
 
----
-
-### 5. Onde NÃO mexer agora
-
-Não vou aplicar o `<UnlockGuard>` automaticamente em todos os DELETEs do app nesta rodada — só nos botões já presentes em `/settings/admin-master`. Os demais módulos (apagar lote, apagar OP encerrada, etc.) ficam para uma segunda passada quando você confirmar que o fluxo está fluindo, para evitar quebrar workflows existentes.
+- Nova tabela `nfe_auditoria` (por `company_id`): `nota_id`, `evento` (`EMISSAO`, `PROTOCOLO`, `REJEICAO`, `CANCELAMENTO`, `CC_E`, `INUTILIZACAO`, `REIMPRESSAO`, `PREVIEW`), `usuario_id`, `usuario_nome`, `protocolo`, `chave_acesso`, `payload` (jsonb), `ip_address`, `user_agent`, `created_at`.
+- Hooks de auditoria inseridos: na edge `nuvem-fiscal` (após cada chamada SEFAZ) e no front (reimpressão + preview do DANFE).
+- UI: tabela com filtros por período, evento, série, usuário, chave de acesso. Detalhe expandido mostra `payload` (request/response). Export CSV.
+- RLS: SELECT/INSERT escopados por `company_id`.
 
 ---
 
-### Detalhes técnicos
+## 4. Prévia em tempo real do DANFE/DANFCE
 
-- Geração do código: 8 chars do alfabeto `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (sem ambíguos), no formato `BRX-XXXX-XXXX`.
-- Senha temporária: 8 dígitos numéricos `crypto.getRandomValues`.
-- Hash: `SHA-256` via `crypto.subtle.digest`.
-- `unlock_token`: JWT HS256 com secret `UNLOCK_SIGNING_SECRET` (novo — pedirei pra você adicionar).
-- Detecção de role `saas_admin`: usa o `has_role` existente; se ainda não houver esse enum value, adiciono junto da migration.
+- Componente `DANFEPreview` (e `DANFCEPreview`) reaproveitando o layout do `NFeVisualizacaoDialog` existente, mas **sem precisar de XML autorizado**: monta o DOM A4 (Courier) a partir do formulário em edição + dados da `company` (logo via signed URL, razão social, CNPJ, IE, endereço fiscal, regime, série/próximo número reservado).
+- Aba "Prévia" no `/vendas/emissor-nfe` ao lado das abas de produtos/transporte/pagamento, atualizando em tempo real (debounce 250 ms).
+- Marca d'água diagonal "PRÉ-VISUALIZAÇÃO — SEM VALOR FISCAL" quando ainda não há protocolo.
+- Botão "Imprimir prévia" usa o `PrintLayout` existente (sem `window.open`). Cada preview impresso registra evento `PREVIEW` em `nfe_auditoria`.
+- Em reimpressão de nota já transmitida, a prévia reaproveita o componente, sem marca d'água, e dispara evento `REIMPRESSAO`.
 
-Quer que eu siga? Se sim, primeiro mando a migration pra aprovar, depois as edge functions + UI.
+---
+
+## Detalhes técnicos
+
+**Migrations (1 migration, ordem):**
+
+1. `CREATE TABLE public.nfe_numeracao` + GRANT SELECT/INSERT/UPDATE para `authenticated`, ALL para `service_role` + RLS por `company_id`.
+2. `CREATE TABLE public.nfe_auditoria` + GRANTs + RLS.
+3. RPCs `reservar_proximo_numero_nfe`, `liberar_numero_nfe`, `registrar_evento_nfe` (security definer, search_path public).
+4. GRANT EXECUTE das RPCs para `authenticated`.
+5. Seed inicial de `nfe_numeracao` a partir de `company.proxima_numero_nfe` / `proxima_numero_nfce`.
+
+**Edge function `nuvem-fiscal`:**
+
+- Substitui leitura/escrita direta de `company.proxima_*` por `reservar_proximo_numero_nfe`.
+- Em qualquer resposta SEFAZ, chama `registrar_evento_nfe` com o payload.
+- Em rejeição definitiva, chama `liberar_numero_nfe` (mantém histórico de inutilização).
+
+**Front:**
+
+- `src/hooks/use-nfe-numeracao.ts` (status + próximo número visível).
+- `src/hooks/use-nfe-auditoria.ts` (listar + registrar evento).
+- `src/components/fiscal/CertificadoStatusCard.tsx`.
+- `src/pages/settings/CertificadoStatusPage.tsx`.
+- `src/pages/vendas/AuditoriaFiscalPage.tsx`.
+- `src/components/fiscal/DANFEPreview.tsx` (e `DANFCEPreview`).
+- Integração nas rotas em `App.tsx` e no header de `EmissorNFePage` / `NotasSaidaPage`.
+
+**Compatibilidade:** os campos `proxima_numero_*` em `company` ficam como histórico/leitura; a fonte de verdade passa a ser `nfe_numeracao`.
+
+**Observabilidade:** todo evento gravado em `nfe_auditoria` também espelha em `audit_trail_imutavel` (já existente) usando `registrar_evento_auditoria`, mantendo o hash-chain forense.

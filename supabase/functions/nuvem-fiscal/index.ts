@@ -97,6 +97,42 @@ async function authenticateUser(req: Request) {
   return { supabase, userId: data.claims.sub as string };
 }
 
+// Audit helper — best-effort, never blocks the main flow
+async function audit(
+  supabase: any,
+  evento: string,
+  extra: {
+    nota_id?: string | null;
+    modelo?: string | null;
+    serie?: number | null;
+    numero?: number | null;
+    chave_acesso?: string | null;
+    protocolo?: string | null;
+    status?: string | null;
+    payload?: unknown;
+    observacao?: string | null;
+  } = {},
+) {
+  try {
+    await supabase.rpc("registrar_evento_nfe", {
+      p_evento: evento,
+      p_nota_id: extra.nota_id ?? null,
+      p_modelo: extra.modelo ?? null,
+      p_serie: extra.serie ?? null,
+      p_numero: extra.numero ?? null,
+      p_chave_acesso: extra.chave_acesso ?? null,
+      p_protocolo: extra.protocolo ?? null,
+      p_status: extra.status ?? null,
+      p_payload: extra.payload ?? {},
+      p_observacao: extra.observacao ?? null,
+      p_ip_address: null,
+      p_user_agent: null,
+    });
+  } catch (e) {
+    console.error("[nuvem-fiscal] audit failed:", (e as Error).message);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -155,6 +191,33 @@ Deno.serve(async (req) => {
         const ambiente = payload.ambiente === "producao" ? "producao" : "homologacao";
         delete payload.ambiente;
 
+        // Reserva atômica de número (se cliente não enviar número explícito)
+        const modelo: "55" | "65" = payload.modelo === "65" ? "65" : "55";
+        const serie: number = Number(
+          payload.serie ?? payload?.infNFe?.ide?.serie ?? 1,
+        ) || 1;
+        let numeroReservado: number | null = null;
+        if (!payload.numero && !payload?.infNFe?.ide?.nNF) {
+          try {
+            const { data: res, error: rErr } = await supabase.rpc(
+              "reservar_proximo_numero_nfe",
+              { p_modelo: modelo, p_serie: serie },
+            );
+            if (rErr) throw rErr;
+            const row = Array.isArray(res) ? res[0] : res;
+            numeroReservado = Number(row?.numero);
+            if (numeroReservado) {
+              payload.numero = numeroReservado;
+              if (payload.infNFe?.ide) payload.infNFe.ide.nNF = numeroReservado;
+            }
+          } catch (e) {
+            return new Response(
+              JSON.stringify({ error: `Falha ao reservar número: ${(e as Error).message}` }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+        }
+
         const res = await nuvemFiscalRequest(
           "POST",
           `/nfe?ambiente=${ambiente}`,
@@ -163,11 +226,39 @@ Deno.serve(async (req) => {
         const data = await res.json();
 
         if (!res.ok) {
+          await audit(supabase, "REJEICAO", {
+            modelo,
+            serie,
+            numero: numeroReservado,
+            status: String(res.status),
+            payload: { request: payload, response: data, ambiente },
+            observacao: "Rejeição na transmissão Nuvem Fiscal",
+          });
+          if (numeroReservado) {
+            try {
+              await supabase.rpc("liberar_numero_nfe", {
+                p_modelo: modelo,
+                p_serie: serie,
+                p_numero: numeroReservado,
+                p_motivo: `Rejeitada (HTTP ${res.status})`,
+              });
+            } catch (_) {/* noop */}
+          }
           return new Response(JSON.stringify({ error: data }), {
             status: res.status,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+
+        await audit(supabase, "EMISSAO", {
+          modelo,
+          serie,
+          numero: numeroReservado,
+          chave_acesso: data?.chave ?? data?.chave_acesso ?? null,
+          protocolo: data?.protocolo ?? data?.numero_protocolo ?? null,
+          status: data?.status || "ok",
+          payload: { request: payload, response: data, ambiente },
+        });
 
         return new Response(JSON.stringify(data), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -261,6 +352,12 @@ Deno.serve(async (req) => {
           { justificativa }
         );
         const data = await res.json();
+        await audit(supabase, "CANCELAMENTO", {
+          chave_acesso: nfeId,
+          status: res.ok ? "ok" : String(res.status),
+          observacao: justificativa,
+          payload: { response: data },
+        });
         return new Response(JSON.stringify(data), {
           status: res.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -283,6 +380,12 @@ Deno.serve(async (req) => {
           { correcao }
         );
         const data = await res.json();
+        await audit(supabase, "CC_E", {
+          chave_acesso: nfeId,
+          status: res.ok ? "ok" : String(res.status),
+          observacao: correcao,
+          payload: { response: data },
+        });
         return new Response(JSON.stringify(data), {
           status: res.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
