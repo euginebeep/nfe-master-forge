@@ -3960,6 +3960,121 @@ export type Database = {
         }
         Relationships: []
       }
+      nfe_auditoria: {
+        Row: {
+          chave_acesso: string | null
+          company_id: string
+          created_at: string
+          evento: string
+          id: string
+          ip_address: string | null
+          modelo: string | null
+          nota_id: string | null
+          numero: number | null
+          observacao: string | null
+          payload: Json
+          protocolo: string | null
+          serie: number | null
+          status: string | null
+          user_agent: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          chave_acesso?: string | null
+          company_id: string
+          created_at?: string
+          evento: string
+          id?: string
+          ip_address?: string | null
+          modelo?: string | null
+          nota_id?: string | null
+          numero?: number | null
+          observacao?: string | null
+          payload?: Json
+          protocolo?: string | null
+          serie?: number | null
+          status?: string | null
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          chave_acesso?: string | null
+          company_id?: string
+          created_at?: string
+          evento?: string
+          id?: string
+          ip_address?: string | null
+          modelo?: string | null
+          nota_id?: string | null
+          numero?: number | null
+          observacao?: string | null
+          payload?: Json
+          protocolo?: string | null
+          serie?: number | null
+          status?: string | null
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_auditoria_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nfe_numeracao: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          modelo: string
+          proximo_numero: number
+          serie: number
+          ultimo_emitido: number | null
+          ultimo_reservado_em: string | null
+          ultimo_reservado_por: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          modelo: string
+          proximo_numero?: number
+          serie: number
+          ultimo_emitido?: number | null
+          ultimo_reservado_em?: string | null
+          ultimo_reservado_por?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          modelo?: string
+          proximo_numero?: number
+          serie?: number
+          ultimo_emitido?: number | null
+          ultimo_reservado_em?: string | null
+          ultimo_reservado_por?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_numeracao_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notas_entrada: {
         Row: {
           chave_nfe: string
@@ -8128,6 +8243,15 @@ export type Database = {
         Returns: undefined
       }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
+      liberar_numero_nfe: {
+        Args: {
+          p_modelo: string
+          p_motivo: string
+          p_numero: number
+          p_serie: number
+        }
+        Returns: undefined
+      }
       lote_belongs_to_tenant: { Args: { _lid: string }; Returns: boolean }
       nota_entrada_belongs_to_tenant: {
         Args: { _nid: string }
@@ -8155,6 +8279,31 @@ export type Database = {
           p_usuario_nome?: string
         }
         Returns: string
+      }
+      registrar_evento_nfe: {
+        Args: {
+          p_chave_acesso?: string
+          p_evento: string
+          p_ip_address?: string
+          p_modelo?: string
+          p_nota_id?: string
+          p_numero?: number
+          p_observacao?: string
+          p_payload?: Json
+          p_protocolo?: string
+          p_serie?: number
+          p_status?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
+      reservar_proximo_numero_nfe: {
+        Args: { p_modelo: string; p_serie: number }
+        Returns: {
+          modelo: string
+          numero: number
+          serie: number
+        }[]
       }
       rt_valido_para_producao: { Args: { p_rt_id: string }; Returns: boolean }
       set_company_smtp_password: {
