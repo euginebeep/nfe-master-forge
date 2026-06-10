@@ -653,6 +653,12 @@ export default function EmissorNFePage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate("/settings/certificado-status")}>
+            <ShieldCheck className="h-4 w-4 mr-2" /> Status certificado
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/vendas/auditoria-fiscal")}>
+            <ScrollText className="h-4 w-4 mr-2" /> Auditoria
+          </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" /> Imprimir DANFE
           </Button>
