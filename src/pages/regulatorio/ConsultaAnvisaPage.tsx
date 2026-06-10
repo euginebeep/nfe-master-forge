@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Shield, XCircle, CheckCircle2, BookOpen, ExternalLink, Sparkles, AlertTriangle, Printer, Download, Loader2 } from 'lucide-react';
+import { Search, Shield, XCircle, CheckCircle2, BookOpen, ExternalLink, Sparkles, AlertTriangle, Printer, Download, Loader2, History, X, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,9 +9,11 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { toast } from 'sonner';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
+import { useAnvisaSearchHistory } from '@/hooks/use-anvisa-search-history';
 import { DoseTable } from '@/components/regulatorio/DoseTable';
 import { ResultCard } from '@/components/regulatorio/ResultCard';
 import { SyncStatusBanner } from '@/components/regulatorio/SyncStatusBanner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 
 const TAGS_RAPIDAS: string[] = [];
@@ -23,8 +25,12 @@ const LINKS_LEGISLACAO = [
 ];
 
 export default function ConsultaAnvisaPage() {
-  const { termo, resultados, isLoading, buscar, limpar, exaustivo, setExaustivo } = useAnvisaSearch();
+  const {
+    termo, resultados, resultadosTotal, podeCarregarMais, carregarMais,
+    isLoading, buscar, limpar, exaustivo, setExaustivo,
+  } = useAnvisaSearch();
   const { ultimoSync, sincronizar, sincronizando } = useAnvisaSync();
+  const { history, registrar, remover, limparHistorico } = useAnvisaSearchHistory();
   type AiResult = {
     autorizado: boolean;
     status: string;
@@ -51,6 +57,19 @@ export default function ConsultaAnvisaPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAviso, setAiAviso] = useState<string | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+
+  // Persist every effective search in the history
+  useEffect(() => {
+    if (termo.trim().length >= 2 && !isLoading) {
+      registrar(termo.trim(), exaustivo);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [termo, exaustivo, isLoading]);
+
+  const reabrirHistorico = (t: string, ex: boolean) => {
+    setExaustivo(ex);
+    buscar(t);
+  };
 
   // Consulta oficial ANVISA/Power BI como fonte primária da página.
   useEffect(() => {
@@ -217,6 +236,51 @@ export default function ConsultaAnvisaPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Histórico de consultas */}
+      {history.length > 0 && (
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
+                <History className="w-3.5 h-3.5" /> Histórico de consultas
+              </p>
+              <Button variant="ghost" size="sm" onClick={limparHistorico} className="h-6 text-xs">
+                Limpar histórico
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {history.map((h) => (
+                <div
+                  key={`${h.termo}__${h.exaustivo ? 1 : 0}__${h.ts}`}
+                  className="group inline-flex items-center gap-1 rounded-full border bg-muted/40 hover:bg-muted transition-colors text-xs pl-2 pr-1 py-0.5"
+                >
+                  <button
+                    type="button"
+                    onClick={() => reabrirHistorico(h.termo, h.exaustivo)}
+                    className="flex items-center gap-1.5"
+                    title={`Reexecutar: ${h.termo}${h.exaustivo ? ' (busca exaustiva)' : ''}`}
+                  >
+                    {h.exaustivo && <Sparkles className="w-3 h-3 text-primary" />}
+                    <span className="font-medium">{h.termo}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {h.exaustivo ? 'exaustiva' : 'normal'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Remover do histórico"
+                    onClick={() => remover(h.termo, h.exaustivo)}
+                    className="opacity-60 hover:opacity-100 ml-0.5 rounded-full p-0.5 hover:bg-background"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Links de legislação */}
       <div className="flex flex-wrap gap-3">
