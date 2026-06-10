@@ -25,6 +25,7 @@ import {
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { downloadCSV } from "@/lib/export-utils";
 import { toast } from "sonner";
+import { TenantAccessDiagnostic } from "@/components/diagnostics/TenantAccessDiagnostic";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
@@ -242,6 +243,7 @@ export default function FornecedoresListPage() {
           icon={Truck}
           actions={
             <div className="flex gap-2">
+              <TenantAccessDiagnostic table="entidades" contextLabel="Fornecedores" visibleCount={entidades.length} />
               <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
                 Exportar
