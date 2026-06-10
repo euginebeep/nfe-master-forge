@@ -24,6 +24,9 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNuvemFiscal } from "@/hooks/use-nuvem-fiscal";
 import { useCompany } from "@/hooks/use-company";
+import { Button as _Btn } from "@/components/ui/button";
+import { ShieldCheck, ScrollText } from "lucide-react";
+import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
   RASCUNHO: { label: "Rascunho", variant: "outline", icon: Clock },
@@ -660,6 +663,18 @@ export default function NotasSaidaPage() {
         title="Notas Fiscais de Saída"
         description="Emissão de NF-e (modelo 55) via Nuvem Fiscal"
         icon={FileOutput}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/settings/certificado-status")}>
+              <ShieldCheck className="h-4 w-4 mr-2" />
+              Status do certificado
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/vendas/auditoria-fiscal")}>
+              <ScrollText className="h-4 w-4 mr-2" />
+              Auditoria fiscal
+            </Button>
+          </div>
+        }
       />
 
       {/* KPIs */}
@@ -821,7 +836,20 @@ export default function NotasSaidaPage() {
                                 variant="ghost"
                                 className="h-8 w-8"
                                 onClick={() => {
-                                  if (nota.nuvem_fiscal_id) baixarDanfe(nota.nuvem_fiscal_id);
+                                  if (nota.nuvem_fiscal_id) {
+                                    baixarDanfe(nota.nuvem_fiscal_id);
+                                    registrarEventoNfe({
+                                      evento: "REIMPRESSAO",
+                                      nota_id: nota.id,
+                                      modelo: nota.modelo,
+                                      serie: nota.serie ? Number(nota.serie) : null,
+                                      numero: nota.numero ?? null,
+                                      chave_acesso: nota.chave_acesso,
+                                      protocolo: nota.protocolo_autorizacao,
+                                      status: nota.status,
+                                      observacao: "Reimpressão do DANFE",
+                                    }).catch(() => {});
+                                  }
                                 }}
                                 title="DANFE"
                               >
