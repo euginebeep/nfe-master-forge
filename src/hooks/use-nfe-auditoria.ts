@@ -111,7 +111,7 @@ export function useNfeAuditoriaResumo(desde?: string) {
       const { data, error } = await q;
       if (error) throw error;
       const counts: Record<string, number> = {};
-      for (const row of (data || []) as Array<{ evento: string }>) {
+      for (const row of (data || []) as unknown as Array<{ evento: string }>) {
         counts[row.evento] = (counts[row.evento] || 0) + 1;
       }
       return counts;
