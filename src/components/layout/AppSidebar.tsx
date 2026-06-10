@@ -33,8 +33,7 @@ import {
   Thermometer,
   Settings2,
   ClipboardCheck,
-  ScrollText,
-  ShieldCheck } from
+  ScrollText } from
 "lucide-react";
 import {
   Sidebar,
