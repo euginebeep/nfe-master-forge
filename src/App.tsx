@@ -187,6 +187,7 @@ const App = () => (
                 {/* Estoque */}
                 <Route path="/estoque/quarentena" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><QuarentenaPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesListPage /></ErrorBoundary></Suspense>} />
+                <Route path="/estoque/lotes-reservados" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesReservadosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LoteDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/movimentacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MovimentacoesPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/rastreabilidade" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RastreabilidadePage /></ErrorBoundary></Suspense>} />
