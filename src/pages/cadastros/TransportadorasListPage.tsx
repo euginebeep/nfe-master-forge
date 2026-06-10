@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
+import { TenantAccessDiagnostic } from "@/components/diagnostics/TenantAccessDiagnostic";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
@@ -150,10 +151,13 @@ export default function TransportadorasListPage() {
           description="Gestão de transportadoras e parceiros logísticos"
           icon={Truck}
           actions={
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Transportadora
-            </Button>
+            <div className="flex gap-2">
+              <TenantAccessDiagnostic table="entidades" contextLabel="Transportadoras" visibleCount={entidades.length} />
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Transportadora
+              </Button>
+            </div>
           }
         />
 
