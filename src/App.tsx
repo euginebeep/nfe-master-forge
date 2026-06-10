@@ -46,6 +46,7 @@ const DashboardIndustrialPage = lazy(() => import("./pages/producao/DashboardInd
 const DashboardExecutivoPage = lazy(() => import("./pages/producao/DashboardExecutivoPage"));
 const QuarentenaPage = lazy(() => import("./pages/estoque/QuarentenaPage"));
 const LotesListPage = lazy(() => import("./pages/estoque/LotesListPage"));
+const LotesReservadosPage = lazy(() => import("./pages/estoque/LotesReservadosPage"));
 const LoteDetailPage = lazy(() => import("./pages/estoque/LoteDetailPage"));
 const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage"));
 const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
