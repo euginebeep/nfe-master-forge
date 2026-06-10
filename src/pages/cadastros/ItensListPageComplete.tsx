@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useHybridItens, type HybridItem } from "@/hooks/use-hybrid-data";
 import { ItemWizardDialog } from "@/components/itens/ItemWizardDialog";
+import { TenantAccessDiagnostic } from "@/components/diagnostics/TenantAccessDiagnostic";
 
 type TipoItem = 'MP' | 'EMBALAGEM' | 'ROTULO' | 'TAMPA' | 'POTE' | 'SILICA' | 'CAPSULA_VAZIA' | 'PA' | 'OUTRO';
 type CriticidadeItem = 'NORMAL' | 'ATENCAO' | 'CRITICO' | 'ULTRA';
@@ -167,10 +168,13 @@ export default function ItensListPageComplete() {
         description="Matérias primas, embalagens e produtos acabados"
         icon={Package}
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Item
-          </Button>
+          <div className="flex gap-2">
+            <TenantAccessDiagnostic table="itens" contextLabel="Produtos/Insumos" visibleCount={filteredItens.length} />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Item
+            </Button>
+          </div>
         }
       />
 

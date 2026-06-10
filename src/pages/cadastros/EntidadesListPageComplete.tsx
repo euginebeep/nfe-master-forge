@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useHybridEntidades, type HybridEntidade } from "@/hooks/use-hybrid-data";
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 import { formatDocument } from "@/lib/formatters";
+import { TenantAccessDiagnostic } from "@/components/diagnostics/TenantAccessDiagnostic";
 
 const PAPEL_LABELS: Record<string, string> = {
   CLIENTE: "Cliente",
@@ -175,10 +176,13 @@ export default function EntidadesListPageComplete() {
         description="Clientes, fornecedores, transportadoras e parceiros"
         icon={Users}
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Entidade
-          </Button>
+          <div className="flex gap-2">
+            <TenantAccessDiagnostic table="entidades" contextLabel="Entidades" visibleCount={entidades.length} />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Entidade
+            </Button>
+          </div>
         }
       />
 
