@@ -2,7 +2,6 @@
 // Mostra um passo-a-passo contextual de cada módulo
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronRight, ChevronLeft, X, CheckCircle2 } from 'lucide-react';
@@ -77,7 +76,6 @@ const PASSOS = [
 export function OnboardingWalkthrough() {
   const [ativo, setAtivo] = useState(false);
   const [passo, setPasso] = useState(0);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const visto = localStorage.getItem('brainx_onboarding_v1');
