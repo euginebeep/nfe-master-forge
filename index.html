@@ -28,6 +28,34 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Forced one-time purge of stale Service Worker + caches.
+      // Bump APP_VERSION whenever you need to evict ALL clients.
+      (function () {
+        try {
+          var APP_VERSION = '2026-06-11-erase-old-landing';
+          var stored = localStorage.getItem('brainx_app_version');
+          if (stored !== APP_VERSION) {
+            localStorage.setItem('brainx_app_version', APP_VERSION);
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (r) { r.unregister(); });
+              }).catch(function () {});
+            }
+            if (window.caches && caches.keys) {
+              caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              }).then(function () {
+                if (!sessionStorage.getItem('brainx_purge_reload')) {
+                  sessionStorage.setItem('brainx_purge_reload', '1');
+                  location.reload();
+                }
+              }).catch(function () {});
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
