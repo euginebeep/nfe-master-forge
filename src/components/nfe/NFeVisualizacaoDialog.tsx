@@ -734,7 +734,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] xl:max-w-[1100px] max-h-[95vh] p-0 gap-0">
+      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] max-h-[98vh] p-0 gap-0 overflow-hidden">
         {/* Header */}
         <div className="p-5 border-b">
           <div className="flex items-start justify-between">
