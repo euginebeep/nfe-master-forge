@@ -421,7 +421,7 @@ export function UserFormDialog({
                     type="email"
                     value={formData.email}
                     onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    disabled={isEditing}
+                    disabled={isEditing && formData.email !== ""}
                     required={!isEditing}
                   />
                 </div>
