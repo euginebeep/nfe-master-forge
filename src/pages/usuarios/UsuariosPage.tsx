@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Shield, Plus, Edit, Key, UserCog, Trash2, ScrollText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Shield, Plus, Edit, Key, UserCog, Trash2, ScrollText, Building2, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,7 +20,8 @@ import { ptBR } from "date-fns/locale";
 
 export default function UsuariosPage() {
   const { users, isLoading, createUser, updateUser, deleteUser, fetchUserPermissions } = useUsers();
-  const { hasRole, user: currentUser } = useAuth();
+  const { hasRole, user: currentUser, profile } = useAuth();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
@@ -30,8 +33,14 @@ export default function UsuariosPage() {
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<ModulePermission[]>([]);
 
   const isAdmin = hasRole('admin');
+  const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+  const hasRealCompany = !!profile?.company_id && profile.company_id !== DEMO_COMPANY_ID;
+  const canCreateUsers = isAdmin && hasRealCompany;
 
   const handleNewUser = () => {
+    if (!hasRealCompany) {
+      return;
+    }
     setSelectedUser(null);
     setSelectedUserPermissions([]);
     setDialogOpen(true);
