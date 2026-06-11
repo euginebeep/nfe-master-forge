@@ -49,8 +49,13 @@ export function useLocalCompany() {
     setLoading(true);
     const data = LocalDb.getSingleton<LocalCompany>('company');
     
-    // Safety check: if local data exists but is a demo record and we are NOT in demo mode (verified by app logic later),
-    // we should prefer null until Supabase data arrives.
+    // We strictly ignore any local storage data that marks itself as demo 
+    // unless we are absolutely sure the session logic says otherwise.
+    if (data?.is_demo && !sessionStorage.getItem('brainx_demo_mode')) {
+      setCompany(null);
+      setLoading(false);
+      return;
+    }
     setCompany(data);
     setLoading(false);
   }, []);
