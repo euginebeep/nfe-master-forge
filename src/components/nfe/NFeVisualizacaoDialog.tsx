@@ -736,35 +736,39 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[98vw] xl:max-w-[1400px] w-full max-h-[98vh] p-0 gap-0 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-5 border-b">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              <button onClick={() => onOpenChange(false)} className="mt-1 text-muted-foreground hover:text-foreground">
+        <div className="p-4 sm:p-5 border-b shrink-0 bg-background">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <button onClick={() => onOpenChange(false)} className="mt-1 text-muted-foreground hover:text-foreground shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold">NF-e Nº {nota.numero || '-'}</h2>
-                  <span className="text-muted-foreground">Série {nota.serie || '1'}</span>
-                  <Badge variant={statusInfo.variant} className={statusInfo.variant === 'default' ? 'bg-green-600 hover:bg-green-700' : ''}>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <h2 className="text-lg sm:text-xl font-bold truncate">NF-e Nº {nota.numero || '-'}</h2>
+                  <span className="text-sm sm:text-base text-muted-foreground shrink-0">Série {nota.serie || '1'}</span>
+                  <Badge variant={statusInfo.variant} className={cn("shrink-0", statusInfo.variant === 'default' ? 'bg-green-600 hover:bg-green-700' : '')}>
                     {statusInfo.label}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate max-w-full" title={`${formatDate(nota.dh_emissao || '')} · ${emitenteNome}`}>
                   Emissão: {formatDate(nota.dh_emissao || '')} · {emitenteNome}
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleDownloadDANFE}>
-              <FileDown className="h-4 w-4 mr-2" />
-              Baixar DANFE
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto shrink-0">
+              <Button onClick={handleDownloadDANFE} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                <FileDown className="h-4 w-4 mr-2" />
+                <span className="inline">DANFE</span>
+              </Button>
+            </div>
           </div>
 
           {/* Chave de acesso */}
-          <div className="mt-4 bg-muted/50 border rounded-lg px-4 py-2.5">
-            <span className="text-sm text-muted-foreground">Chave de Acesso: </span>
-            <span className="text-sm font-mono">{formatChave(nota.chave_nfe)}</span>
+          <div className="mt-4 bg-muted/50 border rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <span className="text-[10px] sm:text-sm text-muted-foreground uppercase sm:normal-case font-semibold sm:font-normal">Chave de Acesso:</span>
+              <span className="text-[11px] sm:text-sm font-mono break-all sm:break-normal select-all">{formatChave(nota.chave_nfe)}</span>
+            </div>
           </div>
         </div>
 
@@ -1759,18 +1763,25 @@ function CardSection({ icon, title, children }: { icon: React.ReactNode; title: 
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{title}</h3>
-      {children}
+    <div className="space-y-2 sm:space-y-3">
+      <h3 className="text-[10px] sm:text-sm font-bold text-muted-foreground uppercase tracking-wide px-1">{title}</h3>
+      <div className="bg-card rounded-lg border p-3 sm:p-4 shadow-sm overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }
 
 function Field({ label, value, bold, className }: { label: string; value: string; bold?: boolean; className?: string }) {
   return (
-    <div className={`min-w-0 ${className || ''}`}>
-      <p className="text-xs text-muted-foreground truncate">{label}</p>
-      <p className={`text-sm break-words ${bold ? 'font-bold text-primary' : ''}`} title={value}>{value}</p>
+    <div className={`min-w-0 flex flex-col ${className || ''}`}>
+      <p className="text-[10px] sm:text-xs text-muted-foreground uppercase leading-tight truncate mb-0.5" title={label}>{label}</p>
+      <p className={cn(
+        "text-xs sm:text-sm break-words line-clamp-3 sm:line-clamp-none",
+        bold ? "font-bold text-foreground" : "text-foreground/90 font-medium"
+      )} title={String(value)}>
+        {value}
+      </p>
     </div>
   );
 }
