@@ -5,13 +5,14 @@ import { cn } from "@/lib/utils";
 
 interface LogoDemoERPProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function LogoDemoERP({ className }: LogoDemoERPProps) {
+export function LogoDemoERP({ className, style }: LogoDemoERPProps) {
   const { profile, isAuthenticated, isLoading } = useAuthContext();
   
   // Se ainda estiver carregando a autenticação, não mostramos nada para evitar flicker do logo demo
-  if (isLoading) return <div className={cn("bg-muted animate-pulse rounded", className)} />;
+  if (isLoading) return <div className={cn("bg-muted animate-pulse rounded", className)} style={style} />;
 
   // Se não estiver autenticado, mostramos o logo oficial (landing page / login)
   if (!isAuthenticated) {
@@ -20,6 +21,7 @@ export function LogoDemoERP({ className }: LogoDemoERPProps) {
         src={brainxLogo}
         alt="BrainX ERP"
         className={cn("object-contain rounded shrink-0", className)}
+        style={style}
         loading="lazy"
       />
     );
@@ -35,6 +37,7 @@ export function LogoDemoERP({ className }: LogoDemoERPProps) {
         "object-contain rounded shrink-0 transition-all duration-200",
         className
       )}
+      style={style}
       loading="lazy"
     />
   );
