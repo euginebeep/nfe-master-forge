@@ -344,13 +344,13 @@ export function AppSidebar() {
             <div className="relative">
               <LogoDemoERP
                 className={cn(
-                  "shadow-lg shadow-black/20 relative z-10",
+                  "shadow-lg shadow-black/20 relative z-0",
                   collapsed ? "w-[50px] h-[50px] md:w-[65px] md:h-[65px]" : "w-[64px] h-[64px] md:w-[87px] md:h-[87px] lg:w-[101px] lg:h-[101px]"
                 )}
               />
             </div>
             {!collapsed &&
-            <div className="flex flex-col min-w-0 -ml-4 relative z-0">
+            <div className="flex flex-col min-w-0 -ml-4 relative z-10">
                 <span className="font-bold text-base md:text-lg text-sidebar-foreground tracking-tight leading-tight truncate">
                   {profile?.is_demo ? 'BrainX Demo' : 'BrainX ERP'}
                 </span>
