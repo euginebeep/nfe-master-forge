@@ -86,7 +86,7 @@ const STATUS_LOTE_VARIANTS: Record<string, "success" | "warning" | "error" | "mu
   VENCIDO: "muted",
 };
 
-export default function ProdutoDetailPage() {
+export function ProdutoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: item, isLoading, refetch } = useHybridItem(id);
