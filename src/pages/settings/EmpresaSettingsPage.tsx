@@ -53,7 +53,7 @@ export default function EmpresaSettingsPage() {
   const uploadFile = useUploadFile();
 
   useEffect(() => {
-    const localHasData = company && company.cnpj && company.cnpj.trim().length > 0;
+    const localHasData = company && company.cnpj && company.cnpj.trim().length > 0 && !company.is_demo;
 
     if (localHasData) {
       setFormData(company);
