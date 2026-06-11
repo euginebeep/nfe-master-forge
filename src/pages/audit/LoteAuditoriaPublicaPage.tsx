@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,15 +12,56 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QRCodeAuditoria } from "@/components/shared/QRCodeAuditoria";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 export default function LoteAuditoriaPublicaPage() {
   const { hash } = useParams<{ hash: string }>();
   const [searchParams] = useSearchParams();
   const tenantId = searchParams.get('cid');
+  const [isBlocked, setIsBlocked] = useState(false);
+
+  useEffect(() => {
+    const checkRateLimit = async () => {
+      const storageKey = 'qr_scans_history';
+      const now = Date.now();
+      const windowMs = 60 * 1000; // 1 minuto
+      const limit = 5;
+
+      const scans = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const recentScans = scans.filter((ts: number) => now - ts < windowMs);
+      
+      if (recentScans.length >= limit) {
+        setIsBlocked(true);
+        
+        // Log de bloqueio
+        await supabase.from('audit_log').insert({
+          acao: 'QR_CODE_RATE_LIMIT_BLOCKED',
+          entidade: 'SECURITY',
+          company_id: tenantId as any,
+          payload: {
+            hash,
+            tenant_scanned: tenantId,
+            reason: 'Excessive scan attempts',
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent
+          }
+        });
+        
+        toast.error("Muitas tentativas. Por favor, aguarde um minuto.");
+        return;
+      }
+
+      recentScans.push(now);
+      localStorage.setItem(storageKey, JSON.stringify(recentScans));
+    };
+
+    checkRateLimit();
+  }, [hash, tenantId]);
 
   const { data: loteData, isLoading, error } = useQuery({
     queryKey: ['lote-auditoria-publica', hash, tenantId],
     queryFn: async () => {
+      if (isBlocked) throw new Error('Acesso bloqueado temporariamente');
       if (!hash) throw new Error('Hash não informado');
       
       // Prioriza busca pelo ID (UUID) que agora é o padrão para QR Codes de fornecedor
