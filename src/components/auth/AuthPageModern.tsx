@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
-import brainxLogo from '@/assets/brainx-logo.png';
+import { LogoDemoERP } from '@/components/layout/LogoDemoERP';
 import { DemoLoginCard } from '@/components/demo/DemoLoginCard';
 
 /* Load Bootstrap Icons CSS */
@@ -158,7 +158,7 @@ export default function AuthPageModern() {
           {/* Logo with 50% increase and inline text */}
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
             style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <img src={brainxLogo} alt="BrainX ERP" style={{ width: 270, height: 270, objectFit: 'contain' }} />
+            <LogoDemoERP style={{ width: 270, height: 270, objectFit: 'contain' } as any} />
             <div style={{ color: '#fff', display: 'flex', alignItems: 'baseline', gap: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 36, letterSpacing: '-0.02em' }}>BrainX ERP</div>
               <div style={{ fontWeight: 400, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>Gestão Industrial</div>
@@ -248,7 +248,7 @@ export default function AuthPageModern() {
 
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-8">
-          <img src={brainxLogo} alt="BrainX ERP" style={{ width: 56, height: 56, objectFit: 'contain' }} />
+          <LogoDemoERP className="w-14 h-14" />
           <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>BrainX ERP</div>
         </div>
 

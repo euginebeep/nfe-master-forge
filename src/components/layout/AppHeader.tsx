@@ -1,6 +1,6 @@
 import { Moon, Sun, Menu, LogOut, Search, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import brainxLogo from "@/assets/brainx-logo.png";
+import { LogoDemoERP } from "./LogoDemoERP";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -56,11 +56,8 @@ export function AppHeader() {
           <Menu className="h-5 w-5" />
         </SidebarTrigger>
         <Link to="/dashboard" className="flex items-center gap-2 md:hidden" aria-label="BrainX ERP Home">
-          <img
-            src={brainxLogo}
-            alt="BrainX ERP"
-            className="w-9 h-9 object-contain rounded"
-            loading="lazy"
+          <LogoDemoERP
+            className="w-9 h-9"
           />
         </Link>
       </div>

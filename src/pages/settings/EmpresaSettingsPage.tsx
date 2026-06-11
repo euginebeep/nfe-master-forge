@@ -32,6 +32,7 @@ export default function EmpresaSettingsPage() {
   const { data: company, isLoading, refresh } = useLocalCompany();
   const { data: supabaseCompany } = useCompany();
   const upsertCompanyMutation = useUpsertCompany();
+  const [logoIsLoading, setLogoIsLoading] = useState(false);
   const { upsert } = useUpsertLocalCompany();
   const [formData, setFormData] = useState<Partial<LocalCompany>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export default function EmpresaSettingsPage() {
   const uploadFile = useUploadFile();
 
   useEffect(() => {
-    const localHasData = company && company.cnpj && company.cnpj.trim().length > 0;
+    const localHasData = company && company.cnpj && company.cnpj.trim().length > 0 && !company.is_demo;
 
     if (localHasData) {
       setFormData(company);
@@ -91,9 +92,9 @@ export default function EmpresaSettingsPage() {
         csc_token: supabaseCompany.csc_token || '',
       };
       setFormData(dbData);
-      // Also persist to localStorage for future use on this device - silent update
-      upsert(dbData, false);
-      refresh();
+      // We explicitly DO NOT call upsert(dbData, false) here anymore to prevent
+      // local data from overriding or flickering before Supabase data is ready.
+      // The logo effect handles its own state correctly.
     }
   }, [company, supabaseCompany]);
 
@@ -111,12 +112,17 @@ export default function EmpresaSettingsPage() {
   // Load logo from Supabase storage when logo_file_id exists
   useEffect(() => {
     let isMounted = true;
+    
+    // Explicitly hide logo if database hasn't provided an ID yet
+    // This prevents showing stale/demo logos from localStorage
     if (!supabaseCompany?.logo_file_id) {
-      if (!logoPreview?.startsWith('data:')) {
+      if (!logoPreview?.startsWith('data:') && !logoIsLoading) {
         setLogoPreview(null);
       }
       return;
     }
+
+    setLogoIsLoading(true);
     const loadLogoFromStorage = async () => {
       try {
         const { data: arquivo, error: dbError } = await supabase
@@ -162,6 +168,8 @@ export default function EmpresaSettingsPage() {
         }
       } catch (err) {
         console.error("Erro fatal ao carregar logo:", err);
+      } finally {
+        if (isMounted) setLogoIsLoading(false);
       }
     };
     loadLogoFromStorage();
@@ -555,11 +563,14 @@ export default function EmpresaSettingsPage() {
               </div>
             </div>
 
-            {/* Logo Upload */}
             <div className="space-y-2">
               <Label>Logo da Empresa</Label>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                {logoPreview ? (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-h-[80px]">
+                {logoIsLoading ? (
+                  <div className="h-20 w-32 bg-muted animate-pulse rounded border flex items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : logoPreview ? (
                   <div className="relative group">
                     <img 
                       src={logoPreview} 

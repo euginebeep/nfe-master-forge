@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { LocalDb } from '@/lib/local-db';
 import { toast } from 'sonner';
 
 export interface LocalCompany {
   id: string;
+  is_demo?: boolean;
   razao_social: string;
   nome_fantasia?: string;
   cnpj: string;
@@ -41,21 +42,37 @@ export interface LocalCompany {
 }
 
 export function useLocalCompany() {
-  const [company, setCompany] = useState<LocalCompany | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [localData, setLocalData] = useState<LocalCompany | null>(() => {
+    // Initial sync fetch to avoid flicker
+    if (typeof window === 'undefined') return null;
+    const data = LocalDb.getSingleton<LocalCompany>('company');
+    const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true';
+    if (data?.is_demo && !isDemoSession) return null;
+    return data;
+  });
+  const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(() => {
-    setLoading(true);
     const data = LocalDb.getSingleton<LocalCompany>('company');
-    setCompany(data);
-    setLoading(false);
+    const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true';
+    if (data?.is_demo && !isDemoSession) {
+      setLocalData(null);
+    } else {
+      setLocalData(data);
+    }
   }, []);
 
   useEffect(() => {
-    refresh();
+    const handleLocalDbChange = (e: any) => {
+      if (e.detail?.collection === 'company' || e.detail?.collection === '*') {
+        refresh();
+      }
+    };
+    window.addEventListener('localdb:change', handleLocalDbChange);
+    return () => window.removeEventListener('localdb:change', handleLocalDbChange);
   }, [refresh]);
 
-  return { data: company, isLoading: loading, refresh };
+  return { data: localData, isLoading: loading, refresh };
 }
 
 export function useUpsertLocalCompany() {
