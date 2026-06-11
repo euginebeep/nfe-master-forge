@@ -806,14 +806,14 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
             </ScrollArea>
           </div>
 
-          <ScrollArea className="flex-1 max-h-[calc(95vh-220px)]">
+          <ScrollArea className="flex-1 max-h-[calc(98vh-180px)]">
             {/* DANFE Tab */}
-            <TabsContent value="danfe" className="mt-0 p-6">
+            <TabsContent value="danfe" className="mt-0 p-3 sm:p-6">
               <TabDANFE nota={nota} xmlData={xmlData} itens={itens} />
             </TabsContent>
 
             {/* Dados Gerais */}
-            <TabsContent value="dados" className="mt-0 p-6">
+            <TabsContent value="dados" className="mt-0 p-3 sm:p-6">
               <TabDadosGerais nota={nota} xmlData={xmlData} />
             </TabsContent>
 
