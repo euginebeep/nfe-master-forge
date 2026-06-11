@@ -43,14 +43,14 @@ export function LoteFornecedorEtiqueta({ lote }: LoteFornecedorEtiquetaProps) {
         {/* Header */}
         <div className="border-b-2 border-black pb-2 mb-3 text-center">
           <h1 className="text-xl font-black uppercase tracking-tight">Identificação de Insumo</h1>
-          <p className="text-[10px] font-bold text-gray-600">BrainX ERP — Controle de Qualidade</p>
+          <p className="text-[10px] font-bold">BrainX ERP — Controle de Qualidade</p>
         </div>
 
         {/* Lote e Item */}
         <div className="space-y-3 flex-1">
           <div>
-            <label className="text-[10px] font-black uppercase text-gray-500">Insumo / Matéria-Prima</label>
-            <p className="text-lg font-bold leading-tight line-clamp-2">{lote.item.descricao_interna}</p>
+            <label className="text-[10px] font-black uppercase text-gray-700">Insumo / Matéria-Prima</label>
+            <p className="text-lg font-bold leading-tight line-clamp-2 uppercase">{lote.item.descricao_interna}</p>
             {lote.item.sku_interno && (
               <p className="text-xs font-mono">SKU: {lote.item.sku_interno}</p>
             )}
@@ -69,24 +69,24 @@ export function LoteFornecedorEtiqueta({ lote }: LoteFornecedorEtiquetaProps) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[10px] font-black uppercase text-gray-500 flex items-center gap-1">
+              <label className="text-[10px] font-black uppercase text-gray-700 flex items-center gap-1">
                 <Calendar className="h-2.5 w-2.5" /> Fabricação
               </label>
               <p className="text-sm font-bold">{lote.data_fab ? format(new Date(lote.data_fab), 'dd/MM/yyyy') : '—'}</p>
             </div>
             <div className="text-right">
-              <label className="text-[10px] font-black uppercase text-gray-500 flex items-center gap-1 justify-end">
+              <label className="text-[10px] font-black uppercase text-gray-700 flex items-center gap-1 justify-end">
                 <Calendar className="h-2.5 w-2.5" /> Validade
               </label>
-              <p className="text-sm font-bold text-red-600">{lote.data_val ? format(new Date(lote.data_val), 'dd/MM/yyyy') : '—'}</p>
+              <p className="text-lg font-black underline decoration-2">{lote.data_val ? format(new Date(lote.data_val), 'dd/MM/yyyy') : '—'}</p>
             </div>
           </div>
 
           <div className="border-t border-black pt-2">
-            <label className="text-[10px] font-black uppercase text-gray-500 flex items-center gap-1">
+            <label className="text-[10px] font-black uppercase text-gray-700 flex items-center gap-1">
               <Truck className="h-2.5 w-2.5" /> Fornecedor
             </label>
-            <p className="text-xs font-bold truncate">{lote.fornecedor?.razao_social || 'Não informado'}</p>
+            <p className="text-xs font-bold truncate uppercase">{lote.fornecedor?.razao_social || 'Não informado'}</p>
           </div>
         </div>
 
@@ -110,11 +110,11 @@ export function LoteFornecedorEtiqueta({ lote }: LoteFornecedorEtiquetaProps) {
               Aguardando Inspeção
             </div>
             <div className="flex flex-col gap-1 items-end">
-              <div className="flex items-center gap-1 text-[8px] font-bold">
-                <ShieldCheck className="h-3 w-3" /> Rastreabilidade Digital
+              <div className="flex items-center gap-1 text-[8px] font-black">
+                🛡️ Rastreabilidade Digital
               </div>
-              <div className="flex items-center gap-1 text-[8px] font-bold">
-                <MapPin className="h-3 w-3" /> Recebido em: {format(new Date(), 'dd/MM/yy HH:mm')}
+              <div className="flex items-center gap-1 text-[8px] font-black">
+                📍 Recebido em: {format(new Date(), 'dd/MM/yy HH:mm')}
               </div>
             </div>
           </div>
