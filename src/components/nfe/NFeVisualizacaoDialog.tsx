@@ -1762,9 +1762,9 @@ function CardSection({ icon, title, children }: { icon: React.ReactNode; title: 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="space-y-2 sm:space-y-3">
+    <div className={`space-y-2 sm:space-y-3 ${className}`}>
       <h3 className="text-[10px] sm:text-sm font-bold text-muted-foreground uppercase tracking-wide px-1">{title}</h3>
       <div className="bg-card rounded-lg border p-3 sm:p-4 shadow-sm overflow-hidden">
         {children}
