@@ -92,6 +92,7 @@ const menuGroups: MenuGroup[] = [
   label: "Principal",
   items: [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
+  { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" },
   ]
 
 },
@@ -191,8 +192,7 @@ const menuGroups: MenuGroup[] = [
  {
   label: "Comunicação",
   items: [
-  { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" },
-  { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" }]
+  { title: "Chat Interno", url: "/chat", icon: MessageCircle, tooltip: "Comunicação interna entre colaboradores da empresa" }]
 
  },
 ];
