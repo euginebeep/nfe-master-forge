@@ -833,17 +833,17 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
             </TabsContent>
 
             {/* Pagamento */}
-            <TabsContent value="pagamento" className="mt-0 p-6">
+            <TabsContent value="pagamento" className="mt-0 p-3 sm:p-6">
               <TabPagamento xmlData={xmlData} />
             </TabsContent>
 
             {/* Duplicatas */}
-            <TabsContent value="duplicatas" className="mt-0 p-6">
+            <TabsContent value="duplicatas" className="mt-0 p-3 sm:p-6">
               <TabDuplicatas xmlData={xmlData} />
             </TabsContent>
 
             {/* XML Bruto */}
-            <TabsContent value="xml" className="mt-0 p-6">
+            <TabsContent value="xml" className="mt-0 p-3 sm:p-6">
               <TabXMLBruto xmlRaw={nota.xml_raw} />
             </TabsContent>
           </ScrollArea>
