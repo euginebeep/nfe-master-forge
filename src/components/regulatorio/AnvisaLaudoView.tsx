@@ -7,6 +7,7 @@ import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Bra
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
+import { useLocalCompany } from "@/hooks/use-local-company";
 import { cn } from "@/lib/utils";
 
 const normalizeProductName = (value: unknown) =>
@@ -49,10 +50,18 @@ interface AnvisaLaudoViewProps {
 export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset, onSelectProduct }) => {
   const handlePrint = () => window.print();
   const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
-
+  const { data: company } = useLocalCompany();
+  
   const handleExportLaudo = () => {
     try {
-      exportLaudoA4(data);
+      exportLaudoA4({
+        ...data,
+        company: company ? {
+          razao_social: company.razao_social,
+          nome_fantasia: company.nome_fantasia,
+          logo_data: company.logo_data
+        } : undefined
+      });
       toast.success("Laudo gerado. Use 'Salvar como PDF' na janela de impressão.");
     } catch (e: any) {
       toast.error("Falha ao gerar laudo: " + (e?.message || 'erro'));
