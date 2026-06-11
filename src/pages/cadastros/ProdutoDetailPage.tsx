@@ -15,17 +15,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
-import { 
-  useItemAliases,
-  useLoteDocumentos,
-  canReleaseLote,
-  LocalItem,
-  LocalItemFornecedor,
-  LocalItemAlias,
-  LocalEstoqueLote,
-  LocalLoteDocumento,
-} from "@/hooks/use-local-itens";
-import { useSupabaseItemFornecedores, useSupabaseEstoqueLotes } from "@/hooks/use-supabase-item-details";
+import {
+  canReleaseSupabaseLote,
+  useSupabaseItemAliases,
+  useSupabaseItemFornecedores,
+  useSupabaseEstoqueLotes,
+  useSupabaseLoteDocumentos,
+  type SupabaseEstoqueLote,
+} from "@/hooks/use-supabase-item-details";
 import { useHybridEntidades } from "@/hooks/use-hybrid-data";
 import { useHybridItem, useUpdateHybridItem, type HybridItem } from "@/hooks/use-hybrid-data";
 import {
@@ -93,8 +90,8 @@ export default function ProdutoDetailPage() {
   const { data: item, isLoading, refetch } = useHybridItem(id);
   const updateMutation = useUpdateHybridItem();
   const { fornecedores, create: createFornecedor, remove: removeFornecedor } = useSupabaseItemFornecedores(id);
-  const { aliases, create: createAlias, remove: removeAlias } = useItemAliases(id);
-  const { lotes, update: updateLote, remove: removeLote } = useSupabaseEstoqueLotes(id);
+  const { aliases, create: createAlias, remove: removeAlias } = useSupabaseItemAliases(id);
+  const { lotes, update: updateLote, remove: removeLote, refresh: refreshLotes } = useSupabaseEstoqueLotes(id);
   const { data: entidadesFornecedores = [] } = useHybridEntidades({ papel: "FORNECEDOR" });
 
   const [formData, setFormData] = useState<Partial<HybridItem>>({});
