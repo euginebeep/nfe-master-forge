@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Shield, Package, Calendar, UserCheck, CheckCircle2, AlertTriangle,
-  QrCode, Factory, Beaker, Clock, ShieldCheck
+  QrCode, Factory, Beaker, Clock, ShieldCheck, Truck, FileText
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 export default function LoteAuditoriaPublicaPage() {
   const { hash } = useParams<{ hash: string }>();
 
-  const { data: lote, isLoading, error } = useQuery({
+  const { data: loteData, isLoading, error } = useQuery({
     queryKey: ['lote-auditoria-publica', hash],
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
