@@ -109,108 +109,187 @@ export function LogsPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="border-none shadow-sm">
-          <CardContent className="pt-6">
-            <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Eventos (últimos 200)</p>
-            <p className="text-2xl font-black mt-1">{stats.total}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm">
-          <CardContent className="pt-6">
-            <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Críticos</p>
-            <p className="text-2xl font-black mt-1 text-destructive">{stats.critical}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm">
-          <CardContent className="pt-6">
-            <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Alertas</p>
-            <p className="text-2xl font-black mt-1 text-warning">{stats.warn}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="imutavel">
+        <TabsList className="bg-white p-1 h-10 shadow-sm border border-border/50 mb-4">
+          <TabsTrigger value="imutavel" className="gap-2"><Activity className="h-4 w-4" /> Auditoria Imutável</TabsTrigger>
+          <TabsTrigger value="qr_codes" className="gap-2"><QrCode className="h-4 w-4" /> Falhas QR Code</TabsTrigger>
+        </TabsList>
 
-      <Card className="border-none shadow-sm">
-        <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" /> Trilha de Auditoria Imutável
-          </CardTitle>
-          <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Ação, email, entidade..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 w-64 h-9"
-              />
+        <TabsContent value="imutavel">
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <Card className="border-none shadow-sm">
+                <CardContent className="pt-6">
+                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Eventos (últimos 200)</p>
+                  <p className="text-2xl font-black mt-1">{stats.total}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-none shadow-sm">
+                <CardContent className="pt-6">
+                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Críticos</p>
+                  <p className="text-2xl font-black mt-1 text-destructive">{stats.critical}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-none shadow-sm">
+                <CardContent className="pt-6">
+                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Alertas</p>
+                  <p className="text-2xl font-black mt-1 text-warning">{stats.warn}</p>
+                </CardContent>
+              </Card>
             </div>
-            <Select value={sevFilter} onValueChange={setSevFilter}>
-              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas severidades</SelectItem>
-                <SelectItem value="CRITICAL">Crítico</SelectItem>
-                <SelectItem value="ERROR">Erro</SelectItem>
-                <SelectItem value="WARN">Alerta</SelectItem>
-                <SelectItem value="INFO">Info</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-            </Button>
+
+            <Card className="border-none shadow-sm">
+              <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" /> Trilha de Auditoria Imutável
+                </CardTitle>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Ação, email, entidade..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-9 w-64 h-9"
+                    />
+                  </div>
+                  <Select value={sevFilter} onValueChange={setSevFilter}>
+                    <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas severidades</SelectItem>
+                      <SelectItem value="CRITICAL">Crítico</SelectItem>
+                      <SelectItem value="ERROR">Erro</SelectItem>
+                      <SelectItem value="WARN">Alerta</SelectItem>
+                      <SelectItem value="INFO">Info</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
+                    <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="py-20 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
+                ) : rows.length === 0 ? (
+                  <div className="py-20 text-center text-muted-foreground">
+                    <Activity className="mx-auto h-12 w-12 opacity-20 mb-4" />
+                    <p className="text-sm">Nenhum evento registrado ainda.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="w-32">Quando</TableHead>
+                        <TableHead className="w-24">Sev.</TableHead>
+                        <TableHead>Ação</TableHead>
+                        <TableHead>Entidade</TableHead>
+                        <TableHead>Usuário</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((r) => {
+                        const sev = (r.severidade || "INFO").toUpperCase();
+                        const meta = SEV_META[sev] || SEV_META.DEFAULT;
+                        const Icon = meta.icon;
+                        return (
+                          <TableRow key={r.id} className="hover:bg-muted/30">
+                            <TableCell className="text-xs font-mono text-muted-foreground">
+                              {format(new Date(r.created_at), "dd/MM HH:mm:ss")}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={cn("text-[10px] font-bold", meta.cls)}>
+                                <Icon className="h-2.5 w-2.5 mr-1" /> {sev}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs font-bold">{r.acao}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{r.entidade || "—"}</TableCell>
+                            <TableCell className="text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <User className="h-3 w-3 text-muted-foreground" />
+                                {r.user_email || r.user_id?.slice(0, 8) || "sistema"}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="py-20 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
-          ) : rows.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground">
-              <Activity className="mx-auto h-12 w-12 opacity-20 mb-4" />
-              <p className="text-sm">Nenhum evento registrado ainda.</p>
-              <p className="text-xs mt-1">Operações sensíveis no ERP irão popular esta trilha automaticamente.</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-32">Quando</TableHead>
-                  <TableHead className="w-24">Sev.</TableHead>
-                  <TableHead>Ação</TableHead>
-                  <TableHead>Entidade</TableHead>
-                  <TableHead>Usuário</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => {
-                  const sev = (r.severidade || "INFO").toUpperCase();
-                  const meta = SEV_META[sev] || SEV_META.DEFAULT;
-                  const Icon = meta.icon;
-                  return (
-                    <TableRow key={r.id} className="hover:bg-muted/30">
-                      <TableCell className="text-xs font-mono text-muted-foreground">
-                        {format(new Date(r.created_at), "dd/MM HH:mm:ss")}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px] font-bold", meta.cls)}>
-                          <Icon className="h-2.5 w-2.5 mr-1" /> {sev}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs font-bold">{r.acao}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.entidade || "—"}</TableCell>
-                      <TableCell className="text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <User className="h-3 w-3 text-muted-foreground" />
-                          {r.user_email || r.user_id?.slice(0, 8) || "sistema"}
-                        </div>
-                      </TableCell>
+        </TabsContent>
+
+        <TabsContent value="qr_codes">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <QrCode className="h-5 w-5 text-primary" /> Falhas de Consulta de QR Code
+              </CardTitle>
+              <div className="flex gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Filtrar por CID ou Lote..."
+                    value={qrSearch}
+                    onChange={(e) => setQrSearch(e.target.value)}
+                    className="pl-9 w-64 h-9"
+                  />
+                </div>
+                <Button size="sm" variant="outline" onClick={exportQrLogs}>
+                  Exportar CSV
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {qrLoading ? (
+                <div className="py-20 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
+              ) : (qrLogs || []).length === 0 ? (
+                <div className="py-20 text-center text-muted-foreground">
+                  <p>Nenhuma falha de QR Code registrada.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Tenant (CID)</TableHead>
+                      <TableHead>Lote/Hash</TableHead>
+                      <TableHead>Erro</TableHead>
+                      <TableHead>IP/UserAgent</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {(qrLogs || [])
+                      .filter(l => {
+                        const payload = l.payload as any;
+                        const match = `${l.company_id} ${payload?.hash}`.toLowerCase();
+                        return match.includes(qrSearch.toLowerCase());
+                      })
+                      .map((l) => {
+                        const payload = l.payload as any;
+                        return (
+                          <TableRow key={l.id}>
+                            <TableCell className="text-xs">
+                              {format(new Date(l.created_at), "dd/MM/yyyy HH:mm:ss")}
+                            </TableCell>
+                            <TableCell className="text-xs font-bold">{l.company_id || 'Global'}</TableCell>
+                            <TableCell className="text-xs font-mono">{payload?.hash}</TableCell>
+                            <TableCell className="text-xs text-destructive">{payload?.error}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]" title={payload?.userAgent}>
+                              {payload?.userAgent}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
