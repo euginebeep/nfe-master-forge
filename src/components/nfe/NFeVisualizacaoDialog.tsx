@@ -1312,7 +1312,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
             <Field label="Inscrição Municipal" value={emit?.im || '—'} />
             <Field label="CNAE" value={emit?.cnae || '—'} />
             <Field label="CRT" value={emit?.crt || '-'} />
-            <Field label="Logradouro" value={emit?.endereco ? `${emit.endereco.logradouro}, ${emit.nro}${emit.endereco.complemento ? ` ${emit.endereco.complemento}` : ''}` : '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
+            <Field label="Logradouro" value={emit?.endereco ? `${emit.endereco.logradouro}, ${emit.endereco.nro}${emit.endereco.complemento ? ` ${emit.endereco.complemento}` : ''}` : '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Bairro" value={emit?.endereco?.bairro || '—'} />
             <Field label="Município/UF" value={emit?.endereco ? `${emit.endereco.cidade}/${emit.endereco.uf}` : '—'} />
             <Field label="CEP" value={emit?.endereco?.cep ? formatCEP(emit.endereco.cep) : '—'} />
