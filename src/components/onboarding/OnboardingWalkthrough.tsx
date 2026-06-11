@@ -45,7 +45,7 @@ const PASSOS = [
     titulo: '4. Responsável Técnico assina',
     descricao:
       'Após finalizar a produção, o Responsável Técnico (nutricionista ou farmacêutico) assina digitalmente a OP. Isso libera o lote de QUARENTENA para DISPONÍVEL no estoque.',
-    rota: '/responsaveis-tecnicos',
+    rota: '/cadastros/responsaveis-tecnicos',
     destaque: 'Menu "Responsáveis Técnicos" no sidebar',
   },
   {
@@ -61,7 +61,7 @@ const PASSOS = [
     titulo: '6. Controle de Qualidade e BPF',
     descricao:
       'Em Qualidade você registra desvios, acessa os checklists BPF e os POPs. Desvios CRÍTICOS bloqueiam automaticamente a OP vinculada.',
-    rota: '/qualidade',
+    rota: '/qualidade/desvios',
     destaque: 'Menu "Qualidade" no sidebar',
   },
   {
