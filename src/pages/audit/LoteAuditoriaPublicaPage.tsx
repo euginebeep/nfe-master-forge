@@ -22,25 +22,24 @@ export default function LoteAuditoriaPublicaPage() {
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
       
+      // Busca simplificada para evitar recursão de tipos (Excessive deep instantiation)
       const fetchLoteFornecedor = async () => {
         let q = supabase
           .from('estoque_lotes')
-          .select(`
-            *,
-            item:itens (*),
-            fornecedor:entidades (*),
-            lote_documentos (*, arquivo:arquivos(*))
-          `)
+          .select('*, item:itens(*), fornecedor:entidades(*), lote_documentos(*, arquivo:arquivos(*))')
           .eq('id', hash);
         if (tenantId) q = q.eq('company_id', tenantId);
-        return await q.maybeSingle();
+        const { data, error } = await q.maybeSingle();
+        return data;
       };
 
-      const { data: lf } = await fetchLoteFornecedor();
+      const lf = await fetchLoteFornecedor();
 
       if (lf) {
         return {
-          ...lf,
+          id: lf.id,
+          status: lf.status,
+          numero_lote: lf.numero_lote,
           tipo_lote: 'FORNECEDOR',
           produto_nome: (lf.item as any)?.descricao_interna || 'Insumo',
           produto_codigo: (lf.item as any)?.sku_interno || '',
@@ -48,6 +47,8 @@ export default function LoteAuditoriaPublicaPage() {
           data_validade: lf.data_val,
           quantidade_produzida: lf.quantidade_original,
           unidade: lf.unidade_original,
+          fornecedor: lf.fornecedor,
+          lote_documentos: lf.lote_documentos,
           qr_code_hash: hash,
         };
       }
@@ -58,7 +59,8 @@ export default function LoteAuditoriaPublicaPage() {
           .select('*')
           .eq('qr_code_hash', hash);
         if (tenantId) q = q.eq('company_id', tenantId);
-        return await q.maybeSingle();
+        const { data, error } = await q.maybeSingle();
+        return { data, error };
       };
 
       const { data: la, error: errA } = await fetchLoteAcabado();
@@ -99,7 +101,7 @@ export default function LoteAuditoriaPublicaPage() {
             <AlertTriangle className="w-12 h-12 mx-auto text-destructive mb-4" />
             <h1 className="text-xl font-bold mb-2">Lote Não Encontrado</h1>
             <p className="text-muted-foreground">
-              O QR Code escaneado não corresponde a nenhum lote registrado.
+              O QR Code escaneado não corresponde a nenhum lote registrado para esta empresa.
             </p>
           </CardContent>
         </Card>
@@ -130,7 +132,6 @@ export default function LoteAuditoriaPublicaPage() {
               <p className="text-sm opacity-80">BrainX ERP — Auditoria Pública</p>
             </div>
           </div>
-          {/* Selo de verificação animado */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -146,7 +147,6 @@ export default function LoteAuditoriaPublicaPage() {
       </div>
 
       <div className="max-w-3xl mx-auto p-4 space-y-6">
-        {/* Status + QR Code */}
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -169,7 +169,6 @@ export default function LoteAuditoriaPublicaPage() {
           </CardContent>
         </Card>
 
-        {/* Produto */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -202,7 +201,6 @@ export default function LoteAuditoriaPublicaPage() {
           </CardContent>
         </Card>
 
-        {/* Origem / Fornecedor ou RT */}
         <Card className="border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -238,7 +236,6 @@ export default function LoteAuditoriaPublicaPage() {
           </CardContent>
         </Card>
 
-        {/* Matérias-Primas (Só para produto acabado) */}
         {lote.tipo_lote === 'ACABADO' && lote.materias_primas && lote.materias_primas.length > 0 && (
           <Card>
             <CardHeader>
@@ -265,7 +262,6 @@ export default function LoteAuditoriaPublicaPage() {
           </Card>
         )}
 
-        {/* Documentação Técnica (Só para fornecedor por enquanto) */}
         {lote.tipo_lote === 'FORNECEDOR' && lote.lote_documentos && lote.lote_documentos.length > 0 && (
           <Card>
             <CardHeader>
@@ -294,7 +290,6 @@ export default function LoteAuditoriaPublicaPage() {
           </Card>
         )}
 
-        {/* Histórico/Audit Trail (Se houver) */}
         {lote.audit_trail && lote.audit_trail.length > 0 && (
           <Card>
             <CardHeader>
@@ -328,7 +323,6 @@ export default function LoteAuditoriaPublicaPage() {
           </Card>
         )}
 
-        {/* Declaração Legal */}
         <Card className="bg-muted/30">
           <CardContent className="p-6">
             <div className="flex items-start gap-3">
@@ -345,7 +339,6 @@ export default function LoteAuditoriaPublicaPage() {
           </CardContent>
         </Card>
 
-        {/* QR Code de Fundo */}
         <div className="flex flex-col items-center py-4 gap-4">
           <QRCodeAuditoria
             tipo={lote.tipo_lote === 'FORNECEDOR' ? "LOTE_MP" : "PRODUTO_ACABADO"}
