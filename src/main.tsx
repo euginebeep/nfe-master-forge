@@ -22,12 +22,24 @@ const isPreviewHost =
 
 if (isInIframe || isPreviewHost) {
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((r) => r.unregister());
-    });
-    if (typeof caches !== "undefined") {
-      caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
-    }
+    const hadController = !!navigator.serviceWorker.controller;
+    Promise.all([
+      navigator.serviceWorker.getRegistrations().then((regs) =>
+        Promise.all(regs.map((r) => r.unregister())),
+      ),
+      typeof caches !== "undefined"
+        ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        : Promise.resolve(),
+    ])
+      .then(() => {
+        // Se a página atual ainda estava sendo controlada por um SW antigo,
+        // recarrega UMA vez para descolar da HTML cacheada antiga.
+        if (hadController && !sessionStorage.getItem("brainx_preview_sw_purged")) {
+          sessionStorage.setItem("brainx_preview_sw_purged", "1");
+          window.location.reload();
+        }
+      })
+      .catch(() => {});
   }
 } else {
   // Produção: registra o SW novo e força reload imediato em TODAS as abas
