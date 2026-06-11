@@ -22,10 +22,11 @@ export default function LoteAuditoriaPublicaPage() {
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
       
+      // Prioriza busca pelo ID (UUID) que agora é o padrão para QR Codes de fornecedor
       const { data: lf } = await supabase
         .from('estoque_lotes')
         .select('*, item:itens(*), fornecedor:entidades(*), lote_documentos(*, arquivo:arquivos(*))')
-        .eq('id', hash)
+        .or(`id.eq."${hash}",qr_code_hash.eq."${hash}"`) // Aceita tanto ID quanto Hash antigo
         .maybeSingle();
 
       if (lf) {
@@ -42,7 +43,7 @@ export default function LoteAuditoriaPublicaPage() {
           unidade: lf.unidade_original,
           fornecedor: lf.fornecedor,
           lote_documentos: lf.lote_documentos,
-          qr_code_hash: hash,
+          qr_code_hash: lf.qr_code_hash || lf.id,
           company_id: (lf as any).company_id
         };
       }
@@ -50,7 +51,7 @@ export default function LoteAuditoriaPublicaPage() {
       const { data: la } = await supabase
         .from('lotes_produto_acabado')
         .select('*')
-        .eq('qr_code_hash', hash)
+        .or(`id.eq."${hash}",qr_code_hash.eq."${hash}"`)
         .maybeSingle();
 
       if (!la) throw new Error('Lote não encontrado');
