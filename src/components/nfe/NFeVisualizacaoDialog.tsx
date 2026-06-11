@@ -776,35 +776,34 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
         {/* Tabs */}
         <Tabs defaultValue="danfe" className="flex flex-col flex-1 min-h-0">
           <div className="border-b px-2 sm:px-5">
-            <ScrollArea className="w-full">
+            <ScrollArea className="w-full" orientation="horizontal">
               <TabsList className="bg-transparent h-auto p-0 gap-0 flex justify-start whitespace-nowrap">
                 <TabsTrigger value="danfe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
                   <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">DANFE</span><span className="xs:hidden">DNF</span>
                 </TabsTrigger>
-                <FileText className="h-4 w-4 mr-2" /> DANFE
-              </TabsTrigger>
-              <TabsTrigger value="dados" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Info className="h-4 w-4 mr-2" /> Dados Gerais
-              </TabsTrigger>
-              <TabsTrigger value="produtos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Package className="h-4 w-4 mr-2" /> Produtos ({xmlData?.itensDetalhados?.length || itens.length})
-              </TabsTrigger>
-              <TabsTrigger value="impostos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Calculator className="h-4 w-4 mr-2" /> Impostos
-              </TabsTrigger>
-              <TabsTrigger value="transporte" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Truck className="h-4 w-4 mr-2" /> Transporte
-              </TabsTrigger>
-              <TabsTrigger value="pagamento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <CreditCard className="h-4 w-4 mr-2" /> Pagamento
-              </TabsTrigger>
-              <TabsTrigger value="duplicatas" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Calendar className="h-4 w-4 mr-2" /> Duplicatas
-              </TabsTrigger>
-              <TabsTrigger value="xml" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Code className="h-4 w-4 mr-2" /> XML Bruto
-              </TabsTrigger>
-            </TabsList>
+                <TabsTrigger value="dados" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Info className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Dados Gerais</span><span className="xs:hidden">DDS</span>
+                </TabsTrigger>
+                <TabsTrigger value="produtos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Package className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Produtos</span><span className="xs:hidden">PRD</span> ({xmlData?.itensDetalhados?.length || itens.length})
+                </TabsTrigger>
+                <TabsTrigger value="impostos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Calculator className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Impostos</span><span className="xs:hidden">IMP</span>
+                </TabsTrigger>
+                <TabsTrigger value="transporte" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Truck className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Transporte</span><span className="xs:hidden">TRA</span>
+                </TabsTrigger>
+                <TabsTrigger value="pagamento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Pagamento</span><span className="xs:hidden">PAG</span>
+                </TabsTrigger>
+                <TabsTrigger value="duplicatas" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Duplicatas</span><span className="xs:hidden">DUP</span>
+                </TabsTrigger>
+                <TabsTrigger value="xml" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Code className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">XML Bruto</span><span className="xs:hidden">XML</span>
+                </TabsTrigger>
+              </TabsList>
+            </ScrollArea>
           </div>
 
           <ScrollArea className="flex-1 max-h-[calc(95vh-220px)]">
