@@ -395,10 +395,10 @@ export function AppSidebar() {
                                   className={cn(
                                     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/item",
                                     isActive(item.url)
-                                      ? (item as any).danger
+                                      ? item.danger
                                         ? "bg-red-500/20 text-red-400 shadow-lg shadow-red-500/10 font-bold"
                                         : "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20 font-semibold"
-                                      : (item as any).danger
+                                      : item.danger
                                         ? "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
                                         : "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
                                   )}>
@@ -406,8 +406,8 @@ export function AppSidebar() {
                                     <item.icon className={cn(
                                       "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
                                       isActive(item.url) 
-                                        ? (item as any).danger ? "text-red-400" : "text-secondary-foreground" 
-                                        : (item as any).danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/item:text-sidebar-foreground/80"
+                                        ? item.danger ? "text-red-400" : "text-secondary-foreground" 
+                                        : item.danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/item:text-sidebar-foreground/80"
                                     )} />
                                     {!collapsed &&
                                   <span className="flex-1 text-[13px] font-medium leading-tight">{item.title}</span>
