@@ -43,7 +43,7 @@ export default function LoteAuditoriaPublicaPage() {
           unidade: lf.unidade_original,
           fornecedor: lf.fornecedor,
           lote_documentos: lf.lote_documentos,
-          qr_code_hash: lf.qr_code_hash || lf.id,
+          qr_code_hash: (lf as any).qr_code_hash || lf.id,
           company_id: (lf as any).company_id
         };
       }
