@@ -34,6 +34,7 @@ import {
   Code,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
 // ====================================================
@@ -734,109 +735,115 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] max-h-[98vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] w-full max-h-[98vh] p-0 gap-0 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-5 border-b">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              <button onClick={() => onOpenChange(false)} className="mt-1 text-muted-foreground hover:text-foreground">
+        <div className="p-4 sm:p-5 border-b shrink-0 bg-background">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <button onClick={() => onOpenChange(false)} className="mt-1 text-muted-foreground hover:text-foreground shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold">NF-e Nº {nota.numero || '-'}</h2>
-                  <span className="text-muted-foreground">Série {nota.serie || '1'}</span>
-                  <Badge variant={statusInfo.variant} className={statusInfo.variant === 'default' ? 'bg-green-600 hover:bg-green-700' : ''}>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <h2 className="text-lg sm:text-xl font-bold truncate">NF-e Nº {nota.numero || '-'}</h2>
+                  <span className="text-sm sm:text-base text-muted-foreground shrink-0">Série {nota.serie || '1'}</span>
+                  <Badge variant={statusInfo.variant} className={cn("shrink-0", statusInfo.variant === 'default' ? 'bg-green-600 hover:bg-green-700' : '')}>
                     {statusInfo.label}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate max-w-full" title={`${formatDate(nota.dh_emissao || '')} · ${emitenteNome}`}>
                   Emissão: {formatDate(nota.dh_emissao || '')} · {emitenteNome}
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleDownloadDANFE}>
-              <FileDown className="h-4 w-4 mr-2" />
-              Baixar DANFE
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto shrink-0">
+              <Button onClick={handleDownloadDANFE} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                <FileDown className="h-4 w-4 mr-2" />
+                <span className="inline">DANFE</span>
+              </Button>
+            </div>
           </div>
 
           {/* Chave de acesso */}
-          <div className="mt-4 bg-muted/50 border rounded-lg px-4 py-2.5">
-            <span className="text-sm text-muted-foreground">Chave de Acesso: </span>
-            <span className="text-sm font-mono">{formatChave(nota.chave_nfe)}</span>
+          <div className="mt-4 bg-muted/50 border rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <span className="text-[10px] sm:text-sm text-muted-foreground uppercase sm:normal-case font-semibold sm:font-normal">Chave de Acesso:</span>
+              <span className="text-[11px] sm:text-sm font-mono break-all sm:break-normal select-all">{formatChave(nota.chave_nfe)}</span>
+            </div>
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="danfe" className="flex flex-col flex-1 min-h-0">
-          <div className="border-b px-5">
-            <TabsList className="bg-transparent h-auto p-0 gap-0">
-              <TabsTrigger value="danfe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <FileText className="h-4 w-4 mr-2" /> DANFE
-              </TabsTrigger>
-              <TabsTrigger value="dados" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Info className="h-4 w-4 mr-2" /> Dados Gerais
-              </TabsTrigger>
-              <TabsTrigger value="produtos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Package className="h-4 w-4 mr-2" /> Produtos ({xmlData?.itensDetalhados?.length || itens.length})
-              </TabsTrigger>
-              <TabsTrigger value="impostos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Calculator className="h-4 w-4 mr-2" /> Impostos
-              </TabsTrigger>
-              <TabsTrigger value="transporte" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Truck className="h-4 w-4 mr-2" /> Transporte
-              </TabsTrigger>
-              <TabsTrigger value="pagamento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <CreditCard className="h-4 w-4 mr-2" /> Pagamento
-              </TabsTrigger>
-              <TabsTrigger value="duplicatas" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Calendar className="h-4 w-4 mr-2" /> Duplicatas
-              </TabsTrigger>
-              <TabsTrigger value="xml" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
-                <Code className="h-4 w-4 mr-2" /> XML Bruto
-              </TabsTrigger>
-            </TabsList>
+          <div className="border-b px-2 sm:px-5">
+            <ScrollArea className="w-full">
+              <TabsList className="bg-transparent h-auto p-0 gap-0 flex justify-start whitespace-nowrap">
+                <TabsTrigger value="danfe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">DANFE</span><span className="xs:hidden">DNF</span>
+                </TabsTrigger>
+                <TabsTrigger value="dados" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Info className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Dados Gerais</span><span className="xs:hidden">DDS</span>
+                </TabsTrigger>
+                <TabsTrigger value="produtos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Package className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Produtos</span><span className="xs:hidden">PRD</span> ({xmlData?.itensDetalhados?.length || itens.length})
+                </TabsTrigger>
+                <TabsTrigger value="impostos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Calculator className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Impostos</span><span className="xs:hidden">IMP</span>
+                </TabsTrigger>
+                <TabsTrigger value="transporte" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Truck className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Transporte</span><span className="xs:hidden">TRA</span>
+                </TabsTrigger>
+                <TabsTrigger value="pagamento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Pagamento</span><span className="xs:hidden">PAG</span>
+                </TabsTrigger>
+                <TabsTrigger value="duplicatas" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Duplicatas</span><span className="xs:hidden">DUP</span>
+                </TabsTrigger>
+                <TabsTrigger value="xml" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
+                  <Code className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">XML Bruto</span><span className="xs:hidden">XML</span>
+                </TabsTrigger>
+              </TabsList>
+            </ScrollArea>
           </div>
 
-          <ScrollArea className="flex-1 max-h-[calc(95vh-220px)]">
+          <ScrollArea className="flex-1 max-h-[calc(98vh-180px)]">
             {/* DANFE Tab */}
-            <TabsContent value="danfe" className="mt-0 p-6">
+            <TabsContent value="danfe" className="mt-0 p-3 sm:p-6">
               <TabDANFE nota={nota} xmlData={xmlData} itens={itens} />
             </TabsContent>
 
             {/* Dados Gerais */}
-            <TabsContent value="dados" className="mt-0 p-6">
+            <TabsContent value="dados" className="mt-0 p-3 sm:p-6">
               <TabDadosGerais nota={nota} xmlData={xmlData} />
             </TabsContent>
 
             {/* Produtos */}
-            <TabsContent value="produtos" className="mt-0 p-6">
+            <TabsContent value="produtos" className="mt-0 p-3 sm:p-6">
               <TabProdutos xmlData={xmlData} itens={itens} />
             </TabsContent>
 
             {/* Impostos */}
-            <TabsContent value="impostos" className="mt-0 p-6">
+            <TabsContent value="impostos" className="mt-0 p-3 sm:p-6">
               <TabImpostos xmlData={xmlData} nota={nota} />
             </TabsContent>
 
             {/* Transporte */}
-            <TabsContent value="transporte" className="mt-0 p-6">
+            <TabsContent value="transporte" className="mt-0 p-3 sm:p-6">
               <TabTransporte xmlData={xmlData} />
             </TabsContent>
 
             {/* Pagamento */}
-            <TabsContent value="pagamento" className="mt-0 p-6">
+            <TabsContent value="pagamento" className="mt-0 p-3 sm:p-6">
               <TabPagamento xmlData={xmlData} />
             </TabsContent>
 
             {/* Duplicatas */}
-            <TabsContent value="duplicatas" className="mt-0 p-6">
+            <TabsContent value="duplicatas" className="mt-0 p-3 sm:p-6">
               <TabDuplicatas xmlData={xmlData} />
             </TabsContent>
 
             {/* XML Bruto */}
-            <TabsContent value="xml" className="mt-0 p-6">
+            <TabsContent value="xml" className="mt-0 p-3 sm:p-6">
               <TabXMLBruto xmlRaw={nota.xml_raw} />
             </TabsContent>
           </ScrollArea>
@@ -1264,14 +1271,14 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
   const rt = xmlData?.respTec;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Row 1: Identificação + Protocolo SEFAZ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<FileText className="h-4 w-4" />} title="Identificação da NF-e">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
             <Field label="Número" value={nota.numero || '-'} bold />
             <Field label="Série" value={nota.serie || '-'} bold />
-            <Field label="Natureza da Operação" value={ide?.naturezaOperacao || '-'} />
+            <Field label="Natureza da Operação" value={ide?.naturezaOperacao || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Tipo de NF-e" value={ide?.tipoOperacao || '-'} />
             <Field label="Finalidade" value={ide?.finalidade || '-'} />
             <Field label="Destino" value={ide?.idDest || '-'} />
@@ -1285,10 +1292,10 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
         </CardSection>
 
         <CardSection icon={<Hash className="h-4 w-4" />} title="Protocolo SEFAZ">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Field label="Número do Protocolo" value={prot?.nProt || ide?.protocolo || '-'} bold />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
+            <Field label="Número do Protocolo" value={prot?.nProt || ide?.protocolo || '-'} bold className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Status" value={prot?.cStat || '-'} />
-            <Field label="Motivo" value={prot?.xMotivo || '-'} />
+            <Field label="Motivo" value={prot?.xMotivo || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Data/Hora Recebimento" value={prot?.dhRecbto ? formatDate(prot.dhRecbto) : ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '-'} />
             <Field label="Versão Aplicativo" value={prot?.verAplic || '-'} />
             <Field label="Ambiente" value={prot?.ambiente || ide?.ambiente || '-'} />
@@ -1297,17 +1304,17 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       </div>
 
       {/* Row 2: Emitente + Destinatário */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Emitente">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} />
-            <Field label="Nome Fantasia" value={emit?.nomeFantasia || '-'} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
+            <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
+            <Field label="Nome Fantasia" value={emit?.nomeFantasia || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="CNPJ/CPF" value={emit?.cnpj ? formatCNPJ(emit.cnpj) : '-'} />
             <Field label="Inscrição Estadual" value={emit?.ie || '-'} />
             <Field label="Inscrição Municipal" value={emit?.im || '—'} />
             <Field label="CNAE" value={emit?.cnae || '—'} />
             <Field label="CRT" value={emit?.crt || '-'} />
-            <Field label="Logradouro" value={emit?.endereco ? `${emit.endereco.logradouro}, ${emit.endereco.nro}${emit.endereco.complemento ? ` ${emit.endereco.complemento}` : ''}` : '—'} />
+            <Field label="Logradouro" value={emit?.endereco ? `${emit.endereco.logradouro}, ${emit.endereco.nro || ''}${emit.endereco.complemento ? ` ${emit.endereco.complemento}` : ''}` : '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Bairro" value={emit?.endereco?.bairro || '—'} />
             <Field label="Município/UF" value={emit?.endereco ? `${emit.endereco.cidade}/${emit.endereco.uf}` : '—'} />
             <Field label="CEP" value={emit?.endereco?.cep ? formatCEP(emit.endereco.cep) : '—'} />
@@ -1317,14 +1324,14 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
 
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Destinatário">
           {dest ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <Field label="Razão Social / Nome" value={dest.razaoSocial} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
+              <Field label="Razão Social / Nome" value={dest.razaoSocial} className="col-span-2 sm:col-span-3 md:col-span-2" />
               <Field label="CNPJ/CPF" value={dest.cnpj ? formatCNPJ(dest.cnpj) : dest.cpf || '-'} />
               <Field label="Inscrição Estadual" value={dest.ie || '—'} />
-              <Field label="E-mail" value={dest.email || '—'} />
+              <Field label="E-mail" value={dest.email || '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
               {dest.endereco && (
                 <>
-                  <Field label="Logradouro" value={`${dest.endereco.logradouro}, ${dest.endereco.nro}${dest.endereco.complemento ? ` ${dest.endereco.complemento}` : ''}`} />
+                  <Field label="Logradouro" value={`${dest.endereco.logradouro}, ${dest.endereco.nro || ''}${dest.endereco.complemento ? ` ${dest.endereco.complemento}` : ''}`} className="col-span-2 sm:col-span-3 md:col-span-2" />
                   <Field label="Bairro" value={dest.endereco.bairro} />
                   <Field label="Município/UF" value={`${dest.endereco.cidade}/${dest.endereco.uf}`} />
                   <Field label="CEP" value={formatCEP(dest.endereco.cep)} />
@@ -1337,7 +1344,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       </div>
 
       {/* Row 3: Informações Complementares + Responsável Técnico */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<Info className="h-4 w-4" />} title="Informações Complementares">
           {(xmlData?.infCpl || xmlData?.infAdFisco) ? (
             <div className="text-sm space-y-2">
@@ -1349,10 +1356,10 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
 
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Responsável Técnico">
           {rt ? (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
               <Field label="CNPJ" value={rt.cnpj ? formatCNPJ(rt.cnpj) : '—'} />
               <Field label="Contato" value={rt.xContato || '—'} />
-              <Field label="E-mail" value={rt.email || '—'} />
+              <Field label="E-mail" value={rt.email || '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
               <Field label="Telefone" value={rt.fone || '—'} />
             </div>
           ) : <p className="text-muted-foreground text-sm">Não informado no XML</p>}
@@ -1371,8 +1378,8 @@ function TabProdutos({ xmlData, itens }: { xmlData: XMLFullData | null; itens: N
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
+      <div className="border rounded-lg overflow-x-auto bg-card -mx-4 sm:mx-0">
+        <Table className="min-w-[800px]">
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-10">#</TableHead>
@@ -1455,7 +1462,7 @@ function TabImpostos({ xmlData, nota }: { xmlData: XMLFullData | null; nota: Not
   const produtos = xmlData?.itensDetalhados || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Totais gerais */}
       <Section title="Totais de Impostos">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -1479,9 +1486,9 @@ function TabImpostos({ xmlData, nota }: { xmlData: XMLFullData | null; nota: Not
 
       {/* Per-item taxes */}
       {produtos.length > 0 && (
-        <Section title="Impostos por Item">
-          <div className="border rounded-lg overflow-x-auto bg-card">
-            <Table>
+        <Section title="Impostos por Item" className="overflow-hidden">
+          <div className="border rounded-lg overflow-x-auto bg-card -mx-4 sm:mx-0">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow className="bg-muted/50 text-xs">
                   <TableHead>#</TableHead>
@@ -1757,20 +1764,27 @@ function CardSection({ icon, title, children }: { icon: React.ReactNode; title: 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{title}</h3>
-      {children}
+    <div className={`space-y-2 sm:space-y-3 ${className}`}>
+      <h3 className="text-[10px] sm:text-sm font-bold text-muted-foreground uppercase tracking-wide px-1">{title}</h3>
+      <div className="bg-card rounded-lg border p-3 sm:p-4 shadow-sm overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }
 
 function Field({ label, value, bold, className }: { label: string; value: string; bold?: boolean; className?: string }) {
   return (
-    <div className={`min-w-0 ${className || ''}`}>
-      <p className="text-xs text-muted-foreground truncate">{label}</p>
-      <p className={`text-sm break-words ${bold ? 'font-bold text-primary' : ''}`} title={value}>{value}</p>
+    <div className={`min-w-0 flex flex-col ${className || ''}`}>
+      <p className="text-[10px] sm:text-xs text-muted-foreground uppercase leading-tight truncate mb-0.5" title={label}>{label}</p>
+      <p className={cn(
+        "text-xs sm:text-sm break-words line-clamp-3 sm:line-clamp-none",
+        bold ? "font-bold text-foreground" : "text-foreground/90 font-medium"
+      )} title={String(value)}>
+        {value}
+      </p>
     </div>
   );
 }
