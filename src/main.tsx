@@ -42,36 +42,9 @@ if (isInIframe || isPreviewHost) {
       .catch(() => {});
   }
 } else {
-  // Produção: registra o SW novo e força reload imediato em TODAS as abas
-  // assim que detectar nova versão.
-  let reloading = false;
-  const reloadAllTabs = (reason: string) => {
-    if (reloading) return;
-    reloading = true;
-    try {
-      // Notifica outras abas abertas para recarregarem também
-      const bc = new BroadcastChannel("brainx-sw");
-      bc.postMessage({ type: "reload", reason, at: Date.now() });
-      bc.close();
-    } catch {}
-    window.location.reload();
-  };
-
-  // Reload quando um SW novo assume o controle (skipWaiting+clientsClaim)
-  navigator.serviceWorker?.addEventListener("controllerchange", () =>
-    reloadAllTabs("controllerchange"),
-  );
-
-  // Reload sincronizado entre abas
-  try {
-    const bc = new BroadcastChannel("brainx-sw");
-    bc.addEventListener("message", (e) => {
-      if (e.data?.type === "reload" && !reloading) {
-        reloading = true;
-        window.location.reload();
-      }
-    });
-  } catch {}
+  // Produção: NÃO recarregar automaticamente — isso apaga formulários abertos.
+  // Apenas avisa o usuário (toast discreto) quando houver nova versão; ele
+  // recarrega manualmente quando quiser.
 
   // Desregistra qualquer SW órfão que não seja o nosso (scopes antigos, etc.)
   navigator.serviceWorker?.getRegistrations().then((regs) => {
@@ -84,24 +57,30 @@ if (isInIframe || isPreviewHost) {
     });
   });
 
+  let notified = false;
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      // Aplica a nova versão imediatamente, sem prompt
-      updateSW(true);
+      if (notified) return;
+      notified = true;
+      // Aviso não-bloqueante. O usuário decide quando recarregar.
+      try {
+        toast("Nova versão disponível", {
+          description: "Recarregue quando puder para aplicar as atualizações.",
+          duration: Infinity,
+          action: {
+            label: "Recarregar agora",
+            onClick: () => updateSW(true),
+          },
+        });
+      } catch {}
     },
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
+      // Checagem leve a cada 10 minutos (em vez de 15s). Só dispara o toast,
+      // nunca recarrega sozinho.
       const checkUpdate = () => registration.update().catch(() => {});
-      // Polling agressivo (15s) — não depende de foco/troca de aba
-      setInterval(checkUpdate, 15 * 1000);
-      // Eventos adicionais que costumam disparar troca de versão
-      window.addEventListener("focus", checkUpdate);
-      window.addEventListener("online", checkUpdate);
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") checkUpdate();
-      });
-      // Checa logo após boot
+      setInterval(checkUpdate, 10 * 60 * 1000);
       checkUpdate();
     },
   });
