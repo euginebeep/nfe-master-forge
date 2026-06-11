@@ -586,8 +586,9 @@ export async function importarNFeCompletaSupabase(
         .single();
       
       if (notaItemError || !notaItem) {
-        console.error(`Erro ao salvar item ${itemIndex} da nota:`, notaItemError?.message);
-        continue;
+        throw new Error(
+          `Falha ao salvar item ${itemIndex + 1} (${itemData.item.descricao}) da nota: ${notaItemError?.message || 'desconhecido'}`
+        );
       }
       
       createdResources.push({ table: 'notas_entrada_itens', id: notaItem.id });
@@ -630,8 +631,9 @@ export async function importarNFeCompletaSupabase(
         } as any).select('id').single();
         
         if (loteError) {
-          console.error(`Erro ao criar lote para item ${itemIndex}:`, loteError.message);
-          continue;
+          throw new Error(
+            `Falha ao criar lote para o item ${itemIndex + 1} (${itemData.item.descricao}): ${loteError.message}`
+          );
         }
         
         if (lote) createdResources.push({ table: 'estoque_lotes', id: lote.id });
