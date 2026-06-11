@@ -75,6 +75,8 @@ interface MenuItem {
   modulo?: string;
   /** Se true, aparece apenas para admin */
   adminOnly?: boolean;
+  /** Se true, usa cores de destaque (vermelho claro) */
+  danger?: boolean;
 }
 
 interface MenuGroup {
@@ -111,7 +113,7 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
-  { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "estoque" },
+  { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "estoque", danger: true },
   { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos", modulo: "estoque" },
   { title: "Lotes Reservados", url: "/estoque/lotes-reservados", icon: Tag, tooltip: "Reserva de números oficiais de lote (SKU-AAMM-NNNN-D) com trava anti-clonagem", modulo: "estoque" },
   { title: "Movimentações", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque", modulo: "estoque" },
@@ -393,13 +395,19 @@ export function AppSidebar() {
                                   className={cn(
                                     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/item",
                                     isActive(item.url)
-                                      ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20 font-semibold"
-                                      : "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
+                                      ? item.danger
+                                        ? "bg-red-500/20 text-red-400 shadow-lg shadow-red-500/10 font-bold"
+                                        : "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20 font-semibold"
+                                      : item.danger
+                                        ? "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
+                                        : "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
                                   )}>
 
                                     <item.icon className={cn(
                                       "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
-                                      isActive(item.url) ? "text-secondary-foreground" : "text-sidebar-foreground/50 group-hover/item:text-sidebar-foreground/80"
+                                      isActive(item.url) 
+                                        ? item.danger ? "text-red-400" : "text-secondary-foreground" 
+                                        : item.danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/item:text-sidebar-foreground/80"
                                     )} />
                                     {!collapsed &&
                                   <span className="flex-1 text-[13px] font-medium leading-tight">{item.title}</span>
@@ -442,11 +450,11 @@ export function AppSidebar() {
                   <Link
                     to={to}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer text-sm",
                       danger
                         ? isActive(to)
-                          ? "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20"
-                          : "text-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                          ? "bg-red-500/20 text-red-400 shadow-lg shadow-red-500/10 font-bold"
+                          : "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
                         : isActive(to)
                           ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
@@ -455,8 +463,8 @@ export function AppSidebar() {
                     <Icon className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
                       isActive(to)
-                        ? (danger ? "text-destructive-foreground" : "text-secondary-foreground")
-                        : (danger ? "text-destructive/50" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80")
+                        ? (danger ? "text-red-400" : "text-secondary-foreground")
+                        : (danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80")
                     )} />
                     {!collapsed && <span className="flex-1 text-[13px] font-medium leading-tight">{label}</span>}
                   </Link>
