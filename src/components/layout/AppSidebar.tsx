@@ -220,7 +220,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { role, canView, isLoading, signOut } = useAuth();
+  const { role, profile, canView, isLoading, signOut } = useAuth();
 
   const isAdmin = role === 'admin';
 
@@ -339,7 +339,7 @@ export function AppSidebar() {
         <SidebarHeader className="border-b border-sidebar-border/50 bg-sidebar">
           <Link to="/dashboard" className="flex items-center gap-1 md:gap-3 px-2 md:px-4 pt-3 md:pt-5 pb-0.5 md:pb-1">
             <img
-              src={brainxLogo}
+              src={role === 'admin' && !profile?.is_demo ? brainxLogo : brainxLogo} // Placeholder for logo logic
               alt="BrainX ERP"
               className={cn(
                 "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200",
@@ -350,7 +350,9 @@ export function AppSidebar() {
             {!collapsed &&
             <div className="flex flex-col min-w-0">
                 <span className="font-bold text-base md:text-lg text-sidebar-foreground tracking-tight leading-tight truncate">BrainX ERP</span>
-                <span className="text-[10px] md:text-[11px] text-sidebar-foreground/50 font-medium tracking-wide">Industrial</span>
+                <span className="text-[10px] md:text-[11px] text-sidebar-foreground/50 font-medium tracking-wide">
+                  {profile?.is_demo ? 'Demonstração' : 'Industrial'}
+                </span>
               </div>
             }
           </Link>

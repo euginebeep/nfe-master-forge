@@ -111,6 +111,8 @@ export default function EmpresaSettingsPage() {
   // Load logo from Supabase storage when logo_file_id exists
   useEffect(() => {
     let isMounted = true;
+    
+    // Cleanup preview if no logo or if we're in demo mode and want to ensure a fresh fetch
     if (!supabaseCompany?.logo_file_id) {
       if (!logoPreview?.startsWith('data:')) {
         setLogoPreview(null);
