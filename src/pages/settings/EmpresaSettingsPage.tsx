@@ -128,10 +128,11 @@ export default function EmpresaSettingsPage() {
         if (dbError || !arquivo?.storage_key) {
           if (dbError) {
             await registrarAuditoria({
-              entidade: 'company',
+              tipo: 'ACAO_UI',
+              descricao: 'Erro ao buscar storage_key do logo',
+              entidade_tipo: 'company',
               entidade_id: supabaseCompany.id,
-              acao: 'ERRO_CARREGAR_LOGO',
-              payload: { error: dbError.message }
+              dados_evento: { error: dbError.message }
             });
           }
           if (isMounted) setLogoPreview(null);
@@ -144,10 +145,11 @@ export default function EmpresaSettingsPage() {
           
         if (storageError || !data?.signedUrl) {
           await registrarAuditoria({
-            entidade: 'company',
+            tipo: 'ACAO_UI',
+            descricao: 'Erro ao gerar signed URL para o logo',
+            entidade_tipo: 'company',
             entidade_id: supabaseCompany.id,
-            acao: 'ERRO_STORAGE_LOGO',
-            payload: { error: storageError?.message || 'URL não gerada' }
+            dados_evento: { error: storageError?.message || 'URL não gerada' }
           });
           if (isMounted) setLogoPreview(null);
           return;
