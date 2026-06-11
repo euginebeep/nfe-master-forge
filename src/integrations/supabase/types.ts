@@ -8386,23 +8386,35 @@ export type Database = {
         Args: { _item_id: string }
         Returns: undefined
       }
-      registrar_evento_auditoria: {
-        Args: {
-          p_dados_anteriores?: Json
-          p_dados_evento?: Json
-          p_dados_novos?: Json
-          p_descricao: string
-          p_entidade_codigo?: string
-          p_entidade_id: string
-          p_entidade_tipo: string
-          p_ip_address?: string
-          p_tipo_evento: Database["public"]["Enums"]["tipo_evento_auditoria"]
-          p_user_agent?: string
-          p_usuario_id?: string
-          p_usuario_nome?: string
-        }
-        Returns: string
-      }
+      registrar_evento_auditoria:
+        | {
+            Args: {
+              p_acao: string
+              p_company_id?: string
+              p_detalhes?: Json
+              p_entidade_id: string
+              p_entidade_tipo: string
+              p_resultado: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_dados_anteriores?: Json
+              p_dados_evento?: Json
+              p_dados_novos?: Json
+              p_descricao: string
+              p_entidade_codigo?: string
+              p_entidade_id: string
+              p_entidade_tipo: string
+              p_ip_address?: string
+              p_tipo_evento: Database["public"]["Enums"]["tipo_evento_auditoria"]
+              p_user_agent?: string
+              p_usuario_id?: string
+              p_usuario_nome?: string
+            }
+            Returns: string
+          }
       registrar_evento_nfe: {
         Args: {
           p_chave_acesso?: string
@@ -8460,6 +8472,10 @@ export type Database = {
         Returns: undefined
       }
       update_ultimo_acesso: { Args: { p_user_id: string }; Returns: undefined }
+      validar_acesso_nota_saida: {
+        Args: { p_nuvem_fiscal_id: string }
+        Returns: boolean
+      }
       validar_compatibilidade_rt: {
         Args: {
           p_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]
