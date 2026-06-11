@@ -1,7 +1,7 @@
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import brainxLogo from "@/assets/brainx-logo.png";
-import brainxLogoDemo from "@/assets/brainx-logo.png"; // We can use the same or a specific demo one if available
+import { LogoDemoERP } from "./LogoDemoERP";
 import {
   Building2,
   Users,
@@ -339,14 +339,11 @@ export function AppSidebar() {
 
         <SidebarHeader className="border-b border-sidebar-border/50 bg-sidebar">
           <Link to="/dashboard" className="flex items-center gap-1 md:gap-3 px-2 md:px-4 pt-3 md:pt-5 pb-0.5 md:pb-1">
-            <img
-              src={profile?.is_demo ? brainxLogoDemo : brainxLogo}
-              alt={profile?.is_demo ? "BrainX Demo" : "BrainX ERP"}
+            <LogoDemoERP
               className={cn(
-                "object-contain rounded-lg shadow-lg shadow-black/20 shrink-0 transition-all duration-200",
+                "shadow-lg shadow-black/20",
                 collapsed ? "w-[50px] h-[50px] md:w-[65px] md:h-[65px]" : "w-[64px] h-[64px] md:w-[87px] md:h-[87px] lg:w-[101px] lg:h-[101px]"
               )}
-              loading="lazy"
             />
             {!collapsed &&
             <div className="flex flex-col min-w-0">
