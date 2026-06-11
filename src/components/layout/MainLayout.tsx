@@ -9,6 +9,7 @@ import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
 import { BrainXERPAssistente } from "@/components/assistente/BrainXAssistente";
 import { OnboardingWalkthrough } from "@/components/onboarding/OnboardingWalkthrough";
 import { BannerContextual } from "@/components/ajuda/BannerContextual";
+import { CompanyPendingBanner } from "./CompanyPendingBanner";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -40,6 +41,7 @@ export function MainLayout() {
           >
             <div className="max-w-7xl mx-auto w-full">
               <CompanyRequiredGuard>
+                <CompanyPendingBanner />
                 <BannerContextual />
                 <Outlet />
               </CompanyRequiredGuard>
