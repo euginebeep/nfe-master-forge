@@ -91,8 +91,6 @@ export function OnboardingWalkthrough() {
 
   const avancar = () => {
     if (passo < PASSOS.length - 1) {
-      const proximo = PASSOS[passo + 1];
-      if (proximo.rota) navigate(proximo.rota);
       setPasso((p) => p + 1);
     } else {
       fechar();
@@ -101,8 +99,6 @@ export function OnboardingWalkthrough() {
 
   const voltar = () => {
     if (passo > 0) {
-      const anterior = PASSOS[passo - 1];
-      if (anterior.rota) navigate(anterior.rota);
       setPasso((p) => p - 1);
     }
   };
