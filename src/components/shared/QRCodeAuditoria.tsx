@@ -21,17 +21,20 @@ function getAuditUrl(tipo: TipoQR, id: string, hash: string, companyId?: string 
   const baseUrl = "https://www.brainxerp.com";
   const cidParam = companyId ? `?cid=${companyId}` : '';
   
+  // Sempre usa o ID para evitar quebras de hash se o algoritmo mudar
+  const identifier = tipo === 'LOTE_MP' ? id : hash;
+  
   switch (tipo) {
     case 'LOTE_MP':
-      return `${baseUrl}/audit/lote/${hash}${cidParam}`;
+      return `${baseUrl}/audit/lote/${identifier}${cidParam}`;
     case 'OP':
       return `${baseUrl}/op/verify/${id}${cidParam}`;
     case 'PRODUTO_ACABADO':
-      return `${baseUrl}/audit/lote/${hash}${cidParam}`;
+      return `${baseUrl}/audit/lote/${identifier}${cidParam}`;
     case 'FORMULA':
-      return `${baseUrl}/audit/formula/${hash}${cidParam}`;
+      return `${baseUrl}/audit/formula/${identifier}${cidParam}`;
     default:
-      return `${baseUrl}/audit/${hash}${cidParam}`;
+      return `${baseUrl}/audit/${identifier}${cidParam}`;
   }
 }
 

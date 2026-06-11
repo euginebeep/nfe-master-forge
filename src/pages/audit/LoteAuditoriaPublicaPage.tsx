@@ -22,10 +22,11 @@ export default function LoteAuditoriaPublicaPage() {
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
       
+      // Prioriza busca pelo ID (UUID) que agora é o padrão para QR Codes de fornecedor
       const { data: lf } = await supabase
         .from('estoque_lotes')
         .select('*, item:itens(*), fornecedor:entidades(*), lote_documentos(*, arquivo:arquivos(*))')
-        .eq('id', hash)
+        .or(`id.eq."${hash}",qr_code_hash.eq."${hash}"`) // Aceita tanto ID quanto Hash antigo
         .maybeSingle();
 
       if (lf) {
@@ -42,7 +43,7 @@ export default function LoteAuditoriaPublicaPage() {
           unidade: lf.unidade_original,
           fornecedor: lf.fornecedor,
           lote_documentos: lf.lote_documentos,
-          qr_code_hash: hash,
+          qr_code_hash: (lf as any).qr_code_hash || lf.id,
           company_id: (lf as any).company_id
         };
       }
@@ -50,7 +51,7 @@ export default function LoteAuditoriaPublicaPage() {
       const { data: la } = await supabase
         .from('lotes_produto_acabado')
         .select('*')
-        .eq('qr_code_hash', hash)
+        .or(`id.eq."${hash}",qr_code_hash.eq."${hash}"`)
         .maybeSingle();
 
       if (!la) throw new Error('Lote não encontrado');
@@ -95,7 +96,33 @@ export default function LoteAuditoriaPublicaPage() {
 
   const lote = loteData as any;
 
-  if (error || !lote || (tenantId && lote.company_id && lote.company_id !== tenantId)) {
+  // Log de falha se o lote não for encontrado ou se o tenantId não coincidir
+  const isInvalid = !isLoading && (error || !lote || (tenantId && lote.company_id && lote.company_id !== tenantId));
+
+  if (isInvalid) {
+    // Tenta registrar no log de auditoria se houver uma falha de consulta
+    const logFailure = async () => {
+      try {
+        await supabase.from('audit_log').insert({
+          acao: 'QR_CODE_NOT_FOUND',
+          entidade: 'QR_CODE_SCAN',
+          company_id: tenantId as any,
+          payload: {
+            hash,
+            tenant_scanned: tenantId,
+            error: error?.message || 'Lote não encontrado ou empresa divergente',
+            timestamp: new Date().toISOString(),
+            platform: navigator.platform,
+            userAgent: navigator.userAgent
+          }
+        });
+      } catch (err) {
+        console.error('Falha ao registrar log de auditoria:', err);
+      }
+    };
+
+    if (hash) logFailure();
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
