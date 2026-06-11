@@ -91,8 +91,8 @@ export default function EmpresaSettingsPage() {
         csc_token: supabaseCompany.csc_token || '',
       };
       setFormData(dbData);
-      // Also persist to localStorage for future use on this device
-      upsert(dbData);
+      // Also persist to localStorage for future use on this device - silent update
+      upsert(dbData, false);
       refresh();
     }
   }, [company, supabaseCompany]);
