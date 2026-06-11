@@ -178,9 +178,9 @@ export function useUsers() {
         body: data,
       });
 
-      // Prefer the specific error from the response body over the generic HTTP error
-      const errorMsg = response.data?.error || response.error?.message || 'Erro ao criar usuário';
-      if (response.error || response.data?.error) {
+      // supabase.functions.invoke stores the non-2xx body in response.error.context (a Response)
+      const errorMsg = await extractInvokeError(response, 'Erro ao criar usuário');
+      if (errorMsg) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }
@@ -213,9 +213,8 @@ export function useUsers() {
         body: data,
       });
 
-      // Prefer the specific error from the response body over the generic HTTP error
-      const errorMsg = response.data?.error || response.error?.message || 'Erro ao atualizar usuário';
-      if (response.error || response.data?.error) {
+      const errorMsg = await extractInvokeError(response, 'Erro ao atualizar usuário');
+      if (errorMsg) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }
@@ -248,8 +247,8 @@ export function useUsers() {
         body: { user_id: userId },
       });
 
-      const errorMsg = response.data?.error || response.error?.message || 'Erro ao excluir usuário';
-      if (response.error || response.data?.error) {
+      const errorMsg = await extractInvokeError(response, 'Erro ao excluir usuário');
+      if (errorMsg) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }
