@@ -86,7 +86,13 @@ export default function LotesListPage() {
       });
     }
 
-    return filtered;
+    // Flatten item fields so DataTable search can match by SKU/description
+    return filtered.map((l) => ({
+      ...l,
+      item_sku: (l as any).item?.sku_interno ?? "",
+      item_descricao: (l as any).item?.descricao_interna ?? "",
+      fornecedor_nome: (l as any).fornecedor?.razao_social ?? "",
+    }));
   }, [allLotes, statusFilter, notaFilter, fornecedorFilter, validadeFilter]);
 
   // Counts
@@ -344,8 +350,8 @@ export default function LotesListPage() {
         columns={columns}
         loading={isLoading}
         searchable
-        searchPlaceholder="Buscar por lote ou item..."
-        searchKeys={["numero_lote"]}
+        searchPlaceholder="Buscar por lote, SKU, insumo ou fornecedor..."
+        searchKeys={["numero_lote", "item_sku", "item_descricao", "fornecedor_nome"]}
         onRowClick={(item) => navigate(`/estoque/lotes/${item.id}`)}
         emptyMessage="Nenhum lote encontrado"
         actions={
