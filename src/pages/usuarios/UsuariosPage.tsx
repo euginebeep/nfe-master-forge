@@ -243,13 +243,40 @@ export default function UsuariosPage() {
         icon={Shield}
         actions={
           isAdmin && (
-            <Button className="bg-secondary hover:bg-secondary/90" onClick={handleNewUser}>
+            <Button
+              className="bg-secondary hover:bg-secondary/90"
+              onClick={handleNewUser}
+              disabled={!hasRealCompany}
+              title={!hasRealCompany ? 'Cadastre sua empresa primeiro' : undefined}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Novo Usuário
             </Button>
           )
         }
       />
+
+      {isAdmin && !hasRealCompany && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Cadastro da empresa pendente</AlertTitle>
+          <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span>
+              Para criar novos usuários é necessário concluir o cadastro da sua empresa
+              em <strong>Cadastros → Empresa</strong> (CNPJ, razão social e endereço).
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/settings/empresa')}
+              className="shrink-0"
+            >
+              <Building2 className="h-4 w-4 mr-2" />
+              Cadastrar empresa agora
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-3 gap-6 mb-6">
         <div className="col-span-2">
