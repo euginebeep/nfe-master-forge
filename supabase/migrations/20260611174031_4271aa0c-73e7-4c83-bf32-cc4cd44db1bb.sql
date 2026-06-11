@@ -1,0 +1,11 @@
+REVOKE EXECUTE ON FUNCTION public.nota_entrada_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.nota_saida_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.lote_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.item_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.entidade_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.formula_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.op_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.custo_op_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.orcamento_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.pedido_belongs_to_tenant(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_user_company_id() FROM anon;
