@@ -219,6 +219,15 @@ export function UserFormDialog({
   const parseErrorMessage = (rawError: string): { title: string; message: string; tip?: string } => {
     const msg = rawError.toLowerCase();
 
+    // Tratamento específico para erros comuns de Edge Functions
+    if (msg.includes('edge function returned a non-2xx status code')) {
+      return {
+        title: 'Erro de Processamento',
+        message: 'O servidor encontrou um problema ao processar sua solicitação.',
+        tip: 'Isso pode ser uma instabilidade temporária. Por favor, tente novamente em alguns instantes.',
+      };
+    }
+
     if (msg.includes('user already registered') || msg.includes('already been registered') || msg.includes('already exists')) {
       return {
         title: 'E-mail já cadastrado',
