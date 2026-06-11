@@ -51,7 +51,7 @@ export function exportToPDF(options: PDFReportOptions) {
     margin-bottom: 12px;
   }
   .report-header h1 { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
-  .report-header .logo { height: 40px; width: auto; object-contain: contain; margin-bottom: 4px; }
+  .report-header .logo { height: 45px; width: auto; object-fit: contain; margin-bottom: 6px; }
   .report-header .meta { text-align: right; font-size: 9px; color: #666; }
   .report-header .company { font-weight: 600; font-size: 11px; color: #333; }
   .subtitle { font-size: 11px; color: #555; margin-bottom: 10px; }

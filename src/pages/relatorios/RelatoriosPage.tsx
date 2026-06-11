@@ -199,7 +199,10 @@ export default function RelatoriosPage() {
           const { data: signed } = await supabase.storage
             .from("erp-files")
             .createSignedUrl(arquivo.storage_key, 3600);
-          logoUrl = signed?.signedUrl;
+          
+          if (signed?.signedUrl) {
+            logoUrl = `${signed.signedUrl}&v=${new Date().getTime()}`;
+          }
         }
       }
       
