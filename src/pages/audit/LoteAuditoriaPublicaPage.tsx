@@ -21,7 +21,7 @@ export default function LoteAuditoriaPublicaPage() {
       if (!hash) throw new Error('Hash não informado');
       
       // Tentar buscar em lotes de fornecedor primeiro (estoque_lotes)
-      const { data: loteFornecedor, error: errorFornecedor } = await supabase
+      const { data: loteFornecedor } = await supabase
         .from('estoque_lotes')
         .select(`
           *,
@@ -29,30 +29,31 @@ export default function LoteAuditoriaPublicaPage() {
           fornecedor:entidades (*),
           lote_documentos (*, arquivo:arquivos(*))
         `)
-        .eq('id', hash) // Usamos o ID do lote como hash para fornecedor
+        .eq('id', hash) 
         .maybeSingle();
 
       if (loteFornecedor) {
         return {
           ...loteFornecedor,
           tipo_lote: 'FORNECEDOR',
-          produto_nome: (loteFornecedor.item as any).descricao_interna,
-          produto_codigo: (loteFornecedor.item as any).sku_interno,
+          produto_nome: (loteFornecedor.item as any)?.descricao_interna || 'Insumo',
+          produto_codigo: (loteFornecedor.item as any)?.sku_interno || '',
           data_fabricacao: loteFornecedor.data_fab,
           data_validade: loteFornecedor.data_val,
           quantidade_produzida: loteFornecedor.quantidade_original,
           unidade: loteFornecedor.unidade_original,
+          qr_code_hash: hash, // For display logic
         };
       }
 
       // Se não achar, buscar em lotes de produto acabado
-      const { data, error } = await supabase
+      const { data, error: acabadoError } = await supabase
         .from('lotes_produto_acabado')
         .select('*')
         .eq('qr_code_hash', hash)
         .maybeSingle();
 
-      if (error || !data) throw new Error('Lote não encontrado');
+      if (acabadoError || !data) throw new Error('Lote não encontrado');
 
       const { data: materiasPrimas } = await supabase
         .from('lote_materias_primas')
@@ -79,6 +80,8 @@ export default function LoteAuditoriaPublicaPage() {
     );
   }
 
+  const lote = loteData as any;
+
   if (error || !lote) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -95,11 +98,12 @@ export default function LoteAuditoriaPublicaPage() {
     );
   }
 
-  const statusConfig: Record<string, { variant: 'warning' | 'success' | 'error'; icon: typeof CheckCircle2 }> = {
+  const statusConfig: Record<string, { variant: 'warning' | 'success' | 'error'; icon: any }> = {
     QUARENTENA: { variant: 'warning', icon: AlertTriangle },
     APROVADO: { variant: 'success', icon: CheckCircle2 },
     BLOQUEADO: { variant: 'error', icon: AlertTriangle },
     LIBERADO: { variant: 'success', icon: CheckCircle2 },
+    DISPONIVEL: { variant: 'success', icon: CheckCircle2 },
   };
 
   const status = statusConfig[lote.status] || statusConfig.QUARENTENA;
@@ -161,12 +165,12 @@ export default function LoteAuditoriaPublicaPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Package className="w-5 h-5" />
-              Produto
+              {lote.tipo_lote === 'FORNECEDOR' ? 'Insumo / Matéria-Prima' : 'Produto'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground">Nome do Produto</p>
+              <p className="text-sm text-muted-foreground">Nome</p>
               <p className="text-lg font-semibold">{lote.produto_nome}</p>
               {lote.produto_codigo && (
                 <p className="text-sm text-muted-foreground">Código: {lote.produto_codigo}</p>
@@ -175,21 +179,21 @@ export default function LoteAuditoriaPublicaPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Data de Fabricação</p>
-                <p className="font-medium">{format(new Date(lote.data_fabricacao), "dd/MM/yyyy", { locale: ptBR })}</p>
+                <p className="font-medium">{lote.data_fabricacao ? format(new Date(lote.data_fabricacao), "dd/MM/yyyy", { locale: ptBR }) : '—'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Data de Validade</p>
-                <p className="font-medium">{format(new Date(lote.data_validade), "dd/MM/yyyy", { locale: ptBR })}</p>
+                <p className="font-medium">{lote.data_validade ? format(new Date(lote.data_validade), "dd/MM/yyyy", { locale: ptBR }) : '—'}</p>
               </div>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Quantidade Produzida</p>
-              <p className="font-medium">{lote.quantidade_produzida} unidades</p>
+              <p className="text-sm text-muted-foreground">{lote.tipo_lote === 'FORNECEDOR' ? 'Quantidade Recebida' : 'Quantidade Produzida'}</p>
+              <p className="font-medium">{lote.quantidade_produzida} {lote.unidade || 'unidades'}</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* RT ou Fornecedor */}
+        {/* Origem / Fornecedor ou RT */}
         <Card className="border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -210,8 +214,8 @@ export default function LoteAuditoriaPublicaPage() {
             <div className="bg-primary/5 rounded-lg p-4">
               {lote.tipo_lote === 'FORNECEDOR' ? (
                 <>
-                  <p className="text-lg font-semibold">{lote.fornecedor?.razao_social}</p>
-                  <p className="text-muted-foreground">CNPJ: {lote.fornecedor?.documento}</p>
+                  <p className="text-lg font-semibold">{lote.fornecedor?.razao_social || 'Fornecedor não identificado'}</p>
+                  {lote.fornecedor?.documento && <p className="text-muted-foreground">CNPJ: {lote.fornecedor.documento}</p>}
                 </>
               ) : (
                 <>
@@ -225,13 +229,13 @@ export default function LoteAuditoriaPublicaPage() {
           </CardContent>
         </Card>
 
-        {/* Matérias-Primas */}
-        {lote.materias_primas && lote.materias_primas.length > 0 && (
+        {/* Matérias-Primas (Só para produto acabado) */}
+        {lote.tipo_lote === 'ACABADO' && lote.materias_primas && lote.materias_primas.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Beaker className="w-5 h-5" />
-                Matérias-Primas ({lote.materias_primas.length})
+                Composição do Lote ({lote.materias_primas.length} itens)
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -252,7 +256,7 @@ export default function LoteAuditoriaPublicaPage() {
           </Card>
         )}
 
-        {/* Timeline de Auditoria ou Documentos */}
+        {/* Documentação Técnica (Só para fornecedor por enquanto) */}
         {lote.tipo_lote === 'FORNECEDOR' && lote.lote_documentos && lote.lote_documentos.length > 0 && (
           <Card>
             <CardHeader>
@@ -270,7 +274,7 @@ export default function LoteAuditoriaPublicaPage() {
                       <div>
                         <p className="font-medium text-sm">{doc.arquivo_nome}</p>
                         <p className="text-xs text-muted-foreground">
-                          Status: <StatusBadge variant={doc.status_validacao === 'VALIDADO' ? 'success' : 'warning'}>{doc.status_validacao}</StatusBadge>
+                          Tipo: {doc.tipo_documento} | Status: <StatusBadge variant={doc.status_validacao === 'VALIDADO' ? 'success' : 'warning'}>{doc.status_validacao}</StatusBadge>
                         </p>
                       </div>
                     </div>
@@ -281,6 +285,7 @@ export default function LoteAuditoriaPublicaPage() {
           </Card>
         )}
 
+        {/* Histórico/Audit Trail (Se houver) */}
         {lote.audit_trail && lote.audit_trail.length > 0 && (
           <Card>
             <CardHeader>
@@ -322,16 +327,16 @@ export default function LoteAuditoriaPublicaPage() {
               <div>
                 <p className="font-semibold mb-2">Declaração de Conformidade</p>
                 <p className="text-sm text-muted-foreground">
-                  Este lote foi produzido sob responsabilidade técnica conforme legislação 
+                  Este lote foi processado sob responsabilidade técnica conforme legislação 
                   sanitária vigente (ANVISA). Todos os processos seguem as Boas Práticas 
-                  de Fabricação (BPF) e são auditáveis via hash SHA-256 encadeado.
+                  de Fabricação (BPF) e são auditáveis eletronicamente.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* QR Code + Hash */}
+        {/* QR Code de Fundo */}
         <div className="flex flex-col items-center py-4 gap-4">
           <QRCodeAuditoria
             tipo={lote.tipo_lote === 'FORNECEDOR' ? "LOTE_MP" : "PRODUTO_ACABADO"}
