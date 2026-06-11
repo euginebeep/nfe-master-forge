@@ -75,6 +75,8 @@ interface MenuItem {
   modulo?: string;
   /** Se true, aparece apenas para admin */
   adminOnly?: boolean;
+  /** Se true, usa cores de destaque (vermelho claro) */
+  danger?: boolean;
 }
 
 interface MenuGroup {
