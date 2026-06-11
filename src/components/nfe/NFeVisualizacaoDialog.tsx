@@ -734,7 +734,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] xl:max-w-[1100px] max-h-[95vh] p-0 gap-0">
+      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] max-h-[98vh] p-0 gap-0 overflow-hidden">
         {/* Header */}
         <div className="p-5 border-b">
           <div className="flex items-start justify-between">
@@ -1458,7 +1458,7 @@ function TabImpostos({ xmlData, nota }: { xmlData: XMLFullData | null; nota: Not
     <div className="space-y-6">
       {/* Totais gerais */}
       <Section title="Totais de Impostos">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           <Field label="Base Cálculo ICMS" value={formatCurrency(totais?.vBC || 0)} />
           <Field label="Valor ICMS" value={formatCurrency(totais?.vICMS || 0)} />
           <Field label="ICMS Desonerado" value={formatCurrency(totais?.vICMSDeson || 0)} />
@@ -1480,7 +1480,7 @@ function TabImpostos({ xmlData, nota }: { xmlData: XMLFullData | null; nota: Not
       {/* Per-item taxes */}
       {produtos.length > 0 && (
         <Section title="Impostos por Item">
-          <div className="border rounded-lg overflow-x-auto">
+          <div className="border rounded-lg overflow-x-auto bg-card">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 text-xs">
