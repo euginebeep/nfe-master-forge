@@ -960,18 +960,18 @@ export function ProdutoDetailPage() {
         <TabsContent value="lotes">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             {/* Alerta de Estoque Baixo */}
-            {lotes.length > 0 && (formData.estoque_minimo || 0) > 0 && (
+            {lotes.length > 0 && (item as any).estoque_minimo > 0 && (
               (() => {
                 const qtdDisponivel = lotes.filter(l => l.status === 'DISPONIVEL').reduce((sum, l) => sum + (l.quantidade_interna || 0), 0);
-                if (qtdDisponivel < (formData.estoque_minimo || 0)) {
+                if (qtdDisponivel < (item as any).estoque_minimo) {
                   return (
                     <Alert variant="destructive" className="mb-4">
                       <AlertTriangle className="h-4 w-4" />
                       <AlertTitle>Estoque abaixo do mínimo!</AlertTitle>
                       <AlertDescription>
                         Disponível: {qtdDisponivel.toLocaleString('pt-BR')} {item.unidade_interna} |
-                        Mínimo configurado: {formData.estoque_minimo} {item.unidade_interna} |
-                        Deficit: {(formData.estoque_minimo - qtdDisponivel).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {item.unidade_interna}
+                        Mínimo configurado: {(item as any).estoque_minimo} {item.unidade_interna} |
+                        Deficit: {((item as any).estoque_minimo - qtdDisponivel).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {item.unidade_interna}
                       </AlertDescription>
                     </Alert>
                   );
