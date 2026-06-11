@@ -2,7 +2,6 @@
 // Mostra um passo-a-passo contextual de cada módulo
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronRight, ChevronLeft, X, CheckCircle2 } from 'lucide-react';
@@ -45,7 +44,7 @@ const PASSOS = [
     titulo: '4. Responsável Técnico assina',
     descricao:
       'Após finalizar a produção, o Responsável Técnico (nutricionista ou farmacêutico) assina digitalmente a OP. Isso libera o lote de QUARENTENA para DISPONÍVEL no estoque.',
-    rota: '/responsaveis-tecnicos',
+    rota: '/cadastros/responsaveis-tecnicos',
     destaque: 'Menu "Responsáveis Técnicos" no sidebar',
   },
   {
@@ -61,7 +60,7 @@ const PASSOS = [
     titulo: '6. Controle de Qualidade e BPF',
     descricao:
       'Em Qualidade você registra desvios, acessa os checklists BPF e os POPs. Desvios CRÍTICOS bloqueiam automaticamente a OP vinculada.',
-    rota: '/qualidade',
+    rota: '/qualidade/desvios',
     destaque: 'Menu "Qualidade" no sidebar',
   },
   {
@@ -77,7 +76,6 @@ const PASSOS = [
 export function OnboardingWalkthrough() {
   const [ativo, setAtivo] = useState(false);
   const [passo, setPasso] = useState(0);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const visto = localStorage.getItem('brainx_onboarding_v1');
@@ -91,8 +89,6 @@ export function OnboardingWalkthrough() {
 
   const avancar = () => {
     if (passo < PASSOS.length - 1) {
-      const proximo = PASSOS[passo + 1];
-      if (proximo.rota) navigate(proximo.rota);
       setPasso((p) => p + 1);
     } else {
       fechar();
@@ -101,8 +97,6 @@ export function OnboardingWalkthrough() {
 
   const voltar = () => {
     if (passo > 0) {
-      const anterior = PASSOS[passo - 1];
-      if (anterior.rota) navigate(anterior.rota);
       setPasso((p) => p - 1);
     }
   };
