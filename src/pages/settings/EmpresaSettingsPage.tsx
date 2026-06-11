@@ -32,6 +32,7 @@ export default function EmpresaSettingsPage() {
   const { data: company, isLoading, refresh } = useLocalCompany();
   const { data: supabaseCompany } = useCompany();
   const upsertCompanyMutation = useUpsertCompany();
+  const [logoIsLoading, setLogoIsLoading] = useState(false);
   const { upsert } = useUpsertLocalCompany();
   const [formData, setFormData] = useState<Partial<LocalCompany>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -112,13 +113,16 @@ export default function EmpresaSettingsPage() {
   useEffect(() => {
     let isMounted = true;
     
-    // Cleanup preview if no logo or if we're in demo mode and want to ensure a fresh fetch
+    // Explicitly hide logo if database hasn't provided an ID yet
+    // This prevents showing stale/demo logos from localStorage
     if (!supabaseCompany?.logo_file_id) {
-      if (!logoPreview?.startsWith('data:')) {
+      if (!logoPreview?.startsWith('data:') && !logoIsLoading) {
         setLogoPreview(null);
       }
       return;
     }
+
+    setLogoIsLoading(true);
     const loadLogoFromStorage = async () => {
       try {
         const { data: arquivo, error: dbError } = await supabase
@@ -164,6 +168,8 @@ export default function EmpresaSettingsPage() {
         }
       } catch (err) {
         console.error("Erro fatal ao carregar logo:", err);
+      } finally {
+        if (isMounted) setLogoIsLoading(false);
       }
     };
     loadLogoFromStorage();
@@ -557,11 +563,14 @@ export default function EmpresaSettingsPage() {
               </div>
             </div>
 
-            {/* Logo Upload */}
             <div className="space-y-2">
               <Label>Logo da Empresa</Label>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                {logoPreview ? (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-h-[80px]">
+                {logoIsLoading ? (
+                  <div className="h-20 w-32 bg-muted animate-pulse rounded border flex items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : logoPreview ? (
                   <div className="relative group">
                     <img 
                       src={logoPreview} 
