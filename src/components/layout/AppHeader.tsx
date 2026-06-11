@@ -57,8 +57,8 @@ export function AppHeader() {
         </SidebarTrigger>
         <Link to="/dashboard" className="flex items-center gap-2 md:hidden" aria-label="BrainX ERP Home">
           <img
-            src={brainxLogo}
-            alt="BrainX ERP"
+            src={profile?.is_demo ? brainxLogo : brainxLogo}
+            alt={profile?.is_demo ? "BrainX Demo" : "BrainX ERP"}
             className="w-9 h-9 object-contain rounded"
             loading="lazy"
           />
