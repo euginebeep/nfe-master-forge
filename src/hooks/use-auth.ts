@@ -23,7 +23,11 @@ export function useAuth() {
   const signUp = async (email: string, password: string, fullName: string) => {
     const result = await ctx.signUp(email, password, fullName);
     if (result.error) {
-      toast.error(result.error.message);
+      let message = result.error.message;
+      if (message.includes('Password is known to be weak')) {
+        message = 'Esta senha é muito simples ou comum. Por favor, escolha uma senha mais forte (use letras, números e símbolos).';
+      }
+      toast.error(message);
       return result;
     }
     if (result.repeated) {
@@ -40,7 +44,13 @@ export function useAuth() {
   const signIn = async (email: string, password: string) => {
     const result = await ctx.signIn(email, password);
     if (result.error) {
-      toast.error(result.error.message);
+      let message = result.error.message;
+      if (message === 'Invalid login credentials') {
+        message = 'E-mail ou senha incorretos. Por favor, verifique seus dados.';
+      } else if (message.includes('Email not confirmed')) {
+        message = 'Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada para ativar sua conta.';
+      }
+      toast.error(message);
       return result;
     }
     // Confirmação visual: mostrar empresa vinculada (após autenticação)
