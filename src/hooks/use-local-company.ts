@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 export interface LocalCompany {
   id: string;
+  is_demo?: boolean;
   razao_social: string;
   nome_fantasia?: string;
   cnpj: string;
