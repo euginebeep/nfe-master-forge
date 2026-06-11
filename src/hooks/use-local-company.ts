@@ -59,9 +59,11 @@ export function useLocalCompany() {
 }
 
 export function useUpsertLocalCompany() {
-  const upsert = useCallback((data: Partial<LocalCompany>) => {
+  const upsert = useCallback((data: Partial<LocalCompany>, showToast = true) => {
     const updated = LocalDb.upsertSingleton<LocalCompany>('company', data as LocalCompany);
-    toast.success('Empresa salva com sucesso');
+    if (showToast) {
+      toast.success('Empresa salva com sucesso');
+    }
     return updated;
   }, []);
 
