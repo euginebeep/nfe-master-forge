@@ -1324,7 +1324,7 @@ function AliasFormDialog({
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
   itemId: string;
-  onSave: (data: Partial<LocalItemAlias>) => void;
+  onSave: (data: { item_id: string; tipo: string; texto: string }) => void;
 }) {
   const [formData, setFormData] = useState({
     tipo: "ALIAS_INTERNO" as const,
@@ -1383,7 +1383,7 @@ function LoteFormDialog({
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
   itemId: string;
-  item: LocalItem;
+  item: HybridItem;
   fornecedores: any[];
   onSave: (data: any) => void;
 }) {
@@ -1539,11 +1539,11 @@ function LoteDocumentosDialog({
 }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
-  lote: LocalEstoqueLote;
+  lote: SupabaseEstoqueLote;
   itemId: string;
   onLoteUpdate: () => void;
 }) {
-  const { documentos, create, validate, reject, remove, refresh } = useLoteDocumentos(lote.id);
+  const { documentos, create, validate, reject, remove, refresh } = useSupabaseLoteDocumentos(lote.id);
   const [uploading, setUploading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
