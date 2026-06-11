@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Arquivo } from "@/types/erp";
 import { toast } from "sonner";
+import { getUserCompanyId } from "@/hooks/use-user-company";
 
 export function useUploadFile() {
   return useMutation({
@@ -12,8 +13,11 @@ export function useUploadFile() {
       file: File;
       sensivel?: boolean;
     }): Promise<Arquivo> => {
+      const companyId = await getUserCompanyId();
+      if (!companyId) throw new Error("Empresa não identificada");
+
       const ext = file.name.split(".").pop() || "";
-      const storageKey = `${crypto.randomUUID()}.${ext}`;
+      const storageKey = `${companyId}/arquivos/${crypto.randomUUID()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("erp-files")
@@ -29,6 +33,7 @@ export function useUploadFile() {
           tamanho: file.size,
           storage_key: storageKey,
           sensivel,
+          company_id: companyId,
         } as any)
         .select()
         .single();

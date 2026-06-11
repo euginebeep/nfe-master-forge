@@ -15,17 +15,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
-import { 
-  useItemAliases,
-  useLoteDocumentos,
-  canReleaseLote,
-  LocalItem,
-  LocalItemFornecedor,
-  LocalItemAlias,
-  LocalEstoqueLote,
-  LocalLoteDocumento,
-} from "@/hooks/use-local-itens";
-import { useSupabaseItemFornecedores, useSupabaseEstoqueLotes } from "@/hooks/use-supabase-item-details";
+import {
+  canReleaseSupabaseLote,
+  useSupabaseItemAliases,
+  useSupabaseItemFornecedores,
+  useSupabaseEstoqueLotes,
+  useSupabaseLoteDocumentos,
+  type SupabaseEstoqueLote,
+} from "@/hooks/use-supabase-item-details";
 import { useHybridEntidades } from "@/hooks/use-hybrid-data";
 import { useHybridItem, useUpdateHybridItem, type HybridItem } from "@/hooks/use-hybrid-data";
 import {
@@ -93,8 +90,8 @@ export default function ProdutoDetailPage() {
   const { data: item, isLoading, refetch } = useHybridItem(id);
   const updateMutation = useUpdateHybridItem();
   const { fornecedores, create: createFornecedor, remove: removeFornecedor } = useSupabaseItemFornecedores(id);
-  const { aliases, create: createAlias, remove: removeAlias } = useItemAliases(id);
-  const { lotes, update: updateLote, remove: removeLote } = useSupabaseEstoqueLotes(id);
+  const { aliases, create: createAlias, remove: removeAlias } = useSupabaseItemAliases(id);
+  const { lotes, update: updateLote, remove: removeLote, refresh: refreshLotes } = useSupabaseEstoqueLotes(id);
   const { data: entidadesFornecedores = [] } = useHybridEntidades({ papel: "FORNECEDOR" });
 
   const [formData, setFormData] = useState<Partial<HybridItem>>({});
@@ -914,7 +911,7 @@ export default function ProdutoDetailPage() {
                               <FileText className="h-4 w-4 mr-1" />
                               Documentos
                             </Button>
-                            {l.status === "QUARENTENA" && canReleaseLote(l.id, id!) && (
+                            {l.status === "QUARENTENA" && canReleaseSupabaseLote(l, item) && (
                               <Button 
                                 variant="outline" 
                                 size="sm"
@@ -1169,7 +1166,7 @@ export default function ProdutoDetailPage() {
         onOpenChange={setShowAliasForm}
         itemId={id!}
         onSave={(data) => {
-          createAlias(data as Omit<LocalItemAlias, 'id'>);
+          createAlias(data as { item_id: string; fornecedor_id?: string | null; tipo: string; texto: string });
           setShowAliasForm(false);
         }}
       />
@@ -1185,6 +1182,7 @@ export default function ProdutoDetailPage() {
           itemId={id!}
           onLoteUpdate={() => {
             refetch();
+            refreshLotes();
           }}
         />
       )}
@@ -1326,7 +1324,7 @@ function AliasFormDialog({
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
   itemId: string;
-  onSave: (data: Partial<LocalItemAlias>) => void;
+  onSave: (data: { item_id: string; tipo: string; texto: string }) => void;
 }) {
   const [formData, setFormData] = useState({
     tipo: "ALIAS_INTERNO" as const,
@@ -1385,7 +1383,7 @@ function LoteFormDialog({
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
   itemId: string;
-  item: LocalItem;
+  item: HybridItem;
   fornecedores: any[];
   onSave: (data: any) => void;
 }) {
@@ -1541,11 +1539,11 @@ function LoteDocumentosDialog({
 }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
-  lote: LocalEstoqueLote;
+  lote: SupabaseEstoqueLote;
   itemId: string;
   onLoteUpdate: () => void;
 }) {
-  const { documentos, create, validate, reject, remove, refresh } = useLoteDocumentos(lote.id);
+  const { documentos, create, validate, reject, remove, refresh } = useSupabaseLoteDocumentos(lote.id);
   const [uploading, setUploading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1553,31 +1551,15 @@ function LoteDocumentosDialog({
     if (!file) return;
 
     setUploading(true);
-    
-    // Read file as base64
-    const reader = new FileReader();
-    reader.onload = () => {
-      create({
-        lote_id: lote.id,
-        tipo_documento: "COA",
-        arquivo_nome: file.name,
-        arquivo_tipo: file.type,
-        arquivo_size: file.size,
-        arquivo_data: reader.result as string,
-        status_validacao: "PENDENTE",
-      });
-      setUploading(false);
-    };
-    reader.readAsDataURL(file);
+    create(file, "COA");
+    setUploading(false);
   };
 
   const handleValidate = (docId: string) => {
     validate(docId);
-    // Check if lote can now be released
     setTimeout(() => {
-      if (canReleaseLote(lote.id, itemId)) {
-        toast.info("Lote pode ser liberado! COA validado.");
-      }
+      toast.info("COA validado no banco. O lote pode ser liberado quando houver COA validado.");
+      refresh();
       onLoteUpdate();
     }, 100);
   };
@@ -1617,7 +1599,7 @@ function LoteDocumentosDialog({
                   <div className="flex items-center gap-3">
                     <FileText className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">{doc.arquivo_nome}</p>
+                      <p className="text-sm font-medium">{doc.arquivo?.nome_original || "Documento sem arquivo vinculado"}</p>
                       <div className="flex items-center gap-2">
                         <StatusBadge variant="muted">{doc.tipo_documento}</StatusBadge>
                         <StatusBadge 
