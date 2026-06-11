@@ -1460,7 +1460,7 @@ function TabImpostos({ xmlData, nota }: { xmlData: XMLFullData | null; nota: Not
   const produtos = xmlData?.itensDetalhados || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Totais gerais */}
       <Section title="Totais de Impostos">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
