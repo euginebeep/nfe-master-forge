@@ -1,7 +1,7 @@
 // Importado pelo Service Worker gerado pelo workbox.
 // Garante que TODAS as caches antigas (precache + runtime) de versões
 // anteriores sejam apagadas assim que o novo SW ativar.
-// Força atualização em 2026-06-07T12:00:00Z para refletir BrainX ERP
+// Força atualização em 2026-06-11T20:00:00Z — remove landing antiga
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
