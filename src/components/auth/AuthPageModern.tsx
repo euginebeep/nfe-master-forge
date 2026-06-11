@@ -199,15 +199,26 @@ export default function AuthPageModern() {
           padding: '48px 52px',
         }}>
 
-          {/* Logo with 50% increase and inline text */}
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
-            style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <LogoDemoERP style={{ width: 270, height: 270, objectFit: 'contain' } as any} />
-            <div style={{ color: '#fff', display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 36, letterSpacing: '-0.02em' }}>BrainX ERP</div>
-              <div style={{ fontWeight: 400, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>Gestão Industrial</div>
-            </div>
-          </motion.div>
+          {/* Logo positioning — Absolute background for the large logo */}
+          <div style={{ position: 'relative', height: 180, display: 'flex', alignItems: 'center' }}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} 
+              animate={{ opacity: 0.15, scale: 1 }} 
+              transition={{ duration: 0.8 }}
+              style={{ position: 'absolute', left: -80, top: -60, pointerEvents: 'none', zIndex: 0 }}
+            >
+              <LogoDemoERP style={{ width: 400, height: 400, objectFit: 'contain' } as any} />
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
+              <LogoDemoERP style={{ width: 48, height: 48, objectFit: 'contain' } as any} />
+              <div style={{ color: '#fff', display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                <div style={{ fontWeight: 800, fontSize: 36, letterSpacing: '-0.02em' }}>BrainX ERP</div>
+                <div style={{ fontWeight: 400, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>Gestão Industrial</div>
+              </div>
+            </motion.div>
+          </div>
 
           {/* Hero text */}
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
