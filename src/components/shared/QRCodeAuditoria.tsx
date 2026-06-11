@@ -1,4 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { QrCode, Shield } from 'lucide-react';
@@ -15,20 +16,22 @@ interface QRCodeAuditoriaProps {
   showCard?: boolean;
 }
 
-function getAuditUrl(tipo: TipoQR, id: string, hash: string): string {
+function getAuditUrl(tipo: TipoQR, id: string, hash: string, companyId?: string | null): string {
   // Use a custom domain if available, otherwise use published URL
   const baseUrl = "https://www.brainxerp.com";
+  const cidParam = companyId ? `?cid=${companyId}` : '';
+  
   switch (tipo) {
     case 'LOTE_MP':
-      return `${baseUrl}/audit/lote/${hash}`;
+      return `${baseUrl}/audit/lote/${hash}${cidParam}`;
     case 'OP':
-      return `${baseUrl}/op/verify/${id}`;
+      return `${baseUrl}/op/verify/${id}${cidParam}`;
     case 'PRODUTO_ACABADO':
-      return `${baseUrl}/audit/lote/${hash}`;
+      return `${baseUrl}/audit/lote/${hash}${cidParam}`;
     case 'FORMULA':
-      return `${baseUrl}/audit/formula/${hash}`;
+      return `${baseUrl}/audit/formula/${hash}${cidParam}`;
     default:
-      return `${baseUrl}/audit/${hash}`;
+      return `${baseUrl}/audit/${hash}${cidParam}`;
   }
 }
 
@@ -48,7 +51,8 @@ export function QRCodeAuditoria({
   size = 128,
   showCard = true,
 }: QRCodeAuditoriaProps) {
-  const url = getAuditUrl(tipo, id, hash);
+  const { profile } = useAuthContext();
+  const url = getAuditUrl(tipo, id, hash, profile?.company_id);
 
   const qrData = JSON.stringify({
     tipo,
