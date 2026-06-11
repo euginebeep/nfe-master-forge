@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { User, Quote, Sparkles, Heart } from 'lucide-react';
+import { User, Quote, Sparkles, Heart, Flower } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -98,19 +98,22 @@ export function UserWelcomeCard({ name, role, cargo, avatarUrl, sexo, isLoading 
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-[32px] font-bold leading-tight">
+                  <h2 className={cn(
+                    "text-[32px] font-bold leading-tight",
+                    isFeminine ? "text-pink-600 dark:text-pink-400" : "text-blue-600 dark:text-blue-400"
+                  )}>
                     {greeting},{' '}
-                    <span className={cn(
-                      "truncate",
-                      isFeminine ? "text-pink-600 dark:text-pink-400" : ""
-                    )}>
-                      {name?.split(' ')[0] || 'Usuário'}!
+                    <span className="truncate">
+                      {name || 'Usuário'}!
                     </span>
                   </h2>
                   {isFeminine ? (
-                    <Heart className="h-5 w-5 text-pink-500 animate-pulse fill-pink-400" />
+                    <div className="flex items-center gap-2">
+                      <Heart className="h-5 w-5 text-pink-500 animate-pulse fill-pink-400" />
+                      <Flower className="h-6 w-6 text-rose-400 animate-spin-slow" />
+                    </div>
                   ) : (
-                    <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+                    <Sparkles className="h-5 w-5 text-blue-500 animate-pulse" />
                   )}
                 </div>
                 

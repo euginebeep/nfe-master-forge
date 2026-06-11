@@ -442,11 +442,11 @@ export function AppSidebar() {
                   <Link
                     to={to}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer text-sm",
                       danger
                         ? isActive(to)
-                          ? "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20"
-                          : "text-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                          ? "bg-red-500/20 text-red-400 shadow-lg shadow-red-500/10 font-bold"
+                          : "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
                         : isActive(to)
                           ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
