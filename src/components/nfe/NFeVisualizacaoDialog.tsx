@@ -1354,10 +1354,10 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
 
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Responsável Técnico">
           {rt ? (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
               <Field label="CNPJ" value={rt.cnpj ? formatCNPJ(rt.cnpj) : '—'} />
               <Field label="Contato" value={rt.xContato || '—'} />
-              <Field label="E-mail" value={rt.email || '—'} />
+              <Field label="E-mail" value={rt.email || '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
               <Field label="Telefone" value={rt.fone || '—'} />
             </div>
           ) : <p className="text-muted-foreground text-sm">Não informado no XML</p>}
