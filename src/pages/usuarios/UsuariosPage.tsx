@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Shield, Plus, Edit, Key, UserCog, Trash2, ScrollText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Shield, Plus, Edit, Key, UserCog, Trash2, ScrollText, Building2, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,7 +20,8 @@ import { ptBR } from "date-fns/locale";
 
 export default function UsuariosPage() {
   const { users, isLoading, createUser, updateUser, deleteUser, fetchUserPermissions } = useUsers();
-  const { hasRole, user: currentUser } = useAuth();
+  const { hasRole, user: currentUser, profile } = useAuth();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
@@ -30,8 +33,14 @@ export default function UsuariosPage() {
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<ModulePermission[]>([]);
 
   const isAdmin = hasRole('admin');
+  const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+  const hasRealCompany = !!profile?.company_id && profile.company_id !== DEMO_COMPANY_ID;
+  const canCreateUsers = isAdmin && hasRealCompany;
 
   const handleNewUser = () => {
+    if (!hasRealCompany) {
+      return;
+    }
     setSelectedUser(null);
     setSelectedUserPermissions([]);
     setDialogOpen(true);
@@ -234,13 +243,40 @@ export default function UsuariosPage() {
         icon={Shield}
         actions={
           isAdmin && (
-            <Button className="bg-secondary hover:bg-secondary/90" onClick={handleNewUser}>
+            <Button
+              className="bg-secondary hover:bg-secondary/90"
+              onClick={handleNewUser}
+              disabled={!hasRealCompany}
+              title={!hasRealCompany ? 'Cadastre sua empresa primeiro' : undefined}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Novo Usuário
             </Button>
           )
         }
       />
+
+      {isAdmin && !hasRealCompany && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Cadastro da empresa pendente</AlertTitle>
+          <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span>
+              Para criar novos usuários é necessário concluir o cadastro da sua empresa
+              em <strong>Cadastros → Empresa</strong> (CNPJ, razão social e endereço).
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/settings/empresa')}
+              className="shrink-0"
+            >
+              <Building2 className="h-4 w-4 mr-2" />
+              Cadastrar empresa agora
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-3 gap-6 mb-6">
         <div className="col-span-2">
