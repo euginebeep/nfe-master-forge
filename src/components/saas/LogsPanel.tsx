@@ -54,14 +54,17 @@ export function LogsPanel() {
     if (!qrLogs) return;
     const csv = [
       ["Data", "Tenant", "Hash", "Erro", "Plataforma", "UserAgent"],
-      ...qrLogs.map(l => [
-        l.created_at,
-        l.company_id,
-        l.payload?.hash,
-        l.payload?.error,
-        l.payload?.platform,
-        l.payload?.userAgent
-      ])
+      ...qrLogs.map(l => {
+        const payload = l.payload as any;
+        return [
+          l.created_at,
+          l.company_id,
+          payload?.hash,
+          payload?.error,
+          payload?.platform,
+          payload?.userAgent
+        ];
+      })
     ].map(e => e.join(",")).join("\n");
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -71,8 +74,6 @@ export function LogsPanel() {
     a.download = `qr_audit_logs_${new Date().toISOString()}.csv`;
     a.click();
   };
-  const [search, setSearch] = useState("");
-  const [sevFilter, setSevFilter] = useState("todos");
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["saas-audit-logs"],
