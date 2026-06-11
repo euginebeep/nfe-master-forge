@@ -3211,6 +3211,7 @@ export type Database = {
           cst_icms: string | null
           cst_ipi: string | null
           cst_pis: string | null
+          custo_medio_atual: number | null
           custo_por_unidade_interna: number | null
           data_notificacao_anvisa: string | null
           densidade_aparente: number | null
@@ -3269,6 +3270,7 @@ export type Database = {
           cst_icms?: string | null
           cst_ipi?: string | null
           cst_pis?: string | null
+          custo_medio_atual?: number | null
           custo_por_unidade_interna?: number | null
           data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
@@ -3327,6 +3329,7 @@ export type Database = {
           cst_icms?: string | null
           cst_ipi?: string | null
           cst_pis?: string | null
+          custo_medio_atual?: number | null
           custo_por_unidade_interna?: number | null
           data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
