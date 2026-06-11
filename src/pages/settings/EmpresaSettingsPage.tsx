@@ -236,7 +236,8 @@ export default function EmpresaSettingsPage() {
       return;
     }
 
-    upsert(formData);
+    // Persist local data silently without showing a redundant toast
+    upsert(formData, false);
     upsertCompanyMutation.mutate(
       {
         razao_social: formData.razao_social || '',
