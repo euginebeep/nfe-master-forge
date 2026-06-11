@@ -58,6 +58,15 @@ interface NotaEntradaDB {
   fornecedor?: { razao_social: string; documento?: string; nome_fantasia?: string; ie?: string } | null;
 }
 
+interface LoteDB {
+  id: string;
+  numero_lote: string;
+  quantidade_original: number;
+  unidade_original: string;
+  data_fab: string | null;
+  data_val: string | null;
+}
+
 interface NotaEntradaItemDB {
   id: string;
   codigo_fornecedor: string | null;
@@ -69,6 +78,7 @@ interface NotaEntradaItemDB {
   vuncom: number | null;
   vprod: number | null;
   ean: string | null;
+  lotes?: LoteDB[];
 }
 
 // Extended XML parsed data
@@ -400,8 +410,12 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 
         const { data: itensData } = await supabase
           .from('notas_entrada_itens')
-          .select('id, codigo_fornecedor, descricao, ncm, cfop, ucom, qcom, vuncom, vprod, ean')
+          .select(`
+            id, codigo_fornecedor, descricao, ncm, cfop, ucom, qcom, vuncom, vprod, ean,
+            lotes:estoque_lotes(id, numero_lote, quantidade_original, unidade_original, data_fab, data_val)
+          `)
           .eq('nota_entrada_id', typed.id);
+        
         setItens((itensData || []) as unknown as NotaEntradaItemDB[]);
 
         if (typed.xml_raw) {
@@ -1435,17 +1449,36 @@ function TabProdutos({ xmlData, itens }: { xmlData: XMLFullData | null; itens: N
                 )}
               </React.Fragment>
             )) : itens.map((item, idx) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
-                <TableCell className="font-mono text-xs">{item.codigo_fornecedor || '-'}</TableCell>
-                <TableCell className="text-sm">{item.descricao || '-'}</TableCell>
-                <TableCell className="font-mono text-xs">{item.ncm || '-'}</TableCell>
-                <TableCell className="font-mono text-xs">{item.cfop || '-'}</TableCell>
-                <TableCell className="text-xs">{item.ucom || '-'}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{item.qcom?.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{formatCurrency(item.vuncom || 0)}</TableCell>
-                <TableCell className="text-right font-mono text-xs font-medium">{formatCurrency(item.vprod || 0)}</TableCell>
-              </TableRow>
+              <React.Fragment key={item.id}>
+                <TableRow>
+                  <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
+                  <TableCell className="font-mono text-xs">{item.codigo_fornecedor || '-'}</TableCell>
+                  <TableCell className="text-sm">{item.descricao || '-'}</TableCell>
+                  <TableCell className="font-mono text-xs">{item.ncm || '-'}</TableCell>
+                  <TableCell className="font-mono text-xs">{item.cfop || '-'}</TableCell>
+                  <TableCell className="text-xs">{item.ucom || '-'}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{item.qcom?.toLocaleString('pt-BR', { minimumFractionDigits: 3 })}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{formatCurrency(item.vuncom || 0)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs font-medium">{formatCurrency(item.vprod || 0)}</TableCell>
+                </TableRow>
+                {item.lotes && item.lotes.length > 0 && (
+                  <TableRow className="border-t-0 bg-muted/20">
+                    <TableCell colSpan={9} className="pt-0 pb-2 px-4">
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="text-[10px] font-semibold text-amber-700 uppercase">⟐ Lotes Gerados</span>
+                        {item.lotes.map((l, li) => (
+                          <span key={li} className="inline-flex items-center gap-2 text-[10px] border border-amber-200 bg-white rounded px-2 py-0.5">
+                            <span className="font-semibold">Lote: {l.numero_lote}</span>
+                            <span>Qtd: {l.quantidade_original?.toLocaleString('pt-BR')} {l.unidade_original}</span>
+                            {l.data_fab && <span>Fab: {formatDate(l.data_fab)}</span>}
+                            {l.data_val && <span>Val: {formatDate(l.data_val)}</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             ))}
           </TableBody>
         </Table>
