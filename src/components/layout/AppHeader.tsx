@@ -139,7 +139,10 @@ export function AppHeader() {
                   )}
                 </Avatar>
                 <div className="text-left hidden sm:block">
-                  <p className="text-sm font-medium leading-none">{profile.nome_completo}</p>
+                  <p className={cn(
+                    "text-sm font-bold leading-none",
+                    profile.sexo === 'FEMININO' ? "text-pink-600 dark:text-pink-400" : "text-blue-600 dark:text-blue-400"
+                  )}>{profile.nome_completo}</p>
                   <p className="text-xs text-muted-foreground">
                     {role ? FACTORY_ROLES[role]?.label : 'Usuário'}
                   </p>
@@ -149,7 +152,10 @@ export function AppHeader() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">{profile.nome_completo}</p>
+                  <p className={cn(
+                    "text-sm font-bold",
+                    profile.sexo === 'FEMININO' ? "text-pink-600 dark:text-pink-400" : "text-blue-600 dark:text-blue-400"
+                  )}>{profile.nome_completo}</p>
                   <p className="text-xs text-muted-foreground">{profile.cargo || 'Sem cargo'}</p>
                 </div>
               </DropdownMenuLabel>
