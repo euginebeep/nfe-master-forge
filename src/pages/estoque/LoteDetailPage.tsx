@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Beaker, CheckCircle, FileText, Info, Upload, Search, Printer, ShieldCheck, XCircle, AlertCircle, History } from "lucide-react";
+import { ArrowLeft, Beaker, CheckCircle, FileText, Info, Upload, Search, Printer, ShieldCheck, XCircle, AlertCircle, History, QrCode } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,13 +177,13 @@ export default function LoteDetailPage() {
           variant={lote.status === 'DISPONIVEL' || lote.status === 'APROVADO' ? 'default' : 'outline'}
           className={lote.status === 'APROVADO' ? 'bg-green-600 hover:bg-green-700' : ''}
           onClick={() => {
-            if (!hasCOAValidado) {
-              toast.error("O COA precisa estar validado para liberar o lote.");
-              return;
-            }
-            updateLoteStatus.mutate({ id: id!, status: 'APROVADO' });
-          }}
-        >
+              if (!hasCOAValidado) {
+                toast.error("O COA precisa estar validado para liberar o lote.");
+                return;
+              }
+              updateLoteStatus.mutate({ id: id!, status: 'DISPONIVEL' });
+            }}
+          >
           <ShieldCheck className="h-4 w-4 mr-2" /> Liberar Produção
         </Button>
         <Button 
