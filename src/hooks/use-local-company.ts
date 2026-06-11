@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { LocalDb } from '@/lib/local-db';
 import { toast } from 'sonner';
 
@@ -42,32 +42,37 @@ export interface LocalCompany {
 }
 
 export function useLocalCompany() {
-  const [company, setCompany] = useState<LocalCompany | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [localData, setLocalData] = useState<LocalCompany | null>(() => {
+    // Initial sync fetch to avoid flicker
+    if (typeof window === 'undefined') return null;
+    const data = LocalDb.getSingleton<LocalCompany>('company');
+    const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true';
+    if (data?.is_demo && !isDemoSession) return null;
+    return data;
+  });
+  const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(() => {
-    setLoading(true);
     const data = LocalDb.getSingleton<LocalCompany>('company');
-    
-    // We strictly ignore any local storage data that marks itself as demo 
-    // unless we are absolutely sure the session logic says otherwise.
-    if (data?.is_demo && !sessionStorage.getItem('brainx_demo_mode')) {
-      setCompany(null);
-      setLoading(false);
-      return;
+    const isDemoSession = sessionStorage.getItem('brainx_demo_mode') === 'true';
+    if (data?.is_demo && !isDemoSession) {
+      setLocalData(null);
+    } else {
+      setLocalData(data);
     }
-    
-    // Safety check 2: If we HAVE a real company ID in profile but local data is demo,
-    // we should wait for Supabase.
-    setCompany(data);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
-    refresh();
+    const handleLocalDbChange = (e: any) => {
+      if (e.detail?.collection === 'company' || e.detail?.collection === '*') {
+        refresh();
+      }
+    };
+    window.addEventListener('localdb:change', handleLocalDbChange);
+    return () => window.removeEventListener('localdb:change', handleLocalDbChange);
   }, [refresh]);
 
-  return { data: company, isLoading: loading, refresh };
+  return { data: localData, isLoading: loading, refresh };
 }
 
 export function useUpsertLocalCompany() {
