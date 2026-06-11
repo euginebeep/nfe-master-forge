@@ -25,7 +25,7 @@ export function LogoDemoERP({ className, style }: LogoDemoERPProps) {
       src={isDemo ? brainxLogoDemo : brainxLogo}
       alt={isDemo ? "BrainX Demo" : "BrainX ERP"}
       className={cn(
-        "object-contain rounded shrink-0 transition-all duration-200",
+        "object-contain rounded shrink-0 transition-all duration-200 scale-[1.4]",
         className
       )}
       style={style}
