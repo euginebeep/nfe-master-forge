@@ -183,10 +183,27 @@ export default function RelatoriosPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("company")
-        .select("razao_social, nome_fantasia, cnpj")
+        .select("razao_social, nome_fantasia, cnpj, logo_file_id")
         .eq("id", companyId!)
         .maybeSingle();
-      return data as { razao_social?: string; nome_fantasia?: string; cnpj?: string } | null;
+      
+      let logoUrl = null;
+      if (data?.logo_file_id) {
+        const { data: arquivo } = await supabase
+          .from("arquivos")
+          .select("storage_key")
+          .eq("id", data.logo_file_id)
+          .maybeSingle();
+        
+        if (arquivo?.storage_key) {
+          const { data: signed } = await supabase.storage
+            .from("erp-files")
+            .createSignedUrl(arquivo.storage_key, 3600);
+          logoUrl = signed?.signedUrl;
+        }
+      }
+      
+      return { ...data, logoUrl };
     },
     enabled: !!companyId,
   });
@@ -245,6 +262,8 @@ export default function RelatoriosPage() {
         rows,
         orientation: headers.length > 6 ? 'landscape' : 'portrait',
         subtitle: `Relatório gerencial — ${new Date().toLocaleDateString('pt-BR')}`,
+        companyName: empresaLabel,
+        logoUrl: (empresa as any)?.logoUrl,
       });
     } catch { showError("Erro ao gerar relatório"); }
   };

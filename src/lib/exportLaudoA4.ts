@@ -11,6 +11,11 @@ interface LaudoData {
   produto: string;
   cliente?: string;
   ativos: any[];
+  company?: {
+    razao_social?: string;
+    nome_fantasia?: string;
+    logo_data?: string;
+  };
 }
 
 const esc = (s: any): string =>
@@ -172,9 +177,13 @@ function buildHTML(data: LaudoData): string {
   .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
-  .brand-logo {
+  .brand-logo-img {
+    height: 52px; width: auto; max-width: 180px;
+    object-fit: contain;
+  }
+  .brand-logo-placeholder {
     width: 44px; height: 44px;
     background: linear-gradient(135deg, #0f172a, #1e40af);
     color: #fff;
@@ -315,9 +324,12 @@ function buildHTML(data: LaudoData): string {
   <!-- CABEÇALHO INSTITUCIONAL -->
   <header class="doc-header">
     <div class="brand">
-      <div class="brand-logo">BX</div>
+      ${data.company?.logo_data 
+        ? `<img src="${data.company.logo_data}" class="brand-logo-img" alt="Logo" />` 
+        : `<div class="brand-logo-placeholder">BX</div>`
+      }
       <div>
-        <div class="brand-name">BrainX ERP</div>
+        <div class="brand-name">${esc(data.company?.nome_fantasia || data.company?.razao_social || 'BrainX ERP')}</div>
         <div class="brand-sub">Módulo Regulatório · ANVISA Checker</div>
         <div class="brand-sub">Conformidade IN 28/2018 · RDC 243/2018 · RDC 27/2010</div>
       </div>
