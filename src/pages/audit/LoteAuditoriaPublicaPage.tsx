@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Shield, Package, Calendar, UserCheck, CheckCircle2, AlertTriangle,
@@ -11,12 +12,13 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QRCodeAuditoria } from "@/components/shared/QRCodeAuditoria";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 export default function LoteAuditoriaPublicaPage() {
   const { hash } = useParams<{ hash: string }>();
   const [searchParams] = useSearchParams();
   const tenantId = searchParams.get('cid');
-  const [isBlocked, setIsBlocked] = import("react").useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const { data: loteData, isLoading, error } = useQuery({
     queryKey: ['lote-auditoria-publica', hash, tenantId],
