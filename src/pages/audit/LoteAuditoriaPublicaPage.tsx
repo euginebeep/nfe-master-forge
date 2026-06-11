@@ -43,7 +43,7 @@ export default function LoteAuditoriaPublicaPage() {
           fornecedor: lf.fornecedor,
           lote_documentos: lf.lote_documentos,
           qr_code_hash: hash,
-          company_id: lf.company_id
+          company_id: (lf as any).company_id
         };
       }
 
@@ -76,7 +76,7 @@ export default function LoteAuditoriaPublicaPage() {
         tipo_lote: 'ACABADO',
         materias_primas: mp || [],
         qr_code_hash: la.qr_code_hash,
-        company_id: la.company_id
+        company_id: null // lotes_produto_acabado doesn't have company_id yet
       };
     },
     enabled: !!hash,
@@ -95,7 +95,7 @@ export default function LoteAuditoriaPublicaPage() {
 
   const lote = loteData as any;
 
-  if (error || !lote || (tenantId && lote.company_id !== tenantId)) {
+  if (error || !lote || (tenantId && lote.company_id && lote.company_id !== tenantId)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
