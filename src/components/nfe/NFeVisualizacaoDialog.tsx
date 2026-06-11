@@ -1269,7 +1269,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
   const rt = xmlData?.respTec;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Row 1: Identificação + Protocolo SEFAZ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<FileText className="h-4 w-4" />} title="Identificação da NF-e">
