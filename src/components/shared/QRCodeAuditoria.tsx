@@ -16,20 +16,22 @@ interface QRCodeAuditoriaProps {
   showCard?: boolean;
 }
 
-function getAuditUrl(tipo: TipoQR, id: string, hash: string): string {
+function getAuditUrl(tipo: TipoQR, id: string, hash: string, companyId?: string | null): string {
   // Use a custom domain if available, otherwise use published URL
   const baseUrl = "https://www.brainxerp.com";
+  const cidParam = companyId ? `?cid=${companyId}` : '';
+  
   switch (tipo) {
     case 'LOTE_MP':
-      return `${baseUrl}/audit/lote/${hash}`;
+      return `${baseUrl}/audit/lote/${hash}${cidParam}`;
     case 'OP':
-      return `${baseUrl}/op/verify/${id}`;
+      return `${baseUrl}/op/verify/${id}${cidParam}`;
     case 'PRODUTO_ACABADO':
-      return `${baseUrl}/audit/lote/${hash}`;
+      return `${baseUrl}/audit/lote/${hash}${cidParam}`;
     case 'FORMULA':
-      return `${baseUrl}/audit/formula/${hash}`;
+      return `${baseUrl}/audit/formula/${hash}${cidParam}`;
     default:
-      return `${baseUrl}/audit/${hash}`;
+      return `${baseUrl}/audit/${hash}${cidParam}`;
   }
 }
 

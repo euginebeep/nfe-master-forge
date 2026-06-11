@@ -22,60 +22,57 @@ export default function LoteAuditoriaPublicaPage() {
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
       
-      // Tentar buscar em lotes de fornecedor primeiro (estoque_lotes)
-      let lotQuery = supabase
-        .from('estoque_lotes')
-        .select(`
-          *,
-          item:itens (*),
-          fornecedor:entidades (*),
-          lote_documentos (*, arquivo:arquivos(*))
-        `)
-        .eq('id', hash);
-      
-      if (tenantId) {
-        lotQuery = lotQuery.eq('company_id', tenantId);
-      }
+      const fetchLoteFornecedor = async () => {
+        let q = supabase
+          .from('estoque_lotes')
+          .select(`
+            *,
+            item:itens (*),
+            fornecedor:entidades (*),
+            lote_documentos (*, arquivo:arquivos(*))
+          `)
+          .eq('id', hash);
+        if (tenantId) q = q.eq('company_id', tenantId);
+        return await q.maybeSingle();
+      };
 
-      const { data: loteFornecedor } = await lotQuery.maybeSingle();
+      const { data: lf } = await fetchLoteFornecedor();
 
-      if (loteFornecedor) {
+      if (lf) {
         return {
-          ...loteFornecedor,
+          ...lf,
           tipo_lote: 'FORNECEDOR',
-          produto_nome: (loteFornecedor.item as any)?.descricao_interna || 'Insumo',
-          produto_codigo: (loteFornecedor.item as any)?.sku_interno || '',
-          data_fabricacao: loteFornecedor.data_fab,
-          data_validade: loteFornecedor.data_val,
-          quantidade_produzida: loteFornecedor.quantidade_original,
-          unidade: loteFornecedor.unidade_original,
-          qr_code_hash: hash, // For display logic
+          produto_nome: (lf.item as any)?.descricao_interna || 'Insumo',
+          produto_codigo: (lf.item as any)?.sku_interno || '',
+          data_fabricacao: lf.data_fab,
+          data_validade: lf.data_val,
+          quantidade_produzida: lf.quantidade_original,
+          unidade: lf.unidade_original,
+          qr_code_hash: hash,
         };
       }
 
-      // Se não achar, buscar em lotes de produto acabado
-      let acabadoQuery = supabase
-        .from('lotes_produto_acabado')
-        .select('*')
-        .eq('qr_code_hash', hash);
-      
-      if (tenantId) {
-        acabadoQuery = acabadoQuery.eq('company_id', tenantId);
-      }
+      const fetchLoteAcabado = async () => {
+        let q = supabase
+          .from('lotes_produto_acabado')
+          .select('*')
+          .eq('qr_code_hash', hash);
+        if (tenantId) q = q.eq('company_id', tenantId);
+        return await q.maybeSingle();
+      };
 
-      const { data, error: acabadoError } = await acabadoQuery.maybeSingle();
+      const { data: la, error: errA } = await fetchLoteAcabado();
+      if (errA || !la) throw new Error('Lote não encontrado');
 
-      if (acabadoError || !data) throw new Error('Lote não encontrado');
-
-      const { data: materiasPrimas } = await supabase
+      const { data: mp } = await supabase
         .from('lote_materias_primas')
         .select('*')
-        .eq('lote_produto_acabado_id', data.id);
+        .eq('lote_produto_acabado_id', la.id);
 
       return {
-        ...data,
+        ...la,
         tipo_lote: 'ACABADO',
-        materias_primas: materiasPrimas || [],
+        materias_primas: mp || [],
       };
     },
     enabled: !!hash,
