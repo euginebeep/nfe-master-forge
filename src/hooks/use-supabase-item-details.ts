@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getUserCompanyId } from '@/hooks/use-user-company';
 
 // ====================================================
 // ITEM FORNECEDORES (Supabase)
@@ -134,6 +135,42 @@ export interface SupabaseEstoqueLote {
       chave_nfe: string | null;
     } | null;
   } | null;
+  lote_documentos?: SupabaseLoteDocumento[];
+}
+
+export interface SupabaseItemAlias {
+  id: string;
+  item_id: string;
+  fornecedor_id: string | null;
+  tipo: string;
+  texto: string;
+  created_at: string | null;
+}
+
+export interface SupabaseArquivo {
+  id: string;
+  nome_original: string;
+  mime_type: string;
+  tamanho: number;
+  storage_key: string;
+  checksum_sha256: string | null;
+  sensivel: boolean | null;
+  created_at: string | null;
+  company_id: string | null;
+}
+
+export interface SupabaseLoteDocumento {
+  id: string;
+  lote_id: string;
+  tipo_documento: string;
+  arquivo_id: string | null;
+  hash_arquivo: string | null;
+  versao: number | null;
+  data_emissao: string | null;
+  status_validacao: string;
+  observacoes: string | null;
+  created_at: string | null;
+  arquivo?: SupabaseArquivo | null;
 }
 
 export function useSupabaseEstoqueLotes(itemId: string | undefined) {
@@ -153,7 +190,8 @@ export function useSupabaseEstoqueLotes(itemId: string | undefined) {
             nota_entrada:notas_entrada!notas_entrada_itens_nota_entrada_id_fkey(
               numero, serie, dh_emissao, chave_nfe
             )
-          )
+          ),
+          lote_documentos(id, tipo_documento, status_validacao)
         `)
         .eq('item_id', itemId!)
         .order('created_at', { ascending: false });
