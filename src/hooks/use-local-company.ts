@@ -56,6 +56,9 @@ export function useLocalCompany() {
       setLoading(false);
       return;
     }
+    
+    // Safety check 2: If we HAVE a real company ID in profile but local data is demo,
+    // we should wait for Supabase.
     setCompany(data);
     setLoading(false);
   }, []);
