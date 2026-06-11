@@ -1,4 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { QrCode, Shield } from 'lucide-react';
@@ -48,7 +49,8 @@ export function QRCodeAuditoria({
   size = 128,
   showCard = true,
 }: QRCodeAuditoriaProps) {
-  const url = getAuditUrl(tipo, id, hash);
+  const { profile } = useAuthContext();
+  const url = getAuditUrl(tipo, id, hash, profile?.company_id);
 
   const qrData = JSON.stringify({
     tipo,

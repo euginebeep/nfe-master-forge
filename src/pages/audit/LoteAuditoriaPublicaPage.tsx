@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -14,14 +14,16 @@ import { motion } from "framer-motion";
 
 export default function LoteAuditoriaPublicaPage() {
   const { hash } = useParams<{ hash: string }>();
+  const [searchParams] = useSearchParams();
+  const tenantId = searchParams.get('cid');
 
   const { data: loteData, isLoading, error } = useQuery({
-    queryKey: ['lote-auditoria-publica', hash],
+    queryKey: ['lote-auditoria-publica', hash, tenantId],
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
       
       // Tentar buscar em lotes de fornecedor primeiro (estoque_lotes)
-      const { data: loteFornecedor } = await supabase
+      let lotQuery = supabase
         .from('estoque_lotes')
         .select(`
           *,
@@ -29,8 +31,13 @@ export default function LoteAuditoriaPublicaPage() {
           fornecedor:entidades (*),
           lote_documentos (*, arquivo:arquivos(*))
         `)
-        .eq('id', hash) 
-        .maybeSingle();
+        .eq('id', hash);
+      
+      if (tenantId) {
+        lotQuery = lotQuery.eq('company_id', tenantId);
+      }
+
+      const { data: loteFornecedor } = await lotQuery.maybeSingle();
 
       if (loteFornecedor) {
         return {
@@ -47,11 +54,16 @@ export default function LoteAuditoriaPublicaPage() {
       }
 
       // Se não achar, buscar em lotes de produto acabado
-      const { data, error: acabadoError } = await supabase
+      let acabadoQuery = supabase
         .from('lotes_produto_acabado')
         .select('*')
-        .eq('qr_code_hash', hash)
-        .maybeSingle();
+        .eq('qr_code_hash', hash);
+      
+      if (tenantId) {
+        acabadoQuery = acabadoQuery.eq('company_id', tenantId);
+      }
+
+      const { data, error: acabadoError } = await acabadoQuery.maybeSingle();
 
       if (acabadoError || !data) throw new Error('Lote não encontrado');
 
