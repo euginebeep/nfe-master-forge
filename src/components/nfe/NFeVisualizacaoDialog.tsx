@@ -770,7 +770,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto shrink-0">
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pr-10">
               <Button onClick={handleDownloadDANFE} variant="outline" size="sm" className="flex-1 sm:flex-none">
                 <FileDown className="h-4 w-4 mr-2" />
                 <span className="inline">DANFE</span>
@@ -818,7 +818,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
             </TabsList>
           </div>
 
-          <ScrollArea className="flex-1 max-h-[calc(98vh-180px)]">
+          <ScrollArea className="flex-1 overflow-y-auto">
             {/* DANFE Tab */}
             <TabsContent value="danfe" className="mt-0 p-3 sm:p-6">
               <TabDANFE nota={nota} xmlData={xmlData} itens={itens} />
