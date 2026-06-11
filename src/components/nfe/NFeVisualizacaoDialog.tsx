@@ -1273,10 +1273,10 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       {/* Row 1: Identificação + Protocolo SEFAZ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<FileText className="h-4 w-4" />} title="Identificação da NF-e">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
             <Field label="Número" value={nota.numero || '-'} bold />
             <Field label="Série" value={nota.serie || '-'} bold />
-            <Field label="Natureza da Operação" value={ide?.naturezaOperacao || '-'} />
+            <Field label="Natureza da Operação" value={ide?.naturezaOperacao || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Tipo de NF-e" value={ide?.tipoOperacao || '-'} />
             <Field label="Finalidade" value={ide?.finalidade || '-'} />
             <Field label="Destino" value={ide?.idDest || '-'} />
@@ -1290,10 +1290,10 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
         </CardSection>
 
         <CardSection icon={<Hash className="h-4 w-4" />} title="Protocolo SEFAZ">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Field label="Número do Protocolo" value={prot?.nProt || ide?.protocolo || '-'} bold />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
+            <Field label="Número do Protocolo" value={prot?.nProt || ide?.protocolo || '-'} bold className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Status" value={prot?.cStat || '-'} />
-            <Field label="Motivo" value={prot?.xMotivo || '-'} />
+            <Field label="Motivo" value={prot?.xMotivo || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Data/Hora Recebimento" value={prot?.dhRecbto ? formatDate(prot.dhRecbto) : ide?.dhRecebimento ? formatDate(ide.dhRecebimento) : '-'} />
             <Field label="Versão Aplicativo" value={prot?.verAplic || '-'} />
             <Field label="Ambiente" value={prot?.ambiente || ide?.ambiente || '-'} />
@@ -1304,15 +1304,15 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       {/* Row 2: Emitente + Destinatário */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Emitente">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} />
-            <Field label="Nome Fantasia" value={emit?.nomeFantasia || '-'} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
+            <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
+            <Field label="Nome Fantasia" value={emit?.nomeFantasia || '-'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="CNPJ/CPF" value={emit?.cnpj ? formatCNPJ(emit.cnpj) : '-'} />
             <Field label="Inscrição Estadual" value={emit?.ie || '-'} />
             <Field label="Inscrição Municipal" value={emit?.im || '—'} />
             <Field label="CNAE" value={emit?.cnae || '—'} />
             <Field label="CRT" value={emit?.crt || '-'} />
-            <Field label="Logradouro" value={emit?.endereco ? `${emit.endereco.logradouro}, ${emit.endereco.nro}${emit.endereco.complemento ? ` ${emit.endereco.complemento}` : ''}` : '—'} />
+            <Field label="Logradouro" value={emit?.endereco ? `${emit.endereco.logradouro}, ${emit.nro}${emit.endereco.complemento ? ` ${emit.endereco.complemento}` : ''}` : '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
             <Field label="Bairro" value={emit?.endereco?.bairro || '—'} />
             <Field label="Município/UF" value={emit?.endereco ? `${emit.endereco.cidade}/${emit.endereco.uf}` : '—'} />
             <Field label="CEP" value={emit?.endereco?.cep ? formatCEP(emit.endereco.cep) : '—'} />
