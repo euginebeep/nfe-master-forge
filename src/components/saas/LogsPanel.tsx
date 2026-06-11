@@ -34,6 +34,45 @@ const SEV_META: Record<string, { cls: string; icon: any }> = {
 export function LogsPanel() {
   const [search, setSearch] = useState("");
   const [sevFilter, setSevFilter] = useState("todos");
+  const [qrSearch, setQrSearch] = useState("");
+
+  const { data: qrLogs, isLoading: qrLoading } = useQuery({
+    queryKey: ["qr-audit-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("audit_log")
+        .select("*")
+        .eq("acao", "QR_CODE_NOT_FOUND")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const exportQrLogs = () => {
+    if (!qrLogs) return;
+    const csv = [
+      ["Data", "Tenant", "Hash", "Erro", "Plataforma", "UserAgent"],
+      ...qrLogs.map(l => [
+        l.created_at,
+        l.company_id,
+        l.payload?.hash,
+        l.payload?.error,
+        l.payload?.platform,
+        l.payload?.userAgent
+      ])
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qr_audit_logs_${new Date().toISOString()}.csv`;
+    a.click();
+  };
+  const [search, setSearch] = useState("");
+  const [sevFilter, setSevFilter] = useState("todos");
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["saas-audit-logs"],
