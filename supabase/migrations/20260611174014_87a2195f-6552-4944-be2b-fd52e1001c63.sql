@@ -1,0 +1,12 @@
+GRANT EXECUTE ON FUNCTION public.nota_entrada_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.nota_saida_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.lote_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.item_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.entidade_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.formula_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.op_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.custo_op_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.orcamento_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.pedido_belongs_to_tenant(uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.get_user_company_id() TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.registrar_evento_auditoria(public.tipo_evento_auditoria, text, text, uuid, text, uuid, text, text, text, jsonb, jsonb, jsonb) TO authenticated;
