@@ -3212,6 +3212,7 @@ export type Database = {
           cst_ipi: string | null
           cst_pis: string | null
           custo_medio_atual: number | null
+          custo_medio_atualizado_em: string | null
           custo_por_unidade_interna: number | null
           data_notificacao_anvisa: string | null
           densidade_aparente: number | null
@@ -3271,6 +3272,7 @@ export type Database = {
           cst_ipi?: string | null
           cst_pis?: string | null
           custo_medio_atual?: number | null
+          custo_medio_atualizado_em?: string | null
           custo_por_unidade_interna?: number | null
           data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
@@ -3330,6 +3332,7 @@ export type Database = {
           cst_ipi?: string | null
           cst_pis?: string | null
           custo_medio_atual?: number | null
+          custo_medio_atualizado_em?: string | null
           custo_por_unidade_interna?: number | null
           data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
@@ -8379,6 +8382,10 @@ export type Database = {
       op_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       orcamento_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       pedido_belongs_to_tenant: { Args: { _pid: string }; Returns: boolean }
+      recalcular_custo_medio_item: {
+        Args: { _item_id: string }
+        Returns: undefined
+      }
       registrar_evento_auditoria: {
         Args: {
           p_dados_anteriores?: Json
