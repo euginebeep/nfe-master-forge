@@ -18,6 +18,7 @@ import { FACTORY_ROLES } from "@/hooks/use-users";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useCompany } from "@/hooks/use-company";
 import { formatCNPJ } from "@/lib/cnpj-lookup";
+import { cn } from "@/lib/utils";
 
 function maskCNPJ(cnpj?: string | null) {
   if (!cnpj) return "";
