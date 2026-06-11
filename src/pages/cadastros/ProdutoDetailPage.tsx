@@ -1551,31 +1551,15 @@ function LoteDocumentosDialog({
     if (!file) return;
 
     setUploading(true);
-    
-    // Read file as base64
-    const reader = new FileReader();
-    reader.onload = () => {
-      create({
-        lote_id: lote.id,
-        tipo_documento: "COA",
-        arquivo_nome: file.name,
-        arquivo_tipo: file.type,
-        arquivo_size: file.size,
-        arquivo_data: reader.result as string,
-        status_validacao: "PENDENTE",
-      });
-      setUploading(false);
-    };
-    reader.readAsDataURL(file);
+    create(file, "COA");
+    setUploading(false);
   };
 
   const handleValidate = (docId: string) => {
     validate(docId);
-    // Check if lote can now be released
     setTimeout(() => {
-      if (canReleaseLote(lote.id, itemId)) {
-        toast.info("Lote pode ser liberado! COA validado.");
-      }
+      toast.info("COA validado no banco. O lote pode ser liberado quando houver COA validado.");
+      refresh();
       onLoteUpdate();
     }, 100);
   };
@@ -1615,7 +1599,7 @@ function LoteDocumentosDialog({
                   <div className="flex items-center gap-3">
                     <FileText className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">{doc.arquivo_nome}</p>
+                      <p className="text-sm font-medium">{doc.arquivo?.nome_original || "Documento sem arquivo vinculado"}</p>
                       <div className="flex items-center gap-2">
                         <StatusBadge variant="muted">{doc.tipo_documento}</StatusBadge>
                         <StatusBadge 
