@@ -391,7 +391,17 @@ export default function ProdutoDetailPage() {
                       </div>
                       <p className="text-xs text-muted-foreground flex items-center justify-between">
                         <span>Por {formData.unidade_interna || 'g'}</span>
-                        <span className="text-blue-500 font-medium">Médio: {formatCurrency((formData as any).custo_medio_atual || 0)}</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-blue-500 font-medium cursor-help flex items-center gap-1">
+                              <Info className="h-3 w-3" />
+                              Médio: {formatCurrency((formData as any).custo_medio_atual || 0)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Custo médio ponderado calculado automaticamente com base nos lotes em estoque.</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -1660,3 +1670,13 @@ function LoteDocumentosDialog({
     </Dialog>
   );
 }
+
+function ProdutoDetailPageWithTooltips() {
+  return (
+    <TooltipProvider>
+      <ProdutoDetailPage />
+    </TooltipProvider>
+  );
+}
+
+export { ProdutoDetailPageWithTooltips as default };
