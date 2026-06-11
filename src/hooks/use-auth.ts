@@ -45,12 +45,20 @@ export function useAuth() {
     const result = await ctx.signIn(email, password);
     if (result.error) {
       let message = result.error.message;
+      let description = undefined;
+
       if (message === 'Invalid login credentials') {
-        message = 'E-mail ou senha incorretos. Por favor, verifique seus dados.';
+        message = 'Acesso Negado';
+        description = 'E-mail ou senha incorretos. Por favor, verifique seus dados e tente novamente.';
       } else if (message.includes('Email not confirmed')) {
-        message = 'Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada para ativar sua conta.';
+        message = 'E-mail Não Confirmado';
+        description = 'Sua conta ainda não foi ativada. Verifique sua caixa de entrada para o link de confirmação.';
+      } else if (message.includes('Too many requests')) {
+        message = 'Muitas Tentativas';
+        description = 'Acesso bloqueado temporariamente por segurança. Tente novamente em alguns minutos.';
       }
-      toast.error(message);
+
+      toast.error(message, description as any);
       return result;
     }
     // Confirmação visual: mostrar empresa vinculada (após autenticação)

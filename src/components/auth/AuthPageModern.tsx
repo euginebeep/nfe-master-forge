@@ -34,11 +34,11 @@ const FEATURES = [
 
 /* ─── Input Field (Bootstrap style) ─── */
 function Field({
-  id, label, type, placeholder, value, onChange, icon, required, minLength,
+  id, label, type, placeholder, value, onChange, icon, required, minLength, children,
 }: {
   id: string; label: string; type: string; placeholder: string; value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  icon: string; required?: boolean; minLength?: number;
+  icon: string; required?: boolean; minLength?: number; children?: React.ReactNode;
 }) {
   return (
     <div className="mb-3">
@@ -74,6 +74,50 @@ function Field({
             e.target.style.background = 'rgba(255,255,255,0.04)';
           }}
         />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ─── Password Strength Meter ─── */
+function PasswordStrength({ password }: { password: string }) {
+  if (!password) return null;
+
+  const getStrength = (p: string) => {
+    let score = 0;
+    if (p.length >= 8) score++;
+    if (/[A-Z]/.test(p)) score++;
+    if (/[0-9]/.test(p)) score++;
+    if (/[^A-Za-z0-9]/.test(p)) score++;
+    return score;
+  };
+
+  const strength = getStrength(password);
+  const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
+  const labels = ['Muito fraca', 'Fraca', 'Boa', 'Forte'];
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 4, height: 4, borderRadius: 2, overflow: 'hidden' }}>
+        {[1, 2, 3, 4].map((step) => (
+          <div
+            key={step}
+            style={{
+              flex: 1,
+              background: step <= strength ? colors[strength - 1] : 'rgba(255,255,255,0.1)',
+              transition: 'background 0.3s'
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+        <span style={{ fontSize: 11, color: colors[strength - 1] || 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+          {labels[strength - 1] || 'Muito fraca'}
+        </span>
+        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+          Mín. 8 caracteres, letras, números e símbolos
+        </span>
       </div>
     </div>
   );
