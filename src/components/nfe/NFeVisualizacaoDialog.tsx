@@ -776,7 +776,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
         {/* Tabs */}
         <Tabs defaultValue="danfe" className="flex flex-col flex-1 min-h-0">
           <div className="border-b px-2 sm:px-5">
-            <ScrollArea className="w-full" orientation="horizontal">
+            <ScrollArea className="w-full">
               <TabsList className="bg-transparent h-auto p-0 gap-0 flex justify-start whitespace-nowrap">
                 <TabsTrigger value="danfe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex-shrink-0">
                   <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">DANFE</span><span className="xs:hidden">DNF</span>
