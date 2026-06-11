@@ -108,9 +108,14 @@ export default function EmpresaSettingsPage() {
     }
   }, [supabaseCompany?.id]);
 
-  // Load logo from Supabase storage when logo_file_id exists but no local preview
+  // Load logo from Supabase storage when logo_file_id exists
   useEffect(() => {
-    if (logoPreview || !supabaseCompany?.logo_file_id) return;
+    if (!supabaseCompany?.logo_file_id) {
+      if (!logoPreview?.startsWith('data:')) {
+        setLogoPreview(null);
+      }
+      return;
+    }
     const loadLogoFromStorage = async () => {
       try {
         const { data: arquivo } = await supabase
@@ -131,7 +136,7 @@ export default function EmpresaSettingsPage() {
       }
     };
     loadLogoFromStorage();
-  }, [supabaseCompany?.logo_file_id, logoPreview]);
+  }, [supabaseCompany?.logo_file_id]);
 
   // Load certificate file ID and name from Supabase company
   useEffect(() => {
@@ -501,26 +506,52 @@ export default function EmpresaSettingsPage() {
             <div className="space-y-2">
               <Label>Logo da Empresa</Label>
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                {logoPreview && (
-                  <img 
-                    src={logoPreview} 
-                    alt="Logo" 
-                    className="h-16 w-auto max-w-[180px] object-contain border rounded"
-                  />
-                )}
-                <Label htmlFor="logo-upload" className="cursor-pointer w-full sm:w-auto">
-                  <div className="border-2 border-dashed rounded-lg px-6 py-3 text-center hover:border-primary transition-colors">
-                    <Upload className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Upload Logo</p>
+                {logoPreview ? (
+                  <div className="relative group">
+                    <img 
+                      src={logoPreview} 
+                      alt="Logo" 
+                      className="h-20 w-auto max-w-[200px] object-contain border rounded p-1 bg-white"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setLogoPreview(null);
+                        setFormData(prev => ({
+                          ...prev,
+                          logo_nome: undefined,
+                          logo_tipo: undefined,
+                          logo_data: undefined,
+                        }));
+                        if (supabaseCompany?.id) {
+                          upsertCompanyMutation.mutate({ logo_file_id: null });
+                        }
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
-                </Label>
-                <input
-                  id="logo-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleLogoUpload}
-                />
+                ) : (
+                  <>
+                    <Label htmlFor="logo-upload" className="cursor-pointer w-full sm:w-auto">
+                      <div className="border-2 border-dashed rounded-lg px-6 py-4 text-center hover:border-primary hover:bg-primary/5 transition-all">
+                        <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm font-medium">Upload Logo</p>
+                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG ou SVG</p>
+                      </div>
+                    </Label>
+                    <input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                    />
+                  </>
+                )}
               </div>
             </div>
           </CardContent>

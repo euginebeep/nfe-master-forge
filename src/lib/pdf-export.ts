@@ -10,10 +10,11 @@ interface PDFReportOptions {
   rows: string[][];
   orientation?: 'portrait' | 'landscape';
   companyName?: string;
+  logoUrl?: string;
 }
 
 export function exportToPDF(options: PDFReportOptions) {
-  const { title, subtitle, headers, rows, orientation = 'portrait', companyName } = options;
+  const { title, subtitle, headers, rows, orientation = 'portrait', companyName, logoUrl } = options;
   const now = new Date();
   const dateStr = now.toLocaleDateString('pt-BR');
   const timeStr = now.toLocaleTimeString('pt-BR');
@@ -49,7 +50,8 @@ export function exportToPDF(options: PDFReportOptions) {
     padding-bottom: 8px;
     margin-bottom: 12px;
   }
-  .report-header h1 { font-size: 16px; font-weight: 700; }
+  .report-header h1 { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .report-header .logo { height: 40px; width: auto; object-contain: contain; margin-bottom: 4px; }
   .report-header .meta { text-align: right; font-size: 9px; color: #666; }
   .report-header .company { font-weight: 600; font-size: 11px; color: #333; }
   .subtitle { font-size: 11px; color: #555; margin-bottom: 10px; }
@@ -94,6 +96,7 @@ export function exportToPDF(options: PDFReportOptions) {
 <body>
   <div class="report-header">
     <div>
+      ${logoUrl ? `<img src="${logoUrl}" alt="Logo" class="logo" />` : ''}
       <h1>${title}</h1>
       ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
     </div>
