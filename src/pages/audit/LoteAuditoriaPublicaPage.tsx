@@ -95,7 +95,33 @@ export default function LoteAuditoriaPublicaPage() {
 
   const lote = loteData as any;
 
-  if (error || !lote || (tenantId && lote.company_id && lote.company_id !== tenantId)) {
+  // Log de falha se o lote não for encontrado ou se o tenantId não coincidir
+  const isInvalid = !isLoading && (error || !lote || (tenantId && lote.company_id && lote.company_id !== tenantId));
+
+  if (isInvalid) {
+    // Tenta registrar no log de auditoria se houver uma falha de consulta
+    const logFailure = async () => {
+      try {
+        await supabase.from('audit_log').insert({
+          acao: 'QR_CODE_NOT_FOUND',
+          entidade: 'QR_CODE_SCAN',
+          company_id: tenantId as any,
+          payload: {
+            hash,
+            tenant_scanned: tenantId,
+            error: error?.message || 'Lote não encontrado ou empresa divergente',
+            timestamp: new Date().toISOString(),
+            platform: navigator.platform,
+            userAgent: navigator.userAgent
+          }
+        });
+      } catch (err) {
+        console.error('Falha ao registrar log de auditoria:', err);
+      }
+    };
+
+    if (hash) logFailure();
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
