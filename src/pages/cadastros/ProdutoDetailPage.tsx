@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { centralToast } from "@/components/ui/central-toast";
 import { useParams, useNavigate } from "react-router-dom";
-import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search } from "lucide-react";
+import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search, Info } from "lucide-react";
+import { formatCurrency } from "@/lib/formatters";
 import { EstoqueResumoCard } from "@/components/estoque/EstoqueResumoCard";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -84,7 +86,7 @@ const STATUS_LOTE_VARIANTS: Record<string, "success" | "warning" | "error" | "mu
   VENCIDO: "muted",
 };
 
-export default function ProdutoDetailPage() {
+export function ProdutoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: item, isLoading, refetch } = useHybridItem(id);
@@ -387,7 +389,20 @@ export default function ProdutoDetailPage() {
                           placeholder="0.000000"
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">Por {formData.unidade_interna || 'g'}</p>
+                      <p className="text-xs text-muted-foreground flex items-center justify-between">
+                        <span>Por {formData.unidade_interna || 'g'}</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-blue-500 font-medium cursor-help flex items-center gap-1">
+                              <Info className="h-3 w-3" />
+                              Médio: {formatCurrency((formData as any).custo_medio_atual || 0)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Custo médio ponderado calculado automaticamente com base nos lotes em estoque.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>MOQ (Qtd. Mín. Pedido)</Label>
@@ -1655,3 +1670,13 @@ function LoteDocumentosDialog({
     </Dialog>
   );
 }
+
+function ProdutoDetailPageWithTooltips() {
+  return (
+    <TooltipProvider>
+      <ProdutoDetailPage />
+    </TooltipProvider>
+  );
+}
+
+export { ProdutoDetailPageWithTooltips as default };
