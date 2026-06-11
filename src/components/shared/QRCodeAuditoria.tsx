@@ -16,7 +16,8 @@ interface QRCodeAuditoriaProps {
 }
 
 function getAuditUrl(tipo: TipoQR, id: string, hash: string): string {
-  const baseUrl = window.location.origin;
+  // Use a custom domain if available, otherwise use published URL
+  const baseUrl = "https://www.brainxerp.com";
   switch (tipo) {
     case 'LOTE_MP':
       return `${baseUrl}/audit/lote/${hash}`;
