@@ -447,7 +447,9 @@ export default function AuthPageModern() {
                     value={regEmail} onChange={e => setRegEmail(e.target.value)} icon="envelope-fill" required />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <Field id="reg-pass" label="Senha" type="password" placeholder="Mín. 6 dígitos"
-                      value={regPass} onChange={e => setRegPass(e.target.value)} icon="lock-fill" required minLength={6} />
+                      value={regPass} onChange={e => setRegPass(e.target.value)} icon="lock-fill" required minLength={6}>
+                      <PasswordStrength password={regPass} />
+                    </Field>
                     <Field id="reg-confirm" label="Confirmar" type="password" placeholder="Repita"
                       value={regConfirm} onChange={e => setRegConfirm(e.target.value)} icon="lock-fill" required minLength={6} />
                   </div>
