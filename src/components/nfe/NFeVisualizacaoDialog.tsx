@@ -734,7 +734,7 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] max-h-[98vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] w-full max-h-[98vh] p-0 gap-0 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-5 border-b">
           <div className="flex items-start justify-between">
@@ -1266,7 +1266,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
   return (
     <div className="space-y-6">
       {/* Row 1: Identificação + Protocolo SEFAZ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<FileText className="h-4 w-4" />} title="Identificação da NF-e">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Field label="Número" value={nota.numero || '-'} bold />
@@ -1297,7 +1297,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       </div>
 
       {/* Row 2: Emitente + Destinatário */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Emitente">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Field label="Razão Social" value={emit?.razaoSocial || nota.fornecedor?.razao_social || '-'} />
@@ -1337,7 +1337,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
       </div>
 
       {/* Row 3: Informações Complementares + Responsável Técnico */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CardSection icon={<Info className="h-4 w-4" />} title="Informações Complementares">
           {(xmlData?.infCpl || xmlData?.infAdFisco) ? (
             <div className="text-sm space-y-2">
