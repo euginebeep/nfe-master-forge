@@ -1329,7 +1329,7 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
               <Field label="E-mail" value={dest.email || '—'} />
               {dest.endereco && (
                 <>
-                  <Field label="Logradouro" value={`${dest.endereco.logradouro}, ${dest.endereco.nro}${dest.endereco.complemento ? ` ${dest.endereco.complemento}` : ''}`} />
+                  <Field label="Logradouro" value={`${dest.endereco.logradouro}, ${dest.endereco.nro || ''}${dest.endereco.complemento ? ` ${dest.endereco.complemento}` : ''}`} className="col-span-2 sm:col-span-3 md:col-span-2" />
                   <Field label="Bairro" value={dest.endereco.bairro} />
                   <Field label="Município/UF" value={`${dest.endereco.cidade}/${dest.endereco.uf}`} />
                   <Field label="CEP" value={formatCEP(dest.endereco.cep)} />
