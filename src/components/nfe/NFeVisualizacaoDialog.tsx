@@ -1484,9 +1484,9 @@ function TabImpostos({ xmlData, nota }: { xmlData: XMLFullData | null; nota: Not
 
       {/* Per-item taxes */}
       {produtos.length > 0 && (
-        <Section title="Impostos por Item">
-          <div className="border rounded-lg overflow-x-auto bg-card">
-            <Table>
+        <Section title="Impostos por Item" className="overflow-hidden">
+          <div className="border rounded-lg overflow-x-auto bg-card -mx-4 sm:mx-0">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow className="bg-muted/50 text-xs">
                   <TableHead>#</TableHead>
