@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Activity, RefreshCw, Search, AlertTriangle, ShieldCheck, User, Database, Loader2 } from "lucide-react";
+import { Activity, RefreshCw, Search, AlertTriangle, ShieldCheck, User, Database, Loader2, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
