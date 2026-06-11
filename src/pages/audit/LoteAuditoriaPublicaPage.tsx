@@ -16,6 +16,7 @@ export default function LoteAuditoriaPublicaPage() {
   const { hash } = useParams<{ hash: string }>();
   const [searchParams] = useSearchParams();
   const tenantId = searchParams.get('cid');
+  const [isBlocked, setIsBlocked] = import("react").useState(false);
 
   const { data: loteData, isLoading, error } = useQuery({
     queryKey: ['lote-auditoria-publica', hash, tenantId],
