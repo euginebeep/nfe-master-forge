@@ -357,8 +357,9 @@ export function AppSidebar() {
                 <span className="font-bold text-base md:text-lg text-sidebar-foreground tracking-tight leading-tight truncate">
                   {profile?.is_demo ? 'BrainX Demo' : 'BrainX ERP'}
                 </span>
-                <span className="text-[10px] md:text-[11px] text-sidebar-foreground/50 font-medium tracking-wide">
+                <span className="text-[10px] md:text-[11px] text-sidebar-foreground/50 font-medium tracking-wide flex items-center gap-1">
                   {profile?.is_demo ? 'Demonstração' : 'Industrial'}
+                  {!profile?.is_demo && <span className="bg-primary/20 text-[9px] px-1 rounded-sm text-primary-foreground font-bold">Matriz</span>}
                 </span>
               </div>
             }

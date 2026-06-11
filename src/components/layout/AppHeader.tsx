@@ -105,9 +105,14 @@ export function AppHeader() {
               <span className="text-[11px] font-semibold truncate">
                 {company.nome_fantasia || company.razao_social}
               </span>
-              <span className="text-[10px] text-muted-foreground font-mono">
-                {maskCNPJ(company.cnpj)}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {maskCNPJ(company.cnpj)}
+                </span>
+                <span className="text-[9px] px-1 rounded bg-primary/10 text-primary font-bold uppercase tracking-tighter">
+                  Matriz
+                </span>
+              </div>
             </div>
           </div>
         )}
