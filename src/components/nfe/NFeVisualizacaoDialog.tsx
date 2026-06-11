@@ -1322,11 +1322,11 @@ function TabDadosGerais({ nota, xmlData }: { nota: NotaEntradaDB; xmlData: XMLFu
 
         <CardSection icon={<Building2 className="h-4 w-4" />} title="Destinatário">
           {dest ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <Field label="Razão Social / Nome" value={dest.razaoSocial} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-3 sm:gap-y-4">
+              <Field label="Razão Social / Nome" value={dest.razaoSocial} className="col-span-2 sm:col-span-3 md:col-span-2" />
               <Field label="CNPJ/CPF" value={dest.cnpj ? formatCNPJ(dest.cnpj) : dest.cpf || '-'} />
               <Field label="Inscrição Estadual" value={dest.ie || '—'} />
-              <Field label="E-mail" value={dest.email || '—'} />
+              <Field label="E-mail" value={dest.email || '—'} className="col-span-2 sm:col-span-3 md:col-span-2" />
               {dest.endereco && (
                 <>
                   <Field label="Logradouro" value={`${dest.endereco.logradouro}, ${dest.endereco.nro || ''}${dest.endereco.complemento ? ` ${dest.endereco.complemento}` : ''}`} className="col-span-2 sm:col-span-3 md:col-span-2" />
