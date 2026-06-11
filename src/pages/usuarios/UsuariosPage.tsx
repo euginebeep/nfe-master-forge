@@ -247,7 +247,7 @@ export default function UsuariosPage() {
               className="bg-secondary hover:bg-secondary/90"
               onClick={handleNewUser}
               disabled={!hasRealCompany}
-              title={!hasRealCompany ? 'Cadastre sua empresa primeiro' : undefined}
+              title={!hasRealCompany ? 'Conclua o cadastro da empresa em Configurações → Empresa' : undefined}
             >
               <Plus className="h-4 w-4 mr-2" />
               Novo Usuário
@@ -262,8 +262,9 @@ export default function UsuariosPage() {
           <AlertTitle>Cadastro da empresa pendente</AlertTitle>
           <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <span>
-              Para criar novos usuários é necessário concluir o cadastro da sua empresa
-              em <strong>Cadastros → Empresa</strong> (CNPJ, razão social e endereço).
+              Para criar novos usuários é necessário concluir o cadastro da empresa
+              em <strong>Configurações → Empresa</strong> (mesma página onde fica o logo,
+              CNPJ, razão social e endereço).
             </span>
             <Button
               size="sm"
@@ -272,7 +273,7 @@ export default function UsuariosPage() {
               className="shrink-0"
             >
               <Building2 className="h-4 w-4 mr-2" />
-              Cadastrar empresa agora
+              Abrir Configurações da Empresa
             </Button>
           </AlertDescription>
         </Alert>
