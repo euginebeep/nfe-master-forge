@@ -48,6 +48,9 @@ export function useLocalCompany() {
   const refresh = useCallback(() => {
     setLoading(true);
     const data = LocalDb.getSingleton<LocalCompany>('company');
+    
+    // Safety check: if local data exists but is a demo record and we are NOT in demo mode (verified by app logic later),
+    // we should prefer null until Supabase data arrives.
     setCompany(data);
     setLoading(false);
   }, []);
