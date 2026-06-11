@@ -2,6 +2,7 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import brainxLogo from "@/assets/brainx-logo.png";
 import { LogoDemoERP } from "./LogoDemoERP";
+import { useCompany } from "@/hooks/use-company";
 import {
   Building2,
   Users,
@@ -224,6 +225,8 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { role, profile, canView, isLoading, signOut } = useAuth();
+  const { data: company } = useCompany();
+  const companyPending = !company;
 
   const isAdmin = role === 'admin';
 
@@ -446,6 +449,7 @@ export function AppSidebar() {
         <SidebarFooter className="border-t border-sidebar-border/50 p-3 bg-sidebar space-y-1">
           {footerItems.filter(isFooterItemVisible).map((item) => {
             const { to, icon: Icon, label, tooltip, danger } = item as FooterItem;
+            const highlight = companyPending && to === "/settings/empresa";
             return (
               <Tooltip key={to}>
                 <TooltipTrigger asChild>
@@ -459,21 +463,37 @@ export function AppSidebar() {
                           : "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
                         : isActive(to)
                           ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5",
+                      highlight && "ring-2 ring-destructive/70 bg-destructive/15 text-destructive font-bold animate-pulse"
                     )}
                   >
                     <Icon className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
                       isActive(to)
                         ? (danger ? "text-red-400" : "text-secondary-foreground")
-                        : (danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80")
+                        : (danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80"),
+                      highlight && "text-destructive"
                     )} />
-                    {!collapsed && <span className="flex-1 text-[13px] font-medium leading-tight">{label}</span>}
+                    {!collapsed && (
+                      <span className="flex-1 text-[13px] font-medium leading-tight flex items-center gap-2">
+                        {label}
+                        {highlight && (
+                          <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive-foreground">
+                            Pendente
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {collapsed && highlight && (
+                      <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                    )}
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="max-w-[240px] text-xs">
                   <p className="font-semibold">{label}</p>
-                  <p className="text-muted-foreground mt-0.5">{tooltip}</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    {highlight ? "Cadastro da empresa pendente — clique para completar" : tooltip}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             );
