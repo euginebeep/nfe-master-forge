@@ -497,7 +497,7 @@ export function gerarContratoPDF(
   }).join("\n");
 
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="Logo" class="logo" />`
+    ? `<img src="${logoUrl}" alt="Logo" class="logo" style="max-height: 80px; width: auto; object-fit: contain; margin-bottom: 10px;" />`
     : "";
 
   const rodapeInfo = [empresaNome, empresaEndereco, empresaTelefone && `Fone: ${empresaTelefone}`, empresaEmail && `E-mail: ${empresaEmail}`].filter(Boolean).join(" — ");
@@ -607,10 +607,12 @@ export function gerarContratoPDF(
 </style>
 </head>
 <body>
-  <div class="header">
+  <div class="header" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
     ${logoHtml}
-    ${empresaNome ? `<div class="empresa-info"><strong>${empresaNome}</strong></div>` : ""}
-    ${empresaCnpj ? `<div class="empresa-info">CNPJ: ${empresaCnpj}</div>` : ""}
+    <div style="margin-top: 5px;">
+      ${empresaNome ? `<div class="empresa-info"><strong>${empresaNome}</strong></div>` : ""}
+      ${empresaCnpj ? `<div class="empresa-info">CNPJ: ${empresaCnpj}</div>` : ""}
+    </div>
   </div>
   ${paragrafos}
   <div class="footer">${rodapeInfo}</div>
