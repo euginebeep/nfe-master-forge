@@ -34,6 +34,7 @@ import {
   Code,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
 // ====================================================
