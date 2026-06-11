@@ -128,7 +128,9 @@ export default function EmpresaSettingsPage() {
             .from("erp-files")
             .createSignedUrl(arquivo.storage_key, 3600);
           if (data?.signedUrl) {
-            setLogoPreview(data.signedUrl);
+            // Adiciona timestamp para cache busting
+            const urlWithVersion = `${data.signedUrl}${data.signedUrl.includes('?') ? '&' : '?'}v=${new Date().getTime()}`;
+            setLogoPreview(urlWithVersion);
           }
         }
       } catch {
@@ -285,6 +287,23 @@ export default function EmpresaSettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validação de tipo e tamanho
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Formato de arquivo não suportado. Use PNG, JPG ou SVG.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      toast.error("O arquivo é muito grande. O tamanho máximo permitido é 2MB.");
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error("O arquivo está vazio ou corrompido.");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
@@ -296,16 +315,21 @@ export default function EmpresaSettingsPage() {
         logo_data: base64,
       }));
     };
+    reader.onerror = () => {
+      toast.error("Erro ao ler o arquivo selecionado.");
+    };
     reader.readAsDataURL(file);
 
-    // Also upload to Supabase for use in reports/contracts
     try {
+      const loadingToast = toast.loading("Enviando logo...");
       const arquivo = await uploadFile.mutateAsync({ file, sensivel: false });
       if (supabaseCompany?.id) {
-        upsertCompanyMutation.mutate({ logo_file_id: arquivo.id });
+        await upsertCompanyMutation.mutateAsync({ logo_file_id: arquivo.id });
       }
-    } catch {
-      // Local logo still works, Supabase upload is best-effort
+      toast.dismiss(loadingToast);
+      toast.success("Logo atualizado com sucesso");
+    } catch (err) {
+      toast.error("Erro ao salvar logo no servidor. A versão local será mantida temporariamente.");
     }
   };
 
@@ -518,16 +542,41 @@ export default function EmpresaSettingsPage() {
                       variant="destructive"
                       size="icon"
                       className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => {
-                        setLogoPreview(null);
-                        setFormData(prev => ({
-                          ...prev,
-                          logo_nome: undefined,
-                          logo_tipo: undefined,
-                          logo_data: undefined,
-                        }));
-                        if (supabaseCompany?.id) {
-                          upsertCompanyMutation.mutate({ logo_file_id: null });
+                      onClick={async () => {
+                        try {
+                          const loadingToast = toast.loading("Removendo logo...");
+                          
+                          // Se houver um ID de arquivo no banco, deveríamos deletar o registro/storage
+                          // No momento, o ERP usa uma tabela 'arquivos' e storage 'erp-files'
+                          if (supabaseCompany?.logo_file_id) {
+                            const { data: arquivo } = await supabase
+                              .from("arquivos")
+                              .select("storage_key")
+                              .eq("id", supabaseCompany.logo_file_id)
+                              .maybeSingle();
+
+                            if (arquivo?.storage_key) {
+                              await supabase.storage
+                                .from("erp-files")
+                                .remove([arquivo.storage_key]);
+                            }
+
+                            // Remove a referência na tabela company
+                            await upsertCompanyMutation.mutateAsync({ logo_file_id: null });
+                          }
+
+                          setLogoPreview(null);
+                          setFormData(prev => ({
+                            ...prev,
+                            logo_nome: undefined,
+                            logo_tipo: undefined,
+                            logo_data: undefined,
+                          }));
+                          
+                          toast.dismiss(loadingToast);
+                          toast.success("Logo removido com sucesso");
+                        } catch (err) {
+                          toast.error("Erro ao remover logo. Tente novamente.");
                         }
                       }}
                     >
