@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { centralToast } from "@/components/ui/central-toast";
 import { useParams, useNavigate } from "react-router-dom";
-import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search, Info } from "lucide-react";
+import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search, Info, TrendingUp, ArrowLeftRight, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { EstoqueResumoCard } from "@/components/estoque/EstoqueResumoCard";
 import { motion } from "framer-motion";
@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,6 +105,44 @@ export function ProdutoDetailPage() {
   const [showDocumentos, setShowDocumentos] = useState(false);
   const [showNFeDialog, setShowNFeDialog] = useState(false);
   const [selectedChaveNfe, setSelectedChaveNfe] = useState<string>("");
+  const [fornecedoresUltimaCompra, setFornecedoresUltimaCompra] = useState<Record<string, { data: string; preco: number }>>({});
+
+  useEffect(() => {
+    const fetchUltimasCompras = async () => {
+      if (!id || fornecedores.length === 0) return;
+      
+      const compras: Record<string, { data: string; preco: number }> = {};
+      
+      for (const f of fornecedores) {
+        if (!f.fornecedor_id) continue;
+        
+        const { data, error } = await supabase
+          .from('notas_entrada_itens')
+          .select(`
+            vprod,
+            qcom,
+            nota_entrada:nota_entrada_id(dh_emissao)
+          `)
+          .eq('item_id', id)
+          .eq('nota_entrada.fornecedor_id', f.fornecedor_id)
+          .order('nota_entrada(dh_emissao)', { ascending: false })
+          .limit(1);
+          
+        if (!error && data && data.length > 0) {
+          const itemNota = data[0] as any;
+          if (itemNota.nota_entrada?.dh_emissao) {
+            compras[f.fornecedor_id] = {
+              data: itemNota.nota_entrada.dh_emissao,
+              preco: itemNota.vprod / (itemNota.qcom || 1)
+            };
+          }
+        }
+      }
+      setFornecedoresUltimaCompra(compras);
+    };
+    
+    fetchUltimasCompras();
+  }, [id, fornecedores]);
 
   useEffect(() => {
     if (item) {
@@ -289,6 +328,35 @@ export function ProdutoDetailPage() {
                   />
                   <label htmlFor="ativo" className="text-sm font-medium">Ativo</label>
                 </div>
+
+                {(item as any).custo_medio_atual > 0 && (
+                  <Card className="bg-muted/30 border-dashed">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 rounded-full bg-blue-500/10">
+                          <TrendingUp className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-2">
+                            📊 Custo Médio Ponderado (automático)
+                          </p>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-bold">
+                              R$ {Number((item as any).custo_medio_atual).toLocaleString('pt-BR', { minimumFractionDigits: 6, maximumFractionDigits: 6 })}
+                            </span>
+                            <span className="text-sm text-muted-foreground">/{item.unidade_interna}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Atualizado: {(item as any).custo_medio_atualizado_em ? new Date((item as any).custo_medio_atualizado_em).toLocaleString('pt-BR') : "—"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Calculado automaticamente com base nos lotes disponíveis e em quarentena.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -798,13 +866,37 @@ export function ProdutoDetailPage() {
                           {f.fornecedor_preferencial && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
                           <div>
                             <p className="font-medium">{String(f.fornecedor?.razao_social ?? "Fornecedor")}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Codigo: {f.codigo_fornecedor || "-"} | 
-                              Unidade: {f.unidade_compra_padrao} | 
-                              Fator: {f.fator_para_unidade_interna}x
-                            </p>
-                            {f.descricao_fornecedor && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-1 mt-1">
                               <p className="text-sm text-muted-foreground">
+                                Codigo: {f.codigo_fornecedor || "-"} | 
+                                Unidade: {f.unidade_compra_padrao} | 
+                                Fator: {f.fator_para_unidade_interna}x
+                              </p>
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Preço cadastrado:</span>{" "}
+                                <span className="font-medium">{formatCurrency(f.preco_referencia || 0)}/{f.unidade_compra_padrao}</span>
+                              </p>
+                              {fornecedoresUltimaCompra[f.fornecedor_id!] && (
+                                <div className="text-sm flex items-center gap-2">
+                                  <span className="text-muted-foreground">Último pedido:</span>
+                                  <span className="font-medium">
+                                    {formatCurrency(fornecedoresUltimaCompra[f.fornecedor_id!].preco)} em {new Date(fornecedoresUltimaCompra[f.fornecedor_id!].data).toLocaleDateString('pt-BR')}
+                                  </span>
+                                  {f.preco_referencia > 0 && (
+                                    <span className={`font-bold ${
+                                      fornecedoresUltimaCompra[f.fornecedor_id!].preco > f.preco_referencia 
+                                        ? "text-red-500" 
+                                        : "text-emerald-500"
+                                    }`}>
+                                      {fornecedoresUltimaCompra[f.fornecedor_id!].preco > f.preco_referencia ? "+" : ""}
+                                      {(((fornecedoresUltimaCompra[f.fornecedor_id!].preco - f.preco_referencia) / f.preco_referencia) * 100).toFixed(1)}%
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {f.descricao_fornecedor && (
+                              <p className="text-sm text-muted-foreground mt-1">
                                 Descricao: {f.descricao_fornecedor}
                               </p>
                             )}
@@ -867,9 +959,34 @@ export function ProdutoDetailPage() {
         {/* Tab Lotes */}
         <TabsContent value="lotes">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            {/* Alerta de Estoque Baixo */}
+            {lotes.length > 0 && (formData.estoque_minimo || 0) > 0 && (
+              (() => {
+                const qtdDisponivel = lotes.filter(l => l.status === 'DISPONIVEL').reduce((sum, l) => sum + (l.quantidade_interna || 0), 0);
+                if (qtdDisponivel < (formData.estoque_minimo || 0)) {
+                  return (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Estoque abaixo do mínimo!</AlertTitle>
+                      <AlertDescription>
+                        Disponível: {qtdDisponivel.toLocaleString('pt-BR')} {item.unidade_interna} |
+                        Mínimo configurado: {formData.estoque_minimo} {item.unidade_interna} |
+                        Deficit: {(formData.estoque_minimo - qtdDisponivel).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {item.unidade_interna}
+                      </AlertDescription>
+                    </Alert>
+                  );
+                }
+                return null;
+              })()
+            )}
+
             {/* Resumo de Estoque Total */}
             {lotes.length > 0 && (
-              <EstoqueResumoCard lotes={lotes} unidadeInternaItem={item.unidade_interna} />
+              <EstoqueResumoCard 
+                lotes={lotes} 
+                unidadeInternaItem={item.unidade_interna}
+                consumoMensalMedio={(item as any).consumo_mensal_estimado || 0}
+              />
             )}
             
             <Card>
@@ -925,6 +1042,14 @@ export function ProdutoDetailPage() {
                             >
                               <FileText className="h-4 w-4 mr-1" />
                               Documentos
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/estoque/movimentacoes?lote_id=${l.id}`)}
+                            >
+                              <ArrowLeftRight className="h-4 w-4 mr-1" />
+                              Movimentações
                             </Button>
                             {l.status === "QUARENTENA" && canReleaseSupabaseLote(l, item) && (
                               <Button 
@@ -989,9 +1114,34 @@ export function ProdutoDetailPage() {
                           <div>
                             <p className="text-muted-foreground">Qtd Interna (Convertido)</p>
                             <p className="font-medium text-primary">
-                              {l.quantidade_interna?.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unidade_interna}
-                            </p>
-                          </div>
+                                {l.quantidade_interna?.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unidade_interna}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Consumido</p>
+                              {(() => {
+                                const qtdOriginalInterna = (l.quantidade_original || 0) * (formData.fator_conversao || 1);
+                                if (qtdOriginalInterna > 0) {
+                                  const percConsumido = ((qtdOriginalInterna - (l.quantidade_interna || 0)) / qtdOriginalInterna) * 100;
+                                  return (
+                                    <div className="space-y-1">
+                                      <p className="font-medium text-sm">
+                                        {percConsumido.toFixed(1)}%
+                                      </p>
+                                      <div className="w-full bg-muted rounded-full h-1.5">
+                                        <div
+                                          className="bg-blue-500 h-1.5 rounded-full"
+                                          style={{
+                                            width: `${Math.min(100, percConsumido)}%`
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return <p className="text-muted-foreground text-xs">—</p>;
+                              })()}
+                            </div>
                           <div className="flex flex-col items-start">
                             <p className="text-muted-foreground text-xs">Validade</p>
                             <div className="flex items-center gap-2 mt-0.5">
