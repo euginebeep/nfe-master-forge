@@ -19,11 +19,39 @@ export default function LoteAuditoriaPublicaPage() {
     queryKey: ['lote-auditoria-publica', hash],
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
+      
+      // Tentar buscar em lotes de fornecedor primeiro (estoque_lotes)
+      const { data: loteFornecedor, error: errorFornecedor } = await supabase
+        .from('estoque_lotes')
+        .select(`
+          *,
+          item:itens (*),
+          fornecedor:entidades (*),
+          lote_documentos (*, arquivo:arquivos(*))
+        `)
+        .eq('id', hash) // Usamos o ID do lote como hash para fornecedor
+        .maybeSingle();
+
+      if (loteFornecedor) {
+        return {
+          ...loteFornecedor,
+          tipo_lote: 'FORNECEDOR',
+          produto_nome: (loteFornecedor.item as any).descricao_interna,
+          produto_codigo: (loteFornecedor.item as any).sku_interno,
+          data_fabricacao: loteFornecedor.data_fab,
+          data_validade: loteFornecedor.data_val,
+          quantidade_produzida: loteFornecedor.quantidade_original,
+          unidade: loteFornecedor.unidade_original,
+        };
+      }
+
+      // Se não achar, buscar em lotes de produto acabado
       const { data, error } = await supabase
         .from('lotes_produto_acabado')
         .select('*')
         .eq('qr_code_hash', hash)
-        .single();
+        .maybeSingle();
+
       if (error || !data) throw new Error('Lote não encontrado');
 
       const { data: materiasPrimas } = await supabase
@@ -31,18 +59,10 @@ export default function LoteAuditoriaPublicaPage() {
         .select('*')
         .eq('lote_produto_acabado_id', data.id);
 
-      // Buscar audit trail
-      const { data: auditTrail } = await supabase
-        .from('audit_trail_imutavel')
-        .select('*')
-        .eq('entidade_id', data.id)
-        .order('sequencia', { ascending: true })
-        .limit(20);
-
       return {
         ...data,
+        tipo_lote: 'ACABADO',
         materias_primas: materiasPrimas || [],
-        audit_trail: auditTrail || [],
       };
     },
     enabled: !!hash,
@@ -83,7 +103,7 @@ export default function LoteAuditoriaPublicaPage() {
   };
 
   const status = statusConfig[lote.status] || statusConfig.QUARENTENA;
-  const isVerified = lote.qr_code_hash === hash;
+  const isVerified = lote.qr_code_hash === hash || lote.tipo_lote === 'FORNECEDOR';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
@@ -169,20 +189,38 @@ export default function LoteAuditoriaPublicaPage() {
           </CardContent>
         </Card>
 
-        {/* RT */}
+        {/* RT ou Fornecedor */}
         <Card className="border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <UserCheck className="w-5 h-5 text-primary" />
-              Responsável Técnico
+              {lote.tipo_lote === 'FORNECEDOR' ? (
+                <>
+                  <Truck className="w-5 h-5 text-primary" />
+                  Origem do Insumo
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-5 h-5 text-primary" />
+                  Responsável Técnico
+                </>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="bg-primary/5 rounded-lg p-4">
-              <p className="text-lg font-semibold">{lote.rt_nome}</p>
-              <p className="text-muted-foreground">
-                {lote.rt_tipo_conselho} {lote.rt_numero_registro}/{lote.rt_uf_conselho}
-              </p>
+              {lote.tipo_lote === 'FORNECEDOR' ? (
+                <>
+                  <p className="text-lg font-semibold">{lote.fornecedor?.razao_social}</p>
+                  <p className="text-muted-foreground">CNPJ: {lote.fornecedor?.documento}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-semibold">{lote.rt_nome}</p>
+                  <p className="text-muted-foreground">
+                    {lote.rt_tipo_conselho} {lote.rt_numero_registro}/{lote.rt_uf_conselho}
+                  </p>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -214,7 +252,35 @@ export default function LoteAuditoriaPublicaPage() {
           </Card>
         )}
 
-        {/* Timeline de Auditoria */}
+        {/* Timeline de Auditoria ou Documentos */}
+        {lote.tipo_lote === 'FORNECEDOR' && lote.lote_documentos && lote.lote_documentos.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="w-5 h-5" />
+                Documentação Técnica (COA/Laudo)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {lote.lote_documentos.map((doc: any) => (
+                  <div key={doc.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="font-medium text-sm">{doc.arquivo_nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Status: <StatusBadge variant={doc.status_validacao === 'VALIDADO' ? 'success' : 'warning'}>{doc.status_validacao}</StatusBadge>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {lote.audit_trail && lote.audit_trail.length > 0 && (
           <Card>
             <CardHeader>
@@ -268,7 +334,7 @@ export default function LoteAuditoriaPublicaPage() {
         {/* QR Code + Hash */}
         <div className="flex flex-col items-center py-4 gap-4">
           <QRCodeAuditoria
-            tipo="PRODUTO_ACABADO"
+            tipo={lote.tipo_lote === 'FORNECEDOR' ? "LOTE_MP" : "PRODUTO_ACABADO"}
             id={lote.id}
             hash={hash!}
             codigo={lote.numero_lote}
