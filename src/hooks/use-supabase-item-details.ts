@@ -234,6 +234,7 @@ export function useSupabaseEstoqueLotes(itemId: string | undefined) {
   return {
     lotes,
     isLoading,
+    refresh: () => queryClient.invalidateQueries({ queryKey: ['estoque-lotes', itemId] }),
     update: (id: string, data: Record<string, unknown>) => updateMutation.mutate({ id, data }),
     remove: (id: string) => removeMutation.mutate(id),
   };
