@@ -175,14 +175,16 @@ const App = () => (
                 <Route path="/cadastros/itens/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ProdutoDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/produtos/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ProdutoDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/responsaveis-tecnicos" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ResponsaveisTecnicosPage /></ErrorBoundary></Suspense>} />
+                <Route path="/responsaveis-tecnicos" element={<Navigate to="/cadastros/responsaveis-tecnicos" replace />} />
+
                 {/* Produção — supervisor+ */}
                 <Route path="/producao/formulas" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><FormuladorIndustrialPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/formulas/nova" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><NovaFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/formulas/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><VisualizarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/formulas/:id/editar" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><EditarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ConsultaAnvisaPage /></ErrorBoundary></Suspense>} />
                 <Route path="/regulatorio/consulta-anvisa" element={<Navigate to="/regulatorio/anvisa" replace />} />
-                <Route path="/cadastros/responsaveis-tecnicos" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ResponsaveisTecnicosPage /></ErrorBoundary></Suspense>} />
-                <Route path="/responsaveis-tecnicos" element={<Navigate to="/cadastros/responsaveis-tecnicos" replace />} />
-                <Route path="/producao/formulas/:id/editar" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><EditarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/ordens" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrdensProducaoIndustrialPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/ordens/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><OrdemProducaoDetailPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/dashboard" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><DashboardIndustrialPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
