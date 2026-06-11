@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Beaker, CheckCircle, FileText, Info, Upload, Search } from "lucide-react";
+import { ArrowLeft, Beaker, CheckCircle, FileText, Info, Upload, Search, Printer, ShieldCheck, XCircle, AlertCircle, History } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { COAParserButton } from "@/components/lotes/COAParserButton";
 import { QRCodeAuditoria } from "@/components/shared/QRCodeAuditoria";
 import { useQueryClient } from "@tanstack/react-query";
+import { LoteFornecedorEtiqueta } from "@/components/estoque/LoteFornecedorEtiqueta";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
 
@@ -38,6 +41,7 @@ export default function LoteDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const { data: loteData, isLoading } = useLote(id);
+  const updateLoteStatus = useUpdateLoteStatus();
   const updateDocValidacao = useUpdateDocumentoValidacao();
 
   const lote = loteData as any;
@@ -141,29 +145,86 @@ export default function LoteDetailPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title={`Lote ${lote.numero_lote}`}
-        description={`Item: ${(item as any).descricao_interna}`}
+        description={`Insumo: ${(item as any).descricao_interna}`}
         icon={FileText}
         actions={
-          <Button variant="outline" onClick={() => navigate("/estoque/lotes")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" />
+              Etiqueta
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/estoque/lotes")}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+          </div>
         }
       />
 
+      {/* Ações de Fluxo de Qualidade */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Button 
+          variant={lote.status === 'QUARENTENA' ? 'default' : 'outline'}
+          className={lote.status === 'QUARENTENA' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+          onClick={() => updateLoteStatus.mutate({ id: id!, status: 'QUARENTENA' })}
+        >
+          <AlertCircle className="h-4 w-4 mr-2" /> Quarentena
+        </Button>
+        <Button 
+          variant={lote.status === 'DISPONIVEL' || lote.status === 'APROVADO' ? 'default' : 'outline'}
+          className={lote.status === 'APROVADO' ? 'bg-green-600 hover:bg-green-700' : ''}
+          onClick={() => {
+            if (!hasCOAValidado) {
+              toast.error("O COA precisa estar validado para liberar o lote.");
+              return;
+            }
+            updateLoteStatus.mutate({ id: id!, status: 'APROVADO' });
+          }}
+        >
+          <ShieldCheck className="h-4 w-4 mr-2" /> Liberar Produção
+        </Button>
+        <Button 
+          variant={lote.status === 'BLOQUEADO' ? 'destructive' : 'outline'}
+          onClick={() => updateLoteStatus.mutate({ id: id!, status: 'BLOQUEADO' })}
+        >
+          <XCircle className="h-4 w-4 mr-2" /> Bloquear Lote
+        </Button>
+        <div className="hidden lg:block"></div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 flex justify-center">
-          <QRCodeAuditoria
-            tipo="LOTE_MP"
-            id={lote.id}
-            hash={lote.id}
-            codigo={lote.numero_lote}
-            label={`Lote ${lote.numero_lote}`}
-            size={120}
-          />
+        <div className="lg:col-span-1 space-y-6">
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                <QrCode className="h-4 w-4 text-primary" /> Rastreabilidade Digital
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 flex flex-col items-center">
+              <LoteFornecedorEtiqueta 
+                lote={{
+                  ...lote,
+                  item: item,
+                  qr_url: `https://www.brainxerp.com/audit/lote/${lote.id}`
+                }} 
+              />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" /> Histórico de Auditoria
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground italic">Trilha imutável registrada em blockchain simulado (SHA-256).</p>
+              {/* Aqui poderíamos listar eventos de auditoria específicos do lote */}
+            </CardContent>
+          </Card>
         </div>
         <Card>
           <CardHeader className="pb-3">
