@@ -818,17 +818,17 @@ export function NFeVisualizacaoDialog({ open, onOpenChange, chaveNfe }: NFeVisua
             </TabsContent>
 
             {/* Produtos */}
-            <TabsContent value="produtos" className="mt-0 p-6">
+            <TabsContent value="produtos" className="mt-0 p-3 sm:p-6">
               <TabProdutos xmlData={xmlData} itens={itens} />
             </TabsContent>
 
             {/* Impostos */}
-            <TabsContent value="impostos" className="mt-0 p-6">
+            <TabsContent value="impostos" className="mt-0 p-3 sm:p-6">
               <TabImpostos xmlData={xmlData} nota={nota} />
             </TabsContent>
 
             {/* Transporte */}
-            <TabsContent value="transporte" className="mt-0 p-6">
+            <TabsContent value="transporte" className="mt-0 p-3 sm:p-6">
               <TabTransporte xmlData={xmlData} />
             </TabsContent>
 
