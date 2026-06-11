@@ -911,7 +911,7 @@ export default function ProdutoDetailPage() {
                               <FileText className="h-4 w-4 mr-1" />
                               Documentos
                             </Button>
-                            {l.status === "QUARENTENA" && canReleaseLote(l.id, id!) && (
+                            {l.status === "QUARENTENA" && canReleaseSupabaseLote(l, item) && (
                               <Button 
                                 variant="outline" 
                                 size="sm"
@@ -1166,7 +1166,7 @@ export default function ProdutoDetailPage() {
         onOpenChange={setShowAliasForm}
         itemId={id!}
         onSave={(data) => {
-          createAlias(data as Omit<LocalItemAlias, 'id'>);
+          createAlias(data as { item_id: string; fornecedor_id?: string | null; tipo: string; texto: string });
           setShowAliasForm(false);
         }}
       />
@@ -1182,6 +1182,7 @@ export default function ProdutoDetailPage() {
           itemId={id!}
           onLoteUpdate={() => {
             refetch();
+            refreshLotes();
           }}
         />
       )}
