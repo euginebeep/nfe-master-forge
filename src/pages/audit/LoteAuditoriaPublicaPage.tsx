@@ -22,18 +22,11 @@ export default function LoteAuditoriaPublicaPage() {
     queryFn: async () => {
       if (!hash) throw new Error('Hash não informado');
       
-      // Busca simplificada para evitar recursão de tipos (Excessive deep instantiation)
-      const fetchLoteFornecedor = async () => {
-        let q = supabase
-          .from('estoque_lotes')
-          .select('*, item:itens(*), fornecedor:entidades(*), lote_documentos(*, arquivo:arquivos(*))')
-          .eq('id', hash);
-        if (tenantId) q = q.eq('company_id', tenantId);
-        const { data, error } = await q.maybeSingle();
-        return data;
-      };
-
-      const lf = await fetchLoteFornecedor();
+      const { data: lf } = await supabase
+        .from('estoque_lotes')
+        .select('*, item:itens(*), fornecedor:entidades(*), lote_documentos(*, arquivo:arquivos(*))')
+        .eq('id', hash)
+        .maybeSingle();
 
       if (lf) {
         return {
@@ -50,21 +43,17 @@ export default function LoteAuditoriaPublicaPage() {
           fornecedor: lf.fornecedor,
           lote_documentos: lf.lote_documentos,
           qr_code_hash: hash,
+          company_id: lf.company_id
         };
       }
 
-      const fetchLoteAcabado = async () => {
-        let q = supabase
-          .from('lotes_produto_acabado')
-          .select('*')
-          .eq('qr_code_hash', hash);
-        if (tenantId) q = q.eq('company_id', tenantId);
-        const { data, error } = await q.maybeSingle();
-        return { data, error };
-      };
+      const { data: la } = await supabase
+        .from('lotes_produto_acabado')
+        .select('*')
+        .eq('qr_code_hash', hash)
+        .maybeSingle();
 
-      const { data: la, error: errA } = await fetchLoteAcabado();
-      if (errA || !la) throw new Error('Lote não encontrado');
+      if (!la) throw new Error('Lote não encontrado');
 
       const { data: mp } = await supabase
         .from('lote_materias_primas')
@@ -72,9 +61,22 @@ export default function LoteAuditoriaPublicaPage() {
         .eq('lote_produto_acabado_id', la.id);
 
       return {
-        ...la,
+        id: la.id,
+        status: la.status,
+        numero_lote: la.numero_lote,
+        produto_nome: la.produto_nome,
+        produto_codigo: la.produto_codigo,
+        data_fabricacao: la.data_fabricacao,
+        data_validade: la.data_validade,
+        quantidade_produzida: la.quantidade_produzida,
+        rt_nome: la.rt_nome,
+        rt_tipo_conselho: la.rt_tipo_conselho,
+        rt_numero_registro: la.rt_numero_registro,
+        rt_uf_conselho: la.rt_uf_conselho,
         tipo_lote: 'ACABADO',
         materias_primas: mp || [],
+        qr_code_hash: la.qr_code_hash,
+        company_id: la.company_id
       };
     },
     enabled: !!hash,
@@ -93,7 +95,7 @@ export default function LoteAuditoriaPublicaPage() {
 
   const lote = loteData as any;
 
-  if (error || !lote) {
+  if (error || !lote || (tenantId && lote.company_id !== tenantId)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
@@ -122,7 +124,6 @@ export default function LoteAuditoriaPublicaPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      {/* Header */}
       <div className="bg-primary text-primary-foreground py-6 px-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
