@@ -196,12 +196,14 @@ export default function RelatoriosPage() {
           .maybeSingle();
         
         if (arquivo?.storage_key) {
-          const { data: signed } = await supabase.storage
+          const { data: signed, error: storageError } = await supabase.storage
             .from("erp-files")
             .createSignedUrl(arquivo.storage_key, 3600);
           
           if (signed?.signedUrl) {
             logoUrl = `${signed.signedUrl}&v=${new Date().getTime()}`;
+          } else {
+            console.error("Erro storage logo:", storageError);
           }
         }
       }

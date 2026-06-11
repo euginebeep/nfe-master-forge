@@ -110,6 +110,7 @@ export default function EmpresaSettingsPage() {
 
   // Load logo from Supabase storage when logo_file_id exists
   useEffect(() => {
+    let isMounted = true;
     if (!supabaseCompany?.logo_file_id) {
       if (!logoPreview?.startsWith('data:')) {
         setLogoPreview(null);
@@ -118,26 +119,51 @@ export default function EmpresaSettingsPage() {
     }
     const loadLogoFromStorage = async () => {
       try {
-        const { data: arquivo } = await supabase
+        const { data: arquivo, error: dbError } = await supabase
           .from("arquivos")
           .select("storage_key")
           .eq("id", supabaseCompany.logo_file_id!)
           .maybeSingle();
-        if (arquivo?.storage_key) {
-          const { data } = await supabase.storage
-            .from("erp-files")
-            .createSignedUrl(arquivo.storage_key, 3600);
-          if (data?.signedUrl) {
-            // Adiciona timestamp para cache busting
-            const urlWithVersion = `${data.signedUrl}${data.signedUrl.includes('?') ? '&' : '?'}v=${new Date().getTime()}`;
-            setLogoPreview(urlWithVersion);
+        
+        if (dbError || !arquivo?.storage_key) {
+          if (dbError) {
+            await registrarAuditoria({
+              entidade: 'company',
+              entidade_id: supabaseCompany.id,
+              acao: 'ERRO_CARREGAR_LOGO',
+              payload: { error: dbError.message }
+            });
           }
+          if (isMounted) setLogoPreview(null);
+          return;
         }
-      } catch {
-        // Silent fail
+
+        const { data, error: storageError } = await supabase.storage
+          .from("erp-files")
+          .createSignedUrl(arquivo.storage_key, 3600);
+          
+        if (storageError || !data?.signedUrl) {
+          await registrarAuditoria({
+            entidade: 'company',
+            entidade_id: supabaseCompany.id,
+            acao: 'ERRO_STORAGE_LOGO',
+            payload: { error: storageError?.message || 'URL não gerada' }
+          });
+          if (isMounted) setLogoPreview(null);
+          return;
+        }
+
+        if (isMounted) {
+          // Adiciona timestamp para cache busting
+          const urlWithVersion = `${data.signedUrl}${data.signedUrl.includes('?') ? '&' : '?'}v=${new Date().getTime()}`;
+          setLogoPreview(urlWithVersion);
+        }
+      } catch (err) {
+        console.error("Erro fatal ao carregar logo:", err);
       }
     };
     loadLogoFromStorage();
+    return () => { isMounted = false; };
   }, [supabaseCompany?.logo_file_id]);
 
   // Load certificate file ID and name from Supabase company
@@ -536,6 +562,10 @@ export default function EmpresaSettingsPage() {
                       src={logoPreview} 
                       alt="Logo" 
                       className="h-20 w-auto max-w-[200px] object-contain border rounded p-1 bg-white"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/200x80?text=Logo+Indisponível';
+                        console.error("Logo falhou ao carregar");
+                      }}
                     />
                     <Button
                       type="button"
