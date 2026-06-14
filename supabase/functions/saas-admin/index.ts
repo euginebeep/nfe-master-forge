@@ -40,7 +40,9 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
     const url = new URL(req.url)
-    const action = url.searchParams.get('action') || 'list'
+    let bodyJson: any = {}
+    try { bodyJson = await req.json() } catch { /* no body */ }
+    const action = url.searchParams.get('action') || bodyJson?.action || 'list'
 
     // ─── LIST: Get all companies with extended SaaS data ───
     if (action === 'list') {
@@ -152,7 +154,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update-ticket') {
-      const { id, status, atribuido_a } = await req.json()
+      const { id, status, atribuido_a } = bodyJson
       const { data, error } = await supabaseAdmin
         .from('saas_tickets')
         .update({ status, atribuido_a, updated_at: new Date().toISOString() })
@@ -170,7 +172,7 @@ Deno.serve(async (req) => {
 
     // Existing actions (block, unblock, delete-company, grant-access, update-company)
     if (['block', 'unblock', 'delete-company', 'grant-access', 'update-company'].includes(action)) {
-      const body = await req.json()
+      const body = bodyJson
       const { company_id } = body
 
       if (action === 'update-company') {
