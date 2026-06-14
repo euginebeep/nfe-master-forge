@@ -215,8 +215,7 @@ export default function SaasDashboardPage() {
   const fetchCompanies = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("saas-admin?action=list");
-      if (error) throw error;
+      const data = await callSaasAdmin("list");
       setCompanies(data?.companies || []);
       setOrphanUsers(data?.orphan_users || []);
     } catch (err) {
@@ -235,8 +234,7 @@ export default function SaasDashboardPage() {
     try {
       const body: any = { company_id: companyId };
       if (type === "grant-access") body.days = grantDays;
-      const { data, error } = await supabase.functions.invoke(`saas-admin?action=${type === "delete" ? "delete-company" : type}`, { body });
-      if (error) throw error;
+      await callSaasAdmin(type === "delete" ? "delete-company" : type, body);
       toast.success("Operação realizada!");
       setConfirmAction(null);
       fetchCompanies();
@@ -618,10 +616,7 @@ export default function SaasDashboardPage() {
                     defaultValue={detailCompany.tipo_empresa || "outro"} 
                     onValueChange={async (val) => {
                       try {
-                        const { error } = await supabase.functions.invoke("saas-admin?action=update-company", {
-                          body: { company_id: detailCompany.id, updates: { tipo_empresa: val } }
-                        });
-                        if (error) throw error;
+                        await callSaasAdmin("update-company", { company_id: detailCompany.id, updates: { tipo_empresa: val } });
                         toast.success("Tipo de empresa atualizado");
                         fetchCompanies();
                       } catch (err) {
