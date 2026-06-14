@@ -119,6 +119,26 @@ export default function SaasDashboardPage() {
   const [grantDays, setGrantDays] = useState(30);
   const [backupLoading, setBackupLoading] = useState(false);
 
+  const callSaasAdmin = async (action: string, body: any = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Sessão expirada");
+    const url = `https://lvptvswvqjhvobdvgfws.supabase.co/functions/v1/saas-admin?action=${encodeURIComponent(action)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cHR2c3d2cWpodm9iZHZnZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDE4NjAsImV4cCI6MjA4NTg3Nzg2MH0.YVkXpll6HMR5o6F1qrDgyj-H1Aljzzonf3beyCrerA0",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`saas-admin ${res.status}: ${txt}`);
+    }
+    return res.json();
+  };
+
   const handleBackupDownload = async (scope: "tenant" | "saas") => {
     setBackupLoading(true);
     const toastId = toast.loading(
