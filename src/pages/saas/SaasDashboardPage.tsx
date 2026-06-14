@@ -107,6 +107,7 @@ export default function SaasDashboardPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [companies, setCompanies] = useState<SaasCompany[]>([]);
+  const [orphanUsers, setOrphanUsers] = useState<Array<{ id: string; nome: string; email: string; created_at: string; ultimo_acesso: string | null; motivo: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -217,6 +218,7 @@ export default function SaasDashboardPage() {
       const { data, error } = await supabase.functions.invoke("saas-admin?action=list");
       if (error) throw error;
       setCompanies(data?.companies || []);
+      setOrphanUsers(data?.orphan_users || []);
     } catch (err) {
       toast.error("Erro ao carregar dados SaaS");
     } finally {
@@ -488,6 +490,48 @@ export default function SaasDashboardPage() {
                 </Table>
               </CardContent>
             </Card>
+
+            {orphanUsers.length > 0 && (
+              <Card className="border-warning/40 border-2 shadow-sm">
+                <CardHeader className="pb-3 border-b bg-warning/5">
+                  <CardTitle className="text-base flex items-center gap-2 text-warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    Usuários sem empresa vinculada ({orphanUsers.length})
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cadastraram-se mas nunca completaram o onboarding (não criaram empresa). Não aparecem na lista de tenants acima.
+                  </p>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Cadastro</TableHead>
+                        <TableHead>Último acesso</TableHead>
+                        <TableHead>Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orphanUsers.map(u => (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-medium">{u.nome || <span className="italic text-muted-foreground">—</span>}</TableCell>
+                          <TableCell className="font-mono text-xs">{u.email}</TableCell>
+                          <TableCell className="text-xs">{format(new Date(u.created_at), "dd/MM/yy HH:mm")}</TableCell>
+                          <TableCell className="text-xs">{u.ultimo_acesso ? format(new Date(u.ultimo_acesso), "dd/MM/yy HH:mm") : <span className="italic text-muted-foreground">nunca</span>}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] uppercase bg-warning/10 text-warning border-warning/30">
+                              {u.motivo === "auth_sem_profile" ? "Sem profile" : "Sem empresa"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="tickets">

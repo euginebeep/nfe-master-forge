@@ -112,7 +112,31 @@ Deno.serve(async (req) => {
         }
       }
 
-      return new Response(JSON.stringify({ companies: companyData }), {
+      // Usuários órfãos: profiles sem company_id + auth.users sem profile
+      const profileIds = new Set((profiles || []).map(p => p.id))
+      const orphanProfiles = (profiles || [])
+        .filter(p => !p.company_id)
+        .map(p => ({
+          id: p.id,
+          nome: p.nome_completo,
+          email: emailMap.get(p.id) || '',
+          created_at: p.created_at,
+          ultimo_acesso: p.ultimo_acesso,
+          motivo: 'profile_sem_company',
+        }))
+      const authOnly = (authUsers || [])
+        .filter(u => !profileIds.has(u.id))
+        .map(u => ({
+          id: u.id,
+          nome: u.user_metadata?.full_name || u.email || '',
+          email: u.email || '',
+          created_at: u.created_at,
+          ultimo_acesso: u.last_sign_in_at,
+          motivo: 'auth_sem_profile',
+        }))
+      const orphanUsers = [...orphanProfiles, ...authOnly]
+
+      return new Response(JSON.stringify({ companies: companyData, orphan_users: orphanUsers }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
