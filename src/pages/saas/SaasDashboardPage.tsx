@@ -120,23 +120,16 @@ export default function SaasDashboardPage() {
   const [backupLoading, setBackupLoading] = useState(false);
 
   const callSaasAdmin = async (action: string, body: any = {}) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error("Sessão expirada");
-    const url = `https://lvptvswvqjhvobdvgfws.supabase.co/functions/v1/saas-admin?action=${encodeURIComponent(action)}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cHR2c3d2cWpodm9iZHZnZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDE4NjAsImV4cCI6MjA4NTg3Nzg2MH0.YVkXpll6HMR5o6F1qrDgyj-H1Aljzzonf3beyCrerA0",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`saas-admin ${res.status}: ${txt}`);
+    // Refresh session if needed, then invoke. supabase-js attaches auth+apikey automatically.
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess?.session) {
+      await supabase.auth.refreshSession();
     }
-    return res.json();
+    const { data, error } = await supabase.functions.invoke("saas-admin", {
+      body: { action, ...body },
+    });
+    if (error) throw new Error(error.message || "saas-admin failed");
+    return data;
   };
 
   const handleBackupDownload = async (scope: "tenant" | "saas") => {
