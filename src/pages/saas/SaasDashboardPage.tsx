@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
   RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, FileText,
-  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote
+  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote, Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,6 +116,51 @@ export default function SaasDashboardPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete" | "grant-access"; company: SaasCompany } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [grantDays, setGrantDays] = useState(30);
+  const [backupLoading, setBackupLoading] = useState(false);
+
+  const handleBackupDownload = async (scope: "tenant" | "saas") => {
+    setBackupLoading(true);
+    const toastId = toast.loading(
+      scope === "saas"
+        ? "Gerando backup SaaS-wide (todos os tenants)... pode demorar alguns minutos."
+        : "Gerando backup do tenant... aguarde."
+    );
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Sessão expirada. Faça login novamente.", { id: toastId });
+        return;
+      }
+      const url = `https://lvptvswvqjhvobdvgfws.supabase.co/functions/v1/export-full-backup`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(scope === "saas" ? { scope: "saas" } : {}),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const fname = `backup-${scope}-${new Date().toISOString().slice(0, 10)}.zip`;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      toast.success(`Backup baixado: ${fname}`, { id: toastId });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar backup";
+      toast.error(msg, { id: toastId });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
 
   const { data: leadsCount } = useQuery({
     queryKey: ['demo-leads-count'],
@@ -275,6 +320,27 @@ export default function SaasDashboardPage() {
             </Badge>
           </div>
           <div className="flex items-center gap-3">
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={() => handleBackupDownload("saas")}
+               disabled={backupLoading}
+               className="border-primary/30 text-primary hover:bg-primary/10 font-bold"
+               title="Baixa um ZIP com TODOS os tenants, auth.users, XMLs e Storage"
+             >
+               {backupLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+               Backup SaaS-Wide
+             </Button>
+             <Button
+               variant="ghost"
+               size="sm"
+               onClick={() => handleBackupDownload("tenant")}
+               disabled={backupLoading}
+               title="Backup apenas do tenant do usuário logado"
+             >
+               <Download className="h-4 w-4 mr-2" />
+               Backup Tenant
+             </Button>
              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-destructive hover:bg-destructive/10">
                <LogOut className="h-4 w-4 mr-2" /> Sair
              </Button>
