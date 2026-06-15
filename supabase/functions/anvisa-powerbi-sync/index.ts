@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 const FIRECRAWL_API = 'https://api.firecrawl.dev/v1'
-const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
 
 async function searchAnvisa(firecrawlKey: string, query: string): Promise<string> {
   const results: string[] = []
@@ -125,10 +125,10 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')
-  const lovableKey = Deno.env.get('LOVABLE_API_KEY')
+  const geminiKey = Deno.env.get('GEMINI_API_KEY')
 
-  if (!firecrawlKey || !lovableKey) {
-    console.error('Missing required API keys:', { firecrawl: !!firecrawlKey, lovable: !!lovableKey })
+  if (!firecrawlKey || !geminiKey) {
+    console.error('Missing required API keys:', { firecrawl: !!firecrawlKey, gemini: !!geminiKey })
     return new Response(JSON.stringify({ error: 'Serviço temporariamente indisponível. Configuração pendente.' }), {
       status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
@@ -216,14 +216,14 @@ Deno.serve(async (req) => {
       ? `FOCO DA ANÁLISE: "${substanciaBusca}" — Verifique especificamente o status regulatório desta substância no contexto da ANVISA e IN 28/2018.`
       : 'Faça uma análise geral de todas as substâncias e mudanças recentes.'
 
-    const aiResponse = await fetch(AI_GATEWAY, {
+    const aiResponse = await fetch(GEMINI_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableKey}`,
+        'Authorization': `Bearer ${geminiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         messages: [{
           role: 'system',
           content: `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.

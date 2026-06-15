@@ -5,14 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const lovableKey = Deno.env.get('LOVABLE_API_KEY')
+  const geminiKey = Deno.env.get('GEMINI_API_KEY')
   const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
 
   const body = await req.json()
@@ -70,17 +70,17 @@ ${secao_contexto ? `\n\nO usuário está lendo a seção: "${secao_contexto}"` :
   let resposta = ''
   let tokensUsados = 0
 
-  // Tentar Lovable Gateway (Gemini)
-  if (lovableKey) {
+  // Primário: Google Gemini direto
+  if (geminiKey) {
     try {
-      const res = await fetch(AI_GATEWAY, {
+      const res = await fetch(GEMINI_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${lovableKey}`,
+          'Authorization': `Bearer ${geminiKey}`,
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'gemini-2.5-flash',
           messages: [{ role: 'system', content: systemPrompt }, ...messages],
           max_tokens: 1000,
         }),

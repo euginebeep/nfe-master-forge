@@ -1,4 +1,4 @@
-// BrainX ERP Assistente — Edge function usando Lovable AI Gateway
+// BrainX ERP Assistente — Edge function usando Google Gemini (primário) + Anthropic (fallback)
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -9,13 +9,13 @@ Deno.serve(async (req) => {
 
   try {
     const { system, messages } = await req.json();
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const geminiKey = Deno.env.get("GEMINI_API_KEY");
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!lovableKey && !anthropicKey) {
+    if (!geminiKey && !anthropicKey) {
       console.error("[brainx-assistente] Nenhuma chave de IA configurada");
       return new Response(
-        JSON.stringify({ error: "Nenhuma chave de IA configurada. Configure LOVABLE_API_KEY ou ANTHROPIC_API_KEY nos secrets." }),
+        JSON.stringify({ error: "Nenhuma chave de IA configurada. Configure GEMINI_API_KEY ou ANTHROPIC_API_KEY nos secrets." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -23,23 +23,26 @@ Deno.serve(async (req) => {
     let resp: Response;
     let parseContent: (data: any) => string;
 
-    if (lovableKey) {
-      resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Primário: Google Gemini direto (OpenAI-compatible endpoint)
+    if (geminiKey) {
+      resp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${lovableKey}`,
+          "Authorization": `Bearer ${geminiKey}`,
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "gemini-2.5-flash",
           messages: [
             { role: "system", content: system },
             ...messages,
           ],
+          max_tokens: 1024,
         }),
       });
       parseContent = (data) => data.choices?.[0]?.message?.content ?? "";
     } else {
+      // Fallback: Anthropic Claude direto
       resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -70,7 +73,7 @@ Deno.serve(async (req) => {
         });
       }
       if (resp.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), {
+        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos na conta." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

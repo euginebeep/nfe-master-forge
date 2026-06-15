@@ -10,7 +10,7 @@ const ANVISA_POWERBI_URLS = [
   'https://app.powerbi.com/view?r=eyJrIjoiYjEzNTQ5OGItZTRiYi00NjdlLWIyMTktZjM5ZWNkMGFlOTc5IiwidCI6ImI2N2FmMjNmLWMzZjMtNGQzNS04MGM3LWI3MDg1ZjVlZGQ4MSJ9',
   'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares/lista-de-constituintes-autorizados',
 ]
-const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
+  const geminiKey = Deno.env.get('GEMINI_API_KEY')
 
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
@@ -119,18 +119,18 @@ Deno.serve(async (req) => {
     }
 
     // Step 4: Use AI to analyze changes across portal + Power BI
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured')
+    if (!geminiKey) {
+      throw new Error('GEMINI_API_KEY not configured')
     }
 
-    const aiResponse = await fetch(AI_GATEWAY, {
+    const aiResponse = await fetch(GEMINI_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${geminiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         messages: [{
           role: 'system',
           content: `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.

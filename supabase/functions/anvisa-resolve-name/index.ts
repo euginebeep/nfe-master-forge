@@ -3,7 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,22 +19,22 @@ Deno.serve(async (req) => {
       })
     }
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
-    if (!lovableApiKey) {
+    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!geminiKey) {
       // Fallback: return original term
       return new Response(JSON.stringify({ termos: [termo] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const response = await fetch(AI_GATEWAY, {
+    const response = await fetch(GEMINI_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${geminiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'gemini-2.5-flash-lite',
         messages: [
           {
             role: 'system',

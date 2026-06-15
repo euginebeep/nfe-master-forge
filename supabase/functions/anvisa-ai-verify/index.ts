@@ -3,7 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
 
 // JSZip via npm (Deno-friendly) para extrair conteúdo real de arquivos .zip e .docx
 import JSZip from 'npm:jszip@3.10.1'
@@ -515,14 +515,14 @@ Retorne JSON com:
         ativos: body.ativos
       })
 
-      const aiRes = await fetch(AI_GATEWAY, {
+      const aiRes = await fetch(GEMINI_ENDPOINT, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Authorization': `Bearer ${Deno.env.get('GEMINI_API_KEY')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'gemini-2.5-flash',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
@@ -534,7 +534,7 @@ Retorne JSON com:
       if (!aiRes.ok) {
         const errorText = await aiRes.text();
         console.error('AI Gateway Error (analyze_formula):', errorText);
-        throw new Error(`ai_gateway_error: ${aiRes.status} ${errorText}`);
+        throw new Error(`gemini_api_error: ${aiRes.status} ${errorText}`);
       }
       const aiData = await aiRes.json()
       const content = JSON.parse(aiData.choices[0].message.content)
@@ -682,14 +682,14 @@ Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" 
       }
 
 
-      const aiRes = await fetch(AI_GATEWAY, {
+      const aiRes = await fetch(GEMINI_ENDPOINT, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Authorization': `Bearer ${Deno.env.get('GEMINI_API_KEY')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'gemini-2.5-flash',
 
           messages,
           response_format: { type: 'json_object' }
@@ -698,7 +698,7 @@ Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" 
 
       if (!aiRes.ok) {
         const errorText = await aiRes.text();
-        throw new Error(`ai_gateway_error: ${aiRes.status} ${errorText}`);
+        throw new Error(`gemini_api_error: ${aiRes.status} ${errorText}`);
       }
       
       const aiData = await aiRes.json();
