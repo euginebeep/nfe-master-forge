@@ -83,6 +83,7 @@ const AmbientalConfigPage = lazy(() => import("./pages/ambiental/AmbientalConfig
 const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
 const AssinaturaPage = lazy(() => import("./pages/assinatura/AssinaturaPage"));
 const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
+const GhostAuditPage = lazy(() => import("./pages/saas/GhostAuditPage"));
 const InstallPage = lazy(() => import("./pages/install/InstallPage"));
 const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
 const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
@@ -93,6 +94,7 @@ const AuditoriaFiscalPage = lazy(() => import("./pages/vendas/AuditoriaFiscalPag
 
 
 import { queryClient } from "./lib/query-client";
+import { GhostModeIndicator } from "./components/saas/GhostModeIndicator";
 
 const PageFallback = () => (
   <div className="flex-1 flex items-center justify-center p-6">
@@ -110,6 +112,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
           <GlobalSearchDialog />
+          <GhostModeIndicator />
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>
               {/* Páginas Públicas */}
@@ -141,6 +144,9 @@ const App = () => (
               {/* SaaS Admin Panel — standalone, fora do layout ERP */}
               <Route path="/saas" element={
                 <Suspense fallback={<PageFallback />}><ErrorBoundary><SaasDashboardPage /></ErrorBoundary></Suspense>
+              } />
+              <Route path="/saas/ghost-log" element={
+                <Suspense fallback={<PageFallback />}><ErrorBoundary><GhostAuditPage /></ErrorBoundary></Suspense>
               } />
 
               {/* Rotas Protegidas */}

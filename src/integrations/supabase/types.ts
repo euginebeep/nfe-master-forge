@@ -7472,6 +7472,75 @@ export type Database = {
           },
         ]
       }
+      saas_ghost_audit: {
+        Row: {
+          acao: string
+          created_at: string
+          id: string
+          payload_encrypted: string | null
+          target_company_id: string | null
+          user_id: string
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          id?: string
+          payload_encrypted?: string | null
+          target_company_id?: string | null
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          id?: string
+          payload_encrypted?: string | null
+          target_company_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saas_impersonation_sessions: {
+        Row: {
+          expires_at: string
+          started_at: string
+          target_company_id: string
+          user_id: string
+        }
+        Insert: {
+          expires_at?: string
+          started_at?: string
+          target_company_id: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          started_at?: string
+          target_company_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saas_super_devs: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       saas_ticket_mensagens: {
         Row: {
           anexos: Json | null
@@ -8216,6 +8285,7 @@ export type Database = {
       }
     }
     Functions: {
+      _ghost_audit_key: { Args: never; Returns: string }
       _smtp_enc_key: { Args: never; Returns: string }
       baixar_estoque_op_embalagens: {
         Args: { p_op_id: string }
@@ -8340,10 +8410,15 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: string
       }
+      get_ghost_target_company: { Args: { _uid?: string }; Returns: string }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      ghost_audit_log: {
+        Args: { p_acao: string; p_payload: Json }
+        Returns: undefined
       }
       has_role: {
         Args: {
@@ -8361,6 +8436,8 @@ export type Database = {
         Args: { campo_voto: string; pergunta_id: string }
         Returns: undefined
       }
+      is_ghost_mode: { Args: { _uid?: string }; Returns: boolean }
+      is_super_dev: { Args: { _uid?: string }; Returns: boolean }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
       liberar_numero_nfe: {
         Args: {
@@ -8382,6 +8459,17 @@ export type Database = {
       op_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       orcamento_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       pedido_belongs_to_tenant: { Args: { _pid: string }; Returns: boolean }
+      read_ghost_audit: {
+        Args: { p_limit?: number; p_since?: string; p_target_company?: string }
+        Returns: {
+          acao: string
+          created_at: string
+          id: string
+          payload: Json
+          target_company_id: string
+          user_id: string
+        }[]
+      }
       recalcular_custo_medio_item: {
         Args: { _item_id: string }
         Returns: undefined
@@ -8471,6 +8559,11 @@ export type Database = {
         Args: { p_password: string }
         Returns: undefined
       }
+      start_ghost_session: {
+        Args: { p_target_company_id: string }
+        Returns: Json
+      }
+      stop_ghost_session: { Args: never; Returns: Json }
       update_ultimo_acesso: { Args: { p_user_id: string }; Returns: undefined }
       validar_acesso_nota_saida: {
         Args: { p_nuvem_fiscal_id: string }

@@ -13,11 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
   RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, FileText,
-  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote, Download
+  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote, Download, Ghost
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isSuperDev, startGhost } from "@/lib/ghost-mode";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
@@ -118,6 +120,21 @@ export default function SaasDashboardPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [grantDays, setGrantDays] = useState(30);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [superDev, setSuperDev] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => { isSuperDev().then(setSuperDev); }, []);
+
+  const handleGhost = async (c: SaasCompany) => {
+    try {
+      await startGhost(c.id);
+      toast.success(`Acessando como "${c.nome_fantasia || c.razao_social}"`);
+      navigate("/");
+      setTimeout(() => window.location.reload(), 200);
+    } catch (err: any) {
+      toast.error("Falha: " + (err?.message || "erro"));
+    }
+  };
 
   const callSaasAdmin = async (action: string, body: any = {}) => {
     // Refresh session if needed, then invoke. supabase-js attaches auth+apikey automatically.
@@ -490,6 +507,9 @@ export default function SaasDashboardPage() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" title="Ver detalhes" onClick={() => setDetailCompany(c)}><Eye className="h-4 w-4" /></Button>
+                            {superDev && (
+                              <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground" title="Acessar como (modo fantasma)" onClick={() => handleGhost(c)}><Ghost className="h-4 w-4" /></Button>
+                            )}
                             <Button variant="ghost" size="icon" className="text-success" title="Liberar acesso (override)" onClick={() => setConfirmAction({ type: "grant-access", company: c })}><Unlock className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-warning" title="Bloquear tenant" onClick={() => setConfirmAction({ type: "block", company: c })}><Ban className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-destructive" title="Excluir empresa" onClick={() => setConfirmAction({ type: "delete", company: c })}><Trash2 className="h-4 w-4" /></Button>
