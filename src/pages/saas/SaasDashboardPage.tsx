@@ -13,11 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
   RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, FileText,
-  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote, Download
+  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote, Download, Ghost
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isSuperDev, startGhost } from "@/lib/ghost-mode";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
