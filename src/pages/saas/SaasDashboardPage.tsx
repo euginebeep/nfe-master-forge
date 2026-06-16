@@ -120,6 +120,21 @@ export default function SaasDashboardPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [grantDays, setGrantDays] = useState(30);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [superDev, setSuperDev] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => { isSuperDev().then(setSuperDev); }, []);
+
+  const handleGhost = async (c: SaasCompany) => {
+    try {
+      await startGhost(c.id);
+      toast.success(`Acessando como "${c.nome_fantasia || c.razao_social}"`);
+      navigate("/");
+      setTimeout(() => window.location.reload(), 200);
+    } catch (err: any) {
+      toast.error("Falha: " + (err?.message || "erro"));
+    }
+  };
 
   const callSaasAdmin = async (action: string, body: any = {}) => {
     // Refresh session if needed, then invoke. supabase-js attaches auth+apikey automatically.
