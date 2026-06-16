@@ -33,7 +33,12 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return new Response(JSON.stringify({ error: 'Não autorizado' }), { status: 401, headers: corsHeaders });
 
-    const { data: profile } = await supabase.from('profiles').select('company_id').single();
+    const { data: profile, error: profErr } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (profErr) throw new Error(`Erro ao buscar perfil: ${profErr.message}`);
     if (!profile?.company_id) throw new Error("Perfil sem empresa vinculada.");
 
     // Fetch file - RLS will block if it doesn't belong to the tenant
