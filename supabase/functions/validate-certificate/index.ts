@@ -86,18 +86,34 @@ Deno.serve(async (req) => {
 
     const isDateValid = now >= validFrom && now <= validTo;
     
-    // Extract CNPJ from Subject
-    const subjectStr = JSON.stringify(cert.subject.attributes);
-    const cnpjMatch = subjectStr.match(/(\d{14})/);
-    const certCnpj = cnpjMatch ? cnpjMatch[1] : null;
+    // Extract CNPJ from cert. ICP-Brasil A1 stores CNPJ in CN as "NAME:CNPJ"
+    // and also in subjectAltName OtherName (OID 2.16.76.1.3.3) as a 14-digit string.
+    const cnFromCn = (subject || '').split(':').pop()?.replace(/\D/g, '') || '';
+    let certCnpj: string | null = cnFromCn.length === 14 ? cnFromCn : null;
 
-    const cleanCompanyCnpj = companyCnpj?.replace(/\D/g, '');
-    const isCnpjMatch = certCnpj === cleanCompanyCnpj;
+    if (!certCnpj) {
+      // Fallback: search all subject attributes for any 14-digit sequence
+      for (const attr of cert.subject.attributes) {
+        const v = String(attr.value || '').replace(/\D/g, '');
+        const m = v.match(/(\d{14})/);
+        if (m) { certCnpj = m[1]; break; }
+      }
+    }
+
+    // Always fetch the authoritative CNPJ from the company table (never trust client)
+    const { data: companyRow } = await supabase
+      .from('company')
+      .select('cnpj')
+      .eq('id', profile.company_id)
+      .maybeSingle();
+    const dbCompanyCnpj = (companyRow?.cnpj || '').replace(/\D/g, '');
+    const cleanCompanyCnpj = dbCompanyCnpj || (companyCnpj || '').replace(/\D/g, '');
+    const isCnpjMatch = !!certCnpj && certCnpj === cleanCompanyCnpj;
 
     const isValid = isDateValid && isCnpjMatch;
 
     await logAudit(supabase, profile.company_id, fileId, 'VALIDATE', isValid ? 'SUCCESS' : 'WARNING', {
-      subject, certCnpj, isDateValid, isCnpjMatch
+      subject, certCnpj, companyCnpj: cleanCompanyCnpj, isDateValid, isCnpjMatch
     });
 
     return new Response(JSON.stringify({
@@ -108,8 +124,11 @@ Deno.serve(async (req) => {
       validTo: validTo.toLocaleDateString('pt-BR'),
       daysUntilExpiry: Math.floor((validTo - now) / (1000 * 60 * 60 * 24)),
       certCnpj,
+      companyCnpj: cleanCompanyCnpj,
       cnpjMatch: isCnpjMatch,
-      error: !isDateValid ? "Certificado fora do prazo de validade." : (!isCnpjMatch ? "CNPJ do certificado não coincide com a empresa." : undefined)
+      error: !isDateValid
+        ? "Certificado fora do prazo de validade."
+        : (!isCnpjMatch ? `CNPJ do certificado (${certCnpj ?? 'não identificado'}) não coincide com o da empresa (${cleanCompanyCnpj || 'não cadastrado'}).` : undefined)
     }), { headers: corsHeaders });
 
   } catch (err: any) {
