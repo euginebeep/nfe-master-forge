@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as forge from "https://esm.sh/node-forge@1.3.1";
+import forgeModule from "https://esm.sh/node-forge@1.3.1?target=deno";
+
+const forge = (forgeModule as any).default ?? forgeModule;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,7 +59,11 @@ Deno.serve(async (req) => {
     if (dlErr) throw new Error("Erro ao baixar arquivo.");
 
     const arrayBuffer = await blob.arrayBuffer();
-    const p12Der = forge.util.createBuffer(new Uint8Array(arrayBuffer));
+    if (!forge?.util?.createBuffer || !forge?.asn1?.fromDer || !forge?.pkcs12?.pkcs12FromAsn1) {
+      throw new Error("Biblioteca de certificado indisponível no runtime.");
+    }
+    const p12Bytes = forge.util.binary.raw.encode(new Uint8Array(arrayBuffer));
+    const p12Der = forge.util.createBuffer(p12Bytes);
     const p12Asn1 = forge.asn1.fromDer(p12Der);
 
     let p12;
