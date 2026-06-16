@@ -507,6 +507,9 @@ export default function SaasDashboardPage() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" title="Ver detalhes" onClick={() => setDetailCompany(c)}><Eye className="h-4 w-4" /></Button>
+                            {superDev && (
+                              <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground" title="Acessar como (modo fantasma)" onClick={() => handleGhost(c)}><Ghost className="h-4 w-4" /></Button>
+                            )}
                             <Button variant="ghost" size="icon" className="text-success" title="Liberar acesso (override)" onClick={() => setConfirmAction({ type: "grant-access", company: c })}><Unlock className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-warning" title="Bloquear tenant" onClick={() => setConfirmAction({ type: "block", company: c })}><Ban className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-destructive" title="Excluir empresa" onClick={() => setConfirmAction({ type: "delete", company: c })}><Trash2 className="h-4 w-4" /></Button>
