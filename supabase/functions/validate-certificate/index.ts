@@ -102,6 +102,10 @@ Deno.serve(async (req) => {
     }), { headers: corsHeaders });
 
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: "Erro interno ao validar certificado." }), { status: 500, headers: corsHeaders });
+    console.error("[validate-certificate] erro:", err?.message, err?.stack);
+    return new Response(
+      JSON.stringify({ error: "Erro interno ao validar certificado.", detail: err?.message ?? String(err) }),
+      { status: 500, headers: corsHeaders }
+    );
   }
 });
