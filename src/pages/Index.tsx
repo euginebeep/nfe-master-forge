@@ -8,6 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserWelcomeCard } from "@/components/dashboard/UserWelcomeCard";
 import { useAuth } from "@/hooks/use-auth";
 import { AvisosPopup } from "@/components/AvisosPopup";
+import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
+import { MarketIndicesCard } from "@/components/dashboard/MarketIndicesCard";
+import { ExpiringLotsCard } from "@/components/dashboard/ExpiringLotsCard";
+import { ConsultaANVISACard } from "@/components/dashboard/ConsultaANVISACard";
+import { NewsFeedCard } from "@/components/dashboard/NewsFeedCard";
+import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
+import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
+import { ParceirosBrainX } from "@/components/parceiros/ParceirosBrainX";
+import { hasGhostFlag } from "@/lib/ghost-mode";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 
@@ -97,6 +106,7 @@ const roleHierarchy: AppRole[] = ['admin', 'gerente', 'supervisor', 'operador', 
 
 const Index = () => {
   const { profile, role, isLoading, isAuthenticated } = useAuth();
+  const ghostActive = hasGhostFlag();
 
   // Check if user has access to a module
   const hasAccess = (minRole: AppRole): boolean => {
@@ -121,6 +131,33 @@ const Index = () => {
           sexo={profile?.sexo || null}
           isLoading={isLoading}
         />
+      )}
+
+      {ghostActive && isAuthenticated && (
+        <>
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Indicadores em Tempo Real</h3>
+            <DashboardKPIsGrid />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
+            <div className="md:col-span-2 lg:col-span-4 xl:col-span-3">
+              <ExpiringLotsCard />
+            </div>
+            <div className="md:col-span-2 lg:col-span-8 xl:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-stretch">
+              <div className="md:col-span-4 xl:col-span-3"><ExchangeRateCard /></div>
+              <div className="md:col-span-4 xl:col-span-3"><MarketIndicesCard /></div>
+              <div className="md:col-span-4 xl:col-span-6"><ConsultaANVISACard /></div>
+            </div>
+          </div>
+
+          <div className="w-full">
+            <ParceirosBrainX posicao="DASHBOARD_LATERAL" />
+          </div>
+
+          <BirthdayCard />
+          <NewsFeedCard />
+        </>
       )}
 
       <div>
