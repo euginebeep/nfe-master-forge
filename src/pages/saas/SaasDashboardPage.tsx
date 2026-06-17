@@ -206,7 +206,7 @@ export default function SaasDashboardPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id);
-        const isAdmin = roles?.some(r => ['admin', 'saas_owner', 'saas_suporte'].includes(r.role));
+        const isAdmin = roles?.some(r => ['saas_owner', 'saas_suporte'].includes(r.role));
         if (isAdmin) setAuthed(true);
       }
       setAuthLoading(false);
@@ -221,7 +221,7 @@ export default function SaasDashboardPage() {
       const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
       if (error) { toast.error(error.message); return; }
       const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', data.user.id);
-      const isAdmin = roles?.some(r => ['admin', 'saas_owner', 'saas_suporte'].includes(r.role));
+      const isAdmin = roles?.some(r => ['saas_owner', 'saas_suporte'].includes(r.role));
       if (!isAdmin) {
         toast.error("Acesso restrito a administradores");
         await supabase.auth.signOut();

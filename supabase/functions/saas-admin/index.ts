@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
     const { data: userRoles } = await supabaseClient.from('user_roles').select('role').eq('user_id', callingUser.id)
     const roles = userRoles?.map(r => r.role) || []
-    const isSaasAdmin = roles.some(r => ['admin', 'saas_owner', 'saas_suporte', 'saas_financeiro'].includes(r))
+    const isSaasAdmin = roles.some(r => ['saas_owner', 'saas_suporte', 'saas_financeiro'].includes(r))
 
     if (!isSaasAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
