@@ -1,6 +1,6 @@
 // Motivational phrases by role and gender, rotating daily
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
 type Sexo = 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO';
 
 const phrasesByRole: Record<AppRole, string[]> = {
