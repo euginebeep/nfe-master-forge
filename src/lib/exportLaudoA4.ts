@@ -84,7 +84,7 @@ function buildHTML(data: LaudoData): string {
     const u = (unitCorrigida || '').toLowerCase();
     if (u === 'mcg') doseMg /= 1000;
     if (u === 'g') doseMg *= 1000;
-    const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
+    const percentVD = vdRef ? Math.round((doseMg / vdRef.vd) * 100) : null;
     const doseCell = corrigido
       ? `<span style="text-decoration:line-through;color:#999;font-weight:500;">${esc(ativo.dose)} ${esc(unitOriginal)}</span><br/><strong style="color:#16a34a;">Tabela Nutricional Corrigida: ${doseCorrigida} ${esc(unitCorrigida)}</strong>`
       : `${esc(ativo.dose)} ${esc(unitOriginal)}`;
