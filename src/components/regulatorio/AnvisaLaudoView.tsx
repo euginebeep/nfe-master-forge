@@ -256,11 +256,11 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                     unitCorrigida = limit.unit;
                     corrigido = true;
                   }
-                  let doseMg = doseCorrigida;
+                  let doseMg = Number(doseCorrigida) || 0;
                   const u = (unitCorrigida || '').toLowerCase();
                   if (u === 'mcg') doseMg /= 1000;
                   if (u === 'g') doseMg *= 1000;
-                  const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
+                  const percentVD = vdRef ? Math.round((doseMg / vdRef.vd) * 100) : null;
 
                   return (
                     <div key={i} className="flex justify-between items-center text-[11px] font-bold">
