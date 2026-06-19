@@ -4,6 +4,7 @@ import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useNavigationAudit } from "@/hooks/use-navigation-audit";
 import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
 import { BrainXERPAssistente } from "@/components/assistente/BrainXAssistente";
@@ -20,8 +21,12 @@ export function MainLayout() {
   useRealtimeNotifications();
   useNavigationAudit();
   const { isBlocked, isLoading: subLoading } = useSubscription();
+  const { role } = useAuthContext();
 
-  if (isBlocked && !subLoading) {
+  // saas_owner e saas_suporte nunca são bloqueados pela tela de assinatura
+  const isSaasStaff = role === 'saas_owner' || role === 'saas_suporte';
+
+  if (isBlocked && !subLoading && !isSaasStaff) {
     return <SubscriptionBlocker />;
   }
 
