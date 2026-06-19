@@ -22,7 +22,7 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   vitamina_b5:         { auth: true,  min: 0,  max: 5.64,    unit: 'mg',  norm: 'IN 28 Anexo IV (Ác. Pantotênico)' },
   vitamina_b6:         { auth: true,  min: 0,  max: 100,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
   vitamina_b7:         { auth: true,  min: 0,  max: 45,      unit: 'mcg', norm: 'IN 28 Anexo IV (Biotina)' },
-  vitamina_b9:         { auth: true,  min: 0,  max: 1000,    unit: 'mcg', norm: 'IN 28 Anexo IV (DFE — IN 76/2020)' },
+  vitamina_b9:         { auth: true,  min: 0,  max: 400,     unit: 'mcg', norm: 'IN 28 Anexo IV (DFE — IN 76/2020)', obs: 'Máximo 400 mcg DFE — IN 28 Anexo IV. Ácido fólico sintético: 1 mcg = 1,7 mcg DFE.' },
   vitamina_b12:        { auth: true,  min: 0,  max: 9.94,    unit: 'mcg', norm: 'IN 28 Anexo IV' },
   colina:              { auth: true,  min: 0,  max: 3500,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
 
@@ -106,32 +106,83 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   silicio_organico:    { auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'IN 28 Anexo IV / RDC 240/2018', obs: 'Silício orgânico (monometilsilanetriol) sem limite máximo definido (NE)' },
 };
 
-export const VD_REFERENCE: Record<string, number> = {
-  vitamina_a: 800,
-  vitamina_d3: 15, // 15mcg = 600 UI
-  vitamina_d: 15,
-
-  vitamina_c: 100,
-  vitamina_e: 15,
-  vitamina_b1: 1.2,
-  vitamina_b2: 1.2,
-  vitamina_b3: 16,
-  vitamina_b5: 5,
-  vitamina_b6: 1.3,
-  vitamina_b7: 30,
-  vitamina_b9: 400,
-  vitamina_b12: 2.4,
-  vitamina_k2: 120,
-  calcio: 1000,
-  ferro: 14,
-  magnesio: 422,
-  zinco: 11,
-  iodo: 150,
-  selenio: 60,
-  cobre: 900,
-  cromo: 35,
-  manganes: 2.3,
+// VD_REFERENCE — Valores Diários de Referência (RDC 269/2005 + IN 28/2018)
+// Cada entrada inclui a unidade para permitir conversão correta de dose (UI, mg, mcg)
+export const VD_REFERENCE: Record<string, { vd: number; unit: string }> = {
+  vitamina_a:   { vd: 800,   unit: 'mcg' },
+  vitamina_d3:  { vd: 5,     unit: 'mcg' }, // 5 mcg = 200 UI (RDC 269/2005)
+  vitamina_d:   { vd: 5,     unit: 'mcg' },
+  vitamina_c:   { vd: 75,    unit: 'mg'  },
+  vitamina_e:   { vd: 10,    unit: 'mg'  },
+  vitamina_b1:  { vd: 1.1,   unit: 'mg'  },
+  vitamina_b2:  { vd: 1.3,   unit: 'mg'  },
+  vitamina_b3:  { vd: 14,    unit: 'mg'  },
+  vitamina_b5:  { vd: 5,     unit: 'mg'  },
+  vitamina_b6:  { vd: 1.3,   unit: 'mg'  },
+  vitamina_b7:  { vd: 30,    unit: 'mcg' },
+  vitamina_b9:  { vd: 400,   unit: 'mcg' }, // 400 mcg DFE — IN 28 Anexo IV
+  vitamina_b12: { vd: 2.4,   unit: 'mcg' },
+  vitamina_k2:  { vd: 90,    unit: 'mcg' },
+  calcio:       { vd: 1000,  unit: 'mg'  },
+  ferro:        { vd: 14,    unit: 'mg'  },
+  magnesio:     { vd: 260,   unit: 'mg'  },
+  zinco:        { vd: 7,     unit: 'mg'  },
+  iodo:         { vd: 150,   unit: 'mcg' },
+  selenio:      { vd: 55,    unit: 'mcg' },
+  cobre:        { vd: 0.9,   unit: 'mg'  },
+  cromo:        { vd: 35,    unit: 'mcg' },
+  manganes:     { vd: 3,     unit: 'mg'  },
+  fosforo:      { vd: 700,   unit: 'mg'  },
 };
+
+// ============================================================
+// FUNÇÕES DE CONVERSÃO E CÁLCULO — obrigatórias para laudos corretos
+// ============================================================
+
+/** Normaliza a dose para a unidade do limite (ex: UI → mcg, g → mg) */
+export function normalizeDoseToLimitUnit(dose: number, unit: string, limitUnit: string, key: string): number {
+  const u = (unit || '').toLowerCase().trim();
+  const l = (limitUnit || '').toLowerCase().trim();
+  if (u === l) return dose;
+  if (u === 'g'   && l === 'mg')  return dose * 1000;
+  if (u === 'mg'  && l === 'mcg') return dose * 1000;
+  if (u === 'mcg' && l === 'mg')  return dose / 1000;
+  if (u === 'g'   && l === 'mcg') return dose * 1_000_000;
+  // Conversões especiais por UI
+  if ((key === 'vitamina_d3' || key === 'vitamina_d') && u === 'ui' && l === 'mcg') return dose / 40;
+  if (key === 'vitamina_e' && u === 'ui' && l === 'mg') return dose * 0.67;
+  if (key === 'vitamina_a' && u === 'ui' && l === 'mcg') return dose * 0.3;
+  return dose;
+}
+
+/** Calcula o %VD de um nutriente com conversão de unidade */
+export function calcPercentVD(key: string, dose: number, unit: string): string {
+  const ref = VD_REFERENCE[key];
+  if (!ref) return '**';
+  const doseNorm = normalizeDoseToLimitUnit(dose, unit, ref.unit, key);
+  return `${Math.round((doseNorm / ref.vd) * 100)}%`;
+}
+
+/** Calcula o status regulatório: APROVADO, ATENÇÃO ou BLOQUEADO */
+export function calcStatus(key: string, dose: number, unit: string): 'APROVADO' | 'ATENÇÃO' | 'BLOQUEADO' | 'VERIFICAR' {
+  const lim = ANVISA_LIMITS[key];
+  if (!lim) return 'VERIFICAR';
+  if (!lim.auth) return 'BLOQUEADO';
+  const doseNorm = normalizeDoseToLimitUnit(dose, unit, lim.unit, key);
+  if (lim.max !== null && doseNorm > lim.max) return 'BLOQUEADO';
+  if ((lim.min || 0) > 0 && doseNorm < (lim.min || 0)) return 'ATENÇÃO';
+  return 'APROVADO';
+}
+
+/** Retorna descrição do desvio se a dose ultrapassar o limite máximo */
+export function calcDesvio(key: string, dose: number, unit: string): string | null {
+  const lim = ANVISA_LIMITS[key];
+  if (!lim?.max) return null;
+  const doseNorm = normalizeDoseToLimitUnit(dose, unit, lim.unit, key);
+  if (doseNorm <= lim.max) return null;
+  const pct = Math.round(((doseNorm - lim.max) / lim.max) * 100);
+  return `${pct}% acima do limite — corrigir para máx. ${lim.max} ${lim.unit}`;
+}
 
 export function resolveAnvisaKey(nome: string): string {
   const n = nome.toLowerCase()

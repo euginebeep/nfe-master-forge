@@ -28,6 +28,35 @@ async function sha256(text: string): Promise<string> {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  // ── Autenticação obrigatória: apenas saas_owner pode acionar o seed ──────────
+  const authHeader = req.headers.get('Authorization') || '';
+  // Permite chamada interna do cron com service_role key
+  const isCronCall = authHeader === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`;
+  if (!isCronCall) {
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Não autenticado' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const { data: roles } = await adminClient.from('user_roles').select('role').eq('user_id', user.id);
+    const isOwner = (roles || []).some((r: any) => r.role === 'saas_owner');
+    if (!isOwner) {
+      return new Response(JSON.stringify({ error: 'Restrito ao saas_owner' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const log: string[] = [];
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,

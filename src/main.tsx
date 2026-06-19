@@ -7,7 +7,7 @@ import { centralToast } from "./components/ui/central-toast";
 import { registerSW } from "virtual:pwa-register";
 
 // --- Garantia de "sempre versão nova" ---
-// 1) No preview do editor (iframe / domínio lovable*), NUNCA registrar SW e
+// 1) No ambiente de desenvolvimento local, NUNCA registrar SW e
 //    desregistrar qualquer um pré-existente + limpar caches.
 // 2) Em produção, registrar com autoUpdate + reload imediato quando uma nova
 //    versão tomar controle (controllerchange) ou quando houver refresh pendente.
@@ -17,8 +17,8 @@ const isInIframe = (() => {
 const host = window.location.hostname;
 const isPreviewHost =
   host.includes("id-preview--") ||
-  host.includes("lovableproject.com") ||
-  host.includes("lovable.app");
+  host === "localhost" ||
+  host === "127.0.0.1";
 
 if (isInIframe || isPreviewHost) {
   if ("serviceWorker" in navigator) {

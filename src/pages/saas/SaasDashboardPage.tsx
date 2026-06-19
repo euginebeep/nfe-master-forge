@@ -162,7 +162,7 @@ export default function SaasDashboardPage() {
         toast.error("Sessão expirada. Faça login novamente.", { id: toastId });
         return;
       }
-      const url = `https://lvptvswvqjhvobdvgfws.supabase.co/functions/v1/export-full-backup`;
+      const url = `https://cqkvekdrifmvedvpjmjr.supabase.co/functions/v1/export-full-backup`;
       const res = await fetch(url, {
         method: "POST",
         headers: {

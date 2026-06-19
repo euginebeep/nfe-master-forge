@@ -38,7 +38,7 @@ export function useMonitoramentoAmbiental(period: MonitoramentoPeriodo = "hoje")
       const isExplicitDemo = sessionStorage.getItem('brainx_demo_mode') === 'true';
       const isDemoCompany = companyId === '00000000-0000-0000-0000-000000000001';
       
-      // Removemos a verificação por hostname 'lovable' que forçava demo para usuários reais no preview
+      // Verificação de hostname removida — comportamento unificado em todos os ambientes
       const isDemoMode = isExplicitDemo || isDemoCompany;
       
       if (!companyId && !isDemoMode) return [];

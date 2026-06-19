@@ -93,7 +93,7 @@ export function AIHubPanel() {
             <CardTitle className="text-lg flex items-center gap-2">
               <Cpu className="h-5 w-5 text-primary" /> BrainX AI Models Hub
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Gateway Lovable AI · Inteligência Unificada · Claude, DeepSeek, Manus & Cursor</p>
+            <p className="text-xs text-muted-foreground mt-1">BrainX AI Gateway · Inteligência Unificada · Infraestrutura Proprietária</p>
           </div>
           <Badge variant="outline" className="bg-success/10 text-success border-success/20 font-bold text-[10px]">
             <CheckCircle2 className="h-3 w-3 mr-1" /> Infraestrutura Global Ativa
