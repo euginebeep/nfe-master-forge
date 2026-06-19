@@ -18,7 +18,7 @@ import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import { ParceirosBrainX } from "@/components/parceiros/ParceirosBrainX";
 import { hasGhostFlag } from "@/lib/ghost-mode";
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
 
 interface Module {
   title: string;
