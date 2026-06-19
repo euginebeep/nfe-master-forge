@@ -256,7 +256,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                     unitCorrigida = limit.unit;
                     corrigido = true;
                   }
-                  let doseMg = doseCorrigida;
+                  let doseMg = Number(doseCorrigida) || 0;
                   const u = (unitCorrigida || '').toLowerCase();
                   if (u === 'mcg') doseMg /= 1000;
                   if (u === 'g') doseMg *= 1000;

@@ -80,7 +80,7 @@ function buildHTML(data: LaudoData): string {
       unitCorrigida = limit.unit;
       corrigido = true;
     }
-    let doseMg = doseCorrigida;
+    let doseMg = Number(doseCorrigida) || 0;
     const u = (unitCorrigida || '').toLowerCase();
     if (u === 'mcg') doseMg /= 1000;
     if (u === 'g') doseMg *= 1000;
