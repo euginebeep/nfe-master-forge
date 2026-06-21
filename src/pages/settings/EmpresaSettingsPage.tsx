@@ -324,49 +324,49 @@ export default function EmpresaSettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validação de tipo e tamanho
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Formato de arquivo não suportado. Use PNG, JPG ou SVG.");
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "Arquivo muito grande", description: "Máximo 2MB." });
       return;
     }
-
-    if (file.size > 2 * 1024 * 1024) { // 2MB limit
-      toast.error("O arquivo é muito grande. O tamanho máximo permitido é 2MB.");
-      return;
-    }
-
-    if (file.size === 0) {
-      toast.error("O arquivo está vazio ou corrompido.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setLogoPreview(base64);
-      setFormData(prev => ({
-        ...prev,
-        logo_nome: file.name,
-        logo_tipo: file.type,
-        logo_data: base64,
-      }));
-    };
-    reader.onerror = () => {
-      toast.error("Erro ao ler o arquivo selecionado.");
-    };
-    reader.readAsDataURL(file);
 
     try {
-      const loadingToast = toast.loading("Enviando logo...");
-      const arquivo = await uploadFile.mutateAsync({ file, sensivel: false });
-      if (supabaseCompany?.id) {
-        await upsertCompanyMutation.mutateAsync({ logo_file_id: arquivo.id });
-      }
-      toast.dismiss(loadingToast);
-      toast.success("Logo atualizado com sucesso");
-    } catch (err) {
-      toast.error("Erro ao salvar logo no servidor. A versão local será mantida temporariamente.");
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles').select('company_id').eq('id', user?.id).single();
+      if (!profile?.company_id) throw new Error('Empresa não identificada');
+
+      const ext = file.name.split('.').pop();
+      const path = `${profile.company_id}/logo-${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('erp-files')
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('erp-files').getPublicUrl(path);
+
+      const { data: arquivo, error: arquivoError } = await supabase
+        .from('arquivos')
+        .insert({
+          company_id: profile.company_id,
+          nome: file.name,
+          tipo: file.type,
+          url: urlData.publicUrl,
+          bucket: 'erp-files',
+          path,
+        })
+        .select('id')
+        .single();
+      if (arquivoError) throw arquivoError;
+
+      await supabase.from('company')
+        .update({ logo_file_id: arquivo.id })
+        .eq('id', profile.company_id);
+
+      setLogoPreview(urlData.publicUrl);
+      toast({ title: "Logo atualizado com sucesso" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Erro ao enviar logo", description: err.message });
     }
   };
 

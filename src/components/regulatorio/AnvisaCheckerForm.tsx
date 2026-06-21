@@ -64,7 +64,41 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   const [zipContents, setZipContents] = useState<string[]>([]);
   const [isValidating, setIsValidating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [clientLogoFile, setClientLogoFile] = useState<File | null>(null);
+  const [clientLogoPreview, setClientLogoPreview] = useState<string | null>(null);
+  const clientLogoInputRef = useRef<HTMLInputElement>(null);
 
+  const handleClientLogoSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "Logo muito grande", description: "Máximo 2MB." });
+      return;
+    }
+    setClientLogoFile(f);
+    setClientLogoPreview(URL.createObjectURL(f));
+  };
+
+  const removeClientLogo = () => {
+    setClientLogoFile(null);
+    setClientLogoPreview(null);
+    if (clientLogoInputRef.current) clientLogoInputRef.current.value = "";
+  };
+
+  const uploadClientLogoIfNeeded = async (): Promise<string | null> => {
+    if (!clientLogoFile) return null;
+    const ext = clientLogoFile.name.split('.').pop();
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage
+      .from('anvisa-laudo-logos')
+      .upload(path, clientLogoFile, { upsert: false });
+    if (error) {
+      console.error('Erro ao subir logo do cliente:', error);
+      return null;
+    }
+    const { data } = supabase.storage.from('anvisa-laudo-logos').getPublicUrl(path);
+    return data.publicUrl;
+  };
 
   const steps = [
     "📂 Extraindo dados do arquivo...",
@@ -235,6 +269,8 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     setErrorDetails(null);
 
     try {
+      const uploadedClientLogoUrl = await uploadClientLogoIfNeeded();
+
       const reader = new FileReader();
       const fileBase64 = await new Promise<string>((resolve) => {
         reader.onload = () => {
@@ -342,6 +378,8 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
               company_id: profile.company_id,
               produto: produto.nome,
               cliente: clientName,
+              cliente_logo_url: uploadedClientLogoUrl,
+              cliente_nome_exibicao: clientName,
               status_geral: produto.status_geral,
               payload_entrada: { filename: file.name, ativos: produto.ativos } as any,
               resultado_ia: produto as any,
@@ -357,9 +395,10 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         onResult({
           produto: produtos[0].nome,
           cliente: clientName,
+          cliente_logo_url: uploadedClientLogoUrl,
           payload_entrada: { ativos: produtos[0].ativos },
           resultado_ia: produtos[0],
-          multiplos_produtos: produtos 
+          multiplos_produtos: produtos
         });
 
         // Tenta encontrar e clicar na aba de laudos automaticamente
@@ -500,7 +539,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
             ⚙️ Opções da análise
           </AccordionTrigger>
           <AccordionContent className="pb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-2">
               <div className="space-y-2">
                 <Label className="text-sm font-bold opacity-70 uppercase tracking-wider">Público-alvo</Label>
                 <Select value={audience} onValueChange={setAudience}>
@@ -535,6 +574,37 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
                   onChange={e => setClientName(e.target.value)}
                   className="rounded-xl h-11"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-bold opacity-70 uppercase tracking-wider">Logo do Cliente</Label>
+                <div
+                  className="relative h-11 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex items-center justify-center cursor-pointer overflow-hidden"
+                  onClick={() => clientLogoInputRef.current?.click()}
+                >
+                  {clientLogoPreview ? (
+                    <>
+                      <img src={clientLogoPreview} alt="Logo cliente" className="h-full object-contain px-2" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeClientLogo(); }}
+                        className="absolute right-1 top-1 p-0.5 rounded-full bg-background/80 hover:bg-destructive hover:text-white"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5" /> Opcional (PNG/JPG)
+                    </span>
+                  )}
+                  <input
+                    ref={clientLogoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    className="hidden"
+                    onChange={handleClientLogoSelection}
+                  />
+                </div>
               </div>
             </div>
           </AccordionContent>

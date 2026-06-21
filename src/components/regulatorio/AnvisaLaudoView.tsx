@@ -7,7 +7,8 @@ import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Bra
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
-import { useLocalCompany } from "@/hooks/use-local-company";
+import { useCompanyBranding } from "@/hooks/use-company-branding";
+import { useRTAtivo } from "@/hooks/use-rt-ativo";
 import { cn } from "@/lib/utils";
 
 const normalizeProductName = (value: unknown) =>
@@ -40,6 +41,7 @@ interface AnvisaLaudoViewProps {
     sugestao_capsulas: { n: number; tamanho: string; frasco: number; obs: string };
     produto: string;
     cliente?: string;
+    cliente_logo_url?: string | null;
     ativos: any[];
     multiplos_produtos?: any[];
   };
@@ -50,17 +52,27 @@ interface AnvisaLaudoViewProps {
 export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset, onSelectProduct }) => {
   const handlePrint = () => window.print();
   const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
-  const { data: company } = useLocalCompany();
+  const { data: company } = useCompanyBranding();
+  const { data: rt } = useRTAtivo();
   
   const handleExportLaudo = () => {
     try {
+      if (!rt) {
+        toast.warning("Nenhum RT ativo cadastrado. O laudo será gerado sem assinatura.");
+      }
       exportLaudoA4({
         ...data,
         company: company ? {
           razao_social: company.razao_social,
           nome_fantasia: company.nome_fantasia,
-          logo_data: company.logo_data
-        } : undefined
+          logo_url: company.logo_url
+        } : undefined,
+        rt: rt ? {
+          nome_completo: rt.nome_completo,
+          tipo_conselho: rt.tipo_conselho,
+          numero_registro: rt.numero_registro,
+          uf_conselho: rt.uf_conselho
+        } : null
       });
       toast.success("Laudo gerado. Use 'Salvar como PDF' na janela de impressão.");
     } catch (e: any) {

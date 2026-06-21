@@ -106,33 +106,55 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   silicio_organico:    { auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'IN 28 Anexo IV / RDC 240/2018', obs: 'Silício orgânico (monometilsilanetriol) sem limite máximo definido (NE)' },
 };
 
-// VD_REFERENCE — Valores Diários de Referência (RDC 269/2005 + IN 28/2018)
-// Cada entrada inclui a unidade para permitir conversão correta de dose (UI, mg, mcg)
+// VD_REFERENCE — Valores Diários de Referência (VDR) para SUPLEMENTOS ALIMENTARES
+// Fonte: IN nº 75/2020, Anexo VIII, coluna "≥ 19 anos"
+// NUNCA confundir com o Anexo II (alimentos em geral) — suplementos usam o Anexo VIII
 export const VD_REFERENCE: Record<string, { vd: number; unit: string }> = {
+  valor_energetico: { vd: 2000,  unit: 'kcal' },
+  carboidratos:     { vd: 300,   unit: 'g'   },
+  acucares_adic:    { vd: 50,    unit: 'g'   },
+  proteinas:        { vd: 50,    unit: 'g'   },
+  gorduras_totais:  { vd: 65,    unit: 'g'   },
+  gorduras_sat:     { vd: 20,    unit: 'g'   },
+  gorduras_trans:   { vd: 2,     unit: 'g'   },
+  gord_mono:        { vd: 20,    unit: 'g'   },
+  gord_poli:        { vd: 20,    unit: 'g'   },
+  omega6:           { vd: 18,    unit: 'g'   },
+  omega3:           { vd: 4000,  unit: 'mg'  },
+  colesterol:       { vd: 300,   unit: 'mg'  },
+  fibras:           { vd: 25,    unit: 'g'   },
+  sodio:            { vd: 2000,  unit: 'mg'  },
+
   vitamina_a:   { vd: 800,   unit: 'mcg' },
-  vitamina_d3:  { vd: 5,     unit: 'mcg' }, // 5 mcg = 200 UI (RDC 269/2005)
-  vitamina_d:   { vd: 5,     unit: 'mcg' },
-  vitamina_c:   { vd: 75,    unit: 'mg'  },
-  vitamina_e:   { vd: 10,    unit: 'mg'  },
-  vitamina_b1:  { vd: 1.1,   unit: 'mg'  },
-  vitamina_b2:  { vd: 1.3,   unit: 'mg'  },
-  vitamina_b3:  { vd: 14,    unit: 'mg'  },
+  vitamina_d3:  { vd: 15,    unit: 'mcg' },
+  vitamina_d:   { vd: 15,    unit: 'mcg' },
+  vitamina_e:   { vd: 15,    unit: 'mg'  },
+  vitamina_k2:  { vd: 120,   unit: 'mcg' },
+  vitamina_c:   { vd: 100,   unit: 'mg'  },
+  vitamina_b1:  { vd: 1.2,   unit: 'mg'  },
+  vitamina_b2:  { vd: 1.2,   unit: 'mg'  },
+  vitamina_b3:  { vd: 15,    unit: 'mg'  },
   vitamina_b5:  { vd: 5,     unit: 'mg'  },
   vitamina_b6:  { vd: 1.3,   unit: 'mg'  },
   vitamina_b7:  { vd: 30,    unit: 'mcg' },
-  vitamina_b9:  { vd: 400,   unit: 'mcg' }, // 400 mcg DFE — IN 28 Anexo IV
+  vitamina_b9:  { vd: 400,   unit: 'mcg' },
   vitamina_b12: { vd: 2.4,   unit: 'mcg' },
-  vitamina_k2:  { vd: 90,    unit: 'mcg' },
-  calcio:       { vd: 1000,  unit: 'mg'  },
-  ferro:        { vd: 14,    unit: 'mg'  },
-  magnesio:     { vd: 260,   unit: 'mg'  },
-  zinco:        { vd: 7,     unit: 'mg'  },
-  iodo:         { vd: 150,   unit: 'mcg' },
-  selenio:      { vd: 55,    unit: 'mcg' },
-  cobre:        { vd: 0.9,   unit: 'mg'  },
-  cromo:        { vd: 35,    unit: 'mcg' },
-  manganes:     { vd: 3,     unit: 'mg'  },
-  fosforo:      { vd: 700,   unit: 'mg'  },
+
+  calcio:     { vd: 1000, unit: 'mg'  },
+  cloreto:    { vd: 2300, unit: 'mg'  },
+  cobre:      { vd: 900,  unit: 'mcg' },
+  cromo:      { vd: 35,   unit: 'mcg' },
+  ferro:      { vd: 14,   unit: 'mg'  },
+  fluor:      { vd: 4,    unit: 'mg'  },
+  fosforo:    { vd: 700,  unit: 'mg'  },
+  iodo:       { vd: 150,  unit: 'mcg' },
+  magnesio:   { vd: 420,  unit: 'mg'  },
+  manganes:   { vd: 3,    unit: 'mg'  },
+  molibdenio: { vd: 45,   unit: 'mcg' },
+  potassio:   { vd: 3500, unit: 'mg'  },
+  selenio:    { vd: 60,   unit: 'mcg' },
+  zinco:      { vd: 11,   unit: 'mg'  },
+  colina:     { vd: 550,  unit: 'mg'  },
 };
 
 // ============================================================
@@ -298,6 +320,51 @@ export function resolveAnvisaKey(nome: string): string {
   }
 
   return "";
+}
+
+// ORDEM_NUTRIENTES_CORE — ordem EXATA de declaração conforme Anexo XI IN 75/2020
+export const ORDEM_NUTRIENTES_CORE = [
+  'valor_energetico', 'carboidratos', 'acucares_totais', 'acucares_adic',
+  'proteinas', 'gorduras_totais', 'gorduras_sat', 'gorduras_trans',
+  'fibras', 'sodio',
+];
+
+// Indentação por nível conforme Anexo XII (recuo "n", "nn", "nnn")
+export const INDENTACAO_NUTRIENTE: Record<string, 0 | 1 | 2 | 3> = {
+  acucares_totais: 1, acucares_adic: 2,
+  gorduras_sat: 1, gorduras_trans: 1,
+  gord_mono: 1, omega9: 2, acido_oleico: 3,
+  gord_poli: 1, omega6: 2, acido_linoleico: 3,
+  omega3: 2, acido_linolenico: 3, epa: 3, dha: 3,
+  colesterol: 1, fibras: 0,
+};
+
+// Regras de arredondamento conforme Anexo III IN 75/2020
+export function arredondarValorNutricional(valor: number, unidade: string): string {
+  const abs = Math.abs(valor);
+  if (abs >= 10) return String(Math.round(valor));
+  if (abs >= 1) {
+    const rounded = Math.round(valor * 10) / 10;
+    return rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
+  }
+  const u = unidade.toLowerCase();
+  if (u === 'g') return (Math.round(valor * 10) / 10).toFixed(1);
+  if (u === 'mg' || u === 'mcg' || u === '\u03bcg') {
+    const rounded2 = Math.round(valor * 100) / 100;
+    const str2 = rounded2.toFixed(2);
+    return str2.endsWith('0') ? rounded2.toFixed(1) : str2;
+  }
+  return String(valor);
+}
+
+// Regras de arredondamento do número de porções (Anexo VI)
+export function formatarPorcoesEmbalagem(qtdExata: number): string {
+  if (qtdExata >= 3 && qtdExata % 1 === 0) return String(qtdExata);
+  if (qtdExata > 2) {
+    const arredondado = qtdExata % 1 < 0.5 ? Math.floor(qtdExata) : Math.ceil(qtdExata);
+    return `Cerca de ${arredondado}`;
+  }
+  return String(Math.round(qtdExata));
 }
 
 

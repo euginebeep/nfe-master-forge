@@ -620,12 +620,13 @@ LIMITES MÁXIMOS OBRIGATÓRIOS — IN 28/2018 Anexo IV:
 - colageno_tipo2: MÍNIMO 40 mg UC-II não hidrolisado
 
 CONSTITUINTES NÃO AUTORIZADOS (Anexo I IN 28 — STATUS = BLOQUEADO):
-- berberina, queratina, silicio_organico, l_citrulina
+- berberina, queratina, l_citrulina
 
 CONSTITUINTES AUTORIZADOS — confirmar explicitamente:
 - l_tirosina: APROVADO — CAS 60-18-4 Anexo I IN 28
 - beta_alanina: APROVADO — IN 102/2021
 - msm: APROVADO — Anexo I IN 28 sem limite máximo
+- silicio_organico: APROVADO — Dióxido de silício / Sílica orgânica, Anexo I IN 28/2018 (excipiente e ativo), sem limite máximo definido
 
 ESTRUTURA DO JSON DE RETORNO:
 {
