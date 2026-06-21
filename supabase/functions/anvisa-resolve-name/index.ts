@@ -3,7 +3,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+// Endpoint nativo Gemini generateContent
+const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+
+const SYSTEM_PROMPT = `Você é um especialista em suplementos alimentares e nomenclatura ANVISA.
+Dado um termo de busca, retorne APENAS os nomes técnicos/científicos que são SINÔNIMOS ou VARIAÇÕES DO MESMO ingrediente ativo na legislação brasileira (IN 28/2018).
+
+REGRA CRÍTICA: NÃO inclua substâncias diferentes, mesmo que sejam da mesma categoria ou tenham uso similar.
+- "melatonina" → APENAS ["Melatonina"] (NÃO inclua L-Teanina, GABA, ou outros calmantes)
+- "vitamina d" → APENAS ["Colecalciferol", "Vitamina D3", "Vitamina D"] (são a mesma substância)
+- "omega 3" → ["Ácido eicosapentaenoico", "EPA", "DHA", "Ômega 3"] (componentes do mesmo composto)
+- "CoQ10" → ["Coenzima Q10", "Ubiquinona"] (mesma substância)
+- "ashwaganda" → ["Withania somnifera", "Ashwagandha"] (mesmo ingrediente, correção de erro)
+- "maca" → ["Lepidium meyenii", "Maca Peruana", "Maca"]
+- "ora pronobilis" → ["Pereskia aculeata", "Ora-pro-nóbis"]
+
+O usuário pode digitar com erros ortográficos. Interprete a intenção mas retorne APENAS variações do MESMO ingrediente.
+Responda APENAS com um JSON array de strings. Inclua o termo original.
+Se não reconhecer, retorne apenas o termo original.
+Responda somente o JSON, sem markdown.`
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -21,58 +40,46 @@ Deno.serve(async (req) => {
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiKey) {
-      // Fallback: return original term
+      // Fallback: retorna o termo original sem chamar a IA
       return new Response(JSON.stringify({ termos: [termo] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const response = await fetch(GEMINI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${geminiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash-lite',
-        messages: [
-          {
-            role: 'system',
-            content: `Você é um especialista em suplementos alimentares e nomenclatura ANVISA.
-Dado um termo de busca, retorne APENAS os nomes técnicos/científicos que são SINÔNIMOS ou VARIAÇÕES DO MESMO ingrediente ativo na legislação brasileira (IN 28/2018).
-
-REGRA CRÍTICA: NÃO inclua substâncias diferentes, mesmo que sejam da mesma categoria ou tenham uso similar.
-- "melatonina" → APENAS ["Melatonina"] (NÃO inclua L-Teanina, GABA, ou outros calmantes)
-- "vitamina d" → APENAS ["Colecalciferol", "Vitamina D3", "Vitamina D"] (são a mesma substância)
-- "omega 3" → ["Ácido eicosapentaenoico", "EPA", "DHA", "Ômega 3"] (componentes do mesmo composto)
-- "CoQ10" → ["Coenzima Q10", "Ubiquinona"] (mesma substância)
-- "ashwaganda" → ["Withania somnifera", "Ashwagandha"] (mesmo ingrediente, correção de erro)
-- "maca" → ["Lepidium meyenii", "Maca Peruana", "Maca"]
-- "ora pronobilis" → ["Pereskia aculeata", "Ora-pro-nóbis"]
-
-O usuário pode digitar com erros ortográficos. Interprete a intenção mas retorne APENAS variações do MESMO ingrediente.
-Responda APENAS com um JSON array de strings. Inclua o termo original.
-Se não reconhecer, retorne apenas o termo original.
-Responda somente o JSON, sem markdown.`
-          },
-          {
-            role: 'user',
-            content: termo,
-          },
-        ],
+    // Chamada ao endpoint nativo Gemini generateContent
+    const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`
+    const body = {
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: 'user', parts: [{ text: termo }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
         temperature: 0,
-        max_tokens: 300,
-      }),
+        maxOutputTokens: 512,
+      },
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     })
 
+    if (!response.ok) {
+      const errText = await response.text()
+      console.error('Gemini API error (resolve-name):', errText)
+      return new Response(JSON.stringify({ termos: [termo] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const data = await response.json()
-    const content = data.choices?.[0]?.message?.content || '[]'
+    const rawText: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]'
+    const cleanText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
 
     let termos: string[] = [termo]
     try {
-      const parsed = JSON.parse(content.replace(/```json?\n?/g, '').replace(/```/g, '').trim())
+      const parsed = JSON.parse(cleanText)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Ensure original term is included
         const set = new Set<string>(parsed.map((t: string) => t.trim()).filter(Boolean))
         set.add(termo)
         termos = Array.from(set)

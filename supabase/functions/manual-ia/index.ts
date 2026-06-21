@@ -5,7 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+// Endpoint nativo Gemini generateContent
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -70,24 +71,26 @@ ${secao_contexto ? `\n\nO usuário está lendo a seção: "${secao_contexto}"` :
   let resposta = ''
   let tokensUsados = 0
 
-  // Primário: Google Gemini direto
+  // Primário: Google Gemini direto (endpoint nativo generateContent)
   if (geminiKey) {
     try {
-      const res = await fetch(GEMINI_ENDPOINT, {
+      // Converter histórico OpenAI-style para formato Gemini nativo
+      const geminiContents = messages.map((m: any) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }))
+      const res = await fetch(`${GEMINI_BASE}?key=${geminiKey}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${geminiKey}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gemini-2.5-flash',
-          messages: [{ role: 'system', content: systemPrompt }, ...messages],
-          max_tokens: 1000,
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: geminiContents,
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
         }),
       })
       const data = await res.json()
-      resposta = data?.choices?.[0]?.message?.content || ''
-      tokensUsados = data?.usage?.total_tokens || 0
+      resposta = data?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      tokensUsados = (data?.usageMetadata?.totalTokenCount) || 0
     } catch (e) {
       console.warn('[manual-ia] Gemini falhou:', e)
     }

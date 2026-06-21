@@ -3,7 +3,71 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+// Endpoint nativo Gemini generateContent (substitui o endpoint de compatibilidade OpenAI)
+const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+
+// Helper: converte mensagens OpenAI-style para o formato nativo Gemini
+function buildGeminiRequest(
+  systemPrompt: string,
+  userText: string,
+  imageBase64?: string
+): object {
+  // Parte de texto do usuário
+  const userParts: any[] = [{ text: userText }]
+
+  // Suporte multimodal: imagem inline (JPEG/PNG/WEBP)
+  if (imageBase64) {
+    userParts.push({
+      inline_data: {
+        mime_type: 'image/jpeg',
+        data: imageBase64,
+      },
+    })
+  }
+
+  return {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: 'user', parts: userParts }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0.1,
+      maxOutputTokens: 65536,
+    },
+  }
+}
+
+// Helper: extrai o texto da resposta nativa Gemini
+function extractGeminiText(data: any): string {
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+}
+
+// Helper: faz a chamada ao Gemini nativo e retorna o texto gerado
+async function callGemini(
+  apiKey: string,
+  systemPrompt: string,
+  userText: string,
+  imageBase64?: string
+): Promise<string> {
+  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`
+  const body = buildGeminiRequest(systemPrompt, userText, imageBase64)
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`gemini_api_error: ${res.status} ${errText}`)
+  }
+
+  const data = await res.json()
+  const text = extractGeminiText(data)
+  if (!text) throw new Error('gemini_api_error: resposta vazia ou sem candidatos')
+  return text
+}
 
 // JSZip via npm (Deno-friendly) para extrair conteúdo real de arquivos .zip e .docx
 import JSZip from 'npm:jszip@3.10.1'
@@ -528,32 +592,13 @@ Retorne JSON com:
         ativos: body.ativos
       })
 
-      const aiRes = await fetch(GEMINI_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('GEMINI_API_KEY')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage }
-          ],
-          response_format: { type: 'json_object' }
-        })
-      })
+      const rawText = await callGemini(geminiKey, systemPrompt, userMessage)
+      // Limpar possível markdown code fence retornado pelo modelo
+      const cleanText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+      const content = JSON.parse(cleanText)
 
-      if (!aiRes.ok) {
-        const errorText = await aiRes.text();
-        console.error('AI Gateway Error (analyze_formula):', errorText);
-        throw new Error(`gemini_api_error: ${aiRes.status} ${errorText}`);
-      }
-      const aiData = await aiRes.json()
-      const content = JSON.parse(aiData.choices[0].message.content)
-
-      return new Response(JSON.stringify(content), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify(content), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -678,50 +723,18 @@ ${fileContent}
 
 Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" DEVE bater com a quantidade real de objetos em "produtos".`;
 
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
-      ];
+      // Suporte multimodal: passa imagem inline quando o arquivo for uma imagem
+      const isImage = fileType === 'image' || Boolean(fileName.match(/\.(jpg|jpeg|png|webp)$/i));
+      const imageArg = (fileBase64 && isImage) ? fileBase64 : undefined;
 
-      // Se for imagem ou se o nome sugerir imagem, adicionar como conteúdo multimodal
-      const isImage = fileType === 'image' || fileName.match(/\.(jpg|jpeg|png|webp)$/i);
-      if (fileBase64 && isImage) {
-        messages[1] = {
-          role: 'user',
-          content: [
-            { type: 'text', text: userMessage },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${fileBase64}` } }
-          ]
-        } as any;
-      }
+      const rawText = await callGemini(geminiKey, systemPrompt, userMessage, imageArg)
+      // Limpar possível markdown code fence retornado pelo modelo
+      const cleanText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+      const parsed = JSON.parse(cleanText)
 
-
-      const aiRes = await fetch(GEMINI_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('GEMINI_API_KEY')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gemini-2.5-flash',
-
-          messages,
-          response_format: { type: 'json_object' }
-        })
-      });
-
-      if (!aiRes.ok) {
-        const errorText = await aiRes.text();
-        throw new Error(`gemini_api_error: ${aiRes.status} ${errorText}`);
-      }
-      
-      const aiData = await aiRes.json();
-      const rawContent = aiData.choices[0].message.content;
-      const parsed = JSON.parse(rawContent);
-
-      return new Response(JSON.stringify(parsed), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
+      return new Response(JSON.stringify(parsed), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     if (!termo || String(termo).length < 2) {

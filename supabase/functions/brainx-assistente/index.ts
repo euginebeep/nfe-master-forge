@@ -23,24 +23,26 @@ Deno.serve(async (req) => {
     let resp: Response;
     let parseContent: (data: any) => string;
 
-    // Primário: Google Gemini direto (OpenAI-compatible endpoint)
+    // Primário: Google Gemini direto (endpoint nativo generateContent)
     if (geminiKey) {
-      resp = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${geminiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash",
-          messages: [
-            { role: "system", content: system },
-            ...messages,
-          ],
-          max_tokens: 1024,
-        }),
-      });
-      parseContent = (data) => data.choices?.[0]?.message?.content ?? "";
+      // Converter histórico de mensagens OpenAI-style para formato Gemini nativo
+      const geminiContents = messages.map((m: any) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }))
+      resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: system }] },
+            contents: geminiContents,
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+          }),
+        }
+      );
+      parseContent = (data) => data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     } else {
       // Fallback: Anthropic Claude direto
       resp = await fetch("https://api.anthropic.com/v1/messages", {

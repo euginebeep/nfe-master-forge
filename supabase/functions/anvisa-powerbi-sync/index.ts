@@ -6,7 +6,9 @@ const corsHeaders = {
 }
 
 const FIRECRAWL_API = 'https://api.firecrawl.dev/v1'
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+// Endpoint nativo Gemini generateContent
+const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 async function searchAnvisa(firecrawlKey: string, query: string): Promise<string> {
   const results: string[] = []
@@ -216,17 +218,7 @@ Deno.serve(async (req) => {
       ? `FOCO DA ANÁLISE: "${substanciaBusca}" — Verifique especificamente o status regulatório desta substância no contexto da ANVISA e IN 28/2018.`
       : 'Faça uma análise geral de todas as substâncias e mudanças recentes.'
 
-    const aiResponse = await fetch(GEMINI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${geminiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash',
-        messages: [{
-          role: 'system',
-          content: `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
+    const systemPromptPowerBi = `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
 Analise o conteúdo das buscas web sobre o portal ANVISA e a IN 28/2018.
 
 ${searchContext}
@@ -258,17 +250,25 @@ Responda em JSON:
   "confianca_dados": "ALTA" | "MEDIA" | "BAIXA",
   "fontes_consultadas": ["..."]
 }`
-        }, {
-          role: 'user',
-          content: combinedContent.substring(0, 30000),
-        }],
-        temperature: 0.1,
-        max_tokens: 4000,
+
+    // Chamada ao endpoint nativo Gemini generateContent
+    const geminiUrl = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`
+    const aiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPromptPowerBi }] },
+        contents: [{ role: 'user', parts: [{ text: combinedContent.substring(0, 30000) }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
       }),
     })
 
     const aiData = await aiResponse.json()
-    const aiContent = aiData.choices?.[0]?.message?.content || '{}'
+    const aiContent: string = aiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
 
     let analise: Record<string, unknown> = {}
     try {
