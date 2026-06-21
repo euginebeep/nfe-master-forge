@@ -660,6 +660,28 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         </AccordionItem>
       </Accordion>
 
+      {/* ELEMENTO 3 — AVISO DE ERRO (exibido acima do botão, visível ao usuário) */}
+      {errorDetails && (
+        <div className="p-5 rounded-2xl bg-destructive/10 border-2 border-destructive/30 animate-in fade-in slide-in-from-top-3 duration-300 shadow-lg">
+          <div className="flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-destructive mt-0.5 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <p className="font-bold text-destructive text-sm uppercase tracking-wider">
+                ⚠️ Erro na etapa: {errorDetails.step}
+              </p>
+              <p className="text-sm leading-relaxed text-foreground/80">{errorDetails.message}</p>
+              <Button
+                variant="link"
+                className="p-0 h-auto text-xs text-destructive/70 hover:text-destructive"
+                onClick={() => setErrorDetails(null)}
+              >
+                Fechar aviso
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ELEMENTO 3 — BOTÃO "CHECAR AGORA" */}
       <div className="space-y-6">
         <Button
@@ -692,24 +714,6 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           </div>
         )}
 
-        {errorDetails && (
-          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
-              <div className="space-y-1">
-                <p className="font-bold text-destructive text-sm uppercase tracking-wider">Erro na etapa: {errorDetails.step}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">{errorDetails.message}</p>
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-xs text-destructive/70 hover:text-destructive"
-                  onClick={() => setErrorDetails(null)}
-                >
-                  Fechar aviso
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
