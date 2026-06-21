@@ -22,6 +22,7 @@ import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsMana
 import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
 import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
 import { AnvisaSearchStats } from "@/components/admin/AnvisaSearchStats";
+import { ErpIAConfigPanel } from "@/components/admin/ErpIAConfigPanel";
 import { UnlockGuard } from "@/components/security/UnlockGuard";
 import { UnlockStatusCard } from "@/components/security/UnlockStatusCard";
 import { useUnlockSession } from "@/hooks/use-unlock-session";
@@ -325,6 +326,8 @@ export default function AdminMasterPage() {
           </p>
         </CardContent>
       </Card>
+
+      <ErpIAConfigPanel />
 
       <AnvisaSearchStats />
 

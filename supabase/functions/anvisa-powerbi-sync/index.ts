@@ -126,12 +126,31 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')
-  const geminiKey = Deno.env.get('GEMINI_API_KEY')
+  let firecrawlKey: string | null = Deno.env.get('FIRECRAWL_API_KEY') || null
+  let geminiKey: string | null = Deno.env.get('GEMINI_API_KEY') || null
+
+  // Fallback: buscar chaves do banco erp_system_config (configuração global do ERP)
+  if (!firecrawlKey || !geminiKey) {
+    try {
+      const cfgRes = await fetch(
+        `${supabaseUrl}/rest/v1/erp_system_config?chave=in.(gemini_api_key,firecrawl_api_key)&select=chave,valor`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+      )
+      if (cfgRes.ok) {
+        const cfgData = await cfgRes.json()
+        for (const row of cfgData || []) {
+          if (row.chave === 'gemini_api_key' && row.valor) geminiKey = row.valor
+          if (row.chave === 'firecrawl_api_key' && row.valor) firecrawlKey = row.valor
+        }
+      }
+    } catch (e) {
+      console.warn('Falha ao buscar chaves do banco:', e)
+    }
+  }
 
   if (!firecrawlKey || !geminiKey) {
     console.error('Missing required API keys:', { firecrawl: !!firecrawlKey, gemini: !!geminiKey })
-    return new Response(JSON.stringify({ error: 'Serviço temporariamente indisponível. Configuração pendente.' }), {
+    return new Response(JSON.stringify({ error: 'Serviço temporariamente indisponível. Configure as chaves no painel Admin Master → Integrações de IA.' }), {
       status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }

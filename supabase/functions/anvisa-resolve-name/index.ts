@@ -38,9 +38,26 @@ Deno.serve(async (req) => {
       })
     }
 
-    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    let geminiKey: string | null = Deno.env.get('GEMINI_API_KEY') || null
     if (!geminiKey) {
-      // Fallback: retorna o termo original sem chamar a IA
+      // Fallback: buscar do banco erp_system_config (configuração global do ERP)
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        if (supabaseUrl && serviceKey) {
+          const cfgRes = await fetch(
+            `${supabaseUrl}/rest/v1/erp_system_config?chave=eq.gemini_api_key&select=valor&limit=1`,
+            { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+          )
+          if (cfgRes.ok) {
+            const cfgData = await cfgRes.json()
+            geminiKey = cfgData?.[0]?.valor || null
+          }
+        }
+      } catch (_) { /* ignore — fallback silencioso */ }
+    }
+    if (!geminiKey) {
+      // Sem chave: retorna o termo original sem chamar a IA
       return new Response(JSON.stringify({ termos: [termo] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

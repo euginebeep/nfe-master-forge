@@ -21,7 +21,23 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const geminiKey = Deno.env.get('GEMINI_API_KEY')
+  let geminiKey: string | null = Deno.env.get('GEMINI_API_KEY') || null
+
+  // Fallback: buscar do banco erp_system_config (configuração global do ERP)
+  if (!geminiKey) {
+    try {
+      const cfgRes = await fetch(
+        `${supabaseUrl}/rest/v1/erp_system_config?chave=eq.gemini_api_key&select=valor&limit=1`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+      )
+      if (cfgRes.ok) {
+        const cfgData = await cfgRes.json()
+        geminiKey = cfgData?.[0]?.valor || null
+      }
+    } catch (e) {
+      console.warn('Falha ao buscar gemini_api_key do banco:', e)
+    }
+  }
 
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {

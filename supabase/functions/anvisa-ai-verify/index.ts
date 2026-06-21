@@ -535,13 +535,32 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { termo, action } = body
 
-    // ── Validação antecipada da GEMINI_API_KEY ────────────────────────────────
-    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    // ── Obter GEMINI_API_KEY: Secret do Supabase (prioridade) ou banco erp_system_config ──
+    let geminiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!geminiKey && (action === 'analyze_file' || action === 'analyze_formula')) {
+      // Tentar buscar do banco de dados (configuração global do ERP)
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        if (supabaseUrl && serviceKey) {
+          const cfgRes = await fetch(
+            `${supabaseUrl}/rest/v1/erp_system_config?chave=eq.gemini_api_key&select=valor&limit=1`,
+            { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+          )
+          if (cfgRes.ok) {
+            const cfgData = await cfgRes.json()
+            geminiKey = cfgData?.[0]?.valor || null
+          }
+        }
+      } catch (e) {
+        console.warn('Falha ao buscar gemini_api_key do banco:', e)
+      }
+    }
     if (!geminiKey && (action === 'analyze_file' || action === 'analyze_formula')) {
       return new Response(
         JSON.stringify({
           erro: 'gemini_api_key_nao_configurada',
-          mensagem: 'A chave GEMINI_API_KEY não está configurada no servidor. Para ativar a análise por IA, acesse o painel do Supabase em Settings → Edge Functions → Secrets e adicione a variável GEMINI_API_KEY com sua chave do Google AI Studio (https://aistudio.google.com/apikey).'
+          mensagem: 'O módulo BrainX ANVISA não está ativo. Configure a chave de integração no painel Admin Master → Integrações de IA.'
         }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
