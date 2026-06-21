@@ -471,6 +471,19 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { termo, action } = body
 
+    // ── Validação antecipada da GEMINI_API_KEY ────────────────────────────────
+    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!geminiKey && (action === 'analyze_file' || action === 'analyze_formula')) {
+      return new Response(
+        JSON.stringify({
+          erro: 'gemini_api_key_nao_configurada',
+          mensagem: 'A chave GEMINI_API_KEY não está configurada no servidor. Para ativar a análise por IA, acesse o painel do Supabase em Settings → Edge Functions → Secrets e adicione a variável GEMINI_API_KEY com sua chave do Google AI Studio (https://aistudio.google.com/apikey).'
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     if (action === 'analyze_formula') {
       let powerBiData = '';
       try {

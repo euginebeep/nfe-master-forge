@@ -298,7 +298,17 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       if (error) {
         console.error('Invoke error:', error);
+        // Tentar extrair mensagem amigável do corpo do erro (status 503/500)
+        const errMsg = error?.message || '';
+        if (data?.erro) {
+          throw new Error(data.erro + (data.mensagem ? ': ' + data.mensagem : ''));
+        }
         throw error;
+      }
+
+      // ── VERIFICAR SE A RESPOSTA É UM ERRO ESTRUTURADO (ex: 503 com JSON) ──────────
+      if (data?.erro) {
+        throw new Error(data.erro + (data.mensagem ? ': ' + data.mensagem : ''));
       }
 
       // ── NORMALIZAÇÃO DO RETORNO
@@ -419,8 +429,47 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     } catch (error: any) {
       console.error(error);
       const stepName = steps[currentStep] || "Processamento inicial";
+
+      // ── Mapeamento de erros para mensagens amigáveis ────────────────────────
+      const rawMsg: string = error?.message || error?.error_description || String(error) || '';
+      let friendlyMessage = '';
+
+      if (
+        rawMsg.includes('gemini_api_key_nao_configurada') ||
+        rawMsg.includes('GEMINI_API_KEY') ||
+        rawMsg.includes('503')
+      ) {
+        friendlyMessage =
+          'O serviço de análise por IA não está ativo. ' +
+          'O administrador precisa configurar a chave GEMINI_API_KEY no painel do Supabase ' +
+          '(Settings → Edge Functions → Secrets). ' +
+          'Obtenha a chave gratuitamente em aistudio.google.com/apikey.';
+      } else if (
+        rawMsg.includes('non-2xx') ||
+        rawMsg.includes('Edge Function') ||
+        rawMsg.includes('500') ||
+        rawMsg.includes('FunctionsFetchError')
+      ) {
+        friendlyMessage =
+          'O servidor de análise retornou um erro interno. ' +
+          'Verifique se as chaves de API (GEMINI_API_KEY) estão configuradas no Supabase ' +
+          'ou tente novamente em alguns instantes.';
+      } else if (rawMsg.includes('gemini_api_error')) {
+        friendlyMessage =
+          'A API do Google Gemini recusou a requisição. ' +
+          'Verifique se a GEMINI_API_KEY é válida e se o projeto tem cota disponível.';
+      } else if (rawMsg.includes('powerbi')) {
+        friendlyMessage =
+          'Não foi possível consultar a base oficial ANVISA (Power BI). ' +
+          'A análise continuará apenas com os dados locais.';
+      } else {
+        friendlyMessage =
+          rawMsg || 'Falha ao processar o arquivo. Verifique se o formato é válido (.docx, .pdf, .zip ou imagem).';
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
       setErrorDetails({
-        message: error.message || "Falha ao processar o arquivo. Verifique se o formato é válido.",
+        message: friendlyMessage,
         step: stepName
       });
       toast({ 
