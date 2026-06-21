@@ -440,10 +440,8 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         rawMsg.includes('503')
       ) {
         friendlyMessage =
-          'O serviço de análise por IA não está ativo. ' +
-          'O administrador precisa configurar a chave GEMINI_API_KEY no painel do Supabase ' +
-          '(Settings → Edge Functions → Secrets). ' +
-          'Obtenha a chave gratuitamente em aistudio.google.com/apikey.';
+          'O serviço de análise por BrainX ANVISA não está ativo. ' +
+          'Entre em contato com o suporte para ativar o módulo de verificação regulatória.';
       } else if (
         rawMsg.includes('non-2xx') ||
         rawMsg.includes('Edge Function') ||
