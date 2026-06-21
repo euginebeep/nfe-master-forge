@@ -13,6 +13,9 @@ import {
   EyeOff,
   Info,
   ExternalLink,
+  RefreshCw,
+  Search,
+  Link2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
@@ -70,6 +73,7 @@ type AmbientalSensor = {
   device_id: string;
   device_name: string | null;
   sala: string;
+  room_name: string;
   temp_min: number;
   temp_max: number;
   hum_min: number;
@@ -101,6 +105,16 @@ const EMPTY_SENSOR_FORM = {
   ativo: true,
 };
 
+// Helper para chamar a Edge Function ewelink-sync
+async function callEwelinkSync(action: string, body: Record<string, any> = {}) {
+  const { data, error } = await supabase.functions.invoke("ewelink-sync", {
+    body: { action, ...body },
+  });
+  if (error) throw new Error(error.message ?? "Erro na comunicação com eWeLink");
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 export default function AmbientalConfigPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -113,6 +127,15 @@ export default function AmbientalConfigPage() {
   const [region, setRegion] = useState("eu");
   const [syncInterval, setSyncInterval] = useState("60");
   const [ativo, setAtivo] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryResult, setDiscoveryResult] = useState<{
+    discovered: number;
+    inserted: number;
+    updated: number;
+    sensors: any[];
+    message: string;
+  } | null>(null);
 
   const { data: config, isLoading: loadingConfig } = useQuery({
     queryKey: ["ambiental_config", companyId],
@@ -137,6 +160,40 @@ export default function AmbientalConfigPage() {
       setAtivo(!!config.ativo);
     }
   }, [config]);
+
+  // Verificar se voltou de um OAuth callback (URL contém ?code=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+
+    if (code && state) {
+      // Limpar a URL
+      window.history.replaceState({}, "", window.location.pathname);
+
+      // Trocar o código pelo token
+      (async () => {
+        try {
+          toast({ title: "Conectando conta eWeLink...", description: "Aguarde um momento." });
+          await callEwelinkSync("oauth-callback", {
+            code,
+            redirectUrl: window.location.origin + window.location.pathname,
+          });
+          queryClient.invalidateQueries({ queryKey: ["ambiental_config", companyId] });
+          toast({
+            title: "✅ Conta eWeLink conectada!",
+            description: "Agora clique em Descobrir Sensores para importar seus dispositivos.",
+          });
+        } catch (err: any) {
+          toast({
+            title: "Erro ao conectar conta eWeLink",
+            description: err.message,
+            variant: "destructive",
+          });
+        }
+      })();
+    }
+  }, [companyId]);
 
   const saveConfigMutation = useMutation({
     mutationFn: async (payload: Partial<AmbientalConfig>) => {
@@ -164,10 +221,7 @@ export default function AmbientalConfigPage() {
 
   const handleSaveCredentials = () => {
     if (!appId || !appSecret) {
-      toast({
-        title: "Preencha App ID e App Secret",
-        variant: "destructive",
-      });
+      toast({ title: "Preencha App ID e App Secret", variant: "destructive" });
       return;
     }
     saveConfigMutation.mutate({
@@ -183,14 +237,72 @@ export default function AmbientalConfigPage() {
     saveConfigMutation.mutate({ ativo: v });
   };
 
+  // Iniciar fluxo OAuth2 — abre a página de autorização eWeLink
+  const handleConnectEwelink = async () => {
+    if (!appId || !appSecret) {
+      toast({
+        title: "Salve as credenciais primeiro",
+        description: "Preencha e salve o App ID e App Secret antes de conectar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const redirectUrl = window.location.origin + window.location.pathname;
+      const result = await callEwelinkSync("get-auth-url", { redirectUrl });
+      if (result?.authUrl) {
+        window.location.href = result.authUrl;
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao gerar URL de autorização",
+        description: err.message,
+        variant: "destructive",
+      });
+      setIsConnecting(false);
+    }
+  };
+
+  // Descobrir sensores automaticamente via API eWeLink
+  const handleDiscoverSensors = async () => {
+    setIsDiscovering(true);
+    setDiscoveryResult(null);
+    try {
+      const result = await callEwelinkSync("discover");
+      setDiscoveryResult(result);
+      queryClient.invalidateQueries({ queryKey: ["ambiental_sensores", companyId] });
+      toast({
+        title: `${result.discovered} sensor(es) encontrado(s)`,
+        description: result.message,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao descobrir sensores",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   // Status badge
+  const isTokenValid =
+    config?.ewelink_access_token &&
+    config?.token_expires_at &&
+    new Date(config.token_expires_at) > new Date();
+
   const connectionStatus = (() => {
     if (!config || !config.ewelink_app_id)
       return { label: "Não configurado", variant: "secondary" as const, icon: AlertCircle };
     if (config.token_expires_at && new Date(config.token_expires_at) < new Date())
       return { label: "Token expirado — reconectar", variant: "destructive" as const, icon: AlertCircle };
-    if (config.ativo)
-      return { label: "Conectado", variant: "default" as const, icon: CheckCircle };
+    if (isTokenValid)
+      return { label: "Conta autorizada", variant: "default" as const, icon: CheckCircle };
+    if (config.ewelink_app_id)
+      return { label: "Credenciais salvas — autorizar conta", variant: "secondary" as const, icon: AlertCircle };
     return { label: "Não configurado", variant: "secondary" as const, icon: AlertCircle };
   })();
 
@@ -219,6 +331,7 @@ export default function AmbientalConfigPage() {
       if (!companyId) throw new Error("Empresa não identificada");
       const payload = {
         ...sensorForm,
+        room_name: sensorForm.sala, // sincronizar room_name com sala
         temp_min: Number(sensorForm.temp_min),
         temp_max: Number(sensorForm.temp_max),
         hum_min: Number(sensorForm.hum_min),
@@ -286,7 +399,7 @@ export default function AmbientalConfigPage() {
     setSensorForm({
       device_id: s.device_id,
       device_name: s.device_name ?? "",
-      sala: s.sala,
+      sala: s.sala ?? s.room_name ?? "",
       temp_min: s.temp_min,
       temp_max: s.temp_max,
       hum_min: s.hum_min,
@@ -331,6 +444,7 @@ export default function AmbientalConfigPage() {
 
         {/* ====== TAB 1: CREDENCIAIS ====== */}
         <TabsContent value="credenciais" className="space-y-6 mt-6">
+          {/* Banner informativo */}
           <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
@@ -339,8 +453,11 @@ export default function AmbientalConfigPage() {
                   <p className="text-blue-900 dark:text-blue-100">
                     Para obter as credenciais, acesse{" "}
                     <span className="font-semibold">dev.ewelink.cc</span>, crie um
-                    aplicativo e copie o App ID e App Secret. Selecione a região
-                    onde sua conta eWeLink está registrada (EU para Brasil).
+                    aplicativo OAuth2 e copie o App ID e App Secret. A{" "}
+                    <strong>Redirect URL</strong> do aplicativo deve ser configurada para:{" "}
+                    <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">
+                      {window.location.origin}/ambiental/configuracao
+                    </code>
                   </p>
                   <a
                     href="https://dev.ewelink.cc"
@@ -355,6 +472,7 @@ export default function AmbientalConfigPage() {
             </CardContent>
           </Card>
 
+          {/* Credenciais */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -370,7 +488,7 @@ export default function AmbientalConfigPage() {
                     id="app_id"
                     value={appId}
                     onChange={(e) => setAppId(e.target.value)}
-                    placeholder="Ex.: abc123XYZ"
+                    placeholder="Ex.: GwHbUmFNUBUXsDaCigs..."
                   />
                 </div>
                 <div className="space-y-2">
@@ -435,12 +553,13 @@ export default function AmbientalConfigPage() {
             </CardContent>
           </Card>
 
+          {/* Status da Conexão */}
           <Card>
             <CardHeader>
               <CardTitle>Status da Conexão</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <Badge variant={connectionStatus.variant} className="gap-1.5">
                     <StatusIcon className="h-3.5 w-3.5" />
@@ -452,7 +571,34 @@ export default function AmbientalConfigPage() {
                     </span>
                   )}
                 </div>
+
+                {/* Botão Conectar / Reconectar */}
+                {config?.ewelink_app_id && (
+                  <Button
+                    variant={isTokenValid ? "outline" : "default"}
+                    size="sm"
+                    onClick={handleConnectEwelink}
+                    disabled={isConnecting}
+                    className="gap-2"
+                  >
+                    {isConnecting ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Link2 className="h-4 w-4" />
+                    )}
+                    {isTokenValid ? "Reconectar conta eWeLink" : "Conectar conta eWeLink"}
+                  </Button>
+                )}
               </div>
+
+              {/* Instrução quando não tem token */}
+              {config?.ewelink_app_id && !isTokenValid && (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Próximo passo:</strong> Clique em{" "}
+                  <strong>"Conectar conta eWeLink"</strong> para autorizar o acesso aos
+                  seus dispositivos. Você será redirecionado para a página de login do eWeLink.
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-3 border-t">
                 <div className="space-y-1">
@@ -484,17 +630,75 @@ export default function AmbientalConfigPage() {
                   Sensores Mapeados
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                  Mapeie cada sensor físico (Device ID do eWeLink) para uma sala
-                  da fábrica e defina os limites regulatórios de temperatura e
-                  umidade conforme a RDC 658/2022.
+                  Importe automaticamente os sensores da sua conta eWeLink ou adicione
+                  manualmente. Defina os limites regulatórios por sala conforme RDC 658/2022.
                 </p>
               </div>
-              <Button onClick={openCreate} className="flex-shrink-0">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Sensor
-              </Button>
+              <div className="flex gap-2 flex-shrink-0">
+                {/* Botão Descobrir Sensores */}
+                {isTokenValid && (
+                  <Button
+                    variant="outline"
+                    onClick={handleDiscoverSensors}
+                    disabled={isDiscovering}
+                    className="gap-2"
+                  >
+                    {isDiscovering ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                    Descobrir Sensores
+                  </Button>
+                )}
+                <Button onClick={openCreate} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Adicionar Sensor
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
+              {/* Resultado da descoberta */}
+              {discoveryResult && (
+                <div className="mb-4 rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4 space-y-2">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    ✅ {discoveryResult.message}
+                  </p>
+                  {discoveryResult.sensors.length > 0 && (
+                    <div className="space-y-1">
+                      {discoveryResult.sensors.map((s: any) => (
+                        <div key={s.device_id} className="flex items-center gap-2 text-xs text-green-700 dark:text-green-300">
+                          <span className={`h-2 w-2 rounded-full ${s.online ? "bg-green-500" : "bg-gray-400"}`} />
+                          <span className="font-mono">{s.device_id}</span>
+                          <span>{s.name}</span>
+                          {s.temperature !== null && (
+                            <span className="text-muted-foreground">— {s.temperature}°C</span>
+                          )}
+                          {s.humidity !== null && (
+                            <span className="text-muted-foreground">/ {s.humidity}%</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    className="text-xs text-green-600 dark:text-green-400 hover:underline"
+                    onClick={() => setDiscoveryResult(null)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              )}
+
+              {/* Aviso se não tem token */}
+              {!isTokenValid && (
+                <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-200">
+                  Para descobrir sensores automaticamente, primeiro{" "}
+                  <strong>conecte sua conta eWeLink</strong> na aba{" "}
+                  <strong>Credenciais eWeLink</strong>.
+                </div>
+              )}
+
               {loadingSensores ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   Carregando sensores...
@@ -503,7 +707,11 @@ export default function AmbientalConfigPage() {
                 <EmptyState
                   icon={Wifi}
                   title="Nenhum sensor configurado"
-                  description="Clique em Adicionar Sensor para começar."
+                  description={
+                    isTokenValid
+                      ? 'Clique em "Descobrir Sensores" para importar automaticamente ou adicione manualmente.'
+                      : 'Conecte sua conta eWeLink para descobrir sensores automaticamente.'
+                  }
                 />
               ) : (
                 <Table>
@@ -525,7 +733,7 @@ export default function AmbientalConfigPage() {
                           <div className="flex items-center gap-2">
                             <Thermometer className="h-4 w-4 text-muted-foreground" />
                             <div>
-                              <div className="font-medium">{s.sala}</div>
+                              <div className="font-medium">{s.sala ?? s.room_name}</div>
                               {s.device_name && (
                                 <div className="text-xs text-muted-foreground">
                                   {s.device_name}
