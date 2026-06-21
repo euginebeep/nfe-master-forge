@@ -472,11 +472,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         message: friendlyMessage,
         step: stepName
       });
-      toast({ 
-        variant: "destructive", 
-        title: "Erro na análise", 
-        description: `Falha na etapa: ${stepName}` 
-      });
+      // Toast removido — o bloco de erro na página (acima do botão) é mais visível e não fica atrás do mascote
     } finally {
       setAnalyzing(false);
     }
