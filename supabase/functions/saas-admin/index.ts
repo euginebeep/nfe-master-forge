@@ -163,11 +163,50 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, data }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // ─── AI CONFIG: Get and update models ───
+    // ─── AI CONFIG: Get and update models (saas_ai_config — metadados de modelos) ───
     if (action === 'list-ai-configs') {
       const { data: configs, error } = await supabaseAdmin.from('saas_ai_config').select('*').order('created_at', { ascending: false })
       if (error) throw error
       return new Response(JSON.stringify({ configs }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    // ─── GLOBAL API KEYS: Ler chaves de integração (erp_system_config) ───
+    // Retorna as chaves mascaradas (últimos 6 chars) para exibição no painel
+    if (action === 'get-ai-keys') {
+      const { data: rows, error } = await supabaseAdmin
+        .from('erp_system_config')
+        .select('chave, valor, descricao, categoria, ativo, updated_at')
+        .eq('categoria', 'ia')
+        .order('chave')
+      if (error) throw error
+      // Mascarar valores para exibição segura
+      const masked = (rows || []).map((r: any) => ({
+        ...r,
+        valor_mascarado: r.valor ? `${'•'.repeat(Math.max(0, r.valor.length - 6))}${r.valor.slice(-6)}` : null,
+        configurado: !!r.valor,
+      }))
+      return new Response(JSON.stringify({ keys: masked }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    // ─── GLOBAL API KEYS: Salvar chave de integração (erp_system_config) ───
+    if (action === 'save-ai-key') {
+      const { chave, valor } = bodyJson
+      if (!chave) {
+        return new Response(JSON.stringify({ error: 'chave é obrigatória' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      // Apenas chaves permitidas
+      const chavesPermitidas = ['gemini_api_key', 'firecrawl_api_key', 'anthropic_api_key']
+      if (!chavesPermitidas.includes(chave)) {
+        return new Response(JSON.stringify({ error: 'Chave não permitida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const { error } = await supabaseAdmin
+        .from('erp_system_config')
+        .upsert(
+          { chave, valor: valor || null, ativo: true, updated_by: callingUser.id },
+          { onConflict: 'chave' }
+        )
+      if (error) throw error
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     // Existing actions (block, unblock, delete-company, grant-access, update-company)
