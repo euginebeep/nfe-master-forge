@@ -15,7 +15,10 @@ const REGION_URLS: Record<string, string> = {
 };
 
 // UIIDs de sensores de temperatura/umidade conhecidos
-const TEMP_HUMIDITY_UIIDS = [15, 18, 1770, 1000, 2026];
+// 7014 = SNZB-02D (Zigbee), 15 = TH10/TH16, 18 = TH Elite, 1770 = SNZB-02, 1000 = SNZB-02P
+const TEMP_HUMIDITY_UIIDS = [15, 18, 1770, 1000, 2026, 7014];
+// UIIDs que retornam temperatura em centésimos (ex: 2580 = 25.80°C)
+const CENTESIMAL_UIIDS = [7014];
 
 // Tipos de dispositivos que podem ter temperatura
 const TEMP_DEVICE_KEYWORDS = ["th", "temp", "humi", "sensor", "snzb", "sonoff th"];
@@ -166,20 +169,32 @@ function isTempHumiditySensor(device: any): boolean {
  */
 function extractReadings(device: any): { temperature: number | null; humidity: number | null } {
   const params = device.itemData?.params ?? {};
+  const uiid = device.itemData?.extra?.uiid ?? device.itemData?.uiid;
+  // Alguns sensores (ex: SNZB-02D UIID 7014) retornam valores em centésimos
+  // 2580 = 25.80°C, 5810 = 58.10% — precisamos dividir por 100
+  const isCentesimal = CENTESIMAL_UIIDS.includes(uiid);
 
-  const temperature =
+  let temperature =
     params.currentTemperature !== undefined
       ? parseFloat(params.currentTemperature)
       : params.temperature !== undefined
       ? parseFloat(params.temperature)
       : null;
 
-  const humidity =
+  let humidity =
     params.currentHumidity !== undefined
       ? parseFloat(params.currentHumidity)
       : params.humidity !== undefined
       ? parseFloat(params.humidity)
       : null;
+
+  // Dividir por 100 se for sensor centesimal OU se o valor parecer estar em centésimos (>= 1000)
+  if (temperature !== null && !isNaN(temperature)) {
+    if (isCentesimal || temperature >= 1000) temperature = temperature / 100;
+  }
+  if (humidity !== null && !isNaN(humidity)) {
+    if (isCentesimal || humidity >= 1000) humidity = humidity / 100;
+  }
 
   return {
     temperature: temperature !== null && !isNaN(temperature) ? temperature : null,
