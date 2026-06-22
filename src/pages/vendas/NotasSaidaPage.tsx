@@ -22,7 +22,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNuvemFiscal } from "@/hooks/use-nuvem-fiscal";
+import { useFocusNfe } from "@/hooks/use-focus-nfe";
 import { useCompany } from "@/hooks/use-company";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
@@ -125,7 +125,7 @@ export default function NotasSaidaPage() {
   const [danfePreviewOpen, setDanfePreviewOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<any>(null);
   const queryClient = useQueryClient();
-  const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe } = useNuvemFiscal();
+  const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe } = useFocusNfe();
   const { data: company } = useCompany();
   const navigate = useNavigate();
 
@@ -371,7 +371,7 @@ export default function NotasSaidaPage() {
         informacoes_adicionais_contribuinte: nota.informacoes_adicionais || "",
       };
       const resultado = await emitirNFe(payload);
-      if (!resultado?.id) throw new Error("Resposta inválida da Nuvem Fiscal");
+      if (!resultado?.id) throw new Error("Resposta inválida da Focus NFe");
       let autorizada = false;
       let tentativas = 0;
       let dadosNfe: any = null;
@@ -380,7 +380,7 @@ export default function NotasSaidaPage() {
         dadosNfe = await consultarNFe(resultado.id);
         if (dadosNfe?.status === "autorizado") {
           autorizada = true;
-        } else if (["erro", "rejeitado", "denegado"].includes(dadosNfe?.status)) {
+        } else if (["erro", "rejeitado", "denegado", "erro_autorizacao"].includes(dadosNfe?.status)) {
           throw new Error(`NF-e ${dadosNfe.status}: ${dadosNfe?.motivo_rejeicao || "Verifique os dados e tente novamente"}`);
         }
         tentativas++;
@@ -392,12 +392,13 @@ export default function NotasSaidaPage() {
       }
       await supabase.from("notas_saida").update({
         status: "AUTORIZADA",
+        focus_nfe_id: resultado.id,
         nuvem_fiscal_id: resultado.id,
-        chave_acesso: dadosNfe?.chave_acesso || null,
+        chave_acesso: dadosNfe?.chave_nfe || dadosNfe?.chave_acesso || null,
         protocolo_autorizacao: dadosNfe?.protocolo || null,
         numero: dadosNfe?.numero || null,
         serie: dadosNfe?.serie || null,
-        danfe_url: dadosNfe?.link_pdf || null,
+        danfe_url: dadosNfe?.link_pdf || (dadosNfe?.caminho_danfe ? `https://api.focusnfe.com.br${dadosNfe.caminho_danfe}` : null),
       }).eq("id", notaId);
 
       // ── Pós-autorização: Conta a Receber + Baixa de Estoque (FEFO) ──
@@ -463,12 +464,13 @@ export default function NotasSaidaPage() {
     mutationFn: async ({ notaId, justificativa }: { notaId: string; justificativa: string }) => {
       const { data: nota } = await supabase
         .from("notas_saida")
-        .select("nuvem_fiscal_id")
+        .select("focus_nfe_id, nuvem_fiscal_id")
         .eq("id", notaId)
         .single();
 
-      if (nota?.nuvem_fiscal_id) {
-        await cancelarNFe(nota.nuvem_fiscal_id, justificativa);
+      const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
+      if (focusId) {
+        await cancelarNFe(focusId, justificativa);
       }
 
       await supabase
@@ -835,8 +837,8 @@ export default function NotasSaidaPage() {
                                 variant="ghost"
                                 className="h-8 w-8"
                                 onClick={() => {
-                                  if (nota.nuvem_fiscal_id) {
-                                    baixarDanfe(nota.nuvem_fiscal_id);
+                                  if ((nota as any).focus_nfe_id || nota.nuvem_fiscal_id) {
+                                    baixarDanfe(((nota as any).focus_nfe_id || nota.nuvem_fiscal_id)!);
                                     registrarEventoNfe({
                                       evento: "REIMPRESSAO",
                                       nota_id: nota.id,
@@ -859,7 +861,7 @@ export default function NotasSaidaPage() {
                                 variant="ghost"
                                 className="h-8 w-8"
                                 onClick={() => {
-                                  if (nota.nuvem_fiscal_id) baixarXml(nota.nuvem_fiscal_id);
+                                  if ((nota as any).focus_nfe_id || nota.nuvem_fiscal_id) baixarXml(((nota as any).focus_nfe_id || nota.nuvem_fiscal_id)!);
                                 }}
                                 title="XML"
                               >

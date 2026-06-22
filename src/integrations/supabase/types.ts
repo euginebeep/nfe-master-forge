@@ -4353,6 +4353,7 @@ export type Database = {
           motivo_cancelamento: string | null
           natureza_operacao: string | null
           numero: number | null
+          focus_nfe_id: string | null
           nuvem_fiscal_id: string | null
           nuvem_fiscal_status: string | null
           pedido_venda_id: string | null
@@ -4399,6 +4400,7 @@ export type Database = {
           motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
+          focus_nfe_id?: string | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
@@ -4445,6 +4447,7 @@ export type Database = {
           motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
+          focus_nfe_id?: string | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
