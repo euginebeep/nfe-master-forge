@@ -192,6 +192,103 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // =====================================================================
+  // CALLBACK GET — eWeLink redireciona para esta URL após autorização OAuth2
+  // URL: /functions/v1/ewelink-sync?code=XXX&state=COMPANY_ID
+  // =====================================================================
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state"); // company_id
+    const error = url.searchParams.get("error");
+
+    const erpCallbackUrl = "https://brainxerp.com/ambiental/configuracao";
+
+    if (error) {
+      return Response.redirect(`${erpCallbackUrl}?ewelink_error=${encodeURIComponent(error)}`, 302);
+    }
+
+    if (!code || !state) {
+      return Response.redirect(`${erpCallbackUrl}?ewelink_error=missing_code`, 302);
+    }
+
+    try {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      // Buscar configuração da empresa pelo company_id (state)
+      const { data: config, error: configError } = await supabaseAdmin
+        .from("ambiental_config")
+        .select("*")
+        .eq("company_id", state)
+        .single();
+
+      if (configError || !config || !config.ewelink_app_id || !config.ewelink_app_secret) {
+        return Response.redirect(`${erpCallbackUrl}?ewelink_error=config_not_found`, 302);
+      }
+
+      const baseUrl = REGION_URLS[config.ewelink_region ?? "eu"] ?? REGION_URLS["eu"];
+      const redirectUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/ewelink-sync`;
+
+      const tokenBody = JSON.stringify({
+        code,
+        redirectUrl,
+        grantType: "authorization_code",
+      });
+
+      const sign = await generateSignature(tokenBody, config.ewelink_app_secret);
+
+      const tokenRes = await fetch(`${baseUrl}/v2/user/oauth/token`, {
+        method: "POST",
+        headers: {
+          "x-ck-appid": config.ewelink_app_id,
+          "Authorization": `Sign ${sign}`,
+          "Content-Type": "application/json",
+        },
+        body: tokenBody,
+      });
+
+      const tokenData = await tokenRes.json();
+
+      if (tokenData.error !== 0) {
+        console.error("eWeLink token error:", tokenData);
+        return Response.redirect(
+          `${erpCallbackUrl}?ewelink_error=${encodeURIComponent(JSON.stringify(tokenData))}`,
+          302
+        );
+      }
+
+      const accessToken = tokenData.data?.accessToken;
+      const refreshToken = tokenData.data?.refreshToken;
+      const expiresAt = tokenData.data?.atExpiredTime
+        ? new Date(tokenData.data.atExpiredTime).toISOString()
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      await supabaseAdmin
+        .from("ambiental_config")
+        .update({
+          ewelink_access_token: accessToken,
+          ewelink_refresh_token: refreshToken,
+          token_expires_at: expiresAt,
+          ativo: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("company_id", state);
+
+      // Redirecionar de volta ao ERP com sucesso
+      return Response.redirect(`${erpCallbackUrl}?ewelink_connected=1`, 302);
+
+    } catch (err: any) {
+      console.error("eWeLink OAuth callback error:", err);
+      return Response.redirect(
+        `${erpCallbackUrl}?ewelink_error=${encodeURIComponent(err.message ?? "unknown")}`,
+        302
+      );
+    }
+  }
+
   try {
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,

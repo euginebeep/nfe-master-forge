@@ -161,37 +161,28 @@ export default function AmbientalConfigPage() {
     }
   }, [config]);
 
-  // Verificar se voltou de um OAuth callback (URL contém ?code=...)
+  // Verificar se voltou de um OAuth callback da Edge Function
+  // A Edge Function processa o code e redireciona com ?ewelink_connected=1 ou ?ewelink_error=...
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const state = params.get("state");
+    const connected = params.get("ewelink_connected");
+    const ewelinkError = params.get("ewelink_error");
 
-    if (code && state) {
+    if (connected === "1") {
       // Limpar a URL
       window.history.replaceState({}, "", window.location.pathname);
-
-      // Trocar o código pelo token
-      (async () => {
-        try {
-          toast({ title: "Conectando conta eWeLink...", description: "Aguarde um momento." });
-          await callEwelinkSync("oauth-callback", {
-            code,
-            redirectUrl: window.location.origin + window.location.pathname,
-          });
-          queryClient.invalidateQueries({ queryKey: ["ambiental_config", companyId] });
-          toast({
-            title: "✅ Conta eWeLink conectada!",
-            description: "Agora clique em Descobrir Sensores para importar seus dispositivos.",
-          });
-        } catch (err: any) {
-          toast({
-            title: "Erro ao conectar conta eWeLink",
-            description: err.message,
-            variant: "destructive",
-          });
-        }
-      })();
+      queryClient.invalidateQueries({ queryKey: ["ambiental_config", companyId] });
+      toast({
+        title: "✅ Conta eWeLink conectada!",
+        description: "Agora clique em Descobrir Sensores para importar seus dispositivos.",
+      });
+    } else if (ewelinkError) {
+      window.history.replaceState({}, "", window.location.pathname);
+      toast({
+        title: "Erro ao conectar conta eWeLink",
+        description: decodeURIComponent(ewelinkError),
+        variant: "destructive",
+      });
     }
   }, [companyId]);
 
@@ -238,6 +229,10 @@ export default function AmbientalConfigPage() {
   };
 
   // Iniciar fluxo OAuth2 — abre a página de autorização eWeLink
+  // A Redirect URL é a Edge Function do Supabase (cadastrada no dev.ewelink.cc)
+  // Ela processa o code, salva o token e redireciona de volta para o ERP
+  const EWELINK_REDIRECT_URL = "https://cqkvekdrifmvedvpjmjr.supabase.co/functions/v1/ewelink-sync";
+
   const handleConnectEwelink = async () => {
     if (!appId || !appSecret) {
       toast({
@@ -250,8 +245,7 @@ export default function AmbientalConfigPage() {
 
     setIsConnecting(true);
     try {
-      const redirectUrl = window.location.origin + window.location.pathname;
-      const result = await callEwelinkSync("get-auth-url", { redirectUrl });
+      const result = await callEwelinkSync("get-auth-url", { redirectUrl: EWELINK_REDIRECT_URL });
       if (result?.authUrl) {
         window.location.href = result.authUrl;
       }
