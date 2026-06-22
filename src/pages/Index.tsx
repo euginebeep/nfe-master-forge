@@ -16,7 +16,6 @@ import { NewsFeedCard } from "@/components/dashboard/NewsFeedCard";
 import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
 import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import { ParceirosBrainX } from "@/components/parceiros/ParceirosBrainX";
-import { hasGhostFlag } from "@/lib/ghost-mode";
 
 type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
 
@@ -106,7 +105,6 @@ const roleHierarchy: AppRole[] = ['admin', 'gerente', 'supervisor', 'operador', 
 
 const Index = () => {
   const { profile, role, isLoading, isAuthenticated } = useAuth();
-  const ghostActive = hasGhostFlag();
 
   // Check if user has access to a module
   const hasAccess = (minRole: AppRole): boolean => {
@@ -115,6 +113,9 @@ const Index = () => {
     const requiredRoleIndex = roleHierarchy.indexOf(minRole);
     return userRoleIndex <= requiredRoleIndex;
   };
+
+  // Mostrar dashboard completo para todos os usuários autenticados com role definida
+  const showFullDashboard = isAuthenticated && !!role;
 
   // Filter modules based on user role
   const accessibleModules = modules.filter(m => hasAccess(m.minRole));
@@ -133,7 +134,7 @@ const Index = () => {
         />
       )}
 
-      {ghostActive && isAuthenticated && (
+      {showFullDashboard && (
         <>
           <div>
             <h3 className="text-lg font-semibold mb-4">Indicadores em Tempo Real</h3>
