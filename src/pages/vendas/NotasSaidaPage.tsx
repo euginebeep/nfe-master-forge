@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from "react";
 import {
   FileOutput, Search, Plus, Eye, FileText, DollarSign, CheckCircle, XCircle, Clock,
   Send, Download, Trash2, Printer, AlertTriangle, Package, Truck, CreditCard,
-  ChevronDown, ChevronUp, FileX, Edit
+  ChevronDown, ChevronUp, FileX, Edit, MoreHorizontal, PenLine, Ban, Hash,
+  RefreshCw, Mail, CheckSquare, Square, FileCheck2, Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
@@ -18,6 +19,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -124,8 +130,22 @@ export default function NotasSaidaPage() {
   const [justificativa, setJustificativa] = useState("");
   const [danfePreviewOpen, setDanfePreviewOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<any>(null);
+  // CC-e
+  const [cceDialogOpen, setCceDialogOpen] = useState(false);
+  const [cceTexto, setCceTexto] = useState("");
+  // Inutilização
+  const [inutDialogOpen, setInutDialogOpen] = useState(false);
+  const [inutSerie, setInutSerie] = useState("1");
+  const [inutNumIni, setInutNumIni] = useState("");
+  const [inutNumFim, setInutNumFim] = useState("");
+  const [inutJustificativa, setInutJustificativa] = useState("");
+  const [inutLoading, setInutLoading] = useState(false);
+  // Seleção múltipla
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Status loading
+  const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe } = useFocusNfe();
+  const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe } = useFocusNfe();
   const { data: company } = useCompany();
   const navigate = useNavigate();
 
@@ -491,6 +511,90 @@ export default function NotasSaidaPage() {
     onError: (err: any) => toast.error("Erro: " + err.message),
   });
 
+  const cartaCorrecaoMutation = useMutation({
+    mutationFn: async ({ notaId, texto }: { notaId: string; texto: string }) => {
+      const { data: nota } = await supabase
+        .from("notas_saida")
+        .select("focus_nfe_id, nuvem_fiscal_id")
+        .eq("id", notaId)
+        .single();
+      const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
+      if (!focusId) throw new Error("NF-e não encontrada na Focus NFe");
+      await cartaCorrecaoNFe(focusId, texto);
+    },
+    onSuccess: () => {
+      toast.success("Carta de Correção emitida com sucesso");
+      setCceDialogOpen(false);
+      setCceTexto("");
+    },
+    onError: (err: any) => toast.error("Erro na CC-e: " + err.message),
+  });
+
+  const consultarStatusMutation = useCallback(async (notaId: string) => {
+    setStatusLoadingId(notaId);
+    try {
+      const { data: nota } = await supabase
+        .from("notas_saida")
+        .select("focus_nfe_id, nuvem_fiscal_id")
+        .eq("id", notaId)
+        .single();
+      const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
+      if (!focusId) { toast.error("NF-e não transmitida"); return; }
+      const dados = await consultarNFe(focusId);
+      const statusMap: Record<string, string> = {
+        autorizado: "AUTORIZADA",
+        cancelado: "CANCELADA",
+        denegado: "DENEGADA",
+        erro_autorizacao: "REJEITADA",
+        rejeitado: "REJEITADA",
+        processando_autorizacao: "PROCESSANDO",
+      };
+      const novoStatus = statusMap[dados?.status] || "RASCUNHO";
+      await supabase.from("notas_saida").update({
+        status: novoStatus,
+        chave_acesso: dados?.chave_nfe || dados?.chave_acesso || undefined,
+        protocolo_autorizacao: dados?.protocolo || undefined,
+        numero: dados?.numero || undefined,
+        serie: dados?.serie || undefined,
+      }).eq("id", notaId);
+      queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+      toast.success(`Status atualizado: ${novoStatus}`);
+    } catch (e: any) {
+      toast.error("Erro ao consultar: " + e.message);
+    } finally {
+      setStatusLoadingId(null);
+    }
+  }, [consultarNFe, queryClient]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((n: any) => n.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const transmitirSelecionadas = async () => {
+    const ids = Array.from(selectedIds).filter(id => {
+      const n = filtered.find((x: any) => x.id === id);
+      return n?.status === "RASCUNHO";
+    });
+    if (!ids.length) { toast.warning("Nenhum rascunho selecionado"); return; }
+    toast.info(`Transmitindo ${ids.length} nota(s)...`);
+    for (const id of ids) {
+      await transmitirNota.mutateAsync(id).catch(() => {});
+    }
+    setSelectedIds(new Set());
+  };
+
   const buildDanfeData = (notaData: any, notaItens: any[], comp: any, cliente: any) => ({
     emit_razao: comp?.razao_social || "—",
     emit_fantasia: comp?.nome_fantasia || "",
@@ -662,7 +766,7 @@ export default function NotasSaidaPage() {
     <div className="space-y-6">
       <PageHeader
         title="Notas Fiscais de Saída"
-        description="Emissão de NF-e (modelo 55) via Nuvem Fiscal"
+        description="Emissão de NF-e (modelo 55) via Focus NFe"
         icon={FileOutput}
         actions={
           <div className="flex gap-2">
@@ -718,6 +822,45 @@ export default function NotasSaidaPage() {
         </Card>
       </div>
 
+      {/* Barra de ações em lote */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+          <span className="text-sm font-medium text-primary">
+            {selectedIds.size} nota(s) selecionada(s)
+          </span>
+          <div className="flex gap-2 ml-auto">
+            <Button size="sm" variant="outline" onClick={transmitirSelecionadas} disabled={transmitirNota.isPending}>
+              <Send className="h-3.5 w-3.5 mr-1" /> Transmitir Selecionadas
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => {
+              const ids = Array.from(selectedIds);
+              ids.forEach(id => {
+                const nota = filtered.find((n: any) => n.id === id);
+                if (nota?.focus_nfe_id || nota?.nuvem_fiscal_id) {
+                  baixarDanfe((nota.focus_nfe_id || nota.nuvem_fiscal_id)!);
+                }
+              });
+            }}>
+              <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir DANFE
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => {
+              const ids = Array.from(selectedIds);
+              ids.forEach(id => {
+                const nota = filtered.find((n: any) => n.id === id);
+                if (nota?.focus_nfe_id || nota?.nuvem_fiscal_id) {
+                  baixarXml((nota.focus_nfe_id || nota.nuvem_fiscal_id)!);
+                }
+              });
+            }}>
+              <Download className="h-3.5 w-3.5 mr-1" /> Exportar XML
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+              Limpar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -741,6 +884,9 @@ export default function NotasSaidaPage() {
             <SelectItem value="REJEITADA">Rejeitada</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" onClick={() => setInutDialogOpen(true)}>
+          <Hash className="h-4 w-4 mr-2" /> Inutilizar Numeração
+        </Button>
         <Button onClick={() => navigate("/vendas/emissor-nfe")}>
           <Plus className="h-4 w-4 mr-2" /> Nova NF-e
         </Button>
@@ -765,6 +911,12 @@ export default function NotasSaidaPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead className="w-20">Número</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Natureza</TableHead>
@@ -779,7 +931,13 @@ export default function NotasSaidaPage() {
                   const cfg = STATUS_CONFIG[nota.status] || STATUS_CONFIG.RASCUNHO;
                   const Icon = cfg.icon;
                   return (
-                    <TableRow key={nota.id}>
+                    <TableRow key={nota.id} className={selectedIds.has(nota.id) ? "bg-primary/5" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(nota.id)}
+                          onCheckedChange={() => toggleSelect(nota.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-sm">
                         {nota.numero || "—"}
                       </TableCell>
@@ -807,81 +965,81 @@ export default function NotasSaidaPage() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex gap-1 justify-end">
-                          {nota.status === "RASCUNHO" && (
-                            <>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
-                                onClick={() => openDanfeFromSavedNota(nota.id)}
-                                title="Pré-visualizar DANFE"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8">
+                              {statusLoadingId === nota.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <MoreHorizontal className="h-4 w-4" />}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52">
+                            {/* Visualizar */}
+                            <DropdownMenuItem onClick={() => openDanfeFromSavedNota(nota.id)}>
+                              <Eye className="h-4 w-4 mr-2" /> Visualizar DANFE
+                            </DropdownMenuItem>
+
+                            {/* Transmitir (rascunho) */}
+                            {nota.status === "RASCUNHO" && (
+                              <DropdownMenuItem
                                 onClick={() => transmitirNota.mutate(nota.id)}
                                 disabled={transmitirNota.isPending}
                               >
-                                <Send className="h-3.5 w-3.5 mr-1" />
-                                Transmitir
-                              </Button>
-                            </>
-                          )}
-                          {nota.status === "AUTORIZADA" && (
-                            <>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  if ((nota as any).focus_nfe_id || nota.nuvem_fiscal_id) {
-                                    baixarDanfe(((nota as any).focus_nfe_id || nota.nuvem_fiscal_id)!);
-                                    registrarEventoNfe({
-                                      evento: "REIMPRESSAO",
-                                      nota_id: nota.id,
-                                      modelo: nota.modelo,
-                                      serie: nota.serie ? Number(nota.serie) : null,
-                                      numero: nota.numero ?? null,
-                                      chave_acesso: nota.chave_acesso,
-                                      protocolo: nota.protocolo_autorizacao,
-                                      status: nota.status,
-                                      observacao: "Reimpressão do DANFE",
-                                    }).catch(() => {});
+                                <Send className="h-4 w-4 mr-2" /> Transmitir à SEFAZ
+                              </DropdownMenuItem>
+                            )}
+
+                            {/* Ações para notas autorizadas */}
+                            {nota.status === "AUTORIZADA" && (
+                              <>
+                                <DropdownMenuItem onClick={() => {
+                                  const fid = (nota as any).focus_nfe_id || nota.nuvem_fiscal_id;
+                                  if (fid) {
+                                    baixarDanfe(fid);
+                                    registrarEventoNfe({ evento: "REIMPRESSAO", nota_id: nota.id, modelo: nota.modelo, serie: nota.serie ? Number(nota.serie) : null, numero: nota.numero ?? null, chave_acesso: nota.chave_acesso, protocolo: nota.protocolo_autorizacao, status: nota.status, observacao: "Reimpressão do DANFE" }).catch(() => {});
                                   }
-                                }}
-                                title="DANFE"
-                              >
-                                <Printer className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  if ((nota as any).focus_nfe_id || nota.nuvem_fiscal_id) baixarXml(((nota as any).focus_nfe_id || nota.nuvem_fiscal_id)!);
-                                }}
-                                title="XML"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-destructive"
-                                onClick={() => {
+                                }}>
+                                  <Printer className="h-4 w-4 mr-2" /> Baixar DANFE (PDF)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  const fid = (nota as any).focus_nfe_id || nota.nuvem_fiscal_id;
+                                  if (fid) baixarXml(fid);
+                                }}>
+                                  <Download className="h-4 w-4 mr-2" /> Exportar XML
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => {
                                   setSelectedNotaId(nota.id);
-                                  setCancelDialogOpen(true);
-                                }}
-                                title="Cancelar"
-                              >
-                                <FileX className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                                  setCceTexto("");
+                                  setCceDialogOpen(true);
+                                }}>
+                                  <PenLine className="h-4 w-4 mr-2" /> Carta de Correção (CC-e)
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    setSelectedNotaId(nota.id);
+                                    setJustificativa("");
+                                    setCancelDialogOpen(true);
+                                  }}
+                                >
+                                  <Ban className="h-4 w-4 mr-2" /> Cancelar NF-e
+                                </DropdownMenuItem>
+                              </>
+                            )}
+
+                            {/* Consultar status (processando/rejeitada) */}
+                            {["PROCESSANDO", "REJEITADA", "RASCUNHO"].includes(nota.status) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => consultarStatusMutation(nota.id)}>
+                                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar Status
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -1247,6 +1405,136 @@ export default function NotasSaidaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ─── Dialog Carta de Correção (CC-e) ─── */}
+      <Dialog open={cceDialogOpen} onOpenChange={setCceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PenLine className="h-5 w-5" />
+              Carta de Correção (CC-e)
+            </DialogTitle>
+            <DialogDescription>
+              Mínimo 15 caracteres. Não pode corrigir dados do emitente, destinatário, valores ou impostos.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label>Descrição da Correção</Label>
+            <Textarea
+              value={cceTexto}
+              onChange={(e) => setCceTexto(e.target.value)}
+              placeholder="Descreva a correção a ser realizada..."
+              rows={4}
+              minLength={15}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {cceTexto.length}/15 caracteres mínimos
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCceDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedNotaId) {
+                  cartaCorrecaoMutation.mutate({ notaId: selectedNotaId, texto: cceTexto });
+                }
+              }}
+              disabled={cceTexto.length < 15 || cartaCorrecaoMutation.isPending}
+            >
+              {cartaCorrecaoMutation.isPending ? "Enviando..." : "Emitir CC-e"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Dialog Inutilização ─── */}
+      <Dialog open={inutDialogOpen} onOpenChange={setInutDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Hash className="h-5 w-5" />
+              Inutilizar Numeração
+            </DialogTitle>
+            <DialogDescription>
+              Inutiliza uma faixa de números de NF-e que não serão utilizados. Operação irreversível.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Série</Label>
+                <Input
+                  value={inutSerie}
+                  onChange={(e) => setInutSerie(e.target.value)}
+                  placeholder="1"
+                />
+              </div>
+              <div>
+                <Label>Número Inicial</Label>
+                <Input
+                  value={inutNumIni}
+                  onChange={(e) => setInutNumIni(e.target.value)}
+                  placeholder="1"
+                />
+              </div>
+              <div>
+                <Label>Número Final</Label>
+                <Input
+                  value={inutNumFim}
+                  onChange={(e) => setInutNumFim(e.target.value)}
+                  placeholder="10"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Justificativa (mínimo 15 caracteres)</Label>
+              <Textarea
+                value={inutJustificativa}
+                onChange={(e) => setInutJustificativa(e.target.value)}
+                placeholder="Informe o motivo da inutilização..."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {inutJustificativa.length}/15 caracteres mínimos
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInutDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={inutLoading || inutJustificativa.length < 15 || !inutSerie || !inutNumIni || !inutNumFim}
+              onClick={async () => {
+                setInutLoading(true);
+                try {
+                  await inutilizarNFe({
+                    serie: Number(inutSerie),
+                    numero_inicial: Number(inutNumIni),
+                    numero_final: Number(inutNumFim),
+                    justificativa: inutJustificativa,
+                  });
+                  toast.success("Numeração inutilizada com sucesso");
+                  setInutDialogOpen(false);
+                  setInutSerie("");
+                  setInutNumIni("");
+                  setInutNumFim("");
+                  setInutJustificativa("");
+                } catch (e: any) {
+                  toast.error("Erro: " + e.message);
+                } finally {
+                  setInutLoading(false);
+                }
+              }}
+            >
+              {inutLoading ? "Processando..." : "Inutilizar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ─── DANFE Preview ─── */}
       <DANFEPreviewDialog
         open={danfePreviewOpen}

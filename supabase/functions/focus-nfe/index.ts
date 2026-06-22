@@ -378,6 +378,50 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ─── INUTILIZAÇÃO ──────────────────────────────────────────────────────────
+      case "inutilizar-nfe": {
+        const body = await req.json();
+        const { cnpj, serie, numero_inicial, numero_final, justificativa: just, ambiente: amb } = body;
+        if (!cnpj || !serie || !numero_inicial || !numero_final || !just) {
+          throw new Error("Campos obrigatórios: cnpj, serie, numero_inicial, numero_final, justificativa.");
+        }
+        if (just.length < 15) throw new Error("Justificativa deve ter no mínimo 15 caracteres.");
+        const ambiente = amb || "homologacao";
+
+        // Focus NFe: POST /nfe/inutilizacao
+        const res = await focusNfeRequest("POST", `/nfe/inutilizacao`, ambiente, {
+          cnpj: cnpj.replace(/\D/g, ""),
+          serie: String(serie),
+          numero_inicial: String(numero_inicial),
+          numero_final: String(numero_final),
+          justificativa: just,
+        });
+        const data = await res.json();
+
+        await audit(supabase, "INUTILIZACAO", {
+          status: res.ok ? "ok" : "erro",
+          observacao: `Série ${serie} Nº ${numero_inicial}-${numero_final}: ${just}`,
+        });
+
+        return new Response(JSON.stringify(data), {
+          status: res.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ─── CONSULTAR STATUS DA NOTA ────────────────────────────────────────────
+      case "consultar-status": {
+        if (!id) throw new Error("ID (ref) não informado.");
+        const ambiente = url.searchParams.get("ambiente") || "homologacao";
+        const res = await focusNfeRequest("GET", `/nfe/${id}`, ambiente);
+        const data = await res.json();
+        const statusMapeado = mapStatus(data.status || "");
+        return new Response(JSON.stringify({ ...data, status_interno: statusMapeado }), {
+          status: res.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // ─── STATUS SEFAZ ────────────────────────────────────────────────────────
       case "status-sefaz": {
         const cpfCnpj = url.searchParams.get("cpf_cnpj");

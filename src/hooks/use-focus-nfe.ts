@@ -89,6 +89,18 @@ export function useFocusNfe() {
   const statusSefaz = (cpfCnpj: string, ambiente?: string) =>
     callFocusNfe("status-sefaz", { cpf_cnpj: cpfCnpj, ambiente: ambiente || "homologacao" });
 
+  const inutilizarNFe = (payload: {
+    cnpj: string;
+    serie: string;
+    numero_inicial: string;
+    numero_final: string;
+    justificativa: string;
+    ambiente?: string;
+  }) => callFocusNfe("inutilizar-nfe", undefined, payload);
+
+  const consultarStatus = (id: string, ambiente?: string) =>
+    callFocusNfe("consultar-status", { id, ambiente: ambiente || "homologacao" });
+
   return {
     cadastrarEmpresa,
     consultarEmpresa,
@@ -99,6 +111,8 @@ export function useFocusNfe() {
     cancelarNFe,
     cartaCorrecao,
     statusSefaz,
+    inutilizarNFe,
+    consultarStatus,
   };
 }
 
