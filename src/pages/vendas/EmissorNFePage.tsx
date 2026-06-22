@@ -244,7 +244,7 @@ export default function EmissorNFePage() {
   const printRef = useRef<HTMLDivElement>(null);
 
   // ─── IDE state ───
-  const [activeTab, setActiveTab] = useState("emitente");
+  const [activeTab, setActiveTab] = useState("destino");
   const [naturezaOperacao, setNaturezaOperacao] = useState("Venda de produto do estabelecimento");
   const [tpNF, setTpNF] = useState("1"); // 0=Entrada, 1=Saída
   const [idDest, setIdDest] = useState("1"); // 1=Interna, 2=Interestadual, 3=Exterior
@@ -680,9 +680,29 @@ export default function EmissorNFePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ─── LEFT: Form ─── */}
         <div className="space-y-4">
+          {/* Card de Emitente Automático */}
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-bold text-primary">{company?.razao_social || "Empresa não configurada"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      CNPJ: {company?.cnpj || "—"} &nbsp;|&nbsp; IE: {company?.ie || "—"} &nbsp;|&nbsp; CRT: {company?.crt || "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {[company?.endereco_logradouro, company?.endereco_nro, company?.endereco_bairro, company?.endereco_cidade, company?.endereco_uf].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="text-xs">Emitente automático</Badge>
+              </div>
+            </CardContent>
+          </Card>
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full grid grid-cols-6">
-              <TabsTrigger value="emitente" className="text-xs gap-1"><Building2 className="h-3 w-3" /> Emitente</TabsTrigger>
               <TabsTrigger value="destino" className="text-xs gap-1"><ChevronRight className="h-3 w-3" /> Destino</TabsTrigger>
               <TabsTrigger value="itens" className="text-xs gap-1">
                 <Package className="h-3 w-3" /> Itens
@@ -691,45 +711,16 @@ export default function EmissorNFePage() {
               <TabsTrigger value="transporte" className="text-xs gap-1"><Truck className="h-3 w-3" /> Transp.</TabsTrigger>
               <TabsTrigger value="cobranca" className="text-xs gap-1"><Receipt className="h-3 w-3" /> Cobr.</TabsTrigger>
               <TabsTrigger value="pagamento" className="text-xs gap-1"><CreditCard className="h-3 w-3" /> Pgto</TabsTrigger>
+              <TabsTrigger value="nota" className="text-xs gap-1"><ScrollText className="h-3 w-3" /> Nota</TabsTrigger>
             </TabsList>
 
-            {/* ════════ Emitente Tab ════════ */}
-            <TabsContent value="emitente" className="space-y-4 mt-3">
+            {/* ════════ Aba Nota (antes era Emitente) ════════ */}
+            <TabsContent value="nota" className="space-y-4 mt-3">
               <Card>
-                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">EMITENTE</CardTitle></CardHeader>
-                <CardContent className="px-4 pb-4 space-y-3">
-                  <div><Label className="text-xs">Razão Social</Label><Input value={company?.razao_social || ""} readOnly className={readOnlyClass} /></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">CNPJ</Label><Input value={company?.cnpj || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Inscrição Estadual</Label><Input value={company?.ie || ""} readOnly className={readOnlyClass} /></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">Inscrição Municipal</Label><Input value={company?.im || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">CNAE</Label><Input value={company?.cnae || ""} readOnly className={readOnlyClass} /></div>
-                  </div>
-                  <div><Label className="text-xs">Logradouro</Label><Input value={[company?.endereco_logradouro, company?.endereco_nro, company?.endereco_compl].filter(Boolean).join(", ")} readOnly className={readOnlyClass} /></div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div><Label className="text-xs">Bairro</Label><Input value={company?.endereco_bairro || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Município</Label><Input value={company?.endereco_cidade || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">UF</Label><Input value={company?.endereco_uf || ""} readOnly className={readOnlyClass} /></div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div><Label className="text-xs">CEP</Label><Input value={company?.endereco_cep || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Cód. Município (IBGE)</Label><Input value={company?.endereco_cmun || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">CRT</Label><Input value={company?.crt || ""} readOnly className={readOnlyClass} /></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">Telefone</Label><Input value={company?.telefone || ""} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">E-mail Fiscal</Label><Input value={company?.email_fiscal || ""} readOnly className={readOnlyClass} /></div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">DADOS DA NOTA</CardTitle></CardHeader>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">DADOS DA NOTA FISCAL</CardTitle></CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-4 gap-3">
-                    <div><Label className="text-xs">Número</Label><Input value={numero} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Número <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value={numero} readOnly className={readOnlyClass} /></div>
                     <div><Label className="text-xs">Série</Label><Input type="number" min={1} value={String(serie)} onChange={e => setSerie(Number(e.target.value) || 1)} /></div>
                     <div>
                       <Label className="text-xs">Modelo</Label>
@@ -750,16 +741,14 @@ export default function EmissorNFePage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div><Label className="text-xs">Data Emissão <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value={dataEmissao} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Hora <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value={horaEmissao} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Data Saída/Entrada</Label><Input type="date" value={dataSaida} onChange={e => setDataSaida(e.target.value)} /></div>
-                    <div><Label className="text-xs">Hora Saída</Label><Input value={horaSaida} onChange={e => setHoraSaida(e.target.value)} placeholder="HH:MM" /></div>
+                    <div><Label className="text-xs">Ambiente <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value={isHomolog ? "2 – Homologação (teste)" : "1 – Produção"} readOnly className={readOnlyClass} /></div>
                   </div>
 
-                  <div>
-                    <Label className="text-xs">Ambiente</Label>
-                    <Input value={isHomolog ? "2 – Homologação (teste)" : "1 – Produção"} readOnly className={readOnlyClass} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label className="text-xs">Data Saída/Entrada</Label><Input type="date" value={dataSaida} onChange={e => setDataSaida(e.target.value)} /></div>
+                    <div><Label className="text-xs">Hora Saída</Label><Input value={horaSaida} onChange={e => setHoraSaida(e.target.value)} placeholder="HH:MM" /></div>
                   </div>
 
                   <div>
@@ -779,7 +768,7 @@ export default function EmissorNFePage() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs">Destino da Operação</Label>
+                      <Label className="text-xs">Destino da Operação <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label>
                       <Select value={idDest} onValueChange={setIdDest}>
                         <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>{ID_DESTINO.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
@@ -787,7 +776,7 @@ export default function EmissorNFePage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Indicador de Presença</Label>
                       <Select value={indicadorPresenca} onValueChange={setIndicadorPresenca}>
@@ -802,28 +791,7 @@ export default function EmissorNFePage() {
                         <SelectContent>{IND_CONSUMIDOR_FINAL.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label className="text-xs">Forma de Emissão</Label>
-                      <Select value={tpEmis} onValueChange={setTpEmis}>
-                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>{TP_EMISSAO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-xs">Formato DANFE</Label>
-                      <Select value={tpImp} onValueChange={setTpImp}>
-                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>{TP_IMPRESSAO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label className="text-xs">Processo Emissão</Label><Input value={`${procEmi} – Aplicativo contribuinte`} readOnly className={readOnlyClass} /></div>
-                    <div><Label className="text-xs">Versão Processo</Label><Input value={verProc} readOnly className={readOnlyClass} /></div>
-                  </div>
-
-                  <div><Label className="text-xs">Cód. Município Fato Gerador (IBGE)</Label><Input value={company?.endereco_cmun || ""} readOnly className={readOnlyClass} /></div>
 
                   <Separator />
                   <div className="grid grid-cols-2 gap-3">
@@ -833,9 +801,9 @@ export default function EmissorNFePage() {
                 </CardContent>
               </Card>
 
-              {/* Totalizadores */}
+              {/* Valores Globais */}
               <Card>
-                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">VALORES GLOBAIS</CardTitle></CardHeader>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">VALORES GLOBAIS DA NOTA</CardTitle></CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-4 gap-3">
                     <div><Label className="text-xs">Frete (R$)</Label><Input type="number" step="0.01" value={valorFrete} onChange={e => setValorFrete(Number(e.target.value))} className="text-xs" /></div>
@@ -857,11 +825,6 @@ export default function EmissorNFePage() {
                   </div>
                 </CardContent>
               </Card>
-
-              <div className="flex gap-2">
-                <Button className="flex-1" onClick={handlePrint} variant="outline"><Printer className="h-4 w-4 mr-2" /> Imprimir DANFE</Button>
-                <Button className="flex-1" variant="outline">Exportar PDF</Button>
-              </div>
             </TabsContent>
 
             {/* ════════ Destino Tab ════════ */}
