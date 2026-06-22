@@ -270,7 +270,7 @@ export default function NotasSaidaPage() {
         natureza_operacao: nota.natureza_operacao || "VENDA DE MERCADORIA",
         serie: String(comp.nfe_serie_padrao || 1),
         numero: String(comp.nfe_numero_inicial || 1),
-        data_emissao: new Date().toISOString(),
+        data_emissao: new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T') + '-03:00',
         tipo_operacao: nota.tipo_operacao || "1",
         finalidade_emissao: nota.finalidade || "1",
         consumidor_final: "1",
