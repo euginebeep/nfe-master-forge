@@ -566,27 +566,25 @@ export default function AmbientalConfigPage() {
                   )}
                 </div>
 
-                {/* Botão Conectar / Reconectar */}
-                {config?.ewelink_app_id && (
-                  <Button
-                    variant={isTokenValid ? "outline" : "default"}
-                    size="sm"
-                    onClick={handleConnectEwelink}
-                    disabled={isConnecting}
-                    className="gap-2"
-                  >
-                    {isConnecting ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Link2 className="h-4 w-4" />
-                    )}
-                    {isTokenValid ? "Reconectar conta eWeLink" : "Conectar conta eWeLink"}
-                  </Button>
-                )}
+                {/* Botão Conectar / Reconectar — sempre visível */}
+                <Button
+                  variant={isTokenValid ? "outline" : "default"}
+                  size="sm"
+                  onClick={handleConnectEwelink}
+                  disabled={isConnecting}
+                  className="gap-2"
+                >
+                  {isConnecting ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="h-4 w-4" />
+                  )}
+                  {isTokenValid ? "Reconectar conta eWeLink" : "Conectar conta eWeLink"}
+                </Button>
               </div>
 
               {/* Instrução quando não tem token */}
-              {config?.ewelink_app_id && !isTokenValid && (
+              {!isTokenValid && (
                 <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-200">
                   <strong>Próximo passo:</strong> Clique em{" "}
                   <strong>"Conectar conta eWeLink"</strong> para autorizar o acesso aos
@@ -629,22 +627,21 @@ export default function AmbientalConfigPage() {
                 </p>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                {/* Botão Descobrir Sensores */}
-                {isTokenValid && (
-                  <Button
-                    variant="outline"
-                    onClick={handleDiscoverSensors}
-                    disabled={isDiscovering}
-                    className="gap-2"
-                  >
-                    {isDiscovering ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                    Descobrir Sensores
-                  </Button>
-                )}
+                {/* Botão Descobrir Sensores — visível sempre, desabilitado sem token */}
+                <Button
+                  variant="outline"
+                  onClick={handleDiscoverSensors}
+                  disabled={isDiscovering || !isTokenValid}
+                  title={!isTokenValid ? "Conecte sua conta eWeLink primeiro" : undefined}
+                  className="gap-2"
+                >
+                  {isDiscovering ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  Descobrir Sensores
+                </Button>
                 <Button onClick={openCreate} className="gap-2">
                   <Plus className="h-4 w-4" />
                   Adicionar Sensor
