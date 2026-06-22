@@ -35,3 +35,5 @@ project_id = "cqkvekdrifmvedvpjmjr"
     verify_jwt = false
   [functions.export-full-backup]
     verify_jwt = false
+  [functions.ewelink-sync]
+    verify_jwt = false
