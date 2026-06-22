@@ -200,6 +200,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state"); // company_id
+    const regionParam = url.searchParams.get("region"); // região retornada pelo eWeLink
     const error = url.searchParams.get("error");
 
     const erpCallbackUrl = "https://brainxerp.com/ambiental/configuracao";
@@ -229,7 +230,9 @@ serve(async (req) => {
         return Response.redirect(`${erpCallbackUrl}?ewelink_error=config_not_found`, 302);
       }
 
-      const baseUrl = REGION_URLS[config.ewelink_region ?? "eu"] ?? REGION_URLS["eu"];
+      // Usar a região retornada pelo eWeLink no callback (tem prioridade sobre a config do banco)
+      const callbackRegion = regionParam ?? config.ewelink_region ?? "eu";
+      const baseUrl = REGION_URLS[callbackRegion] ?? REGION_URLS["eu"];
       const redirectUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/ewelink-sync`;
 
       const tokenBody = JSON.stringify({
