@@ -235,9 +235,13 @@ function RoomCard({
       </div>
       <div className="px-4 py-2 border-t border-border flex items-center justify-between bg-muted/30">
         <span className="font-mono text-[9px] text-muted-foreground truncate">{reading.device_id}</span>
-        <span className="font-mono text-[9px] text-muted-foreground truncate ml-2">
-          {reading.responsible || "—"}
-        </span>
+        <Link
+          to={`/ambiental/sensor/${encodeURIComponent(reading.device_id)}`}
+          onClick={e => e.stopPropagation()}
+          className="font-mono text-[9px] text-primary underline hover:no-underline ml-2 shrink-0"
+        >
+          Ver relatório →
+        </Link>
       </div>
     </button>
   );
