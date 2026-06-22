@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+const PROJECT_ID = "cqkvekdrifmvedvpjmjr";
 
 async function callNuvemFiscal(action: string, params?: Record<string, string>, body?: unknown) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -14,7 +14,7 @@ async function callNuvemFiscal(action: string, params?: Record<string, string>, 
     headers: {
       Authorization: `Bearer ${session.access_token}`,
       "Content-Type": "application/json",
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxa3Zla2RyaWZtdmVkdnBqbWpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODA0MzAsImV4cCI6MjA5NTg1NjQzMH0.6Y6c5-lzCcA5j8ujKMfvOqHBT19gZ4D8_PL1ZqVAYYI",
     },
   };
 

@@ -26,3 +26,5 @@ dist-ssr
 # Backup credentials
 scripts/.env.backup
 supabase-backup-*.tar.*
+.vercel
+.env*

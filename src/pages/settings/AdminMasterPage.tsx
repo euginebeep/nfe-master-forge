@@ -96,12 +96,12 @@ export default function AdminMasterPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Sessão expirada. Faça login novamente.");
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-full-backup`;
+      const url = `${"https://cqkvekdrifmvedvpjmjr.supabase.co"}/functions/v1/export-full-backup`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxa3Zla2RyaWZtdmVkdnBqbWpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODA0MzAsImV4cCI6MjA5NTg1NjQzMH0.6Y6c5-lzCcA5j8ujKMfvOqHBT19gZ4D8_PL1ZqVAYYI",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ scope }),
