@@ -440,8 +440,8 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         rawMsg.includes('503')
       ) {
         friendlyMessage =
-          'O motor de análise regulatória (ANVISA IA) não está ativo. ' +
-          'Entre em contato com o suporte para ativar o módulo de verificação regulatória.';
+          'O módulo de verificação regulatória não está ativo. ' +
+          'Entre em contato com o suporte informando o código BX-R14.';
       } else if (
         rawMsg.includes('non-2xx') ||
         rawMsg.includes('Edge Function') ||
@@ -449,12 +449,12 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         rawMsg.includes('FunctionsFetchError')
       ) {
         friendlyMessage =
-          'O motor de análise regulatória retornou um erro interno. ' +
-          'Entre em contato com o suporte ou tente novamente em alguns instantes.';
+          'Não foi possível concluir a análise. ' +
+          'Tente novamente ou acione o suporte com o código BX-R22.';
       } else if (rawMsg.includes('gemini_api_error')) {
         friendlyMessage =
-          'O motor de análise regulatória recusou a requisição. ' +
-          'Entre em contato com o suporte para verificar a configuração do serviço.';
+          'A análise foi interrompida por uma restrição de serviço. ' +
+          'Acione o suporte informando o código BX-R31.';
       } else if (rawMsg.includes('powerbi')) {
         friendlyMessage =
           'Não foi possível consultar a base oficial ANVISA (Power BI). ' +
@@ -689,7 +689,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           {analyzing ? (
             <div className="flex items-center gap-3">
               <Loader2 className="w-6 h-6 animate-spin" />
-              Analisando com IA ANVISA...
+              Verificando conformidade regulatória...
             </div>
           ) : !file ? (
             "Selecione um arquivo para começar"
