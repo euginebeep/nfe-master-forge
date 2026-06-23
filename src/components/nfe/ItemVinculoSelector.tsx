@@ -23,14 +23,17 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import type { LocalItem } from "@/hooks/use-local-itens";
+import { parseUnidade, calcularFatorConversao } from "@/lib/unidade-parser";
 
 interface ItemVinculoSelectorProps {
   xmlDescricao: string;
   xmlCodigo: string;
   xmlNcm?: string;
   xmlEan?: string;
+  xmlUnidade?: string;  // Unidade do XML (pode ter número embutido)
+  xmlQuantidade?: number;  // Quantidade do XML
   selectedItemId?: string;
-  onSelect: (item: LocalItem | null) => void;
+  onSelect: (item: LocalItem | null, fatorCalculado?: number) => void;  // Retorna fator calculado
 }
 
 // ---------------------------------------------------------------
@@ -248,7 +251,18 @@ export function ItemVinculoSelector({
   }, [itens, xmlEan, xmlNcm, xmlDescricao]);
 
   const handleSelect = (item: LocalItem) => {
-    onSelect(item);
+    let fatorCalculado = item.fator_conversao || 1;
+    
+    if (xmlUnidade && xmlQuantidade) {
+      const unidadeParsed = parseUnidade(xmlUnidade, xmlQuantidade);
+      fatorCalculado = calcularFatorConversao(
+        unidadeParsed.unidade,
+        item.unidade_interna,
+        unidadeParsed.multiplicador
+      );
+    }
+    
+    onSelect(item, fatorCalculado);
     setOpen(false);
   };
 
