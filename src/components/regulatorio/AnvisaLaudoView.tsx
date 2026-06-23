@@ -55,6 +55,8 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
   const { data: company } = useCompanyBranding();
   const { data: rt } = useRTAtivo();
   
+  const isMultiproduto = produtosUnicos.length > 1;
+
   const handleExportLaudo = () => {
     try {
       if (!rt) {
@@ -62,6 +64,8 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
       }
       exportLaudoA4({
         ...data,
+        // Para multiproduto, passa todos os produtos para gerar capa + resumo executivo + blocos individuais
+        multiplos_produtos: isMultiproduto ? produtosUnicos : data.multiplos_produtos,
         company: company ? {
           razao_social: company.razao_social,
           nome_fantasia: company.nome_fantasia,
@@ -74,7 +78,10 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
           uf_conselho: rt.uf_conselho
         } : null
       });
-      toast.success("Laudo gerado. Use 'Salvar como PDF' na janela de impressão.");
+      const msg = isMultiproduto
+        ? `Laudo multiproduto gerado (${produtosUnicos.length} produtos). Use 'Salvar como PDF'.`
+        : "Laudo gerado. Use 'Salvar como PDF' na janela de impressão.";
+      toast.success(msg);
     } catch (e: any) {
       toast.error("Falha ao gerar laudo: " + (e?.message || 'erro'));
     }
@@ -100,7 +107,10 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         <h2 className="text-xl font-bold">Laudo de Conformidade</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
-          <Button variant="default" size="sm" onClick={handleExportLaudo}><FileDown className="w-4 h-4 mr-2" /> Exportar Laudo (A4/PDF)</Button>
+          <Button variant="default" size="sm" onClick={handleExportLaudo}>
+            <FileDown className="w-4 h-4 mr-2" />
+            {isMultiproduto ? `Exportar Laudo Completo (${produtosUnicos.length} produtos)` : 'Exportar Laudo (A4/PDF)'}
+          </Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink}><Copy className="w-4 h-4 mr-2" /> Copiar link</Button>
           <Button variant="default" size="sm" onClick={onReset}><RefreshCw className="w-4 h-4 mr-2" /> Nova análise</Button>
         </div>

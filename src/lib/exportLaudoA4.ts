@@ -40,6 +40,22 @@ interface CompanyInfo {
   logo_url?: string | null;
 }
 
+interface ProdutoItem {
+  nome?: string;
+  produto?: string;
+  name?: string;
+  cliente?: string;
+  status_geral?: string;
+  alertas?: Array<{ tipo: string; titulo: string; corpo: string }>;
+  analise_ia?: string;
+  alegacoes_permitidas?: string[];
+  alegacoes_proibidas?: string[];
+  avisos_rotulo?: string[];
+  sugestao_capsulas?: { n: number; tamanho: string; frasco: number; obs: string };
+  ativos?: any[];
+  publico_alvo?: string;
+}
+
 interface LaudoData {
   status_geral: string;
   alertas: Array<{ tipo: 'err' | 'warn' | 'ok' | 'info'; titulo: string; corpo: string }>;
@@ -52,6 +68,7 @@ interface LaudoData {
   cliente?: string;
   cliente_logo_url?: string | null;
   ativos: any[];
+  multiplos_produtos?: ProdutoItem[];
   company?: CompanyInfo;
   rt?: RTInfo | null;
 }
@@ -62,6 +79,14 @@ const esc = (s: any): string =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+
+function gerarProtocolo(index: number, loteId: string): string {
+  const now = new Date();
+  const ano = now.getFullYear();
+  const mes = String(now.getMonth() + 1).padStart(2, '0');
+  const dia = String(now.getDate()).padStart(2, '0');
+  return `${loteId}-${String(index).padStart(3, '0')}`;
+}
 
 function statusPillStyle(status: string) {
   const map: Record<string, { bg: string; fg: string; border: string }> = {
@@ -227,43 +252,8 @@ function buildAlertasHTML(alertas: Array<{ tipo: string; titulo: string; corpo: 
   }).join('');
 }
 
-function buildHTML(data: LaudoData): string {
-  const now = new Date();
-  const dataStr = now.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const protocolo = `BX-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getTime()).slice(-6)}`;
-
-  const totalMassa = (data.ativos || []).reduce((acc: number, a: any) => {
-    const u = (a.unit || '').toLowerCase();
-    const d = Number(a.dose) || 0;
-    if (u === 'g') return acc + d * 1000;
-    if (u === 'mcg') return acc + d / 1000;
-    if (u === 'ui') return acc + d / 40;
-    return acc + d;
-  }, 0);
-  const nCaps = data.sugestao_capsulas?.n || 1;
-  const porcoesPorEmbalagem = data.sugestao_capsulas?.frasco
-    ? data.sugestao_capsulas.frasco / nCaps
-    : 30;
-
-  const comparativoRows = buildComparativoRows(data.ativos || []);
-  const nutriTable = buildTabelaNutricionalOficial(data.ativos || [], totalMassa, nCaps, porcoesPorEmbalagem);
-  const alertasHTML = buildAlertasHTML(data.alertas || []);
-  const permitidasHTML = (data.alegacoes_permitidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
-  const proibidasHTML = (data.alegacoes_proibidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
-  const avisosHTML = (data.avisos_rotulo || []).map(a => `<li style="margin-bottom:5px;"><strong>${esc(a)}</strong></li>`).join('');
-
-  const empresaNome = data.company?.nome_fantasia || data.company?.razao_social || 'BrainX ERP';
-
-  const rtAssinaturaHTML = data.rt
-    ? `<strong style="color:${C.navy};">${esc(data.rt.nome_completo)}</strong><br/><span style="font-size:8px;color:${C.gray};">${esc(data.rt.tipo_conselho)} ${esc(data.rt.numero_registro)}/${esc(data.rt.uf_conselho)}</span>`
-    : `<span style="color:${C.redText};font-size:9px;">⚠ Nenhum RT ativo cadastrado</span>`;
-
-  return `<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8" />
-<title>Laudo de Conformidade - ${esc(data.produto)}</title>
-<style>
+// ─── CSS compartilhado ────────────────────────────────────────────────────────
+const SHARED_CSS = `
   @page {
     size: A4 portrait;
     margin: 16mm 14mm 18mm 14mm;
@@ -341,16 +331,13 @@ function buildHTML(data: LaudoData): string {
   @media print { .no-print { display: none !important; } }
   .toolbar { position: fixed; top: 12px; right: 12px; z-index: 999; background: ${C.navy}; color: #fff; padding: 10px 16px; border-radius: 6px; font-family: Arial, sans-serif; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
   .toolbar button { background: #fff; color: ${C.navy}; border: 0; padding: 6px 14px; border-radius: 4px; font-weight: 700; cursor: pointer; margin-left: 8px; }
-</style>
-</head>
-<body>
-  <div class="toolbar no-print">
-    📄 Laudo pronto — use o botão para salvar como PDF
-    <button onclick="window.print()">🖨️ Salvar como PDF</button>
-  </div>
+`;
 
+// ─── Cabeçalho padrão (fabricante + cliente) ─────────────────────────────────
+function buildDocHeader(data: LaudoData): string {
+  const empresaNome = data.company?.nome_fantasia || data.company?.razao_social || 'BrainX ERP';
+  return `
   <div class="top-bar"></div>
-
   <header class="doc-header">
     <div class="brand-card tenant">
       ${data.company?.logo_url
@@ -375,95 +362,288 @@ function buildHTML(data: LaudoData): string {
         <div class="brand-sub">Solicitante da análise</div>
       </div>
     </div>` : ''}
-  </header>
+  </header>`;
+}
 
-  <div class="meta-bar">
-    <div>
-      <div class="produto-nome">${esc(data.produto)}</div>
-      <div class="protocolo">Protocolo ${esc(protocolo)} · Emitido em ${esc(dataStr)}</div>
+// ─── Capa executiva (laudo multiproduto) ─────────────────────────────────────
+function buildCapaExecutiva(data: LaudoData, produtos: ProdutoItem[], loteId: string, dataStr: string): string {
+  const empresaNome = data.company?.nome_fantasia || data.company?.razao_social || 'BrainX ERP';
+  const total = produtos.length;
+  const aprovados = produtos.filter(p => p.status_geral === 'APROVADO').length;
+  const ressalvas = produtos.filter(p => p.status_geral === 'APROVADO COM RESSALVAS').length;
+  const bloqueados = produtos.filter(p => p.status_geral === 'BLOQUEADO').length;
+
+  return `
+  <div style="min-height:200mm;display:flex;flex-direction:column;justify-content:center;padding:20mm 0;">
+    <div style="text-align:center;margin-bottom:32px;">
+      ${data.company?.logo_url
+        ? `<img src="${esc(data.company.logo_url)}" style="height:60px;width:auto;object-fit:contain;margin-bottom:16px;" />`
+        : `<div style="width:64px;height:64px;border-radius:12px;background:${C.navy};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;margin-bottom:16px;">${esc(empresaNome.slice(0,2).toUpperCase())}</div>`
+      }
+      <h1 style="font-size:22pt;font-weight:900;color:${C.navy};margin:0 0 6px;">Laudo de Conformidade Regulatória</h1>
+      <p style="font-size:11pt;color:${C.gray};margin:0;">ANVISA Checker — Análise Multiproduto</p>
     </div>
-    ${statusBadgeHTML(data.status_geral)}
-  </div>
 
-  <div class="info-grid">
-    <div class="info-cell"><div class="label">Produto</div><div class="value">${esc(data.produto)}</div></div>
-    <div class="info-cell"><div class="label">Cliente</div><div class="value">${esc(data.cliente || '—')}</div></div>
-    <div class="info-cell"><div class="label">Público-alvo</div><div class="value">Adultos ≥19 anos</div></div>
-    <div class="info-cell"><div class="label">Ativos Analisados</div><div class="value">${(data.ativos || []).length} ativo(s)</div></div>
-  </div>
+    ${data.cliente ? `
+    <div style="background:${C.greenBg};border:1px solid #B9E4CB;border-radius:10px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:14px;">
+      ${data.cliente_logo_url
+        ? `<img src="${esc(data.cliente_logo_url)}" style="height:48px;width:auto;object-fit:contain;" />`
+        : `<div style="width:44px;height:44px;border-radius:8px;background:${C.green};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0;">${esc(data.cliente.slice(0,2).toUpperCase())}</div>`
+      }
+      <div>
+        <div style="font-size:7.5pt;text-transform:uppercase;color:${C.greenText};font-weight:700;letter-spacing:.5px;">Cliente / Marca</div>
+        <div style="font-size:14pt;font-weight:800;color:${C.navy};">${esc(data.cliente)}</div>
+        <div style="font-size:8pt;color:${C.gray};">Solicitante da análise</div>
+      </div>
+    </div>` : ''}
 
-  <section>
-    <h2 class="section">1. Alertas e Pontos de Atenção</h2>
-    ${alertasHTML || `<p style="color:${C.gray};font-size:10pt;">Nenhum alerta crítico identificado.</p>`}
-  </section>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;">
+      <div style="background:#fff;border:1px solid ${C.border};border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:28pt;font-weight:900;color:${C.navy};">${total}</div>
+        <div style="font-size:8pt;color:${C.gray};text-transform:uppercase;letter-spacing:.4px;">Produtos analisados</div>
+      </div>
+      <div style="background:${C.greenBg};border:1px solid #B9E4CB;border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:28pt;font-weight:900;color:${C.greenText};">${aprovados}</div>
+        <div style="font-size:8pt;color:${C.greenText};text-transform:uppercase;letter-spacing:.4px;">Aprovados</div>
+      </div>
+      <div style="background:${C.amberBg};border:1px solid #F0D27A;border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:28pt;font-weight:900;color:${C.amberText};">${ressalvas}</div>
+        <div style="font-size:8pt;color:${C.amberText};text-transform:uppercase;letter-spacing:.4px;">Com ressalvas</div>
+      </div>
+      <div style="background:${bloqueados > 0 ? C.redBg : '#F8F9FA'};border:1px solid ${bloqueados > 0 ? '#F0BCBC' : C.border};border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:28pt;font-weight:900;color:${bloqueados > 0 ? C.redText : C.grayLight};">${bloqueados}</div>
+        <div style="font-size:8pt;color:${bloqueados > 0 ? C.redText : C.grayLight};text-transform:uppercase;letter-spacing:.4px;">Bloqueados</div>
+      </div>
+    </div>
 
-  ${data.analise_ia ? `
-  <section>
-    <h2 class="section">2. Análise Técnica</h2>
-    <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:3px solid ${C.navy};padding:11px 14px;border-radius:8px;font-size:10pt;color:${C.textDark};white-space:pre-wrap;">${esc(data.analise_ia)}</div>
-  </section>` : ''}
+    <div style="background:${C.navyLight};border:1px solid ${C.border};border-radius:8px;padding:14px 18px;font-size:9pt;color:${C.gray};line-height:1.7;">
+      <strong style="color:${C.navy};">Fabricante:</strong> ${esc(empresaNome)} &nbsp;·&nbsp;
+      <strong style="color:${C.navy};">Data:</strong> ${esc(dataStr)} &nbsp;·&nbsp;
+      <strong style="color:${C.navy};">Lote de análise:</strong> <span style="font-family:'Courier New',monospace;">${esc(loteId)}</span>
+    </div>
 
-  <section>
-    <h2 class="section">3. Comparativo: Fórmula Original vs Ajustada (IN 28/2018)</h2>
-    <table class="cmp">
+    <div style="margin-top:16px;padding:12px 16px;background:${C.amberBg};border:1px solid #F0D27A;border-radius:8px;font-size:8.5pt;color:${C.amberText};">
+      ⚠ Documento de caráter orientativo. Validar com Responsável Técnico habilitado antes de qualquer notificação sanitária na ANVISA.
+    </div>
+  </div>`;
+}
+
+// ─── Resumo executivo tabular ─────────────────────────────────────────────────
+function buildResumoExecutivo(produtos: ProdutoItem[], loteId: string): string {
+  const linhas = produtos.map((p, i) => {
+    const nome = p.nome || p.produto || p.name || `Produto ${i + 1}`;
+    const status = p.status_geral || 'VERIFICAR';
+    const s = statusPillStyle(status);
+    const alertasCriticos = (p.alertas || []).filter(a => a.tipo === 'err' || a.tipo === 'warn');
+    const obs = alertasCriticos.length > 0
+      ? alertasCriticos.map(a => esc(a.titulo)).join('; ')
+      : '<span style="color:#94A3B8;font-style:italic;">—</span>';
+
+    return `
+      <tr style="border-bottom:1px solid ${C.border};">
+        <td style="padding:8px 10px;font-size:9.5pt;font-weight:700;color:${C.textDark};">${i + 1}</td>
+        <td style="padding:8px 10px;font-size:9.5pt;font-weight:700;color:${C.navy};">${esc(nome)}</td>
+        <td style="padding:8px 10px;">
+          <span style="display:inline-block;padding:3px 10px;border-radius:4px;font-weight:700;font-size:8.5px;background:${s.bg};color:${s.fg};border:1px solid ${s.border};">${esc(status)}</span>
+        </td>
+        <td style="padding:8px 10px;font-size:8.5pt;color:${C.textDark};">${obs}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+  <div class="page-break">
+    <div class="top-bar"></div>
+    <h2 style="font-size:14pt;font-weight:900;color:${C.navy};margin:0 0 4px;">Resumo Executivo</h2>
+    <p style="font-size:9pt;color:${C.gray};margin:0 0 16px;">Lote de análise: <span style="font-family:'Courier New',monospace;">${esc(loteId)}</span> — ${produtos.length} produto(s) avaliado(s)</p>
+
+    <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid ${C.border};border-radius:8px;overflow:hidden;">
       <thead>
-        <tr>
-          <th>Ativo</th>
-          <th style="text-align:center;">Dose Original</th>
-          <th style="text-align:center;">Dose Ajustada</th>
-          <th>Justificativa</th>
+        <tr style="background:${C.navy};">
+          <th style="padding:9px 10px;text-align:left;color:#fff;font-size:8pt;font-weight:700;text-transform:uppercase;width:40px;">#</th>
+          <th style="padding:9px 10px;text-align:left;color:#fff;font-size:8pt;font-weight:700;text-transform:uppercase;">Produto</th>
+          <th style="padding:9px 10px;text-align:left;color:#fff;font-size:8pt;font-weight:700;text-transform:uppercase;width:160px;">Status</th>
+          <th style="padding:9px 10px;text-align:left;color:#fff;font-size:8pt;font-weight:700;text-transform:uppercase;">Alterações / Observações</th>
         </tr>
       </thead>
-      <tbody>${comparativoRows}</tbody>
+      <tbody>${linhas}</tbody>
     </table>
-  </section>
+  </div>`;
+}
 
-  <section>
-    <h2 class="section">4. Informação Nutricional e Posologia (RDC 429/2020 + IN 75/2020)</h2>
-    <div class="nutri-row">
-      ${nutriTable}
-      <div class="posologia-card">
-        <div class="title">Posologia e Embalagem</div>
-        <div class="posologia-grid">
-          <div><div class="num">${esc(nCaps)}</div><div class="lbl">cápsulas</div></div>
-          <div><div class="num green">${esc(data.sugestao_capsulas?.tamanho || '#00')}</div><div class="lbl">tamanho</div></div>
-          <div><div class="num">${esc(data.sugestao_capsulas?.frasco || 60)}</div><div class="lbl">frasco</div></div>
+// ─── Bloco individual por produto ─────────────────────────────────────────────
+function buildBlocoProduto(
+  produto: ProdutoItem,
+  index: number,
+  total: number,
+  data: LaudoData,
+  loteId: string,
+  dataStr: string,
+  rtAssinaturaHTML: string,
+  empresaNome: string
+): string {
+  const nome = produto.nome || produto.produto || produto.name || `Produto ${index}`;
+  const ativos = produto.ativos || [];
+  const status = produto.status_geral || 'VERIFICAR';
+  const protocolo = gerarProtocolo(index, loteId);
+  const alertas = produto.alertas || [];
+  const publicoAlvo = produto.publico_alvo || 'Adultos ≥19 anos';
+
+  const totalMassa = ativos.reduce((acc: number, a: any) => {
+    const u = (a.unit || '').toLowerCase();
+    const d = Number(a.dose) || 0;
+    if (u === 'g') return acc + d * 1000;
+    if (u === 'mcg') return acc + d / 1000;
+    if (u === 'ui') return acc + d / 40;
+    return acc + d;
+  }, 0);
+
+  const caps = produto.sugestao_capsulas || data.sugestao_capsulas || { n: 1, tamanho: '#00', frasco: 60, obs: '' };
+  const nCaps = caps.n || 1;
+  const porcoesPorEmbalagem = caps.frasco ? caps.frasco / nCaps : 30;
+
+  const comparativoRows = buildComparativoRows(ativos);
+  const nutriTable = buildTabelaNutricionalOficial(ativos, totalMassa, nCaps, porcoesPorEmbalagem);
+  const alertasHTML = buildAlertasHTML(alertas);
+  const permitidasHTML = (produto.alegacoes_permitidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
+  const proibidasHTML = (produto.alegacoes_proibidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
+  const avisosHTML = (produto.avisos_rotulo || []).map(a => `<li style="margin-bottom:5px;"><strong>${esc(a)}</strong></li>`).join('');
+  const avisoObrigatorio = `"Este produto não é um medicamento" · "Não substitui uma alimentação variada e equilibrada e um estilo de vida saudável" · "Manter fora do alcance de crianças" · "Conservar em local fresco, seco e ao abrigo da luz" · "Não exceder a dose diária recomendada" · Número do lote e data de validade obrigatórios no rótulo · Nome e número do Responsável Técnico (CRN) · CNPJ e endereço completo do fabricante`;
+
+  return `
+  <div class="page-break">
+    ${buildDocHeader(data)}
+
+    <div class="meta-bar">
+      <div>
+        <div class="produto-nome">${index}/${total} · ${esc(nome)}</div>
+        <div class="protocolo">Protocolo ${esc(protocolo)} · Emitido em ${esc(dataStr)}</div>
+      </div>
+      ${statusBadgeHTML(status)}
+    </div>
+
+    <div class="info-grid">
+      <div class="info-cell"><div class="label">Produto</div><div class="value">${esc(nome)}</div></div>
+      <div class="info-cell"><div class="label">Cliente</div><div class="value">${esc(produto.cliente || data.cliente || '—')}</div></div>
+      <div class="info-cell"><div class="label">Público-alvo</div><div class="value">${esc(publicoAlvo)}</div></div>
+      <div class="info-cell"><div class="label">Ativos analisados</div><div class="value">${ativos.length} ativo(s)</div></div>
+    </div>
+
+    <section>
+      <h2 class="section">1. Alertas e Pontos de Atenção</h2>
+      ${alertasHTML || `<p style="color:${C.gray};font-size:10pt;">Nenhum alerta crítico identificado.</p>`}
+    </section>
+
+    <section>
+      <h2 class="section">2. Comparativo: Fórmula Original vs Ajustada (IN 28/2018)</h2>
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th>Ativo</th>
+            <th style="text-align:center;">Dose Original</th>
+            <th style="text-align:center;">Dose Ajustada</th>
+            <th>Justificativa</th>
+          </tr>
+        </thead>
+        <tbody>${comparativoRows}</tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 class="section">3. Informação Nutricional e Posologia (RDC 429/2020 + IN 75/2020)</h2>
+      <div class="nutri-row">
+        ${nutriTable}
+        <div class="posologia-card">
+          <div class="title">Posologia e Embalagem</div>
+          <div class="posologia-grid">
+            <div><div class="num">${esc(nCaps)}</div><div class="lbl">cápsulas</div></div>
+            <div><div class="num green">${esc(caps.tamanho || '#00')}</div><div class="lbl">tamanho</div></div>
+            <div><div class="num">${esc(caps.frasco || 60)}</div><div class="lbl">frasco</div></div>
+          </div>
+          <div style="font-size:9pt;color:${C.textDark};line-height:1.6;">
+            ▸ Massa de ativos: ${Math.round(totalMassa)} mg<br/>
+            ▸ Com excipientes (+30%): ${Math.round(totalMassa * 1.3)} mg<br/>
+            ▸ Frasco ${caps.frasco || 60}un → ${Math.floor((caps.frasco || 60) / nCaps)} doses
+          </div>
+          ${caps.obs ? `<p style="font-size:8pt;color:${C.gray};font-style:italic;margin-top:8px;">${esc(caps.obs)}</p>` : ''}
         </div>
-        <div style="font-size:9pt;color:${C.textDark};line-height:1.6;">
-          ▸ Massa de ativos: ${Math.round(totalMassa)} mg<br/>
-          ▸ Com excipientes (+30%): ${Math.round(totalMassa * 1.3)} mg<br/>
-          ▸ Frasco ${data.sugestao_capsulas?.frasco || 60}un → ${Math.floor((data.sugestao_capsulas?.frasco || 60) / nCaps)} doses
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section">4. Alegações de Rotulagem (IN 28/2018 Anexo V)</h2>
+      <div class="duas-colunas">
+        <div class="col-ok">
+          <h3>✓ Permitidas</h3>
+          <ul>${permitidasHTML || `<li style="color:${C.gray};font-style:italic;">Nenhuma alegação aplicável.</li>`}</ul>
         </div>
-        ${data.sugestao_capsulas?.obs ? `<p style="font-size:8pt;color:${C.gray};font-style:italic;margin-top:8px;">${esc(data.sugestao_capsulas.obs)}</p>` : ''}
+        <div class="col-no">
+          <h3>✕ Proibidas / Avisos</h3>
+          <ul>${proibidasHTML}${avisosHTML}</ul>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section>
-    <h2 class="section">5. Alegações de Rotulagem (IN 28/2018 Anexo V)</h2>
-    <div class="duas-colunas">
-      <div class="col-ok">
-        <h3>✓ Permitidas</h3>
-        <ul>${permitidasHTML || `<li style="color:${C.gray};font-style:italic;">Nenhuma alegação aplicável.</li>`}</ul>
+    <section>
+      <h2 class="section">5. Avisos Obrigatórios de Rotulagem (RDC 243/2018)</h2>
+      <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:3px solid ${C.navy};padding:12px 16px;border-radius:8px;font-size:9.5pt;color:${C.textDark};line-height:1.8;">
+        ${esc(avisoObrigatorio)}
       </div>
-      <div class="col-no">
-        <h3>✕ Proibidas / Avisos</h3>
-        <ul>${proibidasHTML}${avisosHTML}</ul>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <div class="bloco-final">
-    <div class="assinatura">
-      <div>${rtAssinaturaHTML}</div>
-      <div><strong style="color:${C.navy};">Departamento de Qualidade</strong><br/><span style="font-size:8px;color:${C.gray};">${esc(empresaNome)}</span></div>
+    <div class="bloco-final">
+      <div class="assinatura">
+        <div>${rtAssinaturaHTML}</div>
+        <div><strong style="color:${C.navy};">Departamento de Qualidade</strong><br/><span style="font-size:8px;color:${C.gray};">${esc(empresaNome)}</span></div>
+      </div>
+      <div class="legal">
+        <p><strong>Base regulatória:</strong> IN 28/2018, RDC 243/2018, RDC 275/2002, RDC 429/2020, IN 75/2020 (Anexo VIII) e atualizações via Power BI ANVISA.</p>
+        <p>Documento gerado eletronicamente pelo módulo ANVISA Checker — <a href="https://www.brainxerp.com" target="_blank">www.brainxerp.com</a> — ${esc(empresaNome)}. Caráter orientativo, validar com RT antes de notificação sanitária.</p>
+        <div class="protocolo-badge">Protocolo: ${esc(protocolo)}</div>
+      </div>
     </div>
-    <div class="legal">
-      <p><strong>Base regulatória:</strong> IN 28/2018, RDC 243/2018, RDC 429/2020, IN 75/2020 (Anexo VIII) e atualizações via Power BI ANVISA.</p>
-      <p>Documento gerado eletronicamente pelo módulo ANVISA Checker — <a href="https://www.brainxerp.com" target="_blank">www.brainxerp.com</a> — ${esc(empresaNome)}. Caráter orientativo, validar com RT antes de notificação sanitária.</p>
-      <div class="protocolo-badge">Protocolo: ${esc(protocolo)}</div>
-    </div>
+  </div>`;
+}
+
+// ─── Builder principal: laudo multiproduto ────────────────────────────────────
+function buildHTMLMultiproduto(data: LaudoData): string {
+  const now = new Date();
+  const dataStr = now.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const loteId = `ZN-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getTime()).slice(-3)}`;
+
+  const empresaNome = data.company?.nome_fantasia || data.company?.razao_social || 'BrainX ERP';
+  const rtAssinaturaHTML = data.rt
+    ? `<strong style="color:${C.navy};">${esc(data.rt.nome_completo)}</strong><br/><span style="font-size:8px;color:${C.gray};">${esc(data.rt.tipo_conselho)} ${esc(data.rt.numero_registro)}/${esc(data.rt.uf_conselho)}</span>`
+    : `<span style="color:${C.redText};font-size:9px;">⚠ Nenhum RT ativo cadastrado</span>`;
+
+  // Normaliza lista de produtos: usa multiplos_produtos se existir, senão usa o produto único
+  const produtos: ProdutoItem[] = data.multiplos_produtos && data.multiplos_produtos.length > 1
+    ? data.multiplos_produtos
+    : [{ nome: data.produto, cliente: data.cliente, status_geral: data.status_geral, alertas: data.alertas, analise_ia: data.analise_ia, alegacoes_permitidas: data.alegacoes_permitidas, alegacoes_proibidas: data.alegacoes_proibidas, avisos_rotulo: data.avisos_rotulo, sugestao_capsulas: data.sugestao_capsulas, ativos: data.ativos }];
+
+  const isMultiproduto = produtos.length > 1;
+
+  const capaHTML = isMultiproduto ? buildCapaExecutiva(data, produtos, loteId, dataStr) : '';
+  const resumoHTML = isMultiproduto ? buildResumoExecutivo(produtos, loteId) : '';
+  const blocosHTML = produtos.map((p, i) =>
+    buildBlocoProduto(p, i + 1, produtos.length, data, loteId, dataStr, rtAssinaturaHTML, empresaNome)
+  ).join('');
+
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Laudo Regulatório — ${esc(data.cliente || empresaNome)} — ${produtos.length} produto(s)</title>
+<style>${SHARED_CSS}</style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    📄 Laudo pronto — ${produtos.length} produto(s) — use o botão para salvar como PDF
+    <button onclick="window.print()">🖨️ Salvar como PDF</button>
   </div>
+
+  ${capaHTML}
+  ${resumoHTML}
+  ${blocosHTML}
 
   <script>
     window.addEventListener('load', function () {
@@ -474,8 +654,9 @@ function buildHTML(data: LaudoData): string {
 </html>`;
 }
 
+// ─── Exportação pública ───────────────────────────────────────────────────────
 export function exportLaudoA4(data: LaudoData): void {
-  const html = buildHTML(data);
+  const html = buildHTMLMultiproduto(data);
   const old = document.getElementById('laudo-export-iframe');
   if (old) old.remove();
 
