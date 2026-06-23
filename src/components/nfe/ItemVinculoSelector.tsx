@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link, Unlink, Search, Package, Check, Loader2 } from "lucide-react";
+import { Link, Unlink, Search, Package, Check, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,7 +19,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import type { LocalItem } from "@/hooks/use-local-itens";
@@ -32,6 +32,66 @@ interface ItemVinculoSelectorProps {
   selectedItemId?: string;
   onSelect: (item: LocalItem | null) => void;
 }
+
+// ---------------------------------------------------------------
+// Funções de similaridade de texto
+// ---------------------------------------------------------------
+
+/** Remove acentos, caracteres especiais e normaliza espaços */
+function normalizar(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s%]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Extrai palavras relevantes (> 2 chars, excluindo stopwords) */
+const STOPWORDS = new Set(["ext", "seco", "seca", "extrato", "de", "do", "da", "e", "em", "com", "para"]);
+function palavrasChave(str: string): string[] {
+  return normalizar(str)
+    .split(" ")
+    .filter((w) => w.length > 2 && !STOPWORDS.has(w));
+}
+
+/**
+ * Calcula score de similaridade entre a descrição do XML e a do cadastro.
+ * Retorna valor de 0 a 100.
+ *
+ * Estratégia:
+ * 1. Palavras-chave em comum (peso principal)
+ * 2. Bônus se a primeira palavra-chave (nome principal) coincide
+ * 3. Bônus se percentuais (50%, 90%...) coincidem
+ */
+function calcularSimilaridade(xmlDesc: string, itemDesc: string): number {
+  const xmlPalavras = palavrasChave(xmlDesc);
+  const itemPalavras = palavrasChave(itemDesc);
+
+  if (xmlPalavras.length === 0 || itemPalavras.length === 0) return 0;
+
+  const itemSet = new Set(itemPalavras);
+  let coincidencias = 0;
+  xmlPalavras.forEach((p) => { if (itemSet.has(p)) coincidencias++; });
+
+  const score = coincidencias / Math.max(xmlPalavras.length, itemPalavras.length);
+
+  // Bônus: primeira palavra-chave (nome principal do ingrediente) coincide
+  const bonusPrimeira = xmlPalavras[0] === itemPalavras[0] ? 0.15 : 0;
+
+  // Bônus: percentual (ex: "50%") coincide
+  const xmlPerc = normalizar(xmlDesc).match(/\d+%/g) || [];
+  const itemPerc = normalizar(itemDesc).match(/\d+%/g) || [];
+  const bonusPerc =
+    xmlPerc.length > 0 && xmlPerc.some((p) => itemPerc.includes(p)) ? 0.1 : 0;
+
+  return Math.min(100, Math.round((score + bonusPrimeira + bonusPerc) * 100));
+}
+
+// ---------------------------------------------------------------
+// Componente
+// ---------------------------------------------------------------
 
 export function ItemVinculoSelector({
   xmlDescricao,
@@ -59,7 +119,6 @@ export function ItemVinculoSelector({
       .order("descricao_interna", { ascending: true })
       .then(({ data, error }) => {
         if (!error && data) {
-          // Mapear para o tipo LocalItem (compatibilidade)
           setItens(
             data.map((row) => ({
               id: row.id,
@@ -92,7 +151,7 @@ export function ItemVinculoSelector({
     return itens.find((i) => i.id === selectedItemId) || null;
   }, [selectedItemId, itens]);
 
-  // Filtrar itens baseado na busca
+  // Filtrar itens baseado na busca manual
   const filteredItens = useMemo(() => {
     if (!search.trim()) return itens;
     const searchLower = search.toLowerCase().trim();
@@ -106,35 +165,57 @@ export function ItemVinculoSelector({
     );
   }, [itens, search]);
 
-  // Sugestões automáticas (match por EAN ou NCM)
+  // ---------------------------------------------------------------
+  // Sugestões automáticas — lógica corrigida
+  //
+  // Hierarquia de match (da mais para a menos precisa):
+  //   1. EAN exato → confiança 100%, mostra imediatamente
+  //   2. Similaridade de descrição ≥ 55% → mostra com score
+  //   3. NCM igual + similaridade ≥ 30% → mostra com score menor
+  //   4. NCM igual puro (sem similaridade) → NÃO mostra
+  //      (evita sugerir "Citrus Sinensis" para "Feno Grego")
+  // ---------------------------------------------------------------
   const sugestoes = useMemo(() => {
-    const matches: LocalItem[] = [];
+    type SugestaoItem = {
+      item: LocalItem;
+      score: number;
+      motivo: "EAN" | "Descrição" | "NCM+Desc";
+    };
 
-    // Match por EAN (mais preciso)
+    const candidatos: SugestaoItem[] = [];
+
+    // 1. Match por EAN (perfeito)
     if (xmlEan && xmlEan !== "SEM GTIN") {
       const byEan = itens.find((i) => i.ean === xmlEan);
-      if (byEan) matches.push(byEan);
+      if (byEan) {
+        candidatos.push({ item: byEan, score: 100, motivo: "EAN" });
+      }
     }
 
-    // Match por NCM + descrição similar
-    if (xmlNcm) {
-      const byNcm = itens.filter(
-        (i) => i.ncm === xmlNcm && !matches.includes(i)
-      );
-      matches.push(...byNcm.slice(0, 3));
-    }
+    // 2. Match por similaridade de descrição (independente de NCM)
+    if (xmlDescricao) {
+      itens.forEach((item) => {
+        // Pular se já está como candidato por EAN
+        if (candidatos.some((c) => c.item.id === item.id)) return;
 
-    // Match por descrição similar (fuzzy simples)
-    if (matches.length === 0 && xmlDescricao) {
-      const palavras = xmlDescricao.toLowerCase().split(/\s+/).filter(p => p.length > 3);
-      const byDesc = itens.filter(i => {
-        const desc = i.descricao_interna.toLowerCase();
-        return palavras.some(p => desc.includes(p));
+        const score = calcularSimilaridade(xmlDescricao, item.descricao_interna);
+
+        // Threshold alto para sugestão por descrição pura: ≥ 55%
+        if (score >= 55) {
+          candidatos.push({ item, score, motivo: "Descrição" });
+        }
+        // Threshold menor se NCM também coincide: ≥ 30%
+        else if (score >= 30 && xmlNcm && item.ncm === xmlNcm) {
+          candidatos.push({ item, score, motivo: "NCM+Desc" });
+        }
+        // NCM igual sem similaridade de descrição → NÃO sugere
       });
-      matches.push(...byDesc.slice(0, 3));
     }
 
-    return matches;
+    // Ordenar por score decrescente e limitar a 3 sugestões
+    return candidatos
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
   }, [itens, xmlEan, xmlNcm, xmlDescricao]);
 
   const handleSelect = (item: LocalItem) => {
@@ -215,14 +296,15 @@ export function ItemVinculoSelector({
                 </div>
               ) : (
                 <>
-                  {/* Sugestões automáticas */}
+                  {/* Sugestões automáticas — só aparecem se há match real */}
                   {sugestoes.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Sugestões (match automático)
+                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Star className="h-3 w-3" />
+                        Sugestões por similaridade de nome
                       </Label>
                       <div className="space-y-1">
-                        {sugestoes.map((item) => (
+                        {sugestoes.map(({ item, score, motivo }) => (
                           <button
                             key={item.id}
                             onClick={() => handleSelect(item)}
@@ -234,17 +316,20 @@ export function ItemVinculoSelector({
                                 {item.descricao_interna}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                SKU: {item.sku_interno} | NCM:{" "}
-                                {item.ncm || "-"} | {item.tipo_item}
+                                SKU: {item.sku_interno} | NCM: {item.ncm || "-"} | {item.tipo_item}
                               </p>
                             </div>
-                            <StatusBadge variant="success" className="shrink-0">
-                              {item.ean === xmlEan
-                                ? "EAN"
-                                : item.ncm === xmlNcm
-                                ? "NCM"
-                                : "Desc."}
-                            </StatusBadge>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Badge
+                                variant={score >= 80 ? "default" : score >= 55 ? "secondary" : "outline"}
+                                className="text-xs"
+                              >
+                                {motivo}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground w-8 text-right">
+                                {score}%
+                              </span>
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -300,7 +385,7 @@ export function ItemVinculoSelector({
                 </>
               )}
 
-              {/* Opção de criar novo */}
+              {/* Rodapé */}
               <Separator />
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
