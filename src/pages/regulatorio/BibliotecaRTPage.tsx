@@ -22,7 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import {
   BookOpen, Search, GraduationCap, FileCheck, Radar,
-  ExternalLink, AlertTriangle, CheckCircle2, Clock, ShieldAlert,
+  ExternalLink, AlertTriangle, CheckCircle2, Clock, ShieldAlert, Shield,
   ChevronRight, Loader2, Send, FileText, RefreshCw, Check, X
 } from "lucide-react";
 import { toast } from "sonner";
@@ -380,14 +380,19 @@ export default function BibliotecaRTPage() {
             </Card>
           )}
 
-          {/* Base de normas carregadas */}
+          {/* Base de normas — somente leitura para o tenant */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-600">Base de Normas Carregadas</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm text-gray-600">Base de Normas Ativas</CardTitle>
+                <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> Gerenciada pelo administrador do sistema
+                </span>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                {fontes.map(f => (
+                {fontes.filter(f => f.aprovado_por).map(f => (
                   <div key={f.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${
@@ -398,15 +403,9 @@ export default function BibliotecaRTPage() {
                       <span className="text-xs text-gray-700 truncate">{f.titulo}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      {f.aprovado_por ? (
-                        <span className="text-[10px] text-green-600 flex items-center gap-0.5">
-                          <CheckCircle2 className="w-3 h-3" /> Aprovada
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
-                          <Clock className="w-3 h-3" /> Aguardando texto
-                        </span>
-                      )}
+                      <span className="text-[10px] text-green-600 flex items-center gap-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> Ativa
+                      </span>
                       <a href={f.url_oficial} target="_blank" rel="noopener noreferrer"
                         className="text-gray-400 hover:text-green-600 transition-colors">
                         <ExternalLink className="w-3 h-3" />
@@ -414,6 +413,9 @@ export default function BibliotecaRTPage() {
                     </div>
                   </div>
                 ))}
+                {fontes.filter(f => f.aprovado_por).length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-4">Nenhuma norma ativa ainda. O administrador do sistema está carregando a base.</p>
+                )}
               </div>
             </CardContent>
           </Card>

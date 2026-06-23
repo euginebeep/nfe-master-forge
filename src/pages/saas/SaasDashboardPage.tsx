@@ -28,6 +28,7 @@ import { AIHubPanel } from "@/components/saas/AIHubPanel";
 import { LogsPanel } from "@/components/saas/LogsPanel";
 import { ComunicadosPanel } from "@/components/saas/ComunicadosPanel";
 import { ParceirosAdminPanel } from "@/components/saas/ParceirosAdminPanel";
+import { BibliotecaNormasAdminPanel } from "@/components/saas/BibliotecaNormasAdminPanel";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -445,6 +446,7 @@ export default function SaasDashboardPage() {
             <TabsTrigger value="parceiros" className="gap-2 px-6"><Megaphone className="h-4 w-4" /> Parceiros</TabsTrigger>
             <TabsTrigger value="ia" className="gap-2 px-6"><Cpu className="h-4 w-4" /> IA Hub</TabsTrigger>
             <TabsTrigger value="logs" className="gap-2 px-6"><Activity className="h-4 w-4" /> Logs</TabsTrigger>
+            <TabsTrigger value="normas" className="gap-2 px-6"><FileText className="h-4 w-4" /> Normas ANVISA</TabsTrigger>
           </TabsList>
 
           <TabsContent value="empresas" className="space-y-4">
@@ -582,6 +584,9 @@ export default function SaasDashboardPage() {
           </TabsContent>
           <TabsContent value="parceiros">
             <ParceirosAdminPanel />
+          </TabsContent>
+          <TabsContent value="normas">
+            <BibliotecaNormasAdminPanel />
           </TabsContent>
         </Tabs>
       </main>
