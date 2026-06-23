@@ -119,17 +119,26 @@ export function useHybridEntidades(filters?: { papel?: string; status?: string }
   return useQuery({
     queryKey: ['hybrid-entidades', filters],
     queryFn: async (): Promise<HybridEntidade[]> => {
+      // IMPORTANTE: Quando filtramos por papel, usamos !inner para fazer o filtro
+      // diretamente no SQL (PostgREST), evitando o problema de RLS recursivo onde
+      // entidade_papeis.RLS consulta entidades novamente, retornando array vazio
+      // e zerando o filtro JavaScript.
+      const selectClause = filters?.papel
+        ? `*, entidade_papeis!inner (papel), entidade_contatos (*)`
+        : `*, entidade_papeis (papel), entidade_contatos (*)`;
+
       let query = supabase
         .from('entidades')
-        .select(`
-          *,
-          entidade_papeis (papel),
-          entidade_contatos (*)
-        `)
+        .select(selectClause)
         .order('razao_social');
 
       if (filters?.status) {
         query = query.eq('status', filters.status);
+      }
+
+      // Filtro por papel no SQL via inner join (não no JavaScript)
+      if (filters?.papel) {
+        query = (query as any).eq('entidade_papeis.papel', filters.papel);
       }
 
       const { data, error } = await query;
@@ -139,15 +148,11 @@ export function useHybridEntidades(filters?: { papel?: string; status?: string }
         throw error;
       }
 
-      let result = (data || []).map(ent => ({
+      const result = (data || []).map(ent => ({
         ...ent,
         papeis: ent.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
         _primaryContact: ent.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || ent.entidade_contatos?.[0],
       })) as HybridEntidade[];
-
-      if (filters?.papel) {
-        result = result.filter(e => e.papeis?.includes(filters.papel!));
-      }
 
       return result;
     },
