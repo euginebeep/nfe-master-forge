@@ -426,7 +426,7 @@ export default function AmbientalConfigPage() {
     <div className="container mx-auto p-6 space-y-6">
       <PageHeader
         title="Configuração — Monitoramento Ambiental"
-        description="Configure seus sensores e mapeie os limites por sala conforme RDC 658/2022"
+        description="Configure seus sensores e mapeie os limites de temperatura e umidade por sala"
         icon={Settings}
       />
 
@@ -623,7 +623,7 @@ export default function AmbientalConfigPage() {
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                   Importe automaticamente os sensores da sua conta eWeLink ou adicione
-                  manualmente. Defina os limites regulatórios por sala conforme RDC 658/2022.
+                  manualmente. Defina os limites de temperatura e umidade por sala.
                 </p>
               </div>
               <div className="flex gap-2 flex-shrink-0">

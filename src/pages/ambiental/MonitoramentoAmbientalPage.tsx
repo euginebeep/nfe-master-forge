@@ -537,7 +537,7 @@ export default function MonitoramentoAmbientalPage() {
         STATUS_TEXT[st],
         rtName,
         "BrainX ERP",
-        "RDC 658/2022 / POP-AMB-001",
+        "POP-AMB-001",
       ];
     });
     const csv =
@@ -572,7 +572,7 @@ export default function MonitoramentoAmbientalPage() {
       <PageHeader
         icon={Factory}
         title="Monitoramento Ambiental"
-        description="RDC 658/2022"
+        description="Controle de temperatura e umidade em tempo real"
         actions={
           <>
             <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1.5 hover:bg-emerald-100">
@@ -988,7 +988,7 @@ export default function MonitoramentoAmbientalPage() {
         <span className="mx-1">|</span>
         <span>Sistema: BrainX ERP</span>
         <span className="mx-1">|</span>
-        <span>Ref: RDC 658/2022 / POP-AMB-001</span>
+        <span>Ref: POP-AMB-001</span>
         <span className="mx-1">|</span>
         <span>Registros mantidos por 5 anos conforme legislação vigente</span>
       </div>
