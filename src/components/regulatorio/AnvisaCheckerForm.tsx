@@ -440,7 +440,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         rawMsg.includes('503')
       ) {
         friendlyMessage =
-          'O serviço de análise por BrainX ANVISA não está ativo. ' +
+          'O motor de análise regulatória (ANVISA IA) não está ativo. ' +
           'Entre em contato com o suporte para ativar o módulo de verificação regulatória.';
       } else if (
         rawMsg.includes('non-2xx') ||
@@ -449,13 +449,12 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         rawMsg.includes('FunctionsFetchError')
       ) {
         friendlyMessage =
-          'O servidor de análise retornou um erro interno. ' +
-          'Verifique se as chaves de API (GEMINI_API_KEY) estão configuradas no Supabase ' +
-          'ou tente novamente em alguns instantes.';
+          'O motor de análise regulatória retornou um erro interno. ' +
+          'Entre em contato com o suporte ou tente novamente em alguns instantes.';
       } else if (rawMsg.includes('gemini_api_error')) {
         friendlyMessage =
-          'A API do Google Gemini recusou a requisição. ' +
-          'Verifique se a GEMINI_API_KEY é válida e se o projeto tem cota disponível.';
+          'O motor de análise regulatória recusou a requisição. ' +
+          'Entre em contato com o suporte para verificar a configuração do serviço.';
       } else if (rawMsg.includes('powerbi')) {
         friendlyMessage =
           'Não foi possível consultar a base oficial ANVISA (Power BI). ' +
