@@ -17,7 +17,6 @@ import {
   type FormValues,
   formSchema,
   EXCIPIENTES_TECNOLOGICOS,
-  PESO_CAPSULA_ALVO,
   ACRESCIMO_INDUSTRIAL,
   PESO_CAPSULA_NOMINAL,
 } from "./op-wizard-types";
@@ -108,6 +107,11 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   // Parâmetros da fórmula — usa o real, fallback para o equipamento, fallback para default
   const PESO_ENCHIMENTO_MG = selectedFormula?.peso_enchimento_mg       ?? 500;
   const DENSIDADE_FORMULA  = selectedFormula?.densidade_aparente_kg_l  ?? DENSIDADE_EQUIP;
+  // Mesma grandeza física do PESO_ENCHIMENTO_MG (massa de pó por cápsula 00) —
+  // usado no cálculo de Q.S.P./excipiente. Antes havia uma constante separada
+  // (490mg fixo) que ignorava a densidade real da fórmula; agora é a mesma
+  // fonte de verdade usada no cálculo de batelada do misturador.
+  const PESO_CAPSULA_ALVO = PESO_ENCHIMENTO_MG;
 
   // 1. Peso total do pó a misturar (kg)
   const pesoTotalMisturaKg = totalFinalComPerdas > 0
