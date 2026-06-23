@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { FACTORY_ROLES } from "@/hooks/use-users";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { AlertasLoteSemCOAPanel } from "@/components/estoque/AlertasLoteSemCOAPanel";
 import { useCompany } from "@/hooks/use-company";
 import { formatCNPJ } from "@/lib/cnpj-lookup";
 import { cn } from "@/lib/utils";
@@ -94,6 +95,7 @@ export function AppHeader() {
         </Button>
 
         {isAuthenticated && <NotificationBell />}
+        {isAuthenticated && <AlertasLoteSemCOAPanel />}
 
         {isAuthenticated && company && (
           <div
