@@ -211,13 +211,22 @@ interface NotaItem {
   info_adicional_item: string;
   xPed: string;
   nItemPed: string;
-  // Rastreabilidade (rastro XML NF-e — NT 2013.005)
-  lote_id: string;       // FK para estoque_lotes
-  nLote: string;         // Número do lote
-  qLote: number;         // Quantidade do lote
-  dFab: string;          // Data de fabricação (YYYY-MM-DD)
-  dVal: string;          // Data de validade (YYYY-MM-DD)
-  obs_op: string;        // Observação da OP (vai para infAdProd)
+  // Rastreabilidade múltipla (rastro XML NF-e — NT 2013.005)
+  // Cada item pode ter vários lotes (FEFO automático)
+  rastros: RastroLote[];
+  obs_op: string;  // Observação da OP (vai para infAdProd)
+}
+
+// Rastro individual de lote (pode haver vários por item)
+interface RastroLote {
+  lote_id: string;    // FK para estoque_lotes (ou OP)
+  nLote: string;      // Número do lote
+  qLote: number;      // Quantidade consumida deste lote
+  dFab: string;       // Data de fabricação (YYYY-MM-DD)
+  dVal: string;       // Data de validade (YYYY-MM-DD)
+  op_codigo: string;  // Código da OP de origem
+  op_id: string;      // ID da OP de origem
+  origem: "OP" | "ESTOQUE"; // Origem do lote
 }
 
 interface Duplicata {
@@ -238,8 +247,9 @@ const emptyItem: NotaItem = {
   cofins_aliquota: 0, cofins_valor: 0, cst_cofins: "01",
   info_adicional_item: "",
   xPed: "", nItemPed: "",
-  // Rastreabilidade
-  lote_id: "", nLote: "", qLote: 0, dFab: "", dVal: "", obs_op: "",
+  // Rastreabilidade múltipla
+  rastros: [],
+  obs_op: "",
 };
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -436,15 +446,17 @@ export default function EmissorNFePage() {
   const addItem = () => setItens((prev) => [...prev, { ...emptyItem }]);
   const removeItem = (index: number) => setItens((prev) => prev.filter((_, i) => i !== index));
 
-  const selectProduct = useCallback(async (index: number, produtoId: string) => {
-    const produto = produtos?.find((p: any) => p.id === produtoId);
-    if (!produto) return;
-
-    // Atualiza o produto em foco para disparar a busca de OPs
-    setProdutoFocoId(produtoId);
-    setItemFocoIdx(index);
-
-    // Buscar a OP mais recente finalizada do produto para pré-preencher
+  /**
+   * Distribui a quantidade de venda entre os lotes disponíveis (FEFO).
+   * Retorna array de RastroLote com a quantidade consumida de cada lote.
+   * Fonte primária: OPs finalizadas do produto (lote PA + validade).
+   * Fallback: lotes de estoque genéricos.
+   */
+  const calcularRastrosFEFO = useCallback(async (
+    produtoId: string,
+    quantidade: number
+  ): Promise<{ rastros: RastroLote[]; obs_op: string; infAdProd: string }> => {
+    // 1. Buscar OPs finalizadas do produto, ordenadas por data_validade (FEFO)
     const { data: opsData } = await supabase
       .from("ordens_producao_industrial")
       .select(`
@@ -460,74 +472,140 @@ export default function EmissorNFePage() {
       `)
       .eq("produto_id", produtoId)
       .in("status", ["FINALIZADA", "EM_PRODUCAO"])
-      .order("data_fabricacao", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("data_validade", { ascending: true }) // FEFO: mais próximo do vencimento primeiro
+      .limit(20);
 
-    const opMaisRecente = opsData as any;
+    const ops = (opsData || []) as any[];
 
-    // Se encontrou OP, pré-preenche com os dados dela
-    if (opMaisRecente) {
-      const infAdProd = [
-        `LOTE: ${opMaisRecente.lote_produto_acabado}`,
-        opMaisRecente.data_validade ? `VAL: ${opMaisRecente.data_validade.split("-").reverse().join("/")}` : "",
-        opMaisRecente.data_fabricacao ? `FAB: ${opMaisRecente.data_fabricacao.split("-").reverse().join("/")}` : "",
-        `OP: ${opMaisRecente.codigo}`,
-        opMaisRecente.formula_codigo ? `FORMULA: ${opMaisRecente.formula_codigo}${opMaisRecente.formula_versao ? ` v${opMaisRecente.formula_versao}` : ""}` : "",
-        opMaisRecente.rt_nome ? `RT: ${opMaisRecente.rt_nome}` : "",
-        opMaisRecente.observacoes ? `OBS: ${opMaisRecente.observacoes}` : "",
-      ].filter(Boolean).join(" | ");
-
-      setOpSelecionadaPorItem(prev => ({ ...prev, [index]: opMaisRecente }));
-
-      setItens((prev) => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          item_id: produto.id,
-          cProd: produto.sku_interno || "",
-          descricao: produto.descricao_interna,
-          ncm: produto.ncm || "",
-          unidade: produto.unidade_interna || "UN",
-          uTrib: produto.unidade_interna || "UN",
-          ean: produto.ean || "SEM GTIN",
-          eanTrib: produto.ean || "SEM GTIN",
-          valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
-          vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
-          // Rastreabilidade vem da OP do produto acabado
-          lote_id: "",  // lote de estoque não se aplica — rastreado via OP
-          nLote: opMaisRecente.lote_produto_acabado,
-          qLote: updated[index].quantidade || 1,
-          dFab: opMaisRecente.data_fabricacao || "",
-          dVal: opMaisRecente.data_validade || "",
-          obs_op: opMaisRecente.observacoes || "",
-          info_adicional_item: infAdProd,
-        };
-        return updated;
-      });
-    } else {
-      // Sem OP: apenas preenche dados do produto
-      setItens((prev) => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          item_id: produto.id,
-          cProd: produto.sku_interno || "",
-          descricao: produto.descricao_interna,
-          ncm: produto.ncm || "",
-          unidade: produto.unidade_interna || "UN",
-          uTrib: produto.unidade_interna || "UN",
-          ean: produto.ean || "SEM GTIN",
-          eanTrib: produto.ean || "SEM GTIN",
-          valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
-          vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
-          lote_id: "", nLote: "", qLote: 0, dFab: "", dVal: "", obs_op: "",
-          info_adicional_item: "",
-        };
-        return updated;
-      });
+    // Atualiza cache de OPs para o select
+    if (ops.length > 0) {
+      setProdutoFocoId(produtoId);
     }
-  }, [produtos]);
+
+    // 2. Buscar lotes de estoque disponíveis como fallback (FEFO)
+    const { data: lotesEstoque } = await supabase
+      .from("estoque_lotes")
+      .select("id, numero_lote, data_fab, data_val, quantidade_interna")
+      .eq("item_id", produtoId)
+      .eq("status", "DISPONIVEL")
+      .gt("quantidade_interna", 0)
+      .order("data_val", { ascending: true });
+
+    const lotes = lotesEstoque || [];
+    setLotesCache(prev => ({ ...prev, [produtoId]: lotes }));
+
+    // 3. Distribuir quantidade entre OPs (FEFO por data_validade)
+    const rastros: RastroLote[] = [];
+    let qtdRestante = quantidade;
+
+    if (ops.length > 0) {
+      // Usar OPs como fonte primária
+      // Cada OP representa um lote de produto acabado com quantidade_frascos
+      for (const op of ops) {
+        if (qtdRestante <= 0) break;
+        const disponivelOP = op.quantidade_frascos || op.total_capsulas || quantidade;
+        const consumido = Math.min(qtdRestante, disponivelOP);
+        rastros.push({
+          lote_id: op.id,
+          nLote: op.lote_produto_acabado,
+          qLote: consumido,
+          dFab: op.data_fabricacao || "",
+          dVal: op.data_validade || "",
+          op_codigo: op.codigo,
+          op_id: op.id,
+          origem: "OP",
+        });
+        qtdRestante -= consumido;
+      }
+
+      // Atualiza OP selecionada com a primeira (mais urgente FEFO)
+      setOpSelecionadaPorItem(prev => ({ ...prev, [itemFocoIdx]: ops[0] }));
+    } else if (lotes.length > 0) {
+      // Fallback: lotes de estoque genéricos
+      for (const lote of lotes) {
+        if (qtdRestante <= 0) break;
+        const consumido = Math.min(qtdRestante, lote.quantidade_interna);
+        rastros.push({
+          lote_id: lote.id,
+          nLote: lote.numero_lote,
+          qLote: consumido,
+          dFab: lote.data_fab || "",
+          dVal: lote.data_val || "",
+          op_codigo: "",
+          op_id: "",
+          origem: "ESTOQUE",
+        });
+        qtdRestante -= consumido;
+      }
+    }
+
+    // 4. Gerar infAdProd com todos os lotes
+    const obs_op = ops[0]?.observacoes || "";
+    const infAdProd = rastros.map((r, i) => [
+      i === 0 && ops[0]?.codigo ? `OP: ${ops[0].codigo}` : "",
+      `LOTE${rastros.length > 1 ? ` ${i + 1}` : ""}: ${r.nLote}`,
+      r.dVal ? `VAL: ${r.dVal.split("-").reverse().join("/")}` : "",
+      r.dFab ? `FAB: ${r.dFab.split("-").reverse().join("/")}` : "",
+      r.qLote !== quantidade ? `QTD: ${r.qLote}` : "",
+    ].filter(Boolean).join(" ")).join(" / ");
+
+    const infoCompleta = [
+      infAdProd,
+      ops[0]?.formula_codigo ? `FORMULA: ${ops[0].formula_codigo}${ops[0].formula_versao ? ` v${ops[0].formula_versao}` : ""}` : "",
+      ops[0]?.rt_nome ? `RT: ${ops[0].rt_nome}` : "",
+      obs_op ? `OBS: ${obs_op}` : "",
+    ].filter(Boolean).join(" | ");
+
+    return { rastros, obs_op, infAdProd: infoCompleta };
+  }, [itemFocoIdx]);
+
+  const selectProduct = useCallback(async (index: number, produtoId: string) => {
+    const produto = produtos?.find((p: any) => p.id === produtoId);
+    if (!produto) return;
+
+    setProdutoFocoId(produtoId);
+    setItemFocoIdx(index);
+
+    // Pegar quantidade atual do item
+    const qtdAtual = itens[index]?.quantidade || 1;
+
+    // Calcular distribuição FEFO
+    const { rastros, obs_op, infAdProd } = await calcularRastrosFEFO(produtoId, qtdAtual);
+
+    setItens((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        item_id: produto.id,
+        cProd: produto.sku_interno || "",
+        descricao: produto.descricao_interna,
+        ncm: produto.ncm || "",
+        unidade: produto.unidade_interna || "UN",
+        uTrib: produto.unidade_interna || "UN",
+        ean: produto.ean || "SEM GTIN",
+        eanTrib: produto.ean || "SEM GTIN",
+        valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
+        vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
+        rastros,
+        obs_op,
+        info_adicional_item: infAdProd,
+      };
+      return updated;
+    });
+  }, [produtos, itens, calcularRastrosFEFO]);
+
+  // Recalcula rastros FEFO quando a quantidade do item muda
+  const recalcularRastros = useCallback(async (index: number) => {
+    const item = itens[index];
+    if (!item?.item_id || item.quantidade <= 0) return;
+    setItemFocoIdx(index);
+    const { rastros, obs_op, infAdProd } = await calcularRastrosFEFO(item.item_id, item.quantidade);
+    setItens(prev => {
+      const u = [...prev];
+      u[index] = { ...u[index], rastros, obs_op, info_adicional_item: infAdProd };
+      return u;
+    });
+  }, [itens, calcularRastrosFEFO]);
 
   // Duplicatas
   const addDuplicata = () => setDuplicatas(prev => [...prev, { nDup: String(prev.length + 1).padStart(3, "0"), dVenc: "", vDup: 0 }]);
@@ -593,9 +671,12 @@ export default function EmissorNFePage() {
         pis_aliquota: item.pis_aliquota, pis_valor: item.pis_valor, cst_pis: item.cst_pis,
         cofins_aliquota: item.cofins_aliquota, cofins_valor: item.cofins_valor, cst_cofins: item.cst_cofins,
         origem: item.origem, numero_item: idx + 1,
-        // Rastreabilidade de lote
-        lote_id: item.lote_id || null,
+        // Rastreabilidade múltipla de lotes (FEFO) — salva como JSON no banco
+        lote_id: item.rastros[0]?.lote_id || null, // lote principal (primeiro FEFO)
         informacoes_adicionais: item.info_adicional_item || null,
+        // rastros_json: array completo de lotes para rastreabilidade total
+        // (coluna JSONB na tabela notas_saida_itens)
+        rastros_json: item.rastros.length > 0 ? JSON.stringify(item.rastros) : null,
       }));
 
       const { error: itensError } = await supabase.from("notas_saida_itens").insert(itensToInsert);
@@ -631,61 +712,51 @@ export default function EmissorNFePage() {
         }
       }
 
-      // 2. Baixa FEFO do estoque dos lotes vinculados (via itens da nota)
+      // 2. Baixa FEFO do estoque usando os rastros já calculados na nota
       try {
-        const { data: itensNota } = await supabase
-          .from("notas_saida_itens")
-          .select("item_id, quantidade, descricao, unidade")
-          .eq("nota_saida_id", notaData.id);
+        // Usar os rastros calculados no frontend (FEFO já distribuído)
+        for (const item of itens) {
+          if (!item.item_id || item.rastros.length === 0) continue;
 
-        if (itensNota && itensNota.length > 0) {
-          for (const item of itensNota) {
-            if (!item.item_id) continue;
+          for (const rastro of item.rastros) {
+            if (!rastro.lote_id || rastro.qLote <= 0) continue;
 
-            // Buscar lotes disponíveis por FEFO (mais antigos primeiro)
-            const { data: lotes } = await supabase
-              .from("estoque_lotes")
-              .select("id, numero_lote, quantidade_interna, data_val")
-              .eq("item_id", item.item_id)
-              .eq("company_id", notaData.company_id)
-              .eq("status", "DISPONIVEL")
-              .gt("quantidade_interna", 0)
-              .order("data_val", { ascending: true });
-
-            if (!lotes || lotes.length === 0) continue;
-
-            let qtdRestante = item.quantidade;
-            for (const lote of lotes) {
-              if (qtdRestante <= 0) break;
-
-              const baixa = Math.min(qtdRestante, lote.quantidade_interna);
-
-              await supabase
+            // Verificar se é um lote de estoque genérico (origem ESTOQUE)
+            // OPs não têm lote_id de estoque_lotes diretamente
+            if (rastro.origem === "ESTOQUE") {
+              const { data: loteAtual } = await supabase
                 .from("estoque_lotes")
-                .update({
-                  quantidade_interna: lote.quantidade_interna - baixa,
-                })
-                .eq("id", lote.id);
+                .select("quantidade_interna")
+                .eq("id", rastro.lote_id)
+                .maybeSingle();
 
-              // Registrar movimentação
-              await supabase.from("estoque_movimentacoes").insert({
-                company_id: notaData.company_id,
-                item_id: item.item_id,
-                lote_id: lote.id,
-                tipo: "SAIDA",
-                quantidade: baixa,
-                unidade: item.unidade || "UN",
-                motivo: `Saída NF-e ${notaData.numero || notaData.id}`,
-                documento_ref_id: notaData.id,
-                origem: "NF-E",
-              });
-
-              qtdRestante -= baixa;
+              if (loteAtual) {
+                await supabase
+                  .from("estoque_lotes")
+                  .update({ quantidade_interna: Math.max(0, loteAtual.quantidade_interna - rastro.qLote) })
+                  .eq("id", rastro.lote_id);
+              }
             }
+
+            // Registrar movimentação para todos os lotes (OP ou estoque)
+            await supabase.from("estoque_movimentacoes").insert({
+              company_id: notaData.company_id,
+              item_id: item.item_id,
+              lote_id: rastro.origem === "ESTOQUE" ? rastro.lote_id : null,
+              tipo: "SAIDA",
+              quantidade: rastro.qLote,
+              unidade: item.unidade || "UN",
+              motivo: `Saída NF-e ${notaData.numero || notaData.id} — Lote: ${rastro.nLote}${rastro.op_codigo ? ` (OP: ${rastro.op_codigo})` : ""}`,
+              documento_ref_id: notaData.id,
+              origem: "NF-E",
+              // Campos extras de rastreabilidade
+              numero_lote: rastro.nLote,
+              data_validade_lote: rastro.dVal || null,
+            }).catch(() => {}); // não bloqueia se a coluna não existir ainda
           }
-          queryClient.invalidateQueries({ queryKey: ["estoque-lotes"] });
-          queryClient.invalidateQueries({ queryKey: ["estoque-movimentacoes"] });
         }
+        queryClient.invalidateQueries({ queryKey: ["estoque-lotes"] });
+        queryClient.invalidateQueries({ queryKey: ["estoque-movimentacoes"] });
       } catch (err) {
         console.error("Erro na baixa FEFO:", err);
         toast.warning("NF-e emitida, mas verifique o estoque manualmente.");
@@ -1103,93 +1174,186 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">V. COFINS</Label><Input value={`R$ ${fmt(item.cofins_valor)}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
 
-                    {/* ════════ RASTREABILIDADE — OP DO PRODUTO ACABADO ════════ */}
+                    {/* ════════ RASTREABILIDADE MÚLTIPLA DE LOTES (FEFO) ════════ */}
                     <Separator />
                     <div className="flex items-center gap-2 py-1">
                       <FlaskConical className="h-3.5 w-3.5 text-primary" />
-                      <p className="text-xs font-semibold text-primary">RASTREABILIDADE — ORDEM DE PRODUÇÃO</p>
-                      {item.nLote && (
+                      <p className="text-xs font-semibold text-primary">RASTREABILIDADE DE LOTES — FEFO AUTOMÁTICO</p>
+                      {item.rastros.length > 0 && (
                         <Badge variant="default" className="text-[10px] h-5 bg-green-600">
-                          <CalendarCheck className="h-3 w-3 mr-1" /> Lote da OP vinculado
+                          <CalendarCheck className="h-3 w-3 mr-1" />
+                          {item.rastros.length} lote{item.rastros.length > 1 ? "s" : ""} vinculado{item.rastros.length > 1 ? "s" : ""}
                         </Badge>
                       )}
-                      {!item.nLote && item.item_id && (
+                      {item.rastros.length === 0 && item.item_id && (
                         <Badge variant="destructive" className="text-[10px] h-5">
-                          Sem OP finalizada — preencha manualmente
+                          Sem lotes — preencha manualmente
                         </Badge>
+                      )}
+                      {item.item_id && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] ml-auto"
+                          onClick={() => recalcularRastros(idx)}
+                        >
+                          Recalcular FEFO
+                        </Button>
                       )}
                     </div>
 
-                    {/* Seleção de OP do produto */}
-                    {item.item_id && (
-                      <div>
-                        <Label className="text-xs flex items-center gap-1">
-                          Selecionar Ordem de Produção
-                          <Badge variant="secondary" className="text-[10px]">lote + validade + MPs</Badge>
-                        </Label>
-                        {loadingOPs && produtoFocoId === item.item_id ? (
-                          <p className="text-[10px] text-muted-foreground py-1">Buscando OPs...</p>
-                        ) : (
-                          <Select
-                            value={opSelecionadaPorItem[idx]?.id || ""}
-                            onValueChange={(opId) => {
-                              const op = opsDoProduto?.find((o) => o.id === opId);
-                              if (!op) return;
-                              const infAdProd = [
-                                `LOTE: ${op.lote_produto_acabado}`,
-                                op.data_validade ? `VAL: ${op.data_validade.split("-").reverse().join("/")}` : "",
-                                op.data_fabricacao ? `FAB: ${op.data_fabricacao.split("-").reverse().join("/")}` : "",
-                                `OP: ${op.codigo}`,
-                                op.formula_codigo ? `FORMULA: ${op.formula_codigo}${op.formula_versao ? ` v${op.formula_versao}` : ""}` : "",
-                                op.rt_nome ? `RT: ${op.rt_nome}` : "",
-                                op.observacoes ? `OBS: ${op.observacoes}` : "",
-                              ].filter(Boolean).join(" | ");
-                              setOpSelecionadaPorItem(prev => ({ ...prev, [idx]: op }));
-                              setItens(prev => {
-                                const u = [...prev];
-                                u[idx] = {
-                                  ...u[idx],
-                                  nLote: op.lote_produto_acabado,
-                                  qLote: u[idx].quantidade,
-                                  dFab: op.data_fabricacao || "",
-                                  dVal: op.data_validade || "",
-                                  obs_op: op.observacoes || "",
-                                  info_adicional_item: infAdProd,
-                                };
-                                return u;
-                              });
+                    {/* Tabela de rastros múltiplos */}
+                    {item.rastros.length > 0 && (
+                      <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 overflow-hidden">
+                        <table className="w-full text-[10px]">
+                          <thead>
+                            <tr className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
+                              <th className="px-2 py-1.5 text-left font-semibold">#</th>
+                              <th className="px-2 py-1.5 text-left font-semibold">Nº Lote (nLot)</th>
+                              <th className="px-2 py-1.5 text-right font-semibold">Qtde (qLot)</th>
+                              <th className="px-2 py-1.5 text-center font-semibold">Fabricação</th>
+                              <th className="px-2 py-1.5 text-center font-semibold">Validade</th>
+                              <th className="px-2 py-1.5 text-center font-semibold">Origem</th>
+                              <th className="px-2 py-1.5 text-center font-semibold">OP</th>
+                              <th className="px-2 py-1.5"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {item.rastros.map((r, ri) => (
+                              <tr key={ri} className="border-t border-green-200 dark:border-green-800">
+                                <td className="px-2 py-1 text-muted-foreground">{ri + 1}</td>
+                                <td className="px-2 py-1">
+                                  <Input
+                                    value={r.nLote}
+                                    onChange={e => {
+                                      const novos = [...item.rastros];
+                                      novos[ri] = { ...novos[ri], nLote: e.target.value };
+                                      updateItem(idx, "rastros", novos);
+                                    }}
+                                    className="h-6 text-[10px] font-mono w-32 border-0 bg-transparent p-0 focus-visible:ring-0"
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-right">
+                                  <Input
+                                    type="number" step="0.0001"
+                                    value={r.qLote}
+                                    onChange={e => {
+                                      const novos = [...item.rastros];
+                                      novos[ri] = { ...novos[ri], qLote: Number(e.target.value) };
+                                      updateItem(idx, "rastros", novos);
+                                    }}
+                                    className="h-6 text-[10px] w-20 border-0 bg-transparent p-0 text-right focus-visible:ring-0"
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  <Input
+                                    type="date"
+                                    value={r.dFab}
+                                    onChange={e => {
+                                      const novos = [...item.rastros];
+                                      novos[ri] = { ...novos[ri], dFab: e.target.value };
+                                      updateItem(idx, "rastros", novos);
+                                    }}
+                                    className="h-6 text-[10px] w-28 border-0 bg-transparent p-0 focus-visible:ring-0"
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  <Input
+                                    type="date"
+                                    value={r.dVal}
+                                    onChange={e => {
+                                      const novos = [...item.rastros];
+                                      novos[ri] = { ...novos[ri], dVal: e.target.value };
+                                      updateItem(idx, "rastros", novos);
+                                    }}
+                                    className="h-6 text-[10px] w-28 border-0 bg-transparent p-0 focus-visible:ring-0"
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  <Badge
+                                    variant={r.origem === "OP" ? "default" : "secondary"}
+                                    className="text-[9px] h-4"
+                                  >
+                                    {r.origem}
+                                  </Badge>
+                                </td>
+                                <td className="px-2 py-1 text-center text-muted-foreground">
+                                  {r.op_codigo || "—"}
+                                </td>
+                                <td className="px-2 py-1">
+                                  <Button
+                                    type="button" variant="ghost" size="sm"
+                                    className="h-5 w-5 p-0 text-destructive hover:text-destructive"
+                                    onClick={() => {
+                                      const novos = item.rastros.filter((_, i) => i !== ri);
+                                      updateItem(idx, "rastros", novos);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t border-green-300 bg-green-100/50 dark:bg-green-900/20">
+                              <td colSpan={2} className="px-2 py-1 text-[10px] font-semibold text-green-800 dark:text-green-300">TOTAL</td>
+                              <td className="px-2 py-1 text-right text-[10px] font-semibold text-green-800 dark:text-green-300">
+                                {fmtQtd(item.rastros.reduce((s, r) => s + r.qLote, 0))}
+                              </td>
+                              <td colSpan={5} className="px-2 py-1">
+                                {item.rastros.reduce((s, r) => s + r.qLote, 0) !== item.quantidade && (
+                                  <span className="text-[10px] text-amber-600 font-semibold">
+                                    ⚠ Soma dos lotes ({fmtQtd(item.rastros.reduce((s, r) => s + r.qLote, 0))}) ≠ Qtde do item ({fmtQtd(item.quantidade)})
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                        {/* Botão adicionar lote manual */}
+                        <div className="px-2 py-1.5 border-t border-green-200">
+                          <Button
+                            type="button" variant="ghost" size="sm"
+                            className="h-6 text-[10px] text-green-700"
+                            onClick={() => {
+                              const novos = [...item.rastros, {
+                                lote_id: "", nLote: "", qLote: 0,
+                                dFab: "", dVal: "", op_codigo: "", op_id: "", origem: "OP" as const,
+                              }];
+                              updateItem(idx, "rastros", novos);
                             }}
                           >
-                            <SelectTrigger className="text-xs h-9">
-                              <SelectValue placeholder="Selecione a OP do produto acabado..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(opsDoProduto || []).map((op) => (
-                                <SelectItem key={op.id} value={op.id} className="text-xs">
-                                  {op.codigo} — Lote: {op.lote_produto_acabado} — Val: {op.data_validade ? op.data_validade.split("-").reverse().join("/") : "s/d"} — {op.status}
-                                </SelectItem>
-                              ))}
-                              {(!opsDoProduto || opsDoProduto.length === 0) && (
-                                <SelectItem value="__none__" disabled className="text-xs text-muted-foreground">
-                                  Nenhuma OP encontrada para este produto
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        )}
+                            <Plus className="h-3 w-3 mr-1" /> Adicionar lote manualmente
+                          </Button>
+                        </div>
                       </div>
                     )}
 
-                    {/* Painel de rastreabilidade da OP selecionada */}
+                    {/* Sem rastros: botão para adicionar manualmente */}
+                    {item.rastros.length === 0 && item.item_id && (
+                      <Button
+                        type="button" variant="outline" size="sm"
+                        className="text-xs w-full"
+                        onClick={() => {
+                          updateItem(idx, "rastros", [{
+                            lote_id: "", nLote: "", qLote: item.quantidade,
+                            dFab: "", dVal: "", op_codigo: "", op_id: "", origem: "OP" as const,
+                          }]);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar lote manualmente
+                      </Button>
+                    )}
+
+                    {/* Painel de MPs da OP principal */}
                     {opSelecionadaPorItem[idx] && (
-                      <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 p-3 space-y-2">
-                        <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide">
-                          Rastreabilidade da OP {opSelecionadaPorItem[idx].codigo}
+                      <div className="rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3 space-y-1.5">
+                        <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+                          Matérias-primas — OP {opSelecionadaPorItem[idx].codigo}
                         </p>
-                        <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
-                          <span><strong>Lote PA:</strong> {opSelecionadaPorItem[idx].lote_produto_acabado}</span>
-                          <span><strong>Fabricação:</strong> {opSelecionadaPorItem[idx].data_fabricacao?.split("-").reverse().join("/")}</span>
-                          <span><strong>Validade:</strong> {opSelecionadaPorItem[idx].data_validade?.split("-").reverse().join("/")}</span>
+                        <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[10px] text-muted-foreground">
                           {opSelecionadaPorItem[idx].formula_codigo && (
                             <span><strong>Fórmula:</strong> {opSelecionadaPorItem[idx].formula_codigo} v{opSelecionadaPorItem[idx].formula_versao}</span>
                           )}
@@ -1200,69 +1364,25 @@ export default function EmissorNFePage() {
                             <span><strong>Sala:</strong> {opSelecionadaPorItem[idx].sala_producao}</span>
                           )}
                         </div>
-                        {/* Matérias-primas rastreadas */}
-                        {opSelecionadaPorItem[idx].materias_primas?.filter((mp: any) => mp.numero_lote).length > 0 && (
-                          <div>
-                            <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 mt-1">Matérias-primas (lotes rastreados):</p>
-                            <div className="space-y-0.5">
-                              {opSelecionadaPorItem[idx].materias_primas
-                                .filter((mp: any) => mp.numero_lote)
-                                .map((mp: any) => (
-                                  <p key={mp.id} className="text-[10px] text-muted-foreground">
-                                    • <strong>{mp.insumo_nome}</strong>: Lote {mp.numero_lote}
-                                    {mp.lote?.data_val ? ` — Val: ${mp.lote.data_val.split("-").reverse().join("/")}` : ""}
-                                    {mp.fornecedor_nome ? ` — ${mp.fornecedor_nome}` : ""}
-                                  </p>
-                                ))}
-                            </div>
+                        {(opSelecionadaPorItem[idx].materias_primas || opSelecionadaPorItem[idx].op_materias_primas)?.filter((mp: any) => mp.numero_lote).length > 0 && (
+                          <div className="space-y-0.5">
+                            {(opSelecionadaPorItem[idx].materias_primas || opSelecionadaPorItem[idx].op_materias_primas)
+                              .filter((mp: any) => mp.numero_lote)
+                              .map((mp: any) => (
+                                <p key={mp.id} className="text-[10px] text-muted-foreground">
+                                  • <strong>{mp.insumo_nome}</strong>: Lote {mp.numero_lote}
+                                  {mp.fornecedor_nome ? ` — ${mp.fornecedor_nome}` : ""}
+                                </p>
+                              ))}
                           </div>
                         )}
                         {opSelecionadaPorItem[idx].observacoes && (
                           <p className="text-[10px] text-muted-foreground">
-                            <strong>Obs. OP:</strong> {opSelecionadaPorItem[idx].observacoes}
+                            <strong>Obs.:</strong> {opSelecionadaPorItem[idx].observacoes}
                           </p>
                         )}
                       </div>
                     )}
-
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <Label className="text-xs">Nº Lote PA (nLot)</Label>
-                        <Input
-                          value={item.nLote}
-                          onChange={e => updateItem(idx, "nLote", e.target.value)}
-                          className="text-xs font-mono"
-                          placeholder="Preenchido pela OP"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Qtde Lote (qLot)</Label>
-                        <Input
-                          type="number" step="0.0001"
-                          value={item.qLote}
-                          onChange={e => updateItem(idx, "qLote", Number(e.target.value))}
-                          className="text-xs"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Data Fabricação (dFab)</Label>
-                        <Input
-                          type="date"
-                          value={item.dFab}
-                          onChange={e => updateItem(idx, "dFab", e.target.value)}
-                          className="text-xs"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Data Validade (dVal)</Label>
-                        <Input
-                          type="date"
-                          value={item.dVal}
-                          onChange={e => updateItem(idx, "dVal", e.target.value)}
-                          className="text-xs"
-                        />
-                      </div>
-                    </div>
 
                     {/* Observação da OP */}
                     <div>
