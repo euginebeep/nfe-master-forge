@@ -37,7 +37,8 @@ import {
   Settings2,
   ClipboardCheck,
   ScrollText,
-  Tag } from
+  Tag,
+  BookOpen } from
 "lucide-react";
 import {
   Sidebar,
@@ -148,6 +149,7 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018", modulo: "producao" },
   { title: "ANVISA Checker", url: "/regulatorio/anvisa-checker", icon: FlaskConical, tooltip: "Checador de fórmulas e verificação regulatória ANVISA", modulo: "producao" },
+  { title: "Biblioteca do RT", url: "/regulatorio/biblioteca-rt", icon: BookOpen, badge: "IA", tooltip: "Copilot Regulatório — base de conhecimento ANVISA travada em fonte oficial (RDC 243/2018, RDC 275/2002, IN 28/2018)", modulo: "producao" },
   { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade conforme RDC 658/2022", modulo: "producao" },
   { title: "Config. Sensores", url: "/ambiental/configuracao", icon: Settings2, tooltip: "Configurar credenciais eWeLink e mapear sensores por sala", modulo: "producao", adminOnly: true }]
 

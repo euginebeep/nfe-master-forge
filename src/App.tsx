@@ -90,6 +90,7 @@ const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
 const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
 const EquipamentosPage = lazy(() => import("./pages/settings/EquipamentosPage"));
 const AnvisaCheckerPage = lazy(() => import("./pages/regulatorio/AnvisaCheckerPage"));
+const BibliotecaRTPage = lazy(() => import("./pages/regulatorio/BibliotecaRTPage"));
 const CertificadoStatusPage = lazy(() => import("./pages/settings/CertificadoStatusPage"));
 const AuditoriaFiscalPage = lazy(() => import("./pages/vendas/AuditoriaFiscalPage"));
 
@@ -237,6 +238,7 @@ const App = () => (
                 <Route path="/qualidade/pops" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><POPsPage /></ErrorBoundary></Suspense>} />
                 {/* Regulatório */}
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ConsultaAnvisaPage /></ErrorBoundary></Suspense>} />
+                <Route path="/regulatorio/biblioteca-rt" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><BibliotecaRTPage /></ErrorBoundary></Suspense>} />
                 <Route path="/ambiental/monitoramento" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MonitoramentoAmbientalPage /></ErrorBoundary></Suspense>} />
                 <Route path="/ambiental/sensor/:deviceId" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><SensorDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/ambiental/configuracao" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AmbientalConfigPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
