@@ -113,7 +113,7 @@ export function DataTable<T extends object>({
 
       <div className="border rounded-lg overflow-hidden bg-card">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm" style={{ minWidth: '100%' }}>
             <thead>
               <tr className="border-b bg-muted/30">
                 {columns.map((col) => (

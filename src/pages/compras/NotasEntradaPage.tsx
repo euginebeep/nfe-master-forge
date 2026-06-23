@@ -165,6 +165,7 @@ export default function NotasEntradaPage() {
       key: "numero",
       header: "Número / Série",
       sortable: true,
+      className: "min-w-[140px]",
       render: (item: NotaEntrada) => (
         <button onClick={() => handleViewNota(item)} className="flex items-center gap-2 hover:text-primary transition-colors text-left">
           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -179,6 +180,7 @@ export default function NotasEntradaPage() {
       key: "dh_emissao",
       header: "Emissão",
       sortable: true,
+      className: "min-w-[110px]",
       render: (item: NotaEntrada) => (
         <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
           <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
@@ -189,6 +191,7 @@ export default function NotasEntradaPage() {
     {
       key: "fornecedor_razao",
       header: "Fornecedor",
+      className: "min-w-[200px]",
       render: (item: NotaEntrada) => (
         <div className="flex items-center gap-2 min-w-0">
           <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -209,6 +212,7 @@ export default function NotasEntradaPage() {
     {
       key: "qtd_itens",
       header: "Itens",
+      className: "min-w-[100px]",
       render: (item: NotaEntrada) => {
         const total = item.qtd_itens ?? 0;
         const vinc = item.qtd_itens_vinculados ?? 0;
@@ -233,6 +237,7 @@ export default function NotasEntradaPage() {
       key: "total_nota",
       header: "Total NF-e",
       sortable: true,
+      className: "min-w-[120px]",
       render: (item: NotaEntrada) => (
         <div className="text-right">
           <p className="font-semibold text-sm">{formatCurrency(item.total_nota)}</p>
@@ -245,6 +250,7 @@ export default function NotasEntradaPage() {
     {
       key: "vencimento",
       header: "Vencimento",
+      className: "min-w-[110px]",
       render: (item: NotaEntrada) => {
         if (!item.vencimento) return <span className="text-muted-foreground text-xs">—</span>;
         const venc = new Date(item.vencimento);
@@ -266,6 +272,7 @@ export default function NotasEntradaPage() {
     {
       key: "status_financeiro",
       header: "Financeiro",
+      className: "min-w-[110px]",
       render: (item: NotaEntrada) => {
         const cfg = STATUS_FIN_CONFIG[item.status_financeiro ?? "SEM_DUPLICATA"];
         return (
@@ -277,8 +284,9 @@ export default function NotasEntradaPage() {
       },
     },
     {
-      key: "status",
+      key: "status_importacao",
       header: "NF-e",
+      className: "min-w-[100px]",
       render: (item: NotaEntrada) => (
         <StatusBadge variant={STATUS_VARIANTS[item.status]}>
           {item.status}
@@ -286,9 +294,9 @@ export default function NotasEntradaPage() {
       ),
     },
     {
-      key: "actions",
-      header: "",
-      className: "w-20",
+      key: "acoes",
+      header: "Ações",
+      className: "min-w-[120px] w-auto",
       render: (item: NotaEntrada) => (
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }} title="Visualizar NF-e">
