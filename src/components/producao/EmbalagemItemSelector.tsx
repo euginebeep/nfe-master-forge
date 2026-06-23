@@ -1,9 +1,9 @@
 // ============================================================
-// SELETOR DE ITENS DE EMBALAGEM - Busca do Cadastro de Itens
+// SELETOR DE ITENS DE EMBALAGEM - Busca 100% do Supabase
 // ============================================================
 
-import { useState, useEffect, useMemo } from "react";
-import { Search, Package, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Package, Check, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { LocalDb } from "@/lib/local-db";
 import type { TipoItem } from "@/types/erp";
 
 export interface ItemEmbalagem {
@@ -24,7 +23,6 @@ export interface ItemEmbalagem {
   sku_interno?: string | null;
   descricao_interna: string;
   tipo_item: string;
-  source?: "supabase" | "local";
 }
 
 interface EmbalagemItemSelectorProps {
@@ -51,73 +49,59 @@ export function EmbalagemItemSelector({
   const [itens, setItens] = useState<ItemEmbalagem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Buscar itens quando o popover abre ou o search muda
+  // Buscar itens do Supabase quando o popover abre ou o search muda
   useEffect(() => {
     if (!open) return;
-    
+
     const fetchItens = async () => {
       setLoading(true);
       try {
-        // Buscar do Supabase
         let query = supabase
           .from("itens")
           .select("id, sku_interno, descricao_interna, tipo_item")
           .eq("ativo", true)
           .in("tipo_item", tiposFiltro)
           .order("descricao_interna");
-        
+
         if (search.length >= 2) {
-          query = query.ilike("descricao_interna", `%${search}%`);
+          query = query.or(
+            `descricao_interna.ilike.%${search}%,sku_interno.ilike.%${search}%`
+          );
         }
 
-        const { data: supabaseData } = await query.limit(50);
+        const { data, error } = await query.limit(50);
 
-        // Buscar do LocalDb
-        const searchLower = search.toLowerCase();
-        const localItens = LocalDb.query<any>("itens", (item) => {
-          if (!item.ativo) return false;
-          if (!tiposFiltro.includes(item.tipo_item)) return false;
-          if (search.length >= 2) {
-            return item.descricao_interna?.toLowerCase().includes(searchLower);
-          }
-          return true;
-        }).slice(0, 50);
+        if (error) {
+          console.error("Erro ao buscar itens de embalagem:", error);
+          setItens([]);
+          return;
+        }
 
-        // Combinar resultados
-        const supabaseItens: ItemEmbalagem[] = (supabaseData || []).map((i) => ({
-          id: i.id,
-          sku_interno: i.sku_interno,
-          descricao_interna: i.descricao_interna,
-          tipo_item: i.tipo_item,
-          source: "supabase" as const,
-        }));
-
-        const localMapped: ItemEmbalagem[] = localItens.map((i: any) => ({
-          id: i.id,
-          sku_interno: i.sku_interno,
-          descricao_interna: i.descricao_interna,
-          tipo_item: i.tipo_item,
-          source: "local" as const,
-        }));
-
-        // Deduplicar por id
-        const combined: ItemEmbalagem[] = [...supabaseItens];
-        localMapped.forEach((local) => {
-          if (!combined.find((s) => s.id === local.id)) {
-            combined.push(local);
-          }
-        });
-
-        setItens(combined);
+        setItens(
+          (data || []).map((i) => ({
+            id: i.id,
+            sku_interno: i.sku_interno,
+            descricao_interna: i.descricao_interna,
+            tipo_item: i.tipo_item,
+          }))
+        );
       } catch (error) {
         console.error("Erro ao buscar itens de embalagem:", error);
+        setItens([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchItens();
+    // Debounce de 300ms na busca
+    const timer = setTimeout(fetchItens, search.length >= 2 ? 300 : 0);
+    return () => clearTimeout(timer);
   }, [open, search, tiposFiltro]);
+
+  // Limpar ao fechar
+  useEffect(() => {
+    if (!open) setSearch("");
+  }, [open]);
 
   const handleSelect = (item: ItemEmbalagem) => {
     onSelect(item);
@@ -147,9 +131,7 @@ export function EmbalagemItemSelector({
             )}
             disabled={disabled}
           >
-            <span className="truncate">
-              {displayValue || placeholder}
-            </span>
+            <span className="truncate">{displayValue || placeholder}</span>
             <Package className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -176,7 +158,8 @@ export function EmbalagemItemSelector({
 
           <ScrollArea className="h-[250px]">
             {loading ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
+              <div className="p-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando...
               </div>
             ) : itens.length === 0 ? (
@@ -213,16 +196,9 @@ export function EmbalagemItemSelector({
                           {item.descricao_interna}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {item.tipo_item}
-                        </Badge>
-                        {item.source === "local" && (
-                          <Badge variant="secondary" className="text-xs">
-                            Local
-                          </Badge>
-                        )}
-                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {item.tipo_item}
+                      </Badge>
                     </div>
                     {item.sku_interno && (
                       <div className="text-xs text-muted-foreground mt-0.5 pl-6">

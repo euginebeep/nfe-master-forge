@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { LocalDb } from "@/lib/local-db";
 import {
   CommandDialog,
   CommandEmpty,
@@ -8,12 +7,11 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Users, Package, Factory, Boxes, FileText, Settings, BarChart3, Search,
-  Building2, ShoppingCart, Wallet, Bell
+  Users, Package, Factory, Boxes, FileText, Settings, BarChart3,
+  Building2, ShoppingCart, Wallet, Bell, Loader2
 } from "lucide-react";
 
 interface SearchResult {
@@ -61,23 +59,43 @@ export function GlobalSearchDialog() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  // Search database
+  // Busca 100% no Supabase — sem fallback para LocalDb
   const searchDb = useCallback(async (q: string) => {
     if (q.length < 2) { setDbResults([]); return; }
     setSearching(true);
     try {
       const search = `%${q}%`;
-      const qLower = q.toLowerCase();
-      const [entidades, itens, formulas, lotes] = await Promise.all([
-        supabase.from("entidades").select("id, razao_social, documento, nome_fantasia").ilike("razao_social", search).limit(5),
-        supabase.from("itens").select("id, descricao_interna, sku_interno").ilike("descricao_interna", search).limit(5),
-        supabase.from("formulas").select("id, nome_formula, codigo_formula").ilike("nome_formula", search).limit(5),
-        supabase.from("estoque_lotes").select("id, numero_lote, item_id").ilike("numero_lote", search).limit(5),
+      const [entidades, itens, formulas, lotes, ops] = await Promise.all([
+        supabase
+          .from("entidades")
+          .select("id, razao_social, documento")
+          .or(`razao_social.ilike.${search},nome_fantasia.ilike.${search},documento.ilike.${search}`)
+          .limit(5),
+        supabase
+          .from("itens")
+          .select("id, descricao_interna, sku_interno")
+          .or(`descricao_interna.ilike.${search},sku_interno.ilike.${search},ncm.ilike.${search},ean.ilike.${search}`)
+          .eq("ativo", true)
+          .limit(5),
+        supabase
+          .from("formulas")
+          .select("id, nome_formula, codigo_formula")
+          .or(`nome_formula.ilike.${search},codigo_formula.ilike.${search}`)
+          .limit(5),
+        supabase
+          .from("estoque_lotes")
+          .select("id, numero_lote")
+          .ilike("numero_lote", search)
+          .limit(5),
+        supabase
+          .from("ordens_producao_industrial")
+          .select("id, codigo_op, lote_produto_acabado")
+          .or(`codigo_op.ilike.${search},lote_produto_acabado.ilike.${search}`)
+          .limit(3),
       ]);
 
       const results: SearchResult[] = [];
-      
-      // Supabase results
+
       entidades.data?.forEach((e) => results.push({
         id: `ent-${e.id}`, label: e.razao_social, description: e.documento,
         icon: Users, href: `/cadastros/entidades/${e.id}`, group: "Entidades"
@@ -94,35 +112,19 @@ export function GlobalSearchDialog() {
         id: `lote-${l.id}`, label: l.numero_lote,
         icon: Boxes, href: `/estoque/lotes/${l.id}`, group: "Lotes"
       }));
-
-      // LocalDb fallback — add results not already found in Supabase
-      if (!entidades.data?.length) {
-        const localEnts = LocalDb.getCollection<{ id: string; razao_social: string; documento?: string }>('entidades')
-          .filter(e => e.razao_social?.toLowerCase().includes(qLower)).slice(0, 5);
-        localEnts.forEach((e) => results.push({
-          id: `ent-${e.id}`, label: e.razao_social, description: e.documento,
-          icon: Users, href: `/cadastros/entidades/${e.id}`, group: "Entidades"
-        }));
-      }
-      if (!itens.data?.length) {
-        const localItens = LocalDb.getCollection<{ id: string; descricao_interna: string; sku_interno?: string }>('itens')
-          .filter(i => i.descricao_interna?.toLowerCase().includes(qLower)).slice(0, 5);
-        localItens.forEach((i) => results.push({
-          id: `item-${i.id}`, label: i.descricao_interna, description: i.sku_interno || undefined,
-          icon: Package, href: `/cadastros/itens/${i.id}`, group: "Itens"
-        }));
-      }
-      if (!lotes.data?.length) {
-        const localLotes = LocalDb.getCollection<{ id: string; numero_lote: string }>('estoque_lotes')
-          .filter(l => l.numero_lote?.toLowerCase().includes(qLower)).slice(0, 5);
-        localLotes.forEach((l) => results.push({
-          id: `lote-${l.id}`, label: l.numero_lote,
-          icon: Boxes, href: `/estoque/lotes/${l.id}`, group: "Lotes"
-        }));
-      }
+      ops.data?.forEach((op) => results.push({
+        id: `op-${op.id}`,
+        label: op.codigo_op,
+        description: op.lote_produto_acabado ? `Lote: ${op.lote_produto_acabado}` : undefined,
+        icon: Factory,
+        href: `/producao/ordens/${op.id}`,
+        group: "Ordens de Produção"
+      }));
 
       setDbResults(results);
-    } catch { setDbResults([]); }
+    } catch {
+      setDbResults([]);
+    }
     setSearching(false);
   }, []);
 
@@ -130,6 +132,14 @@ export function GlobalSearchDialog() {
     const timer = setTimeout(() => searchDb(query), 300);
     return () => clearTimeout(timer);
   }, [query, searchDb]);
+
+  // Limpar resultados ao fechar
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setDbResults([]);
+    }
+  }, [open]);
 
   const filteredPages = useMemo(() => {
     if (!query) return staticPages;
@@ -145,7 +155,7 @@ export function GlobalSearchDialog() {
     navigate(result.href);
   };
 
-  // Group db results
+  // Agrupar resultados do banco
   const groups = useMemo(() => {
     const map = new Map<string, SearchResult[]>();
     dbResults.forEach((r) => {
@@ -156,6 +166,8 @@ export function GlobalSearchDialog() {
     return map;
   }, [dbResults]);
 
+  const hasResults = filteredPages.length > 0 || dbResults.length > 0;
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
@@ -164,41 +176,48 @@ export function GlobalSearchDialog() {
         onValueChange={setQuery}
       />
       <CommandList>
-        <CommandEmpty>
-          {searching ? "Buscando..." : "Nenhum resultado encontrado."}
-        </CommandEmpty>
+        {searching ? (
+          <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Buscando...
+          </div>
+        ) : (
+          <>
+            {!hasResults && <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>}
 
-        {filteredPages.length > 0 && (
-          <CommandGroup heading="Páginas">
-            {filteredPages.map((p) => (
-              <CommandItem key={p.id} onSelect={() => select(p)} className="gap-3">
-                <p.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm">{p.label}</span>
-                  {p.description && (
-                    <span className="text-xs text-muted-foreground ml-2">{p.description}</span>
-                  )}
-                </div>
-              </CommandItem>
+            {filteredPages.length > 0 && (
+              <CommandGroup heading="Páginas">
+                {filteredPages.map((p) => (
+                  <CommandItem key={p.id} onSelect={() => select(p)} className="gap-3">
+                    <p.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm">{p.label}</span>
+                      {p.description && (
+                        <span className="text-xs text-muted-foreground ml-2">{p.description}</span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {Array.from(groups.entries()).map(([group, items]) => (
+              <CommandGroup key={group} heading={group}>
+                {items.map((r) => (
+                  <CommandItem key={r.id} onSelect={() => select(r)} className="gap-3">
+                    <r.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm">{r.label}</span>
+                      {r.description && (
+                        <span className="text-xs text-muted-foreground ml-2">{r.description}</span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
             ))}
-          </CommandGroup>
+          </>
         )}
-
-        {Array.from(groups.entries()).map(([group, items]) => (
-          <CommandGroup key={group} heading={group}>
-            {items.map((r) => (
-              <CommandItem key={r.id} onSelect={() => select(r)} className="gap-3">
-                <r.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm">{r.label}</span>
-                  {r.description && (
-                    <span className="text-xs text-muted-foreground ml-2">{r.description}</span>
-                  )}
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
       </CommandList>
     </CommandDialog>
   );

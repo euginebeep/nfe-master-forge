@@ -15,16 +15,21 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt" em vez de "autoUpdate" — o SW novo fica em espera e
+      // NUNCA recarrega a página automaticamente. O main.tsx exibe um
+      // toast discreto para o usuário decidir quando atualizar.
+      registerType: "prompt",
       includeAssets: ["favicon.png", "icon-192.png", "icon-512.png", "brainx-logo.png"],
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         navigateFallbackDenylist: [/^\/~oauth/],
         cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
-        // Não usar fallback de navegação para que toda navegação
-        // bata no servidor (ver runtimeCaching abaixo)
+        // CRÍTICO: skipWaiting: false — impede que o SW novo tome controle
+        // imediatamente e force um reload enquanto o usuário está trabalhando.
+        skipWaiting: false,
+        // CRÍTICO: clientsClaim: false — o SW novo só assume após o usuário
+        // fechar todas as abas e reabrir, ou clicar em "Recarregar agora".
+        clientsClaim: false,
         navigateFallback: null,
         runtimeCaching: [
           {
@@ -47,8 +52,6 @@ export default defineConfig(({ mode }) => ({
             },
           },
         ],
-        // Limpa proativamente TODAS as caches que não pertencem
-        // ao precache da versão atual a cada novo deploy.
         importScripts: ["/sw-cache-purge.js"],
       },
       manifest: {
