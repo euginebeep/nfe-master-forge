@@ -303,14 +303,16 @@ export default function NotasEntradaPage() {
           >
             <Undo2 className="h-4 w-4" />
           </Button>
-          <DeleteNotaDialog
-            notaId={item.id}
-            notaNumero={item.numero}
-            notaSerie={item.serie}
-            fornecedorNome={item.fornecedor_nome_fantasia || item.fornecedor_razao || 'Desconhecido'}
-            totalItens={item.qtd_itens || 0}
-            onDeleted={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <DeleteNotaDialog
+              notaId={item.id}
+              notaNumero={item.numero}
+              notaSerie={item.serie}
+              fornecedorNome={item.fornecedor_nome_fantasia || item.fornecedor_razao || 'Desconhecido'}
+              totalItens={item.qtd_itens || 0}
+              onDeleted={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
+            />
+          </div>
         </div>
       ),
     },
@@ -332,7 +334,7 @@ export default function NotasEntradaPage() {
   };
 
   return (
-    <div className="p-2 sm:p-3 max-w-full mx-auto space-y-3 h-screen flex flex-col">
+    <div className="p-2 sm:p-3 max-w-full mx-auto space-y-2 h-screen flex flex-col">
       <div className="flex items-center justify-between gap-2">
         <BackButton />
         <PageHeader
@@ -455,7 +457,7 @@ export default function NotasEntradaPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex-1 overflow-y-auto border rounded-lg">
+        <div className="flex-1 overflow-x-auto border rounded-lg">
           <DataTable
             data={notasFiltradas}
             columns={columns}
