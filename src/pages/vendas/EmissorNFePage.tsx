@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
-  Building2, ChevronRight, Receipt, ShieldCheck, ScrollText
+  Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,6 +210,13 @@ interface NotaItem {
   info_adicional_item: string;
   xPed: string;
   nItemPed: string;
+  // Rastreabilidade (rastro XML NF-e — NT 2013.005)
+  lote_id: string;       // FK para estoque_lotes
+  nLote: string;         // Número do lote
+  qLote: number;         // Quantidade do lote
+  dFab: string;          // Data de fabricação (YYYY-MM-DD)
+  dVal: string;          // Data de validade (YYYY-MM-DD)
+  obs_op: string;        // Observação da OP (vai para infAdProd)
 }
 
 interface Duplicata {
@@ -230,6 +237,8 @@ const emptyItem: NotaItem = {
   cofins_aliquota: 0, cofins_valor: 0, cst_cofins: "01",
   info_adicional_item: "",
   xPed: "", nItemPed: "",
+  // Rastreabilidade
+  lote_id: "", nLote: "", qLote: 0, dFab: "", dVal: "", obs_op: "",
 };
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -361,6 +370,35 @@ export default function EmissorNFePage() {
     },
   });
 
+  // Lotes disponíveis por item (para seleção de rastro)
+  // Armazena lotes por item_id: { [item_id]: lote[] }
+  const [lotesCache, setLotesCache] = React.useState<Record<string, any[]>>({});
+
+  const fetchLotesPorItem = React.useCallback(async (item_id: string) => {
+    if (!item_id || lotesCache[item_id]) return;
+    const { data } = await supabase
+      .from("estoque_lotes")
+      .select("id, numero_lote, data_fab, data_val, quantidade_interna, observacoes_qc")
+      .eq("item_id", item_id)
+      .eq("status", "DISPONIVEL")
+      .gt("quantidade_interna", 0)
+      .order("data_val", { ascending: true }); // FEFO
+    setLotesCache(prev => ({ ...prev, [item_id]: data || [] }));
+  }, [lotesCache]);
+
+  // Busca observação da OP mais recente para o produto
+  const fetchObsOP = React.useCallback(async (item_id: string): Promise<string> => {
+    const { data } = await supabase
+      .from("ordens_producao_industrial")
+      .select("observacoes, lote_produto_acabado, data_validade")
+      .eq("produto_id", item_id)
+      .not("observacoes", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return data?.observacoes || "";
+  }, []);
+
   const cliente = clientes?.find((c: any) => c.id === clienteId);
 
   // Auto-set indIEDest when client changes
@@ -413,9 +451,44 @@ export default function EmissorNFePage() {
   const addItem = () => setItens((prev) => [...prev, { ...emptyItem }]);
   const removeItem = (index: number) => setItens((prev) => prev.filter((_, i) => i !== index));
 
-  const selectProduct = (index: number, produtoId: string) => {
+  const selectProduct = useCallback(async (index: number, produtoId: string) => {
     const produto = produtos?.find((p: any) => p.id === produtoId);
     if (!produto) return;
+
+    // Buscar lotes disponíveis (FEFO) e obs da OP em paralelo
+    const [lotesResult, obsOP] = await Promise.all([
+      supabase
+        .from("estoque_lotes")
+        .select("id, numero_lote, data_fab, data_val, quantidade_interna, observacoes_qc")
+        .eq("item_id", produtoId)
+        .eq("status", "DISPONIVEL")
+        .gt("quantidade_interna", 0)
+        .order("data_val", { ascending: true })
+        .limit(20),
+      supabase
+        .from("ordens_producao_industrial")
+        .select("observacoes")
+        .eq("produto_id", produtoId)
+        .not("observacoes", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const lotes = lotesResult.data || [];
+    const primeiroLote = lotes[0] || null;
+    const obsOpTexto = obsOP.data?.observacoes || "";
+
+    // Atualiza cache de lotes
+    setLotesCache(prev => ({ ...prev, [produtoId]: lotes }));
+
+    // Monta infAdProd automático com lote + validade + obs OP
+    const infAdProdAuto = [
+      primeiroLote ? `LOTE: ${primeiroLote.numero_lote}` : "",
+      primeiroLote?.dVal || primeiroLote?.data_val ? `VAL: ${(primeiroLote.data_val || "").split("-").reverse().join("/")}` : "",
+      obsOpTexto ? `OBS: ${obsOpTexto}` : "",
+    ].filter(Boolean).join(" | ");
+
     setItens((prev) => {
       const updated = [...prev];
       updated[index] = {
@@ -430,10 +503,18 @@ export default function EmissorNFePage() {
         eanTrib: produto.ean || "SEM GTIN",
         valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
         vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
+        // Rastreabilidade: pré-preenche com o lote FEFO mais antigo
+        lote_id: primeiroLote?.id || "",
+        nLote: primeiroLote?.numero_lote || "",
+        qLote: updated[index].quantidade || 1,
+        dFab: primeiroLote?.data_fab || "",
+        dVal: primeiroLote?.data_val || "",
+        obs_op: obsOpTexto,
+        info_adicional_item: infAdProdAuto,
       };
       return updated;
     });
-  };
+  }, [produtos, setLotesCache]);
 
   // Duplicatas
   const addDuplicata = () => setDuplicatas(prev => [...prev, { nDup: String(prev.length + 1).padStart(3, "0"), dVenc: "", vDup: 0 }]);
@@ -499,6 +580,9 @@ export default function EmissorNFePage() {
         pis_aliquota: item.pis_aliquota, pis_valor: item.pis_valor, cst_pis: item.cst_pis,
         cofins_aliquota: item.cofins_aliquota, cofins_valor: item.cofins_valor, cst_cofins: item.cst_cofins,
         origem: item.origem, numero_item: idx + 1,
+        // Rastreabilidade de lote
+        lote_id: item.lote_id || null,
+        informacoes_adicionais: item.info_adicional_item || null,
       }));
 
       const { error: itensError } = await supabase.from("notas_saida_itens").insert(itensToInsert);
@@ -1006,13 +1090,166 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">V. COFINS</Label><Input value={`R$ ${fmt(item.cofins_valor)}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
 
+                    {/* ════════ RASTREABILIDADE DE LOTE (rastro XML NF-e — NT 2013.005) ════════ */}
+                    <Separator />
+                    <div className="flex items-center gap-2 py-1">
+                      <FlaskConical className="h-3.5 w-3.5 text-primary" />
+                      <p className="text-xs font-semibold text-primary">RASTREABILIDADE DE LOTE (rastro XML)</p>
+                      {item.nLote && (
+                        <Badge variant="default" className="text-[10px] h-5 bg-green-600">
+                          <CalendarCheck className="h-3 w-3 mr-1" /> Lote vinculado
+                        </Badge>
+                      )}
+                      {!item.nLote && item.item_id && (
+                        <Badge variant="destructive" className="text-[10px] h-5">
+                          Sem lote — verifique estoque
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Seleção de lote disponível */}
+                    {item.item_id && (lotesCache[item.item_id]?.length ?? 0) > 0 && (
+                      <div>
+                        <Label className="text-xs">Selecionar Lote Disponível (FEFO)</Label>
+                        <Select
+                          value={item.lote_id}
+                          onValueChange={(loteId) => {
+                            const lote = lotesCache[item.item_id]?.find((l: any) => l.id === loteId);
+                            if (!lote) return;
+                            // Monta infAdProd atualizado
+                            const infAuto = [
+                              `LOTE: ${lote.numero_lote}`,
+                              lote.data_val ? `VAL: ${lote.data_val.split("-").reverse().join("/")}` : "",
+                              item.obs_op ? `OBS: ${item.obs_op}` : "",
+                            ].filter(Boolean).join(" | ");
+                            setItens(prev => {
+                              const u = [...prev];
+                              u[idx] = {
+                                ...u[idx],
+                                lote_id: lote.id,
+                                nLote: lote.numero_lote,
+                                qLote: u[idx].quantidade,
+                                dFab: lote.data_fab || "",
+                                dVal: lote.data_val || "",
+                                info_adicional_item: infAuto,
+                              };
+                              return u;
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="text-xs h-9">
+                            <SelectValue placeholder="Selecione o lote..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {lotesCache[item.item_id]?.map((lote: any) => (
+                              <SelectItem key={lote.id} value={lote.id} className="text-xs">
+                                {lote.numero_lote} — Val: {lote.data_val ? lote.data_val.split("-").reverse().join("/") : "s/d"} — Qtde: {lote.quantidade_interna}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <Label className="text-xs">Nº Lote (nLot)</Label>
+                        <Input
+                          value={item.nLote}
+                          onChange={e => {
+                            updateItem(idx, "nLote", e.target.value);
+                            // Atualiza infAdProd ao editar manualmente
+                            const infAuto = [
+                              e.target.value ? `LOTE: ${e.target.value}` : "",
+                              item.dVal ? `VAL: ${item.dVal.split("-").reverse().join("/")}` : "",
+                              item.obs_op ? `OBS: ${item.obs_op}` : "",
+                            ].filter(Boolean).join(" | ");
+                            updateItem(idx, "info_adicional_item", infAuto);
+                          }}
+                          className="text-xs font-mono"
+                          placeholder="Ex: LOT-2024-001"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Qtde Lote (qLot)</Label>
+                        <Input
+                          type="number" step="0.0001"
+                          value={item.qLote}
+                          onChange={e => updateItem(idx, "qLote", Number(e.target.value))}
+                          className="text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Data Fabricação (dFab)</Label>
+                        <Input
+                          type="date"
+                          value={item.dFab}
+                          onChange={e => updateItem(idx, "dFab", e.target.value)}
+                          className="text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Data Validade (dVal)</Label>
+                        <Input
+                          type="date"
+                          value={item.dVal}
+                          onChange={e => {
+                            updateItem(idx, "dVal", e.target.value);
+                            const infAuto = [
+                              item.nLote ? `LOTE: ${item.nLote}` : "",
+                              e.target.value ? `VAL: ${e.target.value.split("-").reverse().join("/")}` : "",
+                              item.obs_op ? `OBS: ${item.obs_op}` : "",
+                            ].filter(Boolean).join(" | ");
+                            updateItem(idx, "info_adicional_item", infAuto);
+                          }}
+                          className="text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Observação da OP */}
+                    <div>
+                      <Label className="text-xs flex items-center gap-1">
+                        Observação da OP
+                        <Badge variant="secondary" className="text-[10px]">auto da OP</Badge>
+                      </Label>
+                      <Input
+                        value={item.obs_op}
+                        onChange={e => {
+                          updateItem(idx, "obs_op", e.target.value);
+                          const infAuto = [
+                            item.nLote ? `LOTE: ${item.nLote}` : "",
+                            item.dVal ? `VAL: ${item.dVal.split("-").reverse().join("/")}` : "",
+                            e.target.value ? `OBS: ${e.target.value}` : "",
+                          ].filter(Boolean).join(" | ");
+                          updateItem(idx, "info_adicional_item", infAuto);
+                        }}
+                        className="text-xs"
+                        placeholder="Preenchido automaticamente da Ordem de Produção"
+                      />
+                    </div>
+
                     {/* Pedido / Info Adicional */}
                     <Separator />
                     <div className="grid grid-cols-2 gap-2">
                       <div><Label className="text-xs">Nº Pedido Compra (xPed)</Label><Input value={item.xPed} onChange={e => updateItem(idx, "xPed", e.target.value)} className="text-xs" placeholder="Opcional" /></div>
                       <div><Label className="text-xs">Item do Pedido (nItemPed)</Label><Input value={item.nItemPed} onChange={e => updateItem(idx, "nItemPed", e.target.value)} className="text-xs" placeholder="Opcional" /></div>
                     </div>
-                    <div><Label className="text-xs">Informações Adicionais do Item (infAdProd)</Label><Input value={item.info_adicional_item} onChange={e => updateItem(idx, "info_adicional_item", e.target.value)} className="text-xs" placeholder="Observações fiscais do item" /></div>
+                    <div>
+                      <Label className="text-xs flex items-center gap-1">
+                        Informações Adicionais do Item (infAdProd)
+                        <Badge variant="outline" className="text-[10px]">gerado automaticamente</Badge>
+                      </Label>
+                      <Input
+                        value={item.info_adicional_item}
+                        onChange={e => updateItem(idx, "info_adicional_item", e.target.value)}
+                        className="text-xs font-mono"
+                        placeholder="LOTE: xxx | VAL: dd/mm/aaaa | OBS: ..."
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Este campo é incluído no XML da NF-e e no DANFE para rastreabilidade e controle do destinatário.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
