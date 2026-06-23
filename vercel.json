@@ -14,6 +14,5 @@
     "VITE_FRONTEND_FORGE_API_KEY": "@frontend_forge_api_key",
     "VITE_FRONTEND_FORGE_API_URL": "@frontend_forge_api_url"
   },
-  "public": false,
   "regions": ["sfo1"]
 }
