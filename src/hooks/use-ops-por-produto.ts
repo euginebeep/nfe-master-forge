@@ -6,7 +6,8 @@
  * responsável técnico, sala de produção, temperatura/umidade e observações.
  *
  * Usado na NF-e de saída para vincular o item ao lote produzido e garantir
- * rastreabilidade completa conforme ANVISA RDC 658/2022 e NT 2013.005 SEFAZ.
+ * rastreabilidade completa conforme ANVISA RDC 243/2018 (suplementos alimentares),
+ * RDC 275/2002 (boas práticas sanitárias de alimentos) e NT 2013.005 SEFAZ.
  */
 
 import { useQuery } from "@tanstack/react-query";

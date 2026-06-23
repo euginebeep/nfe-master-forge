@@ -51,7 +51,7 @@ MÓDULOS:
 
 FLUXO DE PRODUÇÃO: Criar OP → Separar MPs → Pesar → Misturar (Estearato por último, máx 2 min) → Encapsular → QC peso → Amostra retenção → Embalar → RT assina → DISPONÍVEL → NF-e → Contas a Receber.
 
-REGULATÓRIO: RDC 243/2018, 275/2002, 658/2022, 990/2025 / IN 281/2024 (notificação ANVISA obrigatória set/2026).
+REGULATÓRIO (suplementos alimentares): RDC 243/2018 (requisitos sanitários de suplementos), RDC 275/2002 (BPF alimentos), RDC 990/2025 / IN 281/2024 (notificação ANVISA obrigatória set/2026). ATENÇÃO: A RDC 658/2022 é BPF de MEDICAMENTOS e não se aplica a suplementos alimentares — nunca citar como base legal para suplementos.
 
 REGRAS:
 1. Sempre em português brasileiro
