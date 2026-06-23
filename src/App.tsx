@@ -53,6 +53,7 @@ const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage")
 const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
 const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
 const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
+const FatorConversaoPage = lazy(() => import("./pages/compras/FatorConversaoPage"));
 const ContasPagarPage = lazy(() => import("./pages/financeiro/ContasPagarPage"));
 const ContasReceberPage = lazy(() => import("./pages/financeiro/ContasReceberPage"));
 const FluxoCaixaPage = lazy(() => import("./pages/financeiro/FluxoCaixaPage"));
@@ -210,6 +211,7 @@ const App = () => (
                 <Route path="/compras/importar-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/nfe-import" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasEntradaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/fator-conversao" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><FatorConversaoPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Financeiro — gerente+ */}
                 <Route path="/financeiro/pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/contas-pagar" element={<Navigate to="/financeiro/pagar" replace />} />
