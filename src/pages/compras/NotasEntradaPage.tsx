@@ -20,6 +20,7 @@ import { useNotasEntrada, type NotaEntrada } from "@/hooks/use-notas-entrada";
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 import { DeleteNotaDialog } from "@/components/nfe/DeleteNotaDialog";
+import { BackButton } from "@/components/ui/back-button";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -331,17 +332,20 @@ export default function NotasEntradaPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-5">
-      <PageHeader
-        title="Notas de Entrada"
-        description="Histórico de notas fiscais de compra importadas"
-        icon={FileText}
-        actions={
-          <Button onClick={() => navigate("/compras/importar-nfe")}>
-            Importar NF-e
-          </Button>
-        }
-      />
+    <div className="p-2 sm:p-3 max-w-full mx-auto space-y-3 h-screen flex flex-col">
+      <div className="flex items-center justify-between gap-2">
+        <BackButton />
+        <PageHeader
+          title="Notas de Entrada"
+          description="Histórico de notas fiscais de compra importadas"
+          icon={FileText}
+          actions={
+            <Button onClick={() => navigate("/compras/importar-nfe")}>
+              Importar NF-e
+            </Button>
+          }
+        />
+      </div>
 
       {/* ── KPIs ─────────────────────────────────────────────── */}
       {!isLoading && notas.length > 0 && (
@@ -451,14 +455,17 @@ export default function NotasEntradaPage() {
           </CardContent>
         </Card>
       ) : (
-        <DataTable
-          data={notasFiltradas}
-          columns={columns}
-          loading={isLoading}
-          searchable={false}
-          onRowClick={(item) => handleViewNota(item)}
-          emptyMessage="Nenhuma nota encontrada para os filtros selecionados"
-        />
+        <div className="flex-1 overflow-y-auto border rounded-lg">
+          <DataTable
+            data={notasFiltradas}
+            columns={columns}
+            loading={isLoading}
+            searchable={false}
+            onRowClick={(item) => handleViewNota(item)}
+            emptyMessage="Nenhuma nota encontrada para os filtros selecionados"
+            pageSize={50}
+          />
+        </div>
       )}
 
       <NFeVisualizacaoDialog open={showNFeDialog} onOpenChange={setShowNFeDialog} chaveNfe={selectedChaveNfe} />
