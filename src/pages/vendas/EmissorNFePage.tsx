@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/use-company";
 import { useNavigate } from "react-router-dom";
+import { useOPsPorProduto, gerarInfoAdProdOP, gerarRastreabilidadeMPs, type OPRastreabilidade } from "@/hooks/use-ops-por-produto";
 
 // ─── Constants ───
 
@@ -370,34 +371,18 @@ export default function EmissorNFePage() {
     },
   });
 
-  // Lotes disponíveis por item (para seleção de rastro)
-  // Armazena lotes por item_id: { [item_id]: lote[] }
+  // Lotes disponíveis por item (cache para seleção manual de lote de estoque)
   const [lotesCache, setLotesCache] = React.useState<Record<string, any[]>>({});
 
-  const fetchLotesPorItem = React.useCallback(async (item_id: string) => {
-    if (!item_id || lotesCache[item_id]) return;
-    const { data } = await supabase
-      .from("estoque_lotes")
-      .select("id, numero_lote, data_fab, data_val, quantidade_interna, observacoes_qc")
-      .eq("item_id", item_id)
-      .eq("status", "DISPONIVEL")
-      .gt("quantidade_interna", 0)
-      .order("data_val", { ascending: true }); // FEFO
-    setLotesCache(prev => ({ ...prev, [item_id]: data || [] }));
-  }, [lotesCache]);
+  // OP selecionada por índice de item: { [itemIndex]: OPRastreabilidade }
+  const [opSelecionadaPorItem, setOpSelecionadaPorItem] = React.useState<Record<number, OPRastreabilidade>>({});
 
-  // Busca observação da OP mais recente para o produto
-  const fetchObsOP = React.useCallback(async (item_id: string): Promise<string> => {
-    const { data } = await supabase
-      .from("ordens_producao_industrial")
-      .select("observacoes, lote_produto_acabado, data_validade")
-      .eq("produto_id", item_id)
-      .not("observacoes", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    return data?.observacoes || "";
-  }, []);
+  // Produto atualmente ativo para busca de OPs (controlado pelo item em foco)
+  const [produtoFocoId, setProdutoFocoId] = React.useState<string | undefined>(undefined);
+  const [itemFocoIdx, setItemFocoIdx] = React.useState<number>(-1);
+
+  // Hook que busca OPs do produto em foco
+  const { data: opsDoProduto, isLoading: loadingOPs } = useOPsPorProduto(produtoFocoId);
 
   const cliente = clientes?.find((c: any) => c.id === clienteId);
 
@@ -455,66 +440,94 @@ export default function EmissorNFePage() {
     const produto = produtos?.find((p: any) => p.id === produtoId);
     if (!produto) return;
 
-    // Buscar lotes disponíveis (FEFO) e obs da OP em paralelo
-    const [lotesResult, obsOP] = await Promise.all([
-      supabase
-        .from("estoque_lotes")
-        .select("id, numero_lote, data_fab, data_val, quantidade_interna, observacoes_qc")
-        .eq("item_id", produtoId)
-        .eq("status", "DISPONIVEL")
-        .gt("quantidade_interna", 0)
-        .order("data_val", { ascending: true })
-        .limit(20),
-      supabase
-        .from("ordens_producao_industrial")
-        .select("observacoes")
-        .eq("produto_id", produtoId)
-        .not("observacoes", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+    // Atualiza o produto em foco para disparar a busca de OPs
+    setProdutoFocoId(produtoId);
+    setItemFocoIdx(index);
 
-    const lotes = lotesResult.data || [];
-    const primeiroLote = lotes[0] || null;
-    const obsOpTexto = obsOP.data?.observacoes || "";
+    // Buscar a OP mais recente finalizada do produto para pré-preencher
+    const { data: opsData } = await supabase
+      .from("ordens_producao_industrial")
+      .select(`
+        id, codigo, lote_produto_acabado, data_fabricacao, data_validade,
+        produto_nome, produto_id, quantidade_frascos, total_capsulas, status,
+        rt_nome, rt_numero_registro, rt_tipo_conselho, sala_producao,
+        temperatura_inicio, umidade_inicio, observacoes, formula_codigo,
+        formula_versao, excipiente_base, tipo_apresentacao,
+        op_materias_primas (
+          id, insumo_nome, categoria, ordem_mistura, numero_lote, lote_id,
+          quantidade_teorica_g, quantidade_real_g, dentro_tolerancia, fornecedor_nome
+        )
+      `)
+      .eq("produto_id", produtoId)
+      .in("status", ["FINALIZADA", "EM_PRODUCAO"])
+      .order("data_fabricacao", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    // Atualiza cache de lotes
-    setLotesCache(prev => ({ ...prev, [produtoId]: lotes }));
+    const opMaisRecente = opsData as any;
 
-    // Monta infAdProd automático com lote + validade + obs OP
-    const infAdProdAuto = [
-      primeiroLote ? `LOTE: ${primeiroLote.numero_lote}` : "",
-      primeiroLote?.dVal || primeiroLote?.data_val ? `VAL: ${(primeiroLote.data_val || "").split("-").reverse().join("/")}` : "",
-      obsOpTexto ? `OBS: ${obsOpTexto}` : "",
-    ].filter(Boolean).join(" | ");
+    // Se encontrou OP, pré-preenche com os dados dela
+    if (opMaisRecente) {
+      const infAdProd = [
+        `LOTE: ${opMaisRecente.lote_produto_acabado}`,
+        opMaisRecente.data_validade ? `VAL: ${opMaisRecente.data_validade.split("-").reverse().join("/")}` : "",
+        opMaisRecente.data_fabricacao ? `FAB: ${opMaisRecente.data_fabricacao.split("-").reverse().join("/")}` : "",
+        `OP: ${opMaisRecente.codigo}`,
+        opMaisRecente.formula_codigo ? `FORMULA: ${opMaisRecente.formula_codigo}${opMaisRecente.formula_versao ? ` v${opMaisRecente.formula_versao}` : ""}` : "",
+        opMaisRecente.rt_nome ? `RT: ${opMaisRecente.rt_nome}` : "",
+        opMaisRecente.observacoes ? `OBS: ${opMaisRecente.observacoes}` : "",
+      ].filter(Boolean).join(" | ");
 
-    setItens((prev) => {
-      const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
-        item_id: produto.id,
-        cProd: produto.sku_interno || "",
-        descricao: produto.descricao_interna,
-        ncm: produto.ncm || "",
-        unidade: produto.unidade_interna || "UN",
-        uTrib: produto.unidade_interna || "UN",
-        ean: produto.ean || "SEM GTIN",
-        eanTrib: produto.ean || "SEM GTIN",
-        valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
-        vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
-        // Rastreabilidade: pré-preenche com o lote FEFO mais antigo
-        lote_id: primeiroLote?.id || "",
-        nLote: primeiroLote?.numero_lote || "",
-        qLote: updated[index].quantidade || 1,
-        dFab: primeiroLote?.data_fab || "",
-        dVal: primeiroLote?.data_val || "",
-        obs_op: obsOpTexto,
-        info_adicional_item: infAdProdAuto,
-      };
-      return updated;
-    });
-  }, [produtos, setLotesCache]);
+      setOpSelecionadaPorItem(prev => ({ ...prev, [index]: opMaisRecente }));
+
+      setItens((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          item_id: produto.id,
+          cProd: produto.sku_interno || "",
+          descricao: produto.descricao_interna,
+          ncm: produto.ncm || "",
+          unidade: produto.unidade_interna || "UN",
+          uTrib: produto.unidade_interna || "UN",
+          ean: produto.ean || "SEM GTIN",
+          eanTrib: produto.ean || "SEM GTIN",
+          valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
+          vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
+          // Rastreabilidade vem da OP do produto acabado
+          lote_id: "",  // lote de estoque não se aplica — rastreado via OP
+          nLote: opMaisRecente.lote_produto_acabado,
+          qLote: updated[index].quantidade || 1,
+          dFab: opMaisRecente.data_fabricacao || "",
+          dVal: opMaisRecente.data_validade || "",
+          obs_op: opMaisRecente.observacoes || "",
+          info_adicional_item: infAdProd,
+        };
+        return updated;
+      });
+    } else {
+      // Sem OP: apenas preenche dados do produto
+      setItens((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          item_id: produto.id,
+          cProd: produto.sku_interno || "",
+          descricao: produto.descricao_interna,
+          ncm: produto.ncm || "",
+          unidade: produto.unidade_interna || "UN",
+          uTrib: produto.unidade_interna || "UN",
+          ean: produto.ean || "SEM GTIN",
+          eanTrib: produto.ean || "SEM GTIN",
+          valor_unitario: produto.catalogo_precos?.[0]?.preco_venda || 0,
+          vUnTrib: produto.catalogo_precos?.[0]?.preco_venda || 0,
+          lote_id: "", nLote: "", qLote: 0, dFab: "", dVal: "", obs_op: "",
+          info_adicional_item: "",
+        };
+        return updated;
+      });
+    }
+  }, [produtos]);
 
   // Duplicatas
   const addDuplicata = () => setDuplicatas(prev => [...prev, { nDup: String(prev.length + 1).padStart(3, "0"), dVenc: "", vDup: 0 }]);
@@ -1090,84 +1103,136 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">V. COFINS</Label><Input value={`R$ ${fmt(item.cofins_valor)}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
 
-                    {/* ════════ RASTREABILIDADE DE LOTE (rastro XML NF-e — NT 2013.005) ════════ */}
+                    {/* ════════ RASTREABILIDADE — OP DO PRODUTO ACABADO ════════ */}
                     <Separator />
                     <div className="flex items-center gap-2 py-1">
                       <FlaskConical className="h-3.5 w-3.5 text-primary" />
-                      <p className="text-xs font-semibold text-primary">RASTREABILIDADE DE LOTE (rastro XML)</p>
+                      <p className="text-xs font-semibold text-primary">RASTREABILIDADE — ORDEM DE PRODUÇÃO</p>
                       {item.nLote && (
                         <Badge variant="default" className="text-[10px] h-5 bg-green-600">
-                          <CalendarCheck className="h-3 w-3 mr-1" /> Lote vinculado
+                          <CalendarCheck className="h-3 w-3 mr-1" /> Lote da OP vinculado
                         </Badge>
                       )}
                       {!item.nLote && item.item_id && (
                         <Badge variant="destructive" className="text-[10px] h-5">
-                          Sem lote — verifique estoque
+                          Sem OP finalizada — preencha manualmente
                         </Badge>
                       )}
                     </div>
 
-                    {/* Seleção de lote disponível */}
-                    {item.item_id && (lotesCache[item.item_id]?.length ?? 0) > 0 && (
+                    {/* Seleção de OP do produto */}
+                    {item.item_id && (
                       <div>
-                        <Label className="text-xs">Selecionar Lote Disponível (FEFO)</Label>
-                        <Select
-                          value={item.lote_id}
-                          onValueChange={(loteId) => {
-                            const lote = lotesCache[item.item_id]?.find((l: any) => l.id === loteId);
-                            if (!lote) return;
-                            // Monta infAdProd atualizado
-                            const infAuto = [
-                              `LOTE: ${lote.numero_lote}`,
-                              lote.data_val ? `VAL: ${lote.data_val.split("-").reverse().join("/")}` : "",
-                              item.obs_op ? `OBS: ${item.obs_op}` : "",
-                            ].filter(Boolean).join(" | ");
-                            setItens(prev => {
-                              const u = [...prev];
-                              u[idx] = {
-                                ...u[idx],
-                                lote_id: lote.id,
-                                nLote: lote.numero_lote,
-                                qLote: u[idx].quantidade,
-                                dFab: lote.data_fab || "",
-                                dVal: lote.data_val || "",
-                                info_adicional_item: infAuto,
-                              };
-                              return u;
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="text-xs h-9">
-                            <SelectValue placeholder="Selecione o lote..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {lotesCache[item.item_id]?.map((lote: any) => (
-                              <SelectItem key={lote.id} value={lote.id} className="text-xs">
-                                {lote.numero_lote} — Val: {lote.data_val ? lote.data_val.split("-").reverse().join("/") : "s/d"} — Qtde: {lote.quantidade_interna}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label className="text-xs flex items-center gap-1">
+                          Selecionar Ordem de Produção
+                          <Badge variant="secondary" className="text-[10px]">lote + validade + MPs</Badge>
+                        </Label>
+                        {loadingOPs && produtoFocoId === item.item_id ? (
+                          <p className="text-[10px] text-muted-foreground py-1">Buscando OPs...</p>
+                        ) : (
+                          <Select
+                            value={opSelecionadaPorItem[idx]?.id || ""}
+                            onValueChange={(opId) => {
+                              const op = opsDoProduto?.find((o) => o.id === opId);
+                              if (!op) return;
+                              const infAdProd = [
+                                `LOTE: ${op.lote_produto_acabado}`,
+                                op.data_validade ? `VAL: ${op.data_validade.split("-").reverse().join("/")}` : "",
+                                op.data_fabricacao ? `FAB: ${op.data_fabricacao.split("-").reverse().join("/")}` : "",
+                                `OP: ${op.codigo}`,
+                                op.formula_codigo ? `FORMULA: ${op.formula_codigo}${op.formula_versao ? ` v${op.formula_versao}` : ""}` : "",
+                                op.rt_nome ? `RT: ${op.rt_nome}` : "",
+                                op.observacoes ? `OBS: ${op.observacoes}` : "",
+                              ].filter(Boolean).join(" | ");
+                              setOpSelecionadaPorItem(prev => ({ ...prev, [idx]: op }));
+                              setItens(prev => {
+                                const u = [...prev];
+                                u[idx] = {
+                                  ...u[idx],
+                                  nLote: op.lote_produto_acabado,
+                                  qLote: u[idx].quantidade,
+                                  dFab: op.data_fabricacao || "",
+                                  dVal: op.data_validade || "",
+                                  obs_op: op.observacoes || "",
+                                  info_adicional_item: infAdProd,
+                                };
+                                return u;
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="text-xs h-9">
+                              <SelectValue placeholder="Selecione a OP do produto acabado..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(opsDoProduto || []).map((op) => (
+                                <SelectItem key={op.id} value={op.id} className="text-xs">
+                                  {op.codigo} — Lote: {op.lote_produto_acabado} — Val: {op.data_validade ? op.data_validade.split("-").reverse().join("/") : "s/d"} — {op.status}
+                                </SelectItem>
+                              ))}
+                              {(!opsDoProduto || opsDoProduto.length === 0) && (
+                                <SelectItem value="__none__" disabled className="text-xs text-muted-foreground">
+                                  Nenhuma OP encontrada para este produto
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Painel de rastreabilidade da OP selecionada */}
+                    {opSelecionadaPorItem[idx] && (
+                      <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 p-3 space-y-2">
+                        <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide">
+                          Rastreabilidade da OP {opSelecionadaPorItem[idx].codigo}
+                        </p>
+                        <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+                          <span><strong>Lote PA:</strong> {opSelecionadaPorItem[idx].lote_produto_acabado}</span>
+                          <span><strong>Fabricação:</strong> {opSelecionadaPorItem[idx].data_fabricacao?.split("-").reverse().join("/")}</span>
+                          <span><strong>Validade:</strong> {opSelecionadaPorItem[idx].data_validade?.split("-").reverse().join("/")}</span>
+                          {opSelecionadaPorItem[idx].formula_codigo && (
+                            <span><strong>Fórmula:</strong> {opSelecionadaPorItem[idx].formula_codigo} v{opSelecionadaPorItem[idx].formula_versao}</span>
+                          )}
+                          {opSelecionadaPorItem[idx].rt_nome && (
+                            <span><strong>RT:</strong> {opSelecionadaPorItem[idx].rt_nome}</span>
+                          )}
+                          {opSelecionadaPorItem[idx].sala_producao && (
+                            <span><strong>Sala:</strong> {opSelecionadaPorItem[idx].sala_producao}</span>
+                          )}
+                        </div>
+                        {/* Matérias-primas rastreadas */}
+                        {opSelecionadaPorItem[idx].materias_primas?.filter((mp: any) => mp.numero_lote).length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 mt-1">Matérias-primas (lotes rastreados):</p>
+                            <div className="space-y-0.5">
+                              {opSelecionadaPorItem[idx].materias_primas
+                                .filter((mp: any) => mp.numero_lote)
+                                .map((mp: any) => (
+                                  <p key={mp.id} className="text-[10px] text-muted-foreground">
+                                    • <strong>{mp.insumo_nome}</strong>: Lote {mp.numero_lote}
+                                    {mp.lote?.data_val ? ` — Val: ${mp.lote.data_val.split("-").reverse().join("/")}` : ""}
+                                    {mp.fornecedor_nome ? ` — ${mp.fornecedor_nome}` : ""}
+                                  </p>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                        {opSelecionadaPorItem[idx].observacoes && (
+                          <p className="text-[10px] text-muted-foreground">
+                            <strong>Obs. OP:</strong> {opSelecionadaPorItem[idx].observacoes}
+                          </p>
+                        )}
                       </div>
                     )}
 
                     <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <Label className="text-xs">Nº Lote (nLot)</Label>
+                        <Label className="text-xs">Nº Lote PA (nLot)</Label>
                         <Input
                           value={item.nLote}
-                          onChange={e => {
-                            updateItem(idx, "nLote", e.target.value);
-                            // Atualiza infAdProd ao editar manualmente
-                            const infAuto = [
-                              e.target.value ? `LOTE: ${e.target.value}` : "",
-                              item.dVal ? `VAL: ${item.dVal.split("-").reverse().join("/")}` : "",
-                              item.obs_op ? `OBS: ${item.obs_op}` : "",
-                            ].filter(Boolean).join(" | ");
-                            updateItem(idx, "info_adicional_item", infAuto);
-                          }}
+                          onChange={e => updateItem(idx, "nLote", e.target.value)}
                           className="text-xs font-mono"
-                          placeholder="Ex: LOT-2024-001"
+                          placeholder="Preenchido pela OP"
                         />
                       </div>
                       <div>
@@ -1193,15 +1258,7 @@ export default function EmissorNFePage() {
                         <Input
                           type="date"
                           value={item.dVal}
-                          onChange={e => {
-                            updateItem(idx, "dVal", e.target.value);
-                            const infAuto = [
-                              item.nLote ? `LOTE: ${item.nLote}` : "",
-                              e.target.value ? `VAL: ${e.target.value.split("-").reverse().join("/")}` : "",
-                              item.obs_op ? `OBS: ${item.obs_op}` : "",
-                            ].filter(Boolean).join(" | ");
-                            updateItem(idx, "info_adicional_item", infAuto);
-                          }}
+                          onChange={e => updateItem(idx, "dVal", e.target.value)}
                           className="text-xs"
                         />
                       </div>
@@ -1211,19 +1268,11 @@ export default function EmissorNFePage() {
                     <div>
                       <Label className="text-xs flex items-center gap-1">
                         Observação da OP
-                        <Badge variant="secondary" className="text-[10px]">auto da OP</Badge>
+                        <Badge variant="secondary" className="text-[10px]">da OP selecionada</Badge>
                       </Label>
                       <Input
                         value={item.obs_op}
-                        onChange={e => {
-                          updateItem(idx, "obs_op", e.target.value);
-                          const infAuto = [
-                            item.nLote ? `LOTE: ${item.nLote}` : "",
-                            item.dVal ? `VAL: ${item.dVal.split("-").reverse().join("/")}` : "",
-                            e.target.value ? `OBS: ${e.target.value}` : "",
-                          ].filter(Boolean).join(" | ");
-                          updateItem(idx, "info_adicional_item", infAuto);
-                        }}
+                        onChange={e => updateItem(idx, "obs_op", e.target.value)}
                         className="text-xs"
                         placeholder="Preenchido automaticamente da Ordem de Produção"
                       />
