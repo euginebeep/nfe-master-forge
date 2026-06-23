@@ -48,7 +48,7 @@ export function useNotasEntrada() {
       // 1. Buscar notas com join de entidades (fornecedor)
       const { data: notas, error } = await supabase
         .from('notas_entrada')
-        .select(`*, entidades:fornecedor_id (razao_social, nome_fantasia, cpf_cnpj)`)
+        .select(`*, entidades:fornecedor_id (razao_social, nome_fantasia, documento)`)
         .order('dh_emissao', { ascending: false });
 
       if (error) throw error;
@@ -128,7 +128,7 @@ export function useNotasEntrada() {
           fornecedor_id: nota.fornecedor_id,
           fornecedor_razao: ent?.razao_social ?? nota.fornecedor_razao ?? null,
           fornecedor_nome_fantasia: ent?.nome_fantasia ?? null,
-          fornecedor_cnpj: ent?.cpf_cnpj ?? nota.fornecedor_cnpj ?? null,
+          fornecedor_cnpj: ent?.documento ?? nota.fornecedor_cnpj ?? null,
           total_produtos: nota.total_produtos,
           total_nota: nota.total_nota,
           status: nota.status,
