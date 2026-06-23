@@ -310,7 +310,6 @@ export default function NotasEntradaPage() {
             totalItens={item.qtd_itens || 0}
             onDeleted={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
           />
-          </Button>
         </div>
       ),
     },
