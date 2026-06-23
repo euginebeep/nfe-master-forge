@@ -169,13 +169,11 @@ function buildTabelaNutricionalOficial(
   const fatorPara100g = massaTotalPorcaoMg > 0 ? 100000 / massaTotalPorcaoMg : 0;
 
   const linhasCoreHTML = nutrientesCore.map((nut, i) => {
-    const valor100g = arredondarValorNutricional(nut.valor * fatorPara100g, nut.unidade);
     const valorPorcao = arredondarValorNutricional(nut.valor, nut.unidade);
     const isLast = i === nutrientesCore.length - 1;
     return `
       <div class="tn-row${isLast ? ' last' : ''}">
         <div class="tn-nome">${esc(nut.nome)}</div>
-        <div class="tn-val">${valor100g} ${nut.unidade}</div>
         <div class="tn-val">${valorPorcao} ${nut.unidade}</div>
         <div class="tn-val">0%</div>
       </div>`;
@@ -197,14 +195,12 @@ function buildTabelaNutricionalOficial(
     }
 
     const percentVD = key ? calcPercentVD(key, dose, unit) : '**';
-    const val100g = arredondarValorNutricional(dose * fatorPara100g, unit);
     const valPorcao = arredondarValorNutricional(dose, unit);
     const isLast = i === ativosValidos.length - 1;
 
     return `
       <div class="tn-row${isLast ? ' last' : ''}">
         <div class="tn-nome">${esc(nomeAtivo)}</div>
-        <div class="tn-val">${val100g} ${esc(unit)}</div>
         <div class="tn-val">${valPorcao} ${esc(unit)}</div>
         <div class="tn-val">${esc(percentVD)}</div>
       </div>`;
@@ -219,9 +215,8 @@ function buildTabelaNutricionalOficial(
       <div class="tn-subtitulo">${esc(porcaoTexto)}</div>
       <div class="tn-subtitulo tn-subtitulo-last">${esc(porcoesTexto)}</div>
       <div class="tn-head-row">
-        <div class="tn-nome-head">&nbsp;</div>
-        <div class="tn-val-head">100 g</div>
-        <div class="tn-val-head">Porção</div>
+        <div class="tn-nome-head">Nutriente</div>
+        <div class="tn-val-head">Qtd por Porção</div>
         <div class="tn-val-head">%VD*</div>
       </div>
       ${linhasCoreHTML}
@@ -295,8 +290,8 @@ const SHARED_CSS = `
   h2.section { font-size: 9.5pt; color: ${C.navy}; margin: 18px 0 9px; text-transform: uppercase; letter-spacing: .4px; font-weight: 800; padding-bottom: 6px; border-bottom: 2px solid ${C.green}; display: inline-block; }
   table.cmp { width:100%; border-collapse: collapse; background:#fff; border: 1px solid ${C.border}; border-radius: 8px; overflow: hidden; }
   table.cmp th { background: ${C.navy}; color: #fff; padding: 8px 10px; text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .4px; }
-  .nutri-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
-  .posologia-card { flex: 1; min-width: 200px; background: #fff; border: 1px solid ${C.border}; border-radius: 8px; padding: 14px; }
+  .nutri-row { display: flex; gap: 20px; flex-wrap: nowrap; align-items: flex-start; margin-bottom: 6px; }
+  .posologia-card { flex: 1; min-width: 180px; background: #fff; border: 1px solid ${C.border}; border-radius: 8px; padding: 14px; }
   .posologia-card .title { font-size: 8pt; text-transform: uppercase; letter-spacing: .5px; color: ${C.navy}; font-weight: 800; margin-bottom: 10px; }
   .posologia-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
   .posologia-grid > div { text-align: center; background: ${C.navyLight}; border-radius: 6px; padding: 8px 4px; }
@@ -309,21 +304,22 @@ const SHARED_CSS = `
   .col-ok h3 { color: ${C.greenText}; font-size: 10pt; margin: 0 0 6px; font-weight: 800; }
   .col-no h3 { color: ${C.redText}; font-size: 10pt; margin: 0 0 6px; font-weight: 800; }
   .duas-colunas ul { margin: 0; padding-left: 16px; font-size: 9pt; color: ${C.textDark}; }
-  .assinatura { margin-top: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; font-size: 9pt; text-align: center; }
-  .assinatura div { border-top: 1px solid ${C.navy}; padding-top: 10px; }
+  .assinatura { margin-top: 64px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; font-size: 9pt; text-align: center; }
+  .assinatura div { border-top: 2px solid ${C.navy}; padding-top: 14px; margin-top: 48px; }
   .legal { margin-top: 24px; padding-top: 10px; border-top: 1px solid ${C.border}; font-size: 7.5pt; color: ${C.gray}; line-height: 1.5; }
   .legal a { color: ${C.green}; text-decoration: none; font-weight: 600; }
   .protocolo-badge { display:inline-block; font-family:'Courier New',monospace; font-size:7pt; color:${C.grayLight}; border:1px solid ${C.border}; padding:2px 8px; border-radius:4px; margin-top:6px; }
   .page-break { page-break-before: always; }
   section { margin-bottom: 14px; page-break-inside: avoid; }
   .bloco-final { page-break-inside: avoid; margin-top: 32px; }
-  .tn-table { width: 320px; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; border: 2px solid #000; }
+  .tn-table { width: 300px; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; border: 2px solid #000; }
   .tn-titulo { text-align: center; font-weight: 700; font-size: 10pt; text-transform: uppercase; padding: 4px 8px 3px; border-bottom: 3px solid #000; }
-  .tn-subtitulo { text-align: center; font-size: 8pt; padding: 2px 8px; border-bottom: 1px solid #000; }
+  .tn-subtitulo { text-align: left; font-size: 8pt; padding: 2px 8px; border-bottom: 1px solid #000; }
   .tn-subtitulo-last { border-bottom: 2px solid #000; }
-  .tn-head-row { display: grid; grid-template-columns: 1fr 50px 76px 40px; border-bottom: 2px solid #000; }
-  .tn-nome-head, .tn-val-head { font-size: 8pt; text-align: center; padding: 2px 4px; }
-  .tn-row { display: grid; grid-template-columns: 1fr 50px 76px 40px; border-bottom: 1px solid #000; }
+  .tn-head-row { display: grid; grid-template-columns: 1fr 100px 44px; border-bottom: 2px solid #000; }
+  .tn-nome-head { font-size: 8pt; text-align: left; padding: 2px 4px; font-weight: 700; }
+  .tn-val-head { font-size: 8pt; text-align: center; padding: 2px 4px; font-weight: 700; }
+  .tn-row { display: grid; grid-template-columns: 1fr 100px 44px; border-bottom: 1px solid #000; }
   .tn-row.last { border-bottom: 3px solid #000; }
   .tn-nome { font-size: 8pt; text-align: left; padding: 2px 4px; }
   .tn-val { font-size: 8pt; text-align: center; padding: 2px 4px; }
@@ -585,8 +581,15 @@ function buildBlocoProduto(
 
     <section>
       <h2 class="section">5. Avisos Obrigatórios de Rotulagem (RDC 243/2018)</h2>
-      <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:3px solid ${C.navy};padding:12px 16px;border-radius:8px;font-size:9.5pt;color:${C.textDark};line-height:1.8;">
-        ${esc(avisoObrigatorio)}
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">“Este produto não é um medicamento”</div>
+        <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">“Não substitui uma alimentação variada e equilibrada e um estilo de vida saudável”</div>
+        <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">“Manter fora do alcance de crianças”</div>
+        <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">“Não exceder a dose diária recomendada”</div>
+        <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">Número do lote e data de validade obrigatórios no rótulo</div>
+        <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">Nome e número do Responsável Técnico (CRN/CRF) obrigatórios</div>
+        <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">CNPJ e endereço completo do fabricante obrigatórios</div>
+        ${(produto.avisos_rotulo || []).map((av: string) => `<div style="background:${C.amberBg};border:1px solid #F0D27A;border-left:4px solid ${C.amber};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.amberText};">⚠ ${esc(av)}</div>`).join('')}
       </div>
     </section>
 
