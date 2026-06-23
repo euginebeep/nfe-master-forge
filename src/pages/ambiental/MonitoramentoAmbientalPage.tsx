@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
+import { useCompany } from "@/hooks/use-company";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMonitoramentoAmbiental,
@@ -340,6 +341,8 @@ export default function MonitoramentoAmbientalPage() {
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
   const navigate = useNavigate();
   const { data: companyId } = useUserCompanyId();
+  const { data: company } = useCompany();
+  const empresaNome = company?.nome_fantasia || company?.razao_social || "BrainX ERP";
 
   // Sensores configurados pelo tenant
   const { data: sensores = [], isLoading: isLoadingSensores } = useQuery({
@@ -536,8 +539,8 @@ export default function MonitoramentoAmbientalPage() {
         r.hum_max ?? "",
         STATUS_TEXT[st],
         rtName,
-        "BrainX ERP",
-        "POP-AMB-001",
+        empresaNome,
+        "Monitoramento Ambiental",
       ];
     });
     const csv =
@@ -988,7 +991,7 @@ export default function MonitoramentoAmbientalPage() {
         <span className="mx-1">|</span>
         <span>Sistema: BrainX ERP</span>
         <span className="mx-1">|</span>
-        <span>Ref: POP-AMB-001</span>
+        <span>{empresaNome}</span>
         <span className="mx-1">|</span>
         <span>Registros mantidos por 5 anos conforme legislação vigente</span>
       </div>

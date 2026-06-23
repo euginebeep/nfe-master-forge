@@ -280,7 +280,7 @@ export default function SensorDetailPage() {
     <h1>Relatório de Monitoramento Ambiental</h1>
     <p>Sensor: <strong>${roomName}</strong> &nbsp;|&nbsp; Dispositivo: <code>${deviceId}</code></p>
     <p>Período: <strong>${periodoLabel}</strong> &nbsp;|&nbsp; Gerado em: ${new Date().toLocaleString("pt-BR")}</p>
-    <span class="badge-rdc">POP-AMB-001</span>
+    <span class="badge-rdc">Monitoramento Ambiental</span>
   </div>
   <div class="header-right">
     <div class="empresa">${empresaNome}</div>
@@ -328,7 +328,7 @@ export default function SensorDetailPage() {
 </table>
 
 <div class="footer">
-  <span><span class="footer-brand">BrainX ERP</span> &nbsp;|&nbsp; ${empresaNome} &nbsp;|&nbsp; Ref: POP-AMB-001</span>
+  <span><span class="footer-brand">BrainX ERP</span> &nbsp;|&nbsp; ${empresaNome}</span>
   <span>Registros mantidos por 5 anos conforme legislação vigente &nbsp;|&nbsp; www.brainxerp.com</span>
 </div>
 
@@ -600,7 +600,7 @@ export default function SensorDetailPage() {
         <ShieldCheck className="w-4 h-4 text-emerald-600" />
         <span>Sistema: BrainX ERP</span>
         <span className="mx-1">|</span>
-        <span>Ref: POP-AMB-001</span>
+        <span>{company?.nome_fantasia || company?.razao_social || 'BrainX ERP'}</span>
         <span className="mx-1">|</span>
         <span>Registros mantidos por 5 anos conforme legislação vigente</span>
       </div>

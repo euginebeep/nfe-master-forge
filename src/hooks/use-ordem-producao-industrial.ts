@@ -381,7 +381,7 @@ export function useOrdemProducaoIndustrialActions() {
       iniciada_em: new Date().toISOString(),
     });
 
-    // Snapshot ambiental ao iniciar produção (RDC 658/2022)
+    // Snapshot ambiental ao iniciar produção (RDC 275/2002 — BPF alimentos/suplementos)
     try {
       const { data: ultimaLeitura } = await supabase
         .from('sensor_readings')
