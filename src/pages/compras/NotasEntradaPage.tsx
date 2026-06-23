@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useNotasEntrada, type NotaEntrada } from "@/hooks/use-notas-entrada";
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
+import { DeleteNotaDialog } from "@/components/nfe/DeleteNotaDialog";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -300,6 +301,15 @@ export default function NotasEntradaPage() {
             className="text-destructive hover:text-destructive"
           >
             <Undo2 className="h-4 w-4" />
+          </Button>
+          <DeleteNotaDialog
+            notaId={item.id}
+            notaNumero={item.numero}
+            notaSerie={item.serie}
+            fornecedorNome={item.fornecedor_nome_fantasia || item.fornecedor_razao || 'Desconhecido'}
+            totalItens={item.qtd_itens || 0}
+            onDeleted={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
+          />
           </Button>
         </div>
       ),
