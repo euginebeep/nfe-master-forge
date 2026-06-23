@@ -119,40 +119,60 @@ export function useHybridEntidades(filters?: { papel?: string; status?: string }
   return useQuery({
     queryKey: ['hybrid-entidades', filters],
     queryFn: async (): Promise<HybridEntidade[]> => {
-      // IMPORTANTE: Quando filtramos por papel, usamos !inner para fazer o filtro
-      // diretamente no SQL (PostgREST), evitando o problema de RLS recursivo onde
-      // entidade_papeis.RLS consulta entidades novamente, retornando array vazio
-      // e zerando o filtro JavaScript.
-      const selectClause = filters?.papel
-        ? `*, entidade_papeis!inner (papel), entidade_contatos (*)`
-        : `*, entidade_papeis (papel), entidade_contatos (*)`;
+      // ESTRATÉGIA: Duas queries separadas para evitar o RLS recursivo.
+      // O join entidades→entidade_papeis causa recursão no RLS de entidade_papeis
+      // (que consulta entidades para verificar company_id), retornando array vazio.
+      // Solução: buscar entidades e papéis separadamente, depois fazer merge em JS.
 
-      let query = supabase
+      // 1. Buscar entidades (sem join com entidade_papeis)
+      let entidadesQuery = supabase
         .from('entidades')
-        .select(selectClause)
+        .select('*, entidade_contatos (*)')
         .order('razao_social');
 
       if (filters?.status) {
-        query = query.eq('status', filters.status);
+        entidadesQuery = entidadesQuery.eq('status', filters.status);
       }
 
-      // Filtro por papel no SQL via inner join (não no JavaScript)
-      if (filters?.papel) {
-        query = (query as any).eq('entidade_papeis.papel', filters.papel);
+      const { data: entidades, error: entidadesError } = await entidadesQuery;
+
+      if (entidadesError) {
+        console.error('[useHybridEntidades] Erro ao buscar entidades:', entidadesError.message);
+        throw entidadesError;
       }
 
-      const { data, error } = await query;
+      if (!entidades || entidades.length === 0) return [];
 
-      if (error) {
-        console.error('[useHybridEntidades] Erro:', error.message);
-        throw error;
+      // 2. Buscar papéis separadamente (query independente, sem join recursivo)
+      const entidadeIds = entidades.map(e => e.id);
+      const { data: papeis, error: papeisError } = await supabase
+        .from('entidade_papeis')
+        .select('entidade_id, papel')
+        .in('entidade_id', entidadeIds);
+
+      if (papeisError) {
+        // Se falhar ao buscar papéis, retorna entidades sem filtro por papel
+        console.warn('[useHybridEntidades] Aviso ao buscar papéis:', papeisError.message);
       }
 
-      const result = (data || []).map(ent => ({
+      // 3. Merge em JavaScript
+      const papeisPorEntidade: Record<string, string[]> = {};
+      (papeis || []).forEach((p: { entidade_id: string; papel: string }) => {
+        if (!papeisPorEntidade[p.entidade_id]) papeisPorEntidade[p.entidade_id] = [];
+        papeisPorEntidade[p.entidade_id].push(p.papel);
+      });
+
+      let result = entidades.map(ent => ({
         ...ent,
-        papeis: ent.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
+        papeis: papeisPorEntidade[ent.id] || [],
+        entidade_papeis: (papeisPorEntidade[ent.id] || []).map(p => ({ papel: p })),
         _primaryContact: ent.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || ent.entidade_contatos?.[0],
       })) as HybridEntidade[];
+
+      // 4. Filtrar por papel no JavaScript (agora que temos os dados corretos)
+      if (filters?.papel) {
+        result = result.filter(e => e.papeis?.includes(filters.papel!));
+      }
 
       return result;
     },
