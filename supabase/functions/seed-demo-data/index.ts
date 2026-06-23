@@ -571,7 +571,7 @@ Deno.serve(async (req) => {
       const formula = formulas[cfg.pa % formulas.length];
       const loteNumero = `LPA-2026${String(cfg.i + 1).padStart(4, '0')}`;
       const qrToken = uid(11100 + cfg.i, 'qr');
-      const qrHash = await sha256(`${opId}:${loteNumero}:LOVABLE_OP_MASTER_SECRET_2026`);
+      const qrHash = await sha256(`${opId}:${loteNumero}:OP_MASTER_SECRET_2026`);
       const rt = rtRows[cfg.i % rtRows.length];
       const equip = equipamentos[cfg.eq];
       const isFinal = cfg.status === 'CONCLUIDA';
@@ -708,7 +708,7 @@ Deno.serve(async (req) => {
 
         // Lote de produto acabado (apenas OPs concluídas geram lote PA)
         const codAud = `AUD-${opId.slice(-12).toUpperCase()}`;
-        const loteHash = await sha256(`${loteNumero}:${opId}:LOVABLE_LOTE`);
+        const loteHash = await sha256(`${loteNumero}:${opId}:LOTE_HASH_SECRET`);
         lotesPA.push({
           id: uid(14000 + cfg.i, 'lp'), op_id: opId,
           numero_lote: loteNumero, codigo_auditoria: codAud,

@@ -1,7 +1,7 @@
 // BrainX ERP — Auth Email Hook
-// Substituição do @lovable.dev/email-js por Resend (https://resend.com)
-// Configurar o secret RESEND_API_KEY no Supabase para ativar.
-// Sem RESEND_API_KEY, o hook retorna erro 500 e o Supabase usa o e-mail padrão.
+// Email service powered by Resend API (https://resend.com)
+// Configure RESEND_API_KEY secret in Supabase to enable.
+// Without RESEND_API_KEY, the hook returns 500 and Supabase uses default email.
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { SignupEmail } from '../_shared/email-templates/signup.tsx'
