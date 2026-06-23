@@ -1,27 +1,19 @@
 {
-  "buildCommand": "rm -rf node_modules/.vite && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    {
-      "source": "/((?!api|_next|.*\\..*).*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" }
-      ]
-    }
-  ]
+  "framework": "vite",
+  "env": {
+    "VITE_SUPABASE_URL": "@supabase_url",
+    "VITE_SUPABASE_ANON_KEY": "@supabase_anon_key",
+    "VITE_ANALYTICS_ENDPOINT": "@analytics_endpoint",
+    "VITE_ANALYTICS_WEBSITE_ID": "@analytics_website_id",
+    "VITE_APP_ID": "@app_id",
+    "VITE_APP_TITLE": "@app_title",
+    "VITE_APP_LOGO": "@app_logo",
+    "VITE_OAUTH_PORTAL_URL": "@oauth_portal_url",
+    "VITE_FRONTEND_FORGE_API_KEY": "@frontend_forge_api_key",
+    "VITE_FRONTEND_FORGE_API_URL": "@frontend_forge_api_url"
+  },
+  "public": false,
+  "regions": ["sfo1"]
 }
