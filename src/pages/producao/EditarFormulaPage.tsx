@@ -744,7 +744,7 @@ export default function EditarFormulaPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="peso_enchimento_mg">
-                      Peso de Enchimento (mg)
+                      Peso de Enchimento Real (mg)
                       <span className="ml-1 text-xs text-muted-foreground">— pó apenas, sem cápsula vazia</span>
                     </Label>
                     <Input
@@ -753,10 +753,19 @@ export default function EditarFormulaPage() {
                       step="1"
                       min="100"
                       max="2000"
-                      value={(formula as any).peso_enchimento_mg || 500}
+                      value={(formula as any).peso_enchimento_mg || (formula as any).peso_capsula_alvo_mg || 500}
                       onChange={async (e) => {
                         const val = parseFloat(e.target.value) || 500;
-                        await atualizarFormula(formula.id, { peso_enchimento_mg: val });
+                        // Grava nos dois campos — peso_capsula_alvo_mg é o que
+                        // alimenta o "Peso Alvo" exibido acima e o Q.S.P. da
+                        // fórmula; peso_enchimento_mg alimenta a batelada da OP.
+                        // Antes só este segundo era gravado aqui, então editar
+                        // esse campo não atualizava o Peso Alvo mostrado nem
+                        // o Q.S.P. real — os dois agora ficam sempre iguais.
+                        await atualizarFormula(formula.id, {
+                          peso_enchimento_mg: val,
+                          peso_capsula_alvo_mg: val,
+                        } as any);
                         refresh();
                       }}
                       disabled={isReadOnly}

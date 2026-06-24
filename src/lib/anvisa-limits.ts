@@ -357,7 +357,88 @@ export function arredondarValorNutricional(valor: number, unidade: string): stri
   return String(valor);
 }
 
-// Regras de arredondamento do número de porções (Anexo VI)
+// ============================================================
+// GATE DE VALIDAÇÃO PÓS-IA — roda depois do anvisa-ai-verify (Gemini)
+// devolver o laudo. A IA é não-determinística: pode gerar doses em UI
+// fora de qualquer faixa plausível, ou marcar "ATENÇÃO" (abaixo do
+// mínimo) sem ajustar a dose, ao contrário do que faz para "BLOQUEADO"
+// (acima do máximo, onde ela corrige pro limite). Este validador pega
+// os dois padrões e qualquer outro adicionado aqui, e nunca deixa
+// passar silenciosamente — usar antes de exportLaudoA4 e antes de
+// importar produto.ativos para formula_itens (White Label).
+// ============================================================
+
+export interface AlertaValidacao {
+  severidade: 'BLOQUEIO' | 'AVISO';
+  ativo: string;
+  mensagem: string;
+}
+
+// Faixas de UI plausíveis em suplementos comerciais — abaixo disso é
+// quase certamente erro de unidade/conversão, não dose real intencional.
+const UI_MINIMO_PLAUSIVEL: Record<string, number> = {
+  vitamina_a: 100,
+  vitamina_d3: 50,
+  vitamina_d: 50,
+  vitamina_e: 5,
+};
+
+export function validarLaudoAntesExport(ativos: any[]): AlertaValidacao[] {
+  const alertas: AlertaValidacao[] = [];
+
+  for (const a of ativos) {
+    const nome = a.nome || a.name || '(sem nome)';
+    const key = resolveAnvisaKey(nome);
+    const unit = (a.unit || '').toLowerCase();
+    const dose = Number(a.dose) || 0;
+
+    // 1) UI implausível — provável erro de unidade/conversão
+    const minPlausivel = UI_MINIMO_PLAUSIVEL[key];
+    if (unit === 'ui' && minPlausivel !== undefined && dose > 0 && dose < minPlausivel) {
+      alertas.push({
+        severidade: 'BLOQUEIO',
+        ativo: nome,
+        mensagem: `Dose de ${dose} UI é implausível para ${nome} (mínimo comercial esperado ~${minPlausivel} UI). ` +
+          `Provável erro de unidade/conversão — confirmar valor real com o RT antes de gerar laudo ou fórmula.`,
+      });
+    }
+
+    // 2) Massa de ativo que zera ao arredondar — sinaliza pra revisão,
+    // mesmo já corrigido o display (não afeta cálculo de Q.S.P. por trás)
+    if (unit === 'mg' && dose > 0 && dose < 0.01) {
+      alertas.push({
+        severidade: 'AVISO',
+        ativo: nome,
+        mensagem: `Dose de ${dose}mg é extremamente baixa — confirmar se a unidade de origem (mcg/UI) foi convertida corretamente.`,
+      });
+    }
+
+    // 3) Status ATENÇÃO (abaixo do mínimo) sem dose ajustada — a IA corrige
+    // excesso (BLOQUEADO) mas historicamente não corrige falta (ATENÇÃO).
+    const status = calcStatus(key, dose, unit);
+    if (status === 'ATENÇÃO') {
+      const doseAjustada = Number(a.dose_ajustada ?? a.doseAjustada) || dose;
+      if (doseAjustada === dose) {
+        const lim = ANVISA_LIMITS[key];
+        alertas.push({
+          severidade: 'AVISO',
+          ativo: nome,
+          mensagem: `${nome} está abaixo do mínimo regulatório/de mercado e a dose ajustada não foi corrigida ` +
+            `(ainda ${dose}${unit}). Sugestão: subir para o mínimo${lim?.min ? ` (${lim.min}${lim.unit})` : ''} ou documentar justificativa técnica do RT para manter a dose atual.`,
+        });
+      }
+    }
+  }
+
+  return alertas;
+}
+
+/** Bloqueia export/import se houver qualquer alerta de severidade BLOQUEIO */
+export function laudoTemBloqueio(alertas: AlertaValidacao[]): boolean {
+  return alertas.some(a => a.severidade === 'BLOQUEIO');
+}
+
+
 export function formatarPorcoesEmbalagem(qtdExata: number): string {
   if (qtdExata >= 3 && qtdExata % 1 === 0) return String(qtdExata);
   if (qtdExata > 2) {

@@ -1,7 +1,7 @@
--- Migration: Migrar colunas da Nuvem Fiscal para Focus NFe na tabela companies
+-- Migration: Migrar colunas da Nuvem Fiscal para Focus NFe na tabela company
 
 -- 1. Adicionar novas colunas para Focus NFe
-ALTER TABLE public.companies
+ALTER TABLE public.company
   ADD COLUMN IF NOT EXISTS focus_nfe_empresa_id TEXT,
   ADD COLUMN IF NOT EXISTS focus_nfe_status TEXT;
 

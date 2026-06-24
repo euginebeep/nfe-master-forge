@@ -487,9 +487,20 @@ function buildBlocoProduto(
   const totalMassa = ativos.reduce((acc: number, a: any) => {
     const u = (a.unit || '').toLowerCase();
     const d = Number(a.dose) || 0;
+    const key = resolveAnvisaKey(a.nome || a.name || '');
     if (u === 'g') return acc + d * 1000;
     if (u === 'mcg') return acc + d / 1000;
-    if (u === 'ui') return acc + d / 40;
+    if (u === 'ui') {
+      // Fator de conversão UI→mg é específico por ativo — nunca usar um único
+      // fator para todos. Vit. D3: 1 UI = 0,025 mcg = 0,000025 mg (40 UI/mcg).
+      // Vit. A: 1 UI = 0,3 mcg = 0,0003 mg. Vit. E: 1 UI = 0,67 mg.
+      if (key === 'vitamina_a') return acc + (d * 0.3) / 1000;
+      if (key === 'vitamina_e') return acc + d * 0.67;
+      if (key === 'vitamina_d3' || key === 'vitamina_d') return acc + d / 40;
+      // Ativo em UI sem fator conhecido: não estimar — soma 0 e deixa
+      // o alerta de sanidade (validarDoseSuspeita) avisar o RT.
+      return acc;
+    }
     return acc + d;
   }, 0);
 
@@ -556,8 +567,8 @@ function buildBlocoProduto(
             <div><div class="num">${esc(caps.frasco || 60)}</div><div class="lbl">frasco</div></div>
           </div>
           <div style="font-size:9pt;color:${C.textDark};line-height:1.6;">
-            ▸ Massa de ativos: ${Math.round(totalMassa)} mg<br/>
-            ▸ Com excipientes (+30%): ${Math.round(totalMassa * 1.3)} mg<br/>
+            ▸ Massa de ativos: ${arredondarValorNutricional(totalMassa, 'mg')} mg<br/>
+            ▸ Com excipientes (+30%): ${arredondarValorNutricional(totalMassa * 1.3, 'mg')} mg<br/>
             ▸ Frasco ${caps.frasco || 60}un → ${Math.floor((caps.frasco || 60) / nCaps)} doses
           </div>
           ${caps.obs ? `<p style="font-size:8pt;color:${C.gray};font-style:italic;margin-top:8px;">${esc(caps.obs)}</p>` : ''}

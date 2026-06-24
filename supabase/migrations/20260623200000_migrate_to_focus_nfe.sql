@@ -39,13 +39,13 @@ GRANT EXECUTE ON FUNCTION public.validar_acesso_nota_saida_focus(TEXT) TO authen
 -- 5. Manter a função antiga para retrocompatibilidade (notas antigas com nuvem_fiscal_id)
 --    A função validar_acesso_nota_saida já existe e continua funcionando
 
--- 6. Adicionar coluna focus_nfe_id na tabela companies para rastrear cadastro na Focus NFe
-ALTER TABLE public.companies
+-- 6. Adicionar coluna focus_nfe_id na tabela company para rastrear cadastro na Focus NFe
+ALTER TABLE public.company
   ADD COLUMN IF NOT EXISTS focus_nfe_empresa_id TEXT,
   ADD COLUMN IF NOT EXISTS focus_nfe_status TEXT DEFAULT 'nao_cadastrado';
 
--- 7. Migrar dados de nuvem_fiscal_id para focus_nfe_empresa_id nas companies
-UPDATE public.companies
+-- 7. Migrar dados de nuvem_fiscal_id para focus_nfe_empresa_id nas company
+UPDATE public.company
   SET focus_nfe_empresa_id = nuvem_fiscal_id,
       focus_nfe_status = CASE
         WHEN nuvem_fiscal_status = 'ativo' THEN 'ativo'
@@ -62,8 +62,8 @@ COMMENT ON COLUMN public.notas_saida.focus_nfe_id IS
 COMMENT ON COLUMN public.notas_saida.nuvem_fiscal_id IS
   'DEPRECATED: ID da nota na Nuvem Fiscal. Mantido para retrocompatibilidade. Use focus_nfe_id.';
 
-COMMENT ON COLUMN public.companies.focus_nfe_empresa_id IS
-  'CNPJ/CPF da empresa cadastrada na Focus NFe. Substitui nuvem_fiscal_id nas companies.';
+COMMENT ON COLUMN public.company.focus_nfe_empresa_id IS
+  'CNPJ/CPF da empresa cadastrada na Focus NFe. Substitui nuvem_fiscal_id nas company.';
 
-COMMENT ON COLUMN public.companies.focus_nfe_status IS
+COMMENT ON COLUMN public.company.focus_nfe_status IS
   'Status do cadastro da empresa na Focus NFe: nao_cadastrado, ativo, erro.';

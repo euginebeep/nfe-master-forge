@@ -12,7 +12,7 @@
 
 -- 1. Adicionar company_id em entidade_papeis
 ALTER TABLE public.entidade_papeis
-  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id);
+  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.company(id);
 
 -- 2. Popular company_id em entidade_papeis a partir da tabela entidades
 UPDATE public.entidade_papeis ep
@@ -23,7 +23,7 @@ WHERE ep.entidade_id = e.id
 
 -- 3. Adicionar company_id em entidade_contatos
 ALTER TABLE public.entidade_contatos
-  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id);
+  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.company(id);
 
 -- 4. Popular company_id em entidade_contatos a partir da tabela entidades
 UPDATE public.entidade_contatos ec

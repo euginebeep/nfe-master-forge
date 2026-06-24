@@ -50,7 +50,7 @@ BEGIN
       acao TEXT NOT NULL,
       resultado TEXT NOT NULL,
       detalhes JSONB DEFAULT '{}'::jsonb,
-      company_id UUID REFERENCES public.companies(id),
+      company_id UUID REFERENCES public.company(id),
       user_id UUID REFERENCES auth.users(id),
       ip_address TEXT,
       user_agent TEXT
