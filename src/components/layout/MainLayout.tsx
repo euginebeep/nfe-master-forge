@@ -42,9 +42,9 @@ export function MainLayout() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 min-w-0 p-2 sm:p-4 md:p-6 overflow-auto"
+            className="flex-1 min-w-0 p-1 sm:p-2 md:p-4 lg:p-6 overflow-auto"
           >
-            <div className="max-w-7xl mx-auto w-full">
+            <div className="w-full max-w-7xl mx-auto px-1 sm:px-2 md:px-4">
               <CompanyRequiredGuard>
                 <CompanyPendingBanner />
                 <BannerContextual />
