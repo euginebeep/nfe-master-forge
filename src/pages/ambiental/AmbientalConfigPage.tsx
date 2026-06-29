@@ -623,7 +623,7 @@ export default function AmbientalConfigPage() {
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                   Importe automaticamente os sensores da sua conta eWeLink ou adicione
-                  manualmente. Defina os limites de temperatura e umidade por sala.
+                  manualmente. Defina os limites de temperatura e umidade. O nome da sala é apenas uma referência do ERP.
                 </p>
               </div>
               <div className="flex gap-2 flex-shrink-0">
@@ -822,7 +822,7 @@ export default function AmbientalConfigPage() {
 
             <div className="space-y-2">
               <Label htmlFor="sala">
-                Nome da Sala <span className="text-destructive">*</span>
+                Referência da Sala (Rótulo do ERP) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="sala"
@@ -832,6 +832,9 @@ export default function AmbientalConfigPage() {
                 }
                 placeholder="ex: Produção"
               />
+              <p className="text-xs text-muted-foreground">
+                Esta é apenas uma referência/rótulo para organizar o sensor no ERP. Você pode alterar sem afetar o sensor IoT.
+              </p>
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {SALAS_SUGERIDAS.map((sala) => (
                   <button

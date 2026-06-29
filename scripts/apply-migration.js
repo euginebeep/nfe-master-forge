@@ -9,9 +9,14 @@
  *   node scripts/apply-migration.js all  # Aplicar todas as migrations
  */
 
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+import { fileURLToPath } from 'url';
+import { createClient } from '@supabase/supabase-js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configurações
 const SUPABASE_URL = process.env.VITE_FRONTEND_FORGE_API_URL || 'https://cqkvekdrifmvedvpjmjr.supabase.co';
@@ -24,72 +29,38 @@ if (!SUPABASE_KEY) {
 }
 
 /**
- * Executar SQL no Supabase via REST API
- */
-async function executeSql(sql) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`);
-    
-    const postData = JSON.stringify({ sql });
-    
-    const options = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname + url.search,
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData),
-        'Prefer': 'return=minimal'
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve({ success: true, data });
-        } else {
-          reject(new Error(`HTTP ${res.statusCode}: ${data}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.write(postData);
-    req.end();
-  });
-}
-
-/**
  * Executar SQL diretamente via Supabase Client
  */
 async function executeSqlViaClient(sql) {
   try {
-    const { createClient } = require('@supabase/supabase-js');
-    
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     
     // Dividir SQL em statements individuais
     const statements = sql
       .split(';')
       .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .filter(s => s.length > 0 && !s.startsWith('--'));
+    
+    let successCount = 0;
     
     for (const statement of statements) {
-      const { data, error } = await supabase.rpc('exec_sql', { sql: statement + ';' });
-      
-      if (error) {
-        console.log(`⚠️  Tentando alternativa para: ${statement.substring(0, 50)}...`);
-        // Continuar com próximo statement
-      } else {
-        console.log(`✅ Executado: ${statement.substring(0, 50)}...`);
+      try {
+        // Tentar executar via RPC
+        const { data, error } = await supabase.rpc('exec_sql', { sql: statement + ';' });
+        
+        if (error) {
+          console.log(`⚠️  Erro ao executar: ${statement.substring(0, 50)}...`);
+          console.log(`   ${error.message}`);
+        } else {
+          console.log(`✅ Executado: ${statement.substring(0, 50)}...`);
+          successCount++;
+        }
+      } catch (err) {
+        console.log(`⚠️  Erro: ${err.message}`);
       }
     }
     
-    return { success: true };
+    return { success: successCount > 0, count: successCount };
   } catch (err) {
     throw err;
   }
@@ -115,12 +86,19 @@ async function applyMigration(migrationFile) {
     
     // Tentar via cliente Supabase
     try {
-      await executeSqlViaClient(sql);
-      console.log(`✅ Migration aplicada com sucesso!`);
-      return true;
+      const result = await executeSqlViaClient(sql);
+      if (result.success) {
+        console.log(`✅ Migration aplicada com sucesso! (${result.count} statements)`);
+        return true;
+      } else {
+        console.log(`⚠️  Nenhum statement foi executado`);
+        console.log(`💡 Dica: Execute o SQL manualmente no Supabase Dashboard`);
+        return false;
+      }
     } catch (err) {
       console.log(`⚠️  Erro ao aplicar via cliente: ${err.message}`);
       console.log(`💡 Dica: Execute o SQL manualmente no Supabase Dashboard`);
+      console.log(`\n📋 SQL da migration:\n${sql}\n`);
       return false;
     }
   } catch (err) {

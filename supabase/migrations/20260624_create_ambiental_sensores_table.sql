@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.ambiental_sensores (
   ativo BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  -- Identificador único: company_id + device_id (não por sala)
   UNIQUE(company_id, device_id)
 );
 
