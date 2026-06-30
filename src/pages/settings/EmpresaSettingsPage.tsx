@@ -80,6 +80,7 @@ export default function EmpresaSettingsPage() {
         endereco_compl: supabaseCompany.endereco_compl || '',
         endereco_bairro: supabaseCompany.endereco_bairro || '',
         endereco_cidade: supabaseCompany.endereco_cidade || '',
+        endereco_cmun: supabaseCompany.endereco_cmun || '',
         endereco_uf: supabaseCompany.endereco_uf || '',
         endereco_cep: supabaseCompany.endereco_cep || '',
         telefone: supabaseCompany.telefone || '',
@@ -280,6 +281,7 @@ export default function EmpresaSettingsPage() {
         endereco_cep: formData.endereco_cep,
         endereco_uf: formData.endereco_uf,
         endereco_cidade: formData.endereco_cidade,
+        endereco_cmun: formData.endereco_cmun,
         telefone: formData.telefone,
         email_fiscal: formData.email_fiscal,
         email_financeiro: formData.email_financeiro,
@@ -332,6 +334,7 @@ export default function EmpresaSettingsPage() {
       endereco_cep: data.endereco_cep,
       endereco_uf: data.endereco_uf,
       endereco_cidade: data.endereco_cidade,
+      endereco_cmun: data.endereco_cmun,
       telefone: data.telefone || prev?.telefone,
       email_fiscal: data.email_fiscal || prev?.email_fiscal,
       ie: data.ie || prev?.ie,
@@ -394,9 +397,26 @@ export default function EmpresaSettingsPage() {
     });
   }
 
+  // Formatos realmente aceitos pelo bucket erp-files no Storage (ver migration
+  // 20260205144652, allowed_mime_types do bucket). SVG e WEBP NÃO estão na
+  // lista — se permitíssemos no frontend, o Storage rejeitaria o upload e o
+  // usuário só veria um "Erro ao enviar logo" genérico sem entender o motivo.
+  // SVG também tem suporte incerto nos geradores de PDF deste projeto
+  // (pdf-lib não embute SVG sem rasterizar antes), por isso não vale a pena
+  // liberar no bucket — mais simples manter PNG/JPEG só.
+  const LOGO_ALLOWED_TYPES = ["image/png", "image/jpeg"];
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!LOGO_ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Formato não suportado", {
+        description: "Use PNG ou JPEG. Outros formatos (SVG, WEBP, GIF, BMP) não são aceitos.",
+      });
+      e.target.value = "";
+      return;
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       toast.error("Arquivo muito grande", { description: "Máximo 2MB." });
@@ -404,46 +424,42 @@ export default function EmpresaSettingsPage() {
       return;
     }
 
-    // SVG não dá pra medir via Image().naturalWidth de forma confiável em todos os
-    // navegadores — pula a validação de proporção nesse caso e segue com o upload.
-    if (file.type !== "image/svg+xml") {
-      try {
-        const { width, height } = await getImageDimensions(file);
-        const ratio = width / height;
+    try {
+      const { width, height } = await getImageDimensions(file);
+      const ratio = width / height;
 
-        if (width < LOGO_MIN_WIDTH || height < LOGO_MIN_HEIGHT) {
-          toast.error("Imagem com resolução muito baixa", {
-            description: `Mínimo ${LOGO_MIN_WIDTH}×${LOGO_MIN_HEIGHT}px para não ficar borrada nos relatórios.`,
-          });
-          e.target.value = "";
-          return;
-        }
-
-        // Logos redondas, quadradas ou verticais são bem-vindas — o sistema centraliza
-        // e ajusta automaticamente em todos os documentos. Só avisamos (sem bloquear)
-        // quando a logo é um banner extremamente largo, caso raro que pode ficar
-        // espremido no cabeçalho do laudo.
-        if (ratio > LOGO_RATIO_MAX) {
-          toast.warning("Logo bem larga — pode ficar pequena no cabeçalho do laudo", {
-            description: "Funciona, mas uma versão mais próxima de 1:1 ou 2:1 fica mais nítida nos relatórios.",
-          });
-        }
-
-        if (file.type === "image/jpeg") {
-          toast.warning("JPG não suporta fundo transparente", {
-            description: "Em relatórios com fundo branco isso pode aparecer como uma caixa colorida. PNG transparente é o ideal.",
-          });
-        } else if (file.type === "image/png" || file.type === "image/webp") {
-          const transparent = await hasTransparentPixel(file);
-          if (!transparent) {
-            toast.warning("Esse arquivo não tem fundo transparente", {
-              description: "É um PNG com fundo sólido. Em relatórios com fundo branco isso vai aparecer como uma caixa colorida atrás da logo.",
-            });
-          }
-        }
-      } catch {
-        // Se não conseguir medir, segue o fluxo normal (não bloqueia o usuário por isso)
+      if (width < LOGO_MIN_WIDTH || height < LOGO_MIN_HEIGHT) {
+        toast.error("Imagem com resolução muito baixa", {
+          description: `Mínimo ${LOGO_MIN_WIDTH}×${LOGO_MIN_HEIGHT}px para não ficar borrada nos relatórios.`,
+        });
+        e.target.value = "";
+        return;
       }
+
+      // Logos redondas, quadradas ou verticais são bem-vindas — o sistema centraliza
+      // e ajusta automaticamente em todos os documentos. Só avisamos (sem bloquear)
+      // quando a logo é um banner extremamente largo, caso raro que pode ficar
+      // espremido no cabeçalho do laudo.
+      if (ratio > LOGO_RATIO_MAX) {
+        toast.warning("Logo bem larga — pode ficar pequena no cabeçalho do laudo", {
+          description: "Funciona, mas uma versão mais próxima de 1:1 ou 2:1 fica mais nítida nos relatórios.",
+        });
+      }
+
+      if (file.type === "image/jpeg") {
+        toast.warning("JPG não suporta fundo transparente", {
+          description: "Em relatórios com fundo branco isso pode aparecer como uma caixa colorida. PNG transparente é o ideal.",
+        });
+      } else {
+        const transparent = await hasTransparentPixel(file);
+        if (!transparent) {
+          toast.warning("Esse arquivo não tem fundo transparente", {
+            description: "É um PNG com fundo sólido. Em relatórios com fundo branco isso vai aparecer como uma caixa colorida atrás da logo.",
+          });
+        }
+      }
+    } catch {
+      // Se não conseguir medir, segue o fluxo normal (não bloqueia o usuário por isso)
     }
 
     try {
@@ -764,14 +780,14 @@ export default function EmpresaSettingsPage() {
                         <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
                         <p className="text-sm font-medium">Upload Logo</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Qualquer formato (redonda, quadrada ou horizontal) · PNG transparente · mín. 200×200px · máx. 2MB
+                          PNG ou JPEG · qualquer formato (redonda, quadrada ou horizontal) · PNG transparente é o ideal · mín. 200×200px · máx. 2MB
                         </p>
                       </div>
                     </Label>
                     <input
                       id="logo-upload"
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg"
                       className="hidden"
                       onChange={handleLogoUpload}
                     />

@@ -51,32 +51,27 @@ export async function lookupCNPJ(cnpj: string): Promise<CNPJData | null> {
   }
   
   try {
-    // Use edge function proxy to avoid CORS issues
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    
-    const response = await fetch(`${supabaseUrl}/functions/v1/cnpj-lookup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`,
-        'apikey': supabaseKey,
-      },
-      body: JSON.stringify({ cnpj: cleanedCNPJ }),
+    // Usa o client do supabase-js (functions.invoke) em vez de fetch manual.
+    // Antes disso, o código mandava a ANON KEY como Bearer token — ou seja,
+    // a chamada nunca carregava a sessão real do usuário logado, e qualquer
+    // pessoa com a anon key (pública por natureza) podia chamar essa function
+    // diretamente, fora do app, sem estar autenticada.
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase.functions.invoke("cnpj-lookup", {
+      body: { cnpj: cleanedCNPJ },
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (response.status === 404) {
+
+    if (error) {
+      const status = (error as any)?.context?.status;
+      if (status === 404) {
         throw new Error('CNPJ não encontrado na base da Receita Federal');
       }
-      if (response.status === 400) {
+      if (status === 400) {
         throw new Error('CNPJ inválido');
       }
-      throw new Error(errorData.error || 'Erro ao consultar CNPJ');
+      throw new Error(error.message || 'Erro ao consultar CNPJ');
     }
-    
-    const data = await response.json();
+
     return data as CNPJData;
   } catch (error) {
     if (error instanceof Error) {

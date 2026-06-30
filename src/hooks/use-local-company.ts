@@ -20,6 +20,7 @@ export interface LocalCompany {
   endereco_cidade?: string;
   endereco_uf?: string;
   endereco_cep?: string;
+  endereco_cmun?: string;
   endereco_pais?: string;
   telefone?: string;
   site?: string;
