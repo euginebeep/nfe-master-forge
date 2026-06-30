@@ -458,7 +458,7 @@ export default function EmpresaSettingsPage() {
         .single();
       if (arquivoError) throw arquivoError;
 
-      await supabase.from('company')
+      await supabase.from('companies')
         .update({ logo_file_id: arquivo.id })
         .eq('id', profile.company_id);
 
