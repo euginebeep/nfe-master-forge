@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Save, Upload, Search, Loader2, FileCheck, X, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -29,7 +28,6 @@ const UFS = [
 ];
 
 export default function EmpresaSettingsPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: company, isLoading, refresh } = useLocalCompany();
   const { data: supabaseCompany } = useCompany();
@@ -241,7 +239,7 @@ export default function EmpresaSettingsPage() {
     autoValidate();
   }, [certificadoFileId, formData.certificado_senha, certAutoValidated, formData.cnpj]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.razao_social || !formData.cnpj) {
       toast.error("Preencha pelo menos Razão Social e CNPJ para salvar no sistema");
       return;
@@ -249,8 +247,9 @@ export default function EmpresaSettingsPage() {
 
     // Persist local data silently without showing a redundant toast
     upsert(formData, false);
-    upsertCompanyMutation.mutate(
-      {
+
+    try {
+      await upsertCompanyMutation.mutateAsync({
         razao_social: formData.razao_social || '',
         cnpj: formData.cnpj?.replace(/\D/g, '') || '',
         nome_fantasia: formData.nome_fantasia,
@@ -271,17 +270,18 @@ export default function EmpresaSettingsPage() {
         email_financeiro: formData.email_financeiro,
         site: formData.site,
         certificado_a1_file_id: certificadoFileId,
-      },
-      {
-        onSuccess: () => {
-          navigate("/");
-        },
-        onError: (err: any) => {
-          toast.error(err?.message || "Erro ao salvar configurações da empresa");
-        },
-      }
-    );
-    refresh();
+      });
+      // Só atualiza o estado local DEPOIS que o Supabase confirmou o save —
+      // antes disso rodava em paralelo (fire-and-forget) e podia recarregar
+      // dado desatualizado se o save demorasse mais que o refresh.
+      refresh();
+      // Continua na própria tela de configurações — esta página não faz parte
+      // do fluxo de onboarding (que é uma rota separada, /onboarding), então
+      // não há motivo para redirecionar o usuário pra fora dela ao salvar.
+    } catch (err) {
+      // O toast de erro já é exibido pelo onError do hook useUpsertCompany —
+      // evita mostrar a mesma mensagem duas vezes.
+    }
   };
 
   // Handle CNPJ lookup data
