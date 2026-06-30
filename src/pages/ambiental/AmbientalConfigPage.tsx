@@ -366,18 +366,26 @@ export default function AmbientalConfigPage() {
     mutationFn: async () => {
       if (!companyId) throw new Error("Empresa não identificada");
       const payload = {
-        ...sensorForm,
+        device_id: sensorForm.device_id,
+        device_name: sensorForm.device_name,
+        sala: sensorForm.sala,
         room_name: sensorForm.sala, // sincronizar room_name com sala
         temp_min: Number(sensorForm.temp_min),
         temp_max: Number(sensorForm.temp_max),
         hum_min: Number(sensorForm.hum_min),
         hum_max: Number(sensorForm.hum_max),
+        responsible: sensorForm.responsible,
+        ativo: sensorForm.ativo,
         company_id: companyId,
       };
       if (editingId) {
+        // Para UPDATE, remover campos que não devem ser atualizados
+        const updatePayload = { ...payload };
+        delete (updatePayload as any).company_id; // não atualizar company_id
+        delete (updatePayload as any).device_id; // não atualizar device_id
         const { error } = await (supabase as any)
           .from("ambiental_sensores")
-          .update(payload)
+          .update(updatePayload)
           .eq("id", editingId);
         if (error) throw error;
       } else {
