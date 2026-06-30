@@ -30,7 +30,7 @@ export function useCompany() {
       if (!companyId) return null;
 
       const { data, error } = await supabase
-        .from("company")
+        .from("companies")
         .select("*")
         .eq("id", companyId)
         .single();
@@ -59,7 +59,7 @@ export function useUpsertCompany() {
       if (profile?.company_id) {
         // Update existing company
         const { data, error } = await supabase
-          .from("company")
+          .from("companies")
           .update(company)
           .eq("id", profile.company_id)
           .select()
@@ -71,7 +71,7 @@ export function useUpsertCompany() {
         // Try to create; handle duplicate CNPJ from a previous failed attempt
         const newCompanyId = crypto.randomUUID();
         const { error } = await supabase
-          .from("company")
+          .from("companies")
           .insert({ ...(company as Company), id: newCompanyId });
 
         let companyIdToLink: string = newCompanyId;
@@ -82,14 +82,14 @@ export function useUpsertCompany() {
             const cnpj = (company as Company).cnpj?.replace(/\D/g, '');
             if (!cnpj) throw error;
             const { data: existing } = await supabase
-              .from("company")
+              .from("companies")
               .select("id")
               .eq("cnpj", cnpj)
               .maybeSingle();
             if (!existing) throw error;
             companyIdToLink = existing.id as string;
             // Update with latest data
-            await supabase.from("company").update(company).eq("id", companyIdToLink);
+            await supabase.from("companies").update(company).eq("id", companyIdToLink);
           } else {
             throw error;
           }

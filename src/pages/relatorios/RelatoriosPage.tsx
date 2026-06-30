@@ -182,7 +182,7 @@ export default function RelatoriosPage() {
     queryKey: ["relatorios-empresa", companyId],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from("company")
+        .from("companies")
         .select("razao_social, nome_fantasia, cnpj, logo_file_id")
         .eq("id", companyId!)
         .maybeSingle();

@@ -38,7 +38,7 @@ export function AvisosPopup() {
 
       // 2. Buscar dados da empresa do usuário (para tipo_empresa)
       const { data: companyData } = await supabase
-        .from('company')
+        .from('companies')
         .select('tipo_empresa')
         .eq('id', profile?.company_id)
         .maybeSingle();

@@ -22,7 +22,7 @@ export function useCompanyBranding() {
       if (!profile?.company_id) return null;
 
       const { data: company } = await supabase
-        .from("company")
+        .from("companies")
         .select("razao_social, nome_fantasia, logo_file_id")
         .eq("id", profile.company_id)
         .single();

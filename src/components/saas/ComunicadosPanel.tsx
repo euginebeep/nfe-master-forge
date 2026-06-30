@@ -56,7 +56,7 @@ export function ComunicadosPanel() {
   const { data: companies } = useQuery({
     queryKey: ['saas-companies-basic'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('company').select('id, razao_social').order('razao_social');
+      const { data, error } = await supabase.from('companies').select('id, razao_social').order('razao_social');
       if (error) throw error;
       return data;
     }

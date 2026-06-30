@@ -69,7 +69,7 @@ export function useAuth() {
           .from('profiles').select('company_id').eq('id', user.id).maybeSingle();
         if (profile?.company_id) {
           const { data: company } = await supabase
-            .from('company')
+            .from('companies')
             .select('razao_social, nome_fantasia, cnpj')
             .eq('id', profile.company_id)
             .maybeSingle();

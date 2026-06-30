@@ -204,7 +204,7 @@ export function BackendCleanupManager() {
       // Arquivos: precisa limpar FKs da company antes
       if (tableKey === 'arquivos') {
         await supabase
-          .from('company')
+          .from('companies')
           .update({ logo_file_id: null, certificado_a1_file_id: null } as any)
           .neq('id', '00000000-0000-0000-0000-000000000000');
       }
