@@ -55,15 +55,6 @@ export function OPDocumentoCompleto({
         // Use any to bypass recursion issues
         const sb: any = supabase;
 
-        // Buscar dados da empresa (tenant) — NUNCA hardcodear nome de empresa.
-        // Todo documento gerado tem que refletir a empresa do usuário logado,
-        // pois o BrainX ERP é multi-tenant (cada cliente tem seu próprio `company`).
-        const { data: companyData } = await sb
-          .from('company')
-          .select('razao_social, nome_fantasia, cnpj, logo_file_id')
-          .eq('id', companyId)
-          .maybeSingle();
-
         // Buscar balança
         const { data: balancaResult } = await sb
           .from('equipamentos')
@@ -94,8 +85,6 @@ export function OPDocumentoCompleto({
 
         setOp((prev: any) => ({
           ...initialOp,
-          empresa_nome: companyData?.nome_fantasia || companyData?.razao_social || 'Empresa não identificada',
-          empresa_cnpj: companyData?.cnpj || null,
           balanca_numero_serie: balancaResult?.numero_serie || null,
           balanca_ultima_calibracao: calibracaoData?.data_calibracao || null,
           balanca_proxima_calibracao: calibracaoData?.proxima_calibracao || null,
@@ -183,7 +172,7 @@ export function OPDocumentoCompleto({
           </div>
           ${section.innerHTML}
           <div class="terminal-footer">
-            <div class="terminal-footer-left">${op.empresa_nome || 'Empresa não identificada'}</div>
+            <div class="terminal-footer-left">Vitalnow Industria Ltda</div>
             <div class="terminal-footer-right">${new Date().toLocaleString('pt-BR')} | ANVISA</div>
           </div>
         </body>
@@ -289,7 +278,7 @@ export function OPDocumentoCompleto({
             
             <!-- RODAPÉ FIXO -->
             <footer class="page-footer-industrial">
-              <div class="footer-left">${op.empresa_nome || 'Empresa não identificada'}</div>
+              <div class="footer-left">Vitalnow Industria Ltda</div>
               <div class="footer-center">${op.codigo}</div>
               <div class="footer-right">Página ${pageNumber}</div>
             </footer>
@@ -753,7 +742,7 @@ export function OPDocumentoCompleto({
           <!-- ========== CAPA ========== -->
           <div class="op-capa">
             <div class="capa-header-industrial">
-              <div class="capa-empresa">${op.empresa_nome || 'Empresa não identificada'}</div>
+              <div class="capa-empresa">Vitalnow Industria Ltda</div>
               <div class="capa-main-title">Ordem de Produção Industrial</div>
               <div class="capa-codigo">${op.codigo}</div>
             </div>
@@ -799,7 +788,7 @@ export function OPDocumentoCompleto({
             </div>
             
             <div class="capa-footer">
-              <div class="capa-footer-left">${op.empresa_nome || 'Empresa não identificada'}</div>
+              <div class="capa-footer-left">Vitalnow Industria Ltda</div>
               <div class="capa-footer-right">
                 <div>Documento gerado em: ${new Date().toLocaleString('pt-BR')}</div>
                 <div>Total de páginas: ${totalPages} | Rastreabilidade ANVISA</div>

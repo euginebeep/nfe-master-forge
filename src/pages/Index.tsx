@@ -2,12 +2,11 @@ import { motion } from "framer-motion";
 import { 
   Building2, Users, Package, FileText, Boxes, ArrowRight, 
   Settings, ShoppingCart, Factory, BarChart3, Wallet,
+  Lock
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserWelcomeCard } from "@/components/dashboard/UserWelcomeCard";
-import { useAuth } from "@/hooks/use-auth";
-import { AvisosPopup } from "@/components/AvisosPopup";
 import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
 import { MarketIndicesCard } from "@/components/dashboard/MarketIndicesCard";
 import { ExpiringLotsCard } from "@/components/dashboard/ExpiringLotsCard";
@@ -15,9 +14,11 @@ import { ConsultaANVISACard } from "@/components/dashboard/ConsultaANVISACard";
 import { NewsFeedCard } from "@/components/dashboard/NewsFeedCard";
 import { DashboardKPIsGrid } from "@/components/dashboard/DashboardKPIsGrid";
 import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
+import { useAuth } from "@/hooks/use-auth";
+import { AvisosPopup } from "@/components/AvisosPopup";
 import { ParceirosBrainX } from "@/components/parceiros/ParceirosBrainX";
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 
 interface Module {
   title: string;
@@ -114,15 +115,14 @@ const Index = () => {
     return userRoleIndex <= requiredRoleIndex;
   };
 
-  // Mostrar dashboard completo para todos os usuários autenticados com role definida
-  const showFullDashboard = isAuthenticated && !!role;
-
   // Filter modules based on user role
   const accessibleModules = modules.filter(m => hasAccess(m.minRole));
+  const lockedModules = modules.filter(m => !hasAccess(m.minRole));
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <AvisosPopup />
+      {/* User Welcome Section */}
       {isAuthenticated && (
         <UserWelcomeCard
           name={profile?.nome_completo || null}
@@ -134,33 +134,47 @@ const Index = () => {
         />
       )}
 
-      {showFullDashboard && (
-        <>
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Indicadores em Tempo Real</h3>
-            <DashboardKPIsGrid />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
-            <div className="md:col-span-2 lg:col-span-4 xl:col-span-3">
-              <ExpiringLotsCard />
-            </div>
-            <div className="md:col-span-2 lg:col-span-8 xl:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-stretch">
-              <div className="md:col-span-4 xl:col-span-3"><ExchangeRateCard /></div>
-              <div className="md:col-span-4 xl:col-span-3"><MarketIndicesCard /></div>
-              <div className="md:col-span-4 xl:col-span-6"><ConsultaANVISACard /></div>
-            </div>
-          </div>
-
-          <div className="w-full">
-            <ParceirosBrainX posicao="DASHBOARD_LATERAL" />
-          </div>
-
-          <BirthdayCard />
-          <NewsFeedCard />
-        </>
+      {/* Real KPIs */}
+      {isAuthenticated && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Indicadores em Tempo Real</h3>
+          <DashboardKPIsGrid />
+        </div>
       )}
 
+      {/* Alerts Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
+        {/* Expiring Lots - Priority Card */}
+        <div className="md:col-span-2 lg:col-span-4 xl:col-span-3">
+          <ExpiringLotsCard />
+        </div>
+        
+        {/* Other Indicators Container */}
+        <div className="md:col-span-2 lg:col-span-8 xl:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-stretch">
+          <div className="md:col-span-4 xl:col-span-3">
+            <ExchangeRateCard />
+          </div>
+          <div className="md:col-span-4 xl:col-span-3">
+            <MarketIndicesCard />
+          </div>
+          <div className="md:col-span-4 xl:col-span-6">
+            <ConsultaANVISACard />
+          </div>
+        </div>
+      </div>
+
+      {/* Partners Panel */}
+      <div className="w-full">
+        <ParceirosBrainX posicao="DASHBOARD_LATERAL" />
+      </div>
+
+      {/* Aniversariantes */}
+      {isAuthenticated && <BirthdayCard />}
+
+      {/* News Feed */}
+      <NewsFeedCard />
+
+      {/* Modules Grid */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Módulos Disponíveis</h3>
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -191,6 +205,44 @@ const Index = () => {
           ))}
         </div>
       </div>
+
+      {/* Locked Modules */}
+      {lockedModules.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 text-muted-foreground flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            Módulos Restritos
+          </h3>
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {lockedModules.map((module, index) => (
+              <motion.div
+                key={module.href}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                transition={{ delay: 0.3 + index * 0.05 }}
+              >
+                <Card className="h-full opacity-50 cursor-not-allowed">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <div className="p-2.5 rounded-lg bg-muted text-muted-foreground">
+                      <module.icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base text-muted-foreground">{module.title}</CardTitle>
+                    </div>
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground">{module.description}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Requer: {module.minRole}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -256,10 +256,7 @@ export function useOPIndustrial() {
         data_fabricacao: form.data_fabricacao,
         data_validade: form.data_validade,
         tipo_apresentacao: formula.tipo_apresentacao || 'CAPSULA',
-        // Fonte única de verdade: peso de enchimento real medido em
-        // laboratório. peso_capsula_nominal_mg é mantido só por
-        // compatibilidade com fórmulas antigas que não foram remedidas.
-        peso_capsula_mg: formula.peso_enchimento_mg || formula.peso_capsula_nominal_mg || 500,
+        peso_capsula_mg: formula.peso_capsula_nominal_mg || 500,
         tipo_capsula: formula.tipo_capsula || '00',
         excipiente_base: formula.excipiente_padrao || 'AMIDO',
         status: 'PLANEJADA',

@@ -50,7 +50,7 @@ async function runTests() {
   for (const cenario of cenarios) {
     console.log(`Testing: ${cenario.nome}...`);
     try {
-      const response = await fetch('https://cqkvekdrifmvedvpjmjr.supabase.co/functions/v1/anvisa-ai-verify', {
+      const response = await fetch('https://lvptvswvqjhvobdvgfws.supabase.co/functions/v1/anvisa-ai-verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

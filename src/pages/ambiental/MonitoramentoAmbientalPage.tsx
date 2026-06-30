@@ -27,11 +27,10 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
-import { useCompany } from "@/hooks/use-company";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMonitoramentoAmbiental,
-  getLatestByDevice,
+  getLatestByRoom,
   calcStatus,
   combineStatus,
   type SensorReading,
@@ -236,13 +235,9 @@ function RoomCard({
       </div>
       <div className="px-4 py-2 border-t border-border flex items-center justify-between bg-muted/30">
         <span className="font-mono text-[9px] text-muted-foreground truncate">{reading.device_id}</span>
-        <Link
-          to={`/ambiental/sensor/${encodeURIComponent(reading.device_id)}`}
-          onClick={e => e.stopPropagation()}
-          className="font-mono text-[9px] text-primary underline hover:no-underline ml-2 shrink-0"
-        >
-          Ver relatório →
-        </Link>
+        <span className="font-mono text-[9px] text-muted-foreground truncate ml-2">
+          {reading.responsible || "—"}
+        </span>
       </div>
     </button>
   );
@@ -251,7 +246,7 @@ function RoomCard({
 /* ------------------------------------------------------------------ */
 /*  HEATMAP                                                            */
 /* ------------------------------------------------------------------ */
-function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: { deviceId: string; label: string }[] }) {
+function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string[] }) {
   // last 12 hours buckets
   const now = new Date();
   const buckets: { label: string; start: Date }[] = [];
@@ -262,12 +257,12 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: { devi
     buckets.push({ label: d.getHours().toString().padStart(2, "0") + "h", start: d });
   }
 
-  function cellFor(deviceId: string, bucketStart: Date) {
+  function cellFor(room: string, bucketStart: Date) {
     const end = new Date(bucketStart);
     end.setHours(end.getHours() + 1);
     const inBucket = readings.filter(
       (r) =>
-        r.device_id === deviceId &&
+        r.room_name === room &&
         new Date(r.recorded_at) >= bucketStart &&
         new Date(r.recorded_at) < end,
     );
@@ -289,7 +284,7 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: { devi
     } else {
       bg = "rgba(220,38,38,0.7)";
     }
-    return { avg, bg, label: `${sample.room_name} ${fmtHour(bucketStart.toISOString())} — ${avg.toFixed(1)}°C` };
+    return { avg, bg, label: `${room} ${fmtHour(bucketStart.toISOString())} — ${avg.toFixed(1)}°C` };
   }
 
   return (
@@ -304,14 +299,14 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: { devi
         </div>
         <div className="space-y-1">
           {rooms.map((room) => (
-            <div key={room.deviceId} className="flex items-center gap-1">
-              <div className="w-[70px] text-[10px] font-medium truncate pr-1">{room.label}</div>
+            <div key={room} className="flex items-center gap-1">
+              <div className="w-[70px] text-[10px] font-medium truncate pr-1">{room}</div>
               {buckets.map((b) => {
-                const cell = cellFor(room.deviceId, b.start);
+                const cell = cellFor(room, b.start);
                 return (
                   <div
                     key={b.label}
-                    title={cell?.label || `${room.label} ${b.label} — sem dados`}
+                    title={cell?.label || `${room} ${b.label} — sem dados`}
                     className="flex-1 h-6 rounded-sm border border-border/40"
                     style={{ background: cell?.bg || "hsl(var(--muted))" }}
                   />
@@ -334,15 +329,13 @@ export default function MonitoramentoAmbientalPage() {
                  sessionStorage.getItem('brainx_demo_mode') === 'true' || 
                  profile?.company_id === '00000000-0000-0000-0000-000000000001';
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
-  const [deviceFilter, setDeviceFilter] = useState<string>("all");
-  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
-  const [drawerDevice, setDrawerDevice] = useState<string | null>(null);
+  const [roomFilter, setRoomFilter] = useState<string>("all");
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [drawerRoom, setDrawerRoom] = useState<string | null>(null);
 
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
   const navigate = useNavigate();
   const { data: companyId } = useUserCompanyId();
-  const { data: company } = useCompany();
-  const empresaNome = company?.nome_fantasia || company?.razao_social || "BrainX ERP";
 
   // Sensores configurados pelo tenant
   const { data: sensores = [], isLoading: isLoadingSensores } = useQuery({
@@ -384,34 +377,26 @@ export default function MonitoramentoAmbientalPage() {
     },
   });
 
-  // Lista de devices p/ filtro e heatmap: chave estável (device_id), label = nome
-  // mais recente conhecido (reflete renomeações feitas no ERP automaticamente)
-  const deviceOptions = useMemo(() => {
-    const map = new Map<string, { deviceId: string; label: string; lastSeen: number }>();
-    for (const r of readings) {
-      const t = new Date(r.recorded_at).getTime();
-      const cur = map.get(r.device_id);
-      if (!cur || t > cur.lastSeen) {
-        map.set(r.device_id, { deviceId: r.device_id, label: r.room_name, lastSeen: t });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  const rooms = useMemo(() => {
+    const set = new Set<string>();
+    readings.forEach((r) => set.add(r.room_name));
+    return Array.from(set).sort();
   }, [readings]);
 
   const filteredReadings = useMemo(
-    () => (deviceFilter === "all" ? readings : readings.filter((r) => r.device_id === deviceFilter)),
-    [readings, deviceFilter],
+    () => (roomFilter === "all" ? readings : readings.filter((r) => r.room_name === roomFilter)),
+    [readings, roomFilter],
   );
 
-  const latestByDevice = useMemo(() => getLatestByDevice(readings), [readings]);
+  const latestByRoom = useMemo(() => getLatestByRoom(readings), [readings]);
   const latestList = useMemo(
     () =>
-      Object.values(latestByDevice).sort((a, b) => a.room_name.localeCompare(b.room_name)),
-    [latestByDevice],
+      Object.values(latestByRoom).sort((a, b) => a.room_name.localeCompare(b.room_name)),
+    [latestByRoom],
   );
 
-  // Effective selected device
-  const effectiveDevice = selectedDevice || latestList[0]?.device_id || null;
+  // Effective selected room
+  const effectiveRoom = selectedRoom || latestList[0]?.room_name || null;
 
   // KPIs
   const kpis = useMemo(() => {
@@ -445,12 +430,12 @@ export default function MonitoramentoAmbientalPage() {
     };
   }, [filteredReadings]);
 
-  // Chart data — last 24h for effectiveDevice (histórico contínuo, sobrevive a renomeação da sala)
+  // Chart data — last 24h for effectiveRoom
   const chartData = useMemo(() => {
-    if (!effectiveDevice) return [];
+    if (!effectiveRoom) return [];
     const since = Date.now() - 24 * 60 * 60 * 1000;
     return readings
-      .filter((r) => r.device_id === effectiveDevice && new Date(r.recorded_at).getTime() >= since)
+      .filter((r) => r.room_name === effectiveRoom && new Date(r.recorded_at).getTime() >= since)
       .slice()
       .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
       .map((r) => ({
@@ -458,12 +443,12 @@ export default function MonitoramentoAmbientalPage() {
         temp: r.temperature,
         hum: r.humidity,
       }));
-  }, [readings, effectiveDevice]);
+  }, [readings, effectiveRoom]);
 
   const selectedRoomLimits = useMemo(() => {
-    if (!effectiveDevice) return null;
-    return latestByDevice[effectiveDevice] || null;
-  }, [latestByDevice, effectiveDevice]);
+    if (!effectiveRoom) return null;
+    return latestByRoom[effectiveRoom] || null;
+  }, [latestByRoom, effectiveRoom]);
 
   // Non-conformities
   const naoConformidades = useMemo(() => {
@@ -547,8 +532,8 @@ export default function MonitoramentoAmbientalPage() {
         r.hum_max ?? "",
         STATUS_TEXT[st],
         rtName,
-        empresaNome,
-        "Monitoramento Ambiental",
+        "BrainX ERP",
+        "RDC 658/2022 / POP-AMB-001",
       ];
     });
     const csv =
@@ -583,7 +568,7 @@ export default function MonitoramentoAmbientalPage() {
       <PageHeader
         icon={Factory}
         title="Monitoramento Ambiental"
-        description="Controle de temperatura e umidade em tempo real"
+        description="RDC 658/2022"
         actions={
           <>
             <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1.5 hover:bg-emerald-100">
@@ -663,15 +648,15 @@ export default function MonitoramentoAmbientalPage() {
             </Tabs>
             
             {!isDemo && (
-              <Select value={deviceFilter} onValueChange={setDeviceFilter}>
+              <Select value={roomFilter} onValueChange={setRoomFilter}>
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Todas as salas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as salas</SelectItem>
-                  {deviceOptions.map((r) => (
-                    <SelectItem key={r.deviceId} value={r.deviceId}>
-                      {r.label}
+                  {rooms.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -719,12 +704,12 @@ export default function MonitoramentoAmbientalPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 content-start">
               {latestList.map((r) => (
                 <RoomCard
-                  key={r.device_id}
+                  key={r.room_name}
                   reading={r}
-                  selected={effectiveDevice === r.device_id}
+                  selected={effectiveRoom === r.room_name}
                   onClick={() => {
-                    setSelectedDevice(r.device_id);
-                    setDrawerDevice(r.device_id);
+                    setSelectedRoom(r.room_name);
+                    setDrawerRoom(r.room_name);
                   }}
                 />
               ))}
@@ -740,14 +725,14 @@ export default function MonitoramentoAmbientalPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Heatmap readings={readings} rooms={deviceOptions} />
+                  <Heatmap readings={readings} rooms={rooms} />
                 </CardContent>
               </Card>
 
               <Card className="flex-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center justify-between gap-2">
-                    <span>{selectedRoomLimits?.room_name || "—"} — Últimas 24h</span>
+                    <span>{effectiveRoom || "—"} — Últimas 24h</span>
                     <div className="flex items-center gap-3 text-[10px] font-normal text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-600" /> Temp °C
@@ -999,14 +984,14 @@ export default function MonitoramentoAmbientalPage() {
         <span className="mx-1">|</span>
         <span>Sistema: BrainX ERP</span>
         <span className="mx-1">|</span>
-        <span>{empresaNome}</span>
+        <span>Ref: RDC 658/2022 / POP-AMB-001</span>
         <span className="mx-1">|</span>
         <span>Registros mantidos por 5 anos conforme legislação vigente</span>
       </div>
       <SensorDrawer 
-        reading={drawerDevice ? latestByDevice[drawerDevice] : null}
-        history={drawerDevice ? readings.filter(r => r.device_id === drawerDevice) : []}
-        onClose={() => setDrawerDevice(null)}
+        reading={drawerRoom ? latestByRoom[drawerRoom] : null}
+        history={drawerRoom ? readings.filter(r => r.room_name === drawerRoom) : []}
+        onClose={() => setDrawerRoom(null)}
       />
     </div>
   );

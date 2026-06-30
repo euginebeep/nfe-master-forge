@@ -4,7 +4,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { registrarAuditoria } from '@/lib/audit-logger';
 import { queryClient } from '@/lib/query-client';
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 type AppDepartamento = 'DIRETORIA' | 'COMERCIAL' | 'COMPRAS' | 'FINANCEIRO' | 'ESTOQUE' | 'PRODUCAO' | 'QUALIDADE' | 'RH' | 'TI';
 
 export interface UserProfile {

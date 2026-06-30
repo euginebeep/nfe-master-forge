@@ -29,7 +29,7 @@ const POP_CONTENTS: Record<string, any> = {
     acoes_corretivas: "Caso a inspeção visual indique resíduo, o item deve ser reaprovado e o ciclo de higienização reiniciado.",
     verificacao: "Check-list diário de higiene e realização de análise microbiológica (swab) mensalmente.",
     registros: "Planilha de Higienização de Equipamentos (MOD-HIG-001).",
-    referencias: "RDC 275/2002 (ANVISA — BPF alimentos), RDC 243/2018 (suplementos alimentares)."
+    referencias: "RDC 275/2002 (ANVISA), RDC 658/2022."
   },
   B_PRAGAS: {
     objetivo: "Prevenir e controlar o acesso de pragas e vetores na unidade fabril.",
@@ -100,7 +100,7 @@ const POP_CONTENTS: Record<string, any> = {
     acoes_corretivas: "Bloqueio de equipamento descalibrado.",
     verificacao: "Certificados anuais.",
     registros: "Plano Mestre de Calibração.",
-    referencias: "RDC 243/2018 (suplementos alimentares), RDC 275/2002 (ANVISA)."
+    referencias: "RDC 658/2022."
   },
   F_TEMPERATURA: {
     objetivo: "Manter temperatura e umidade controladas.",
@@ -153,7 +153,7 @@ const POP_CONTENTS: Record<string, any> = {
     acoes_corretivas: "Devolução imediata ao fornecedor em caso de não conformidade.",
     verificacao: "Auditoria de documentos e homologação de fornecedores.",
     registros: "Ficha de Recebimento de Insumos.",
-    referencias: "RDC 243/2018 (suplementos alimentares), RDC 275/2002 (ANVISA)."
+    referencias: "RDC 658/2022."
   },
   I_PESAGEM: {
     objetivo: "Assegurar a precisão na pesagem de ativos e componentes da fórmula.",
@@ -171,7 +171,7 @@ const POP_CONTENTS: Record<string, any> = {
     acoes_corretivas: "Repesagem em caso de erro detectado na conferência.",
     verificacao: "Revisão da OP pelo supervisor de produção.",
     registros: "Log de Pesagem e Ordem de Produção.",
-    referencias: "RDC 243/2018 (suplementos alimentares), RDC 275/2002 (ANVISA)."
+    referencias: "RDC 658/2022."
   },
   J_CONTROLE_QUALIDADE: {
     objetivo: "Padronizar as análises laboratoriais para liberação de produtos.",
@@ -189,7 +189,7 @@ const POP_CONTENTS: Record<string, any> = {
     acoes_corretivas: "Abertura de OOS (Out of Specification) para resultados reprovados.",
     verificacao: "Controle de qualidade interlaboratorial.",
     registros: "Certificado de Análise e Livro de Registro QC.",
-    referencias: "RDC 243/2018 (suplementos alimentares), RDC 275/2002 (ANVISA)."
+    referencias: "RDC 658/2022."
   },
   K_ROTULAGEM: {
     objetivo: "Evitar erros de rotulagem e garantir informações corretas ao consumidor.",
@@ -225,7 +225,7 @@ const POP_CONTENTS: Record<string, any> = {
     acoes_corretivas: "Substituição de frascos em caso de avaria.",
     verificacao: "Auditoria anual de contraprovas.",
     registros: "Inventário de Amostras de Retenção.",
-    referencias: "RDC 243/2018 (suplementos alimentares), RDC 275/2002 (ANVISA)."
+    referencias: "RDC 658/2022."
   },
   MANUAL_GERAL: {
     objetivo: "Estabelecer as diretrizes gerais de funcionamento da fábrica fictícia, consolidando todos os procedimentos de Boas Práticas de Fabricação (BPF) em um único guia mestre de operação.",
@@ -240,7 +240,7 @@ const POP_CONTENTS: Record<string, any> = {
           "Todo colaborador é um agente da qualidade e deve zelar pela higiene.",
           "O Manual de Boas Práticas de Fabricação (BPF) é a lei máxima da planta.",
           "Desvios devem ser comunicados imediatamente à Garantia da Qualidade.",
-          "A conformidade com as RDC 275/2002 e RDC 243/2018 é obrigatória para suplementos alimentares."
+          "A conformidade com as RDC 275/2002 e RDC 658/2022 é obrigatória."
         ]
       },
       {
@@ -278,7 +278,7 @@ const POP_CONTENTS: Record<string, any> = {
     acoes_corretivas: "Abertura de Relatório de Desvio e plano de ação (CAPA) para qualquer processo fora do padrão estabelecido.",
     verificacao: "Verificação sistêmica via trilha de auditoria digital (Logs) e revisão anual do manual.",
     registros: "Registros digitais de produção, qualidade e telemetria armazenados na nuvem.",
-    referencias: "RDC 243/2018, RDC 275/2002, ISO 22716, Guia 34/2023 ANVISA."
+    referencias: "RDC 658/2022, RDC 275/2002, ISO 22716, Guia 34/2023 ANVISA."
   }
 };
 
@@ -492,7 +492,7 @@ export function POPVisualizer({ pop, open, onOpenChange }: POPVisualizerProps) {
             
             <div className="mt-12 flex items-center justify-center gap-2 text-emerald-600 font-bold text-[10px] uppercase border p-4 bg-emerald-50 rounded-lg">
               <Shield className="w-4 h-4" />
-              Documento validado via BrainX ERP · Autenticação em conformidade com RDC 243/2018 / RDC 275/2002
+              Documento validado via BrainX ERP · Autenticação em conformidade com RDC 658/2022
             </div>
           </div>
         </div>

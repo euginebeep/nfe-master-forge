@@ -1,4 +1,4 @@
-project_id = "cqkvekdrifmvedvpjmjr"
+project_id = "lvptvswvqjhvobdvgfws"
 
 [functions]
   [functions.admin-create-user]
@@ -34,12 +34,4 @@ project_id = "cqkvekdrifmvedvpjmjr"
   [functions.seed-demo-data]
     verify_jwt = false
   [functions.export-full-backup]
-    verify_jwt = false
-  [functions.ewelink-sync]
-    verify_jwt = false
-  [functions.legislacao-rag-search]
-    verify_jwt = true
-  [functions.legislacao-ingest]
-    verify_jwt = true
-  [functions.monitor-anvisa-diario]
     verify_jwt = false

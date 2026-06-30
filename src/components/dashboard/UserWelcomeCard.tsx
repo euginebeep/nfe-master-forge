@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getDailyPhrase, getGreeting, roleDisplayNames } from '@/lib/motivational-phrases';
 import { cn } from '@/lib/utils';
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 type Sexo = 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO';
 
 interface UserWelcomeCardProps {

@@ -204,8 +204,8 @@ export default function EmpresaSettingsPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         
-        const supabaseUrl = "https://cqkvekdrifmvedvpjmjr.supabase.co";
-        const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxa3Zla2RyaWZtdmVkdnBqbWpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODA0MzAsImV4cCI6MjA5NTg1NjQzMH0.6Y6c5-lzCcA5j8ujKMfvOqHBT19gZ4D8_PL1ZqVAYYI";
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         
         const response = await fetch(`${supabaseUrl}/functions/v1/validate-certificate`, {
           method: 'POST',
@@ -320,151 +320,53 @@ export default function EmpresaSettingsPage() {
     }));
   };
 
-  // Padrão de logo do ERP. IMPORTANTE: como toda a exibição usa height fixa +
-  // width:auto + object-fit:contain, uma logo quadrada/redonda (1:1) ou mesmo
-  // vertical NÃO quebra layout nenhum — só ocupa uma largura menor dentro do
-  // mesmo espaço, o que é visualmente normal. O único caso que realmente
-  // quebra é uma logo excessivamente larga (banner), que estoura o
-  // max-width:110px do cabeçalho do laudo (exportLaudoA4.ts) a 36px de altura.
-  const LOGO_RATIO_MAX = 4; // acima disso, vira aviso (não bloqueia)
-  const LOGO_MIN_WIDTH = 200;
-  const LOGO_MIN_HEIGHT = 200;
-
-  function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("Não foi possível ler a imagem"));
-      };
-      img.src = url;
-    });
-  }
-
-  // Detecta se a imagem tem algum pixel transparente de verdade — cobre o caso comum
-  // de PNG exportado sem canal alpha (fundo sólido), que o `file.type` sozinho não pega.
-  function hasTransparentPixel(file: File): Promise<boolean> {
-    return new Promise((resolve) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        try {
-          const SAMPLE = 64; // reduz pra checagem rápida, não precisa da imagem inteira
-          const canvas = document.createElement("canvas");
-          canvas.width = SAMPLE;
-          canvas.height = SAMPLE;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return resolve(true); // não bloqueia por falha de canvas
-          ctx.drawImage(img, 0, 0, SAMPLE, SAMPLE);
-          const { data } = ctx.getImageData(0, 0, SAMPLE, SAMPLE);
-          for (let i = 3; i < data.length; i += 4) {
-            if (data[i] < 255) return resolve(true);
-          }
-          resolve(false);
-        } catch {
-          resolve(true); // CORS ou outro erro de canvas: não bloqueia, assume ok
-        }
-      };
-      img.onerror = () => resolve(true);
-      img.src = url;
-    });
-  }
-
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Arquivo muito grande", { description: "Máximo 2MB." });
-      e.target.value = "";
+    // Validação de tipo e tamanho
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Formato de arquivo não suportado. Use PNG, JPG ou SVG.");
       return;
     }
 
-    // SVG não dá pra medir via Image().naturalWidth de forma confiável em todos os
-    // navegadores — pula a validação de proporção nesse caso e segue com o upload.
-    if (file.type !== "image/svg+xml") {
-      try {
-        const { width, height } = await getImageDimensions(file);
-        const ratio = width / height;
-
-        if (width < LOGO_MIN_WIDTH || height < LOGO_MIN_HEIGHT) {
-          toast.error("Imagem com resolução muito baixa", {
-            description: `Mínimo ${LOGO_MIN_WIDTH}×${LOGO_MIN_HEIGHT}px para não ficar borrada nos relatórios.`,
-          });
-          e.target.value = "";
-          return;
-        }
-
-        // Logos redondas, quadradas ou verticais são bem-vindas — o sistema centraliza
-        // e ajusta automaticamente em todos os documentos. Só avisamos (sem bloquear)
-        // quando a logo é um banner extremamente largo, caso raro que pode ficar
-        // espremido no cabeçalho do laudo.
-        if (ratio > LOGO_RATIO_MAX) {
-          toast.warning("Logo bem larga — pode ficar pequena no cabeçalho do laudo", {
-            description: "Funciona, mas uma versão mais próxima de 1:1 ou 2:1 fica mais nítida nos relatórios.",
-          });
-        }
-
-        if (file.type === "image/jpeg") {
-          toast.warning("JPG não suporta fundo transparente", {
-            description: "Em relatórios com fundo branco isso pode aparecer como uma caixa colorida. PNG transparente é o ideal.",
-          });
-        } else if (file.type === "image/png" || file.type === "image/webp") {
-          const transparent = await hasTransparentPixel(file);
-          if (!transparent) {
-            toast.warning("Esse arquivo não tem fundo transparente", {
-              description: "É um PNG com fundo sólido. Em relatórios com fundo branco isso vai aparecer como uma caixa colorida atrás da logo.",
-            });
-          }
-        }
-      } catch {
-        // Se não conseguir medir, segue o fluxo normal (não bloqueia o usuário por isso)
-      }
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      toast.error("O arquivo é muito grande. O tamanho máximo permitido é 2MB.");
+      return;
     }
 
+    if (file.size === 0) {
+      toast.error("O arquivo está vazio ou corrompido.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setLogoPreview(base64);
+      setFormData(prev => ({
+        ...prev,
+        logo_nome: file.name,
+        logo_tipo: file.type,
+        logo_data: base64,
+      }));
+    };
+    reader.onerror = () => {
+      toast.error("Erro ao ler o arquivo selecionado.");
+    };
+    reader.readAsDataURL(file);
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from('profiles').select('company_id').eq('id', user?.id).single();
-      if (!profile?.company_id) throw new Error('Empresa não identificada');
-
-      const ext = file.name.split('.').pop();
-      const path = `${profile.company_id}/logo-${Date.now()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('erp-files')
-        .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage.from('erp-files').getPublicUrl(path);
-
-      const { data: arquivo, error: arquivoError } = await supabase
-        .from('arquivos')
-        .insert({
-          nome_original: file.name,
-          mime_type: file.type,
-          storage_key: path,
-          tamanho: file.size,
-        })
-        .select('id')
-        .single();
-      if (arquivoError) throw arquivoError;
-
-      await supabase.from('company')
-        .update({ logo_file_id: arquivo.id })
-        .eq('id', profile.company_id);
-
-      setLogoPreview(urlData.publicUrl);
+      const loadingToast = toast.loading("Enviando logo...");
+      const arquivo = await uploadFile.mutateAsync({ file, sensivel: false });
+      if (supabaseCompany?.id) {
+        await upsertCompanyMutation.mutateAsync({ logo_file_id: arquivo.id });
+      }
+      toast.dismiss(loadingToast);
       toast.success("Logo atualizado com sucesso");
-    } catch (err: any) {
-      console.error('Logo upload error:', err);
-      toast.error("Erro ao enviar logo", { description: err?.message ?? "Tente novamente." });
+    } catch (err) {
+      toast.error("Erro ao salvar logo no servidor. A versão local será mantida temporariamente.");
     }
   };
 
@@ -731,9 +633,7 @@ export default function EmpresaSettingsPage() {
                       <div className="border-2 border-dashed rounded-lg px-6 py-4 text-center hover:border-primary hover:bg-primary/5 transition-all">
                         <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
                         <p className="text-sm font-medium">Upload Logo</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Qualquer formato (redonda, quadrada ou horizontal) · PNG transparente · mín. 200×200px · máx. 2MB
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG ou SVG</p>
                       </div>
                     </Label>
                     <input
@@ -746,36 +646,6 @@ export default function EmpresaSettingsPage() {
                   </>
                 )}
               </div>
-
-              {logoPreview && !logoIsLoading && (
-                <div className="mt-3">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Prévia de como a logo aparece nos documentos (qualquer formato é centralizado automaticamente):
-                  </p>
-                  <div className="flex flex-wrap gap-4">
-                    <div className="space-y-1">
-                      <div className="border rounded bg-white px-3 flex items-center" style={{ height: 56 }}>
-                        <img
-                          src={logoPreview}
-                          alt="Prévia — Laudo"
-                          style={{ height: 36, width: "auto", maxWidth: 110, objectFit: "contain" }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground text-center">Cabeçalho do Laudo</p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="border rounded bg-white px-3 flex items-center" style={{ height: 72 }}>
-                        <img
-                          src={logoPreview}
-                          alt="Prévia — Contrato"
-                          style={{ maxHeight: 60, width: "auto", objectFit: "contain" }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground text-center">Contrato / Relatório</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

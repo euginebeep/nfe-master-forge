@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
     const { data: userRoles } = await supabaseClient.from('user_roles').select('role').eq('user_id', callingUser.id)
     const roles = userRoles?.map(r => r.role) || []
-    const isSaasAdmin = roles.some(r => ['saas_owner', 'saas_suporte', 'saas_financeiro'].includes(r))
+    const isSaasAdmin = roles.some(r => ['admin', 'saas_owner', 'saas_suporte', 'saas_financeiro'].includes(r))
 
     if (!isSaasAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -40,9 +40,7 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
     const url = new URL(req.url)
-    let bodyJson: any = {}
-    try { bodyJson = await req.json() } catch { /* no body */ }
-    const action = url.searchParams.get('action') || bodyJson?.action || 'list'
+    const action = url.searchParams.get('action') || 'list'
 
     // ─── LIST: Get all companies with extended SaaS data ───
     if (action === 'list') {
@@ -114,31 +112,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Usuários órfãos: profiles sem company_id + auth.users sem profile
-      const profileIds = new Set((profiles || []).map(p => p.id))
-      const orphanProfiles = (profiles || [])
-        .filter(p => !p.company_id)
-        .map(p => ({
-          id: p.id,
-          nome: p.nome_completo,
-          email: emailMap.get(p.id) || '',
-          created_at: p.created_at,
-          ultimo_acesso: p.ultimo_acesso,
-          motivo: 'profile_sem_company',
-        }))
-      const authOnly = (authUsers || [])
-        .filter(u => !profileIds.has(u.id))
-        .map(u => ({
-          id: u.id,
-          nome: u.user_metadata?.full_name || u.email || '',
-          email: u.email || '',
-          created_at: u.created_at,
-          ultimo_acesso: u.last_sign_in_at,
-          motivo: 'auth_sem_profile',
-        }))
-      const orphanUsers = [...orphanProfiles, ...authOnly]
-
-      return new Response(JSON.stringify({ companies: companyData, orphan_users: orphanUsers }), {
+      return new Response(JSON.stringify({ companies: companyData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -154,7 +128,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update-ticket') {
-      const { id, status, atribuido_a } = bodyJson
+      const { id, status, atribuido_a } = await req.json()
       const { data, error } = await supabaseAdmin
         .from('saas_tickets')
         .update({ status, atribuido_a, updated_at: new Date().toISOString() })
@@ -163,55 +137,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, data }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // ─── AI CONFIG: Get and update models (saas_ai_config — metadados de modelos) ───
+    // ─── AI CONFIG: Get and update models ───
     if (action === 'list-ai-configs') {
       const { data: configs, error } = await supabaseAdmin.from('saas_ai_config').select('*').order('created_at', { ascending: false })
       if (error) throw error
       return new Response(JSON.stringify({ configs }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // ─── GLOBAL API KEYS: Ler chaves de integração (erp_system_config) ───
-    // Retorna as chaves mascaradas (últimos 6 chars) para exibição no painel
-    if (action === 'get-ai-keys') {
-      const { data: rows, error } = await supabaseAdmin
-        .from('erp_system_config')
-        .select('chave, valor, descricao, categoria, ativo, updated_at')
-        .eq('categoria', 'ia')
-        .order('chave')
-      if (error) throw error
-      // Mascarar valores para exibição segura
-      const masked = (rows || []).map((r: any) => ({
-        ...r,
-        valor_mascarado: r.valor ? `${'•'.repeat(Math.max(0, r.valor.length - 6))}${r.valor.slice(-6)}` : null,
-        configurado: !!r.valor,
-      }))
-      return new Response(JSON.stringify({ keys: masked }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
-
-    // ─── GLOBAL API KEYS: Salvar chave de integração (erp_system_config) ───
-    if (action === 'save-ai-key') {
-      const { chave, valor } = bodyJson
-      if (!chave) {
-        return new Response(JSON.stringify({ error: 'chave é obrigatória' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
-      // Apenas chaves permitidas
-      const chavesPermitidas = ['gemini_api_key', 'firecrawl_api_key', 'anthropic_api_key']
-      if (!chavesPermitidas.includes(chave)) {
-        return new Response(JSON.stringify({ error: 'Chave não permitida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
-      const { error } = await supabaseAdmin
-        .from('erp_system_config')
-        .upsert(
-          { chave, valor: valor || null, ativo: true, updated_by: callingUser.id },
-          { onConflict: 'chave' }
-        )
-      if (error) throw error
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
-
     // Existing actions (block, unblock, delete-company, grant-access, update-company)
     if (['block', 'unblock', 'delete-company', 'grant-access', 'update-company'].includes(action)) {
-      const body = bodyJson
+      const body = await req.json()
       const { company_id } = body
 
       if (action === 'update-company') {

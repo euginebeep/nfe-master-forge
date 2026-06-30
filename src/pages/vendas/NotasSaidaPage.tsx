@@ -2,8 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import {
   FileOutput, Search, Plus, Eye, FileText, DollarSign, CheckCircle, XCircle, Clock,
   Send, Download, Trash2, Printer, AlertTriangle, Package, Truck, CreditCard,
-  ChevronDown, ChevronUp, FileX, Edit, MoreHorizontal, PenLine, Ban, Hash,
-  RefreshCw, Mail, CheckSquare, Square, FileCheck2, Loader2
+  ChevronDown, ChevronUp, FileX, Edit
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
@@ -19,16 +18,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFocusNfe } from "@/hooks/use-focus-nfe";
+import { useNuvemFiscal } from "@/hooks/use-nuvem-fiscal";
 import { useCompany } from "@/hooks/use-company";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
@@ -130,22 +124,8 @@ export default function NotasSaidaPage() {
   const [justificativa, setJustificativa] = useState("");
   const [danfePreviewOpen, setDanfePreviewOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<any>(null);
-  // CC-e
-  const [cceDialogOpen, setCceDialogOpen] = useState(false);
-  const [cceTexto, setCceTexto] = useState("");
-  // Inutilização
-  const [inutDialogOpen, setInutDialogOpen] = useState(false);
-  const [inutSerie, setInutSerie] = useState("1");
-  const [inutNumIni, setInutNumIni] = useState("");
-  const [inutNumFim, setInutNumFim] = useState("");
-  const [inutJustificativa, setInutJustificativa] = useState("");
-  const [inutLoading, setInutLoading] = useState(false);
-  // Seleção múltipla
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // Status loading
-  const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe } = useFocusNfe();
+  const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe } = useNuvemFiscal();
   const { data: company } = useCompany();
   const navigate = useNavigate();
 
@@ -284,56 +264,28 @@ export default function NotasSaidaPage() {
       const comp: any = company;
       if (!comp.cnpj) throw new Error("CNPJ da empresa não configurado em Configurações.");
       const cli: any = (nota as any).cliente || {};
-      // ── Buscar itens com rastros_json (lotes FEFO) ──
-      const { data: itensComRastros } = await supabase
-        .from("notas_saida_itens")
-        .select("*")
-        .eq("nota_saida_id", notaId);
-
-      // ── Buscar transportadora se houver ──
-      const transp: any = (nota as any).transportadora || {};
-
-      // ── Data/hora de emissão no formato SEFAZ ──
-      const agora = new Date();
-      const dhEmissao = agora.toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T') + '-03:00';
-
-      // ── Determinar destino da operação: 1=interna, 2=interestadual, 3=exterior ──
-      const ufEmit = (comp.endereco_uf || 'SP').toUpperCase();
-      const ufDest = (cli.endereco_uf || 'SP').toUpperCase();
-      const idDest = ufEmit === ufDest ? '1' : '2';
-
-      // ── Montar rastros por item (múltiplos lotes FEFO) ──
-      const itensMap = new Map((itensComRastros || []).map((i: any) => [i.id, i]));
-
       const payload = {
         ambiente: comp.nfe_ambiente === "PRODUCAO" ? "producao" : "homologacao",
         referencia: notaId,
         natureza_operacao: nota.natureza_operacao || "VENDA DE MERCADORIA",
         serie: String(comp.nfe_serie_padrao || 1),
         numero: String(comp.nfe_numero_inicial || 1),
-        data_emissao: dhEmissao,
-        data_saida_entrada: dhEmissao,
+        data_emissao: new Date().toISOString(),
         tipo_operacao: nota.tipo_operacao || "1",
         finalidade_emissao: nota.finalidade || "1",
-        // indFinal: 0=normal (B2B), 1=consumidor final (B2C)
-        consumidor_final: nota.consumidor_final || "0",
-        // indPres: 9=operação não presencial (internet/televendas)
-        presenca_comprador: nota.presenca_comprador || "9",
-        // indIntermed: 0=operação sem intermediador
-        intermediador: "0",
-        local_destino: idDest,
+        consumidor_final: "1",
+        presenca_comprador: "1",
         emitente: {
           cpf_cnpj: (comp.cnpj || "").replace(/\D/g, ""),
           razao_social: comp.razao_social || "",
           nome_fantasia: comp.nome_fantasia || comp.razao_social || "",
-          inscricao_estadual: (comp.ie || comp.inscricao_estadual || "").replace(/\D/g, ""),
-          regime_tributario: String(comp.crt || comp.regime_tributario || "1"),
+          inscricao_estadual: comp.inscricao_estadual || "",
+          regime_tributario: comp.regime_tributario || "1",
           endereco: {
             logradouro: comp.endereco_logradouro || "",
             numero: comp.endereco_nro || "S/N",
-            complemento: comp.endereco_complemento || undefined,
             bairro: comp.endereco_bairro || "",
-            codigo_municipio: String(comp.codigo_municipio || ""),
+            codigo_municipio: comp.codigo_municipio || "",
             nome_municipio: comp.endereco_cidade || "",
             uf: comp.endereco_uf || "",
             cep: (comp.endereco_cep || "").replace(/\D/g, ""),
@@ -345,181 +297,81 @@ export default function NotasSaidaPage() {
         destinatario: {
           cpf_cnpj: (cli.documento || "").replace(/\D/g, ""),
           razao_social: cli.razao_social || cli.nome_fantasia || "",
-          email: cli.email || undefined,
-          // indicador_ie_dest: 1=contribuinte, 2=isento, 9=não contribuinte
-          indicador_ie_dest: cli.ie ? "1" : "9",
-          inscricao_estadual: cli.ie ? (cli.ie || "").replace(/\D/g, "") : undefined,
-          telefone: cli.telefone ? (cli.telefone || "").replace(/\D/g, "") : undefined,
+          email: cli.email || "",
           endereco: {
             logradouro: cli.endereco_logradouro || "",
             numero: cli.endereco_nro || "S/N",
-            complemento: cli.endereco_complemento || undefined,
             bairro: cli.endereco_bairro || "",
-            codigo_municipio: String(cli.codigo_municipio || ""),
+            codigo_municipio: cli.codigo_municipio || "",
             nome_municipio: cli.endereco_cidade || "",
             uf: cli.endereco_uf || "",
             cep: (cli.endereco_cep || "").replace(/\D/g, ""),
             codigo_pais: "1058",
             nome_pais: "Brasil",
-            telefone: cli.telefone ? (cli.telefone || "").replace(/\D/g, "") : undefined,
           },
         },
-        itens: (nota.notas_saida_itens || []).map((item: any, idx: number) => {
-          // Rastros do banco (rastros_json) ou fallback para campos legados
-          const itemDB = itensMap.get(item.id) || item;
-          let rastros: any[] = [];
-          if (itemDB.rastros_json) {
-            try { rastros = JSON.parse(itemDB.rastros_json); } catch {}
-          } else if (itemDB.lote_id && item.nLote) {
-            rastros = [{ nLote: item.nLote, qLote: item.quantidade, dFab: item.dFab, dVal: item.dVal }];
-          }
-
-          // Montar infAdProd com rastreabilidade completa
-          const infAdProd = itemDB.informacoes_adicionais ||
-            (rastros.length > 0
-              ? rastros.map((r: any, ri: number) =>
-                  `${rastros.length > 1 ? `LOTE ${ri+1}: ` : 'LOTE: '}${r.nLote}${r.dVal ? ` VAL: ${r.dVal.split('-').reverse().join('/')}` : ''}${r.dFab ? ` FAB: ${r.dFab.split('-').reverse().join('/')}` : ''} QTD: ${r.qLote}${r.op_codigo ? ` OP: ${r.op_codigo}` : ''}`
-                ).join(' / ')
-              : undefined);
-
-          return {
-            numero_item: String(idx + 1),
-            codigo_produto: item.item_id || String(idx + 1),
-            codigo_ean: "SEM GTIN",
-            descricao: item.descricao || "",
-            codigo_ncm: (item.ncm || "").replace(/\D/g, ""),
-            cfop: item.cfop || "5102",
-            unidade_comercial: item.unidade || "UN",
-            quantidade_comercial: Number(item.quantidade),
-            valor_unitario_comercial: Number(item.valor_unitario),
-            valor_bruto: Number(item.valor_total),
-            codigo_ean_tributavel: "SEM GTIN",
-            unidade_tributavel: item.unidade || "UN",
-            quantidade_tributavel: Number(item.quantidade),
-            valor_unitario_tributavel: Number(item.valor_unitario),
-            // Frete rateado por item (proporcional ao valor)
-            valor_frete: item.valor_frete ? Number(item.valor_frete) : undefined,
-            valor_seguro: item.valor_seguro ? Number(item.valor_seguro) : undefined,
-            valor_desconto: item.valor_desconto ? Number(item.valor_desconto) : undefined,
-            outras_despesas: item.valor_outros ? Number(item.valor_outros) : undefined,
-            inclui_no_total: "1",
-            codigo_origem: item.origem || "0",
-            // Rastros de lote (NT 2013.005 SEFAZ / ANVISA)
-            rastros: rastros.length > 0 ? rastros.map((r: any) => ({
-              numero_lote: r.nLote,
-              quantidade_lote: Number(r.qLote),
-              data_fabricacao: r.dFab || undefined,
-              data_validade: r.dVal || undefined,
-            })) : undefined,
-            icms: {
-              origem: item.origem || "0",
-              cst: item.cst_icms || "00",
-              modalidade_base_calculo: "3",
-              base_calculo: Number(item.icms_base || item.valor_total),
-              aliquota: Number(item.icms_aliquota || 0),
-              valor: Number(item.icms_valor || 0),
-            },
-            ipi: {
-              codigo_enquadramento: "999",
-              cst: item.cst_ipi || "53", // 53=saída não tributada
-              base_calculo: 0,
-              aliquota: 0,
-              valor: Number(item.ipi_valor || 0),
-            },
-            pis: {
-              cst: item.cst_pis || "07",
-              base_calculo: Number(item.pis_base || item.valor_total),
-              aliquota_percentual: Number(item.pis_aliquota || 0),
-              valor: Number(item.pis_valor || 0),
-            },
-            cofins: {
-              cst: item.cst_cofins || "07",
-              base_calculo: Number(item.cofins_base || item.valor_total),
-              aliquota_percentual: Number(item.cofins_aliquota || 0),
-              valor: Number(item.cofins_valor || 0),
-            },
-            // Pedido de compra (xPed / nItemPed)
-            pedido_compra: item.xPed || undefined,
-            numero_item_pedido: item.nItemPed || undefined,
-            // Informações adicionais do item (infAdProd) — rastreabilidade
-            informacoes_adicionais: infAdProd || undefined,
-          };
-        }),
+        itens: (nota.notas_saida_itens || []).map((item: any, idx: number) => ({
+          numero_item: String(idx + 1),
+          codigo_produto: item.item_id || String(idx + 1),
+          descricao: item.descricao || "",
+          codigo_ncm: (item.ncm || "").replace(/\D/g, ""),
+          cfop: item.cfop || "5102",
+          unidade_comercial: item.unidade || "UN",
+          quantidade_comercial: Number(item.quantidade),
+          valor_unitario_comercial: Number(item.valor_unitario),
+          valor_bruto: Number(item.valor_total),
+          unidade_tributavel: item.unidade || "UN",
+          quantidade_tributavel: Number(item.quantidade),
+          valor_unitario_tributavel: Number(item.valor_unitario),
+          codigo_origem: item.origem || "0",
+          icms: {
+            origem: item.origem || "0",
+            cst: item.cst_icms || "00",
+            modalidade_base_calculo: "3",
+            base_calculo: Number(item.valor_total),
+            aliquota: Number(item.icms_aliquota || 0),
+            valor: Number(item.icms_valor || 0),
+          },
+          pis: {
+            cst: item.cst_pis || "07",
+            base_calculo: Number(item.valor_total),
+            aliquota_percentual: Number(item.pis_aliquota || 0),
+            valor: Number(item.pis_valor || 0),
+          },
+          cofins: {
+            cst: item.cst_cofins || "07",
+            base_calculo: Number(item.valor_total),
+            aliquota_percentual: Number(item.cofins_aliquota || 0),
+            valor: Number(item.cofins_valor || 0),
+          },
+        })),
         total: {
           icms_total: {
-            base_calculo: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.icms_base || i.valor_total || 0), 0),
+            base_calculo: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.valor_total || 0), 0),
             valor_icms: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.icms_valor || 0), 0),
             valor_pis: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.pis_valor || 0), 0),
             valor_cofins: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.cofins_valor || 0), 0),
-            valor_ipi: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.ipi_valor || 0), 0),
             valor_produtos: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.valor_total || 0), 0),
             valor_nota: Number(nota.valor_total || 0),
-            valor_frete: Number(nota.valor_frete || 0),
-            valor_seguro: Number(nota.valor_seguro || 0),
-            outras_despesas: Number(nota.valor_outros || 0),
-            valor_desconto: Number(nota.valor_desconto || 0),
+            valor_frete: 0,
+            valor_seguro: 0,
+            outras_despesas: 0,
+            valor_desconto: 0,
             valor_ii: 0,
+            valor_ipi: 0,
             valor_servicos: 0,
             base_calculo_st: 0,
             valor_icms_st: 0,
-            valor_fcp: 0,
-            valor_fcp_st: 0,
-            valor_fcp_st_retido: 0,
           },
         },
-        // Transporte
-        transporte: {
-          modalidade_frete: String(nota.modalidade_frete || "9"),
-          ...(transp?.cnpj ? {
-            transportadora: {
-              cpf_cnpj: (transp.cnpj || "").replace(/\D/g, ""),
-              razao_social: transp.razao_social || transp.xNome || "",
-              inscricao_estadual: transp.ie || undefined,
-              endereco_completo: transp.endereco_logradouro || undefined,
-              municipio: transp.endereco_cidade || undefined,
-              uf: transp.endereco_uf || undefined,
-            },
-          } : {}),
-          ...(nota.volumes_qtd ? {
-            volumes: [{
-              quantidade: Number(nota.volumes_qtd || 1),
-              especie: nota.volumes_especie || "CX",
-              marca: nota.volumes_marca || comp.nome_fantasia || "",
-              numeracao: nota.volumes_numeracao || undefined,
-              peso_bruto: Number(nota.peso_bruto || 0),
-              peso_liquido: Number(nota.peso_liquido || 0),
-            }],
-          } : {}),
-        },
-        // Cobrança e duplicatas
-        ...(nota.fat_numero ? {
-          cobranca: {
-            fatura: {
-              numero: nota.fat_numero,
-              valor_original: Number(nota.fat_valor_original || nota.valor_total || 0),
-              valor_desconto: Number(nota.fat_valor_desconto || 0),
-              valor_liquido: Number(nota.fat_valor_liquido || nota.valor_total || 0),
-            },
-          },
-        } : {}),
-        // Pagamentos
         pagamentos: [{
-          indicador_pagamento: nota.indicador_pagamento || "1", // 1=a prazo
-          forma_pagamento: nota.meio_pagamento || "15",        // 15=boleto bancário, 17=PIX
+          forma_pagamento: nota.meio_pagamento || "01",
           valor: Number(nota.valor_total || 0),
         }],
-        // Informações adicionais da nota
         informacoes_adicionais_contribuinte: nota.informacoes_adicionais || "",
-        // Responsável técnico (obrigatório para software house)
-        responsavel_tecnico: {
-          cnpj: "00000000000000", // CNPJ do software house (BrainXERP)
-          contato: "Suporte BrainXERP",
-          email: "suporte@brainxerp.com",
-          telefone: "17000000000",
-        },
       };
       const resultado = await emitirNFe(payload);
-      if (!resultado?.id) throw new Error("Resposta inválida da Focus NFe");
+      if (!resultado?.id) throw new Error("Resposta inválida da Nuvem Fiscal");
       let autorizada = false;
       let tentativas = 0;
       let dadosNfe: any = null;
@@ -528,7 +380,7 @@ export default function NotasSaidaPage() {
         dadosNfe = await consultarNFe(resultado.id);
         if (dadosNfe?.status === "autorizado") {
           autorizada = true;
-        } else if (["erro", "rejeitado", "denegado", "erro_autorizacao"].includes(dadosNfe?.status)) {
+        } else if (["erro", "rejeitado", "denegado"].includes(dadosNfe?.status)) {
           throw new Error(`NF-e ${dadosNfe.status}: ${dadosNfe?.motivo_rejeicao || "Verifique os dados e tente novamente"}`);
         }
         tentativas++;
@@ -540,13 +392,12 @@ export default function NotasSaidaPage() {
       }
       await supabase.from("notas_saida").update({
         status: "AUTORIZADA",
-        focus_nfe_id: resultado.id,
         nuvem_fiscal_id: resultado.id,
-        chave_acesso: dadosNfe?.chave_nfe || dadosNfe?.chave_acesso || null,
+        chave_acesso: dadosNfe?.chave_acesso || null,
         protocolo_autorizacao: dadosNfe?.protocolo || null,
         numero: dadosNfe?.numero || null,
         serie: dadosNfe?.serie || null,
-        danfe_url: dadosNfe?.link_pdf || (dadosNfe?.caminho_danfe ? `https://api.focusnfe.com.br${dadosNfe.caminho_danfe}` : null),
+        danfe_url: dadosNfe?.link_pdf || null,
       }).eq("id", notaId);
 
       // ── Pós-autorização: Conta a Receber + Baixa de Estoque (FEFO) ──
@@ -612,13 +463,12 @@ export default function NotasSaidaPage() {
     mutationFn: async ({ notaId, justificativa }: { notaId: string; justificativa: string }) => {
       const { data: nota } = await supabase
         .from("notas_saida")
-        .select("focus_nfe_id, nuvem_fiscal_id")
+        .select("nuvem_fiscal_id")
         .eq("id", notaId)
         .single();
 
-      const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
-      if (focusId) {
-        await cancelarNFe(focusId, justificativa);
+      if (nota?.nuvem_fiscal_id) {
+        await cancelarNFe(nota.nuvem_fiscal_id, justificativa);
       }
 
       await supabase
@@ -638,90 +488,6 @@ export default function NotasSaidaPage() {
     },
     onError: (err: any) => toast.error("Erro: " + err.message),
   });
-
-  const cartaCorrecaoMutation = useMutation({
-    mutationFn: async ({ notaId, texto }: { notaId: string; texto: string }) => {
-      const { data: nota } = await supabase
-        .from("notas_saida")
-        .select("focus_nfe_id, nuvem_fiscal_id")
-        .eq("id", notaId)
-        .single();
-      const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
-      if (!focusId) throw new Error("NF-e não encontrada na Focus NFe");
-      await cartaCorrecaoNFe(focusId, texto);
-    },
-    onSuccess: () => {
-      toast.success("Carta de Correção emitida com sucesso");
-      setCceDialogOpen(false);
-      setCceTexto("");
-    },
-    onError: (err: any) => toast.error("Erro na CC-e: " + err.message),
-  });
-
-  const consultarStatusMutation = useCallback(async (notaId: string) => {
-    setStatusLoadingId(notaId);
-    try {
-      const { data: nota } = await supabase
-        .from("notas_saida")
-        .select("focus_nfe_id, nuvem_fiscal_id")
-        .eq("id", notaId)
-        .single();
-      const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
-      if (!focusId) { toast.error("NF-e não transmitida"); return; }
-      const dados = await consultarNFe(focusId);
-      const statusMap: Record<string, string> = {
-        autorizado: "AUTORIZADA",
-        cancelado: "CANCELADA",
-        denegado: "DENEGADA",
-        erro_autorizacao: "REJEITADA",
-        rejeitado: "REJEITADA",
-        processando_autorizacao: "PROCESSANDO",
-      };
-      const novoStatus = statusMap[dados?.status] || "RASCUNHO";
-      await supabase.from("notas_saida").update({
-        status: novoStatus,
-        chave_acesso: dados?.chave_nfe || dados?.chave_acesso || undefined,
-        protocolo_autorizacao: dados?.protocolo || undefined,
-        numero: dados?.numero || undefined,
-        serie: dados?.serie || undefined,
-      }).eq("id", notaId);
-      queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
-      toast.success(`Status atualizado: ${novoStatus}`);
-    } catch (e: any) {
-      toast.error("Erro ao consultar: " + e.message);
-    } finally {
-      setStatusLoadingId(null);
-    }
-  }, [consultarNFe, queryClient]);
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filtered.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filtered.map((n: any) => n.id)));
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const transmitirSelecionadas = async () => {
-    const ids = Array.from(selectedIds).filter(id => {
-      const n = filtered.find((x: any) => x.id === id);
-      return n?.status === "RASCUNHO";
-    });
-    if (!ids.length) { toast.warning("Nenhum rascunho selecionado"); return; }
-    toast.info(`Transmitindo ${ids.length} nota(s)...`);
-    for (const id of ids) {
-      await transmitirNota.mutateAsync(id).catch(() => {});
-    }
-    setSelectedIds(new Set());
-  };
 
   const buildDanfeData = (notaData: any, notaItens: any[], comp: any, cliente: any) => ({
     emit_razao: comp?.razao_social || "—",
@@ -894,7 +660,7 @@ export default function NotasSaidaPage() {
     <div className="space-y-6">
       <PageHeader
         title="Notas Fiscais de Saída"
-        description="Emissão de NF-e (modelo 55) via Focus NFe"
+        description="Emissão de NF-e (modelo 55) via Nuvem Fiscal"
         icon={FileOutput}
         actions={
           <div className="flex gap-2">
@@ -950,45 +716,6 @@ export default function NotasSaidaPage() {
         </Card>
       </div>
 
-      {/* Barra de ações em lote */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-          <span className="text-sm font-medium text-primary">
-            {selectedIds.size} nota(s) selecionada(s)
-          </span>
-          <div className="flex gap-2 ml-auto">
-            <Button size="sm" variant="outline" onClick={transmitirSelecionadas} disabled={transmitirNota.isPending}>
-              <Send className="h-3.5 w-3.5 mr-1" /> Transmitir Selecionadas
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => {
-              const ids = Array.from(selectedIds);
-              ids.forEach(id => {
-                const nota = filtered.find((n: any) => n.id === id);
-                if (nota?.focus_nfe_id || nota?.nuvem_fiscal_id) {
-                  baixarDanfe((nota.focus_nfe_id || nota.nuvem_fiscal_id)!);
-                }
-              });
-            }}>
-              <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir DANFE
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => {
-              const ids = Array.from(selectedIds);
-              ids.forEach(id => {
-                const nota = filtered.find((n: any) => n.id === id);
-                if (nota?.focus_nfe_id || nota?.nuvem_fiscal_id) {
-                  baixarXml((nota.focus_nfe_id || nota.nuvem_fiscal_id)!);
-                }
-              });
-            }}>
-              <Download className="h-3.5 w-3.5 mr-1" /> Exportar XML
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
-              Limpar
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -1012,9 +739,6 @@ export default function NotasSaidaPage() {
             <SelectItem value="REJEITADA">Rejeitada</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={() => setInutDialogOpen(true)}>
-          <Hash className="h-4 w-4 mr-2" /> Inutilizar Numeração
-        </Button>
         <Button onClick={() => navigate("/vendas/emissor-nfe")}>
           <Plus className="h-4 w-4 mr-2" /> Nova NF-e
         </Button>
@@ -1039,12 +763,6 @@ export default function NotasSaidaPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
                   <TableHead className="w-20">Número</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Natureza</TableHead>
@@ -1059,13 +777,7 @@ export default function NotasSaidaPage() {
                   const cfg = STATUS_CONFIG[nota.status] || STATUS_CONFIG.RASCUNHO;
                   const Icon = cfg.icon;
                   return (
-                    <TableRow key={nota.id} className={selectedIds.has(nota.id) ? "bg-primary/5" : ""}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.has(nota.id)}
-                          onCheckedChange={() => toggleSelect(nota.id)}
-                        />
-                      </TableCell>
+                    <TableRow key={nota.id}>
                       <TableCell className="font-mono text-sm">
                         {nota.numero || "—"}
                       </TableCell>
@@ -1093,81 +805,81 @@ export default function NotasSaidaPage() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-8 w-8">
-                              {statusLoadingId === nota.id
-                                ? <Loader2 className="h-4 w-4 animate-spin" />
-                                : <MoreHorizontal className="h-4 w-4" />}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52">
-                            {/* Visualizar */}
-                            <DropdownMenuItem onClick={() => openDanfeFromSavedNota(nota.id)}>
-                              <Eye className="h-4 w-4 mr-2" /> Visualizar DANFE
-                            </DropdownMenuItem>
-
-                            {/* Transmitir (rascunho) */}
-                            {nota.status === "RASCUNHO" && (
-                              <DropdownMenuItem
+                        <div className="flex gap-1 justify-end">
+                          {nota.status === "RASCUNHO" && (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => openDanfeFromSavedNota(nota.id)}
+                                title="Pré-visualizar DANFE"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
                                 onClick={() => transmitirNota.mutate(nota.id)}
                                 disabled={transmitirNota.isPending}
                               >
-                                <Send className="h-4 w-4 mr-2" /> Transmitir à SEFAZ
-                              </DropdownMenuItem>
-                            )}
-
-                            {/* Ações para notas autorizadas */}
-                            {nota.status === "AUTORIZADA" && (
-                              <>
-                                <DropdownMenuItem onClick={() => {
-                                  const fid = (nota as any).focus_nfe_id || nota.nuvem_fiscal_id;
-                                  if (fid) {
-                                    baixarDanfe(fid);
-                                    registrarEventoNfe({ evento: "REIMPRESSAO", nota_id: nota.id, modelo: nota.modelo, serie: nota.serie ? Number(nota.serie) : null, numero: nota.numero ?? null, chave_acesso: nota.chave_acesso, protocolo: nota.protocolo_autorizacao, status: nota.status, observacao: "Reimpressão do DANFE" }).catch(() => {});
+                                <Send className="h-3.5 w-3.5 mr-1" />
+                                Transmitir
+                              </Button>
+                            </>
+                          )}
+                          {nota.status === "AUTORIZADA" && (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  if (nota.nuvem_fiscal_id) {
+                                    baixarDanfe(nota.nuvem_fiscal_id);
+                                    registrarEventoNfe({
+                                      evento: "REIMPRESSAO",
+                                      nota_id: nota.id,
+                                      modelo: nota.modelo,
+                                      serie: nota.serie ? Number(nota.serie) : null,
+                                      numero: nota.numero ?? null,
+                                      chave_acesso: nota.chave_acesso,
+                                      protocolo: nota.protocolo_autorizacao,
+                                      status: nota.status,
+                                      observacao: "Reimpressão do DANFE",
+                                    }).catch(() => {});
                                   }
-                                }}>
-                                  <Printer className="h-4 w-4 mr-2" /> Baixar DANFE (PDF)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  const fid = (nota as any).focus_nfe_id || nota.nuvem_fiscal_id;
-                                  if (fid) baixarXml(fid);
-                                }}>
-                                  <Download className="h-4 w-4 mr-2" /> Exportar XML
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => {
+                                }}
+                                title="DANFE"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  if (nota.nuvem_fiscal_id) baixarXml(nota.nuvem_fiscal_id);
+                                }}
+                                title="XML"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => {
                                   setSelectedNotaId(nota.id);
-                                  setCceTexto("");
-                                  setCceDialogOpen(true);
-                                }}>
-                                  <PenLine className="h-4 w-4 mr-2" /> Carta de Correção (CC-e)
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => {
-                                    setSelectedNotaId(nota.id);
-                                    setJustificativa("");
-                                    setCancelDialogOpen(true);
-                                  }}
-                                >
-                                  <Ban className="h-4 w-4 mr-2" /> Cancelar NF-e
-                                </DropdownMenuItem>
-                              </>
-                            )}
-
-                            {/* Consultar status (processando/rejeitada) */}
-                            {["PROCESSANDO", "REJEITADA", "RASCUNHO"].includes(nota.status) && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => consultarStatusMutation(nota.id)}>
-                                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar Status
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                                  setCancelDialogOpen(true);
+                                }}
+                                title="Cancelar"
+                              >
+                                <FileX className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -1533,136 +1245,6 @@ export default function NotasSaidaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* ─── Dialog Carta de Correção (CC-e) ─── */}
-      <Dialog open={cceDialogOpen} onOpenChange={setCceDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <PenLine className="h-5 w-5" />
-              Carta de Correção (CC-e)
-            </DialogTitle>
-            <DialogDescription>
-              Mínimo 15 caracteres. Não pode corrigir dados do emitente, destinatário, valores ou impostos.
-            </DialogDescription>
-          </DialogHeader>
-          <div>
-            <Label>Descrição da Correção</Label>
-            <Textarea
-              value={cceTexto}
-              onChange={(e) => setCceTexto(e.target.value)}
-              placeholder="Descreva a correção a ser realizada..."
-              rows={4}
-              minLength={15}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              {cceTexto.length}/15 caracteres mínimos
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCceDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectedNotaId) {
-                  cartaCorrecaoMutation.mutate({ notaId: selectedNotaId, texto: cceTexto });
-                }
-              }}
-              disabled={cceTexto.length < 15 || cartaCorrecaoMutation.isPending}
-            >
-              {cartaCorrecaoMutation.isPending ? "Enviando..." : "Emitir CC-e"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── Dialog Inutilização ─── */}
-      <Dialog open={inutDialogOpen} onOpenChange={setInutDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Hash className="h-5 w-5" />
-              Inutilizar Numeração
-            </DialogTitle>
-            <DialogDescription>
-              Inutiliza uma faixa de números de NF-e que não serão utilizados. Operação irreversível.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Série</Label>
-                <Input
-                  value={inutSerie}
-                  onChange={(e) => setInutSerie(e.target.value)}
-                  placeholder="1"
-                />
-              </div>
-              <div>
-                <Label>Número Inicial</Label>
-                <Input
-                  value={inutNumIni}
-                  onChange={(e) => setInutNumIni(e.target.value)}
-                  placeholder="1"
-                />
-              </div>
-              <div>
-                <Label>Número Final</Label>
-                <Input
-                  value={inutNumFim}
-                  onChange={(e) => setInutNumFim(e.target.value)}
-                  placeholder="10"
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Justificativa (mínimo 15 caracteres)</Label>
-              <Textarea
-                value={inutJustificativa}
-                onChange={(e) => setInutJustificativa(e.target.value)}
-                placeholder="Informe o motivo da inutilização..."
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {inutJustificativa.length}/15 caracteres mínimos
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInutDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={inutLoading || inutJustificativa.length < 15 || !inutSerie || !inutNumIni || !inutNumFim}
-              onClick={async () => {
-                setInutLoading(true);
-                try {
-                  await inutilizarNFe({
-                    serie: Number(inutSerie),
-                    numero_inicial: Number(inutNumIni),
-                    numero_final: Number(inutNumFim),
-                    justificativa: inutJustificativa,
-                  });
-                  toast.success("Numeração inutilizada com sucesso");
-                  setInutDialogOpen(false);
-                  setInutSerie("");
-                  setInutNumIni("");
-                  setInutNumFim("");
-                  setInutJustificativa("");
-                } catch (e: any) {
-                  toast.error("Erro: " + e.message);
-                } finally {
-                  setInutLoading(false);
-                }
-              }}
-            >
-              {inutLoading ? "Processando..." : "Inutilizar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* ─── DANFE Preview ─── */}
       <DANFEPreviewDialog
         open={danfePreviewOpen}

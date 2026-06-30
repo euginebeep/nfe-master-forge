@@ -4,37 +4,6 @@ import { toast } from 'sonner';
 import { registrarAuditoria } from '@/lib/audit-logger';
 import type { Database } from '@/integrations/supabase/types';
 
-/**
- * Extrai a mensagem de erro real de uma resposta de supabase.functions.invoke.
- * Quando o status é não-2xx, o corpo JSON fica em response.error.context (Response).
- * Retorna null quando não há erro.
- */
-async function extractInvokeError(
-  response: { data: any; error: any },
-  fallback: string
-): Promise<string | null> {
-  // 1) Erro de servidor: tenta ler o body do Response em error.context
-  if (response.error) {
-    try {
-      const ctx: any = (response.error as any).context;
-      if (ctx && typeof ctx.json === 'function') {
-        const body = await ctx.clone().json();
-        if (body?.error) return String(body.error);
-        if (body?.message) return String(body.message);
-      } else if (ctx && typeof ctx.text === 'function') {
-        const txt = await ctx.clone().text();
-        if (txt) return txt;
-      }
-    } catch {
-      /* ignora parse */
-    }
-    return response.error.message || fallback;
-  }
-  // 2) Função retornou 2xx mas com { error: "..." } no body
-  if (response.data?.error) return String(response.data.error);
-  return null;
-}
-
 type AppRole = Database['public']['Enums']['app_role'];
 type AppDepartamento = Database['public']['Enums']['app_departamento'];
 
@@ -209,9 +178,9 @@ export function useUsers() {
         body: data,
       });
 
-      // supabase.functions.invoke stores the non-2xx body in response.error.context (a Response)
-      const errorMsg = await extractInvokeError(response, 'Erro ao criar usuário');
-      if (errorMsg) {
+      // Prefer the specific error from the response body over the generic HTTP error
+      const errorMsg = response.data?.error || response.error?.message || 'Erro ao criar usuário';
+      if (response.error || response.data?.error) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }
@@ -244,8 +213,9 @@ export function useUsers() {
         body: data,
       });
 
-      const errorMsg = await extractInvokeError(response, 'Erro ao atualizar usuário');
-      if (errorMsg) {
+      // Prefer the specific error from the response body over the generic HTTP error
+      const errorMsg = response.data?.error || response.error?.message || 'Erro ao atualizar usuário';
+      if (response.error || response.data?.error) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }
@@ -278,8 +248,8 @@ export function useUsers() {
         body: { user_id: userId },
       });
 
-      const errorMsg = await extractInvokeError(response, 'Erro ao excluir usuário');
-      if (errorMsg) {
+      const errorMsg = response.data?.error || response.error?.message || 'Erro ao excluir usuário';
+      if (response.error || response.data?.error) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }

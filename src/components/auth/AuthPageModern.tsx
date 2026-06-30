@@ -34,11 +34,11 @@ const FEATURES = [
 
 /* ─── Input Field (Bootstrap style) ─── */
 function Field({
-  id, label, type, placeholder, value, onChange, icon, required, minLength, children,
+  id, label, type, placeholder, value, onChange, icon, required, minLength,
 }: {
   id: string; label: string; type: string; placeholder: string; value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  icon: string; required?: boolean; minLength?: number; children?: React.ReactNode;
+  icon: string; required?: boolean; minLength?: number;
 }) {
   return (
     <div className="mb-3">
@@ -74,50 +74,6 @@ function Field({
             e.target.style.background = 'rgba(255,255,255,0.04)';
           }}
         />
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/* ─── Password Strength Meter ─── */
-function PasswordStrength({ password }: { password: string }) {
-  if (!password) return null;
-
-  const getStrength = (p: string) => {
-    let score = 0;
-    if (p.length >= 8) score++;
-    if (/[A-Z]/.test(p)) score++;
-    if (/[0-9]/.test(p)) score++;
-    if (/[^A-Za-z0-9]/.test(p)) score++;
-    return score;
-  };
-
-  const strength = getStrength(password);
-  const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
-  const labels = ['Muito fraca', 'Fraca', 'Boa', 'Forte'];
-
-  return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{ display: 'flex', gap: 4, height: 4, borderRadius: 2, overflow: 'hidden' }}>
-        {[1, 2, 3, 4].map((step) => (
-          <div
-            key={step}
-            style={{
-              flex: 1,
-              background: step <= strength ? colors[strength - 1] : 'rgba(255,255,255,0.1)',
-              transition: 'background 0.3s'
-            }}
-          />
-        ))}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-        <span style={{ fontSize: 11, color: colors[strength - 1] || 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-          {labels[strength - 1] || 'Muito fraca'}
-        </span>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-          Mín. 8 caracteres, letras, números e símbolos
-        </span>
       </div>
     </div>
   );
@@ -199,26 +155,15 @@ export default function AuthPageModern() {
           padding: '48px 52px',
         }}>
 
-          {/* Logo positioning — Absolute background for the large logo */}
-          <div style={{ position: 'relative', height: 180, display: 'flex', alignItems: 'center' }}>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }} 
-              animate={{ opacity: 0.15, scale: 1 }} 
-              transition={{ duration: 0.8 }}
-              style={{ position: 'absolute', left: -80, top: -60, pointerEvents: 'none', zIndex: 0 }}
-            >
-              <LogoDemoERP style={{ width: 400, height: 400, objectFit: 'contain' } as any} />
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
-              <LogoDemoERP style={{ width: 48, height: 48, objectFit: 'contain' } as any} />
-              <div style={{ color: '#fff', display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                <div style={{ fontWeight: 800, fontSize: 36, letterSpacing: '-0.02em' }}>BrainX ERP</div>
-                <div style={{ fontWeight: 400, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>Gestão Industrial</div>
-              </div>
-            </motion.div>
-          </div>
+          {/* Logo with 50% increase and inline text */}
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <LogoDemoERP style={{ width: 270, height: 270, objectFit: 'contain' } as any} />
+            <div style={{ color: '#fff', display: 'flex', alignItems: 'baseline', gap: 12 }}>
+              <div style={{ fontWeight: 800, fontSize: 36, letterSpacing: '-0.02em' }}>BrainX ERP</div>
+              <div style={{ fontWeight: 400, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>Gestão Industrial</div>
+            </div>
+          </motion.div>
 
           {/* Hero text */}
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
@@ -458,9 +403,7 @@ export default function AuthPageModern() {
                     value={regEmail} onChange={e => setRegEmail(e.target.value)} icon="envelope-fill" required />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <Field id="reg-pass" label="Senha" type="password" placeholder="Mín. 6 dígitos"
-                      value={regPass} onChange={e => setRegPass(e.target.value)} icon="lock-fill" required minLength={6}>
-                      <PasswordStrength password={regPass} />
-                    </Field>
+                      value={regPass} onChange={e => setRegPass(e.target.value)} icon="lock-fill" required minLength={6} />
                     <Field id="reg-confirm" label="Confirmar" type="password" placeholder="Repita"
                       value={regConfirm} onChange={e => setRegConfirm(e.target.value)} icon="lock-fill" required minLength={6} />
                   </div>

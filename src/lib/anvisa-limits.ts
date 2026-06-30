@@ -22,7 +22,7 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   vitamina_b5:         { auth: true,  min: 0,  max: 5.64,    unit: 'mg',  norm: 'IN 28 Anexo IV (Ác. Pantotênico)' },
   vitamina_b6:         { auth: true,  min: 0,  max: 100,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
   vitamina_b7:         { auth: true,  min: 0,  max: 45,      unit: 'mcg', norm: 'IN 28 Anexo IV (Biotina)' },
-  vitamina_b9:         { auth: true,  min: 0,  max: 400,     unit: 'mcg', norm: 'IN 28 Anexo IV (DFE — IN 76/2020)', obs: 'Máximo 400 mcg DFE — IN 28 Anexo IV. Ácido fólico sintético: 1 mcg = 1,7 mcg DFE.' },
+  vitamina_b9:         { auth: true,  min: 0,  max: 1000,    unit: 'mcg', norm: 'IN 28 Anexo IV (DFE — IN 76/2020)' },
   vitamina_b12:        { auth: true,  min: 0,  max: 9.94,    unit: 'mcg', norm: 'IN 28 Anexo IV' },
   colina:              { auth: true,  min: 0,  max: 3500,    unit: 'mg',  norm: 'IN 28 Anexo IV' },
 
@@ -106,105 +106,32 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   silicio_organico:    { auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'IN 28 Anexo IV / RDC 240/2018', obs: 'Silício orgânico (monometilsilanetriol) sem limite máximo definido (NE)' },
 };
 
-// VD_REFERENCE — Valores Diários de Referência (VDR) para SUPLEMENTOS ALIMENTARES
-// Fonte: IN nº 75/2020, Anexo VIII, coluna "≥ 19 anos"
-// NUNCA confundir com o Anexo II (alimentos em geral) — suplementos usam o Anexo VIII
-export const VD_REFERENCE: Record<string, { vd: number; unit: string }> = {
-  valor_energetico: { vd: 2000,  unit: 'kcal' },
-  carboidratos:     { vd: 300,   unit: 'g'   },
-  acucares_adic:    { vd: 50,    unit: 'g'   },
-  proteinas:        { vd: 50,    unit: 'g'   },
-  gorduras_totais:  { vd: 65,    unit: 'g'   },
-  gorduras_sat:     { vd: 20,    unit: 'g'   },
-  gorduras_trans:   { vd: 2,     unit: 'g'   },
-  gord_mono:        { vd: 20,    unit: 'g'   },
-  gord_poli:        { vd: 20,    unit: 'g'   },
-  omega6:           { vd: 18,    unit: 'g'   },
-  omega3:           { vd: 4000,  unit: 'mg'  },
-  colesterol:       { vd: 300,   unit: 'mg'  },
-  fibras:           { vd: 25,    unit: 'g'   },
-  sodio:            { vd: 2000,  unit: 'mg'  },
+export const VD_REFERENCE: Record<string, number> = {
+  vitamina_a: 800,
+  vitamina_d3: 15, // 15mcg = 600 UI
+  vitamina_d: 15,
 
-  vitamina_a:   { vd: 800,   unit: 'mcg' },
-  vitamina_d3:  { vd: 15,    unit: 'mcg' },
-  vitamina_d:   { vd: 15,    unit: 'mcg' },
-  vitamina_e:   { vd: 15,    unit: 'mg'  },
-  vitamina_k2:  { vd: 120,   unit: 'mcg' },
-  vitamina_c:   { vd: 100,   unit: 'mg'  },
-  vitamina_b1:  { vd: 1.2,   unit: 'mg'  },
-  vitamina_b2:  { vd: 1.2,   unit: 'mg'  },
-  vitamina_b3:  { vd: 15,    unit: 'mg'  },
-  vitamina_b5:  { vd: 5,     unit: 'mg'  },
-  vitamina_b6:  { vd: 1.3,   unit: 'mg'  },
-  vitamina_b7:  { vd: 30,    unit: 'mcg' },
-  vitamina_b9:  { vd: 400,   unit: 'mcg' },
-  vitamina_b12: { vd: 2.4,   unit: 'mcg' },
-
-  calcio:     { vd: 1000, unit: 'mg'  },
-  cloreto:    { vd: 2300, unit: 'mg'  },
-  cobre:      { vd: 900,  unit: 'mcg' },
-  cromo:      { vd: 35,   unit: 'mcg' },
-  ferro:      { vd: 14,   unit: 'mg'  },
-  fluor:      { vd: 4,    unit: 'mg'  },
-  fosforo:    { vd: 700,  unit: 'mg'  },
-  iodo:       { vd: 150,  unit: 'mcg' },
-  magnesio:   { vd: 420,  unit: 'mg'  },
-  manganes:   { vd: 3,    unit: 'mg'  },
-  molibdenio: { vd: 45,   unit: 'mcg' },
-  potassio:   { vd: 3500, unit: 'mg'  },
-  selenio:    { vd: 60,   unit: 'mcg' },
-  zinco:      { vd: 11,   unit: 'mg'  },
-  colina:     { vd: 550,  unit: 'mg'  },
+  vitamina_c: 100,
+  vitamina_e: 15,
+  vitamina_b1: 1.2,
+  vitamina_b2: 1.2,
+  vitamina_b3: 16,
+  vitamina_b5: 5,
+  vitamina_b6: 1.3,
+  vitamina_b7: 30,
+  vitamina_b9: 400,
+  vitamina_b12: 2.4,
+  vitamina_k2: 120,
+  calcio: 1000,
+  ferro: 14,
+  magnesio: 422,
+  zinco: 11,
+  iodo: 150,
+  selenio: 60,
+  cobre: 900,
+  cromo: 35,
+  manganes: 2.3,
 };
-
-// ============================================================
-// FUNÇÕES DE CONVERSÃO E CÁLCULO — obrigatórias para laudos corretos
-// ============================================================
-
-/** Normaliza a dose para a unidade do limite (ex: UI → mcg, g → mg) */
-export function normalizeDoseToLimitUnit(dose: number, unit: string, limitUnit: string, key: string): number {
-  const u = (unit || '').toLowerCase().trim();
-  const l = (limitUnit || '').toLowerCase().trim();
-  if (u === l) return dose;
-  if (u === 'g'   && l === 'mg')  return dose * 1000;
-  if (u === 'mg'  && l === 'mcg') return dose * 1000;
-  if (u === 'mcg' && l === 'mg')  return dose / 1000;
-  if (u === 'g'   && l === 'mcg') return dose * 1_000_000;
-  // Conversões especiais por UI
-  if ((key === 'vitamina_d3' || key === 'vitamina_d') && u === 'ui' && l === 'mcg') return dose / 40;
-  if (key === 'vitamina_e' && u === 'ui' && l === 'mg') return dose * 0.67;
-  if (key === 'vitamina_a' && u === 'ui' && l === 'mcg') return dose * 0.3;
-  return dose;
-}
-
-/** Calcula o %VD de um nutriente com conversão de unidade */
-export function calcPercentVD(key: string, dose: number, unit: string): string {
-  const ref = VD_REFERENCE[key];
-  if (!ref) return '**';
-  const doseNorm = normalizeDoseToLimitUnit(dose, unit, ref.unit, key);
-  return `${Math.round((doseNorm / ref.vd) * 100)}%`;
-}
-
-/** Calcula o status regulatório: APROVADO, ATENÇÃO ou BLOQUEADO */
-export function calcStatus(key: string, dose: number, unit: string): 'APROVADO' | 'ATENÇÃO' | 'BLOQUEADO' | 'VERIFICAR' {
-  const lim = ANVISA_LIMITS[key];
-  if (!lim) return 'VERIFICAR';
-  if (!lim.auth) return 'BLOQUEADO';
-  const doseNorm = normalizeDoseToLimitUnit(dose, unit, lim.unit, key);
-  if (lim.max !== null && doseNorm > lim.max) return 'BLOQUEADO';
-  if ((lim.min || 0) > 0 && doseNorm < (lim.min || 0)) return 'ATENÇÃO';
-  return 'APROVADO';
-}
-
-/** Retorna descrição do desvio se a dose ultrapassar o limite máximo */
-export function calcDesvio(key: string, dose: number, unit: string): string | null {
-  const lim = ANVISA_LIMITS[key];
-  if (!lim?.max) return null;
-  const doseNorm = normalizeDoseToLimitUnit(dose, unit, lim.unit, key);
-  if (doseNorm <= lim.max) return null;
-  const pct = Math.round(((doseNorm - lim.max) / lim.max) * 100);
-  return `${pct}% acima do limite — corrigir para máx. ${lim.max} ${lim.unit}`;
-}
 
 export function resolveAnvisaKey(nome: string): string {
   const n = nome.toLowerCase()
@@ -320,132 +247,6 @@ export function resolveAnvisaKey(nome: string): string {
   }
 
   return "";
-}
-
-// ORDEM_NUTRIENTES_CORE — ordem EXATA de declaração conforme Anexo XI IN 75/2020
-export const ORDEM_NUTRIENTES_CORE = [
-  'valor_energetico', 'carboidratos', 'acucares_totais', 'acucares_adic',
-  'proteinas', 'gorduras_totais', 'gorduras_sat', 'gorduras_trans',
-  'fibras', 'sodio',
-];
-
-// Indentação por nível conforme Anexo XII (recuo "n", "nn", "nnn")
-export const INDENTACAO_NUTRIENTE: Record<string, 0 | 1 | 2 | 3> = {
-  acucares_totais: 1, acucares_adic: 2,
-  gorduras_sat: 1, gorduras_trans: 1,
-  gord_mono: 1, omega9: 2, acido_oleico: 3,
-  gord_poli: 1, omega6: 2, acido_linoleico: 3,
-  omega3: 2, acido_linolenico: 3, epa: 3, dha: 3,
-  colesterol: 1, fibras: 0,
-};
-
-// Regras de arredondamento conforme Anexo III IN 75/2020
-export function arredondarValorNutricional(valor: number, unidade: string): string {
-  const abs = Math.abs(valor);
-  if (abs >= 10) return String(Math.round(valor));
-  if (abs >= 1) {
-    const rounded = Math.round(valor * 10) / 10;
-    return rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
-  }
-  const u = unidade.toLowerCase();
-  if (u === 'g') return (Math.round(valor * 10) / 10).toFixed(1);
-  if (u === 'mg' || u === 'mcg' || u === '\u03bcg') {
-    const rounded2 = Math.round(valor * 100) / 100;
-    const str2 = rounded2.toFixed(2);
-    return str2.endsWith('0') ? rounded2.toFixed(1) : str2;
-  }
-  return String(valor);
-}
-
-// ============================================================
-// GATE DE VALIDAÇÃO PÓS-IA — roda depois do anvisa-ai-verify (Gemini)
-// devolver o laudo. A IA é não-determinística: pode gerar doses em UI
-// fora de qualquer faixa plausível, ou marcar "ATENÇÃO" (abaixo do
-// mínimo) sem ajustar a dose, ao contrário do que faz para "BLOQUEADO"
-// (acima do máximo, onde ela corrige pro limite). Este validador pega
-// os dois padrões e qualquer outro adicionado aqui, e nunca deixa
-// passar silenciosamente — usar antes de exportLaudoA4 e antes de
-// importar produto.ativos para formula_itens (White Label).
-// ============================================================
-
-export interface AlertaValidacao {
-  severidade: 'BLOQUEIO' | 'AVISO';
-  ativo: string;
-  mensagem: string;
-}
-
-// Faixas de UI plausíveis em suplementos comerciais — abaixo disso é
-// quase certamente erro de unidade/conversão, não dose real intencional.
-const UI_MINIMO_PLAUSIVEL: Record<string, number> = {
-  vitamina_a: 100,
-  vitamina_d3: 50,
-  vitamina_d: 50,
-  vitamina_e: 5,
-};
-
-export function validarLaudoAntesExport(ativos: any[]): AlertaValidacao[] {
-  const alertas: AlertaValidacao[] = [];
-
-  for (const a of ativos) {
-    const nome = a.nome || a.name || '(sem nome)';
-    const key = resolveAnvisaKey(nome);
-    const unit = (a.unit || '').toLowerCase();
-    const dose = Number(a.dose) || 0;
-
-    // 1) UI implausível — provável erro de unidade/conversão
-    const minPlausivel = UI_MINIMO_PLAUSIVEL[key];
-    if (unit === 'ui' && minPlausivel !== undefined && dose > 0 && dose < minPlausivel) {
-      alertas.push({
-        severidade: 'BLOQUEIO',
-        ativo: nome,
-        mensagem: `Dose de ${dose} UI é implausível para ${nome} (mínimo comercial esperado ~${minPlausivel} UI). ` +
-          `Provável erro de unidade/conversão — confirmar valor real com o RT antes de gerar laudo ou fórmula.`,
-      });
-    }
-
-    // 2) Massa de ativo que zera ao arredondar — sinaliza pra revisão,
-    // mesmo já corrigido o display (não afeta cálculo de Q.S.P. por trás)
-    if (unit === 'mg' && dose > 0 && dose < 0.01) {
-      alertas.push({
-        severidade: 'AVISO',
-        ativo: nome,
-        mensagem: `Dose de ${dose}mg é extremamente baixa — confirmar se a unidade de origem (mcg/UI) foi convertida corretamente.`,
-      });
-    }
-
-    // 3) Status ATENÇÃO (abaixo do mínimo) sem dose ajustada — a IA corrige
-    // excesso (BLOQUEADO) mas historicamente não corrige falta (ATENÇÃO).
-    const status = calcStatus(key, dose, unit);
-    if (status === 'ATENÇÃO') {
-      const doseAjustada = Number(a.dose_ajustada ?? a.doseAjustada) || dose;
-      if (doseAjustada === dose) {
-        const lim = ANVISA_LIMITS[key];
-        alertas.push({
-          severidade: 'AVISO',
-          ativo: nome,
-          mensagem: `${nome} está abaixo do mínimo regulatório/de mercado e a dose ajustada não foi corrigida ` +
-            `(ainda ${dose}${unit}). Sugestão: subir para o mínimo${lim?.min ? ` (${lim.min}${lim.unit})` : ''} ou documentar justificativa técnica do RT para manter a dose atual.`,
-        });
-      }
-    }
-  }
-
-  return alertas;
-}
-
-/** Bloqueia export/import se houver qualquer alerta de severidade BLOQUEIO */
-export function laudoTemBloqueio(alertas: AlertaValidacao[]): boolean {
-  return alertas.some(a => a.severidade === 'BLOQUEIO');
-}
-
-
-export function formatarPorcoesEmbalagem(qtdExata: number): string {
-  if (qtdExata >= 3 && qtdExata % 1 === 0) return String(qtdExata);
-  if (qtdExata > 2) {
-    const arredondado = qtdExata % 1 < 0.5 ? Math.floor(qtdExata) : Math.ceil(qtdExata);
-    return `Cerca de ${arredondado}`;
-  }
-  return String(Math.round(qtdExata));
 }
 
 

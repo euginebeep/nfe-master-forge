@@ -111,43 +111,6 @@ serve(async (req) => {
     const isInTrial = trialDaysRemaining > 0;
     logStep("Trial check", { diffDays, trialDaysRemaining, isInTrial });
 
-    // ── BYPASS 1: saas_super_devs (donos do SaaS) nunca são bloqueados ──
-    const { data: superDevRow } = await supabaseClient
-      .from('saas_super_devs')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (superDevRow) {
-      logStep("saas_super_dev bypass — acesso irrestrito", { userId: user.id });
-      return createResponse({
-        subscribed: true,
-        is_in_trial: false,
-        trial_days_remaining: 0,
-        product_id: null,
-        plan_name: 'Super Dev',
-        subscription_end: null,
-      });
-    }
-
-    // ── BYPASS 2: saas_owner no user_roles também tem acesso irrestrito ──
-    const { data: ownerRole } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'saas_owner')
-      .maybeSingle();
-    if (ownerRole) {
-      logStep("saas_owner bypass — acesso irrestrito", { userId: user.id });
-      return createResponse({
-        subscribed: true,
-        is_in_trial: false,
-        trial_days_remaining: 0,
-        product_id: null,
-        plan_name: 'SaaS Owner',
-        subscription_end: null,
-      });
-    }
-
     // Check if admin granted manual access override
     const { data: profileData } = await supabaseClient
       .from('profiles')

@@ -204,7 +204,7 @@ export function useCreateOrdemProducaoIndustrial() {
       // Calcular cápsula industrial
       const totalAtivos = formula.itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
       const veiculoCodigo = (formula.excipiente_padrao || 'AMIDO') as 'AMIDO' | 'CELULOSE' | 'PRE_BLEND';
-      const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoCodigo, formula.peso_enchimento_mg || formula.peso_capsula_alvo_mg || 490);
+      const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoCodigo, formula.peso_capsula_alvo_mg || 490);
 
       // Gerar código e lote
       const codigo = await generateOPCode();
@@ -223,7 +223,7 @@ export function useCreateOrdemProducaoIndustrial() {
           formula_versao: formula.versao,
           produto_nome: formula.nome_formula,
           tipo_apresentacao: formula.tipo_apresentacao,
-          peso_capsula_mg: formula.peso_enchimento_mg || formula.peso_capsula_alvo_mg || 490,
+          peso_capsula_mg: formula.peso_capsula_alvo_mg,
           total_capsulas: quantidade_unidades,
           total_capsulas_com_acrescimo: quantidadeComAcrescimo,
           capsulas_por_frasco: quantidade_unidades,    // ajuste conforme seu modelo

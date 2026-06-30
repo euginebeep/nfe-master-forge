@@ -2,7 +2,6 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import brainxLogo from "@/assets/brainx-logo.png";
 import { LogoDemoERP } from "./LogoDemoERP";
-import { useCompany } from "@/hooks/use-company";
 import {
   Building2,
   Users,
@@ -37,8 +36,7 @@ import {
   Settings2,
   ClipboardCheck,
   ScrollText,
-  Tag,
-  BookOpen } from
+  Tag } from
 "lucide-react";
 import {
   Sidebar,
@@ -116,7 +114,6 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
-  { title: "Fator de Conversão", url: "/compras/fator-conversao", icon: BarChart3, tooltip: "Histórico de conversões de unidades por fornecedor com sugestões automáticas", modulo: "compras" },
   { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "estoque", danger: true },
   { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos", modulo: "estoque" },
   { title: "Lotes Reservados", url: "/estoque/lotes-reservados", icon: Tag, tooltip: "Reserva de números oficiais de lote (SKU-AAMM-NNNN-D) com trava anti-clonagem", modulo: "estoque" },
@@ -150,8 +147,7 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018", modulo: "producao" },
   { title: "ANVISA Checker", url: "/regulatorio/anvisa-checker", icon: FlaskConical, tooltip: "Checador de fórmulas e verificação regulatória ANVISA", modulo: "producao" },
-  { title: "Biblioteca do RT", url: "/regulatorio/biblioteca-rt", icon: BookOpen, badge: "IA", tooltip: "Copilot Regulatório — base de conhecimento ANVISA travada em fonte oficial (RDC 243/2018, RDC 275/2002, IN 28/2018)", modulo: "producao" },
-  { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade em tempo real", modulo: "producao" },
+  { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade conforme RDC 658/2022", modulo: "producao" },
   { title: "Config. Sensores", url: "/ambiental/configuracao", icon: Settings2, tooltip: "Configurar credenciais eWeLink e mapear sensores por sala", modulo: "producao", adminOnly: true }]
 
  },
@@ -228,8 +224,6 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { role, profile, canView, isLoading, signOut } = useAuth();
-  const { data: company } = useCompany();
-  const companyPending = !company;
 
   const isAdmin = role === 'admin';
 
@@ -360,9 +354,8 @@ export function AppSidebar() {
                 <span className="font-bold text-base md:text-lg text-sidebar-foreground tracking-tight leading-tight truncate">
                   {profile?.is_demo ? 'BrainX Demo' : 'BrainX ERP'}
                 </span>
-                <span className="text-[10px] md:text-[11px] text-sidebar-foreground/50 font-medium tracking-wide flex items-center gap-1">
+                <span className="text-[10px] md:text-[11px] text-sidebar-foreground/50 font-medium tracking-wide">
                   {profile?.is_demo ? 'Demonstração' : 'Industrial'}
-                  {!profile?.is_demo && <span className="bg-primary/20 text-[9px] px-1 rounded-sm text-primary-foreground font-bold">Matriz</span>}
                 </span>
               </div>
             }
@@ -453,7 +446,6 @@ export function AppSidebar() {
         <SidebarFooter className="border-t border-sidebar-border/50 p-3 bg-sidebar space-y-1">
           {footerItems.filter(isFooterItemVisible).map((item) => {
             const { to, icon: Icon, label, tooltip, danger } = item as FooterItem;
-            const highlight = companyPending && to === "/settings/empresa";
             return (
               <Tooltip key={to}>
                 <TooltipTrigger asChild>
@@ -467,37 +459,21 @@ export function AppSidebar() {
                           : "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
                         : isActive(to)
                           ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5",
-                      highlight && "ring-2 ring-destructive/70 bg-destructive/15 text-destructive font-bold animate-pulse"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
                     )}
                   >
                     <Icon className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
                       isActive(to)
                         ? (danger ? "text-red-400" : "text-secondary-foreground")
-                        : (danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80"),
-                      highlight && "text-destructive"
+                        : (danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80")
                     )} />
-                    {!collapsed && (
-                      <span className="flex-1 text-[13px] font-medium leading-tight flex items-center gap-2">
-                        {label}
-                        {highlight && (
-                          <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive-foreground">
-                            Pendente
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    {collapsed && highlight && (
-                      <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                    )}
+                    {!collapsed && <span className="flex-1 text-[13px] font-medium leading-tight">{label}</span>}
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="max-w-[240px] text-xs">
                   <p className="font-semibold">{label}</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    {highlight ? "Cadastro da empresa pendente — clique para completar" : tooltip}
-                  </p>
+                  <p className="text-muted-foreground mt-0.5">{tooltip}</p>
                 </TooltipContent>
               </Tooltip>
             );

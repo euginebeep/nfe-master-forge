@@ -4,7 +4,7 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useInactivityTimeout } from '@/hooks/use-inactivity-timeout';
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
 
 const ROLE_HIERARCHY: AppRole[] = ['admin', 'gerente', 'supervisor', 'operador', 'visualizador'];
 

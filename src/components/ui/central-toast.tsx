@@ -37,7 +37,7 @@ export const centralToast = {
     setTimeout(() => {
       toastQueue = toastQueue.filter(t => t.id !== id);
       notifyListeners();
-    }, 6000);
+    }, 5000);
   },
   warning: (title: string, description?: string) => {
     const id = crypto.randomUUID();

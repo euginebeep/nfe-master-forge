@@ -211,7 +211,7 @@ export function ConsultaANVISACard() {
                   <p className="text-sm text-muted-foreground">Buscando constituintes...</p>
                   <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
                     <Sparkles className="w-3 h-3" />
-                    Resolvendo nomenclaturas e sinônimos...
+                    Resolvendo nomes científicos via IA...
                   </p>
                 </div>
               )}

@@ -328,7 +328,7 @@ export const OPFolhaChecklist = React.forwardRef<HTMLDivElement, OPFolhaChecklis
 
       {/* RODAPÉ */}
       <div className="mt-4 pt-2 border-t-2 border-slate-400 flex justify-between text-[8px] text-slate-500">
-        <div>{op.empresa_nome || 'Empresa não identificada'} | Documento de Produção Industrial</div>
+        <div>Vitalnow Industria Ltda | Documento de Produção Industrial</div>
         <div>{op.codigo} | Gerado em {new Date().toLocaleString('pt-BR')}</div>
         <div>Controle ANVISA/BPF</div>
       </div>

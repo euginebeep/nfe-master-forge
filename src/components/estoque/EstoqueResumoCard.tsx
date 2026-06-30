@@ -1,4 +1,4 @@
-import { Package, CheckCircle2, Clock, TrendingUp, Wallet, Layers, CalendarClock } from "lucide-react";
+import { Package, CheckCircle2, Clock, TrendingUp, Wallet, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatNumber, formatCurrency } from "@/lib/formatters";
 
@@ -15,7 +15,6 @@ interface LoteResumo {
 interface EstoqueResumoCardProps {
   lotes: LoteResumo[];
   unidadeInternaItem?: string;
-  consumoMensalMedio?: number; // consumo em unidades internas/mês
 }
 
 /**
@@ -24,7 +23,7 @@ interface EstoqueResumoCardProps {
  * já estão convertidos (quantidade_interna = quantidade_original × fator_conversão).
  * Isso garante consistência: se o item tem unidade interna "g", o estoque mostra em "g".
  */
-export function EstoqueResumoCard({ lotes, unidadeInternaItem, consumoMensalMedio }: EstoqueResumoCardProps) {
+export function EstoqueResumoCard({ lotes, unidadeInternaItem }: EstoqueResumoCardProps) {
   if (lotes.length === 0) return null;
 
   // SEMPRE usa a unidade interna do ITEM (dados já convertidos)
@@ -95,16 +94,6 @@ export function EstoqueResumoCard({ lotes, unidadeInternaItem, consumoMensalMedi
       value: formatCurrency(resumo.valorTotal),
       unit: `${lotes.length} lote(s)`,
     },
-    {
-      icon: CalendarClock,
-      iconColor: "text-orange-500",
-      iconBg: "bg-orange-50 dark:bg-orange-950/50",
-      label: "Cobertura",
-      value: consumoMensalMedio && consumoMensalMedio > 0
-        ? `${Math.round(resumo.qtdDisponivel / (consumoMensalMedio / 30))} dias`
-        : "—",
-      unit: consumoMensalMedio ? "de produção" : "sem histórico",
-    },
   ];
 
   return (
@@ -118,7 +107,7 @@ export function EstoqueResumoCard({ lotes, unidadeInternaItem, consumoMensalMedi
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {cards.map((card, idx) => (
             <div 
               key={idx} 

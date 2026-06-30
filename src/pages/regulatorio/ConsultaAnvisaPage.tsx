@@ -305,7 +305,7 @@ export default function ConsultaAnvisaPage() {
           <LoadingSpinner text="Buscando constituintes..." />
           <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
             <Sparkles className="w-3 h-3" />
-            Resolvendo nomenclaturas e sinônimos...
+            Resolvendo nomes científicos via IA...
           </p>
         </div>
       )}
@@ -327,19 +327,19 @@ export default function ConsultaAnvisaPage() {
               <AlertTriangle className="w-7 h-7 shrink-0 text-amber-600" />
               <div className="space-y-2">
                 <h3 className="font-bold text-base text-amber-700">
-                  {aiAviso === 'sem_creditos_ia' && 'Verificação automática indisponível'}
-                  {aiAviso === 'limite_requisicoes_ia' && 'Aguarde antes de continuar'}
-                  {aiAviso !== 'sem_creditos_ia' && aiAviso !== 'limite_requisicoes_ia' && 'Verificação automática indisponível'}
+                  {aiAviso === 'sem_creditos_ia' && 'Créditos de IA esgotados'}
+                  {aiAviso === 'limite_requisicoes_ia' && 'Limite de requisições atingido'}
+                  {aiAviso !== 'sem_creditos_ia' && aiAviso !== 'limite_requisicoes_ia' && 'Verificação por IA indisponível'}
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   {aiAviso === 'sem_creditos_ia' && (
-                    <>A verificação automática contra IN 28/2018 e RDC 243/2018 está temporáriamente indisponível. Acione o suporte informando o código <strong>BX-A07</strong>.</>
+                    <>A consulta inteligente requer créditos de IA. Adicione créditos no workspace em <strong>Settings → Workspace → Usage</strong> para retomar a verificação automática contra IN 28/2018 e RDC 243/2018.</>
                   )}
                   {aiAviso === 'limite_requisicoes_ia' && (
-                    <>Muitas consultas em pouco tempo. Aguarde alguns segundos e tente novamente. Código: <strong>BX-A12</strong>.</>
+                    <>Muitas consultas em pouco tempo. Aguarde alguns segundos e tente novamente.</>
                   )}
                   {aiAviso !== 'sem_creditos_ia' && aiAviso !== 'limite_requisicoes_ia' && (
-                    <>Não foi possível concluir a verificação. Tente novamente ou acione o suporte com o código <strong>BX-A09</strong>.</>
+                    <>Não foi possível consultar a IA agora. Tente novamente em instantes.</>
                   )}
                 </p>
               </div>
@@ -521,7 +521,7 @@ export default function ConsultaAnvisaPage() {
               );
             })}
           <p className="text-xs text-muted-foreground italic">
-            Resultados obtidos da consulta oficial ANVISA/Power BI; quando necessário, o sistema auxilia na variação de grafia. Confirme sempre na{' '}
+            Resultados obtidos da consulta oficial ANVISA/Power BI; quando necessário, a IA apenas auxilia na variação de grafia. Confirme sempre na{' '}
             <a href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares" target="_blank" rel="noopener noreferrer" className="underline text-primary">Biblioteca ANVISA</a>.
           </p>
         </div>

@@ -267,7 +267,7 @@ export default function FAQPage() {
                               className="h-8 gap-2 ml-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                               onClick={() => enviarParaIA(`Explique melhor: ${item.q}`)}
                             >
-                              <Sparkles className="h-3 w-3" /> Aprofundar análise
+                              <Sparkles className="h-3 w-3" /> Aprofundar com IA
                             </Button>
                           </div>
                         </AccordionContent>

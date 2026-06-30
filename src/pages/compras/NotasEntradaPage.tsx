@@ -1,109 +1,30 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FileText, Eye, Calendar, Building2, DollarSign, Undo2,
-  Package, CheckCircle2, AlertTriangle, Clock, XCircle,
-  TrendingUp, Filter, ChevronDown
-} from "lucide-react";
+import { FileText, Eye, Calendar, Building2, DollarSign, Undo2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel
-} from "@/components/ui/dropdown-menu";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useNotasEntrada, type NotaEntrada } from "@/hooks/use-notas-entrada";
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
-import { DeleteNotaDialog } from "@/components/nfe/DeleteNotaDialog";
-import { BackButton } from "@/components/ui/back-button";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
 
-// ── Status badges ──────────────────────────────────────────────
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "muted"> = {
   IMPORTADA: "success",
   PROCESSADA: "success",
   CANCELADA: "muted",
 };
 
-const STATUS_FIN_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  PAGO: {
-    label: "Pago",
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <CheckCircle2 className="h-3 w-3" />,
-  },
-  PENDENTE: {
-    label: "Pendente",
-    color: "bg-amber-100 text-amber-700 border-amber-200",
-    icon: <Clock className="h-3 w-3" />,
-  },
-  VENCIDO: {
-    label: "Vencido",
-    color: "bg-red-100 text-red-700 border-red-200",
-    icon: <AlertTriangle className="h-3 w-3" />,
-  },
-  SEM_DUPLICATA: {
-    label: "Sem duplicata",
-    color: "bg-slate-100 text-slate-500 border-slate-200",
-    icon: <XCircle className="h-3 w-3" />,
-  },
-};
-
-// ── Filtros de período ─────────────────────────────────────────
-type PeriodoFiltro = "todos" | "mes" | "trimestre" | "ano";
-type StatusFinFiltro = "todos" | "PAGO" | "PENDENTE" | "VENCIDO" | "SEM_DUPLICATA";
-
-function filtrarPorPeriodo(notas: NotaEntrada[], periodo: PeriodoFiltro): NotaEntrada[] {
-  if (periodo === "todos") return notas;
-  const agora = new Date();
-  const inicio = new Date();
-  if (periodo === "mes") inicio.setDate(1);
-  else if (periodo === "trimestre") inicio.setMonth(agora.getMonth() - 2, 1);
-  else if (periodo === "ano") inicio.setMonth(0, 1);
-  inicio.setHours(0, 0, 0, 0);
-  return notas.filter((n) => {
-    const d = n.dh_emissao ? new Date(n.dh_emissao) : null;
-    return d && d >= inicio;
-  });
-}
-
-// ── KPI Card ───────────────────────────────────────────────────
-function KpiCard({ icon, label, value, sub, color }: {
-  icon: React.ReactNode; label: string; value: string; sub?: string; color?: string;
-}) {
-  return (
-    <Card className="flex-1 min-w-[160px]">
-      <CardContent className="p-4 flex items-start gap-3">
-        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0", color ?? "bg-primary/10 text-primary")}>
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground font-medium truncate">{label}</p>
-          <p className="text-lg font-bold leading-tight">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Página principal ───────────────────────────────────────────
 export default function NotasEntradaPage() {
   const navigate = useNavigate();
   const { data: notas = [], isLoading } = useNotasEntrada();
   const [selectedChaveNfe, setSelectedChaveNfe] = useState<string>("");
   const [showNFeDialog, setShowNFeDialog] = useState(false);
   const [reverting, setReverting] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
-  const [statusFinFiltro, setStatusFinFiltro] = useState<StatusFinFiltro>("todos");
   const queryClient = useQueryClient();
 
   const handleViewNota = (nota: NotaEntrada) => {
@@ -115,6 +36,7 @@ export default function NotasEntradaPage() {
 
   const handleReverter = async (nota: NotaEntrada) => {
     if (!confirm(`Tem certeza que deseja REVERTER a importação da NF-e ${nota.numero}?\n\nIsso apagará todos os lotes, itens da nota e contas a pagar gerados por esta importação.`)) return;
+    
     setReverting(nota.id);
     try {
       await reverterImportacaoNFe(nota.id);
@@ -122,57 +44,24 @@ export default function NotasEntradaPage() {
       queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
       queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
       queryClient.invalidateQueries({ queryKey: ['itens'] });
-    } catch {
+    } catch (error) {
+      console.error('Erro ao reverter:', error);
       toast.error('Erro ao reverter importação');
     } finally {
       setReverting(null);
     }
   };
 
-  // ── Dados filtrados ──────────────────────────────────────────
-  const notasFiltradas = useMemo(() => {
-    let resultado = filtrarPorPeriodo(notas, periodo);
-    if (statusFinFiltro !== "todos") {
-      resultado = resultado.filter((n) => n.status_financeiro === statusFinFiltro);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      resultado = resultado.filter((n) =>
-        n.numero?.toLowerCase().includes(q) ||
-        n.fornecedor_razao?.toLowerCase().includes(q) ||
-        n.fornecedor_nome_fantasia?.toLowerCase().includes(q) ||
-        n.fornecedor_cnpj?.includes(q) ||
-        n.chave_nfe?.includes(q)
-      );
-    }
-    return resultado;
-  }, [notas, periodo, statusFinFiltro, search]);
-
-  // ── KPIs ─────────────────────────────────────────────────────
-  const kpis = useMemo(() => {
-    const notasMes = filtrarPorPeriodo(notas, "mes");
-    const totalMes = notasMes.reduce((s, n) => s + (n.total_nota ?? 0), 0);
-    const pendentes = notas.filter((n) => n.status_financeiro === "PENDENTE" || n.status_financeiro === "VENCIDO");
-    const totalPendente = pendentes.reduce((s, n) => s + (n.total_nota ?? 0), 0);
-    const vencidas = notas.filter((n) => n.status_financeiro === "VENCIDO").length;
-    const naoVinculadas = notas.filter((n) => (n.qtd_itens ?? 0) > 0 && (n.qtd_itens_vinculados ?? 0) < (n.qtd_itens ?? 0)).length;
-    return { totalMes, totalPendente, vencidas, naoVinculadas, qtdMes: notasMes.length };
-  }, [notas]);
-
-  // ── Colunas ──────────────────────────────────────────────────
   const columns = [
     {
       key: "numero",
-      header: "Número / Série",
+      header: "Número",
       sortable: true,
-      className: "min-w-[140px]",
       render: (item: NotaEntrada) => (
-        <button onClick={() => handleViewNota(item)} className="flex items-center gap-2 hover:text-primary transition-colors text-left">
-          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-          <div>
-            <span className="font-mono font-semibold hover:underline">{item.numero}</span>
-            <span className="text-muted-foreground text-xs ml-1">Série {item.serie}</span>
-          </div>
+        <button onClick={() => handleViewNota(item)} className="flex items-center gap-2 hover:text-primary transition-colors">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <span className="font-mono font-medium hover:underline">{item.numero}</span>
+          <span className="text-muted-foreground text-sm">Série {item.serie}</span>
         </button>
       ),
     },
@@ -180,10 +69,9 @@ export default function NotasEntradaPage() {
       key: "dh_emissao",
       header: "Emissão",
       sortable: true,
-      className: "min-w-[110px]",
       render: (item: NotaEntrada) => (
-        <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
           {formatDate(item.dh_emissao)}
         </div>
       ),
@@ -191,102 +79,29 @@ export default function NotasEntradaPage() {
     {
       key: "fornecedor_razao",
       header: "Fornecedor",
-      className: "min-w-[200px]",
       render: (item: NotaEntrada) => (
-        <div className="flex items-center gap-2 min-w-0">
-          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-          <div className="min-w-0">
-            <p className="font-medium text-sm truncate max-w-[200px]">
-              {item.fornecedor_nome_fantasia || item.fornecedor_razao || <span className="text-muted-foreground italic">Não identificado</span>}
-            </p>
-            {item.fornecedor_razao && item.fornecedor_nome_fantasia && (
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{item.fornecedor_razao}</p>
-            )}
-            {item.fornecedor_cnpj && (
-              <p className="text-xs text-muted-foreground font-mono">{item.fornecedor_cnpj}</p>
-            )}
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="font-medium text-sm">{item.fornecedor_razao || "-"}</p>
+            <p className="text-xs text-muted-foreground font-mono">{item.fornecedor_cnpj}</p>
           </div>
         </div>
       ),
-    },
-    {
-      key: "qtd_itens",
-      header: "Itens",
-      className: "min-w-[100px]",
-      render: (item: NotaEntrada) => {
-        const total = item.qtd_itens ?? 0;
-        const vinc = item.qtd_itens_vinculados ?? 0;
-        const pendItens = total - vinc;
-        return (
-          <div className="flex items-center gap-1.5">
-            <Package className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">{total}</span>
-            {total > 0 && pendItens > 0 && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
-                {pendItens} p/ vincular
-              </Badge>
-            )}
-            {total > 0 && pendItens === 0 && (
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-            )}
-          </div>
-        );
-      },
     },
     {
       key: "total_nota",
-      header: "Total NF-e",
-      sortable: true,
-      className: "min-w-[120px]",
+      header: "Total",
       render: (item: NotaEntrada) => (
-        <div className="text-right">
-          <p className="font-semibold text-sm">{formatCurrency(item.total_nota)}</p>
-          {item.total_produtos !== item.total_nota && (
-            <p className="text-xs text-muted-foreground">Produtos: {formatCurrency(item.total_produtos)}</p>
-          )}
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">{formatCurrency(item.total_nota)}</span>
         </div>
       ),
     },
     {
-      key: "vencimento",
-      header: "Vencimento",
-      className: "min-w-[110px]",
-      render: (item: NotaEntrada) => {
-        if (!item.vencimento) return <span className="text-muted-foreground text-xs">—</span>;
-        const venc = new Date(item.vencimento);
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        const diasRestantes = Math.ceil((venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-        return (
-          <div>
-            <p className={cn("text-sm font-medium", diasRestantes < 0 ? "text-red-600" : diasRestantes <= 7 ? "text-amber-600" : "")}>
-              {formatDate(item.vencimento)}
-            </p>
-            {item.total_parcelas > 1 && (
-              <p className="text-xs text-muted-foreground">{item.total_parcelas} parcelas</p>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      key: "status_financeiro",
-      header: "Financeiro",
-      className: "min-w-[110px]",
-      render: (item: NotaEntrada) => {
-        const cfg = STATUS_FIN_CONFIG[item.status_financeiro ?? "SEM_DUPLICATA"];
-        return (
-          <Badge variant="outline" className={cn("gap-1 text-xs font-medium", cfg.color)}>
-            {cfg.icon}
-            {cfg.label}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: "status_importacao",
-      header: "NF-e",
-      className: "min-w-[100px]",
+      key: "status",
+      header: "Status",
       render: (item: NotaEntrada) => (
         <StatusBadge variant={STATUS_VARIANTS[item.status]}>
           {item.status}
@@ -294,16 +109,17 @@ export default function NotasEntradaPage() {
       ),
     },
     {
-      key: "acoes",
-      header: "Ações",
-      className: "min-w-[120px] w-auto",
+      key: "actions",
+      header: "",
+      className: "w-32",
       render: (item: NotaEntrada) => (
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }} title="Visualizar NF-e">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }} title="Visualizar">
             <Eye className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost" size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={(e) => { e.stopPropagation(); handleReverter(item); }}
             disabled={reverting === item.id}
             title="Reverter importação"
@@ -311,150 +127,16 @@ export default function NotasEntradaPage() {
           >
             <Undo2 className="h-4 w-4" />
           </Button>
-          <div onClick={(e) => e.stopPropagation()}>
-            <DeleteNotaDialog
-              notaId={item.id}
-              notaNumero={item.numero}
-              notaSerie={item.serie}
-              fornecedorNome={item.fornecedor_nome_fantasia || item.fornecedor_razao || 'Desconhecido'}
-              totalItens={item.qtd_itens || 0}
-              onDeleted={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
-            />
-          </div>
         </div>
       ),
     },
   ];
 
-  const periodoLabel: Record<PeriodoFiltro, string> = {
-    todos: "Todos os períodos",
-    mes: "Este mês",
-    trimestre: "Últimos 3 meses",
-    ano: "Este ano",
-  };
-
-  const statusFinLabel: Record<StatusFinFiltro, string> = {
-    todos: "Todos os status",
-    PAGO: "Pago",
-    PENDENTE: "Pendente",
-    VENCIDO: "Vencido",
-    SEM_DUPLICATA: "Sem duplicata",
-  };
-
   return (
-    <div className="p-2 sm:p-3 max-w-full mx-auto space-y-2 h-screen flex flex-col">
-      <div className="flex items-center justify-between gap-2">
-        <BackButton />
-        <PageHeader
-          title="Notas de Entrada"
-          description="Histórico de notas fiscais de compra importadas"
-          icon={FileText}
-          actions={
-            <Button onClick={() => navigate("/compras/importar-nfe")}>
-              Importar NF-e
-            </Button>
-          }
-        />
-      </div>
+    <div>
+      <PageHeader title="Notas de Entrada" description="Histórico de notas fiscais importadas" icon={FileText}
+        actions={<Button onClick={() => navigate("/compras/importar-nfe")}>Importar NF-e</Button>} />
 
-      {/* ── KPIs ─────────────────────────────────────────────── */}
-      {!isLoading && notas.length > 0 && (
-        <div className="flex flex-wrap gap-3">
-          <KpiCard
-            icon={<TrendingUp className="h-4 w-4" />}
-            label="Total importado no mês"
-            value={formatCurrency(kpis.totalMes)}
-            sub={`${kpis.qtdMes} nota(s)`}
-            color="bg-blue-100 text-blue-700"
-          />
-          <KpiCard
-            icon={<Clock className="h-4 w-4" />}
-            label="A pagar (pendente)"
-            value={formatCurrency(kpis.totalPendente)}
-            sub="todas as notas"
-            color="bg-amber-100 text-amber-700"
-          />
-          <KpiCard
-            icon={<AlertTriangle className="h-4 w-4" />}
-            label="Notas vencidas"
-            value={String(kpis.vencidas)}
-            sub="pagamento em atraso"
-            color={kpis.vencidas > 0 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}
-          />
-          <KpiCard
-            icon={<Package className="h-4 w-4" />}
-            label="Itens p/ vincular"
-            value={String(kpis.naoVinculadas)}
-            sub="notas com itens pendentes"
-            color={kpis.naoVinculadas > 0 ? "bg-orange-100 text-orange-700" : "bg-slate-100 text-slate-500"}
-          />
-        </div>
-      )}
-
-      {/* ── Filtros ───────────────────────────────────────────── */}
-      {!isLoading && notas.length > 0 && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[220px] max-w-sm">
-            <Input
-              placeholder="Buscar por número, fornecedor, CNPJ ou chave..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-            <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Calendar className="h-3.5 w-3.5" />
-                {periodoLabel[periodo]}
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Período de emissão</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {(Object.keys(periodoLabel) as PeriodoFiltro[]).map((p) => (
-                <DropdownMenuItem key={p} onClick={() => setPeriodo(p)} className={cn(periodo === p && "font-semibold")}>
-                  {periodoLabel[p]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Filter className="h-3.5 w-3.5" />
-                {statusFinLabel[statusFinFiltro]}
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Status financeiro</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {(Object.keys(statusFinLabel) as StatusFinFiltro[]).map((s) => (
-                <DropdownMenuItem key={s} onClick={() => setStatusFinFiltro(s)} className={cn(statusFinFiltro === s && "font-semibold")}>
-                  {statusFinLabel[s]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {(periodo !== "todos" || statusFinFiltro !== "todos" || search) && (
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setPeriodo("todos"); setStatusFinFiltro("todos"); setSearch(""); }}>
-              Limpar filtros
-            </Button>
-          )}
-
-          <span className="text-xs text-muted-foreground ml-auto">
-            {notasFiltradas.length} nota(s)
-          </span>
-        </div>
-      )}
-
-      {/* ── Tabela ────────────────────────────────────────────── */}
       {notas.length === 0 && !isLoading ? (
         <Card>
           <CardContent className="p-12 text-center">
@@ -465,17 +147,10 @@ export default function NotasEntradaPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex-1 overflow-x-auto border rounded-lg">
-          <DataTable
-            data={notasFiltradas}
-            columns={columns}
-            loading={isLoading}
-            searchable={false}
-            onRowClick={(item) => handleViewNota(item)}
-            emptyMessage="Nenhuma nota encontrada para os filtros selecionados"
-            pageSize={50}
-          />
-        </div>
+        <DataTable data={notas} columns={columns} loading={isLoading} searchable
+          searchPlaceholder="Buscar por número, fornecedor ou chave..."
+          searchKeys={["numero", "fornecedor_razao", "fornecedor_cnpj", "chave_nfe"]}
+          onRowClick={(item) => handleViewNota(item)} emptyMessage="Nenhuma nota encontrada" />
       )}
 
       <NFeVisualizacaoDialog open={showNFeDialog} onOpenChange={setShowNFeDialog} chaveNfe={selectedChaveNfe} />

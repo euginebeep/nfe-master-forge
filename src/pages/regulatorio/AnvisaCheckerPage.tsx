@@ -67,7 +67,6 @@ export default function AnvisaCheckerPage() {
                 ...selectedLaudo.resultado_ia,
                 produto: selectedLaudo.produto,
                 cliente: selectedLaudo.cliente,
-                cliente_logo_url: selectedLaudo.cliente_logo_url || null,
                 ativos: selectedLaudo.payload_entrada?.ativos || [],
                 multiplos_produtos: selectedLaudo.multiplos_produtos
               }} 

@@ -119,57 +119,32 @@ export function useHybridEntidades(filters?: { papel?: string; status?: string }
   return useQuery({
     queryKey: ['hybrid-entidades', filters],
     queryFn: async (): Promise<HybridEntidade[]> => {
-      // ESTRATÉGIA: Duas queries separadas para evitar o RLS recursivo.
-      // O join entidades→entidade_papeis causa recursão no RLS de entidade_papeis
-      // (que consulta entidades para verificar company_id), retornando array vazio.
-      // Solução: buscar entidades e papéis separadamente, depois fazer merge em JS.
-
-      // 1. Buscar entidades (sem join com entidade_papeis)
-      let entidadesQuery = supabase
+      let query = supabase
         .from('entidades')
-        .select('*, entidade_contatos (*)')
+        .select(`
+          *,
+          entidade_papeis (papel),
+          entidade_contatos (*)
+        `)
         .order('razao_social');
 
       if (filters?.status) {
-        entidadesQuery = entidadesQuery.eq('status', filters.status);
+        query = query.eq('status', filters.status);
       }
 
-      const { data: entidades, error: entidadesError } = await entidadesQuery;
+      const { data, error } = await query;
 
-      if (entidadesError) {
-        console.error('[useHybridEntidades] Erro ao buscar entidades:', entidadesError.message);
-        throw entidadesError;
+      if (error) {
+        console.error('[useHybridEntidades] Erro:', error.message);
+        throw error;
       }
 
-      if (!entidades || entidades.length === 0) return [];
-
-      // 2. Buscar papéis separadamente (query independente, sem join recursivo)
-      const entidadeIds = entidades.map(e => e.id);
-      const { data: papeis, error: papeisError } = await supabase
-        .from('entidade_papeis')
-        .select('entidade_id, papel')
-        .in('entidade_id', entidadeIds);
-
-      if (papeisError) {
-        // Se falhar ao buscar papéis, retorna entidades sem filtro por papel
-        console.warn('[useHybridEntidades] Aviso ao buscar papéis:', papeisError.message);
-      }
-
-      // 3. Merge em JavaScript
-      const papeisPorEntidade: Record<string, string[]> = {};
-      (papeis || []).forEach((p: { entidade_id: string; papel: string }) => {
-        if (!papeisPorEntidade[p.entidade_id]) papeisPorEntidade[p.entidade_id] = [];
-        papeisPorEntidade[p.entidade_id].push(p.papel);
-      });
-
-      let result = entidades.map(ent => ({
+      let result = (data || []).map(ent => ({
         ...ent,
-        papeis: papeisPorEntidade[ent.id] || [],
-        entidade_papeis: (papeisPorEntidade[ent.id] || []).map(p => ({ papel: p })),
+        papeis: ent.entidade_papeis?.map((p: { papel: string }) => p.papel) || [],
         _primaryContact: ent.entidade_contatos?.find((c: { preferencial?: boolean | null }) => c.preferencial) || ent.entidade_contatos?.[0],
       })) as HybridEntidade[];
 
-      // 4. Filtrar por papel no JavaScript (agora que temos os dados corretos)
       if (filters?.papel) {
         result = result.filter(e => e.papeis?.includes(filters.papel!));
       }

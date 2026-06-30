@@ -726,10 +726,10 @@ export default function NFeImportPage() {
                             
                             <Separator />
                             
-                            {/* Configuração de conversão — linha 1: inputs */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                            {/* Configuração de conversão */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                               <div className="space-y-1.5">
-                                <Label className="text-xs font-medium">Unidade Interna</Label>
+                                <Label className="text-xs">Unidade Interna</Label>
                                 <Select 
                                   value={config.unidadeInterna} 
                                   onValueChange={(v) => updateItemConfig(index, 'unidadeInterna', v)}
@@ -748,7 +748,7 @@ export default function NFeImportPage() {
                               </div>
                               
                               <div className="space-y-1.5">
-                                <Label className="text-xs font-medium">Fator de Conversão</Label>
+                                <Label className="text-xs">Fator de Conversão</Label>
                                 <Input
                                   type="number"
                                   step="any"
@@ -761,105 +761,98 @@ export default function NFeImportPage() {
                                   className="h-9"
                                 />
                               </div>
-
-                              {/* Tipo de Potência inline */}
-                              <div className="space-y-1.5">
-                                <Label className="text-xs font-medium flex items-center gap-1">
-                                  <Beaker className="h-3 w-3 text-amber-600" />
-                                  Tipo de Potência
-                                </Label>
-                                <Select
-                                  value={config.tipoPotencia || 'NENHUMA'}
-                                  onValueChange={(v) => {
-                                    updateItemConfig(index, 'tipoPotencia' as any, v);
-                                    if (v === 'NENHUMA') {
-                                      updateItemConfig(index, 'potenciaValor' as any, 0);
-                                      updateItemConfig(index, 'potenciaUnidade' as any, '');
-                                    } else {
-                                      updateItemConfig(index, 'potenciaUnidade' as any, 
-                                        v === 'UI_POR_GRAMA' ? 'UI/g' : v === 'MG_POR_GRAMA' ? 'mg/g' : '%'
-                                      );
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Sem potência" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="NENHUMA">Sem potência</SelectItem>
-                                    <SelectItem value="UI_POR_GRAMA">UI/g (vitaminas)</SelectItem>
-                                    <SelectItem value="MG_POR_GRAMA">mg/g (concentração)</SelectItem>
-                                    <SelectItem value="PERCENTUAL">% (percentual)</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                              
+                              {/* Preview da conversão */}
+                              {preview && (
+                                <div className="md:col-span-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Calculator className="h-4 w-4 text-primary" />
+                                    <span className="font-medium text-primary">Resultado:</span>
+                                  </div>
+                                  <div className="mt-1 grid grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">Qtd Interna: </span>
+                                      <span className="font-semibold">
+                                        {preview.qtdInterna.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} {preview.unidade}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Custo/{preview.unidade}: </span>
+                                      <span className="font-semibold text-primary">
+                                        {formatCurrency(preview.custoUnitario)}
+                                      </span>
+                            </div>
+                            
+                            {/* Potência / Concentração do Lote (UI/g, mg/g, %) */}
+                            <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg space-y-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Beaker className="h-4 w-4 text-amber-600" />
+                                <span className="font-medium text-amber-700 dark:text-amber-400">Potência do Lote (opcional)</span>
+                                <span className="text-xs text-muted-foreground">— Informação do COA/Laudo do fornecedor</span>
                               </div>
-
-                              {/* Valor da potência (só aparece se tipo selecionado) */}
-                              {config.tipoPotencia && config.tipoPotencia !== 'NENHUMA' ? (
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs font-medium">
-                                    Valor ({config.potenciaUnidade || 'UI/g'})
-                                  </Label>
-                                  <Input
-                                    type="number"
-                                    step="any"
-                                    min="0"
-                                    placeholder={config.tipoPotencia === 'UI_POR_GRAMA' ? 'Ex: 40000000' : 'Ex: 500'}
-                                    value={config.potenciaValor || ''}
-                                    onChange={(e) => updateItemConfig(index, 'potenciaValor' as any, e.target.value ? parseFloat(e.target.value) : 0)}
-                                    className="h-9"
-                                  />
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Tipo de Potência</Label>
+                                  <Select
+                                    value={config.tipoPotencia || 'NENHUMA'}
+                                    onValueChange={(v) => {
+                                      updateItemConfig(index, 'tipoPotencia' as any, v);
+                                      if (v === 'NENHUMA') {
+                                        updateItemConfig(index, 'potenciaValor' as any, 0);
+                                        updateItemConfig(index, 'potenciaUnidade' as any, '');
+                                      } else {
+                                        updateItemConfig(index, 'potenciaUnidade' as any, 
+                                          v === 'UI_POR_GRAMA' ? 'UI/g' : v === 'MG_POR_GRAMA' ? 'mg/g' : '%'
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="NENHUMA">Sem potência</SelectItem>
+                                      <SelectItem value="UI_POR_GRAMA">UI por grama (UI/g)</SelectItem>
+                                      <SelectItem value="MG_POR_GRAMA">mg por grama (mg/g)</SelectItem>
+                                      <SelectItem value="PERCENTUAL">Percentual (%)</SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                 </div>
-                              ) : (
-                                <div />
+                                {config.tipoPotencia && config.tipoPotencia !== 'NENHUMA' && (
+                                  <>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">
+                                        Valor ({config.potenciaUnidade || 'UI/g'})
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        placeholder={config.tipoPotencia === 'UI_POR_GRAMA' ? 'Ex: 40000000' : 'Ex: 500'}
+                                        value={config.potenciaValor || ''}
+                                        onChange={(e) => updateItemConfig(index, 'potenciaValor' as any, e.target.value ? parseFloat(e.target.value) : 0)}
+                                        className="h-9"
+                                      />
+                                    </div>
+                                    <div className="flex items-end pb-1">
+                                      <p className="text-xs text-muted-foreground">
+                                        {config.tipoPotencia === 'UI_POR_GRAMA' && config.potenciaValor ? (
+                                          <>Cada grama contém <strong className="text-foreground">{Number(config.potenciaValor).toLocaleString('pt-BR')} UI</strong></>
+                                        ) : config.tipoPotencia === 'MG_POR_GRAMA' && config.potenciaValor ? (
+                                          <>Concentração: <strong className="text-foreground">{config.potenciaValor} mg/g</strong></>
+                                        ) : config.tipoPotencia === 'PERCENTUAL' && config.potenciaValor ? (
+                                          <>Teor: <strong className="text-foreground">{config.potenciaValor}%</strong></>
+                                        ) : 'Informe o valor do COA/Laudo'}
+                                      </p>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                                </div>
                               )}
                             </div>
-
-                            {/* Card Resultado — largura total, layout horizontal */}
-                            {preview && (
-                              <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Calculator className="h-4 w-4 text-primary" />
-                                  <span className="text-sm font-semibold text-primary">Resultado da Conversão</span>
-                                  <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">✓ OK</span>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                                  <div className="space-y-0.5">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd Interna</p>
-                                    <p className="font-bold text-foreground">
-                                      {preview.qtdInterna.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} <span className="font-normal text-muted-foreground">{preview.unidade}</span>
-                                    </p>
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Custo / {preview.unidade}</p>
-                                    <p className="font-bold text-primary">{formatCurrency(preview.custoUnitario)}</p>
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Total NF-e</p>
-                                    <p className="font-bold text-foreground">{formatCurrency(preview.qtdInterna * preview.custoUnitario)}</p>
-                                  </div>
-                                  {config.tipoPotencia && config.tipoPotencia !== 'NENHUMA' && config.potenciaValor ? (
-                                    <div className="space-y-0.5">
-                                      <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                        <Beaker className="h-3 w-3 text-amber-600" /> Potência (COA)
-                                      </p>
-                                      <p className="font-bold text-amber-700 dark:text-amber-400">
-                                        {config.tipoPotencia === 'UI_POR_GRAMA'
-                                          ? `${Number(config.potenciaValor).toLocaleString('pt-BR')} UI/g`
-                                          : config.tipoPotencia === 'MG_POR_GRAMA'
-                                          ? `${config.potenciaValor} mg/g`
-                                          : `${config.potenciaValor}%`}
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-0.5">
-                                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Potência (COA)</p>
-                                      <p className="text-xs text-muted-foreground italic">Não informada</p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
                           </div>
                         );
                       })}

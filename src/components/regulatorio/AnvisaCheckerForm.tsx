@@ -64,41 +64,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   const [zipContents, setZipContents] = useState<string[]>([]);
   const [isValidating, setIsValidating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [clientLogoFile, setClientLogoFile] = useState<File | null>(null);
-  const [clientLogoPreview, setClientLogoPreview] = useState<string | null>(null);
-  const clientLogoInputRef = useRef<HTMLInputElement>(null);
 
-  const handleClientLogoSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 2 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "Logo muito grande", description: "Máximo 2MB." });
-      return;
-    }
-    setClientLogoFile(f);
-    setClientLogoPreview(URL.createObjectURL(f));
-  };
-
-  const removeClientLogo = () => {
-    setClientLogoFile(null);
-    setClientLogoPreview(null);
-    if (clientLogoInputRef.current) clientLogoInputRef.current.value = "";
-  };
-
-  const uploadClientLogoIfNeeded = async (): Promise<string | null> => {
-    if (!clientLogoFile) return null;
-    const ext = clientLogoFile.name.split('.').pop();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage
-      .from('anvisa-laudo-logos')
-      .upload(path, clientLogoFile, { upsert: false });
-    if (error) {
-      console.error('Erro ao subir logo do cliente:', error);
-      return null;
-    }
-    const { data } = supabase.storage.from('anvisa-laudo-logos').getPublicUrl(path);
-    return data.publicUrl;
-  };
 
   const steps = [
     "📂 Extraindo dados do arquivo...",
@@ -269,8 +235,6 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     setErrorDetails(null);
 
     try {
-      const uploadedClientLogoUrl = await uploadClientLogoIfNeeded();
-
       const reader = new FileReader();
       const fileBase64 = await new Promise<string>((resolve) => {
         reader.onload = () => {
@@ -298,17 +262,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       if (error) {
         console.error('Invoke error:', error);
-        // Tentar extrair mensagem amigável do corpo do erro (status 503/500)
-        const errMsg = error?.message || '';
-        if (data?.erro) {
-          throw new Error(data.erro + (data.mensagem ? ': ' + data.mensagem : ''));
-        }
         throw error;
-      }
-
-      // ── VERIFICAR SE A RESPOSTA É UM ERRO ESTRUTURADO (ex: 503 com JSON) ──────────
-      if (data?.erro) {
-        throw new Error(data.erro + (data.mensagem ? ': ' + data.mensagem : ''));
       }
 
       // ── NORMALIZAÇÃO DO RETORNO
@@ -388,8 +342,6 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
               company_id: profile.company_id,
               produto: produto.nome,
               cliente: clientName,
-              cliente_logo_url: uploadedClientLogoUrl,
-              cliente_nome_exibicao: clientName,
               status_geral: produto.status_geral,
               payload_entrada: { filename: file.name, ativos: produto.ativos } as any,
               resultado_ia: produto as any,
@@ -405,10 +357,9 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         onResult({
           produto: produtos[0].nome,
           cliente: clientName,
-          cliente_logo_url: uploadedClientLogoUrl,
           payload_entrada: { ativos: produtos[0].ativos },
           resultado_ia: produtos[0],
-          multiplos_produtos: produtos
+          multiplos_produtos: produtos 
         });
 
         // Tenta encontrar e clicar na aba de laudos automaticamente
@@ -429,47 +380,15 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     } catch (error: any) {
       console.error(error);
       const stepName = steps[currentStep] || "Processamento inicial";
-
-      // ── Mapeamento de erros para mensagens amigáveis ────────────────────────
-      const rawMsg: string = error?.message || error?.error_description || String(error) || '';
-      let friendlyMessage = '';
-
-      if (
-        rawMsg.includes('gemini_api_key_nao_configurada') ||
-        rawMsg.includes('GEMINI_API_KEY') ||
-        rawMsg.includes('503')
-      ) {
-        friendlyMessage =
-          'O módulo de verificação regulatória não está ativo. ' +
-          'Entre em contato com o suporte informando o código BX-R14.';
-      } else if (
-        rawMsg.includes('non-2xx') ||
-        rawMsg.includes('Edge Function') ||
-        rawMsg.includes('500') ||
-        rawMsg.includes('FunctionsFetchError')
-      ) {
-        friendlyMessage =
-          'Não foi possível concluir a análise. ' +
-          'Tente novamente ou acione o suporte com o código BX-R22.';
-      } else if (rawMsg.includes('gemini_api_error')) {
-        friendlyMessage =
-          'A análise foi interrompida por uma restrição de serviço. ' +
-          'Acione o suporte informando o código BX-R31.';
-      } else if (rawMsg.includes('powerbi')) {
-        friendlyMessage =
-          'Não foi possível consultar a base oficial ANVISA (Power BI). ' +
-          'A análise continuará apenas com os dados locais.';
-      } else {
-        friendlyMessage =
-          rawMsg || 'Falha ao processar o arquivo. Verifique se o formato é válido (.docx, .pdf, .zip ou imagem).';
-      }
-      // ─────────────────────────────────────────────────────────────────────────
-
       setErrorDetails({
-        message: friendlyMessage,
+        message: error.message || "Falha ao processar o arquivo. Verifique se o formato é válido.",
         step: stepName
       });
-      // Toast removido — o bloco de erro na página (acima do botão) é mais visível e não fica atrás do mascote
+      toast({ 
+        variant: "destructive", 
+        title: "Erro na análise", 
+        description: `Falha na etapa: ${stepName}` 
+      });
     } finally {
       setAnalyzing(false);
     }
@@ -581,7 +500,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
             ⚙️ Opções da análise
           </AccordionTrigger>
           <AccordionContent className="pb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
               <div className="space-y-2">
                 <Label className="text-sm font-bold opacity-70 uppercase tracking-wider">Público-alvo</Label>
                 <Select value={audience} onValueChange={setAudience}>
@@ -617,63 +536,10 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
                   className="rounded-xl h-11"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-bold opacity-70 uppercase tracking-wider">Logo do Cliente</Label>
-                <div
-                  className="relative h-11 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex items-center justify-center cursor-pointer overflow-hidden"
-                  onClick={() => clientLogoInputRef.current?.click()}
-                >
-                  {clientLogoPreview ? (
-                    <>
-                      <img src={clientLogoPreview} alt="Logo cliente" className="h-full object-contain px-2" />
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); removeClientLogo(); }}
-                        className="absolute right-1 top-1 p-0.5 rounded-full bg-background/80 hover:bg-destructive hover:text-white"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5" /> Opcional (PNG/JPG)
-                    </span>
-                  )}
-                  <input
-                    ref={clientLogoInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp"
-                    className="hidden"
-                    onChange={handleClientLogoSelection}
-                  />
-                </div>
-              </div>
             </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-
-      {/* ELEMENTO 3 — AVISO DE ERRO (exibido acima do botão, visível ao usuário) */}
-      {errorDetails && (
-        <div className="p-5 rounded-2xl bg-destructive/10 border-2 border-destructive/30 animate-in fade-in slide-in-from-top-3 duration-300 shadow-lg">
-          <div className="flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-destructive mt-0.5 shrink-0" />
-            <div className="flex-1 space-y-2">
-              <p className="font-bold text-destructive text-sm uppercase tracking-wider">
-                ⚠️ Erro na etapa: {errorDetails.step}
-              </p>
-              <p className="text-sm leading-relaxed text-foreground/80">{errorDetails.message}</p>
-              <Button
-                variant="link"
-                className="p-0 h-auto text-xs text-destructive/70 hover:text-destructive"
-                onClick={() => setErrorDetails(null)}
-              >
-                Fechar aviso
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ELEMENTO 3 — BOTÃO "CHECAR AGORA" */}
       <div className="space-y-6">
@@ -689,7 +555,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           {analyzing ? (
             <div className="flex items-center gap-3">
               <Loader2 className="w-6 h-6 animate-spin" />
-              Verificando conformidade regulatória...
+              Analisando com IA ANVISA...
             </div>
           ) : !file ? (
             "Selecione um arquivo para começar"
@@ -707,6 +573,24 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           </div>
         )}
 
+        {errorDetails && (
+          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="font-bold text-destructive text-sm uppercase tracking-wider">Erro na etapa: {errorDetails.step}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{errorDetails.message}</p>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-xs text-destructive/70 hover:text-destructive"
+                  onClick={() => setErrorDetails(null)}
+                >
+                  Fechar aviso
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

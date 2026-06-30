@@ -5,7 +5,8 @@ import { addMonths, format } from "date-fns";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-// LocalDb removido — busca de clientes 100% via Supabase
+import { LocalDb } from "@/lib/local-db";
+import type { LocalEntidade } from "@/hooks/use-local-entidades";
 import { CHECKLIST_PADRAO } from "@/types/op-industrial";
 import {
   type Formula,
@@ -17,6 +18,7 @@ import {
   type FormValues,
   formSchema,
   EXCIPIENTES_TECNOLOGICOS,
+  PESO_CAPSULA_ALVO,
   ACRESCIMO_INDUSTRIAL,
   PESO_CAPSULA_NOMINAL,
 } from "./op-wizard-types";
@@ -107,11 +109,6 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   // Parâmetros da fórmula — usa o real, fallback para o equipamento, fallback para default
   const PESO_ENCHIMENTO_MG = selectedFormula?.peso_enchimento_mg       ?? 500;
   const DENSIDADE_FORMULA  = selectedFormula?.densidade_aparente_kg_l  ?? DENSIDADE_EQUIP;
-  // Mesma grandeza física do PESO_ENCHIMENTO_MG (massa de pó por cápsula 00) —
-  // usado no cálculo de Q.S.P./excipiente. Antes havia uma constante separada
-  // (490mg fixo) que ignorava a densidade real da fórmula; agora é a mesma
-  // fonte de verdade usada no cálculo de batelada do misturador.
-  const PESO_CAPSULA_ALVO = PESO_ENCHIMENTO_MG;
 
   // 1. Peso total do pó a misturar (kg)
   const pesoTotalMisturaKg = totalFinalComPerdas > 0
@@ -213,6 +210,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   useEffect(() => {
     const buscarClientes = async () => {
       if (clienteSearch.length < 2) { setClientes([]); return; }
+      const searchLower = clienteSearch.toLowerCase();
       const { data: supabaseData } = await supabase
         .from("entidades")
         .select("id, razao_social, nome_fantasia, documento")
@@ -222,7 +220,17 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       const supabaseClientes: EntidadeCliente[] = (supabaseData || []).map(c => ({
         ...c, nome_fantasia: c.nome_fantasia || undefined, source: "supabase" as const,
       }));
-      setClientes(supabaseClientes);
+      const localEntidades = LocalDb.query<LocalEntidade>("entidades", (e) => {
+        if (e.status !== "ATIVO") return false;
+        return e.razao_social?.toLowerCase().includes(searchLower) ||
+               e.nome_fantasia?.toLowerCase().includes(searchLower) ||
+               e.documento?.includes(clienteSearch.replace(/\D/g, ""));
+      });
+      const localClientes: EntidadeCliente[] = localEntidades
+        .filter(l => !supabaseClientes.find(s => s.id === l.id))
+        .slice(0, 10)
+        .map(l => ({ id: l.id, razao_social: l.razao_social, nome_fantasia: l.nome_fantasia, documento: l.documento, source: "local" as const }));
+      setClientes([...supabaseClientes, ...localClientes]);
       setShowClienteDropdown(true);
     };
     const debounce = setTimeout(buscarClientes, 300);

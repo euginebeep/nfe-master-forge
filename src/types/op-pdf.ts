@@ -1,12 +1,6 @@
 // Tipo para os dados da OP usados nos componentes PDF
 export interface OPDadosPDF {
   codigo: string;
-  // Dados do tenant (empresa) — usados no rodapé/cabeçalho de todas as folhas.
-  // Nunca usar nome de empresa fixo no código: sempre vem da tabela `company`
-  // do tenant logado, pois o ERP é multi-tenant (cada cliente tem sua própria empresa).
-  empresa_nome?: string;
-  empresa_cnpj?: string;
-  empresa_logo_url?: string;
   produto_nome: string;
   produto_codigo?: string;
   lote_produto_acabado?: string;

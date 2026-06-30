@@ -7,8 +7,7 @@ import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Bra
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
-import { useCompanyBranding } from "@/hooks/use-company-branding";
-import { useRTAtivo } from "@/hooks/use-rt-ativo";
+import { useLocalCompany } from "@/hooks/use-local-company";
 import { cn } from "@/lib/utils";
 
 const normalizeProductName = (value: unknown) =>
@@ -41,7 +40,6 @@ interface AnvisaLaudoViewProps {
     sugestao_capsulas: { n: number; tamanho: string; frasco: number; obs: string };
     produto: string;
     cliente?: string;
-    cliente_logo_url?: string | null;
     ativos: any[];
     multiplos_produtos?: any[];
   };
@@ -52,36 +50,19 @@ interface AnvisaLaudoViewProps {
 export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset, onSelectProduct }) => {
   const handlePrint = () => window.print();
   const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
-  const { data: company } = useCompanyBranding();
-  const { data: rt } = useRTAtivo();
+  const { data: company } = useLocalCompany();
   
-  const isMultiproduto = produtosUnicos.length > 1;
-
   const handleExportLaudo = () => {
     try {
-      if (!rt) {
-        toast.warning("Nenhum RT ativo cadastrado. O laudo será gerado sem assinatura.");
-      }
       exportLaudoA4({
         ...data,
-        // Para multiproduto, passa todos os produtos para gerar capa + resumo executivo + blocos individuais
-        multiplos_produtos: isMultiproduto ? produtosUnicos : data.multiplos_produtos,
         company: company ? {
           razao_social: company.razao_social,
           nome_fantasia: company.nome_fantasia,
-          logo_url: company.logo_url
-        } : undefined,
-        rt: rt ? {
-          nome_completo: rt.nome_completo,
-          tipo_conselho: rt.tipo_conselho,
-          numero_registro: rt.numero_registro,
-          uf_conselho: rt.uf_conselho
-        } : null
+          logo_data: company.logo_data
+        } : undefined
       });
-      const msg = isMultiproduto
-        ? `Laudo multiproduto gerado (${produtosUnicos.length} produtos). Use 'Salvar como PDF'.`
-        : "Laudo gerado. Use 'Salvar como PDF' na janela de impressão.";
-      toast.success(msg);
+      toast.success("Laudo gerado. Use 'Salvar como PDF' na janela de impressão.");
     } catch (e: any) {
       toast.error("Falha ao gerar laudo: " + (e?.message || 'erro'));
     }
@@ -107,10 +88,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         <h2 className="text-xl font-bold">Laudo de Conformidade</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
-          <Button variant="default" size="sm" onClick={handleExportLaudo}>
-            <FileDown className="w-4 h-4 mr-2" />
-            {isMultiproduto ? `Exportar Laudo Completo (${produtosUnicos.length} produtos)` : 'Exportar Laudo (A4/PDF)'}
-          </Button>
+          <Button variant="default" size="sm" onClick={handleExportLaudo}><FileDown className="w-4 h-4 mr-2" /> Exportar Laudo (A4/PDF)</Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink}><Copy className="w-4 h-4 mr-2" /> Copiar link</Button>
           <Button variant="default" size="sm" onClick={onReset}><RefreshCw className="w-4 h-4 mr-2" /> Nova análise</Button>
         </div>
@@ -278,11 +256,11 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                     unitCorrigida = limit.unit;
                     corrigido = true;
                   }
-                  let doseMg = Number(doseCorrigida) || 0;
+                  let doseMg = doseCorrigida;
                   const u = (unitCorrigida || '').toLowerCase();
                   if (u === 'mcg') doseMg /= 1000;
                   if (u === 'g') doseMg *= 1000;
-                  const percentVD = vdRef ? Math.round((doseMg / vdRef.vd) * 100) : null;
+                  const percentVD = vdRef ? Math.round((doseMg / vdRef) * 100) : null;
 
                   return (
                     <div key={i} className="flex justify-between items-center text-[11px] font-bold">

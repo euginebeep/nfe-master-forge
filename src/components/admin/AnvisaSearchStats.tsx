@@ -72,7 +72,7 @@ export function AnvisaSearchStats() {
 
         <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Total de chamadas à IA BrainX (histórico completo)</span>
+            <span className="text-muted-foreground">Total de chamadas à IA Lovable (histórico completo)</span>
             <span className="font-semibold tabular-nums">{totalIa}</span>
           </div>
           <div className="flex justify-between">

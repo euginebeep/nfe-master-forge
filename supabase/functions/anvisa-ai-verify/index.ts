@@ -3,71 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-// Endpoint nativo Gemini generateContent (substitui o endpoint de compatibilidade OpenAI)
-const GEMINI_MODEL = 'gemini-2.5-flash'
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
-
-// Helper: converte mensagens OpenAI-style para o formato nativo Gemini
-function buildGeminiRequest(
-  systemPrompt: string,
-  userText: string,
-  imageBase64?: string
-): object {
-  // Parte de texto do usuário
-  const userParts: any[] = [{ text: userText }]
-
-  // Suporte multimodal: imagem inline (JPEG/PNG/WEBP)
-  if (imageBase64) {
-    userParts.push({
-      inline_data: {
-        mime_type: 'image/jpeg',
-        data: imageBase64,
-      },
-    })
-  }
-
-  return {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: userParts }],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0.1,
-      maxOutputTokens: 65536,
-    },
-  }
-}
-
-// Helper: extrai o texto da resposta nativa Gemini
-function extractGeminiText(data: any): string {
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-}
-
-// Helper: faz a chamada ao Gemini nativo e retorna o texto gerado
-async function callGemini(
-  apiKey: string,
-  systemPrompt: string,
-  userText: string,
-  imageBase64?: string
-): Promise<string> {
-  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`
-  const body = buildGeminiRequest(systemPrompt, userText, imageBase64)
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`gemini_api_error: ${res.status} ${errText}`)
-  }
-
-  const data = await res.json()
-  const text = extractGeminiText(data)
-  if (!text) throw new Error('gemini_api_error: resposta vazia ou sem candidatos')
-  return text
-}
+const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
 
 // JSZip via npm (Deno-friendly) para extrair conteúdo real de arquivos .zip e .docx
 import JSZip from 'npm:jszip@3.10.1'
@@ -535,38 +471,6 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { termo, action } = body
 
-    // ── Obter GEMINI_API_KEY: Secret do Supabase (prioridade) ou banco erp_system_config ──
-    let geminiKey = Deno.env.get('GEMINI_API_KEY')
-    if (!geminiKey && (action === 'analyze_file' || action === 'analyze_formula')) {
-      // Tentar buscar do banco de dados (configuração global do ERP)
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-        if (supabaseUrl && serviceKey) {
-          const cfgRes = await fetch(
-            `${supabaseUrl}/rest/v1/erp_system_config?chave=eq.gemini_api_key&select=valor&limit=1`,
-            { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
-          )
-          if (cfgRes.ok) {
-            const cfgData = await cfgRes.json()
-            geminiKey = cfgData?.[0]?.valor || null
-          }
-        }
-      } catch (e) {
-        console.warn('Falha ao buscar gemini_api_key do banco:', e)
-      }
-    }
-    if (!geminiKey && (action === 'analyze_file' || action === 'analyze_formula')) {
-      return new Response(
-        JSON.stringify({
-          erro: 'gemini_api_key_nao_configurada',
-          mensagem: 'O módulo BrainX ANVISA não está ativo. Configure a chave de integração no painel Admin Master → Integrações de IA.'
-        }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
     if (action === 'analyze_formula') {
       let powerBiData = '';
       try {
@@ -611,13 +515,32 @@ Retorne JSON com:
         ativos: body.ativos
       })
 
-      const rawText = await callGemini(geminiKey, systemPrompt, userMessage)
-      // Limpar possível markdown code fence retornado pelo modelo
-      const cleanText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
-      const content = JSON.parse(cleanText)
+      const aiRes = await fetch(AI_GATEWAY, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          response_format: { type: 'json_object' }
+        })
+      })
 
-      return new Response(JSON.stringify(content), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      if (!aiRes.ok) {
+        const errorText = await aiRes.text();
+        console.error('AI Gateway Error (analyze_formula):', errorText);
+        throw new Error(`ai_gateway_error: ${aiRes.status} ${errorText}`);
+      }
+      const aiData = await aiRes.json()
+      const content = JSON.parse(aiData.choices[0].message.content)
+
+      return new Response(JSON.stringify(content), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       })
     }
 
@@ -697,13 +620,12 @@ LIMITES MÁXIMOS OBRIGATÓRIOS — IN 28/2018 Anexo IV:
 - colageno_tipo2: MÍNIMO 40 mg UC-II não hidrolisado
 
 CONSTITUINTES NÃO AUTORIZADOS (Anexo I IN 28 — STATUS = BLOQUEADO):
-- berberina, queratina, l_citrulina
+- berberina, queratina, silicio_organico, l_citrulina
 
 CONSTITUINTES AUTORIZADOS — confirmar explicitamente:
 - l_tirosina: APROVADO — CAS 60-18-4 Anexo I IN 28
 - beta_alanina: APROVADO — IN 102/2021
 - msm: APROVADO — Anexo I IN 28 sem limite máximo
-- silicio_organico: APROVADO — Dióxido de silício / Sílica orgânica, Anexo I IN 28/2018 (excipiente e ativo), sem limite máximo definido
 
 ESTRUTURA DO JSON DE RETORNO:
 {
@@ -742,18 +664,50 @@ ${fileContent}
 
 Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" DEVE bater com a quantidade real de objetos em "produtos".`;
 
-      // Suporte multimodal: passa imagem inline quando o arquivo for uma imagem
-      const isImage = fileType === 'image' || Boolean(fileName.match(/\.(jpg|jpeg|png|webp)$/i));
-      const imageArg = (fileBase64 && isImage) ? fileBase64 : undefined;
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ];
 
-      const rawText = await callGemini(geminiKey, systemPrompt, userMessage, imageArg)
-      // Limpar possível markdown code fence retornado pelo modelo
-      const cleanText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
-      const parsed = JSON.parse(cleanText)
+      // Se for imagem ou se o nome sugerir imagem, adicionar como conteúdo multimodal
+      const isImage = fileType === 'image' || fileName.match(/\.(jpg|jpeg|png|webp)$/i);
+      if (fileBase64 && isImage) {
+        messages[1] = {
+          role: 'user',
+          content: [
+            { type: 'text', text: userMessage },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${fileBase64}` } }
+          ]
+        } as any;
+      }
 
-      return new Response(JSON.stringify(parsed), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+
+      const aiRes = await fetch(AI_GATEWAY, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+
+          messages,
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!aiRes.ok) {
+        const errorText = await aiRes.text();
+        throw new Error(`ai_gateway_error: ${aiRes.status} ${errorText}`);
+      }
+      
+      const aiData = await aiRes.json();
+      const rawContent = aiData.choices[0].message.content;
+      const parsed = JSON.parse(rawContent);
+
+      return new Response(JSON.stringify(parsed), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     if (!termo || String(termo).length < 2) {
