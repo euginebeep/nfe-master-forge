@@ -99,7 +99,13 @@ export default function CompanySettingsPage() {
   const onSubmit = async (data: Partial<Company>) => {
     // Defesa extra: garante que a senha do certificado nunca seja persistida,
     // mesmo que tenha vindo populada no form a partir de um valor antigo do banco.
-    const { certificado_senha_encrypted, ...payload } = data as any;
+    // Remove campos que nunca devem ir no payload de update:
+    // - certificado_senha_encrypted: nunca persistir senha em claro (ver auditoria de segurança)
+    // - smtp_pass_set: coluna GENERATED ALWAYS AS (...) STORED — o Postgres rejeita
+    //   qualquer UPDATE explícito nela ("can only be updated to DEFAULT"). Como o form é
+    //   populado inteiro a partir de `company` (values: company), esse campo calculado
+    //   vem junto e seria reenviado por engano se não for removido aqui.
+    const { certificado_senha_encrypted, smtp_pass_set, ...payload } = data as any;
     try {
       await upsertCompany.mutateAsync(payload);
       // Continua na própria tela — usuário pode estar ajustando várias abas
