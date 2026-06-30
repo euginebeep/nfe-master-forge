@@ -44,6 +44,13 @@ export default function CompanySettingsPage() {
   const [certFileName, setCertFileName] = useState<string | null>(null);
   const [certTestResult, setCertTestResult] = useState<{ daysUntilExpiry?: number } | null>(null);
   const [certError, setCertError] = useState<string | null>(null);
+  // A senha do certificado NUNCA deve ser persistida (nem localStorage, nem
+  // Supabase) — fica só em memória durante esta sessão da página, usada
+  // exclusivamente para testar/validar o certificado. Ver auditoria de
+  // segurança da página Empresa: a coluna certificado_senha_encrypted no
+  // banco sugere criptografia pelo nome, mas nunca houve função de
+  // criptografia implementada para ela — salvar ali era texto puro disfarçado.
+  const [certSenha, setCertSenha] = useState("");
 
   // Fetch certificate file name when company loads
   useEffect(() => {
@@ -65,8 +72,11 @@ export default function CompanySettingsPage() {
   });
 
   const onSubmit = async (data: Partial<Company>) => {
+    // Defesa extra: garante que a senha do certificado nunca seja persistida,
+    // mesmo que tenha vindo populada no form a partir de um valor antigo do banco.
+    const { certificado_senha_encrypted, ...payload } = data as any;
     try {
-      await upsertCompany.mutateAsync(data);
+      await upsertCompany.mutateAsync(payload);
       navigate("/");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar configurações da empresa");
@@ -124,44 +134,29 @@ export default function CompanySettingsPage() {
   const handleCertUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const companyCnpj = form.getValues("cnpj");
-    const certPassword = form.getValues("certificado_senha_encrypted");
-    
-    if (!certPassword) {
+
+    if (!certSenha) {
       setCertError("Preencha a senha do certificado antes de enviar o arquivo.");
       toast.error("Preencha a senha do certificado antes de enviar o arquivo.");
       return;
     }
-    
+
     setCertUploading(true);
     setCertError(null);
-    
+
     try {
       // 1. Upload the file
       const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
-      
+
       // 2. Validate certificate CNPJ against company CNPJ
       if (companyCnpj) {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        
-        const response = await fetch(`${supabaseUrl}/functions/v1/validate-certificate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`,
-            'apikey': supabaseKey,
-          },
-          body: JSON.stringify({ 
-            fileId: arquivo.id, 
-            password: certPassword, 
-            companyCnpj 
-          }),
+        const { data: result, error } = await supabase.functions.invoke("validate-certificate", {
+          body: { fileId: arquivo.id, password: certSenha, companyCnpj },
         });
-        
-        const result = await response.json();
-        
+        if (error) throw error;
+
         if (!result.valid) {
           // Certificate is invalid or CNPJ doesn't match — reject
           setCertError(result.error || "Certificado inválido.");
@@ -416,16 +411,17 @@ export default function CompanySettingsPage() {
                             <Input
                               type="password"
                               placeholder="Atualizar senha"
-                              onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
+                              value={certSenha}
+                              onChange={(e) => setCertSenha(e.target.value)}
                             />
-                            <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual</p>
+                            <p className="text-xs text-muted-foreground">A senha não é salva — informe-a sempre que quiser testar o certificado nesta sessão</p>
                           </div>
                         </div>
                         
                         <div className="max-w-sm">
                           <CertificateTestButton
                             certificateFileId={form.watch("certificado_a1_file_id")}
-                            certificatePassword={form.watch("certificado_senha_encrypted") || undefined}
+                            certificatePassword={certSenha || undefined}
                             onTestResult={(result) => setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry })}
                           />
                         </div>
@@ -439,7 +435,8 @@ export default function CompanySettingsPage() {
                             <Input
                               type="password"
                               placeholder="Digite a senha antes de enviar"
-                              onChange={(e) => form.setValue("certificado_senha_encrypted", e.target.value)}
+                              value={certSenha}
+                              onChange={(e) => setCertSenha(e.target.value)}
                             />
                             <p className="text-xs text-muted-foreground">Obrigatória para validar o certificado</p>
                           </div>

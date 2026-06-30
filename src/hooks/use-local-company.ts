@@ -36,7 +36,10 @@ export interface LocalCompany {
   logo_data?: string;
   certificado_nome?: string;
   certificado_tipo?: string;
-  certificado_senha?: string;
+  // certificado_senha foi removido propositalmente — NUNCA deve ser
+  // persistido (nem aqui, nem no Supabase). Ver auditoria de segurança da
+  // página Empresa: a senha do certificado A1 vive só em memória (useState
+  // separado, fora deste objeto) durante a sessão de uso da página.
   optout_parceiros?: boolean;
   created_at?: string;
   updated_at?: string;

@@ -51,6 +51,12 @@ export default function EmpresaSettingsPage() {
     daysUntilExpiry?: number;
     certCnpj?: string;
   } | null>(null);
+  // A senha do certificado NUNCA deve ser persistida (nem localStorage, nem
+  // Supabase) — antes ela vivia em formData.certificado_senha, que é
+  // gravado inteiro em localStorage (texto puro) a cada "Salvar". Fica só em
+  // memória durante esta sessão da página, usada exclusivamente para
+  // testar/validar o certificado.
+  const [certSenha, setCertSenha] = useState("");
   const uploadFile = useUploadFile();
 
   useEffect(() => {
@@ -197,13 +203,17 @@ export default function EmpresaSettingsPage() {
     }
   }, [supabaseCompany]);
 
-  // Auto-validate certificate on page load when cert + password exist.
+  // Auto-validate certificate quando a senha é preenchida nesta sessão.
+  // Antes disso dependia de formData.certificado_senha (persistido em
+  // localStorage entre sessões); agora certSenha só existe em memória, então
+  // isso passa a rodar quando o usuário digita a senha na sessão atual, não
+  // mais "magicamente" ao reabrir a página com uma senha salva de antes.
   // Usa cache em sessionStorage (6h) pra não decriptar o .p12 e reenviar a
   // senha do certificado toda vez que essa página é aberta — só revalida de
   // verdade se o cache expirou ou não existe. Validação manual via botão
   // "Testar Certificado" sempre força uma checagem nova, sem usar o cache.
   useEffect(() => {
-    if (certAutoValidated || !certificadoFileId || !formData.certificado_senha) return;
+    if (certAutoValidated || !certificadoFileId || !certSenha) return;
 
     const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
     const cacheKey = `cert_validation_${certificadoFileId}`;
@@ -232,7 +242,7 @@ export default function EmpresaSettingsPage() {
         const { data: result, error } = await supabase.functions.invoke("validate-certificate", {
           body: {
             fileId: certificadoFileId,
-            password: formData.certificado_senha,
+            password: certSenha,
             companyCnpj: formData.cnpj,
           },
         });
@@ -253,7 +263,7 @@ export default function EmpresaSettingsPage() {
     };
 
     autoValidate();
-  }, [certificadoFileId, formData.certificado_senha, certAutoValidated, formData.cnpj]);
+  }, [certificadoFileId, certSenha, certAutoValidated, formData.cnpj]);
 
   const handleSave = async () => {
     if (!formData.razao_social || !formData.cnpj) {
@@ -1026,10 +1036,11 @@ export default function EmpresaSettingsPage() {
                     <Label>Senha do Certificado</Label>
                     <Input
                       type="password"
-                      value={formData.certificado_senha || ""}
-                      onChange={(e) => setFormData({ ...formData, certificado_senha: e.target.value })}
+                      value={certSenha}
+                      onChange={(e) => setCertSenha(e.target.value)}
                       placeholder="********"
                     />
+                    <p className="text-xs text-muted-foreground">A senha não é salva — informe-a sempre que quiser testar o certificado nesta sessão</p>
                   </div>
                 </div>
 
@@ -1037,7 +1048,7 @@ export default function EmpresaSettingsPage() {
                 <div className="max-w-sm">
                   <CertificateTestButton
                     certificateFileId={certificadoFileId}
-                    certificatePassword={formData.certificado_senha}
+                    certificatePassword={certSenha}
                     companyCnpj={formData.cnpj}
                     onTestResult={(result) => {
                       if (result?.daysUntilExpiry !== undefined) {
@@ -1057,8 +1068,8 @@ export default function EmpresaSettingsPage() {
                   <Label>Senha do Certificado *</Label>
                   <Input
                     type="password"
-                    value={formData.certificado_senha || ""}
-                    onChange={(e) => setFormData({ ...formData, certificado_senha: e.target.value })}
+                    value={certSenha}
+                    onChange={(e) => setCertSenha(e.target.value)}
                     placeholder="Informe a senha antes de enviar"
                   />
                 </div>
