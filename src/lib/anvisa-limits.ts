@@ -90,12 +90,27 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   // OUTROS / IN ESPECÍFICAS
   // ============================================================
   melatonina:          { auth: true,  min: 0,  max: 0.21,    unit: 'mg',  norm: 'IN 211/2023',             obs: 'Apenas para ≥19 anos — Dose máx 0,21 mg/dia' },
-  colageno_tipo2:      { auth: true,  min: 0,  max: 40,      unit: 'mg',  norm: 'IN 28 Anexo IV (não desnaturado UC-II)' },
+  colageno_tipo2:      { auth: true,  min: 40, max: null,    unit: 'mg',  norm: 'IN 102/2021 (não desnaturado UC-II)', obs: 'Mínimo 40mg para efeito comprovado (IN 102/2021)' },
   colageno_hidrolisado:{ auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'RDC 243/2018 (ingrediente alimentar)', obs: 'Sem limite específico — proteína' },
   msm:                 { auth: true,  min: 0,  max: 2000,    unit: 'mg',  norm: 'IN 28 Anexo IV (Metilsulfonilmetano)' },
   trans_resveratrol:   { auth: true,  min: 0,  max: 165,     unit: 'mg',  norm: 'IN 28 Anexo IV' },
   acido_hialuronico:   { auth: true,  min: 0,  max: 80,      unit: 'mg',  norm: 'IN 28 Anexo IV' },
   beta_alanina:        { auth: true,  min: 0,  max: null,    unit: 'mg',  norm: 'IN 28 — Sem limite estabelecido (NE)' },
+
+  // ============================================================
+  // IN 373/2025 — NOVOS CONSTITUINTES (Junho 2025)
+  // ============================================================
+  gaba:                { auth: true,  min: 50, max: 300,     unit: 'mg',  norm: 'IN 373/2025',                obs: 'Ácido Gama Aminobutírico — Apenas ≥19 anos' },
+  lactobacillus_acidophilus_dds1: { auth: true, min: 1e10, max: null, unit: 'UFC', norm: 'IN 373/2025', obs: 'Lactobacillus acidophilus DDS-1 (NCIMB 30333) — Apenas ≥19 anos' },
+  bacillus_coagulans_snz1969: { auth: true, min: 1e8, max: null, unit: 'esporos/porção', norm: 'IN 373/2025', obs: 'Bacillus coagulans SNZ 1969 — Apenas 4-18 anos e ≥19 anos' },
+  pediococcus_acidilactici: { auth: true, min: 0, max: null, unit: 'UFC', norm: 'IN 373/2025', obs: 'Associação Lactobacillus + Pediococcus — Apenas ≥19 anos' },
+  fucosil_lactose_2: { auth: true, min: 0, max: 3000, unit: 'mg', norm: 'IN 373/2025', obs: '2\'-Fucosil-lactose — Apenas ≥4 anos, exceto gestantes e lactantes' },
+
+  // ============================================================
+  // IN 438/2026 — CURCUMINA (Abril 2026)
+  // ============================================================
+  curcumina:           { auth: true,  min: 80, max: 130,     unit: 'mg',  norm: 'IN 438/2026',                obs: 'Curcuminoides totais (curcumina + desmetoxicurcumina + bisdesmetoxicurcumina). Apenas ≥19 anos. ⚠️ ADVERTÊNCIA: Não recomendado para gestantes, lactantes, crianças, doenças hepáticas/biliares, úlceras gástricas.' },
+  tetraidrocurcuminoides: { auth: true, min: 0, max: 120, unit: 'mg', norm: 'IN 438/2026', obs: 'Tetraidrocurcuminoides (THC) — Apenas ≥19 anos. ⚠️ NÃO PODE SER ASSOCIADO COM CURCUMINA. ADVERTÊNCIA: Não recomendado para gestantes, lactantes, crianças, doenças hepáticas/biliares, úlceras gástricas.' },
 
   // ============================================================
   // PROIBIDOS / NÃO LISTADOS — Sujeito a apreensão (RDC 243/2018)
@@ -296,7 +311,7 @@ export function resolveAnvisaKey(nome: string): string {
     // Extratos e fitoterápicos
     'espirulina': 'espirulina', 'arthrospira': 'espirulina',
     'psyllium': 'psyllium', 'plantago': 'psyllium',
-    'curcuma': 'curcuma', 'curcumina': 'curcuma', 'extrato de curcuma': 'curcuma',
+    'curcuma': 'curcumina', 'curcumina': 'curcumina', 'extrato de curcuma': 'curcumina', 'tetraidrocurcuminoides': 'tetraidrocurcuminoides', 'thc': 'tetraidrocurcuminoides',
     'extrato de açafrão': 'curcuma',
     'laranja moro': 'ext_laranja_moro', 'antocianinas': 'ext_laranja_moro',
     'cha verde': 'cha_verde', 'extrato de cha verde': 'cha_verde', 'camellia sinensis': 'cha_verde',

@@ -1,0 +1,155 @@
+{
+  "monitoring": {
+    "enabled": true,
+    "interval_hours": 24,
+    "check_on_startup": true,
+    "auto_update_limits": false,
+    "notification_channels": ["email", "slack", "webhook"]
+  },
+  "email_notifications": {
+    "enabled": true,
+    "recipients": [
+      "responsavel-tecnico@empresa.com",
+      "compliance@empresa.com"
+    ],
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "from_address": "anvisa-monitor@empresa.com"
+  },
+  "slack_notifications": {
+    "enabled": false,
+    "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+    "channel": "#anvisa-alerts",
+    "mention_on_critical": ["@compliance-team"]
+  },
+  "webhook_notifications": {
+    "enabled": false,
+    "url": "https://seu-servidor.com/api/anvisa-alerts",
+    "method": "POST",
+    "headers": {
+      "Authorization": "Bearer YOUR_TOKEN",
+      "Content-Type": "application/json"
+    }
+  },
+  "legislations_to_monitor": [
+    {
+      "id": "IN_28_2018",
+      "name": "Instrução Normativa nº 28/2018",
+      "type": "IN",
+      "priority": "HIGH",
+      "check_enabled": true
+    },
+    {
+      "id": "IN_75_2020",
+      "name": "Instrução Normativa nº 75/2020",
+      "type": "IN",
+      "priority": "HIGH",
+      "check_enabled": true
+    },
+    {
+      "id": "RDC_429_2020",
+      "name": "Resolução da Diretoria Colegiada nº 429/2020",
+      "type": "RDC",
+      "priority": "HIGH",
+      "check_enabled": true
+    },
+    {
+      "id": "IN_373_2025",
+      "name": "Instrução Normativa nº 373/2025",
+      "type": "IN",
+      "priority": "CRITICAL",
+      "check_enabled": true
+    },
+    {
+      "id": "IN_438_2026",
+      "name": "Instrução Normativa nº 438/2026",
+      "type": "IN",
+      "priority": "CRITICAL",
+      "check_enabled": true
+    }
+  ],
+  "alert_rules": {
+    "new_legislation": {
+      "enabled": true,
+      "severity": "HIGH",
+      "notify_immediately": true
+    },
+    "limit_change": {
+      "enabled": true,
+      "severity": "MEDIUM",
+      "notify_immediately": false,
+      "batch_daily": true
+    },
+    "constituent_added": {
+      "enabled": true,
+      "severity": "MEDIUM",
+      "notify_immediately": false
+    },
+    "constituent_removed": {
+      "enabled": true,
+      "severity": "HIGH",
+      "notify_immediately": true
+    },
+    "minimum_limit_added": {
+      "enabled": true,
+      "severity": "HIGH",
+      "notify_immediately": true
+    }
+  },
+  "report_generation": {
+    "enabled": true,
+    "formats": ["json", "markdown", "html"],
+    "output_directory": "reports/anvisa",
+    "retention_days": 90,
+    "auto_cleanup": true,
+    "schedule": {
+      "daily": "09:00",
+      "weekly": "Monday 09:00",
+      "monthly": "1st day 09:00"
+    }
+  },
+  "database": {
+    "type": "supabase",
+    "table_legislations": "anvisa_legislations",
+    "table_constituents": "anvisa_constituents",
+    "table_limits": "anvisa_limits",
+    "table_updates": "anvisa_updates",
+    "auto_sync": true
+  },
+  "validation_rules": {
+    "check_minimum_limits": true,
+    "check_maximum_limits": true,
+    "check_unit_consistency": true,
+    "check_audience_coverage": true,
+    "check_legislation_references": true,
+    "strict_mode": false
+  },
+  "cache": {
+    "enabled": true,
+    "ttl_hours": 24,
+    "file_path": "cache/anvisa-cache.json",
+    "auto_cleanup": true
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "json",
+    "output_file": "logs/anvisa-monitor.log",
+    "max_file_size_mb": 100,
+    "backup_count": 10,
+    "console_output": true
+  },
+  "powerbi": {
+    "enabled": true,
+    "constituents_url": "https://app.powerbi.com/view?r=eyJrIjoiNDU4Y2UxNmEtZjc0Yi00ZTkyLTk3N2EtZTEyZTI5MjdkNzQ2IiwidCI6ImI2N2FmMjNmLWMzZjMtNGQzNS04MGM3LWI3MDg1ZjVlZGQ4MSJ9&pageName=ReportSection%20Power%20BI%20Report%20Report%20powered%20by%20Power%20BI",
+    "faq_url": "https://app.powerbi.com/view?r=eyJrIjoiZmY5ZTc4MzUtODZjZi00NzYzLWJjNDctMTdkZTY4NmZmMThhIiwidCI6ImI2N2FmMjNmLWMzZjMtNGQzNS04MGM3LWI3MDg1ZjVlZGQ4MSJ9&pageName=ReportSectionc0ac170b47f7b0bfae94",
+    "check_frequency_hours": 12,
+    "timeout_seconds": 30
+  },
+  "compliance": {
+    "auto_flag_non_compliant": true,
+    "flag_products_below_minimum": true,
+    "flag_products_above_maximum": true,
+    "flag_unknown_constituents": true,
+    "generate_compliance_report": true
+  }
+}
