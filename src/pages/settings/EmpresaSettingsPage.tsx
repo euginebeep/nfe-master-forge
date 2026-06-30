@@ -320,15 +320,15 @@ export default function EmpresaSettingsPage() {
     }));
   };
 
-  // Padrão de logo do ERP: baseado no lockup horizontal de referência (1200x600, 2:1).
-  // Faixa de tolerância calculada a partir do CSS real dos documentos: o cabeçalho do
-  // laudo (exportLaudoA4.ts) renderiza a logo a 36px de altura com max-width:110px —
-  // ou seja, qualquer proporção acima de ~3:1 já estoura esse limite e o object-fit:contain
-  // encolhe a logo, ficando menor que as demais logos nos relatórios.
-  const LOGO_RATIO_MIN = 1.3; // mais estreito que isso fica pequeno demais quando a altura é fixada
-  const LOGO_RATIO_MAX = 3.0; // mais largo que isso estoura o max-width: 110px do cabeçalho do laudo
-  const LOGO_MIN_WIDTH = 400;
-  const LOGO_MIN_HEIGHT = 150;
+  // Padrão de logo do ERP. IMPORTANTE: como toda a exibição usa height fixa +
+  // width:auto + object-fit:contain, uma logo quadrada/redonda (1:1) ou mesmo
+  // vertical NÃO quebra layout nenhum — só ocupa uma largura menor dentro do
+  // mesmo espaço, o que é visualmente normal. O único caso que realmente
+  // quebra é uma logo excessivamente larga (banner), que estoura o
+  // max-width:110px do cabeçalho do laudo (exportLaudoA4.ts) a 36px de altura.
+  const LOGO_RATIO_MAX = 4; // acima disso, vira aviso (não bloqueia)
+  const LOGO_MIN_WIDTH = 200;
+  const LOGO_MIN_HEIGHT = 200;
 
   function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
     return new Promise((resolve, reject) => {
@@ -395,26 +395,20 @@ export default function EmpresaSettingsPage() {
 
         if (width < LOGO_MIN_WIDTH || height < LOGO_MIN_HEIGHT) {
           toast.error("Imagem com resolução muito baixa", {
-            description: `Mínimo ${LOGO_MIN_WIDTH}×${LOGO_MIN_HEIGHT}px. Recomendado: 1200×600px.`,
+            description: `Mínimo ${LOGO_MIN_WIDTH}×${LOGO_MIN_HEIGHT}px para não ficar borrada nos relatórios.`,
           });
           e.target.value = "";
           return;
         }
 
-        if (ratio < LOGO_RATIO_MIN) {
-          toast.error("Logo muito vertical/quadrada para o cabeçalho dos relatórios", {
-            description: "Use um logo horizontal (proporção próxima de 2:1, ex: 1200×600px).",
-          });
-          e.target.value = "";
-          return;
-        }
-
+        // Logos redondas, quadradas ou verticais são bem-vindas — o sistema centraliza
+        // e ajusta automaticamente em todos os documentos. Só avisamos (sem bloquear)
+        // quando a logo é um banner extremamente largo, caso raro que pode ficar
+        // espremido no cabeçalho do laudo.
         if (ratio > LOGO_RATIO_MAX) {
-          toast.error("Logo muito alongada — vai estourar o cabeçalho do laudo", {
-            description: "Use uma proporção mais próxima de 2:1 (ex: 1200×600px).",
+          toast.warning("Logo bem larga — pode ficar pequena no cabeçalho do laudo", {
+            description: "Funciona, mas uma versão mais próxima de 1:1 ou 2:1 fica mais nítida nos relatórios.",
           });
-          e.target.value = "";
-          return;
         }
 
         if (file.type === "image/jpeg") {
@@ -739,7 +733,7 @@ export default function EmpresaSettingsPage() {
                         <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
                         <p className="text-sm font-medium">Upload Logo</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Recomendado: 1200×600px (proporção 2:1, horizontal) · PNG transparente · máx. 2MB
+                          Qualquer formato (redonda, quadrada ou horizontal) · PNG transparente · mín. 200×200px · máx. 2MB
                         </p>
                       </div>
                     </Label>
@@ -753,6 +747,36 @@ export default function EmpresaSettingsPage() {
                   </>
                 )}
               </div>
+
+              {logoPreview && !logoIsLoading && (
+                <div className="mt-3">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Prévia de como a logo aparece nos documentos (qualquer formato é centralizado automaticamente):
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    <div className="space-y-1">
+                      <div className="border rounded bg-white px-3 flex items-center" style={{ height: 56 }}>
+                        <img
+                          src={logoPreview}
+                          alt="Prévia — Laudo"
+                          style={{ height: 36, width: "auto", maxWidth: 110, objectFit: "contain" }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-center">Cabeçalho do Laudo</p>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="border rounded bg-white px-3 flex items-center" style={{ height: 72 }}>
+                        <img
+                          src={logoPreview}
+                          alt="Prévia — Contrato"
+                          style={{ maxHeight: 60, width: "auto", objectFit: "contain" }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-center">Contrato / Relatório</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
