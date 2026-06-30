@@ -766,10 +766,10 @@ export default function AmbientalConfigPage() {
                           <div className="flex items-center gap-2">
                             <Thermometer className="h-4 w-4 text-muted-foreground" />
                             <div>
-                              <div className="font-medium">{s.sala ?? s.room_name}</div>
-                              {s.device_name && (
+                              <div className="font-medium">{s.sala || s.device_name || s.room_name || "Sem nome"}</div>
+                              {s.device_id && (
                                 <div className="text-xs text-muted-foreground">
-                                  {s.device_name}
+                                  {s.device_id}
                                 </div>
                               )}
                             </div>
