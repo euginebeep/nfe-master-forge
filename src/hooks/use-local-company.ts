@@ -1,3 +1,14 @@
+// ⚠️ DEPRECATED / ÓRFÃO (2026-06-30) — nada no projeto importa mais este
+// hook (confirmado por busca: useLocalCompany/useUpsertLocalCompany não
+// aparecem em nenhum outro arquivo). Era usado exclusivamente pela
+// EmpresaSettingsPage antiga, que agora é só um redirect para
+// /settings/company (CompanySettingsPage, que usa Supabase diretamente via
+// useCompany/useUpsertCompany, sem essa camada local).
+// Mantido sem remoção física por segurança, mas não deve ser reativado nem
+// usado em código novo — a duplicidade de fonte de dados (local vs Supabase)
+// foi exatamente a causa de vários bugs encontrados na auditoria da página
+// Empresa, incluindo a senha do certificado A1 sendo salva em texto puro
+// (ver purgeLegacyCertificatePassword em local-db.ts).
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { LocalDb } from '@/lib/local-db';
 import { toast } from 'sonner';

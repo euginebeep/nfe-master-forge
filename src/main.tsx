@@ -5,41 +5,39 @@ import { registerGlobalShortcuts } from "./lib/keyboard-shortcuts";
 import { toast } from "sonner";
 import { centralToast } from "./components/ui/central-toast";
 import { registerSW } from "virtual:pwa-register";
+import { purgeLegacyCertificatePassword } from "./lib/local-db";
+
+// Remediação de segurança: remove a senha do certificado digital A1 que a
+// tela antiga de configurações chegou a salvar em texto puro no localStorage
+// (ver use-local-company.ts / EmpresaSettingsPage). Roda uma vez por
+// navegador, sem efeito em quem nunca teve esse dado salvo.
+purgeLegacyCertificatePassword();
 
 // --- Garantia de "sempre versão nova" ---
-// 1) No preview do editor (iframe / domínio lovable*), NUNCA registrar SW e
-//    desregistrar qualquer um pré-existente + limpar caches.
-// 2) Em produção, registrar com autoUpdate + reload imediato quando uma nova
-//    versão tomar controle (controllerchange) ou quando houver refresh pendente.
+// REGRA FUNDAMENTAL: o sistema NUNCA recarrega automaticamente.
+// Um reload automático apaga formulários abertos e faz o usuário perder trabalho.
+// Fluxo: SW novo detectado → toast discreto → usuário decide quando recarregar.
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();
 const host = window.location.hostname;
 const isPreviewHost =
   host.includes("id-preview--") ||
-  host.includes("lovableproject.com") ||
-  host.includes("lovable.app");
+  host === "localhost" ||
+  host === "127.0.0.1";
 
 if (isInIframe || isPreviewHost) {
+  // Preview/dev: desregistrar SW e limpar caches — SEM reload automático
   if ("serviceWorker" in navigator) {
-    const hadController = !!navigator.serviceWorker.controller;
     Promise.all([
       navigator.serviceWorker.getRegistrations().then((regs) =>
-        Promise.all(regs.map((r) => r.unregister())),
+        Promise.all(regs.map((r) => r.unregister()))
       ),
       typeof caches !== "undefined"
         ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
         : Promise.resolve(),
-    ])
-      .then(() => {
-        // Se a página atual ainda estava sendo controlada por um SW antigo,
-        // recarrega UMA vez para descolar da HTML cacheada antiga.
-        if (hadController && !sessionStorage.getItem("brainx_preview_sw_purged")) {
-          sessionStorage.setItem("brainx_preview_sw_purged", "1");
-          window.location.reload();
-        }
-      })
-      .catch(() => {});
+    ]).catch(() => {});
+    // Não há window.location.reload() — nunca recarregar automaticamente
   }
 } else {
   // Produção: NÃO recarregar automaticamente — isso apaga formulários abertos.
@@ -77,10 +75,9 @@ if (isInIframe || isPreviewHost) {
     },
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
-      // Checagem leve a cada 10 minutos (em vez de 15s). Só dispara o toast,
-      // nunca recarrega sozinho.
+      // Checagem a cada 15 minutos. Apenas dispara o toast, nunca recarrega sozinho.
       const checkUpdate = () => registration.update().catch(() => {});
-      setInterval(checkUpdate, 10 * 60 * 1000);
+      setInterval(checkUpdate, 15 * 60 * 1000);
       checkUpdate();
     },
   });

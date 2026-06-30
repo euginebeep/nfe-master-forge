@@ -130,6 +130,36 @@ export function clearAll(): void {
   notifyChange('*');
 }
 
+// ── Remediação de segurança (2026-06-30) ──────────────────────────────────
+// A tela antiga de configurações de empresa (EmpresaSettingsPage, removida e
+// substituída por um redirect para /settings/company) salvava a senha do
+// certificado digital A1 em texto puro dentro do singleton 'company' deste
+// LocalDb (chave legacy_erp_company no localStorage). Ninguém mais escreve
+// nem lê esse singleton hoje (use-local-company.ts ficou órfão), mas quem já
+// usou a tela antiga ainda tem a senha salva no navegador. Esta função roda
+// uma vez na inicialização do app e remove só o campo sensível, mantendo o
+// resto do registro intacto (caso algo ainda dependa dele no futuro).
+const PURGE_FLAG_KEY = `${STORAGE_PREFIX}__purged_cert_senha_v1`;
+
+export function purgeLegacyCertificatePassword(): void {
+  try {
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem(PURGE_FLAG_KEY)) return; // já rodou nesta máquina
+
+    const raw = localStorage.getItem(getStorageKey('company'));
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && typeof data === 'object' && 'certificado_senha' in data) {
+        delete data.certificado_senha;
+        localStorage.setItem(getStorageKey('company'), JSON.stringify(data));
+      }
+    }
+    localStorage.setItem(PURGE_FLAG_KEY, '1');
+  } catch {
+    // Ambiente sem localStorage (SSR, testes) — ignora silenciosamente
+  }
+}
+
 export const LocalDb = {
   getCollection,
   setCollection,
@@ -143,6 +173,7 @@ export const LocalDb = {
   generateSKU,
   generateUUID,
   clearAll,
+  purgeLegacyCertificatePassword,
 };
 
 export default LocalDb;
