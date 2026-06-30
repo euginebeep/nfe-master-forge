@@ -32,7 +32,7 @@ import { Loader2 } from "lucide-react";
 export default function FatorConversaoPage() {
   const { historico, desvios, loading, error, buscarHistorico, buscarDesviosRecentes } =
     useFatorConversaoHistorico();
-  const { fornecedores } = useHybridEntidades();
+  const { data: fornecedores = [] } = useHybridEntidades({ papel: "fornecedor" });
 
   const [selectedFornecedor, setSelectedFornecedor] = useState<string>("");
   const [filterItem, setFilterItem] = useState("");
@@ -158,7 +158,7 @@ export default function FatorConversaoPage() {
                 <SelectContent>
                   {fornecedores.map((f) => (
                     <SelectItem key={f.id} value={f.id}>
-                      {f.nome}
+                      {f.nome_fantasia || f.razao_social}
                     </SelectItem>
                   ))}
                 </SelectContent>
