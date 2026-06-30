@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Building2, Save, Loader2, Upload, X, FileCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
@@ -13,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { useCompany, useUpsertCompany } from "@/hooks/use-company";
 import { useUploadFile } from "@/hooks/use-files";
 import { CNPJLookupInput } from "@/components/company/CNPJLookupInput";
@@ -35,11 +35,11 @@ const CRT_OPTIONS = [
 ];
 
 export default function CompanySettingsPage() {
-  const navigate = useNavigate();
   const { data: company, isLoading } = useCompany();
   const upsertCompany = useUpsertCompany();
   const uploadFile = useUploadFile();
   const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [certUploading, setCertUploading] = useState(false);
   const [certFileName, setCertFileName] = useState<string | null>(null);
   const [certTestResult, setCertTestResult] = useState<{ daysUntilExpiry?: number } | null>(null);
@@ -51,6 +51,18 @@ export default function CompanySettingsPage() {
   // banco sugere criptografia pelo nome, mas nunca houve função de
   // criptografia implementada para ela — salvar ali era texto puro disfarçado.
   const [certSenha, setCertSenha] = useState("");
+  const [optoutParceiros, setOptoutParceiros] = useState(false);
+
+  // Carregar status de opt-out de conteúdo de parceiros
+  useEffect(() => {
+    if (!company?.id) return;
+    supabase
+      .from("brainx_optout")
+      .select("company_id")
+      .eq("company_id", company.id)
+      .maybeSingle()
+      .then(({ data }) => setOptoutParceiros(!!data));
+  }, [company?.id]);
 
   // Fetch certificate file name when company loads
   useEffect(() => {
@@ -67,6 +79,19 @@ export default function CompanySettingsPage() {
     fetchCertName();
   }, [company?.certificado_a1_file_id]);
 
+  // Carregar prévia do logo já salvo (bucket privado — precisa de signed URL)
+  useEffect(() => {
+    const fileId = company?.logo_file_id;
+    if (!fileId) { setLogoPreviewUrl(null); return; }
+    const loadLogo = async () => {
+      const { data: arquivo } = await supabase.from("arquivos").select("storage_key").eq("id", fileId).maybeSingle();
+      if (!arquivo?.storage_key) { setLogoPreviewUrl(null); return; }
+      const { data } = await supabase.storage.from("erp-files").createSignedUrl(arquivo.storage_key, 3600);
+      setLogoPreviewUrl(data?.signedUrl ? `${data.signedUrl}&v=${Date.now()}` : null);
+    };
+    loadLogo();
+  }, [company?.logo_file_id]);
+
   const form = useForm<Partial<Company>>({
     values: company || undefined,
   });
@@ -77,7 +102,9 @@ export default function CompanySettingsPage() {
     const { certificado_senha_encrypted, ...payload } = data as any;
     try {
       await upsertCompany.mutateAsync(payload);
-      navigate("/");
+      // Continua na própria tela — usuário pode estar ajustando várias abas
+      // em sequência (Dados Gerais, Endereço, NF-e) e não deveria ser jogado
+      // pra fora a cada save.
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar configurações da empresa");
     }
@@ -119,13 +146,94 @@ export default function CompanySettingsPage() {
     if (data.email_fiscal) form.setValue("email_fiscal", data.email_fiscal);
   };
 
+  // Mesma política de logo definida na auditoria da página Empresa:
+  // formatos realmente aceitos pelo bucket erp-files (ver migration
+  // 20260205144652), proporção tolerante (qualquer formato funciona com
+  // object-fit:contain, só banners extremos viram aviso) e checagem real de
+  // transparência via canvas (não só pelo file.type).
+  const LOGO_ALLOWED_TYPES = ["image/png", "image/jpeg"];
+  const LOGO_RATIO_MAX = 4;
+  const LOGO_MIN_WIDTH = 200;
+  const LOGO_MIN_HEIGHT = 200;
+
+  function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Não foi possível ler a imagem")); };
+      img.src = url;
+    });
+  }
+
+  function hasTransparentPixel(file: File): Promise<boolean> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const SAMPLE = 64;
+          const canvas = document.createElement("canvas");
+          canvas.width = SAMPLE;
+          canvas.height = SAMPLE;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(true);
+          ctx.drawImage(img, 0, 0, SAMPLE, SAMPLE);
+          const { data } = ctx.getImageData(0, 0, SAMPLE, SAMPLE);
+          for (let i = 3; i < data.length; i += 4) {
+            if (data[i] < 255) return resolve(true);
+          }
+          resolve(false);
+        } catch {
+          resolve(true);
+        }
+      };
+      img.onerror = () => resolve(true);
+      img.src = url;
+    });
+  }
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!LOGO_ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Formato não suportado", { description: "Use PNG ou JPEG. Outros formatos (SVG, WEBP, GIF, BMP) não são aceitos." });
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Arquivo muito grande", { description: "Máximo 2MB." });
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (width < LOGO_MIN_WIDTH || height < LOGO_MIN_HEIGHT) {
+        toast.error("Imagem com resolução muito baixa", { description: `Mínimo ${LOGO_MIN_WIDTH}×${LOGO_MIN_HEIGHT}px para não ficar borrada nos relatórios.` });
+        e.target.value = "";
+        return;
+      }
+      if (width / height > LOGO_RATIO_MAX) {
+        toast.warning("Logo bem larga — pode ficar pequena no cabeçalho do laudo", { description: "Funciona, mas uma versão mais próxima de 1:1 ou 2:1 fica mais nítida nos relatórios." });
+      }
+      if (file.type === "image/jpeg") {
+        toast.warning("JPG não suporta fundo transparente", { description: "Em relatórios com fundo branco isso pode aparecer como uma caixa colorida. PNG transparente é o ideal." });
+      } else if (!(await hasTransparentPixel(file))) {
+        toast.warning("Esse arquivo não tem fundo transparente", { description: "É um PNG com fundo sólido. Em relatórios com fundo branco isso vai aparecer como uma caixa colorida atrás da logo." });
+      }
+    } catch {
+      // não bloqueia o upload se não conseguir medir a imagem
+    }
+
     setLogoUploading(true);
     try {
       const arquivo = await uploadFile.mutateAsync({ file });
       form.setValue("logo_file_id", arquivo.id);
+      const { data: signedData } = await supabase.storage.from("erp-files").createSignedUrl(arquivo.storage_key, 3600);
+      setLogoPreviewUrl(signedData?.signedUrl ? `${signedData.signedUrl}&v=${Date.now()}` : null);
     } finally {
       setLogoUploading(false);
     }
@@ -196,6 +304,34 @@ export default function CompanySettingsPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      <Card className="mb-6 border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-sm font-bold uppercase tracking-wider">Conteúdo de Parceiros BrainX</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm">Exibir recomendações e conteúdo de parceiros verificados no seu dashboard.</p>
+              <p className="text-xs text-muted-foreground">Isso ajuda a descobrir soluções de insumos, equipamentos e consultoria para o setor industrial.</p>
+            </div>
+            <Switch
+              checked={!optoutParceiros}
+              onCheckedChange={async (checked) => {
+                const optout = !checked;
+                setOptoutParceiros(optout);
+                if (!company?.id) return;
+                if (optout) {
+                  await supabase.from("brainx_optout").insert({ company_id: company.id, motivo: "Opt-out do usuário" });
+                } else {
+                  await supabase.from("brainx_optout").delete().eq("company_id", company.id);
+                }
+                toast.success(optout ? "Preferência salva: conteúdo de parceiros desativado." : "Preferência salva: conteúdo de parceiros ativado.");
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <PageHeader
         title="Configuracoes da Empresa"
         description="Cadastro fiscal e configuracao para emissao de NF-e"
@@ -330,7 +466,10 @@ export default function CompanySettingsPage() {
                           variant="outline"
                           size="sm"
                           className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                          onClick={() => form.setValue("logo_file_id", null)}
+                          onClick={() => {
+                            form.setValue("logo_file_id", null);
+                            setLogoPreviewUrl(null);
+                          }}
                         >
                           Excluir Logo
                         </Button>
@@ -350,10 +489,35 @@ export default function CompanySettingsPage() {
                         <input
                           id="logo-upload-input"
                           type="file"
-                          accept="image/*"
+                          accept="image/png,image/jpeg"
                           onChange={handleLogoUpload}
                           className="hidden"
                         />
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      PNG ou JPEG · qualquer formato (redonda, quadrada ou horizontal) · PNG transparente é o ideal · mín. 200×200px · máx. 2MB
+                    </p>
+
+                    {logoPreviewUrl && (
+                      <div className="mt-3">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Prévia de como a logo aparece nos documentos (qualquer formato é centralizado automaticamente):
+                        </p>
+                        <div className="flex flex-wrap gap-4">
+                          <div className="space-y-1">
+                            <div className="border rounded bg-white px-3 flex items-center" style={{ height: 56 }}>
+                              <img src={logoPreviewUrl} alt="Prévia — Laudo" style={{ height: 36, width: "auto", maxWidth: 110, objectFit: "contain" }} />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground text-center">Cabeçalho do Laudo</p>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="border rounded bg-white px-3 flex items-center" style={{ height: 72 }}>
+                              <img src={logoPreviewUrl} alt="Prévia — Contrato" style={{ maxHeight: 60, width: "auto", objectFit: "contain" }} />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground text-center">Contrato / Relatório</p>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
