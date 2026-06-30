@@ -94,7 +94,6 @@ const menuGroups: MenuGroup[] = [
   label: "Principal",
   items: [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tooltip: "Visão geral do sistema com KPIs, alertas e notícias" },
-  { title: "Manual / FAQ", url: "/faq", icon: HelpCircle, tooltip: "Manual completo do ERP com todas as instruções de uso" },
   ]
 
 },
@@ -117,11 +116,9 @@ const menuGroups: MenuGroup[] = [
   { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
   { title: "Fator de Conversão", url: "/compras/fator-conversao", icon: BarChart3, tooltip: "Histórico de conversões de unidades por fornecedor com sugestões automáticas", modulo: "compras" },
-  { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "estoque", danger: true },
   { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos", modulo: "estoque" },
   { title: "Lotes Reservados", url: "/estoque/lotes-reservados", icon: Tag, tooltip: "Reserva de números oficiais de lote (SKU-AAMM-NNNN-D) com trava anti-clonagem", modulo: "estoque" },
-  { title: "Movimentações", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque", modulo: "estoque" },
-  { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Rastreabilidade completa conforme exigências GMP e ANVISA", modulo: "estoque" }]
+  { title: "Movimentações", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque", modulo: "estoque" }]
 
  },
  {
@@ -131,17 +128,20 @@ const menuGroups: MenuGroup[] = [
   { title: "Formulador", url: "/producao/formulas", icon: FlaskConical, badge: "ANVISA", tooltip: "Formulador industrial com validação ANVISA", modulo: "producao" },
   { title: "Ordens de Produção", url: "/producao/ordens", icon: Factory, tooltip: "Criação e acompanhamento de ordens de produção", modulo: "producao" },
   { title: "Dashboard Industrial", url: "/producao/dashboard", icon: BarChart3, tooltip: "Indicadores operacionais e análise de anomalias", modulo: "producao" },
-  { title: "Dashboard Executivo", url: "/producao/executivo", icon: BarChart3, badge: "KPI", tooltip: "KPIs executivos e alertas estratégicos", modulo: "producao" }]
+  { title: "Dashboard Executivo", url: "/producao/executivo", icon: BarChart3, badge: "KPI", tooltip: "KPIs executivos e alertas estratégicos", modulo: "producao" },
+  { title: "Equipamentos", url: "/settings/equipamentos", icon: Factory, tooltip: "Cadastro de misturadores, encapsuladoras e equipamentos de produção", modulo: "producao", adminOnly: true }]
 
 },
 {
   label: "Qualidade",
-  modulo: "estoque",
+  modulo: "qualidade",
   items: [
-  { title: "Desvios / CAPA", url: "/qualidade/desvios", icon: ShieldAlert, badge: "QC", tooltip: "Registro e tratamento de desvios e ações corretivas (CAPA)", modulo: "estoque" },
+  { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "qualidade", danger: true },
+  { title: "Desvios / CAPA", url: "/qualidade/desvios", icon: ShieldAlert, badge: "QC", tooltip: "Registro e tratamento de desvios e ações corretivas (CAPA)", modulo: "qualidade" },
   { title: "POPs", url: "/qualidade/pops", icon: ClipboardCheck, badge: "RDC 275", tooltip: "Gestão de Procedimentos Operacionais Padrão", modulo: "qualidade" },
-  { title: "Análises", url: "/qualidade/analises", icon: FlaskConical, tooltip: "Análises laboratoriais e resultados de controle de qualidade", modulo: "estoque" },
-  { title: "Calibrações", url: "/qualidade/calibracoes", icon: Settings, tooltip: "Controle de calibração de instrumentos e equipamentos", modulo: "estoque" }]
+  { title: "Análises", url: "/qualidade/analises", icon: FlaskConical, tooltip: "Análises laboratoriais e resultados de controle de qualidade", modulo: "qualidade" },
+  { title: "Calibrações", url: "/qualidade/calibracoes", icon: Settings, tooltip: "Controle de calibração de instrumentos e equipamentos", modulo: "qualidade" },
+  { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Rastreabilidade completa conforme exigências GMP e ANVISA", modulo: "qualidade" }]
 
 },
 {
@@ -151,12 +151,13 @@ const menuGroups: MenuGroup[] = [
   { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018", modulo: "producao" },
   { title: "ANVISA Checker", url: "/regulatorio/anvisa-checker", icon: FlaskConical, tooltip: "Checador de fórmulas e verificação regulatória ANVISA", modulo: "producao" },
   { title: "Biblioteca do RT", url: "/regulatorio/biblioteca-rt", icon: BookOpen, badge: "IA", tooltip: "Copilot Regulatório — base de conhecimento ANVISA travada em fonte oficial (RDC 243/2018, RDC 275/2002, IN 28/2018)", modulo: "producao" },
+  { title: "Resp. Técnicos", url: "/cadastros/responsaveis-tecnicos", icon: UserCheck, tooltip: "Gestão de responsáveis técnicos habilitados para produção", modulo: "producao" },
   { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade em tempo real", modulo: "producao" },
   { title: "Config. Sensores", url: "/ambiental/configuracao", icon: Settings2, tooltip: "Configurar credenciais eWeLink e mapear sensores por sala", modulo: "producao", adminOnly: true }]
 
  },
  {
-  label: "Comercial",
+  label: "Vendas",
   modulo: "vendas",
   items: [
   { title: "CRM", url: "/vendas/crm", icon: MessageSquare, tooltip: "Gestão de relacionamento e pipeline de vendas", modulo: "vendas" },
@@ -168,10 +169,10 @@ const menuGroups: MenuGroup[] = [
  },
  {
   label: "Fiscal",
-  modulo: "vendas",
+  modulo: "fiscal",
   items: [
-  { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput, tooltip: "Emissão e gestão de notas fiscais de saída (NF-e)", modulo: "vendas" },
-  { title: "Auditoria Fiscal", url: "/vendas/auditoria-fiscal", icon: ScrollText, tooltip: "Trilha de emissão, protocolo, cancelamento e reimpressão por empresa", modulo: "vendas" }]
+  { title: "Notas de Saída", url: "/vendas/notas-saida", icon: FileOutput, tooltip: "Emissão e gestão de notas fiscais de saída (NF-e)", modulo: "fiscal" },
+  { title: "Auditoria Fiscal", url: "/vendas/auditoria-fiscal", icon: ScrollText, tooltip: "Trilha de emissão, protocolo, cancelamento e reimpressão por empresa", modulo: "fiscal" }]
 
  },
  {
@@ -214,10 +215,10 @@ interface FooterItem {
 }
 
 const footerItems: FooterItem[] = [
+{ to: "/faq", icon: HelpCircle, label: "Manual / FAQ", tooltip: "Manual completo do ERP com todas as instruções de uso" },
 { to: "/settings/company", icon: Settings, label: "Configuracoes", tooltip: "Configurações gerais da empresa e sistema", modulo: "configuracoes" },
 { to: "/settings/admin-master", icon: ShieldAlert, label: "Admin Master", tooltip: "Painel administrativo master — operações críticas do sistema", danger: true, adminOnly: true },
-{ to: "/usuarios", icon: Shield, label: "Usuarios", tooltip: "Gestão de usuários, permissões e acessos ao sistema", modulo: "usuarios" },
-{ to: "/cadastros/responsaveis-tecnicos", icon: UserCheck, label: "Resp. Técnicos", tooltip: "Gestão de responsáveis técnicos habilitados para produção", modulo: "producao" }];
+{ to: "/usuarios", icon: Shield, label: "Usuarios", tooltip: "Gestão de usuários, permissões e acessos ao sistema", modulo: "usuarios" }];
 
 
 
@@ -502,41 +503,6 @@ export function AppSidebar() {
               </Tooltip>
             );
           })}
-          
-          {/* Item Equipamentos adicionado via Menu normal para evitar conflito com interface FooterItem */}
-          {isItemVisible({
-            title: "Equipamentos",
-            url: "/settings/equipamentos",
-            icon: Factory,
-            tooltip: "Cadastro de misturadores e equipamentos",
-            modulo: "producao",
-            adminOnly: true
-          }) && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  to="/settings/equipamentos"
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/footer",
-                    isActive("/settings/equipamentos")
-                      ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
-                  )}
-                >
-                  <Factory className={cn(
-                    "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
-                    isActive("/settings/equipamentos") ? "text-secondary-foreground" : "text-sidebar-foreground/50 group-hover/footer:text-sidebar-foreground/80"
-                  )} />
-                  {!collapsed && <span className="flex-1 text-[13px] font-medium leading-tight">Equipamentos</span>}
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-[240px] text-xs">
-                <p className="font-semibold">Equipamentos</p>
-                <p className="text-muted-foreground mt-0.5">Cadastro de misturadores, encapsuladoras e equipamentos de produção</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
 
           <div className="mt-1 pt-1 border-t border-sidebar-border/30">
             <Tooltip>
