@@ -187,34 +187,40 @@ async function processCompany(supabaseAdmin: any, config: any): Promise<{
     // Verificar se já existe
     const { data: existing } = await supabaseAdmin
       .from("ambiental_sensores")
-      .select("id, device_name, ativo")
+      .select("id, ewelink_online")
       .eq("company_id", companyId)
       .eq("device_id", deviceId)
       .maybeSingle();
 
     if (!existing) {
-      // Novo sensor — inserir automaticamente
+      // Novo sensor — inserir automaticamente.
+      // `ativo` (monitorar ou não) começa true e a partir daqui é controle
+      // exclusivo do usuário no ERP. `ewelink_online` é o status real de
+      // conectividade no eWeLink, atualizado automaticamente a cada ciclo.
       await supabaseAdmin.from("ambiental_sensores").insert({
-        company_id:  companyId,
-        device_id:   deviceId,
-        device_name: deviceName,
-        room_name:   deviceName,
-        sala:        deviceName,
-        ativo:       thing.itemData?.online ?? true,
-        temp_min:    18,
-        temp_max:    25,
-        hum_min:     40,
-        hum_max:     60,
+        company_id:     companyId,
+        device_id:      deviceId,
+        device_name:    deviceName,
+        room_name:      deviceName,
+        sala:           deviceName,
+        ativo:          true,
+        ewelink_online: thing.itemData?.online ?? true,
+        temp_min:       18,
+        temp_max:       25,
+        hum_min:        40,
+        hum_max:        60,
       });
       newSensors++;
       console.log(`[ewelink-cron] Novo sensor detectado: ${deviceName} (${deviceId}) — empresa ${companyId}`);
     } else {
-      // Atualizar nome e status online se mudou
+      // Sensor já cadastrado: atualizar SOMENTE o status de conectividade
+      // do eWeLink. NUNCA sobrescrever `device_name` (editável pelo usuário
+      // no ERP) nem `ativo` (controle manual de monitoramento no ERP).
       const onlineNow = thing.itemData?.online ?? true;
-      if (existing.device_name !== deviceName || existing.ativo !== onlineNow) {
+      if (existing.ewelink_online !== onlineNow) {
         await supabaseAdmin
           .from("ambiental_sensores")
-          .update({ device_name: deviceName, ativo: onlineNow })
+          .update({ ewelink_online: onlineNow })
           .eq("company_id", companyId)
           .eq("device_id", deviceId);
       }

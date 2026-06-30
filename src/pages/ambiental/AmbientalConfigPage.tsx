@@ -80,6 +80,7 @@ type AmbientalSensor = {
   hum_max: number;
   responsible: string | null;
   ativo: boolean;
+  ewelink_online: boolean | null;
 };
 
 const SALAS_SUGERIDAS = [
@@ -763,7 +764,8 @@ export default function AmbientalConfigPage() {
                       <TableHead>Temp (Min–Max °C)</TableHead>
                       <TableHead>Umid (Min–Max %)</TableHead>
                       <TableHead>Responsável</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Conexão</TableHead>
+                      <TableHead>Monitorar</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -796,11 +798,26 @@ export default function AmbientalConfigPage() {
                         </TableCell>
                         <TableCell>{s.responsible || "—"}</TableCell>
                         <TableCell>
+                          <Badge
+                            variant={s.ewelink_online ? "secondary" : "outline"}
+                            className="gap-1"
+                            title="Status reportado pelo eWeLink — não editável aqui"
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                s.ewelink_online ? "bg-emerald-500" : "bg-zinc-400"
+                              }`}
+                            />
+                            {s.ewelink_online ? "Online" : "Offline"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
                           <Switch
                             checked={s.ativo}
                             onCheckedChange={(v) =>
                               toggleSensorAtivoMutation.mutate({ id: s.id, ativo: v })
                             }
+                            title="Controle manual: liga/desliga o monitoramento deste sensor no ERP"
                           />
                         </TableCell>
                         <TableCell className="text-right">
