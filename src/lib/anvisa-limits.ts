@@ -5,6 +5,12 @@ export interface AnvisaLimit {
   unit: string;
   norm: string;
   obs?: string;
+  allowedGroups?: string[];  // Grupos populacionais permitidos
+  restrictedGroups?: string[];  // Grupos populacionais proibidos
+  restrictions?: {  // Restrições de associação
+    cannotBeWith: string[];
+    reason: string;
+  };
 }
 
 export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
@@ -100,17 +106,88 @@ export const ANVISA_LIMITS: Record<string, AnvisaLimit> = {
   // ============================================================
   // IN 373/2025 — NOVOS CONSTITUINTES (Junho 2025)
   // ============================================================
-  gaba:                { auth: true,  min: 50, max: 300,     unit: 'mg',  norm: 'IN 373/2025',                obs: 'Ácido Gama Aminobutírico — Apenas ≥19 anos' },
-  lactobacillus_acidophilus_dds1: { auth: true, min: 1e10, max: null, unit: 'UFC', norm: 'IN 373/2025', obs: 'Lactobacillus acidophilus DDS-1 (NCIMB 30333) — Apenas ≥19 anos' },
-  bacillus_coagulans_snz1969: { auth: true, min: 1e8, max: null, unit: 'esporos/porção', norm: 'IN 373/2025', obs: 'Bacillus coagulans SNZ 1969 — Apenas 4-18 anos e ≥19 anos' },
-  pediococcus_acidilactici: { auth: true, min: 0, max: null, unit: 'UFC', norm: 'IN 373/2025', obs: 'Associação Lactobacillus + Pediococcus — Apenas ≥19 anos' },
-  fucosil_lactose_2: { auth: true, min: 0, max: 3000, unit: 'mg', norm: 'IN 373/2025', obs: '2\'-Fucosil-lactose — Apenas ≥4 anos, exceto gestantes e lactantes' },
+  gaba:                { 
+    auth: true,  
+    min: 50, 
+    max: 300,     
+    unit: 'mg',  
+    norm: 'IN 373/2025 (Anexo II/III)',
+    obs: 'Ácido Gama Aminobutírico — Apenas ≥19 anos',
+    allowedGroups: ['ADULTOS_19PLUS'],
+    restrictedGroups: ['LACTENTES_0_6', 'LACTENTES_7_11', 'CRIANCAS_1_3', 'CRIANCAS_4_8', 'CRIANCAS_9_18', 'GESTANTES', 'LACTANTES']
+  },
+  lactobacillus_acidophilus_dds1: { 
+    auth: true, 
+    min: 1e10, 
+    max: null, 
+    unit: 'UFC', 
+    norm: 'IN 373/2025 (Anexo II/III)', 
+    obs: 'Lactobacillus acidophilus DDS-1 (NCIMB 30333) — Apenas ≥19 anos (mínimo 1×10¹⁰ UFC)',
+    allowedGroups: ['ADULTOS_19PLUS'],
+    restrictedGroups: ['LACTENTES_0_6', 'LACTENTES_7_11', 'CRIANCAS_1_3', 'CRIANCAS_4_8', 'CRIANCAS_9_18', 'GESTANTES', 'LACTANTES']
+  },
+  bacillus_coagulans_snz1969: { 
+    auth: true, 
+    min: 1e8,  // Valor padrão para 4-8 anos
+    max: null, 
+    unit: 'esporos/porção', 
+    norm: 'IN 373/2025 (Anexo II/III)', 
+    obs: 'Bacillus coagulans SNZ 1969 — Faixa etária diferenciada: 4-8 anos (1×10⁸), 9-18 anos (1×10⁸), ≥19 anos (2×10⁹)',
+    allowedGroups: ['CRIANCAS_4_8', 'CRIANCAS_9_18', 'ADULTOS_19PLUS'],
+    restrictedGroups: ['LACTENTES_0_6', 'LACTENTES_7_11', 'CRIANCAS_1_3', 'GESTANTES', 'LACTANTES']
+  },
+  pediococcus_acidilactici: { 
+    auth: true, 
+    min: 3e9,  // 3×10⁹ UFC (1×10⁹ para cada linhagem)
+    max: null, 
+    unit: 'UFC', 
+    norm: 'IN 373/2025 (Anexo II/III)', 
+    obs: 'Associação Lactobacillus plantarum + Pediococcus acidilactici — Apenas ≥19 anos (mínimo 3×10⁹ UFC, sendo 1×10⁹ para cada linhagem)',
+    allowedGroups: ['ADULTOS_19PLUS'],
+    restrictedGroups: ['LACTENTES_0_6', 'LACTENTES_7_11', 'CRIANCAS_1_3', 'CRIANCAS_4_8', 'CRIANCAS_9_18', 'GESTANTES', 'LACTANTES']
+  },
+  fucosil_lactose_2: { 
+    auth: true, 
+    min: 0, 
+    max: 3000, 
+    unit: 'mg', 
+    norm: 'IN 373/2025 (Anexo II/III)', 
+    obs: '2\'-Fucosil-lactose — Permitido para ≥4 anos E gestantes/lactantes (máximo 3g)',
+    allowedGroups: ['CRIANCAS_4_8', 'CRIANCAS_9_18', 'ADULTOS_19PLUS', 'GESTANTES', 'LACTANTES'],
+    restrictedGroups: ['LACTENTES_0_6', 'LACTENTES_7_11', 'CRIANCAS_1_3']
+  },
 
   // ============================================================
   // IN 438/2026 — CURCUMINA (Abril 2026)
   // ============================================================
-  curcumina:           { auth: true,  min: 80, max: 130,     unit: 'mg',  norm: 'IN 438/2026',                obs: 'Curcuminoides totais (curcumina + desmetoxicurcumina + bisdesmetoxicurcumina). Apenas ≥19 anos. ⚠️ ADVERTÊNCIA: Não recomendado para gestantes, lactantes, crianças, doenças hepáticas/biliares, úlceras gástricas.' },
-  tetraidrocurcuminoides: { auth: true, min: 0, max: 120, unit: 'mg', norm: 'IN 438/2026', obs: 'Tetraidrocurcuminoides (THC) — Apenas ≥19 anos. ⚠️ NÃO PODE SER ASSOCIADO COM CURCUMINA. ADVERTÊNCIA: Não recomendado para gestantes, lactantes, crianças, doenças hepáticas/biliares, úlceras gástricas.' },
+  curcumina:           { 
+    auth: true,  
+    min: 80, 
+    max: 130,     
+    unit: 'mg',  
+    norm: 'IN 438/2026 (Anexo II/III)',
+    obs: 'Curcuminoides totais (curcumina + desmetoxicurcumina + bisdesmetoxicurcumina). Apenas ≥19 anos. ⚠️ ADVERTÊNCIA: Não recomendado para gestantes, lactantes, crianças, doenças hepáticas/biliares, úlceras gástricas.',
+    allowedGroups: ['ADULTOS_19PLUS'],
+    restrictedGroups: ['LACTENTES_0_6', 'LACTENTES_7_11', 'CRIANCAS_1_3', 'CRIANCAS_4_8', 'CRIANCAS_9_18', 'GESTANTES', 'LACTANTES'],
+    restrictions: {
+      cannotBeWith: ['tetraidrocurcuminoides'],
+      reason: 'IN 438/2026 (Nota XV) — Não é permitida a associação de curcumina com tetraidrocurcuminoides'
+    }
+  },
+  tetraidrocurcuminoides: { 
+    auth: true, 
+    min: 0, 
+    max: 120, 
+    unit: 'mg', 
+    norm: 'IN 438/2026 (Anexo II/III)', 
+    obs: 'Tetraidrocurcuminoides (THC) — Apenas ≥19 anos. ⚠️ NÃO PODE SER ASSOCIADO COM CURCUMINA. ADVERTÊNCIA: Não recomendado para gestantes, lactantes, crianças, doenças hepáticas/biliares, úlceras gástricas.',
+    allowedGroups: ['ADULTOS_19PLUS'],
+    restrictedGroups: ['LACTENTES_0_6', 'LACTENTES_7_11', 'CRIANCAS_1_3', 'CRIANCAS_4_8', 'CRIANCAS_9_18', 'GESTANTES', 'LACTANTES'],
+    restrictions: {
+      cannotBeWith: ['curcumina'],
+      reason: 'IN 438/2026 (Nota XV) — Não é permitida a associação de tetraidrocurcuminoides com curcumina'
+    }
+  },
 
   // ============================================================
   // PROIBIDOS / NÃO LISTADOS — Sujeito a apreensão (RDC 243/2018)
