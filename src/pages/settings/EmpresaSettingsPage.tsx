@@ -447,24 +447,23 @@ export default function EmpresaSettingsPage() {
       const { data: arquivo, error: arquivoError } = await supabase
         .from('arquivos')
         .insert({
-          company_id: profile.company_id,
-          nome: file.name,
-          tipo: file.type,
-          url: urlData.publicUrl,
-          bucket: 'erp-files',
-          path,
+          nome_original: file.name,
+          mime_type: file.type,
+          storage_key: path,
+          tamanho: file.size,
         })
         .select('id')
         .single();
       if (arquivoError) throw arquivoError;
 
-      await supabase.from('companies')
+      await supabase.from('company')
         .update({ logo_file_id: arquivo.id })
         .eq('id', profile.company_id);
 
       setLogoPreview(urlData.publicUrl);
       toast.success("Logo atualizado com sucesso");
     } catch (err: any) {
+      console.error('Logo upload error:', err);
       toast.error("Erro ao enviar logo", { description: err?.message ?? "Tente novamente." });
     }
   };
