@@ -196,36 +196,51 @@ export default function EmpresaSettingsPage() {
     }
   }, [supabaseCompany]);
 
-  // Auto-validate certificate on page load when cert + password exist
+  // Auto-validate certificate on page load when cert + password exist.
+  // Usa cache em sessionStorage (6h) pra não decriptar o .p12 e reenviar a
+  // senha do certificado toda vez que essa página é aberta — só revalida de
+  // verdade se o cache expirou ou não existe. Validação manual via botão
+  // "Testar Certificado" sempre força uma checagem nova, sem usar o cache.
   useEffect(() => {
     if (certAutoValidated || !certificadoFileId || !formData.certificado_senha) return;
-    
+
+    const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
+    const cacheKey = `cert_validation_${certificadoFileId}`;
+
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.cachedAt < CACHE_TTL_MS) {
+          setCertAutoValidated(true);
+          if (parsed.result?.valid) {
+            setCertLastTestResult(parsed.result);
+            if (parsed.result.daysUntilExpiry !== undefined) {
+              setCertDaysUntilExpiry(parsed.result.daysUntilExpiry);
+            }
+          }
+          return;
+        }
+      } catch {
+        // cache corrompido, ignora e revalida
+      }
+    }
+
     const autoValidate = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        
-        const supabaseUrl = "https://cqkvekdrifmvedvpjmjr.supabase.co";
-        const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxa3Zla2RyaWZtdmVkdnBqbWpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODA0MzAsImV4cCI6MjA5NTg1NjQzMH0.6Y6c5-lzCcA5j8ujKMfvOqHBT19gZ4D8_PL1ZqVAYYI";
-        
-        const response = await fetch(`${supabaseUrl}/functions/v1/validate-certificate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': supabaseKey,
-          },
-          body: JSON.stringify({
+        const { data: result, error } = await supabase.functions.invoke("validate-certificate", {
+          body: {
             fileId: certificadoFileId,
             password: formData.certificado_senha,
             companyCnpj: formData.cnpj,
-          }),
+          },
         });
-        
-        const result = await response.json();
+        if (error) return;
+
         setCertAutoValidated(true);
-        
-        if (result.valid) {
+        sessionStorage.setItem(cacheKey, JSON.stringify({ result, cachedAt: Date.now() }));
+
+        if (result?.valid) {
           setCertLastTestResult(result);
           if (result.daysUntilExpiry !== undefined) {
             setCertDaysUntilExpiry(result.daysUntilExpiry);
@@ -235,7 +250,7 @@ export default function EmpresaSettingsPage() {
         // Silent fail on auto-validate
       }
     };
-    
+
     autoValidate();
   }, [certificadoFileId, formData.certificado_senha, certAutoValidated, formData.cnpj]);
 

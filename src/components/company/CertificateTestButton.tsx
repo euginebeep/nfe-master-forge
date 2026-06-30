@@ -50,32 +50,27 @@ export function CertificateTestButton({
 
     try {
       const { supabase } = await import('@/integrations/supabase/client');
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Você precisa estar logado para validar o certificado");
-        setIsLoading(false);
-        return;
-      }
-      
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      
-      const response = await fetch(`${supabaseUrl}/functions/v1/validate-certificate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabaseKey,
-        },
-        body: JSON.stringify({ fileId: certificateFileId, password: certificatePassword, companyCnpj }),
+      const { data, error } = await supabase.functions.invoke("validate-certificate", {
+        body: { fileId: certificateFileId, password: certificatePassword, companyCnpj },
       });
-
-      const data = await response.json();
+      if (error) throw error;
 
       const testResult: CertificateTestResult = data;
       setResult(testResult);
       onTestResult?.(testResult);
-      
+
+      // Mantém o cache do auto-validate (EmpresaSettingsPage) em sincronia —
+      // sem isso, um teste manual recente não refletiria na próxima vez que a
+      // página carregar, pois o auto-validate usaria o cache antigo.
+      try {
+        sessionStorage.setItem(
+          `cert_validation_${certificateFileId}`,
+          JSON.stringify({ result: testResult, cachedAt: Date.now() })
+        );
+      } catch {
+        // sessionStorage indisponível (modo privado, etc) — não é crítico
+      }
+
       if (testResult.valid) {
         if (testResult.daysUntilExpiry !== undefined && testResult.daysUntilExpiry < 30) {
           toast.warning(`Certificado válido, mas expira em ${testResult.daysUntilExpiry} dias!`);
