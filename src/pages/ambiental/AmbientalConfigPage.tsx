@@ -266,6 +266,48 @@ export default function AmbientalConfigPage() {
     try {
       const result = await callEwelinkSync("discover");
       setDiscoveryResult(result);
+      
+      // Adicionar automaticamente sensores descobertos
+      if (result.sensors && result.sensors.length > 0) {
+        let addedCount = 0;
+        for (const sensor of result.sensors) {
+          try {
+            // Verificar se sensor já existe
+            const { data: existing } = await supabase
+              .from("ambiental_sensores")
+              .select("id")
+              .eq("company_id", companyId)
+              .eq("device_id", sensor.device_id)
+              .single();
+            
+            if (!existing) {
+              // Adicionar novo sensor
+              await supabase.from("ambiental_sensores").insert({
+                company_id: companyId,
+                device_id: sensor.device_id,
+                device_name: sensor.name,
+                sala: "Não configurado",
+                temp_min: 18,
+                temp_max: 25,
+                hum_min: 40,
+                hum_max: 60,
+                ativo: true,
+              });
+              addedCount++;
+            }
+          } catch (err) {
+            console.error(`Erro ao adicionar sensor ${sensor.device_id}:`, err);
+          }
+        }
+        
+        if (addedCount > 0) {
+          toast({
+            title: `${addedCount} sensor(es) adicionado(s) automaticamente`,
+            description: `${result.discovered} sensor(es) encontrado(s) no total`,
+          });
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["ambiental_sensores", companyId] });
       toast({
         title: `${result.discovered} sensor(es) encontrado(s)`,
