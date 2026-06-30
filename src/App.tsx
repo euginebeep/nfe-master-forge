@@ -48,10 +48,12 @@ const QuarentenaPage = lazy(() => import("./pages/estoque/QuarentenaPage"));
 const LotesListPage = lazy(() => import("./pages/estoque/LotesListPage"));
 const LotesReservadosPage = lazy(() => import("./pages/estoque/LotesReservadosPage"));
 const LoteDetailPage = lazy(() => import("./pages/estoque/LoteDetailPage"));
+const DashboardSemCOAPage = lazy(() => import("./pages/estoque/DashboardSemCOAPage"));
 const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage"));
 const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
 const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
 const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
+const FatorConversaoPage = lazy(() => import("./pages/compras/FatorConversaoPage"));
 const ContasPagarPage = lazy(() => import("./pages/financeiro/ContasPagarPage"));
 const ContasReceberPage = lazy(() => import("./pages/financeiro/ContasReceberPage"));
 const FluxoCaixaPage = lazy(() => import("./pages/financeiro/FluxoCaixaPage"));
@@ -80,19 +82,23 @@ const POPsPage = lazy(() => import("./pages/qualidade/POPsPage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
 const MonitoramentoAmbientalPage = lazy(() => import("./pages/ambiental/MonitoramentoAmbientalPage"));
 const AmbientalConfigPage = lazy(() => import("./pages/ambiental/AmbientalConfigPage"));
+const SensorDetailPage = lazy(() => import("./pages/ambiental/SensorDetailPage"));
 const ChatInternoPage = lazy(() => import("./pages/chat/ChatInternoPage"));
 const AssinaturaPage = lazy(() => import("./pages/assinatura/AssinaturaPage"));
 const SaasDashboardPage = lazy(() => import("./pages/saas/SaasDashboardPage"));
+const GhostAuditPage = lazy(() => import("./pages/saas/GhostAuditPage"));
 const InstallPage = lazy(() => import("./pages/install/InstallPage"));
 const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
 const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
 const EquipamentosPage = lazy(() => import("./pages/settings/EquipamentosPage"));
 const AnvisaCheckerPage = lazy(() => import("./pages/regulatorio/AnvisaCheckerPage"));
+const BibliotecaRTPage = lazy(() => import("./pages/regulatorio/BibliotecaRTPage"));
 const CertificadoStatusPage = lazy(() => import("./pages/settings/CertificadoStatusPage"));
 const AuditoriaFiscalPage = lazy(() => import("./pages/vendas/AuditoriaFiscalPage"));
 
 
 import { queryClient } from "./lib/query-client";
+import { GhostModeIndicator } from "./components/saas/GhostModeIndicator";
 
 const PageFallback = () => (
   <div className="flex-1 flex items-center justify-center p-6">
@@ -110,6 +116,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
           <GlobalSearchDialog />
+          <GhostModeIndicator />
           <Suspense fallback={<LoadingSpinner fullPage />}>
             <Routes>
               {/* Páginas Públicas */}
@@ -141,6 +148,9 @@ const App = () => (
               {/* SaaS Admin Panel — standalone, fora do layout ERP */}
               <Route path="/saas" element={
                 <Suspense fallback={<PageFallback />}><ErrorBoundary><SaasDashboardPage /></ErrorBoundary></Suspense>
+              } />
+              <Route path="/saas/ghost-log" element={
+                <Suspense fallback={<PageFallback />}><ErrorBoundary><GhostAuditPage /></ErrorBoundary></Suspense>
               } />
 
               {/* Rotas Protegidas */}
@@ -194,12 +204,14 @@ const App = () => (
                 <Route path="/estoque/lotes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesListPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes-reservados" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LotesReservadosPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/lotes/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><LoteDetailPage /></ErrorBoundary></Suspense>} />
+                <Route path="/estoque/dashboard-sem-coa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><DashboardSemCOAPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/movimentacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MovimentacoesPage /></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/rastreabilidade" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><RastreabilidadePage /></ErrorBoundary></Suspense>} />
                 {/* Compras — operador+ */}
                 <Route path="/compras/importar-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/nfe-import" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NFeImportPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><NotasEntradaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/fator-conversao" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><FatorConversaoPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Financeiro — gerente+ */}
                 <Route path="/financeiro/pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ContasPagarPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/contas-pagar" element={<Navigate to="/financeiro/pagar" replace />} />
@@ -230,7 +242,9 @@ const App = () => (
                 <Route path="/qualidade/pops" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><POPsPage /></ErrorBoundary></Suspense>} />
                 {/* Regulatório */}
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ConsultaAnvisaPage /></ErrorBoundary></Suspense>} />
+                <Route path="/regulatorio/biblioteca-rt" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><BibliotecaRTPage /></ErrorBoundary></Suspense>} />
                 <Route path="/ambiental/monitoramento" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><MonitoramentoAmbientalPage /></ErrorBoundary></Suspense>} />
+                <Route path="/ambiental/sensor/:deviceId" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><SensorDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/ambiental/configuracao" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><AmbientalConfigPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Notificações */}
                 <Route path="/notificacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><NotificacoesPage /></ErrorBoundary></Suspense>} />
