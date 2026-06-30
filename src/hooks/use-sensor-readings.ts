@@ -98,6 +98,22 @@ export function useMonitoramentoAmbiental(period: MonitoramentoPeriodo = "hoje")
   };
 }
 
+// Agrupa pela identidade ESTÁVEL do sensor (device_id), nunca pelo room_name.
+// room_name em sensor_readings é um snapshot do nome no momento da leitura;
+// se a sala for renomeada no ERP, leituras antigas e novas teriam nomes
+// diferentes e o mesmo sensor apareceria duplicado no dashboard.
+export function getLatestByDevice(readings: SensorReading[]): Record<string, SensorReading> {
+  const map: Record<string, SensorReading> = {};
+  for (const r of readings) {
+    const cur = map[r.device_id];
+    if (!cur || new Date(r.recorded_at) > new Date(cur.recorded_at)) {
+      map[r.device_id] = r;
+    }
+  }
+  return map;
+}
+
+/** @deprecated Use getLatestByDevice — agrupar por room_name duplica sensores quando a sala é renomeada. */
 export function getLatestByRoom(readings: SensorReading[]): Record<string, SensorReading> {
   const map: Record<string, SensorReading> = {};
   for (const r of readings) {

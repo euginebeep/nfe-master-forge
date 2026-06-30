@@ -31,7 +31,7 @@ import { useCompany } from "@/hooks/use-company";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMonitoramentoAmbiental,
-  getLatestByRoom,
+  getLatestByDevice,
   calcStatus,
   combineStatus,
   type SensorReading,
@@ -251,7 +251,7 @@ function RoomCard({
 /* ------------------------------------------------------------------ */
 /*  HEATMAP                                                            */
 /* ------------------------------------------------------------------ */
-function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string[] }) {
+function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: { deviceId: string; label: string }[] }) {
   // last 12 hours buckets
   const now = new Date();
   const buckets: { label: string; start: Date }[] = [];
@@ -262,12 +262,12 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
     buckets.push({ label: d.getHours().toString().padStart(2, "0") + "h", start: d });
   }
 
-  function cellFor(room: string, bucketStart: Date) {
+  function cellFor(deviceId: string, bucketStart: Date) {
     const end = new Date(bucketStart);
     end.setHours(end.getHours() + 1);
     const inBucket = readings.filter(
       (r) =>
-        r.room_name === room &&
+        r.device_id === deviceId &&
         new Date(r.recorded_at) >= bucketStart &&
         new Date(r.recorded_at) < end,
     );
@@ -289,7 +289,7 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
     } else {
       bg = "rgba(220,38,38,0.7)";
     }
-    return { avg, bg, label: `${room} ${fmtHour(bucketStart.toISOString())} — ${avg.toFixed(1)}°C` };
+    return { avg, bg, label: `${sample.room_name} ${fmtHour(bucketStart.toISOString())} — ${avg.toFixed(1)}°C` };
   }
 
   return (
@@ -304,14 +304,14 @@ function Heatmap({ readings, rooms }: { readings: SensorReading[]; rooms: string
         </div>
         <div className="space-y-1">
           {rooms.map((room) => (
-            <div key={room} className="flex items-center gap-1">
-              <div className="w-[70px] text-[10px] font-medium truncate pr-1">{room}</div>
+            <div key={room.deviceId} className="flex items-center gap-1">
+              <div className="w-[70px] text-[10px] font-medium truncate pr-1">{room.label}</div>
               {buckets.map((b) => {
-                const cell = cellFor(room, b.start);
+                const cell = cellFor(room.deviceId, b.start);
                 return (
                   <div
                     key={b.label}
-                    title={cell?.label || `${room} ${b.label} — sem dados`}
+                    title={cell?.label || `${room.label} ${b.label} — sem dados`}
                     className="flex-1 h-6 rounded-sm border border-border/40"
                     style={{ background: cell?.bg || "hsl(var(--muted))" }}
                   />
@@ -334,9 +334,9 @@ export default function MonitoramentoAmbientalPage() {
                  sessionStorage.getItem('brainx_demo_mode') === 'true' || 
                  profile?.company_id === '00000000-0000-0000-0000-000000000001';
   const [period, setPeriod] = useState<MonitoramentoPeriodo>("hoje");
-  const [roomFilter, setRoomFilter] = useState<string>("all");
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
-  const [drawerRoom, setDrawerRoom] = useState<string | null>(null);
+  const [deviceFilter, setDeviceFilter] = useState<string>("all");
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [drawerDevice, setDrawerDevice] = useState<string | null>(null);
 
   const { readings, isLoading } = useMonitoramentoAmbiental(period);
   const navigate = useNavigate();
@@ -384,26 +384,34 @@ export default function MonitoramentoAmbientalPage() {
     },
   });
 
-  const rooms = useMemo(() => {
-    const set = new Set<string>();
-    readings.forEach((r) => set.add(r.room_name));
-    return Array.from(set).sort();
+  // Lista de devices p/ filtro e heatmap: chave estável (device_id), label = nome
+  // mais recente conhecido (reflete renomeações feitas no ERP automaticamente)
+  const deviceOptions = useMemo(() => {
+    const map = new Map<string, { deviceId: string; label: string; lastSeen: number }>();
+    for (const r of readings) {
+      const t = new Date(r.recorded_at).getTime();
+      const cur = map.get(r.device_id);
+      if (!cur || t > cur.lastSeen) {
+        map.set(r.device_id, { deviceId: r.device_id, label: r.room_name, lastSeen: t });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [readings]);
 
   const filteredReadings = useMemo(
-    () => (roomFilter === "all" ? readings : readings.filter((r) => r.room_name === roomFilter)),
-    [readings, roomFilter],
+    () => (deviceFilter === "all" ? readings : readings.filter((r) => r.device_id === deviceFilter)),
+    [readings, deviceFilter],
   );
 
-  const latestByRoom = useMemo(() => getLatestByRoom(readings), [readings]);
+  const latestByDevice = useMemo(() => getLatestByDevice(readings), [readings]);
   const latestList = useMemo(
     () =>
-      Object.values(latestByRoom).sort((a, b) => a.room_name.localeCompare(b.room_name)),
-    [latestByRoom],
+      Object.values(latestByDevice).sort((a, b) => a.room_name.localeCompare(b.room_name)),
+    [latestByDevice],
   );
 
-  // Effective selected room
-  const effectiveRoom = selectedRoom || latestList[0]?.room_name || null;
+  // Effective selected device
+  const effectiveDevice = selectedDevice || latestList[0]?.device_id || null;
 
   // KPIs
   const kpis = useMemo(() => {
@@ -437,12 +445,12 @@ export default function MonitoramentoAmbientalPage() {
     };
   }, [filteredReadings]);
 
-  // Chart data — last 24h for effectiveRoom
+  // Chart data — last 24h for effectiveDevice (histórico contínuo, sobrevive a renomeação da sala)
   const chartData = useMemo(() => {
-    if (!effectiveRoom) return [];
+    if (!effectiveDevice) return [];
     const since = Date.now() - 24 * 60 * 60 * 1000;
     return readings
-      .filter((r) => r.room_name === effectiveRoom && new Date(r.recorded_at).getTime() >= since)
+      .filter((r) => r.device_id === effectiveDevice && new Date(r.recorded_at).getTime() >= since)
       .slice()
       .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
       .map((r) => ({
@@ -450,12 +458,12 @@ export default function MonitoramentoAmbientalPage() {
         temp: r.temperature,
         hum: r.humidity,
       }));
-  }, [readings, effectiveRoom]);
+  }, [readings, effectiveDevice]);
 
   const selectedRoomLimits = useMemo(() => {
-    if (!effectiveRoom) return null;
-    return latestByRoom[effectiveRoom] || null;
-  }, [latestByRoom, effectiveRoom]);
+    if (!effectiveDevice) return null;
+    return latestByDevice[effectiveDevice] || null;
+  }, [latestByDevice, effectiveDevice]);
 
   // Non-conformities
   const naoConformidades = useMemo(() => {
@@ -655,15 +663,15 @@ export default function MonitoramentoAmbientalPage() {
             </Tabs>
             
             {!isDemo && (
-              <Select value={roomFilter} onValueChange={setRoomFilter}>
+              <Select value={deviceFilter} onValueChange={setDeviceFilter}>
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Todas as salas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as salas</SelectItem>
-                  {rooms.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
+                  {deviceOptions.map((r) => (
+                    <SelectItem key={r.deviceId} value={r.deviceId}>
+                      {r.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -711,12 +719,12 @@ export default function MonitoramentoAmbientalPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 content-start">
               {latestList.map((r) => (
                 <RoomCard
-                  key={r.room_name}
+                  key={r.device_id}
                   reading={r}
-                  selected={effectiveRoom === r.room_name}
+                  selected={effectiveDevice === r.device_id}
                   onClick={() => {
-                    setSelectedRoom(r.room_name);
-                    setDrawerRoom(r.room_name);
+                    setSelectedDevice(r.device_id);
+                    setDrawerDevice(r.device_id);
                   }}
                 />
               ))}
@@ -732,14 +740,14 @@ export default function MonitoramentoAmbientalPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Heatmap readings={readings} rooms={rooms} />
+                  <Heatmap readings={readings} rooms={deviceOptions} />
                 </CardContent>
               </Card>
 
               <Card className="flex-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center justify-between gap-2">
-                    <span>{effectiveRoom || "—"} — Últimas 24h</span>
+                    <span>{selectedRoomLimits?.room_name || "—"} — Últimas 24h</span>
                     <div className="flex items-center gap-3 text-[10px] font-normal text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-600" /> Temp °C
@@ -996,9 +1004,9 @@ export default function MonitoramentoAmbientalPage() {
         <span>Registros mantidos por 5 anos conforme legislação vigente</span>
       </div>
       <SensorDrawer 
-        reading={drawerRoom ? latestByRoom[drawerRoom] : null}
-        history={drawerRoom ? readings.filter(r => r.room_name === drawerRoom) : []}
-        onClose={() => setDrawerRoom(null)}
+        reading={drawerDevice ? latestByDevice[drawerDevice] : null}
+        history={drawerDevice ? readings.filter(r => r.device_id === drawerDevice) : []}
+        onClose={() => setDrawerDevice(null)}
       />
     </div>
   );
