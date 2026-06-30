@@ -27,7 +27,7 @@ export function PrintLayout({
   const { data: company } = useQuery({
     queryKey: ["company-print"],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("*").limit(1).maybeSingle();
+      const { data } = await supabase.from("company").select("*").limit(1).maybeSingle();
       return data;
     },
     enabled: showCompanyHeader,

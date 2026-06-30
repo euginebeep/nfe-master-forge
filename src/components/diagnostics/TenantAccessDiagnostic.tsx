@@ -136,7 +136,7 @@ export function TenantAccessDiagnostic({
 
     // 4. Company exists
     const { data: company } = await supabase
-      .from("companies")
+      .from("company")
       .select("id, razao_social, nome_fantasia, cnpj")
       .eq("id", profile.company_id)
       .maybeSingle();

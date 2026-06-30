@@ -108,7 +108,7 @@ export function ContratoWorkflowDialog({
   const { data: company } = useQuery({
     queryKey: ["company-contrato"],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("*").limit(1).single();
+      const { data } = await supabase.from("company").select("*").limit(1).single();
       return data;
     },
     enabled: open,

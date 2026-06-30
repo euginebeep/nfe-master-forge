@@ -64,7 +64,7 @@ export function CertificadoStatusCard() {
     }
 
     const { data: comp } = await supabase
-      .from("companies")
+      .from("company")
       .select("id, razao_social, nome_fantasia, cnpj, nfe_ambiente, nfe_serie_padrao, logo_file_id")
       .eq("id", profile.company_id)
       .maybeSingle();

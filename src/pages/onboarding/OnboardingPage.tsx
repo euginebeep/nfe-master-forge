@@ -103,7 +103,7 @@ export default function OnboardingWizard() {
 
       // 1. Tentar criar a company
       const newId = crypto.randomUUID();
-      const { error } = await supabase.from('companies').insert({ ...companyPayload, id: newId });
+      const { error } = await supabase.from('company').insert({ ...companyPayload, id: newId });
 
       let companyIdToLink: string = newId;
 
@@ -111,14 +111,14 @@ export default function OnboardingWizard() {
         // CNPJ duplicado = empresa órfã de tentativa anterior → reutilizar
         if (error.code === '23505' && error.message.includes('company_cnpj_key')) {
           const { data: existing } = await supabase
-            .from('companies')
+            .from('company')
             .select('id')
             .eq('cnpj', cleanCnpj)
             .maybeSingle();
           if (!existing) throw error;
           companyIdToLink = existing.id as string;
           // Atualizar com dados mais recentes
-          await supabase.from('companies').update(companyPayload).eq('id', companyIdToLink);
+          await supabase.from('company').update(companyPayload).eq('id', companyIdToLink);
         } else {
           throw error;
         }

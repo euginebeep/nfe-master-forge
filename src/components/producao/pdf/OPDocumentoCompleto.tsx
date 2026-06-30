@@ -59,7 +59,7 @@ export function OPDocumentoCompleto({
         // Todo documento gerado tem que refletir a empresa do usuário logado,
         // pois o BrainX ERP é multi-tenant (cada cliente tem seu próprio `company`).
         const { data: companyData } = await sb
-          .from('companies')
+          .from('company')
           .select('razao_social, nome_fantasia, cnpj, logo_file_id')
           .eq('id', companyId)
           .maybeSingle();
