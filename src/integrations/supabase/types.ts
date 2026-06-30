@@ -3211,6 +3211,8 @@ export type Database = {
           cst_icms: string | null
           cst_ipi: string | null
           cst_pis: string | null
+          custo_medio_atual: number | null
+          custo_medio_atualizado_em: string | null
           custo_por_unidade_interna: number | null
           data_notificacao_anvisa: string | null
           densidade_aparente: number | null
@@ -3269,6 +3271,8 @@ export type Database = {
           cst_icms?: string | null
           cst_ipi?: string | null
           cst_pis?: string | null
+          custo_medio_atual?: number | null
+          custo_medio_atualizado_em?: string | null
           custo_por_unidade_interna?: number | null
           data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
@@ -3327,6 +3331,8 @@ export type Database = {
           cst_icms?: string | null
           cst_ipi?: string | null
           cst_pis?: string | null
+          custo_medio_atual?: number | null
+          custo_medio_atualizado_em?: string | null
           custo_por_unidade_interna?: number | null
           data_notificacao_anvisa?: string | null
           densidade_aparente?: number | null
@@ -4347,6 +4353,7 @@ export type Database = {
           motivo_cancelamento: string | null
           natureza_operacao: string | null
           numero: number | null
+          focus_nfe_id: string | null
           nuvem_fiscal_id: string | null
           nuvem_fiscal_status: string | null
           pedido_venda_id: string | null
@@ -4393,6 +4400,7 @@ export type Database = {
           motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
+          focus_nfe_id?: string | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
@@ -4439,6 +4447,7 @@ export type Database = {
           motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
+          focus_nfe_id?: string | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
@@ -7466,6 +7475,75 @@ export type Database = {
           },
         ]
       }
+      saas_ghost_audit: {
+        Row: {
+          acao: string
+          created_at: string
+          id: string
+          payload_encrypted: string | null
+          target_company_id: string | null
+          user_id: string
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          id?: string
+          payload_encrypted?: string | null
+          target_company_id?: string | null
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          id?: string
+          payload_encrypted?: string | null
+          target_company_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saas_impersonation_sessions: {
+        Row: {
+          expires_at: string
+          started_at: string
+          target_company_id: string
+          user_id: string
+        }
+        Insert: {
+          expires_at?: string
+          started_at?: string
+          target_company_id: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          started_at?: string
+          target_company_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saas_super_devs: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       saas_ticket_mensagens: {
         Row: {
           anexos: Json | null
@@ -8210,6 +8288,7 @@ export type Database = {
       }
     }
     Functions: {
+      _ghost_audit_key: { Args: never; Returns: string }
       _smtp_enc_key: { Args: never; Returns: string }
       baixar_estoque_op_embalagens: {
         Args: { p_op_id: string }
@@ -8334,10 +8413,15 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: string
       }
+      get_ghost_target_company: { Args: { _uid?: string }; Returns: string }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      ghost_audit_log: {
+        Args: { p_acao: string; p_payload: Json }
+        Returns: undefined
       }
       has_role: {
         Args: {
@@ -8355,6 +8439,8 @@ export type Database = {
         Args: { campo_voto: string; pergunta_id: string }
         Returns: undefined
       }
+      is_ghost_mode: { Args: { _uid?: string }; Returns: boolean }
+      is_super_dev: { Args: { _uid?: string }; Returns: boolean }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
       liberar_numero_nfe: {
         Args: {
@@ -8376,23 +8462,50 @@ export type Database = {
       op_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       orcamento_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       pedido_belongs_to_tenant: { Args: { _pid: string }; Returns: boolean }
-      registrar_evento_auditoria: {
-        Args: {
-          p_dados_anteriores?: Json
-          p_dados_evento?: Json
-          p_dados_novos?: Json
-          p_descricao: string
-          p_entidade_codigo?: string
-          p_entidade_id: string
-          p_entidade_tipo: string
-          p_ip_address?: string
-          p_tipo_evento: Database["public"]["Enums"]["tipo_evento_auditoria"]
-          p_user_agent?: string
-          p_usuario_id?: string
-          p_usuario_nome?: string
-        }
-        Returns: string
+      read_ghost_audit: {
+        Args: { p_limit?: number; p_since?: string; p_target_company?: string }
+        Returns: {
+          acao: string
+          created_at: string
+          id: string
+          payload: Json
+          target_company_id: string
+          user_id: string
+        }[]
       }
+      recalcular_custo_medio_item: {
+        Args: { _item_id: string }
+        Returns: undefined
+      }
+      registrar_evento_auditoria:
+        | {
+            Args: {
+              p_acao: string
+              p_company_id?: string
+              p_detalhes?: Json
+              p_entidade_id: string
+              p_entidade_tipo: string
+              p_resultado: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_dados_anteriores?: Json
+              p_dados_evento?: Json
+              p_dados_novos?: Json
+              p_descricao: string
+              p_entidade_codigo?: string
+              p_entidade_id: string
+              p_entidade_tipo: string
+              p_ip_address?: string
+              p_tipo_evento: Database["public"]["Enums"]["tipo_evento_auditoria"]
+              p_user_agent?: string
+              p_usuario_id?: string
+              p_usuario_nome?: string
+            }
+            Returns: string
+          }
       registrar_evento_nfe: {
         Args: {
           p_chave_acesso?: string
@@ -8449,7 +8562,16 @@ export type Database = {
         Args: { p_password: string }
         Returns: undefined
       }
+      start_ghost_session: {
+        Args: { p_target_company_id: string }
+        Returns: Json
+      }
+      stop_ghost_session: { Args: never; Returns: Json }
       update_ultimo_acesso: { Args: { p_user_id: string }; Returns: undefined }
+      validar_acesso_nota_saida: {
+        Args: { p_nuvem_fiscal_id: string }
+        Returns: boolean
+      }
       validar_compatibilidade_rt: {
         Args: {
           p_tipo_conselho: Database["public"]["Enums"]["tipo_conselho_profissional"]

@@ -9,7 +9,7 @@
 -- Registra cada conversão usada durante importação de NF-e
 CREATE TABLE IF NOT EXISTS public.fator_conversao_historico (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES public.companies(id),
+  company_id uuid NOT NULL REFERENCES public.company(id),
   fornecedor_id uuid NOT NULL REFERENCES public.entidades(id),
   item_id uuid NOT NULL REFERENCES public.itens(id),
   
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.fator_conversao_historico (
 -- Registra mudanças no fator de conversão (fornecedor mudou embalagem, etc)
 CREATE TABLE IF NOT EXISTS public.fator_conversao_desvios (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES public.companies(id),
+  company_id uuid NOT NULL REFERENCES public.company(id),
   fornecedor_id uuid NOT NULL REFERENCES public.entidades(id),
   item_id uuid NOT NULL REFERENCES public.itens(id),
   
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS public.fator_conversao_desvios (
 -- Armazena o fator "padrão" para cada fornecedor/item (para sugestões)
 CREATE TABLE IF NOT EXISTS public.fator_conversao_padrao (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES public.companies(id),
+  company_id uuid NOT NULL REFERENCES public.company(id),
   fornecedor_id uuid NOT NULL REFERENCES public.entidades(id),
   item_id uuid NOT NULL REFERENCES public.itens(id),
   

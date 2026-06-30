@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { FACTORY_ROLES } from "@/hooks/use-users";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { AlertasLoteSemCOAPanel } from "@/components/estoque/AlertasLoteSemCOAPanel";
 import { useCompany } from "@/hooks/use-company";
 import { formatCNPJ } from "@/lib/cnpj-lookup";
 import { cn } from "@/lib/utils";
@@ -51,63 +52,69 @@ export function AppHeader() {
   };
 
   return (
-    <header className="h-14 border-b bg-card flex items-center justify-between px-4 shrink-0">
-      <div className="flex items-center gap-2">
-        <SidebarTrigger className="h-9 w-9" aria-label="Abrir/fechar menu lateral">
-          <Menu className="h-5 w-5" />
+    <header className="h-12 sm:h-14 border-b bg-card flex items-center justify-between px-2 sm:px-4 shrink-0 gap-1 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <SidebarTrigger className="h-8 sm:h-9 w-8 sm:w-9" aria-label="Abrir/fechar menu lateral">
+          <Menu className="h-4 sm:h-5 w-4 sm:w-5" />
         </SidebarTrigger>
-        <Link to="/dashboard" className="flex items-center gap-2 md:hidden" aria-label="BrainX ERP Home">
+        <Link to="/dashboard" className="flex items-center gap-1 sm:gap-2 md:hidden" aria-label="BrainX ERP Home">
           <LogoDemoERP
-            className="w-9 h-9"
+            className="w-7 sm:w-9 h-7 sm:h-9"
           />
         </Link>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
         {/* Mobile search button */}
         <Button
           variant="ghost"
           size="icon"
-          className="sm:hidden h-9 w-9"
+          className="sm:hidden h-8 w-8"
           aria-label="Buscar"
           onClick={() => {
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
           }}
         >
-          <Search className="h-5 w-5" />
+          <Search className="h-4 w-4" />
         </Button>
 
         <Button
           variant="outline"
           size="sm"
-          className="hidden sm:flex items-center gap-2 text-muted-foreground h-9 px-3"
+          className="hidden sm:flex items-center gap-1 md:gap-2 text-muted-foreground h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
           aria-label="Busca global (Ctrl+K)"
           onClick={() => {
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
           }}
         >
-          <Search className="h-4 w-4" />
-          <span className="text-xs">Buscar...</span>
-          <kbd className="ml-2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+          <Search className="h-3 sm:h-4 w-3 sm:w-4" />
+          <span className="hidden md:inline">Buscar...</span>
+          <kbd className="ml-1 md:ml-2 pointer-events-none hidden lg:inline-flex h-4 sm:h-5 select-none items-center gap-1 rounded border bg-muted px-1 sm:px-1.5 font-mono text-[9px] sm:text-[10px] font-medium text-muted-foreground">
             Ctrl+K
           </kbd>
         </Button>
 
         {isAuthenticated && <NotificationBell />}
+        {isAuthenticated && <AlertasLoteSemCOAPanel />}
 
         {isAuthenticated && company && (
           <div
-            className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md border bg-muted/50 max-w-[260px]"
+            className="hidden lg:flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md border bg-muted/50 max-w-[200px] lg:max-w-[260px]"
             title={`${company.razao_social} — CNPJ ${formatCNPJ(company.cnpj || '')}`}
           >
-            <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+            <Building2 className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-primary shrink-0" />
             <div className="flex flex-col leading-tight min-w-0">
-              <span className="text-[11px] font-semibold truncate">
+              <span className="text-[10px] sm:text-[11px] font-semibold truncate">
                 {company.nome_fantasia || company.razao_social}
               </span>
-              <span className="text-[10px] text-muted-foreground font-mono">
-                {maskCNPJ(company.cnpj)}
-              </span>
+              <div className="flex items-center gap-0.5 sm:gap-1">
+                <span className="text-[9px] sm:text-[10px] text-muted-foreground font-mono">
+                  {maskCNPJ(company.cnpj)}
+                </span>
+                <span className="text-[8px] sm:text-[9px] px-0.5 sm:px-1 rounded bg-primary/10 text-primary font-bold uppercase tracking-tighter">
+                  Matriz
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -116,41 +123,41 @@ export function AppHeader() {
           variant="ghost"
           size="icon"
           onClick={() => setIsDark(!isDark)}
-          className="h-9 w-9"
+          className="h-8 sm:h-9 w-8 sm:w-9"
           aria-label={isDark ? "Modo claro" : "Modo escuro"}
         >
           {isDark ? (
-            <Sun className="h-5 w-5" />
+            <Sun className="h-4 sm:h-5 w-4 sm:w-5" />
           ) : (
-            <Moon className="h-5 w-5" />
+            <Moon className="h-4 sm:h-5 w-4 sm:w-5" />
           )}
         </Button>
 
         {isAuthenticated && profile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 px-2">
-                <Avatar className="h-8 w-8">
+              <Button variant="ghost" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2">
+                <Avatar className="h-7 sm:h-8 w-7 sm:w-8">
                   {profile.avatar_url ? (
                     <AvatarImage src={profile.avatar_url} alt={profile.nome_completo} />
                   ) : (
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-[10px] sm:text-xs">
                       {getInitials(profile.nome_completo)}
                     </AvatarFallback>
                   )}
                 </Avatar>
                 <div className="text-left hidden sm:block">
                   <p className={cn(
-                    "text-sm font-bold leading-none",
+                    "text-xs sm:text-sm font-bold leading-none",
                     profile.sexo === 'FEMININO' ? "text-pink-600 dark:text-pink-400" : "text-blue-600 dark:text-blue-400"
                   )}>{profile.nome_completo}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] text-muted-foreground">
                     {role ? FACTORY_ROLES[role]?.label : 'Usuário'}
                   </p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-48 sm:w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className={cn(

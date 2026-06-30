@@ -6,7 +6,9 @@ const corsHeaders = {
 }
 
 const FIRECRAWL_API = 'https://api.firecrawl.dev/v1'
-const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+// Endpoint nativo Gemini generateContent
+const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 async function searchAnvisa(firecrawlKey: string, query: string): Promise<string> {
   const results: string[] = []
@@ -124,12 +126,31 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')
-  const lovableKey = Deno.env.get('LOVABLE_API_KEY')
+  let firecrawlKey: string | null = Deno.env.get('FIRECRAWL_API_KEY') || null
+  let geminiKey: string | null = Deno.env.get('GEMINI_API_KEY') || null
 
-  if (!firecrawlKey || !lovableKey) {
-    console.error('Missing required API keys:', { firecrawl: !!firecrawlKey, lovable: !!lovableKey })
-    return new Response(JSON.stringify({ error: 'Serviço temporariamente indisponível. Configuração pendente.' }), {
+  // Fallback: buscar chaves do banco erp_system_config (configuração global do ERP)
+  if (!firecrawlKey || !geminiKey) {
+    try {
+      const cfgRes = await fetch(
+        `${supabaseUrl}/rest/v1/erp_system_config?chave=in.(gemini_api_key,firecrawl_api_key)&select=chave,valor`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+      )
+      if (cfgRes.ok) {
+        const cfgData = await cfgRes.json()
+        for (const row of cfgData || []) {
+          if (row.chave === 'gemini_api_key' && row.valor) geminiKey = row.valor
+          if (row.chave === 'firecrawl_api_key' && row.valor) firecrawlKey = row.valor
+        }
+      }
+    } catch (e) {
+      console.warn('Falha ao buscar chaves do banco:', e)
+    }
+  }
+
+  if (!firecrawlKey || !geminiKey) {
+    console.error('Missing required API keys:', { firecrawl: !!firecrawlKey, gemini: !!geminiKey })
+    return new Response(JSON.stringify({ error: 'Serviço temporariamente indisponível. Configure as chaves no painel Admin Master → Integrações de IA.' }), {
       status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
@@ -216,17 +237,7 @@ Deno.serve(async (req) => {
       ? `FOCO DA ANÁLISE: "${substanciaBusca}" — Verifique especificamente o status regulatório desta substância no contexto da ANVISA e IN 28/2018.`
       : 'Faça uma análise geral de todas as substâncias e mudanças recentes.'
 
-    const aiResponse = await fetch(AI_GATEWAY, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{
-          role: 'system',
-          content: `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
+    const systemPromptPowerBi = `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
 Analise o conteúdo das buscas web sobre o portal ANVISA e a IN 28/2018.
 
 ${searchContext}
@@ -258,17 +269,25 @@ Responda em JSON:
   "confianca_dados": "ALTA" | "MEDIA" | "BAIXA",
   "fontes_consultadas": ["..."]
 }`
-        }, {
-          role: 'user',
-          content: combinedContent.substring(0, 30000),
-        }],
-        temperature: 0.1,
-        max_tokens: 4000,
+
+    // Chamada ao endpoint nativo Gemini generateContent
+    const geminiUrl = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`
+    const aiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPromptPowerBi }] },
+        contents: [{ role: 'user', parts: [{ text: combinedContent.substring(0, 30000) }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
       }),
     })
 
     const aiData = await aiResponse.json()
-    const aiContent = aiData.choices?.[0]?.message?.content || '{}'
+    const aiContent: string = aiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
 
     let analise: Record<string, unknown> = {}
     try {

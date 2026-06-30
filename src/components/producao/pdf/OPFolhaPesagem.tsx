@@ -174,11 +174,11 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {/* BLOCO 3: PESAGEM DE ATIVOS                                     */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* Condições Ambientais — RDC 658/2022 */}
+      {/* Condições Ambientais — RDC 243/2018 / RDC 275/2002 */}
       <div className="border-2 border-blue-300 mb-3 bg-blue-50">
         <div className="bg-blue-300 px-3 py-1">
           <span className="text-xs font-bold uppercase text-blue-900">
-            Condições Ambientais — RDC 658/2022
+            Condições Ambientais — RDC 243/2018 / RDC 275/2002
           </span>
         </div>
         <div className="grid grid-cols-4 divide-x divide-blue-200 p-2">
@@ -406,7 +406,7 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
 
       {/* RODAPÉ */}
       <div className="mt-4 pt-2 border-t-2 border-slate-400 flex justify-between text-[8px] text-slate-500">
-        <div>Vitalnow Industria Ltda | Documento de Produção Industrial</div>
+        <div>{op.empresa_nome || 'Empresa não identificada'} | Documento de Produção Industrial</div>
         <div>{op.codigo} | Gerado em {new Date().toLocaleString('pt-BR')}</div>
         <div>Controle ANVISA/BPF</div>
       </div>

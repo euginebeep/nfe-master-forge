@@ -10,7 +10,9 @@ const ANVISA_POWERBI_URLS = [
   'https://app.powerbi.com/view?r=eyJrIjoiYjEzNTQ5OGItZTRiYi00NjdlLWIyMTktZjM5ZWNkMGFlOTc5IiwidCI6ImI2N2FmMjNmLWMzZjMtNGQzNS04MGM3LWI3MDg1ZjVlZGQ4MSJ9',
   'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares/lista-de-constituintes-autorizados',
 ]
-const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+// Endpoint nativo Gemini generateContent
+const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,7 +21,23 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
+  let geminiKey: string | null = Deno.env.get('GEMINI_API_KEY') || null
+
+  // Fallback: buscar do banco erp_system_config (configuração global do ERP)
+  if (!geminiKey) {
+    try {
+      const cfgRes = await fetch(
+        `${supabaseUrl}/rest/v1/erp_system_config?chave=eq.gemini_api_key&select=valor&limit=1`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+      )
+      if (cfgRes.ok) {
+        const cfgData = await cfgRes.json()
+        geminiKey = cfgData?.[0]?.valor || null
+      }
+    } catch (e) {
+      console.warn('Falha ao buscar gemini_api_key do banco:', e)
+    }
+  }
 
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
@@ -119,23 +137,13 @@ Deno.serve(async (req) => {
     }
 
     // Step 4: Use AI to analyze changes across portal + Power BI
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured')
+    if (!geminiKey) {
+      throw new Error('GEMINI_API_KEY not configured')
     }
 
-    const aiResponse = await fetch(AI_GATEWAY, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{
-          role: 'system',
-          content: `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
+    const systemPromptSync = `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
 Analise o conteúdo do portal ANVISA e páginas do Power BI de suplementos.
-Extraia:
+Extraía:
 1. Lista de resoluções/INs mencionadas (ex: IN 28/2018, RDC 243/2018, RDC 560/2024)
 2. Se há atualizações recentes (últimos 6 meses) em constituintes, doses ou alegações
 3. Links para PDFs ou planilhas de listas de constituintes atualizadas
@@ -153,20 +161,30 @@ Responda em JSON:
   "alteracoes_doses": [{"substancia": "...", "dose_anterior": "...", "dose_nova": "...", "norma": "..."}],
   "alertas_sanitarios": [{"titulo": "...", "descricao": "...", "data": "..."}],
   "links_pdf_constituintes": ["url1", ...],
-  "mudanca_detectada": true/false,
+  "mudanca_detectada": true,
   "resumo": "texto resumo"
 }`
-        }, {
-          role: 'user',
-          content: `Analise estas páginas da ANVISA:\n\n--- PORTAL PRINCIPAL ---\n${html.substring(0, 12000)}\n\n--- POWER BI / LISTAS ---\n${powerBiResults.map(r => r.substring(0, 5000)).join('\n---\n')}`
-        }],
-        temperature: 0.1,
-        max_tokens: 3000,
+
+    const userTextSync = `Analise estas páginas da ANVISA:\n\n--- PORTAL PRINCIPAL ---\n${html.substring(0, 12000)}\n\n--- POWER BI / LISTAS ---\n${powerBiResults.map(r => r.substring(0, 5000)).join('\n---\n')}`
+
+    // Chamada ao endpoint nativo Gemini generateContent
+    const geminiUrl = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`
+    const aiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPromptSync }] },
+        contents: [{ role: 'user', parts: [{ text: userTextSync }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
       }),
     })
 
     const aiData = await aiResponse.json()
-    const aiContent = aiData.choices?.[0]?.message?.content || '{}'
+    const aiContent: string = aiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
 
     let analise: Record<string, unknown> = {}
     try {

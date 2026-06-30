@@ -34,13 +34,15 @@ export default function NovaFormulaPage() {
     nome_formula: "",
     tipo_apresentacao: "CAPSULA" as TipoApresentacao,
     observacoes_tecnicas: "",
-    // Cápsula
+    // Cápsula — máquina industrial só opera tamanho 00, então o tamanho
+    // não é configurável. O que VARIA por fórmula é a massa que enche essa
+    // cápsula, porque densidade do blend muda (minerais quelados vs.
+    // colágeno fofo). peso_capsula_alvo_mg é a única fonte de verdade pra
+    // essa massa — usada tanto no Q.S.P. da fórmula quanto na batelada da OP.
     peso_capsula_alvo_mg: 490,
-    peso_capsula_nominal_mg: 500,
     tipo_capsula: "00",
     excipiente_padrao: "AMIDO" as TipoVeiculoBase,
-    // Misturador — dados industriais
-    peso_enchimento_mg: 500,        // peso do pó (sem cápsula vazia)
+    // Misturador — mesmo campo acima, usado pro cálculo de batelada
     densidade_aparente_kg_l: 0.65,  // medido em lab (picnômetro/Scott)
     // Líquido
     volume_frasco_ml: 30,
@@ -66,11 +68,13 @@ export default function NovaFormulaPage() {
         // Campos específicos por tipo
         ...(form.tipo_apresentacao === 'CAPSULA' && {
           peso_capsula_alvo_mg: form.peso_capsula_alvo_mg,
-          peso_capsula_nominal_mg: form.peso_capsula_nominal_mg,
+          // Espelhos legados — alguns hooks antigos ainda leem esses nomes.
+          // Todos apontam pro mesmo valor; não editar separadamente.
+          peso_capsula_nominal_mg: form.peso_capsula_alvo_mg,
+          peso_enchimento_mg: form.peso_capsula_alvo_mg,
           tipo_capsula: form.tipo_capsula,
           excipiente_padrao: form.excipiente_padrao,
-          peso_enchimento_mg: form.peso_enchimento_mg,           // ADICIONAR
-          densidade_aparente_kg_l: form.densidade_aparente_kg_l, // ADICIONAR
+          densidade_aparente_kg_l: form.densidade_aparente_kg_l,
         }),
         ...(form.tipo_apresentacao === 'LIQUIDO' && {
           volume_frasco_ml: form.volume_frasco_ml,
@@ -183,55 +187,29 @@ export default function NovaFormulaPage() {
 
         {/* Configurações específicas por tipo */}
         {form.tipo_apresentacao === 'CAPSULA' && (
-          <Card>
+          <Card className="border-blue-200 bg-blue-50/30">
             <CardHeader>
-              <CardTitle className="text-base">Configuração de Cápsula</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Scale className="h-4 w-4 text-blue-600" />
+                Configuração de Cápsula
+              </CardTitle>
+              <CardDescription>
+                Máquina industrial só opera cápsula tamanho 00 — não configurável.
+                O que varia por fórmula é a massa de pó que enche essa cápsula,
+                porque a densidade do blend muda (minerais quelados vs. colágeno
+                fofo, por exemplo). Meça em laboratório antes de aprovar a fórmula.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert className="bg-muted/50">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Padrão Industrial:</strong> Cápsula 00 com 500mg nominal, 490mg alvo.
-                  Excipientes tecnológicos: Sílica 2% + Estearato 1% + Talco 5% (fixos).
-                </AlertDescription>
-              </Alert>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Peso Nominal (mg)</Label>
-                  <Input
-                    type="number"
-                    value={form.peso_capsula_nominal_mg}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">Fixo: 500 mg</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Peso Alvo (mg)</Label>
-                  <Input
-                    type="number"
-                    value={form.peso_capsula_alvo_mg}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">Fixo: 490 mg</p>
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tamanho da Cápsula</Label>
-                  <Input
-                    value={form.tipo_capsula}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">Tamanho 00</p>
+                  <Input value={form.tipo_capsula} disabled className="bg-muted" />
+                  <p className="text-xs text-muted-foreground">Fixo: tamanho 00 (restrição da máquina)</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Veículo Base (Q.S.P.)</Label>
-                  <Select 
+                  <Select
                     value={form.excipiente_padrao}
                     onValueChange={(v) => setForm(prev => ({ ...prev, excipiente_padrao: v as TipoVeiculoBase }))}
                   >
@@ -246,40 +224,25 @@ export default function NovaFormulaPage() {
                   </Select>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {form.tipo_apresentacao === 'CAPSULA' && (
-          <Card className="border-blue-200 bg-blue-50/30">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Scale className="h-4 w-4 text-blue-600" />
-                Parâmetros do Misturador em V
-              </CardTitle>
-              <CardDescription>
-                Usados para calcular automaticamente o número de bateladas na OP.
-                Meça no laboratório antes de aprovar a fórmula.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="peso_enchimento_mg">
-                    Peso de Enchimento (mg)
+                  <Label htmlFor="peso_capsula_alvo_mg">
+                    Peso de Enchimento Real (mg)
                     <span className="ml-1 text-xs text-muted-foreground">— pó apenas, sem cápsula vazia</span>
                   </Label>
                   <Input
-                    id="peso_enchimento_mg"
+                    id="peso_capsula_alvo_mg"
                     type="number"
                     step="1"
                     min="100"
                     max="2000"
-                    value={form.peso_enchimento_mg}
-                    onChange={(e) => setForm(prev => ({ ...prev, peso_enchimento_mg: parseFloat(e.target.value) || 500 }))}
+                    value={form.peso_capsula_alvo_mg}
+                    onChange={(e) => setForm(prev => ({ ...prev, peso_capsula_alvo_mg: parseFloat(e.target.value) || 490 }))}
                   />
                   <p className="text-xs text-muted-foreground">
                     Cápsula 00 padrão: 480–520 mg de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
+                    Default de 490mg só até você medir — não substitui a pesagem real.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -302,12 +265,13 @@ export default function NovaFormulaPage() {
                   </p>
                 </div>
               </div>
+
               <Alert className="bg-blue-50 border-blue-200">
                 <AlertTriangle className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800 text-xs">
-                  Com esses dados o sistema calcula automaticamente quantas bateladas
-                  cabem no Misturador em V 100L (máx. 65L úteis) ao criar uma OP.
-                  Sem esses dados, usa o default de 0,65 kg/L.
+                  Esse mesmo peso de enchimento é usado tanto pro Q.S.P. (excipiente que completa
+                  a cápsula) quanto pro cálculo de bateladas do Misturador em V ao criar uma OP —
+                  uma única medição alimenta os dois cálculos, sem números fixos divergentes.
                 </AlertDescription>
               </Alert>
             </CardContent>
