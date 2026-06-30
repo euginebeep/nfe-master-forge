@@ -320,13 +320,118 @@ export default function EmpresaSettingsPage() {
     }));
   };
 
+  // Padrão de logo do ERP: baseado no lockup horizontal de referência (1200x600, 2:1).
+  // Faixa de tolerância calculada a partir do CSS real dos documentos: o cabeçalho do
+  // laudo (exportLaudoA4.ts) renderiza a logo a 36px de altura com max-width:110px —
+  // ou seja, qualquer proporção acima de ~3:1 já estoura esse limite e o object-fit:contain
+  // encolhe a logo, ficando menor que as demais logos nos relatórios.
+  const LOGO_RATIO_MIN = 1.3; // mais estreito que isso fica pequeno demais quando a altura é fixada
+  const LOGO_RATIO_MAX = 3.0; // mais largo que isso estoura o max-width: 110px do cabeçalho do laudo
+  const LOGO_MIN_WIDTH = 400;
+  const LOGO_MIN_HEIGHT = 150;
+
+  function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Não foi possível ler a imagem"));
+      };
+      img.src = url;
+    });
+  }
+
+  // Detecta se a imagem tem algum pixel transparente de verdade — cobre o caso comum
+  // de PNG exportado sem canal alpha (fundo sólido), que o `file.type` sozinho não pega.
+  function hasTransparentPixel(file: File): Promise<boolean> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const SAMPLE = 64; // reduz pra checagem rápida, não precisa da imagem inteira
+          const canvas = document.createElement("canvas");
+          canvas.width = SAMPLE;
+          canvas.height = SAMPLE;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(true); // não bloqueia por falha de canvas
+          ctx.drawImage(img, 0, 0, SAMPLE, SAMPLE);
+          const { data } = ctx.getImageData(0, 0, SAMPLE, SAMPLE);
+          for (let i = 3; i < data.length; i += 4) {
+            if (data[i] < 255) return resolve(true);
+          }
+          resolve(false);
+        } catch {
+          resolve(true); // CORS ou outro erro de canvas: não bloqueia, assume ok
+        }
+      };
+      img.onerror = () => resolve(true);
+      img.src = url;
+    });
+  }
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "Arquivo muito grande", description: "Máximo 2MB." });
+      toast.error("Arquivo muito grande", { description: "Máximo 2MB." });
+      e.target.value = "";
       return;
+    }
+
+    // SVG não dá pra medir via Image().naturalWidth de forma confiável em todos os
+    // navegadores — pula a validação de proporção nesse caso e segue com o upload.
+    if (file.type !== "image/svg+xml") {
+      try {
+        const { width, height } = await getImageDimensions(file);
+        const ratio = width / height;
+
+        if (width < LOGO_MIN_WIDTH || height < LOGO_MIN_HEIGHT) {
+          toast.error("Imagem com resolução muito baixa", {
+            description: `Mínimo ${LOGO_MIN_WIDTH}×${LOGO_MIN_HEIGHT}px. Recomendado: 1200×600px.`,
+          });
+          e.target.value = "";
+          return;
+        }
+
+        if (ratio < LOGO_RATIO_MIN) {
+          toast.error("Logo muito vertical/quadrada para o cabeçalho dos relatórios", {
+            description: "Use um logo horizontal (proporção próxima de 2:1, ex: 1200×600px).",
+          });
+          e.target.value = "";
+          return;
+        }
+
+        if (ratio > LOGO_RATIO_MAX) {
+          toast.error("Logo muito alongada — vai estourar o cabeçalho do laudo", {
+            description: "Use uma proporção mais próxima de 2:1 (ex: 1200×600px).",
+          });
+          e.target.value = "";
+          return;
+        }
+
+        if (file.type === "image/jpeg") {
+          toast.warning("JPG não suporta fundo transparente", {
+            description: "Em relatórios com fundo branco isso pode aparecer como uma caixa colorida. PNG transparente é o ideal.",
+          });
+        } else if (file.type === "image/png" || file.type === "image/webp") {
+          const transparent = await hasTransparentPixel(file);
+          if (!transparent) {
+            toast.warning("Esse arquivo não tem fundo transparente", {
+              description: "É um PNG com fundo sólido. Em relatórios com fundo branco isso vai aparecer como uma caixa colorida atrás da logo.",
+            });
+          }
+        }
+      } catch {
+        // Se não conseguir medir, segue o fluxo normal (não bloqueia o usuário por isso)
+      }
     }
 
     try {
@@ -364,9 +469,9 @@ export default function EmpresaSettingsPage() {
         .eq('id', profile.company_id);
 
       setLogoPreview(urlData.publicUrl);
-      toast({ title: "Logo atualizado com sucesso" });
+      toast.success("Logo atualizado com sucesso");
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Erro ao enviar logo", description: err.message });
+      toast.error("Erro ao enviar logo", { description: err?.message ?? "Tente novamente." });
     }
   };
 
@@ -633,7 +738,9 @@ export default function EmpresaSettingsPage() {
                       <div className="border-2 border-dashed rounded-lg px-6 py-4 text-center hover:border-primary hover:bg-primary/5 transition-all">
                         <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
                         <p className="text-sm font-medium">Upload Logo</p>
-                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG ou SVG</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Recomendado: 1200×600px (proporção 2:1, horizontal) · PNG transparente · máx. 2MB
+                        </p>
                       </div>
                     </Label>
                     <input
