@@ -13,11 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, DollarSign, TrendingUp, Crown, UserX, Eye, Search,
   RefreshCw, Ban, Unlock, Trash2, Mail, Building2, AlertTriangle, Loader2, LogOut, Lock, ShieldCheck, FileText,
-  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote
+  LifeBuoy, MessageSquare, Megaphone, Cpu, Activity, StickyNote, Download, Ghost
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isSuperDev, startGhost } from "@/lib/ghost-mode";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UnlockChallengesPanel } from "@/components/saas/UnlockChallengesPanel";
@@ -26,6 +28,7 @@ import { AIHubPanel } from "@/components/saas/AIHubPanel";
 import { LogsPanel } from "@/components/saas/LogsPanel";
 import { ComunicadosPanel } from "@/components/saas/ComunicadosPanel";
 import { ParceirosAdminPanel } from "@/components/saas/ParceirosAdminPanel";
+import { BibliotecaNormasAdminPanel } from "@/components/saas/BibliotecaNormasAdminPanel";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -107,6 +110,7 @@ export default function SaasDashboardPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [companies, setCompanies] = useState<SaasCompany[]>([]);
+  const [orphanUsers, setOrphanUsers] = useState<Array<{ id: string; nome: string; email: string; created_at: string; ultimo_acesso: string | null; motivo: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -116,6 +120,80 @@ export default function SaasDashboardPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "block" | "unblock" | "delete" | "grant-access"; company: SaasCompany } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [grantDays, setGrantDays] = useState(30);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [superDev, setSuperDev] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => { isSuperDev().then(setSuperDev); }, []);
+
+  const handleGhost = async (c: SaasCompany) => {
+    try {
+      await startGhost(c.id);
+      toast.success(`Acessando como "${c.nome_fantasia || c.razao_social}"`);
+      navigate("/");
+      setTimeout(() => window.location.reload(), 200);
+    } catch (err: any) {
+      toast.error("Falha: " + (err?.message || "erro"));
+    }
+  };
+
+  const callSaasAdmin = async (action: string, body: any = {}) => {
+    // Refresh session if needed, then invoke. supabase-js attaches auth+apikey automatically.
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess?.session) {
+      await supabase.auth.refreshSession();
+    }
+    const { data, error } = await supabase.functions.invoke("saas-admin", {
+      body: { action, ...body },
+    });
+    if (error) throw new Error(error.message || "saas-admin failed");
+    return data;
+  };
+
+  const handleBackupDownload = async (scope: "tenant" | "saas") => {
+    setBackupLoading(true);
+    const toastId = toast.loading(
+      scope === "saas"
+        ? "Gerando backup SaaS-wide (todos os tenants)... pode demorar alguns minutos."
+        : "Gerando backup do tenant... aguarde."
+    );
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Sessão expirada. Faça login novamente.", { id: toastId });
+        return;
+      }
+      const url = `${SUPABASE_URL}/functions/v1/export-full-backup`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(scope === "saas" ? { scope: "saas" } : {}),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const fname = `backup-${scope}-${new Date().toISOString().slice(0, 10)}.zip`;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      toast.success(`Backup baixado: ${fname}`, { id: toastId });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar backup";
+      toast.error(msg, { id: toastId });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
 
   const { data: leadsCount } = useQuery({
     queryKey: ['demo-leads-count'],
@@ -130,7 +208,7 @@ export default function SaasDashboardPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id);
-        const isAdmin = roles?.some(r => ['admin', 'saas_owner', 'saas_suporte'].includes(r.role));
+        const isAdmin = roles?.some(r => ['saas_owner', 'saas_suporte'].includes(r.role));
         if (isAdmin) setAuthed(true);
       }
       setAuthLoading(false);
@@ -145,7 +223,7 @@ export default function SaasDashboardPage() {
       const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
       if (error) { toast.error(error.message); return; }
       const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', data.user.id);
-      const isAdmin = roles?.some(r => ['admin', 'saas_owner', 'saas_suporte'].includes(r.role));
+      const isAdmin = roles?.some(r => ['saas_owner', 'saas_suporte'].includes(r.role));
       if (!isAdmin) {
         toast.error("Acesso restrito a administradores");
         await supabase.auth.signOut();
@@ -169,9 +247,9 @@ export default function SaasDashboardPage() {
   const fetchCompanies = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("saas-admin?action=list");
-      if (error) throw error;
+      const data = await callSaasAdmin("list");
       setCompanies(data?.companies || []);
+      setOrphanUsers(data?.orphan_users || []);
     } catch (err) {
       toast.error("Erro ao carregar dados SaaS");
     } finally {
@@ -188,8 +266,7 @@ export default function SaasDashboardPage() {
     try {
       const body: any = { company_id: companyId };
       if (type === "grant-access") body.days = grantDays;
-      const { data, error } = await supabase.functions.invoke(`saas-admin?action=${type === "delete" ? "delete-company" : type}`, { body });
-      if (error) throw error;
+      await callSaasAdmin(type === "delete" ? "delete-company" : type, body);
       toast.success("Operação realizada!");
       setConfirmAction(null);
       fetchCompanies();
@@ -275,6 +352,27 @@ export default function SaasDashboardPage() {
             </Badge>
           </div>
           <div className="flex items-center gap-3">
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={() => handleBackupDownload("saas")}
+               disabled={backupLoading}
+               className="border-primary/30 text-primary hover:bg-primary/10 font-bold"
+               title="Baixa um ZIP com TODOS os tenants, auth.users, XMLs e Storage"
+             >
+               {backupLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+               Backup SaaS-Wide
+             </Button>
+             <Button
+               variant="ghost"
+               size="sm"
+               onClick={() => handleBackupDownload("tenant")}
+               disabled={backupLoading}
+               title="Backup apenas do tenant do usuário logado"
+             >
+               <Download className="h-4 w-4 mr-2" />
+               Backup Tenant
+             </Button>
              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-destructive hover:bg-destructive/10">
                <LogOut className="h-4 w-4 mr-2" /> Sair
              </Button>
@@ -349,6 +447,7 @@ export default function SaasDashboardPage() {
             <TabsTrigger value="parceiros" className="gap-2 px-6"><Megaphone className="h-4 w-4" /> Parceiros</TabsTrigger>
             <TabsTrigger value="ia" className="gap-2 px-6"><Cpu className="h-4 w-4" /> IA Hub</TabsTrigger>
             <TabsTrigger value="logs" className="gap-2 px-6"><Activity className="h-4 w-4" /> Logs</TabsTrigger>
+            <TabsTrigger value="normas" className="gap-2 px-6"><FileText className="h-4 w-4" /> Normas ANVISA</TabsTrigger>
           </TabsList>
 
           <TabsContent value="empresas" className="space-y-4">
@@ -411,6 +510,9 @@ export default function SaasDashboardPage() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" title="Ver detalhes" onClick={() => setDetailCompany(c)}><Eye className="h-4 w-4" /></Button>
+                            {superDev && (
+                              <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground" title="Acessar como (modo fantasma)" onClick={() => handleGhost(c)}><Ghost className="h-4 w-4" /></Button>
+                            )}
                             <Button variant="ghost" size="icon" className="text-success" title="Liberar acesso (override)" onClick={() => setConfirmAction({ type: "grant-access", company: c })}><Unlock className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-warning" title="Bloquear tenant" onClick={() => setConfirmAction({ type: "block", company: c })}><Ban className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-destructive" title="Excluir empresa" onClick={() => setConfirmAction({ type: "delete", company: c })}><Trash2 className="h-4 w-4" /></Button>
@@ -422,6 +524,48 @@ export default function SaasDashboardPage() {
                 </Table>
               </CardContent>
             </Card>
+
+            {orphanUsers.length > 0 && (
+              <Card className="border-warning/40 border-2 shadow-sm">
+                <CardHeader className="pb-3 border-b bg-warning/5">
+                  <CardTitle className="text-base flex items-center gap-2 text-warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    Usuários sem empresa vinculada ({orphanUsers.length})
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cadastraram-se mas nunca completaram o onboarding (não criaram empresa). Não aparecem na lista de tenants acima.
+                  </p>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Cadastro</TableHead>
+                        <TableHead>Último acesso</TableHead>
+                        <TableHead>Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orphanUsers.map(u => (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-medium">{u.nome || <span className="italic text-muted-foreground">—</span>}</TableCell>
+                          <TableCell className="font-mono text-xs">{u.email}</TableCell>
+                          <TableCell className="text-xs">{format(new Date(u.created_at), "dd/MM/yy HH:mm")}</TableCell>
+                          <TableCell className="text-xs">{u.ultimo_acesso ? format(new Date(u.ultimo_acesso), "dd/MM/yy HH:mm") : <span className="italic text-muted-foreground">nunca</span>}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] uppercase bg-warning/10 text-warning border-warning/30">
+                              {u.motivo === "auth_sem_profile" ? "Sem profile" : "Sem empresa"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="tickets">
@@ -441,6 +585,9 @@ export default function SaasDashboardPage() {
           </TabsContent>
           <TabsContent value="parceiros">
             <ParceirosAdminPanel />
+          </TabsContent>
+          <TabsContent value="normas">
+            <BibliotecaNormasAdminPanel />
           </TabsContent>
         </Tabs>
       </main>
@@ -508,10 +655,7 @@ export default function SaasDashboardPage() {
                     defaultValue={detailCompany.tipo_empresa || "outro"} 
                     onValueChange={async (val) => {
                       try {
-                        const { error } = await supabase.functions.invoke("saas-admin?action=update-company", {
-                          body: { company_id: detailCompany.id, updates: { tipo_empresa: val } }
-                        });
-                        if (error) throw error;
+                        await callSaasAdmin("update-company", { company_id: detailCompany.id, updates: { tipo_empresa: val } });
                         toast.success("Tipo de empresa atualizado");
                         fetchCompanies();
                       } catch (err) {

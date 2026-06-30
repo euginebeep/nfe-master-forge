@@ -22,11 +22,12 @@ import { LocalCollectionsManager } from "@/components/admin/LocalCollectionsMana
 import { BackendCleanupManager } from "@/components/admin/BackendCleanupManager";
 import { ContratosTemplateManager } from "@/components/admin/ContratosTemplateManager";
 import { AnvisaSearchStats } from "@/components/admin/AnvisaSearchStats";
+
 import { UnlockGuard } from "@/components/security/UnlockGuard";
 import { UnlockStatusCard } from "@/components/security/UnlockStatusCard";
 import { useUnlockSession } from "@/hooks/use-unlock-session";
 import { KeyRound } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const STORAGE_PREFIX = "legacy_erp_";
@@ -95,12 +96,12 @@ export default function AdminMasterPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Sessão expirada. Faça login novamente.");
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-full-backup`;
+      const url = `${SUPABASE_URL}/functions/v1/export-full-backup`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ scope }),
@@ -325,6 +326,7 @@ export default function AdminMasterPage() {
           </p>
         </CardContent>
       </Card>
+
 
       <AnvisaSearchStats />
 

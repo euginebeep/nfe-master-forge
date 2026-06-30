@@ -1,7 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
-
-const PROJECT_ID = "cqkvekdrifmvedvpjmjr";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxa3Zla2RyaWZtdmVkdnBqbWpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODA0MzAsImV4cCI6MjA5NTg1NjQzMH0.6Y6c5-lzCcA5j8ujKMfvOqHBT19gZ4D8_PL1ZqVAYYI";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 
 async function callFocusNfe(
   action: string,
@@ -12,14 +9,14 @@ async function callFocusNfe(
   if (!session) throw new Error("Não autenticado");
 
   const searchParams = new URLSearchParams({ action, ...params });
-  const url = `https://${PROJECT_ID}.supabase.co/functions/v1/focus-nfe?${searchParams}`;
+  const url = `${SUPABASE_URL}/functions/v1/focus-nfe?${searchParams}`;
 
   const options: RequestInit = {
     method: body ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${session.access_token}`,
       "Content-Type": "application/json",
-      apikey: ANON_KEY,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
     },
   };
 
