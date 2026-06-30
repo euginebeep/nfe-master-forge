@@ -1,6 +1,6 @@
 // Motivational phrases by role and gender, rotating daily
 
-type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador';
+type AppRole = 'admin' | 'gerente' | 'supervisor' | 'operador' | 'visualizador' | 'saas_owner' | 'saas_suporte' | 'saas_financeiro';
 type Sexo = 'MASCULINO' | 'FEMININO' | 'NAO_INFORMADO';
 
 const phrasesByRole: Record<AppRole, string[]> = {
@@ -48,6 +48,33 @@ const phrasesByRole: Record<AppRole, string[]> = {
     "A curiosidade é o motor do crescimento profissional.",
     "Grandes jornadas começam observando o caminho.",
     "Seu desenvolvimento é importante para nós.",
+  ],
+  saas_owner: [
+    "Visão de produto que transforma mercados.",
+    "Sua estratégia define o futuro da plataforma.",
+    "Liderar inovação é o seu diferencial.",
+    "Decisões inteligentes constroem ecossistemas.",
+    "O sucesso dos clientes começa com você.",
+    "Cada melhoria sua impacta milhares de usuários.",
+    "Empreender com propósito é a sua marca.",
+  ],
+  saas_suporte: [
+    "Resolver problemas é transformar frustração em satisfação.",
+    "Cada chamado bem atendido fortalece a relação.",
+    "Sua paciência e expertise fazem toda a diferença.",
+    "Suporte de excelência é o coração do SaaS.",
+    "Você é a ponte entre o cliente e a solução.",
+    "Cada ticket resolvido é uma vitória.",
+    "A confiança do cliente começa com o seu atendimento.",
+  ],
+  saas_financeiro: [
+    "Números precisos geram decisões assertivas.",
+    "Sua análise financeira sustenta o crescimento.",
+    "Controlar receitas é garantir o futuro.",
+    "Cada relatório seu traz clareza estratégica.",
+    "Excelência financeira é o alicerce da escala.",
+    "Você transforma dados em direção.",
+    "Gestão financeira rigorosa cria empresas duradouras.",
   ],
 };
 
@@ -98,6 +125,33 @@ const phrasesFemininas: Record<AppRole, string[]> = {
     "A curiosidade é a centelha que acende grandes carreiras.",
     "Seu potencial é enorme — continue crescendo.",
   ],
+  saas_owner: [
+    "Mulheres que inovam transformam indústrias inteiras.",
+    "Sua visão estratégica abre caminhos para milhares.",
+    "Liderar com propósito é a sua essência.",
+    "Cada decisão sua impulsiona o ecossistema.",
+    "Você prova que tecnologia e empatia caminham juntas.",
+    "Sua presença inspira outras mulheres a empreenderem.",
+    "O futuro do SaaS tem a sua inteligência.",
+  ],
+  saas_suporte: [
+    "Sua empatia transforma cada ticket em uma conexão real.",
+    "Resolver com cuidado é o seu superpoder.",
+    "Você é a voz humana por trás da tecnologia.",
+    "Cada cliente satisfeito carrega o seu toque.",
+    "Paciência e expertise — sua combinação vencedora.",
+    "Você constrói confiança uma interação de cada vez.",
+    "Suporte com alma é o que você entrega.",
+  ],
+  saas_financeiro: [
+    "Números precisos e intuição afiada — sua dupla perfeita.",
+    "Sua análise traz clareza para decisões complexas.",
+    "Você transforma planilhas em estratégia.",
+    "Cada relatório seu é um mapa para o crescimento.",
+    "Gestão financeira com visão é a sua marca.",
+    "Você equilibra rigor e inovação com maestria.",
+    "A saúde financeira da empresa passa pelas suas mãos.",
+  ],
 };
 
 // Get phrase based on role, gender and current date
@@ -143,4 +197,7 @@ export const roleDisplayNames: Record<AppRole, string> = {
   supervisor: 'Supervisor',
   operador: 'Operador',
   visualizador: 'Visualizador',
+  saas_owner: 'Proprietário SaaS',
+  saas_suporte: 'Suporte SaaS',
+  saas_financeiro: 'Financeiro SaaS',
 };

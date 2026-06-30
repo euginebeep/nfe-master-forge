@@ -4,11 +4,13 @@ import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useNavigationAudit } from "@/hooks/use-navigation-audit";
 import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlocker";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
 import { BrainXERPAssistente } from "@/components/assistente/BrainXAssistente";
 import { OnboardingWalkthrough } from "@/components/onboarding/OnboardingWalkthrough";
 import { BannerContextual } from "@/components/ajuda/BannerContextual";
+import { CompanyPendingBanner } from "./CompanyPendingBanner";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -19,8 +21,12 @@ export function MainLayout() {
   useRealtimeNotifications();
   useNavigationAudit();
   const { isBlocked, isLoading: subLoading } = useSubscription();
+  const { role } = useAuthContext();
 
-  if (isBlocked && !subLoading) {
+  // saas_owner e saas_suporte nunca são bloqueados pela tela de assinatura
+  const isSaasStaff = role === 'saas_owner' || role === 'saas_suporte';
+
+  if (isBlocked && !subLoading && !isSaasStaff) {
     return <SubscriptionBlocker />;
   }
 
@@ -36,10 +42,11 @@ export function MainLayout() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 min-w-0 p-2 sm:p-4 md:p-6 overflow-auto"
+            className="flex-1 min-w-0 p-1 sm:p-2 md:p-4 lg:p-6 overflow-auto"
           >
-            <div className="max-w-7xl mx-auto w-full">
+            <div className="w-full max-w-7xl mx-auto px-1 sm:px-2 md:px-4">
               <CompanyRequiredGuard>
+                <CompanyPendingBanner />
                 <BannerContextual />
                 <Outlet />
               </CompanyRequiredGuard>
