@@ -238,7 +238,11 @@ export default function NovaFormulaPage() {
                     min="100"
                     max="2000"
                     value={form.peso_capsula_alvo_mg}
-                    onChange={(e) => setForm(prev => ({ ...prev, peso_capsula_alvo_mg: parseFloat(e.target.value) || 490 }))}
+                    onChange={(e) => {
+                      const val = e.target.value.trim();
+                      const num = val === '' ? 490 : Math.max(100, Math.min(2000, parseFloat(val) || 490));
+                      setForm(prev => ({ ...prev, peso_capsula_alvo_mg: num }));
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
                     Cápsula 00 padrão: 480–520 mg de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
