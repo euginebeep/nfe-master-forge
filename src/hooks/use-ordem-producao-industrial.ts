@@ -20,7 +20,11 @@ import {
   VEICULOS_BASE,
   gerarOrdemMistura,
   calcularCapsulaIndustrial,
+  calcularCapsulasPorDose,
   CAPSULA_PESO_ALVO_MG,
+  CAPSULA_TAMANHO_PADRAO,
+  DENSIDADE_PADRAO_KG_L,
+  type TamanhoCapsula,
 } from '@/lib/formulador-industrial-rules';
 import { toast } from 'sonner';
 
@@ -205,7 +209,14 @@ export function useCreateOrdemProducaoIndustrial() {
       // Calcular cápsula industrial
       const totalAtivos = formula.itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
       const veiculoCodigo = (formula.excipiente_padrao || 'AMIDO') as 'AMIDO' | 'CELULOSE' | 'PRE_BLEND';
-      const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoCodigo, formula.peso_enchimento_mg || formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG);
+      // Usar dose em N cápsulas (não peso de 1 cápsula)
+      const capsulasPorDose = calcularCapsulasPorDose(
+        totalAtivos,
+        formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
+        (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
+      );
+      const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
+      const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoCodigo, massaTotalDose);
 
       // Gerar código e lote
       const codigo = await generateOPCode();

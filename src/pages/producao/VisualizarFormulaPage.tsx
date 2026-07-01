@@ -2,7 +2,9 @@
 // FORMULADOR INDUSTRIAL - VISUALIZAÇÃO TÉCNICA
 // ============================================================
 
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   ArrowLeft, FlaskConical, Edit, FileText, CheckCircle, 
   AlertTriangle, Scale, Clock, History, Download
@@ -29,8 +31,9 @@ import {
   useTabelaNutricional,
 } from "@/hooks/use-formulador-industrial";
 import { StatusFormula, TipoApresentacao } from "@/types/formulador-industrial";
-import { calcularCapsulaIndustrial, CodigoVeiculoBase, CAPSULA_PESO_ALVO_MG } from "@/lib/formulador-industrial-rules";
+import { calcularCapsulaIndustrial, calcularCapsulasPorDose, CodigoVeiculoBase, CAPSULA_PESO_ALVO_MG, CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, type TamanhoCapsula } from "@/lib/formulador-industrial-rules";
 import { FichaTecnicaPDF } from "@/components/formulador/FichaTecnicaPDF";
+import { useCompany } from "@/hooks/use-company";
 
 export default function VisualizarFormulaPage() {
   const navigate = useNavigate();
@@ -39,6 +42,20 @@ export default function VisualizarFormulaPage() {
   const { versoes } = useFormulaHistorico(id);
   const { ops } = useOPsGeradas(id);
   const { tabela } = useTabelaNutricional(id);
+  const { data: company } = useCompany();
+  
+  // Estado para nomes dos responsáveis
+  const [resp, setResp] = useState<{ criador?: string; aprovador?: string }>({});
+  
+  // Buscar nomes dos responsáveis
+  useEffect(() => {
+    const ids = [(formula as any)?.criado_por, (formula as any)?.aprovado_por].filter(Boolean);
+    if (!ids.length) return;
+    supabase.from('profiles').select('id, nome_completo').in('id', ids).then(({ data }) => {
+      const m = Object.fromEntries((data || []).map((p: any) => [p.id, p.nome_completo]));
+      setResp({ criador: m[(formula as any)?.criado_por], aprovador: m[(formula as any)?.aprovado_por] });
+    });
+  }, [formula]);
 
   if (loading) {
     return (
@@ -79,9 +96,15 @@ export default function VisualizarFormulaPage() {
 
   // Cálculos industriais
   const totalAtivos = itens.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
-  const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
   const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
-  const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
+  const capsulasPorDose = calcularCapsulasPorDose(
+    totalAtivos,
+    formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
+    (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
+  );
+  const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
+  const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, massaTotalDose);
+  const pesoAlvo = massaTotalDose; // Para compatibilidade com display
 
   return (
     <div>
@@ -111,6 +134,19 @@ export default function VisualizarFormulaPage() {
           </div>
         }
       />
+
+      {/* Card Posologia em destaque */}
+      <Card className="border-primary/30 bg-primary/5 mb-6">
+        <CardContent className="py-4">
+          <p className="text-sm text-muted-foreground">Posologia</p>
+          <p className="text-lg font-semibold">
+            {capsulasPorDose.n_capsulas} cápsula(s) por dose · ~{capsulasPorDose.peso_por_capsula_mg.toFixed(0)} mg cada
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Cápsula {formula.tipo_capsula || '0'} · densidade {formula.densidade_aparente_kg_l || 0.65} kg/L · dose {capsulasPorDose.massa_ativos_mg.toFixed(0)} mg de ativos
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Info principal */}
@@ -149,8 +185,8 @@ export default function VisualizarFormulaPage() {
                     <p className="font-medium">{formula.tipo_capsula}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase">Peso Alvo</p>
-                    <p className="font-medium font-mono">{pesoAlvo} mg</p>
+                    <p className="text-xs text-muted-foreground uppercase">Blend da Dose</p>
+                    <p className="font-medium font-mono">{massaTotalDose.toFixed(1)} mg</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground uppercase">Q.S.P.</p>
@@ -214,6 +250,33 @@ export default function VisualizarFormulaPage() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-2">Observações Técnicas</p>
                   <p className="text-sm">{formula.observacoes_tecnicas}</p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Responsáveis */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Responsáveis</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Elaborado por</p>
+              <p className="text-sm font-medium">{resp.criador || 'Sistema'}</p>
+            </div>
+            <Separator />
+            <div>
+              <p className="text-xs text-muted-foreground">Aprovado por</p>
+              <p className="text-sm font-medium">{resp.aprovador || 'Pendente'}</p>
+            </div>
+            {formula.aprovado_em && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-xs text-muted-foreground">Data de Aprovação</p>
+                  <p className="text-sm font-mono">{new Date(formula.aprovado_em).toLocaleDateString('pt-BR')}</p>
                 </div>
               </>
             )}
