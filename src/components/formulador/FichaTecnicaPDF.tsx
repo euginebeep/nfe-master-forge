@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useMemo } from "react";
+import { useCompany } from "@/hooks/use-company";
 import { 
   FlaskConical, Scale, CheckCircle2, AlertTriangle, 
   FileText, Printer, Beaker
@@ -32,9 +33,13 @@ import {
 } from "@/types/formulador-industrial";
 import {
   calcularCapsulaIndustrial,
+  calcularCapsulasPorDose,
   CodigoVeiculoBase,
   EXCIPIENTES_INDUSTRIAIS,
   CAPSULA_PESO_ALVO_MG,
+  CAPSULA_TAMANHO_PADRAO,
+  DENSIDADE_PADRAO_KG_L,
+  type TamanhoCapsula,
 } from "@/lib/formulador-industrial-rules";
 
 interface FichaTecnicaPDFProps {
@@ -45,15 +50,31 @@ interface FichaTecnicaPDFProps {
 }
 
 export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnicaPDFProps) {
+  // Dados da empresa
+  const { data: company } = useCompany();
+  
   // Cálculos industriais
   const totalAtivos = useMemo(() => 
     itens.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0),
     [itens]
   );
   
-  const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
+  // Dados para o rodapé
+  const dataGeracao = new Date().toLocaleString('pt-BR');
+  const aprovadoEm = formula.aprovado_em ? new Date(formula.aprovado_em).toLocaleDateString('pt-BR') : 'N/A';
+  const aprovadoPor = (formula as any).aprovado_por_nome || 'Não registrado';
+  const criadoPor = (formula as any).criado_por_nome || (formula as any).criado_por || 'Sistema';
+  const codigoFicha = `FRM-${formula.id?.substring(0, 8).toUpperCase() || 'XXXX'}`;
+  const versaoFicha = formula.versao || 1;
+  
   const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
-  const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
+  const capsulasPorDose = calcularCapsulasPorDose(
+    totalAtivos,
+    formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
+    (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
+  );
+  const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
+  const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, massaTotalDose);
 
   const handlePrint = () => {
     window.print();
@@ -123,8 +144,12 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                     <p className="font-medium">{formula.tipo_capsula}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Peso Alvo:</span>
-                    <p className="font-medium">{pesoAlvo} mg</p>
+                    <span className="text-muted-foreground">Blend total da dose:</span>
+                    <p className="font-medium">{massaTotalDose.toFixed(1)} mg</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Cápsulas por dose:</span>
+                    <p className="font-medium">{capsulasPorDose.n_capsulas} × {capsulasPorDose.peso_por_capsula_mg.toFixed(1)} mg</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Veículo:</span>
@@ -246,8 +271,8 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                   <span className="font-mono font-medium text-primary">{calculos.veiculo_base_mg.toFixed(2)} mg</span>
                 </div>
                 <div className="flex justify-between font-semibold border-t pt-2 mt-2">
-                  <span>Peso Total da Cápsula:</span>
-                  <span className="font-mono">{pesoAlvo} mg</span>
+                  <span>Peso Total da Dose ({capsulasPorDose.n_capsulas} cápsulas):</span>
+                  <span className="font-mono">{massaTotalDose.toFixed(1)} mg</span>
                 </div>
               </div>
             )}
@@ -350,17 +375,27 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
             </div>
           )}
 
-          {/* Rodapé */}
-          <div className="border-t pt-4 mt-6 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <div>
-                <p>Aprovado em: {formula.aprovado_em ? new Date(formula.aprovado_em).toLocaleString('pt-BR') : '-'}</p>
-                <p>Gerado em: {new Date().toLocaleString('pt-BR')}</p>
-              </div>
-              <div className="text-right">
-                <p>Documento gerado automaticamente</p>
-                <p>Formulador Industrial - Sistema ERP</p>
-              </div>
+          {/* Rodapé com Empresa + BrainX + Aprovador */}
+          <div className="border-t pt-4 mt-6 text-xs text-muted-foreground space-y-2">
+            {/* Linha 1: Empresa */}
+            <div className="font-semibold text-gray-800">
+              {company?.razao_social || 'Empresa'} · CNPJ: {company?.cnpj || 'N/A'}
+            </div>
+            
+            {/* Linha 2: BrainX + Data de geração */}
+            <div>
+              Documento gerado por BrainX ERP · {dataGeracao}
+            </div>
+            
+            {/* Linha 3: Elaborado por e Aprovado/Liberado por */}
+            <div>
+              Elaborado por: <span className="font-medium">{criadoPor}</span> · 
+              Aprovado/Liberado por: <span className="font-medium">{aprovadoPor}</span> em {aprovadoEm}
+            </div>
+            
+            {/* Linha 4: Código e versão da fórmula */}
+            <div>
+              Ficha {codigoFicha} · Versão {versaoFicha}
             </div>
           </div>
         </div>
