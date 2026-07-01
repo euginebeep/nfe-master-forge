@@ -711,3 +711,23 @@ export function calcularCapsulasPorDose(
     nivel, mensagem,
   };
 }
+
+
+// ============================================================
+// FASE 3: CUSTO ESTIMADO DA FÓRMULA
+// ============================================================
+
+export const PERDA_PADRAO_PCT = 3; // default até a Fase 4 formalizar os parâmetros
+
+/**
+ * Converte o custo por unidade interna do insumo para custo por mg.
+ * Retorna null se a unidade não for massa (kg, g, mg).
+ */
+export function custoPorMg(custoPorUnidadeInterna: number, unidadeInterna: string): number | null {
+  if (!custoPorUnidadeInterna || custoPorUnidadeInterna <= 0) return null;
+  const u = (unidadeInterna || "").toLowerCase();
+  if (u === "kg") return custoPorUnidadeInterna / 1_000_000;
+  if (u === "g")  return custoPorUnidadeInterna / 1_000;
+  if (u === "mg") return custoPorUnidadeInterna;
+  return null; // unidade não-massa (un, ml, ...) — não dá pra ratear por mg: é furo/flag
+}

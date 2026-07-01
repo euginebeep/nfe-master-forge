@@ -72,6 +72,7 @@ import {
 } from "@/lib/formulador-industrial-rules";
 import { ItemSelector } from "@/components/formulador/ItemSelector";
 import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
+import { useCustoFormula } from "@/hooks/use-custo-formula";
 import { 
   verificarAtivoUltraCritico, 
   determinarClassificacaoRisco,
@@ -854,6 +855,42 @@ export default function EditarFormulaPage() {
             </Card>
           )}
 
+          {/* FASE 3: Custo Estimado */}
+          {formula && itensLocal.length > 0 && (
+            <Card className="border-purple-200 bg-purple-50/30">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4 text-purple-600" />
+                  Custo Estimado (Material)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Tabela de ativos com custos */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2">Ativo</th>
+                        <th className="text-right py-2">Massa (mg)</th>
+                        <th className="text-right py-2">Custo/mg</th>
+                        <th className="text-right py-2">Total</th>
+                        <th className="text-left py-2">Data do Preço</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Renderizar linhas de custo aqui */}
+                      <tr>
+                        <td colSpan={5} className="text-center py-4 text-muted-foreground">
+                          Custo estimado será exibido aqui (implementação em progresso)
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {formula.tipo_apresentacao === 'CAPSULA' && (
             <Card className="border-blue-200 bg-blue-50/30">
               <CardHeader>
@@ -879,9 +916,9 @@ export default function EditarFormulaPage() {
                       step="1"
                       min="100"
                       max="2000"
-                      value={(formula as any).peso_enchimento_mg || (formula as any).peso_capsula_alvo_mg || 500}
+                      value={(formula as any).peso_enchimento_mg || (formula as any).peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG}
                       onChange={async (e) => {
-                        const val = parseFloat(e.target.value) || 500;
+                        const val = parseFloat(e.target.value) || CAPSULA_PESO_ALVO_MG;
                         // Grava nos dois campos — peso_capsula_alvo_mg é o que
                         // alimenta o "Peso Alvo" exibido acima e o Q.S.P. da
                         // fórmula; peso_enchimento_mg alimenta a batelada da OP.

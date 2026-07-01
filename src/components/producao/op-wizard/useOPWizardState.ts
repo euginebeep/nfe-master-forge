@@ -20,6 +20,7 @@ import {
   ACRESCIMO_INDUSTRIAL,
   PESO_CAPSULA_NOMINAL,
 } from "./op-wizard-types";
+import { CAPSULA_PESO_ALVO_MG } from "@/lib/formulador-industrial-rules";
 
 export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenChange: (open: boolean) => void) {
   const navigate = useNavigate();
@@ -105,7 +106,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   const VOLUME_UTIL_MIN_L  = VOL_TOTAL_L * FATOR_MIN;   // ex: 100 × 0.15 = 15L
 
   // Parâmetros da fórmula — usa o real, fallback para o equipamento, fallback para default
-  const PESO_ENCHIMENTO_MG = selectedFormula?.peso_enchimento_mg       ?? 500;
+  const PESO_ENCHIMENTO_MG = selectedFormula?.peso_enchimento_mg       ?? CAPSULA_PESO_ALVO_MG;
   const DENSIDADE_FORMULA  = selectedFormula?.densidade_aparente_kg_l  ?? DENSIDADE_EQUIP;
   // Mesma grandeza física do PESO_ENCHIMENTO_MG (massa de pó por cápsula 0) —
   // usado no cálculo de Q.S.P./excipiente. Antes havia uma constante separada

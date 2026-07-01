@@ -3,6 +3,7 @@
 // Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
 import type { OPDadosPDF, OPMateriaPrimaPDF } from '@/types/op-pdf';
+import { CAPSULA_PESO_ALVO_MG } from '@/lib/formulador-industrial-rules';
 
 interface OPFolhaMisturaProps {
   op: OPDadosPDF;
@@ -128,7 +129,7 @@ export function OPFolhaMistura({ op, materiasPrimas }: OPFolhaMisturaProps) {
           </div>
           <div className="p-3">
             <div className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Peso por Cápsula</div>
-            <div className="text-sm font-bold text-slate-800">{op.peso_capsula_mg || 500} mg</div>
+            <div className="text-sm font-bold text-slate-800">{op.peso_capsula_mg || CAPSULA_PESO_ALVO_MG} mg</div>
           </div>
         </div>
         <div className="grid grid-cols-4 divide-x divide-slate-300 border-t border-slate-300">

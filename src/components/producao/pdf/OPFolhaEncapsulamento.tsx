@@ -3,13 +3,14 @@
 // Formato ANVISA/ISO - Boas Práticas de Fabricação
 // ============================================================
 import type { OPDadosPDF } from '@/types/op-pdf';
+import { CAPSULA_PESO_ALVO_MG } from '@/lib/formulador-industrial-rules';
 
 interface OPFolhaEncapsulamentoProps {
   op: OPDadosPDF;
 }
 
 export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {
-  const pesoCapsula = op.peso_capsula_mg || 500;
+  const pesoCapsula = op.peso_capsula_mg || CAPSULA_PESO_ALVO_MG;
   const tipoCapsula = op.tipo_capsula || '00';
   const totalCapsulas = op.total_capsulas_com_acrescimo || 0;
   const totalFrascos = op.quantidade_frascos || 0;

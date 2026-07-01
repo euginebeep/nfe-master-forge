@@ -2,6 +2,8 @@
 // TIPOS: SIMULADOR INDUSTRIAL DE PRODUÇÃO
 // ============================================================
 
+import { CAPSULA_PESO_ALVO_MG } from '@/lib/formulador-industrial-rules';
+
 export interface ConfigCapacidadeProducao {
   id: string;
   
@@ -142,7 +144,7 @@ export function simularProducao(
   tempoMistura += itensPreMix * 10;
 
   // Verificar capacidade do misturador
-  const pesoTotalKg = (formula.peso_unidade_mg || 500) * quantidade / 1_000_000;
+  const pesoTotalKg = (formula.peso_unidade_mg || CAPSULA_PESO_ALVO_MG) * quantidade / 1_000_000;
   if (pesoTotalKg > config.misturador_capacidade_kg) {
     const numBateladas = Math.ceil(pesoTotalKg / config.misturador_capacidade_kg);
     gargalos.push({

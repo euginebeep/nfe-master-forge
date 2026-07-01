@@ -21,6 +21,7 @@ import {
   isAtivoCritico,
   calcularTolerancia,
 } from '@/types/op-industrial';
+import { CAPSULA_PESO_ALVO_MG } from '@/lib/formulador-industrial-rules';
 
 export function useOPIndustrial() {
   const [ordens, setOrdens] = useState<OrdemProducaoIndustrial[]>([]);
@@ -259,7 +260,7 @@ export function useOPIndustrial() {
         // Fonte única de verdade: peso de enchimento real medido em
         // laboratório. peso_capsula_nominal_mg é mantido só por
         // compatibilidade com fórmulas antigas que não foram remedidas.
-        peso_capsula_mg: formula.peso_enchimento_mg || formula.peso_capsula_nominal_mg || 500,
+        peso_capsula_mg: formula.peso_enchimento_mg || formula.peso_capsula_nominal_mg || CAPSULA_PESO_ALVO_MG,
         tipo_capsula: formula.tipo_capsula || '00',
         excipiente_base: formula.excipiente_padrao || 'AMIDO',
         status: 'PLANEJADA',
