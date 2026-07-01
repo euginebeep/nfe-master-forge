@@ -9,12 +9,13 @@
 // ============================================================
 
 /**
- * PESO PADRÃO DA CÁPSULA INDUSTRIAL
- * - Nominal: 500 mg (peso total da cápsula cheia)
- * - Alvo Operacional: 490 mg (margem de segurança)
+ * PESO DE REFERÊNCIA (FALLBACK) DA CÁPSULA
+ * Usado APENAS quando uma fórmula antiga não tem peso_enchimento_mg.
+ * A máquina opera cápsula tamanho 0; o peso real vem sempre da fórmula
+ * (medido em lab) e é validado contra o volume físico da cápsula.
  */
-export const CAPSULA_PESO_NOMINAL_MG = 500;
-export const CAPSULA_PESO_ALVO_MG = 490;
+export const CAPSULA_PESO_NOMINAL_MG = 500; // legádo (referência 00) — só compat.
+export const CAPSULA_PESO_ALVO_MG = 490;    // fallback de fórmulas antigas
 
 /**
  * PERCENTUAIS INDUSTRIAIS FIXOS
@@ -71,6 +72,108 @@ export const VEICULOS_BASE = {
 } as const;
 
 export type CodigoVeiculoBase = keyof typeof VEICULOS_BASE;
+
+// ============================================================
+// CÁPSULAS — CATÁLOGO FÍSICO E VALIDAÇÃO DE VOLUME
+// ============================================================
+
+/** Volume geométrico nominal de cada cápsula (mL). */
+export const CAPSULAS = {
+  '000': { volume_ml: 1.37 },
+  '00':  { volume_ml: 0.91 },
+  '0':   { volume_ml: 0.68 },
+  '1':   { volume_ml: 0.50 },
+  '2':   { volume_ml: 0.37 },
+} as const;
+export type TamanhoCapsula = keyof typeof CAPSULAS;
+
+/** Tamanho operado pela máquina. TROCAR AQUI se mudar de cápsula. */
+export const CAPSULA_TAMANHO_PADRAO: TamanhoCapsula = '0';
+
+/** Densidade default (kg/L) enquanto não há medição de laboratório. */
+export const DENSIDADE_PADRAO_KG_L = 0.65;
+
+/** Fator prático de aproveitamento do volume (folga de enchimento). */
+export const FATOR_APROVEITAMENTO_VOLUME = 0.90;
+
+/** Peso mínimo aceitável de enchimento (mg). */
+export const CAPSULA_PESO_MIN_MG = 100;
+
+export function volumeCapsulaMl(tamanho: TamanhoCapsula = CAPSULA_TAMANHO_PADRAO): number {
+  return CAPSULAS[tamanho]?.volume_ml ?? CAPSULAS[CAPSULA_TAMANHO_PADRAO].volume_ml;
+}
+
+/** Capacidade da cápsula em massa, dada a densidade do blend. */
+export function calcularCapacidadeCapsula(
+  densidade_kg_l: number,
+  tamanho: TamanhoCapsula = CAPSULA_TAMANHO_PADRAO,
+) {
+  const vol = volumeCapsulaMl(tamanho);
+  const dens = (!densidade_kg_l || densidade_kg_l <= 0) ? DENSIDADE_PADRAO_KG_L : densidade_kg_l;
+  const tetoFisicoMg = vol * dens * 1000;                              // limite absoluto
+  const recomendadoMaxMg = tetoFisicoMg * FATOR_APROVEITAMENTO_VOLUME; // faixa segura
+  return {
+    tamanho,
+    volume_ml: vol,
+    densidade: dens,
+    teto_fisico_mg: +tetoFisicoMg.toFixed(1),
+    recomendado_max_mg: +recomendadoMaxMg.toFixed(1),
+  };
+}
+
+/** Peso alvo sugerido — sempre fisicamente válido para a densidade informada. */
+export function sugerirPesoAlvoMg(
+  densidade_kg_l: number,
+  tamanho: TamanhoCapsula = CAPSULA_TAMANHO_PADRAO,
+): number {
+  const cap = calcularCapacidadeCapsula(densidade_kg_l, tamanho);
+  return Math.floor(cap.recomendado_max_mg / 10) * 10;
+}
+
+export interface ValidacaoPesoAlvo {
+  ok: boolean;
+  nivel: 'ok' | 'warning' | 'error';
+  mensagem: string;
+  volume_necessario_ml: number;
+  volume_ml: number;
+  teto_fisico_mg: number;
+  recomendado_max_mg: number;
+  tamanho: TamanhoCapsula;
+}
+
+/** Valida se o peso alvo cabe fisicamente na cápsula, dada a densidade. */
+export function validarPesoAlvoFisico(
+  pesoAlvoMg: number,
+  densidade_kg_l: number,
+  tamanho: TamanhoCapsula = CAPSULA_TAMANHO_PADRAO,
+): ValidacaoPesoAlvo {
+  const cap = calcularCapacidadeCapsula(densidade_kg_l, tamanho);
+  const volNecessarioMl = (pesoAlvoMg / 1000) / cap.densidade;
+  const base = {
+    volume_necessario_ml: +volNecessarioMl.toFixed(3),
+    volume_ml: cap.volume_ml,
+    teto_fisico_mg: cap.teto_fisico_mg,
+    recomendado_max_mg: cap.recomendado_max_mg,
+    tamanho: cap.tamanho,
+  };
+
+  if (!pesoAlvoMg || pesoAlvoMg < CAPSULA_PESO_MIN_MG) {
+    return { ok: false, nivel: 'error',
+      mensagem: `Peso alvo muito baixo (mín. ${CAPSULA_PESO_MIN_MG} mg).`, ...base };
+  }
+  if (pesoAlvoMg > cap.teto_fisico_mg) {
+    return { ok: false, nivel: 'error',
+      mensagem: `Não cabe na cápsula ${cap.tamanho}: ${pesoAlvoMg} mg exigem ${volNecessarioMl.toFixed(2)} mL, `
+        + `mas o volume é ${cap.volume_ml} mL (teto ${cap.teto_fisico_mg} mg nesta densidade). `
+        + `Reduza o alvo, aumente a densidade medida do blend, ou use pré-mix.`, ...base };
+  }
+  if (pesoAlvoMg > cap.recomendado_max_mg) {
+    return { ok: true, nivel: 'warning',
+      mensagem: `No limite da cápsula ${cap.tamanho} (recomendado até ${cap.recomendado_max_mg} mg). `
+        + `Confirme a densidade real medida em laboratório antes de aprovar.`, ...base };
+  }
+  return { ok: true, nivel: 'ok', mensagem: '', ...base };
+}
 
 // ============================================================
 // INTERFACES DE CÁLCULO

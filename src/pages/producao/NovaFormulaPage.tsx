@@ -2,7 +2,7 @@
 // FORMULADOR INDUSTRIAL - CRIAR NOVA FÓRMULA
 // ============================================================
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FlaskConical, Save, AlertTriangle, Beaker, Droplets, Package, Scale } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -23,6 +23,10 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFormulaCRUD } from "@/hooks/use-formulador-industrial";
 import { TipoApresentacao, TipoVeiculoBase } from "@/types/formulador-industrial";
+import {
+  CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, CAPSULA_PESO_MIN_MG,
+  sugerirPesoAlvoMg, validarPesoAlvoFisico, type TamanhoCapsula,
+} from "@/lib/formulador-industrial-rules";
 
 export default function NovaFormulaPage() {
   const navigate = useNavigate();
@@ -39,11 +43,11 @@ export default function NovaFormulaPage() {
     // cápsula, porque densidade do blend muda (minerais quelados vs.
     // colágeno fofo). peso_capsula_alvo_mg é a única fonte de verdade pra
     // essa massa — usada tanto no Q.S.P. da fórmula quanto na batelada da OP.
-    peso_capsula_alvo_mg: 490,
-    tipo_capsula: "00",
+    peso_capsula_alvo_mg: sugerirPesoAlvoMg(DENSIDADE_PADRAO_KG_L, CAPSULA_TAMANHO_PADRAO),
+    tipo_capsula: CAPSULA_TAMANHO_PADRAO,
     excipiente_padrao: "AMIDO" as TipoVeiculoBase,
     // Misturador — mesmo campo acima, usado pro cálculo de batelada
-    densidade_aparente_kg_l: 0.65,  // medido em lab (picnômetro/Scott)
+    densidade_aparente_kg_l: DENSIDADE_PADRAO_KG_L,  // medido em lab (picnômetro/Scott)
     // Líquido
     volume_frasco_ml: 30,
     volume_por_dose_ml: 1,
@@ -53,7 +57,19 @@ export default function NovaFormulaPage() {
     doses_por_pote: 30,
   });
 
+
+  const validacaoCapsula = useMemo(
+    () => validarPesoAlvoFisico(
+      form.peso_capsula_alvo_mg,
+      form.densidade_aparente_kg_l,
+      form.tipo_capsula as TamanhoCapsula,
+    ),
+    [form.peso_capsula_alvo_mg, form.densidade_aparente_kg_l, form.tipo_capsula],
+  );
   const handleSubmit = async () => {
+    if (form.tipo_apresentacao === 'CAPSULA' && validacaoCapsula.nivel === 'error') {
+      return; // nao salva formula fisicamente inviavel
+    }
     if (!form.nome_formula.trim()) {
       return;
     }
@@ -193,11 +209,10 @@ export default function NovaFormulaPage() {
                 <Scale className="h-4 w-4 text-blue-600" />
                 Configuração de Cápsula
               </CardTitle>
-              <CardDescription>
-                Máquina industrial só opera cápsula tamanho 00 — não configurável.
-                O que varia por fórmula é a massa de pó que enche essa cápsula,
-                porque a densidade do blend muda (minerais quelados vs. colágeno
-                fofo, por exemplo). Meça em laboratório antes de aprovar a fórmula.
+                A máquina opera cápsula tamanho {CAPSULA_TAMANHO_PADRAO} (fixo). O que varia por
+                fórmula é a massa de pó que enche a cápsula, porque a densidade do blend muda.
+                O peso alvo é validado contra o volume físico da cápsula. Meça a densidade em
+                laboratório antes de aprovar.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -205,7 +220,7 @@ export default function NovaFormulaPage() {
                 <div className="space-y-2">
                   <Label>Tamanho da Cápsula</Label>
                   <Input value={form.tipo_capsula} disabled className="bg-muted" />
-                  <p className="text-xs text-muted-foreground">Fixo: tamanho 00 (restrição da máquina)</p>
+                  <p className="text-xs text-muted-foreground">Fixo: tamanho 0 (restrição da máquina)</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Veículo Base (Q.S.P.)</Label>
@@ -245,7 +260,7 @@ export default function NovaFormulaPage() {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Cápsula 00 padrão: 480–520 mg de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
+                    Cápsula 0 padrão: 350–400 mg (ou até 500 mg com densidade baixa) de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
                     Default de 490mg só até você medir — não substitui a pesagem real.
                   </p>
                 </div>
@@ -280,6 +295,23 @@ export default function NovaFormulaPage() {
               </Alert>
             </CardContent>
           </Card>
+
+              {validacaoCapsula.nivel === 'error' && (
+                <Alert className="bg-red-50 border-red-200">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800 text-xs">
+                    ❌ {validacaoCapsula.mensagem}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {validacaoCapsula.nivel === 'warning' && (
+                <Alert className="bg-yellow-50 border-yellow-200">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertDescription className="text-yellow-800 text-xs">
+                    ⚠️ {validacaoCapsula.mensagem}
+                  </AlertDescription>
+                </Alert>
+              )}
         )}
 
         {form.tipo_apresentacao === 'LIQUIDO' && (
@@ -382,7 +414,7 @@ export default function NovaFormulaPage() {
           <Button 
             className="bg-secondary hover:bg-secondary/90"
             onClick={handleSubmit}
-            disabled={!form.nome_formula.trim() || saving}
+            disabled={!form.nome_formula.trim() || saving || (form.tipo_apresentacao === 'CAPSULA' && validacaoCapsula.nivel === 'error')}
           >
             <Save className="h-4 w-4 mr-2" />
             {saving ? "Salvando..." : "Criar e Adicionar Ativos"}
