@@ -73,6 +73,7 @@ import {
 import { ItemSelector } from "@/components/formulador/ItemSelector";
 import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
 import { useCustoFormula } from "@/hooks/use-custo-formula";
+import { useHybridItens } from "@/hooks/use-hybrid-data";
 import { 
   verificarAtivoUltraCritico, 
   determinarClassificacaoRisco,
@@ -90,6 +91,21 @@ export default function EditarFormulaPage() {
   const { adicionar, atualizar, remover } = useFormulaItensCRUD();
   const { conversoes, buscarFator } = useConversoesUnidades();
   const { aprovar } = useAprovarFormula();
+  const { data: itensHybrid = [] } = useHybridItens();
+
+  // Montar insumosById a partir de useHybridItens
+  const insumosById = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const item of itensHybrid) {
+      map[item.id] = {
+        custo_por_unidade_interna: (item as any).custo_por_unidade_interna || 0,
+        unidade_interna: item.unidade_interna,
+        custo_medio_atualizado_em: (item as any).custo_medio_atualizado_em,
+        nome: item.descricao_interna,
+      };
+    }
+    return map;
+  }, [itensHybrid]);
 
   // Estado local dos itens
   const [itensLocal, setItensLocal] = useState<FormulaItem[]>([]);
@@ -107,13 +123,23 @@ export default function EditarFormulaPage() {
   } | null>(null);
   const [saving, setSaving] = useState(false);
   const [aprovando, setAprovando] = useState(false);
+  const [overridesPorItem, setOverridesPorItem] = useState<Record<string, number>>({});
+  const [custComplementosDose, setCustComplementosDose] = useState<number>(0);
 
   // Sincronizar itens quando carregar
   useEffect(() => {
     if (itens.length > 0) {
       setItensLocal(itens);
     }
-  }, [itens]);
+    // Carregar overrides de preco salvos na formula
+    if (formula?.custo_overrides_por_item) {
+      setOverridesPorItem(formula.custo_overrides_por_item as Record<string, number>);
+    }
+    // Carregar custo de complementos salvo na formula
+    if (formula?.custo_complementos_dose) {
+      setCustComplementosDose(formula.custo_complementos_dose);
+    }
+  }, [itens, formula?.custo_overrides_por_item, formula?.custo_complementos_dose]);
 
   // CÁLCULOS INDUSTRIAIS COM REGRAS FIXAS
   const calculosIndustriais = useMemo(() => {
@@ -150,6 +176,10 @@ export default function EditarFormulaPage() {
     ),
     [itensLocal, formula?.densidade_aparente_kg_l, formula?.tipo_capsula],
   );
+
+  // FASE 3: Cálculo de custo estimado
+  const formulaComComplementos = { ...formula, custo_complementos_dose: custComplementosDose };
+  const custoFormula = useCustoFormula(formulaComComplementos, itensLocal, insumosById, overridesPorItem);
 
   // Contadores para alertas
   const ativosCriticos = itensLocal.filter(i => i.ativo_critico).length;
@@ -289,12 +319,15 @@ export default function EditarFormulaPage() {
     setAprovando(true);
     try {
       // FASE 2: Persistir campos de cápsulas por dose
+      // FASE 3: Persistir overrides de preço e custo de complementos
       const formulaComCapsulasPorDose = {
         ...formula,
         n_capsulas_por_dose: capsulasPorDose?.n_capsulas,
         peso_por_capsula_mg: capsulasPorDose?.peso_por_capsula_mg,
         massa_ativos_dose_mg: capsulasPorDose?.massa_ativos_mg,
-      };
+        custo_overrides_por_item: Object.keys(overridesPorItem).length > 0 ? overridesPorItem : null,
+        custo_complementos_dose: custComplementosDose || 0,
+      }
       
       const resultado = await aprovar(formulaComCapsulasPorDose, itensLocal);
       if (resultado) {
@@ -857,7 +890,7 @@ export default function EditarFormulaPage() {
 
           {/* FASE 3: Custo Estimado */}
           {formula && itensLocal.length > 0 && (
-            <Card className="border-purple-200 bg-purple-50/30">
+            <Card className={custoFormula.parcial ? "border-amber-200 bg-amber-50/30" : "border-purple-200 bg-purple-50/30"}>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Package className="h-4 w-4 text-purple-600" />
@@ -865,6 +898,16 @@ export default function EditarFormulaPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Aviso de custo parcial */}
+                {custoFormula.parcial && (
+                  <Alert className="border-amber-300 bg-amber-50">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-800">
+                      <strong>Custo Parcial</strong> — Faltam: {custoFormula.furos.join(", ")}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Tabela de ativos com custos */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -878,14 +921,99 @@ export default function EditarFormulaPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Renderizar linhas de custo aqui */}
-                      <tr>
-                        <td colSpan={5} className="text-center py-4 text-muted-foreground">
-                          Custo estimado será exibido aqui (implementação em progresso)
-                        </td>
-                      </tr>
+                      {custoFormula.linhas_ativos.map((linha, idx) => (
+                        <tr key={idx} className={linha.furo ? "bg-red-50" : ""}>
+                          <td className="text-left py-2 font-medium">{linha.nome}</td>
+                          <td className="text-right py-2">{linha.massa_mg?.toFixed(2) || "-"}</td>
+                          <td className="text-right py-2">
+                            {linha.furo ? (
+                              <span className="text-red-600 font-semibold text-xs">{linha.furo}</span>
+                            ) : (
+                              <span>{((linha.custo || 0) / (linha.massa_mg || 1)).toFixed(6)}</span>
+                            )}
+                          </td>
+                          <td className="text-right py-2">
+                            {linha.furo ? (
+                              <Input
+                                type="number"
+                                step="0.0001"
+                                placeholder="Digitar preço/mg"
+                                className="w-24 text-xs border-red-300"
+                                value={overridesPorItem[itensLocal.find(it => it.nome_insumo === linha.nome)?.id || ''] || ''}
+                                onChange={(e) => {
+                                  const item = itensLocal.find(it => it.nome_insumo === linha.nome);
+                                  if (!item) return;
+                                  const val = parseFloat(e.target.value);
+                                  if (!isNaN(val) && val > 0) {
+                                    setOverridesPorItem(prev => ({
+                                      ...prev,
+                                      [item.id]: val
+                                    }));
+                                  } else if (e.target.value === '') {
+                                    setOverridesPorItem(prev => {
+                                      const newOverrides = { ...prev };
+                                      delete newOverrides[item.id];
+                                      return newOverrides;
+                                    });
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span className="font-semibold">{linha.custo?.toFixed(4) || "-"}</span>
+                            )}
+                          </td>
+                          <td className="text-left py-2 text-xs text-muted-foreground">
+                            {linha.data_preco ? new Date(linha.data_preco).toLocaleDateString("pt-BR") : "-"}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Resumo de custos */}
+                <div className="border-t pt-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Custo de Ativos:</span>
+                    <span className="font-semibold">{custoFormula.custo_ativos_dose.toFixed(4)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Complementos (excipientes/cápsula/embalagem):</span>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      placeholder="Digitar custo"
+                      className="w-32 text-xs"
+                      value={custComplementosDose || ''}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setCustComplementosDose(isNaN(val) ? 0 : val);
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Custo de Material:</span>
+                    <span className="font-semibold">{custoFormula.custo_material_dose.toFixed(4)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Perda ({custoFormula.perda_pct}%):</span>
+                    <span>{((custoFormula.custo_material_com_perda_dose - custoFormula.custo_material_dose).toFixed(4))}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2 font-bold">
+                    <span>Custo por Dose (com perda):</span>
+                    <span>{custoFormula.custo_material_com_perda_dose.toFixed(4)}</span>
+                  </div>
+                  {custoFormula.custo_por_pote !== null && (
+                    <div className="flex justify-between border-t pt-2 font-bold text-purple-700">
+                      <span>Custo por Pote:</span>
+                      <span>{custoFormula.custo_por_pote.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {custoFormula.parcial && (
+                    <div className="text-xs text-amber-700 italic pt-2">
+                      * Total marcado como parcial — há itens sem preço
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
