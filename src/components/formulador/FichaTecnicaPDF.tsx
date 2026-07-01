@@ -34,6 +34,7 @@ import {
   calcularCapsulaIndustrial,
   CodigoVeiculoBase,
   EXCIPIENTES_INDUSTRIAIS,
+  CAPSULA_PESO_ALVO_MG,
 } from "@/lib/formulador-industrial-rules";
 
 interface FichaTecnicaPDFProps {
@@ -50,7 +51,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
     [itens]
   );
   
-  const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
+  const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
   const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
   const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
 

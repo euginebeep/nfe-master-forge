@@ -29,7 +29,7 @@ import {
   useTabelaNutricional,
 } from "@/hooks/use-formulador-industrial";
 import { StatusFormula, TipoApresentacao } from "@/types/formulador-industrial";
-import { calcularCapsulaIndustrial, CodigoVeiculoBase } from "@/lib/formulador-industrial-rules";
+import { calcularCapsulaIndustrial, CodigoVeiculoBase, CAPSULA_PESO_ALVO_MG } from "@/lib/formulador-industrial-rules";
 import { FichaTecnicaPDF } from "@/components/formulador/FichaTecnicaPDF";
 
 export default function VisualizarFormulaPage() {
@@ -79,7 +79,7 @@ export default function VisualizarFormulaPage() {
 
   // Cálculos industriais
   const totalAtivos = itens.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
-  const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
+  const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
   const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
   const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
 

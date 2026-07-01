@@ -65,7 +65,7 @@ export const EXCIPIENTES_TECNOLOGICOS = {
 
 export const PESO_CAPSULA_NOMINAL = 500; // mg
 // PESO_CAPSULA_ALVO removido — era uma constante fixa de 490mg ignorando
-// a fórmula real. A massa que enche uma cápsula 00 varia com a densidade
+// a fórmula real. A massa que enche uma cápsula 0 varia com a densidade
 // do blend (minerais quelados vs. colágeno fofo, por exemplo), então o
 // valor correto vem sempre de `formula.peso_enchimento_mg` (medido em
 // laboratório, com fallback de 500mg só se a fórmula nunca foi pesada).

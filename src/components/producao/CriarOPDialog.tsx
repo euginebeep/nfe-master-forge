@@ -100,7 +100,7 @@ export function CriarOPDialog({
       quantidade_frascos: 100,
       capsulas_por_frasco: 60,
       lote_produto_acabado: "",
-      tipo_capsula: "00",
+      tipo_capsula: "0",
       excipiente_base: "AMIDO",
       responsavel_producao_nome: "",
       responsavel_tecnico_id: "",
@@ -130,7 +130,7 @@ export function CriarOPDialog({
       setSelectedFormula(formulaSelecionada);
       form.setValue("formula_id", formulaSelecionada.id);
       form.setValue("produto_nome", formulaSelecionada.nome_formula);
-      form.setValue("tipo_capsula", formulaSelecionada.tipo_capsula || "00");
+      form.setValue("tipo_capsula", formulaSelecionada.tipo_capsula || "0");
       form.setValue("excipiente_base", (formulaSelecionada.excipiente_padrao as "AMIDO" | "CELULOSE" | "PRE_BLEND") || "AMIDO");
     }
   }, [formulaSelecionada, form]);
@@ -156,7 +156,7 @@ export function CriarOPDialog({
     if (formula) {
       setSelectedFormula(formula);
       form.setValue("produto_nome", formula.nome_formula);
-      form.setValue("tipo_capsula", formula.tipo_capsula || "00");
+      form.setValue("tipo_capsula", formula.tipo_capsula || "0");
       form.setValue("excipiente_base", (formula.excipiente_padrao as "AMIDO" | "CELULOSE" | "PRE_BLEND") || "AMIDO");
     } else {
       setSelectedFormula(null);

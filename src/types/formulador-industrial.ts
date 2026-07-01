@@ -4,6 +4,8 @@
 // VERSÃO DEFINITIVA
 // ============================================================
 
+import { CAPSULA_PESO_ALVO_MG } from "@/lib/formulador-industrial-rules";
+
 // ============================================================
 // ENUMS E TIPOS BASE
 // ============================================================
@@ -310,7 +312,7 @@ export function validarFormula(
   
   // Validações de cápsula
   if (formula.tipo_apresentacao === 'CAPSULA') {
-    const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
+    const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
     const totalAtivos = itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
     
     // Considerar excipientes tecnológicos fixos (8%)

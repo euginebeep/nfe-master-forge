@@ -127,7 +127,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
             {selectedFormula && (
               <div className="mt-2 p-3 bg-muted rounded-lg space-y-1">
                 <p className="text-sm font-medium">{selectedFormula.nome_formula}</p>
-                <div className="flex gap-2"><Badge variant="outline">{selectedFormula.tipo_capsula || "00"}</Badge><Badge variant="secondary">{selectedFormula.excipiente_padrao || "AMIDO"}</Badge></div>
+                <div className="flex gap-2"><Badge variant="outline">{selectedFormula.tipo_capsula || "0"}</Badge><Badge variant="secondary">{selectedFormula.excipiente_padrao || "AMIDO"}</Badge></div>
               </div>
             )}
           </FormItem>

@@ -14,8 +14,8 @@
  * A máquina opera cápsula tamanho 0; o peso real vem sempre da fórmula
  * (medido em lab) e é validado contra o volume físico da cápsula.
  */
-export const CAPSULA_PESO_NOMINAL_MG = 500; // legádo (referência 00) — só compat.
-export const CAPSULA_PESO_ALVO_MG = 490;    // fallback de fórmulas antigas
+export const CAPSULA_PESO_NOMINAL_MG = 500; // legádo (referência 0) — só compat.
+export const CAPSULA_PESO_ALVO_MG = 500;    // fallback de fórmulas antigas — padrão industrial
 
 /**
  * PERCENTUAIS INDUSTRIAIS FIXOS

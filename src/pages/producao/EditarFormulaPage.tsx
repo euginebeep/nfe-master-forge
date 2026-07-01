@@ -115,7 +115,7 @@ export default function EditarFormulaPage() {
       return null;
     }
 
-    const pesoAlvo = formula.peso_capsula_alvo_mg || 490;
+    const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
     const totalAtivos = itensLocal.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
     const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
     
@@ -129,7 +129,7 @@ export default function EditarFormulaPage() {
       return null;
     }
     return validarPesoAlvoFisico(
-      formula.peso_capsula_alvo_mg || 490,
+      formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG,
       formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
       formula.tipo_capsula as TamanhoCapsula,
     );
@@ -638,7 +638,7 @@ export default function EditarFormulaPage() {
                   Resumo da Cápsula
                 </CardTitle>
                 <CardDescription>
-                  Padrão industrial 500mg / 490mg alvo
+                  Padrão industrial 500mg alvo
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

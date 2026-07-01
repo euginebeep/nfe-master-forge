@@ -25,7 +25,7 @@ import { useFormulaCRUD } from "@/hooks/use-formulador-industrial";
 import { TipoApresentacao, TipoVeiculoBase } from "@/types/formulador-industrial";
 import {
   CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, CAPSULA_PESO_MIN_MG,
-  sugerirPesoAlvoMg, validarPesoAlvoFisico, type TamanhoCapsula,
+  sugerirPesoAlvoMg, validarPesoAlvoFisico, type TamanhoCapsula, CAPSULA_PESO_ALVO_MG,
 } from "@/lib/formulador-industrial-rules";
 
 export default function NovaFormulaPage() {
@@ -38,7 +38,7 @@ export default function NovaFormulaPage() {
     nome_formula: "",
     tipo_apresentacao: "CAPSULA" as TipoApresentacao,
     observacoes_tecnicas: "",
-    // Cápsula — máquina industrial só opera tamanho 00, então o tamanho
+    // Cápsula — máquina industrial só opera tamanho 0, então o tamanho
     // não é configurável. O que VARIA por fórmula é a massa que enche essa
     // cápsula, porque densidade do blend muda (minerais quelados vs.
     // colágeno fofo). peso_capsula_alvo_mg é a única fonte de verdade pra
@@ -256,13 +256,13 @@ export default function NovaFormulaPage() {
                     value={form.peso_capsula_alvo_mg}
                     onChange={(e) => {
                       const val = e.target.value.trim();
-                      const num = val === '' ? 490 : Math.max(100, Math.min(2000, parseFloat(val) || 490));
+                      const num = val === '' ? CAPSULA_PESO_ALVO_MG : Math.max(100, Math.min(2000, parseFloat(val) || CAPSULA_PESO_ALVO_MG));
                       setForm(prev => ({ ...prev, peso_capsula_alvo_mg: num }));
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
                     Cápsula 0 padrão: 350–400 mg (ou até 500 mg com densidade baixa) de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
-                    Default de 490mg só até você medir — não substitui a pesagem real.
+                    Default de 500mg só até você medir — não substitui a pesagem real.
                   </p>
                 </div>
                 <div className="space-y-2">

@@ -65,7 +65,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       incluir_silica: true,
       descricao_rotulo: "",
       lote_produto_acabado: "",
-      tipo_capsula: "00",
+      tipo_capsula: "0",
       excipiente_base: "AMIDO",
       responsavel_producao_nome: "",
       responsavel_tecnico_id: "",
@@ -107,7 +107,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   // Parâmetros da fórmula — usa o real, fallback para o equipamento, fallback para default
   const PESO_ENCHIMENTO_MG = selectedFormula?.peso_enchimento_mg       ?? 500;
   const DENSIDADE_FORMULA  = selectedFormula?.densidade_aparente_kg_l  ?? DENSIDADE_EQUIP;
-  // Mesma grandeza física do PESO_ENCHIMENTO_MG (massa de pó por cápsula 00) —
+  // Mesma grandeza física do PESO_ENCHIMENTO_MG (massa de pó por cápsula 0) —
   // usado no cálculo de Q.S.P./excipiente. Antes havia uma constante separada
   // (490mg fixo) que ignorava a densidade real da fórmula; agora é a mesma
   // fonte de verdade usada no cálculo de batelada do misturador.
@@ -260,7 +260,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     if (formula) {
       setSelectedFormula(formula);
       form.setValue("produto_nome", formula.nome_formula);
-      form.setValue("tipo_capsula", formula.tipo_capsula || "00");
+      form.setValue("tipo_capsula", formula.tipo_capsula || "0");
       form.setValue("excipiente_base", (formula.excipiente_padrao as "AMIDO" | "CELULOSE" | "PRE_BLEND") || "AMIDO");
       if (formula.tipo_apresentacao) form.setValue("tipo_produto", formula.tipo_apresentacao as TipoProduto);
     } else {
@@ -291,7 +291,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
           const formula = formulas.find(f => f.id === primeiroItem.formula_id);
           if (formula) {
             setSelectedFormula(formula);
-            form.setValue("tipo_capsula", formula.tipo_capsula || "00");
+            form.setValue("tipo_capsula", formula.tipo_capsula || "0");
             form.setValue("excipiente_base", (formula.excipiente_padrao as "AMIDO" | "CELULOSE" | "PRE_BLEND") || "AMIDO");
           }
         }
@@ -380,7 +380,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         data_validade: format(values.data_validade, "yyyy-MM-dd"),
         tipo_apresentacao: values.tipo_produto,
         peso_capsula_mg: PESO_CAPSULA_NOMINAL,
-        tipo_capsula: values.tipo_capsula || "00",
+        tipo_capsula: values.tipo_capsula || "0",
         excipiente_base: values.excipiente_base,
         status: "PLANEJADA",
         responsavel_producao_nome: values.responsavel_producao_nome,
