@@ -687,7 +687,6 @@ export function CriarOPDialog({
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="000">Cápsula 000 (1.37ml)</SelectItem>
-                          <SelectItem value="00">Cápsula 00 (0.91ml)</SelectItem>
                           <SelectItem value="0">Cápsula 0 (0.68ml)</SelectItem>
                           <SelectItem value="1">Cápsula 1 (0.50ml)</SelectItem>
                           <SelectItem value="2">Cápsula 2 (0.37ml)</SelectItem>

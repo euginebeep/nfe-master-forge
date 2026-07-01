@@ -381,7 +381,7 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
             <FormItem><FormLabel>Tamanho da Cápsula</FormLabel>
               <Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
-                  <SelectItem value="000">000 (1.37 mL)</SelectItem><SelectItem value="00">00 (0.91 mL)</SelectItem>
+                  <SelectItem value="000">000 (1.37 mL)</SelectItem>
                   <SelectItem value="0">0 (0.68 mL)</SelectItem><SelectItem value="1">1 (0.50 mL)</SelectItem>
                   <SelectItem value="2">2 (0.37 mL)</SelectItem><SelectItem value="3">3 (0.30 mL)</SelectItem>
                 </SelectContent></Select></FormItem>
