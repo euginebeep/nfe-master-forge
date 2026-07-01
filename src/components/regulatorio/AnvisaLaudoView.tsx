@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode } from 'lucide-react';
+import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode, FlaskConical } from 'lucide-react';
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { useRTAtivo } from "@/hooks/use-rt-ativo";
+import { useCriarFormulaDoLaudo } from "@/hooks/use-criar-formula-do-laudo";
 import { cn } from "@/lib/utils";
 
 const normalizeProductName = (value: unknown) =>
@@ -54,6 +55,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
   const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
   const { data: company } = useCompanyBranding();
   const { data: rt } = useRTAtivo();
+  const { criarDoLaudo } = useCriarFormulaDoLaudo();
   
   const isMultiproduto = produtosUnicos.length > 1;
 
@@ -112,6 +114,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
             {isMultiproduto ? `Exportar Laudo Completo (${produtosUnicos.length} produtos)` : 'Exportar Laudo (A4/PDF)'}
           </Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink}><Copy className="w-4 h-4 mr-2" /> Copiar link</Button>
+          <Button variant="secondary" size="sm" onClick={() => criarDoLaudo(data.produto, data.ativos || [])}><FlaskConical className="w-4 h-4 mr-2" /> Criar fórmula a partir deste laudo</Button>
           <Button variant="default" size="sm" onClick={onReset}><RefreshCw className="w-4 h-4 mr-2" /> Nova análise</Button>
         </div>
       </div>
