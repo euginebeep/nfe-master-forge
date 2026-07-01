@@ -312,8 +312,9 @@ export default function NovaFormulaPage() {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Cápsula 0 padrão: 350–400 mg (ou até 500 mg com densidade baixa) de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
-                    Default de 500mg só até você medir — não substitui a pesagem real.
+                    Cápsula {form.tipo_capsula}: cabe mais massa quanto maior a densidade do blend
+                    (teto {validacaoCapsula?.teto_fisico_mg} mg na densidade atual). Para medir o real:
+                    pese 10 cápsulas cheias, subtraia as cascas vazias e divida por 10 — não substitui a pesagem.
                   </p>
                 </div>
                 <div className="space-y-2">
