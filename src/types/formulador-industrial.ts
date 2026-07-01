@@ -69,6 +69,11 @@ export interface Formula {
   peso_enchimento_mg?: number;
   densidade_aparente_kg_l?: number;
   
+  // FASE 2: Cápsulas por dose
+  n_capsulas_por_dose?: number;
+  peso_por_capsula_mg?: number;
+  massa_ativos_dose_mg?: number;
+  
   // Campos LÍQUIDO
   volume_frasco_ml?: number;
   volume_por_dose_ml?: number;

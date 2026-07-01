@@ -17,6 +17,8 @@
 export const CAPSULA_PESO_NOMINAL_MG = 500; // legádo (referência 0) — só compat.
 export const CAPSULA_PESO_ALVO_MG = 500;    // fallback de fórmulas antigas — padrão industrial
 
+
+
 /**
  * PERCENTUAIS INDUSTRIAIS FIXOS
  * Regra de encapsulamento semi-automático
@@ -640,4 +642,72 @@ export function getNomeVeiculoBase(codigo: string): string {
  */
 export function getListaVeiculosBase(): Array<{ codigo: string; nome: string; descricao: string }> {
   return Object.values(VEICULOS_BASE);
+}
+
+
+// ============================================================
+// FASE 2: CÁLCULO DE CÁPSULAS POR DOSE
+// ============================================================
+
+export const MAX_CAPSULAS_POR_DOSE = 6; // teto definido pela Vitalnow
+
+export interface CalculoCapsulasPorDose {
+  massa_ativos_mg: number;
+  cabe_ativos_por_capsula_mg: number; // capacidade útil p/ ativos (descontando 8% de excipientes)
+  n_capsulas: number;
+  peso_por_capsula_mg: number;
+  nivel: 'ok' | 'warning' | 'error';
+  mensagem: string;
+}
+
+/**
+ * Calcula o número de cápsulas necessárias para uma dose
+ * Modelo: dose → cápsulas
+ * 
+ * LÓGICA:
+ * - Cada cápsula tem capacidade máxima (recomendado_max_mg)
+ * - 8% dessa capacidade é reservada para excipientes técnicos
+ * - O restante (92%) é para ativos
+ * - Número de cápsulas = ceil(massa_ativos / (capacidade × 0.92))
+ * 
+ * NÍVEIS:
+ * - Verde: 1-3 cápsulas (ok)
+ * - Amarelo: 4-6 cápsulas (avisa, passa)
+ * - Vermelho: 7+ cápsulas (bloqueia)
+ */
+export function calcularCapsulasPorDose(
+  massaAtivosMg: number,
+  densidade_kg_l: number,
+  tamanho: TamanhoCapsula = CAPSULA_TAMANHO_PADRAO,
+): CalculoCapsulasPorDose {
+  const cap = calcularCapacidadeCapsula(densidade_kg_l, tamanho);
+  // cada cápsula reserva 8% pra excipientes técnicos (silício+estearato+talco)
+  const fracaoAtivos = 1 - (TOTAL_PERCENTUAL_TECNOLOGICOS / 100); // 0.92
+  const cabeAtivosPorCapsula = cap.recomendado_max_mg * fracaoAtivos;
+
+  const n = massaAtivosMg > 0
+    ? Math.max(1, Math.ceil(massaAtivosMg / cabeAtivosPorCapsula))
+    : 1;
+
+  // peso por cápsula = enchimento uniforme (cada cápsula cheia até a capacidade segura)
+  const pesoPorCapsula = cap.recomendado_max_mg;
+
+  let nivel: 'ok' | 'warning' | 'error' = 'ok';
+  let mensagem = '';
+  if (n > MAX_CAPSULAS_POR_DOSE) {
+    nivel = 'error';
+    mensagem = `Esta dose exigiria ${n} cápsulas (máximo ${MAX_CAPSULAS_POR_DOSE}). `
+      + `Reduza a dose, use uma versão mais concentrada ou pré-mix.`;
+  } else if (n >= 4) {
+    nivel = 'warning';
+    mensagem = `Posologia alta: ${n} cápsulas por dose. Confira a densidade medida antes de aprovar.`;
+  }
+
+  return {
+    massa_ativos_mg: +massaAtivosMg.toFixed(2),
+    cabe_ativos_por_capsula_mg: +cabeAtivosPorCapsula.toFixed(1),
+    n_capsulas: n,
+    peso_por_capsula_mg: +pesoPorCapsula.toFixed(1),
+    nivel, mensagem,
+  };
 }

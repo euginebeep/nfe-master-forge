@@ -68,6 +68,7 @@ import {
   CodigoVeiculoBase,
   CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, CAPSULA_PESO_MIN_MG,
   sugerirPesoAlvoMg, validarPesoAlvoFisico, type TamanhoCapsula,
+  calcularCapsulasPorDose,
 } from "@/lib/formulador-industrial-rules";
 import { ItemSelector } from "@/components/formulador/ItemSelector";
 import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
@@ -138,6 +139,17 @@ export default function EditarFormulaPage() {
       formula.tipo_capsula as TamanhoCapsula,
     );
   }, [formula]);
+
+  // FASE 2: Cálculo de cápsulas por dose
+  const capsulasPorDose = useMemo(
+    () => calcularCapsulasPorDose(
+      itensLocal.reduce((s, i) => s + (i.quantidade_convertida_mg || 0), 0),
+      formula?.densidade_aparente_kg_l ?? DENSIDADE_PADRAO_KG_L,
+      (formula?.tipo_capsula as TamanhoCapsula) ?? CAPSULA_TAMANHO_PADRAO,
+    ),
+    [itensLocal, formula?.densidade_aparente_kg_l, formula?.tipo_capsula],
+  );
+
   // Contadores para alertas
   const ativosCriticos = itensLocal.filter(i => i.ativo_critico).length;
   const ativosComSugestaoPremix = itensLocal.filter(i => {
@@ -275,7 +287,15 @@ export default function EditarFormulaPage() {
 
     setAprovando(true);
     try {
-      const resultado = await aprovar(formula, itensLocal);
+      // FASE 2: Persistir campos de cápsulas por dose
+      const formulaComCapsulasPorDose = {
+        ...formula,
+        n_capsulas_por_dose: capsulasPorDose?.n_capsulas,
+        peso_por_capsula_mg: capsulasPorDose?.peso_por_capsula_mg,
+        massa_ativos_dose_mg: capsulasPorDose?.massa_ativos_mg,
+      };
+      
+      const resultado = await aprovar(formulaComCapsulasPorDose, itensLocal);
       if (resultado) {
         navigate(`/producao/formulas/${id}`);
       }
@@ -323,7 +343,7 @@ export default function EditarFormulaPage() {
               <Button 
                 className="bg-secondary hover:bg-secondary/90"
                 onClick={handleAprovar}
-                disabled={aprovando || calculosIndustriais?.excedeu_capacidade || (validacaoCapsula?.nivel === 'error')}
+                disabled={aprovando || calculosIndustriais?.excedeu_capacidade || (validacaoCapsula?.nivel === 'error') || capsulasPorDose?.nivel === 'error'}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {aprovando ? "Aprovando..." : "Aprovar Fórmula"}
@@ -805,6 +825,30 @@ export default function EditarFormulaPage() {
                 <div className="text-xs text-muted-foreground">
                   <p><strong>Veículo:</strong> {getNomeVeiculoBase(formula.excipiente_padrao || 'AMIDO')}</p>
                   <p><strong>Cápsula:</strong> {formula.tipo_capsula}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {formula.tipo_apresentacao === 'CAPSULA' && capsulasPorDose && (
+            <Card className={capsulasPorDose.nivel === 'error' ? 'border-red-200 bg-red-50/30' : capsulasPorDose.nivel === 'warning' ? 'border-amber-200 bg-amber-50/30' : 'border-green-200 bg-green-50/30'}>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Posologia Calculada
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded border p-3 text-sm">
+                  <div className="font-medium mb-2">Dose: {capsulasPorDose.massa_ativos_mg} mg de ativos</div>
+                  <div className="text-base font-bold">
+                    → <strong>{capsulasPorDose.n_capsulas} cápsula(s)</strong> de ~{capsulasPorDose.peso_por_capsula_mg} mg cada
+                  </div>
+                  {capsulasPorDose.nivel !== 'ok' && (
+                    <div className={capsulasPorDose.nivel === 'error' ? 'text-red-700 mt-2' : 'text-amber-700 mt-2'}>
+                      {capsulasPorDose.mensagem}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
