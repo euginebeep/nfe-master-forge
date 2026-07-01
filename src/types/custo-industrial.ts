@@ -68,11 +68,18 @@ export interface ConfigCustosProducao {
   custo_overhead_hora: number;
   percentual_overhead: number;
   
-  // Embalagem padrão
-  custo_capsula_vazia: number;
-  custo_frasco_padrao: number;
-  custo_rotulo_padrao: number;
-  custo_lacre_padrao: number;
+  // Embalagem padrão (OBSOLETOS — não usar em cálculos novos)
+  custo_capsula_vazia?: number;
+  custo_frasco_padrao?: number;
+  custo_rotulo_padrao?: number;
+  custo_lacre_padrao?: number;
+  
+  // Complementos padrão (NOVOS — referências de itens do cadastro)
+  capsula_padrao_id?: string | null;
+  pote_padrao_id?: string | null;
+  tampa_padrao_id?: string | null;
+  rotulo_padrao_id?: string | null;
+  lacre_padrao_id?: string | null;
   
   // Perdas estimadas
   percentual_perda_padrao: number;
@@ -103,16 +110,54 @@ export function calcularCustoOverhead(
   return custoBase * (config.percentual_overhead / 100);
 }
 
+/**
+ * Calcula custo de embalagem lendo preços dos itens padrão cadastrados.
+ * Se algum item não tiver preço ou não estiver configurado, trata como custo 0 e sinaliza.
+ * 
+ * @param quantidade Quantidade de unidades
+ * @param tipo Tipo de apresentação (CAPSULA, LIQUIDO, PO)
+ * @param config Configuração de custos (contém IDs dos itens padrão)
+ * @param precosItens Mapa de preços dos itens: { [itemId]: custo_por_unidade_interna }
+ * @returns Custo total de embalagem
+ */
 export function calcularCustoEmbalagem(
   quantidade: number,
   tipo: 'CAPSULA' | 'LIQUIDO' | 'PO',
-  config: ConfigCustosProducao
+  config: ConfigCustosProducao,
+  precosItens?: Record<string, number>
 ): number {
-  if (tipo === 'CAPSULA') {
-    return quantidade * config.custo_capsula_vazia;
+  // Se não houver mapa de preços, usar fallback aos campos obsoletos (compatibilidade)
+  if (!precosItens) {
+    if (tipo === 'CAPSULA') {
+      return quantidade * (config.custo_capsula_vazia || 0);
+    }
+    return quantidade * ((config.custo_frasco_padrao || 0) + (config.custo_rotulo_padrao || 0) + (config.custo_lacre_padrao || 0));
   }
-  // Para líquido e pó: frasco + rótulo + lacre
-  return quantidade * (config.custo_frasco_padrao + config.custo_rotulo_padrao + config.custo_lacre_padrao);
+
+  if (tipo === 'CAPSULA') {
+    // Cápsula padrão
+    if (!config.capsula_padrao_id) return 0; // Não configurado
+    const precoCapsulaPorUnidade = precosItens[config.capsula_padrao_id] || 0;
+    return quantidade * precoCapsulaPorUnidade;
+  }
+
+  // Para líquido e pó: pote + tampa + rótulo + lacre
+  let custoTotal = 0;
+  
+  if (config.pote_padrao_id) {
+    custoTotal += precosItens[config.pote_padrao_id] || 0;
+  }
+  if (config.tampa_padrao_id) {
+    custoTotal += precosItens[config.tampa_padrao_id] || 0;
+  }
+  if (config.rotulo_padrao_id) {
+    custoTotal += precosItens[config.rotulo_padrao_id] || 0;
+  }
+  if (config.lacre_padrao_id) {
+    custoTotal += precosItens[config.lacre_padrao_id] || 0;
+  }
+
+  return quantidade * custoTotal;
 }
 
 export function calcularCustoPerdas(

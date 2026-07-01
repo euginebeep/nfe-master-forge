@@ -41,6 +41,7 @@ const FormuladorIndustrialPage = lazy(() => import("./pages/producao/FormuladorI
 const NovaFormulaPage = lazy(() => import("./pages/producao/NovaFormulaPage"));
 const EditarFormulaPage = lazy(() => import("./pages/producao/EditarFormulaPage"));
 const VisualizarFormulaPage = lazy(() => import("./pages/producao/VisualizarFormulaPage"));
+const ParametrosIndustriaPage = lazy(() => import("./pages/producao/ParametrosIndustriaPage"));
 const OrdensProducaoIndustrialPage = lazy(() => import("./pages/producao/OrdensProducaoIndustrialPage"));
 const OrdemProducaoDetailPage = lazy(() => import("./pages/producao/OrdemProducaoDetailPage"));
 const DashboardIndustrialPage = lazy(() => import("./pages/producao/DashboardIndustrialPage"));
@@ -193,6 +194,7 @@ const App = () => (
                 <Route path="/producao/formulas/nova" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><NovaFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/formulas/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><VisualizarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/formulas/:id/editar" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><EditarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/parametros" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><ParametrosIndustriaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
 
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><ConsultaAnvisaPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/regulatorio/consulta-anvisa" element={<Navigate to="/regulatorio/anvisa" replace />} />
