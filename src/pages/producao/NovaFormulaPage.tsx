@@ -209,6 +209,7 @@ export default function NovaFormulaPage() {
                 <Scale className="h-4 w-4 text-blue-600" />
                 Configuração de Cápsula
               </CardTitle>
+              <CardDescription>
                 A máquina opera cápsula tamanho {CAPSULA_TAMANHO_PADRAO} (fixo). O que varia por
                 fórmula é a massa de pó que enche a cápsula, porque a densidade do blend muda.
                 O peso alvo é validado contra o volume físico da cápsula. Meça a densidade em
@@ -294,24 +295,24 @@ export default function NovaFormulaPage() {
                 </AlertDescription>
               </Alert>
             </CardContent>
-          </Card>
 
-              {validacaoCapsula.nivel === 'error' && (
-                <Alert className="bg-red-50 border-red-200">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-800 text-xs">
-                    ❌ {validacaoCapsula.mensagem}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {validacaoCapsula.nivel === 'warning' && (
-                <Alert className="bg-yellow-50 border-yellow-200">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  <AlertDescription className="text-yellow-800 text-xs">
-                    ⚠️ {validacaoCapsula.mensagem}
-                  </AlertDescription>
-                </Alert>
-              )}
+            {validacaoCapsula?.nivel === 'error' && (
+              <Alert className="bg-red-50 border-red-200">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800 text-xs">
+                  ❌ {validacaoCapsula.mensagem}
+                </AlertDescription>
+              </Alert>
+            )}
+            {validacaoCapsula?.nivel === 'warning' && (
+              <Alert className="bg-yellow-50 border-yellow-200">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-yellow-800 text-xs">
+                  ⚠️ {validacaoCapsula.mensagem}
+                </AlertDescription>
+              </Alert>
+            )}
+          </Card>
         )}
 
         {form.tipo_apresentacao === 'LIQUIDO' && (

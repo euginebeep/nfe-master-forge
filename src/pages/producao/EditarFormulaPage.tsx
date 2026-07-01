@@ -62,6 +62,8 @@ import {
   EXCIPIENTES_INDUSTRIAIS,
   TOTAL_PERCENTUAL_TECNOLOGICOS,
   CodigoVeiculoBase,
+  CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, CAPSULA_PESO_MIN_MG,
+  sugerirPesoAlvoMg, validarPesoAlvoFisico, type TamanhoCapsula,
 } from "@/lib/formulador-industrial-rules";
 import { ItemSelector } from "@/components/formulador/ItemSelector";
 import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
@@ -120,6 +122,18 @@ export default function EditarFormulaPage() {
     return calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
   }, [formula, itensLocal]);
 
+
+  // Validação física da cápsula
+  const validacaoCapsula = useMemo(() => {
+    if (!formula || formula.tipo_apresentacao !== 'CAPSULA') {
+      return null;
+    }
+    return validarPesoAlvoFisico(
+      formula.peso_capsula_alvo_mg || 490,
+      formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
+      formula.tipo_capsula as TamanhoCapsula,
+    );
+  }, [formula]);
   // Contadores para alertas
   const ativosCriticos = itensLocal.filter(i => i.ativo_critico).length;
   const ativosComSugestaoPremix = itensLocal.filter(i => {
@@ -305,7 +319,7 @@ export default function EditarFormulaPage() {
               <Button 
                 className="bg-secondary hover:bg-secondary/90"
                 onClick={handleAprovar}
-                disabled={aprovando || calculosIndustriais?.excedeu_capacidade}
+                disabled={aprovando || calculosIndustriais?.excedeu_capacidade || (validacaoCapsula?.nivel === 'error')}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {aprovando ? "Aprovando..." : "Aprovar Fórmula"}
@@ -771,7 +785,7 @@ export default function EditarFormulaPage() {
                       disabled={isReadOnly}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Cápsula 00 padrão: 480–520 mg de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
+                      Cápsula 0 padrão: 480–520 mg de pó. Pese 10 cápsulas cheias, subtraia o peso das cascas vazias e divida por 10.
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -808,6 +822,23 @@ export default function EditarFormulaPage() {
                   </AlertDescription>
                 </Alert>
               </CardContent>
+
+                {validacaoCapsula?.nivel === 'error' && (
+                  <Alert className="bg-red-50 border-red-200">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-800 text-xs">
+                      ❌ {validacaoCapsula.mensagem}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {validacaoCapsula?.nivel === 'warning' && (
+                  <Alert className="bg-yellow-50 border-yellow-200">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-yellow-800 text-xs">
+                      ⚠️ {validacaoCapsula.mensagem}
+                    </AlertDescription>
+                  </Alert>
+                )}
             </Card>
           )}
 
