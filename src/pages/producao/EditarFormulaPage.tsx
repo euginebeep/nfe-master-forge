@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
   ArrowLeft, FlaskConical, Save, Plus, Trash2, AlertTriangle, 
-  CheckCircle, Scale, Percent, Beaker, Package, Info, BookOpen
+  CheckCircle, Scale, Percent, Beaker, Package, Info, BookOpen, HelpCircle
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,10 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogTrigger, DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -630,6 +634,70 @@ export default function EditarFormulaPage() {
 
         {/* Coluna lateral - Resumo da cápsula */}
         <div className="space-y-6">
+          {formula.tipo_apresentacao === 'CAPSULA' && (
+            <Card className="border-blue-200 bg-blue-50/30">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Scale className="h-4 w-4 text-blue-600" />
+                  Configuração de Cápsula
+                </CardTitle>
+                <CardDescription className="space-y-2">
+                  <span className="block">
+                    A máquina opera cápsula tamanho {CAPSULA_TAMANHO_PADRAO} (fixo), com volume
+                    interno de ~{validacaoCapsula?.volume_ml} mL. Esse volume é constante — o que muda
+                    por fórmula é <strong>quanto pó cabe nele</strong>, e isso depende da densidade do
+                    blend: pó denso (minerais quelados) cabe mais massa; pó fofo (colágeno) cabe menos.
+                    Por isso o peso alvo é validado contra a densidade que você informar.
+                  </span>
+                  <span className="block font-medium text-foreground">
+                    Meça a densidade real do seu blend antes de aprovar — não use o valor padrão.
+                  </span>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button type="button" className="inline-flex items-center gap-1 text-blue-600 underline text-xs">
+                        <HelpCircle className="h-3.5 w-3.5" /> Como medir a densidade?
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Como medir a densidade aparente (kg/L)</DialogTitle>
+                        <DialogDescription>
+                          Método da proveta (ou béquer). A cápsula tem volume fixo; a densidade define
+                          quantos mg cabem nela.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="text-sm space-y-3 text-muted-foreground">
+                        <div>
+                          <p className="font-medium text-foreground mb-1">Método da proveta</p>
+                          <ol className="list-decimal pl-5 space-y-1">
+                            <li>Prepare o blend final (todos os ativos + excipientes já misturados, como vai pra cápsula).</li>
+                            <li>Pese a proveta seca e vazia e anote o peso.</li>
+                            <li>Despeje o pó até uma marca conhecida (ex.: 100 mL). <strong>Não soque nem bata</strong> — deixe assentar naturalmente.</li>
+                            <li>Pese a proveta com o pó e subtraia o peso da proveta vazia → massa do pó (g).</li>
+                            <li>Calcule: <strong>densidade (kg/L) = massa do pó (g) ÷ volume (mL)</strong>.</li>
+                            <li>Digite o valor no campo "Densidade Aparente".</li>
+                          </ol>
+                        </div>
+                        <p className="rounded bg-muted p-2 text-foreground">
+                          Exemplo: 74 g em 100 mL → 74 ÷ 100 = <strong>0,74 kg/L</strong>.
+                          (kg/L = g/mL — não precisa converter.)
+                        </p>
+                        <p><strong>Com béquer:</strong> igual — pese vazio, coloque o pó até um volume graduado sem compactar, pese de novo, subtraia e divida. A proveta é mais precisa.</p>
+                        <p><strong>Alternativa direta:</strong> encha 10 cápsulas na máquina, retire a casca, pese só o pó de cada uma, some e divida por 10. Esse número é o "Peso de Enchimento Real" que cabe no seu blend.</p>
+                        <p className="text-amber-700">
+                          Importante: use a densidade <strong>aparente</strong> (pó assentado, sem socar).
+                          Se compactar/bater, você mede a densidade compactada, que é maior e superestima
+                          quanto cabe — a encapsuladora enche por gravidade, sem soquete.
+                        </p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+
           {formula.tipo_apresentacao === 'CAPSULA' && calculosIndustriais && (
             <Card>
               <CardHeader>
