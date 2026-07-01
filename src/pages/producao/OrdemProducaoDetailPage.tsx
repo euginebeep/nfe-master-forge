@@ -41,7 +41,9 @@ import { OPCabecalhoMaster } from '@/components/producao/OPCabecalhoMaster';
 import { OPPreMixGeometrico } from '@/components/producao/OPPreMixGeometrico';
 import { OPChecklistOperacional } from '@/components/producao/OPChecklistOperacional';
 import { OPDocumentoCompleto } from '@/components/producao/pdf/OPDocumentoCompleto';
+import { CustoOPDashboard } from '@/components/producao/CustoOPDashboard';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
+import { useCustoOPActions, useCustoOP, useConfigCustosProducao } from '@/hooks/use-custo-industrial';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { StatusOP, OPMateriaPrima, OPChecklist, OPPesagemCritica } from '@/types/op-industrial';
@@ -62,6 +64,10 @@ export default function OrdemProducaoDetailPage() {
     registrarPesagem,
     verificarChecklist,
   } = useOPIndustrial();
+
+  const { criarCustoOP, registrarLoteConsumido, calcularCustoTotal } = useCustoOPActions();
+  const { custo, lotesConsumidos } = useCustoOP(id);
+  const { config: configCustos } = useConfigCustosProducao();
 
   const [pesagensCriticas, setPesagensCriticas] = useState<OPPesagemCritica[]>([]);
   const [dialogFinalizar, setDialogFinalizar] = useState(false);
@@ -182,9 +188,71 @@ export default function OrdemProducaoDetailPage() {
       return;
     }
 
-    if (id) {
+    if (id && currentOP) {
       const success = await atualizarStatus(id, 'FINALIZADA');
       if (success) {
+        // Disparar calculo de custo apos finalizacao
+        try {
+          // 1. Criar registro de custo da OP
+          const custoOPData = await criarCustoOP(
+            id,
+            currentOP.codigo,
+            currentOP.tipo_apresentacao as 'CAPSULA' | 'LIQUIDO' | 'PO',
+            currentOP.quantidade_planejada || 0
+          );
+
+          if (custoOPData) {
+            // 2. Registrar lotes consumidos
+            if (materiasPrimas && materiasPrimas.length > 0) {
+              for (const mp of materiasPrimas) {
+                if (mp.lote_id && mp.quantidade_real_g) {
+                  // Buscar custo do insumo
+                  const { data: insumoData } = await supabase
+                    .from('itens')
+                    .select('descricao_interna, custo_por_unidade_interna, unidade_interna')
+                    .eq('id', mp.insumo_id)
+                    .single();
+
+                  if (insumoData) {
+                    // Converter custo para por grama se necessario
+                    let custoUnitarioG = insumoData.custo_por_unidade_interna || 0;
+                    if (insumoData.unidade_interna && insumoData.unidade_interna !== 'g') {
+                      // Se unidade for kg, dividir por 1000
+                      if (insumoData.unidade_interna === 'kg') {
+                        custoUnitarioG = custoUnitarioG / 1000;
+                      }
+                    }
+
+                    await registrarLoteConsumido(
+                      custoOPData.id,
+                      mp.lote_id,
+                      mp.numero_lote || 'N/A',
+                      insumoData.descricao_interna || 'Insumo',
+                      mp.quantidade_real_g,
+                      custoUnitarioG
+                    );
+                  }
+                }
+              }
+            }
+
+            // 3. Calcular custo total
+            const tempoTotalMinutos = currentOP.tempo_total_minutos || 0;
+            const quantidadeProduzida = produzida || currentOP.quantidade_planejada || 0;
+            await calcularCustoTotal(
+              custoOPData.id,
+              tempoTotalMinutos,
+              currentOP.quantidade_planejada || 0,
+              quantidadeProduzida
+            );
+
+            toast.success('Custo da OP calculado com sucesso');
+          }
+        } catch (err) {
+          console.error('Erro ao calcular custo:', err);
+          toast.warning('OP finalizada, mas houve erro ao calcular custo (parcial)');
+        }
+
         setDialogFinalizar(false);
         refresh();
       }
@@ -774,6 +842,93 @@ export default function OrdemProducaoDetailPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Custo Real Industrial */}
+      {currentOP.status === 'FINALIZADA' && (
+        <div className="mt-8">
+          {custo && lotesConsumidos ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Custo Real Industrial</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CustoOPDashboard custo={custo} lotesConsumidos={lotesConsumidos} />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Custo Real Industrial</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Esta OP foi finalizada mas o custo ainda não foi calculado.
+                </p>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const custoOPData = await criarCustoOP(
+                        id!,
+                        currentOP.codigo,
+                        currentOP.tipo_apresentacao as 'CAPSULA' | 'LIQUIDO' | 'PO',
+                        currentOP.quantidade_planejada || 0
+                      );
+
+                      if (custoOPData && materiasPrimas && materiasPrimas.length > 0) {
+                        for (const mp of materiasPrimas) {
+                          if (mp.lote_id && mp.quantidade_real_g) {
+                            const { data: insumoData } = await supabase
+                              .from('itens')
+                              .select('descricao_interna, custo_por_unidade_interna, unidade_interna')
+                              .eq('id', mp.insumo_id)
+                              .single();
+
+                            if (insumoData) {
+                              let custoUnitarioG = insumoData.custo_por_unidade_interna || 0;
+                              if (insumoData.unidade_interna && insumoData.unidade_interna !== 'g') {
+                                if (insumoData.unidade_interna === 'kg') {
+                                  custoUnitarioG = custoUnitarioG / 1000;
+                                }
+                              }
+
+                              await registrarLoteConsumido(
+                                custoOPData.id,
+                                mp.lote_id,
+                                mp.numero_lote || 'N/A',
+                                insumoData.descricao_interna || 'Insumo',
+                                mp.quantidade_real_g,
+                                custoUnitarioG
+                              );
+                            }
+                          }
+                        }
+                      }
+
+                      if (custoOPData) {
+                        const tempoTotalMinutos = currentOP.tempo_total_minutos || 0;
+                        const quantidadeProduzida = currentOP.quantidade_planejada || 0;
+                        await calcularCustoTotal(
+                          custoOPData.id,
+                          tempoTotalMinutos,
+                          currentOP.quantidade_planejada || 0,
+                          quantidadeProduzida
+                        );
+                        toast.success('Custo calculado com sucesso');
+                        refresh();
+                      }
+                    } catch (err) {
+                      console.error('Erro:', err);
+                      toast.error('Erro ao calcular custo');
+                    }
+                  }}
+                >
+                  Calcular Custo desta OP
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Dialog Finalizar */}
       <Dialog open={dialogFinalizar} onOpenChange={setDialogFinalizar}>

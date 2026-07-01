@@ -129,9 +129,36 @@ export function useCustoOPActions() {
     tipoApresentacao: 'CAPSULA' | 'LIQUIDO' | 'PO',
     quantidadePlanejada: number
   ): Promise<CustoOP | null> => {
-    const custoEmbalagem = config 
-      ? calcularCustoEmbalagem(quantidadePlanejada, tipoApresentacao, config)
-      : 0;
+    let custoEmbalagem = 0;
+    
+    if (config) {
+      // Buscar precos dos complementos padrao (Fase 4)
+      const idsComplementos = [
+        config.capsula_padrao_id,
+        config.pote_padrao_id,
+        config.tampa_padrao_id,
+        config.rotulo_padrao_id,
+        config.lacre_padrao_id,
+      ].filter(Boolean) as string[];
+
+      let precosItens: Record<string, number> = {};
+      
+      if (idsComplementos.length > 0) {
+        const { data: itensData } = await supabase
+          .from('itens')
+          .select('id, custo_por_unidade_interna')
+          .in('id', idsComplementos);
+        
+        if (itensData) {
+          precosItens = Object.fromEntries(
+            itensData.map((item: any) => [item.id, item.custo_por_unidade_interna || 0])
+          );
+        }
+      }
+      
+      // Calcular embalagem com precos reais dos itens
+      custoEmbalagem = calcularCustoEmbalagem(quantidadePlanejada, tipoApresentacao, config, precosItens);
+    }
 
     const { data, error } = await supabase
       .from('custos_op')
