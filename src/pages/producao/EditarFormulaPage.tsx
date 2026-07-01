@@ -142,18 +142,28 @@ export default function EditarFormulaPage() {
   }, [itens, formula?.custo_overrides_por_item, formula?.custo_complementos_dose]);
 
   // CÁLCULOS INDUSTRIAIS COM REGRAS FIXAS
+  // FASE 2: Cálculo de cápsulas por dose — DEVE VIR ANTES DE calculosIndustriais
+  const capsulasPorDose = useMemo(
+    () => calcularCapsulasPorDose(
+      itensLocal.reduce((s, i) => s + (i.quantidade_convertida_mg || 0), 0),
+      formula?.densidade_aparente_kg_l ?? DENSIDADE_PADRAO_KG_L,
+      (formula?.tipo_capsula as TamanhoCapsula) ?? CAPSULA_TAMANHO_PADRAO,
+    ),
+    [itensLocal, formula?.densidade_aparente_kg_l, formula?.tipo_capsula],
+  );
+
   const calculosIndustriais = useMemo(() => {
     if (!formula || formula.tipo_apresentacao !== 'CAPSULA') {
       return null;
     }
 
-    const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
+    // QSP: usar n_capsulas_por_dose (dose) em vez de pesoAlvo (cápsula individual)
     const totalAtivos = itensLocal.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
     const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
+    const pesoTotalDose = (capsulasPorDose?.peso_por_capsula_mg || CAPSULA_PESO_ALVO_MG) * (capsulasPorDose?.n_capsulas || 1);
     
-    return calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoAlvo);
-  }, [formula, itensLocal]);
-
+    return calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoTotalDose);
+  }, [formula, itensLocal, capsulasPorDose]);
 
   // Validação física da cápsula
   const validacaoCapsula = useMemo(() => {
@@ -166,16 +176,6 @@ export default function EditarFormulaPage() {
       formula.tipo_capsula as TamanhoCapsula,
     );
   }, [formula]);
-
-  // FASE 2: Cálculo de cápsulas por dose
-  const capsulasPorDose = useMemo(
-    () => calcularCapsulasPorDose(
-      itensLocal.reduce((s, i) => s + (i.quantidade_convertida_mg || 0), 0),
-      formula?.densidade_aparente_kg_l ?? DENSIDADE_PADRAO_KG_L,
-      (formula?.tipo_capsula as TamanhoCapsula) ?? CAPSULA_TAMANHO_PADRAO,
-    ),
-    [itensLocal, formula?.densidade_aparente_kg_l, formula?.tipo_capsula],
-  );
 
   // FASE 3: Cálculo de custo estimado
   const formulaComComplementos = { ...formula, custo_complementos_dose: custComplementosDose };
