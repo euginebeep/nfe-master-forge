@@ -423,14 +423,8 @@ export function gerarAlertasFormula(
 ): AlertaFormula[] {
   const alertas: AlertaFormula[] = [];
   
-  // Erro: capacidade excedida
-  if (calculos.excedeu_capacidade) {
-    alertas.push({
-      tipo: 'error',
-      codigo: 'CAPACIDADE_EXCEDIDA',
-      mensagem: `Peso dos ativos + excipientes excede ${calculos.peso_alvo_mg} mg`,
-    });
-  }
+  // Nota: capacidade excedida agora é validada por calcularCapsulasPorDose (nivel === 'error')
+  // e não deve ser verificada aqui. O alerta de excesso real é quando passa de 6 cápsulas.
   
   // Erro: Q.S.P. negativo
   if (calculos.qsp_negativo) {

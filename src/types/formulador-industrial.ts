@@ -4,7 +4,7 @@
 // VERSÃO DEFINITIVA
 // ============================================================
 
-import { CAPSULA_PESO_ALVO_MG } from "@/lib/formulador-industrial-rules";
+import { CAPSULA_PESO_ALVO_MG, calcularCapsulasPorDose, CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L } from "@/lib/formulador-industrial-rules";
 
 // ============================================================
 // ENUMS E TIPOS BASE
@@ -317,14 +317,20 @@ export function validarFormula(
   
   // Validações de cápsula
   if (formula.tipo_apresentacao === 'CAPSULA') {
-    const pesoAlvo = formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG;
     const totalAtivos = itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
+    const densidade = formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L;
+    const tipoCapsula = (formula.tipo_capsula as any) || CAPSULA_TAMANHO_PADRAO;
     
-    // Considerar excipientes tecnológicos fixos (8%)
-    const totalExcipientesTec = pesoAlvo * 0.08;
+    // Calcular cápsulas por dose para obter a massa total da dose
+    const capsulasPorDose = calcularCapsulasPorDose(totalAtivos, densidade, tipoCapsula);
+    const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
     
-    if ((totalAtivos + totalExcipientesTec) > pesoAlvo) {
-      erros.push(`Peso dos ativos + excipientes (${(totalAtivos + totalExcipientesTec).toFixed(2)} mg) excede ${pesoAlvo} mg`);
+    // Considerar excipientes tecnológicos fixos (8% da dose total)
+    const totalExcipientesTec = massaTotalDose * 0.08;
+    
+    // Só lançar erro se a dose realmente não cabe (capsulasPorDose.nivel === 'error')
+    if (capsulasPorDose.nivel === 'error') {
+      erros.push(`Dose excede 6 cápsulas! Ativos (${totalAtivos.toFixed(2)} mg) + excipientes não cabem. Reduza ativos ou aumente densidade.`);
     }
     
     // Alertas para ativos críticos (INFORMATIVOS)
