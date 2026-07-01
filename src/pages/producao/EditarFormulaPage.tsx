@@ -157,12 +157,12 @@ export default function EditarFormulaPage() {
       return null;
     }
 
-    // QSP: usar n_capsulas_por_dose (dose) em vez de pesoAlvo (cápsula individual)
     const totalAtivos = itensLocal.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0);
     const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
-    const pesoTotalDose = (capsulasPorDose?.peso_por_capsula_mg || CAPSULA_PESO_ALVO_MG) * (capsulasPorDose?.n_capsulas || 1);
+    // A dose ocupa N cápsulas — o blend total é n_capsulas × peso_por_capsula, não 1 cápsula.
+    const massaTotalDose = (capsulasPorDose?.n_capsulas || 1) * (capsulasPorDose?.peso_por_capsula_mg || CAPSULA_PESO_ALVO_MG);
     
-    return calcularCapsulaIndustrial(totalAtivos, veiculoBase, pesoTotalDose);
+    return calcularCapsulaIndustrial(totalAtivos, veiculoBase, massaTotalDose);
   }, [formula, itensLocal, capsulasPorDose]);
 
   // Validação física da cápsula
