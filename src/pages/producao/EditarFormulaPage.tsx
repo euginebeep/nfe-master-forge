@@ -768,13 +768,13 @@ export default function EditarFormulaPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Ocupação de Ativos</span>
-                    <span className={calculosIndustriais.excedeu_capacidade ? "text-destructive font-bold" : "font-medium"}>
+                    <span className={capsulasPorDose?.nivel === 'error' ? "text-destructive font-bold" : "font-medium"}>
                       {calculosIndustriais.ocupacao_percentual.toFixed(1)}%
                     </span>
                   </div>
                   <Progress 
                     value={Math.min(calculosIndustriais.ocupacao_percentual, 100)} 
-                    className={calculosIndustriais.excedeu_capacidade ? "bg-destructive/20" : ""} 
+                    className={capsulasPorDose?.nivel === 'error' ? "bg-destructive/20" : ""} 
                   />
                 </div>
 
@@ -836,16 +836,16 @@ export default function EditarFormulaPage() {
                 </div>
 
                 {/* Alertas */}
-                {calculosIndustriais.excedeu_capacidade && (
+                {capsulasPorDose?.nivel === 'error' && (
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      Peso excede a capacidade da cápsula!
+                      Dose excede 6 cápsulas! Reduza ativos ou aumente densidade.
                     </AlertDescription>
                   </Alert>
                 )}
 
-                {calculosIndustriais.qsp_negativo && !calculosIndustriais.excedeu_capacidade && (
+                {calculosIndustriais.qsp_negativo && capsulasPorDose?.nivel !== 'error' && (
                   <Alert className="bg-warning/10 border-warning">
                     <AlertTriangle className="h-4 w-4 text-warning" />
                     <AlertDescription className="text-xs">
