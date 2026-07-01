@@ -329,6 +329,75 @@ export function useCreateOrdemProducaoIndustrial() {
         });
       if (perdaError) throw perdaError;
 
+      // ── 4. Verificação MRP (PASSO 3) ────────────────────────
+      try {
+        const necessidades = await calcularNecessidadeOP({
+          formula_id: formula.id,
+          quantidade_frascos: quantidade_unidades,
+          company_id: companyId,
+        });
+
+        if (necessidades.length > 0) {
+          // Buscar saldos dos itens
+          const itemIds = necessidades.map(n => n.item_id);
+          const { getSaldos } = await import('@/hooks/use-estoque-movimentacoes');
+          const saldos = await getSaldos(itemIds);
+
+          // Verificar faltantes
+          const faltantes = necessidades.filter(n => {
+            const saldo = saldos[n.item_id] || 0;
+            return n.quantidade > saldo;
+          });
+
+          if (faltantes.length > 0) {
+            // OP nasce em AGUARDANDO_MATERIAIS
+            const { error: updateError } = await supabase
+              .from('ordens_producao_industrial')
+              .update({ status: 'AGUARDANDO_MATERIAIS' })
+              .eq('id', opId);
+
+            if (!updateError) {
+              // Criar requisição de compra
+              const { data: reqData, error: reqError } = await supabase
+                .from('requisicoes_compra')
+                .insert({
+                  op_id: opId,
+                  status: 'ABERTA',
+                  origem: 'MRP',
+                  company_id: companyId,
+                })
+                .select()
+                .single();
+
+              if (reqData && !reqError) {
+                // Criar itens da requisição
+                const itensReq = faltantes.map(f => ({
+                  requisicao_id: reqData.id,
+                  item_id: f.item_id,
+                  item_nome: f.item_nome,
+                  quantidade_necessaria: f.quantidade,
+                  quantidade_disponivel: saldos[f.item_id] || 0,
+                  quantidade_faltante: f.quantidade - (saldos[f.item_id] || 0),
+                  unidade: f.unidade,
+                  status: 'PENDENTE',
+                }));
+
+                const { error: itensError } = await supabase
+                  .from('requisicoes_compra_itens')
+                  .insert(itensReq);
+
+                if (!itensError) {
+                  console.log(`MRP: OP ${codigo} em AGUARDANDO_MATERIAIS com ${faltantes.length} itens faltantes`);
+                }
+              }
+            }
+          }
+        }
+      } catch (mrpError) {
+        console.error('Erro ao executar MRP:', mrpError);
+        // NÃO trava a criação da OP
+      }
+
       return { id: opId, codigo, lote_produto_acabado };
     },
 
@@ -782,4 +851,188 @@ export function useOrdemProducaoIndustrialActions() {
     cancelarOP,
     excluirOP,
   };
+}
+
+/**
+ * Calcula a necessidade de insumos para uma OP
+ * @param op Ordem de produção com formula_id e quantidade_frascos
+ * @returns Array de { item_id, item_nome, quantidade, unidade }
+ */
+export async function calcularNecessidadeOP(op: any): Promise<Array<{
+  item_id: string;
+  item_nome: string;
+  quantidade: number;
+  unidade: string;
+  tipo_necessidade: 'ATIVO' | 'COMPLEMENTO';
+}>> {
+  try {
+    const necessidades: Array<{
+      item_id: string;
+      item_nome: string;
+      quantidade: number;
+      unidade: string;
+      tipo_necessidade: 'ATIVO' | 'COMPLEMENTO';
+    }> = [];
+
+    if (!op.formula_id || !op.quantidade_frascos) {
+      console.warn('OP sem formula_id ou quantidade_frascos');
+      return necessidades;
+    }
+
+    // 1. ATIVOS: buscar formula_itens
+    const { data: formulaItens, error: errFormula } = await supabase
+      .from('formula_itens')
+      .select('produto_materia_prima_id, quantidade_convertida_mg, n_capsulas_por_dose, doses_por_pote')
+      .eq('formula_id', op.formula_id);
+
+    if (errFormula) {
+      console.error('Erro ao buscar formula_itens:', errFormula);
+    } else if (formulaItens) {
+      for (const fi of formulaItens) {
+        if (!fi.produto_materia_prima_id) continue;
+
+        // Buscar dados do insumo (unidade)
+        const { data: insumo } = await supabase
+          .from('itens')
+          .select('id, descricao_interna, unidade_interna')
+          .eq('id', fi.produto_materia_prima_id)
+          .single();
+
+        if (insumo) {
+          // Calcular necessidade: massa por dose × doses por pote × quantidade de frascos
+          const massaPorDose = fi.quantidade_convertida_mg || 0; // em mg
+          const dosesPorPote = fi.doses_por_pote || 1;
+          const quantidadeFrascos = op.quantidade_frascos || 0;
+
+          let necessidade = (massaPorDose * dosesPorPote * quantidadeFrascos) / 1000; // converter mg para g
+
+          // Converter para unidade interna se necessário
+          if (insumo.unidade_interna === 'kg') {
+            necessidade = necessidade / 1000; // g para kg
+          }
+
+          necessidades.push({
+            item_id: insumo.id,
+            item_nome: insumo.descricao_interna || 'Insumo',
+            quantidade: necessidade,
+            unidade: insumo.unidade_interna || 'g',
+            tipo_necessidade: 'ATIVO',
+          });
+        }
+      }
+    }
+
+    // 2. COMPLEMENTOS (Fase 4)
+    const { data: configCustos } = await supabase
+      .from('config_custos_producao')
+      .select('capsula_padrao_id, pote_padrao_id, tampa_padrao_id, rotulo_padrao_id, lacre_padrao_id, n_capsulas_por_dose, doses_por_pote')
+      .eq('company_id', op.company_id)
+      .single();
+
+    if (configCustos) {
+      const quantidadeFrascos = op.quantidade_frascos || 0;
+      const nCapsulasPorDose = configCustos.n_capsulas_por_dose || 0;
+      const dosesPorPote = configCustos.doses_por_pote || 1;
+
+      // Cápsulas
+      if (configCustos.capsula_padrao_id) {
+        const { data: capsula } = await supabase
+          .from('itens')
+          .select('id, descricao_interna, unidade_interna')
+          .eq('id', configCustos.capsula_padrao_id)
+          .single();
+
+        if (capsula) {
+          necessidades.push({
+            item_id: capsula.id,
+            item_nome: capsula.descricao_interna || 'Cápsula',
+            quantidade: nCapsulasPorDose * dosesPorPote * quantidadeFrascos,
+            unidade: capsula.unidade_interna || 'un',
+            tipo_necessidade: 'COMPLEMENTO',
+          });
+        }
+      }
+
+      // Potes
+      if (configCustos.pote_padrao_id) {
+        const { data: pote } = await supabase
+          .from('itens')
+          .select('id, descricao_interna, unidade_interna')
+          .eq('id', configCustos.pote_padrao_id)
+          .single();
+
+        if (pote) {
+          necessidades.push({
+            item_id: pote.id,
+            item_nome: pote.descricao_interna || 'Pote',
+            quantidade: quantidadeFrascos,
+            unidade: pote.unidade_interna || 'un',
+            tipo_necessidade: 'COMPLEMENTO',
+          });
+        }
+      }
+
+      // Tampas
+      if (configCustos.tampa_padrao_id) {
+        const { data: tampa } = await supabase
+          .from('itens')
+          .select('id, descricao_interna, unidade_interna')
+          .eq('id', configCustos.tampa_padrao_id)
+          .single();
+
+        if (tampa) {
+          necessidades.push({
+            item_id: tampa.id,
+            item_nome: tampa.descricao_interna || 'Tampa',
+            quantidade: quantidadeFrascos,
+            unidade: tampa.unidade_interna || 'un',
+            tipo_necessidade: 'COMPLEMENTO',
+          });
+        }
+      }
+
+      // Rótulos
+      if (configCustos.rotulo_padrao_id) {
+        const { data: rotulo } = await supabase
+          .from('itens')
+          .select('id, descricao_interna, unidade_interna')
+          .eq('id', configCustos.rotulo_padrao_id)
+          .single();
+
+        if (rotulo) {
+          necessidades.push({
+            item_id: rotulo.id,
+            item_nome: rotulo.descricao_interna || 'Rótulo',
+            quantidade: quantidadeFrascos,
+            unidade: rotulo.unidade_interna || 'un',
+            tipo_necessidade: 'COMPLEMENTO',
+          });
+        }
+      }
+
+      // Lacres
+      if (configCustos.lacre_padrao_id) {
+        const { data: lacre } = await supabase
+          .from('itens')
+          .select('id, descricao_interna, unidade_interna')
+          .eq('id', configCustos.lacre_padrao_id)
+          .single();
+
+        if (lacre) {
+          necessidades.push({
+            item_id: lacre.id,
+            item_nome: lacre.descricao_interna || 'Lacre',
+            quantidade: quantidadeFrascos,
+            unidade: lacre.unidade_interna || 'un',
+            tipo_necessidade: 'COMPLEMENTO',
+          });
+        }
+      }
+    }
+
+    return necessidades;
+  } catch (err) {
+    console.error('Erro em calcularNecessidadeOP:', err);
+    return [];
+  }
 }
