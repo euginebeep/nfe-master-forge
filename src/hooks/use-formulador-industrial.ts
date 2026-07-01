@@ -222,6 +222,9 @@ export function useFormulaCRUD() {
       
       const codigo = gerarCodigoFormula((count || 0) + 1);
       
+      // Obter usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data: formula, error } = await supabase
         .from('formulas')
         .insert({
@@ -229,6 +232,7 @@ export function useFormulaCRUD() {
           codigo_formula: codigo,
           versao: 1,
           status: 'RASCUNHO',
+          criado_por: user?.id ?? null,
         })
         .select()
         .single();
@@ -373,12 +377,16 @@ export function useAprovarFormula() {
 
       if (versaoError) throw versaoError;
 
+      // Obter usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      
       // Atualizar status
       const { data: formulaAtualizada, error: updateError } = await supabase
         .from('formulas')
         .update({
           status: 'APROVADA' as any,
           aprovado_em: new Date().toISOString(),
+          aprovado_por: user?.id ?? null,
         })
         .eq('id', formula.id)
         .select()

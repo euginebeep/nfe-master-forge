@@ -2,7 +2,8 @@
 // FORMULADOR INDUSTRIAL - FICHA TÉCNICA PDF
 // ============================================================
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/use-company";
 import { 
   FlaskConical, Scale, CheckCircle2, AlertTriangle, 
@@ -53,6 +54,27 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
   // Dados da empresa
   const { data: company } = useCompany();
   
+  // Estado para nomes do aprovador e criador
+  const [nomes, setNomes] = useState<{aprovador?: string; criador?: string}>({});
+  
+  // Buscar nomes a partir dos IDs de usuário
+  useEffect(() => {
+    const ids = [(formula as any).aprovado_por, (formula as any).criado_por].filter(Boolean);
+    if (!ids.length) return;
+    
+    supabase
+      .from('profiles')
+      .select('id, nome_completo')
+      .in('id', ids)
+      .then(({ data }) => {
+        const map = Object.fromEntries((data || []).map((p: any) => [p.id, p.nome_completo]));
+        setNomes({
+          aprovador: map[(formula as any).aprovado_por],
+          criador: map[(formula as any).criado_por],
+        });
+      });
+  }, [formula]);
+  
   // Cálculos industriais
   const totalAtivos = useMemo(() => 
     itens.reduce((sum, i) => sum + (i.quantidade_convertida_mg || 0), 0),
@@ -62,9 +84,9 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
   // Dados para o rodapé
   const dataGeracao = new Date().toLocaleString('pt-BR');
   const aprovadoEm = formula.aprovado_em ? new Date(formula.aprovado_em).toLocaleDateString('pt-BR') : 'N/A';
-  const aprovadoPor = (formula as any).aprovado_por_nome || 'Não registrado';
-  const criadoPor = (formula as any).criado_por_nome || (formula as any).criado_por || 'Sistema';
-  const codigoFicha = `FRM-${formula.id?.substring(0, 8).toUpperCase() || 'XXXX'}`;
+  const aprovadoPor = nomes.aprovador || 'Não registrado';
+  const criadoPor = nomes.criador || 'Sistema';
+  const codigoFicha = formula.codigo_formula || 'FRM-XXXX';
   const versaoFicha = formula.versao || 1;
   
   const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
