@@ -94,7 +94,9 @@ export const CAPSULA_TAMANHO_PADRAO: TamanhoCapsula = '0';
 export const DENSIDADE_PADRAO_KG_L = 0.65;
 
 /** Fator prático de aproveitamento do volume (folga de enchimento). */
-export const FATOR_APROVEITAMENTO_VOLUME = 0.90;
+// era 0.90 — subimos para o aproveitamento real da encapsuladora industrial.
+// A encapsuladora aproveita praticamente todo o volume geométrico da cápsula.
+export const FATOR_APROVEITAMENTO_VOLUME = 1.0;
 
 /** Peso mínimo aceitável de enchimento (mg). */
 export const CAPSULA_PESO_MIN_MG = 100;
