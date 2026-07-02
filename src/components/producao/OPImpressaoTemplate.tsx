@@ -175,6 +175,45 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         .page:last-child {
           break-after: auto;
         }
+        .footer {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 14mm;
+          padding: 0 9mm;
+          font-size: 6.2px;
+          color: #8f887a;
+          font-family: Arial, sans-serif;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: white;
+          border-top: 1px solid #ddd7c9;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .footer-left {
+          flex: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .footer-left b {
+          color: #4a453c;
+          font-weight: 700;
+        }
+        .footer-right {
+          flex: 1;
+          text-align: right;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .footer-right b {
+          color: #b8860b;
+          font-weight: 700;
+        }
         @media print {
           body {
             margin: 0;
@@ -185,11 +224,18 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
             height: auto;
             margin: 0;
             padding: 9mm;
+            padding-bottom: 18mm;
             box-shadow: none;
             page-break-after: always;
           }
           .page:last-child {
             page-break-after: avoid;
+          }
+          .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
           }
         }
         /* Estilos do template */
@@ -857,6 +903,16 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
       </div>
       <div className="page" style={{ padding: '20px' }}>
         <p style={{ color: '#999' }}>Página 7 — Checklist (em desenvolvimento)</p>
+      </div>
+
+      {/* RODAPÉ DINÂMICO — Aparece em todas as páginas na impressão */}
+      <div className="footer">
+        <div className="footer-left">
+          <b>{companyData.nome_fantasia}</b> · RT: {opData.rt_nome} ({opData.rt_tipo_conselho}-{opData.rt_uf_conselho} {opData.rt_numero_registro})
+        </div>
+        <div className="footer-right">
+          Lote {opData.lote_produto_acabado} · {formatarData(opData.data_fabricacao)} · Gerado por <b>www.brainx.erp</b> · Pág <span className="pageNumber">1</span>/<span className="totalPages">7</span>
+        </div>
       </div>
     </div>
   );
