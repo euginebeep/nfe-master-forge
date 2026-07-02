@@ -11,29 +11,36 @@ const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 function buildGeminiRequest(
   systemPrompt: string,
   userText: string,
-  imageBase64?: string
+  imageBase64?: string,
+  imageMime?: string
 ): object {
   // Parte de texto do usuário
   const userParts: any[] = [{ text: userText }]
 
-  // Suporte multimodal: imagem inline (JPEG/PNG/WEBP)
+  // Suporte multimodal: imagem inline (JPEG/PNG/WEBP) com mime REAL
   if (imageBase64) {
     userParts.push({
       inline_data: {
-        mime_type: 'image/jpeg',
+        mime_type: imageMime || 'image/jpeg',
         data: imageBase64,
       },
     })
   }
 
+  const generationConfig: any = {
+    temperature: 0.1,
+    maxOutputTokens: 65536,
+  }
+  // Para IMAGEM, NÃO forçar responseMimeType JSON (geração estruturada com visão é frágil
+  // e trava/trunca). Deixamos o modelo responder texto e o parser robusto trata.
+  if (!imageBase64) {
+    generationConfig.responseMimeType = 'application/json'
+  }
+
   return {
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ role: 'user', parts: userParts }],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0.1,
-      maxOutputTokens: 65536,
-    },
+    generationConfig,
   }
 }
 
@@ -47,10 +54,11 @@ async function callGemini(
   apiKey: string,
   systemPrompt: string,
   userText: string,
-  imageBase64?: string
+  imageBase64?: string,
+  imageMime?: string
 ): Promise<string> {
   const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`
-  const body = buildGeminiRequest(systemPrompt, userText, imageBase64)
+  const body = buildGeminiRequest(systemPrompt, userText, imageBase64, imageMime)
 
   const res = await fetch(url, {
     method: 'POST',
@@ -625,6 +633,9 @@ Retorne JSON com:
       const fileBase64 = body.file_base64 || '';
       const fileType = body.file_type || 'docx';
       const fileName = body.file_name || 'arquivo';
+      // Habilitar log deste fluxo (antes ficava vazio e erros de imagem nao eram registrados)
+      termoLog = `analyze_file:${fileType}:${fileName}`.slice(0, 200);
+      usouIaLog = true;
       const publico = body.publico || 'ADULTOS';
       const cliente = body.cliente || '';
 
@@ -745,12 +756,51 @@ Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" 
       // Suporte multimodal: passa imagem inline quando o arquivo for uma imagem
       const isImage = fileType === 'image' || Boolean(fileName.match(/\.(jpg|jpeg|png|webp)$/i));
       const imageArg = (fileBase64 && isImage) ? fileBase64 : undefined;
+      // Detectar o mime REAL da imagem (nao fixar jpeg — PNG/WEBP quebravam)
+      const lowerName = fileName.toLowerCase();
+      const imageMime = lowerName.endsWith('.png') ? 'image/png'
+        : lowerName.endsWith('.webp') ? 'image/webp'
+        : lowerName.match(/\.(jpg|jpeg)$/) ? 'image/jpeg'
+        : (body.file_mime || 'image/jpeg');
 
-      const rawText = await callGemini(geminiKey, systemPrompt, userMessage, imageArg)
+      const rawText = await callGemini(geminiKey, systemPrompt, userMessage, imageArg, imageArg ? imageMime : undefined)
       // Limpar possível markdown code fence retornado pelo modelo
       const cleanText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
-      const parsed = JSON.parse(cleanText)
 
+      // Parser ROBUSTO: nunca deixar um retorno nao-JSON derrubar em 500.
+      let parsed: any;
+      try {
+        parsed = JSON.parse(cleanText)
+      } catch (_e) {
+        const match = cleanText.match(/[\[{][\s\S]*[\]}]/)
+        if (match) {
+          try { parsed = JSON.parse(match[0]) } catch { parsed = null }
+        }
+        if (!parsed) {
+          // Fallback honesto: a IA analisou mas o retorno nao pode ser estruturado.
+          parsed = {
+            total_produtos: 1,
+            produtos: [{
+              nome: fileName.replace(/\.[^/.]+$/, ''),
+              cliente: cliente || '',
+              categoria: '',
+              status_geral: 'VERIFICAR',
+              ativos: [],
+              alertas: [{ tipo: 'warn', titulo: 'Extração incompleta',
+                corpo: 'A IA analisou a imagem, mas o retorno não pôde ser estruturado automaticamente. Revise manualmente os valores da tabela.' }],
+              analise_ia: cleanText.slice(0, 2000),
+              alegacoes_permitidas: [],
+              alegacoes_proibidas: [],
+              avisos_rotulo: [],
+              sugestao_capsulas: { n: 1, tamanho: '#00', frasco: 60, obs: '' }
+            }]
+          }
+        }
+      }
+
+      origemLog = 'analyze_file_ok'
+      encontrouLog = true
+      logSearch()
       return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

@@ -374,30 +374,8 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       produtos = uniqueProductsByName(produtos);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && produtos) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('id', user.id)
-          .single();
-
-        if (profile?.company_id) {
-          for (const produto of produtos) {
-            await supabase.from('anvisa_laudos').insert({
-              company_id: profile.company_id,
-              produto: produto.nome,
-              cliente: clientName,
-              cliente_logo_url: uploadedClientLogoUrl,
-              cliente_nome_exibicao: clientName,
-              status_geral: produto.status_geral,
-              payload_entrada: { filename: file.name, ativos: produto.ativos } as any,
-              resultado_ia: produto as any,
-              criado_por: user.id
-            });
-          }
-        }
-      }
+      // A gravação do laudo foi centralizada em AnvisaCheckerPage.handleLaudoGenerated
+      // (grava para qualquer fluxo — fórmula e arquivo/imagem — uma única vez, sem duplicar).
 
       await new Promise(r => setTimeout(resolve => r(null), 1000));
       

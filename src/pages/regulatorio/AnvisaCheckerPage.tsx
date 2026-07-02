@@ -7,6 +7,7 @@ import { AnvisaLaudosHistorico } from "@/components/regulatorio/AnvisaLaudosHist
 import { AnvisaBaseConstituintes } from "@/components/regulatorio/AnvisaBaseConstituintes";
 import { AnvisaLaudoView } from "@/components/regulatorio/AnvisaLaudoView";
 import { FlaskConical, FileText, LayoutList, Database } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function AnvisaCheckerPage() {
   const [activeTab, setActiveTab] = useState("formula");
@@ -14,10 +15,47 @@ export default function AnvisaCheckerPage() {
   const [tabelaData, setTabelaData] = useState<any>(null);
 
 
-  const handleLaudoGenerated = (laudo: any) => {
+  const handleLaudoGenerated = async (laudo: any) => {
     setSelectedLaudo(laudo);
     setTabelaData(laudo.resultado_ia);
     setActiveTab("laudos"); // Vai direto para a aba de laudos após gerar
+
+    // Persistir o laudo (histórico + rastreabilidade). Grava UMA vez, para qualquer
+    // fluxo (fórmula OU arquivo/imagem). Não bloqueia a exibição se a gravação falhar.
+    try {
+      // Se o laudo já veio do histórico (já tem id), não re-inserir
+      if (laudo?.id) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!profile?.company_id) return;
+
+      // Suporta 1 produto (análise de fórmula) ou vários (ZIP com múltiplos briefings).
+      const lista = Array.isArray(laudo?.multiplos_produtos) && laudo.multiplos_produtos.length > 0
+        ? laudo.multiplos_produtos
+        : [laudo?.resultado_ia || laudo || {}];
+
+      const registros = lista.map((p: any) => ({
+        company_id: profile.company_id,
+        produto: p?.nome || p?.produto || laudo?.produto || "Produto",
+        cliente: p?.cliente || laudo?.cliente || null,
+        cliente_logo_url: laudo?.cliente_logo_url || null,
+        cliente_nome_exibicao: laudo?.cliente_nome_exibicao || p?.cliente || laudo?.cliente || null,
+        status_geral: p?.status_geral || "VERIFICAR",
+        payload_entrada: { ativos: p?.ativos || [] },
+        resultado_ia: p,
+        criado_por: user.id,
+      }));
+
+      await supabase.from("anvisa_laudos").insert(registros);
+    } catch (e) {
+      console.error("Falha ao gravar laudo ANVISA:", e);
+    }
   };
 
 
