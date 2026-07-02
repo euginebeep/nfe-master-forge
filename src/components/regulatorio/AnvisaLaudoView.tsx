@@ -311,7 +311,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
 
             <div className="mt-2 space-y-1">
               <p className="text-[8px] leading-tight text-black italic">
-                * % Valores Diários com base em uma dieta de 2.000 kcal ou 8.400 kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.
+                *Percentual de valores diários fornecidos pela porção.
               </p>
               <p className="text-[8px] text-black font-bold uppercase">
                 ** VD não estabelecido pela ANVISA.
@@ -405,7 +405,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         </section>
 
         <footer className="mt-12 pt-8 border-t text-[10px] text-muted-foreground space-y-2">
-          <p>* %VD com base em uma dieta de 2.000 kcal ou 8.400 kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.</p>
+          <p>*Percentual de valores diários fornecidos pela porção.</p>
           <p>** VD não estabelecido pela ANVISA.</p>
         </footer>
       </div>

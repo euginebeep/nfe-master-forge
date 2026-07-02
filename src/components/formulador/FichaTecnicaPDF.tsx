@@ -353,7 +353,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                   </TableBody>
                 </Table>
                 <div className="bg-muted/50 p-2 border-t text-xs text-muted-foreground">
-                  *% Valores Diários de referência com base em uma dieta de 2.000 kcal.
+                  *Percentual de valores diários fornecidos pela porção.
                 </div>
               </div>
             </div>

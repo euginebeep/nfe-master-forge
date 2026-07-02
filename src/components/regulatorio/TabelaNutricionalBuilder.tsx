@@ -117,7 +117,7 @@ export const TabelaNutricionalBuilder: React.FC<{ initialData?: any }> = ({ init
             </div>
           ))}
           <div className="mt-2 text-[8px] leading-tight">
-            <p>* % Valores Diários com base em uma dieta de 2.000 kcal ou 8.400 kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.</p>
+            <p>*Percentual de valores diários fornecidos pela porção.</p>
             <p>** VD não estabelecido.</p>
           </div>
         </div>

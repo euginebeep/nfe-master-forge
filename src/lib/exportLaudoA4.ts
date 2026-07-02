@@ -149,7 +149,8 @@ function buildTabelaNutricionalOficial(
   ativos: any[],
   massaTotalPorcaoMg: number,
   nCapsulas: number,
-  porcoesPorEmbalagem: number
+  porcoesPorEmbalagem: number,
+  peso_por_capsula_mg?: number // Peso TOTAL da cápsula (ativos + excipientes), não apenas massa de ativos
 ): string {
   const ativosValidos = ativos.filter((a: any) => {
     const key = (a.key || a.anvisaKey || resolveAnvisaKey(a.nome || a.name || '') || '').toLowerCase();
@@ -206,7 +207,9 @@ function buildTabelaNutricionalOficial(
       </div>`;
   }).join('');
 
-  const porcaoTexto = `Porção: ${nCapsulas} cápsula${nCapsulas > 1 ? 's' : ''} (${Math.round(massaTotalPorcaoMg)} mg)`;
+  // Usar peso TOTAL da cápsula (ativos + excipientes) se disponível, senão usar massa de ativos
+  const pesoPorcaoMg = peso_por_capsula_mg && peso_por_capsula_mg > 0 ? peso_por_capsula_mg : massaTotalPorcaoMg;
+  const porcaoTexto = `Porção: ${nCapsulas} cápsula${nCapsulas > 1 ? 's' : ''} (${Math.round(pesoPorcaoMg)} mg)`;
   const porcoesTexto = `Porções por embalagem: ${formatarPorcoesEmbalagem(porcoesPorEmbalagem)}`;
 
   return `
@@ -509,7 +512,9 @@ function buildBlocoProduto(
   const porcoesPorEmbalagem = caps.frasco ? caps.frasco / nCaps : 30;
 
   const comparativoRows = buildComparativoRows(ativos);
-  const nutriTable = buildTabelaNutricionalOficial(ativos, totalMassa, nCaps, porcoesPorEmbalagem);
+  // Passar peso_por_capsula_mg se disponível (peso TOTAL da cápsula, não apenas massa de ativos)
+  const pesoPorCapsula = produto.peso_por_capsula_mg || data.sugestao_capsulas?.peso_por_capsula_mg || undefined;
+  const nutriTable = buildTabelaNutricionalOficial(ativos, totalMassa, nCaps, porcoesPorEmbalagem, pesoPorCapsula);
   const alertasHTML = buildAlertasHTML(alertas);
   const permitidasHTML = (produto.alegacoes_permitidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
   const proibidasHTML = (produto.alegacoes_proibidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
