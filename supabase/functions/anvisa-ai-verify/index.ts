@@ -609,7 +609,7 @@ Retorne JSON com:
   "alegacoes_permitidas": ["..."],
   "alegacoes_proibidas": ["..."],
   "avisos_rotulo": ["..."],
-  "sugestao_capsulas": {"n": 2, "tamanho": "#00", "frasco": 60, "obs": "..."}
+  "sugestao_capsulas": {"n": 2, "tamanho": "#00", "frasco": 60, "peso_por_capsula_mg": 500, "obs": "..."}
 }`
       
       const userMessage = JSON.stringify({
@@ -710,6 +710,8 @@ LIMITES MÁXIMOS OBRIGATÓRIOS — IN 28/2018 Anexo IV:
 CONSTITUINTES NÃO AUTORIZADOS (Anexo I IN 28 — STATUS = BLOQUEADO):
 - berberina, queratina, l_citrulina
 
+PESO DA CÁPSULA: em sugestao_capsulas.peso_por_capsula_mg, informe o PESO TOTAL de UMA cápsula em mg (ativos + excipientes + veículo), que é o peso real ingerido — NÃO a soma dos ativos. Ex.: cápsula #0 ~ 400–600 mg. Use o tamanho da cápsula como referência.
+
 CONSTITUINTES AUTORIZADOS — confirmar explicitamente:
 - l_tirosina: APROVADO — CAS 60-18-4 Anexo I IN 28
 - beta_alanina: APROVADO — IN 102/2021
@@ -735,7 +737,7 @@ ESTRUTURA DO JSON DE RETORNO:
       "alegacoes_permitidas": [ "" ],
       "alegacoes_proibidas": [ "" ],
       "avisos_rotulo": [ "" ],
-      "sugestao_capsulas": { "n": number, "tamanho": "#00", "frasco": number, "obs": "" }
+      "sugestao_capsulas": { "n": number, "tamanho": "#00", "frasco": number, "peso_por_capsula_mg": number, "obs": "" }
     }
   ]
 }`;

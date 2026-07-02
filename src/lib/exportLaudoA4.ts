@@ -615,7 +615,7 @@ function buildBlocoProduto(
         <div><strong style="color:${C.navy};">Departamento de Qualidade</strong><br/><span style="font-size:8px;color:${C.gray};">${esc(empresaNome)}</span></div>
       </div>
       <div class="legal">
-        <p><strong>Base regulatória:</strong> IN 28/2018, RDC 243/2018, RDC 275/2002, RDC 429/2020, IN 75/2020 (Anexo VIII) e atualizações via Power BI ANVISA.</p>
+        <p><strong>Base regulatória:</strong> A tabela nutricional deste suplemento alimentar observa a RDC nº 429/2020 e a IN nº 75/2020, conforme aplicável aos suplementos pela RDC nº 243/2018. A composição, limites de uso, alegações autorizadas e requisitos complementares de rotulagem foram validados conforme a IN nº 28/2018 e suas atualizações, bem como RDC nº 239/2018 (aditivos e coadjuvantes) e RDC nº 241/2018 (probióticos), quando aplicáveis. Constituintes verificados contra a base oficial ANVISA (Power BI IN 28).</p>
         <p>Documento gerado eletronicamente pelo módulo ANVISA Checker — <a href="https://www.brainxerp.com" target="_blank">www.brainxerp.com</a> — ${esc(empresaNome)}. Caráter orientativo, validar com RT antes de notificação sanitária.</p>
         <div class="protocolo-badge">Protocolo: ${esc(protocolo)}</div>
       </div>
