@@ -5,6 +5,8 @@ export interface CompanyBranding {
   razao_social: string;
   nome_fantasia: string | null;
   logo_url: string | null;
+  cnpj: string | null;
+  endereco: string | null;
 }
 
 export function useCompanyBranding() {
@@ -23,7 +25,7 @@ export function useCompanyBranding() {
 
       const { data: company } = await supabase
         .from("company")
-        .select("razao_social, nome_fantasia, logo_file_id")
+        .select("razao_social, nome_fantasia, logo_file_id, cnpj, endereco_logradouro, endereco_nro, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep")
         .eq("id", profile.company_id)
         .single();
       if (!company) return null;
@@ -38,10 +40,23 @@ export function useCompanyBranding() {
         logo_url = arquivo?.url || null;
       }
 
+      const partes = [
+        company.endereco_logradouro,
+        company.endereco_nro,
+        company.endereco_bairro,
+        company.endereco_cidade && company.endereco_uf
+          ? `${company.endereco_cidade}/${company.endereco_uf}`
+          : company.endereco_cidade || company.endereco_uf,
+        company.endereco_cep ? `CEP ${company.endereco_cep}` : null,
+      ].filter(Boolean);
+      const endereco = partes.length > 0 ? partes.join(", ") : null;
+
       return {
         razao_social: company.razao_social,
         nome_fantasia: company.nome_fantasia,
         logo_url,
+        cnpj: company.cnpj || null,
+        endereco,
       };
     },
     staleTime: 5 * 60 * 1000,

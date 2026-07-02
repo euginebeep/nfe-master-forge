@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode, FlaskConical } from 'lucide-react';
 import { toast } from "sonner";
-import { ANVISA_LIMITS, VD_REFERENCE } from "@/lib/anvisa-limits";
+import { ANVISA_LIMITS, VD_REFERENCE, validarAditivo, validarProbiotico } from "@/lib/anvisa-limits";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { useRTAtivo } from "@/hooks/use-rt-ativo";
@@ -150,8 +150,25 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         )}
 
         <section className="text-center space-y-2 border-b pb-6">
-          <h1 className="text-3xl font-bold tracking-tight">Relatório de Conformidade Regulatória</h1>
-          <p className="text-muted-foreground">BrainX ERP — Módulo ANVISA Checker</p>
+          {company?.logo_url && (
+            <img
+              src={company.logo_url}
+              alt={company.razao_social || "Logo"}
+              className="mx-auto mb-3 max-h-20 object-contain"
+            />
+          )}
+          {company?.razao_social && (
+            <p className="text-lg font-extrabold text-primary">{company.razao_social}</p>
+          )}
+          {(company?.cnpj || company?.endereco) && (
+            <p className="text-xs text-muted-foreground">
+              {company?.cnpj ? `CNPJ: ${company.cnpj}` : ""}
+              {company?.cnpj && company?.endereco ? " · " : ""}
+              {company?.endereco || ""}
+            </p>
+          )}
+          <h1 className="text-3xl font-bold tracking-tight pt-2">Laudo de Conformidade Regulatória</h1>
+          <p className="text-muted-foreground">Módulo ANVISA Checker · RDC 429/2020 · IN 75/2020 · RDC 243/2018 · IN 28/2018</p>
         </section>
 
         <section className="grid md:grid-cols-2 gap-8">
@@ -403,6 +420,71 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
             </ul>
           </div>
         </section>
+
+        <section className="space-y-4">
+          <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Avisos Obrigatórios de Rotulagem (RDC 243/2018)</h3>
+          <div className="grid gap-2">
+            {[
+              "\u201CEste produto n\u00e3o \u00e9 um medicamento\u201D",
+              "\u201CN\u00e3o substitui uma alimenta\u00e7\u00e3o variada e equilibrada e um estilo de vida saud\u00e1vel\u201D",
+              "\u201CManter fora do alcance de crian\u00e7as\u201D",
+              "\u201CN\u00e3o exceder a dose di\u00e1ria recomendada\u201D",
+              "N\u00famero do lote e data de validade obrigat\u00f3rios no r\u00f3tulo",
+              "Nome e n\u00famero do Respons\u00e1vel T\u00e9cnico (CRN/CRF) obrigat\u00f3rios",
+              "CNPJ e endere\u00e7o completo do fabricante obrigat\u00f3rios",
+            ].map((av, i) => (
+              <div key={i} className="text-sm bg-muted/40 border-l-4 border-primary rounded px-3 py-2">{av}</div>
+            ))}
+          </div>
+        </section>
+
+        {(() => {
+          const ativos = (data.ativos || []) as any[];
+          const aditivos: { nome: string; texto: string; ok: boolean }[] = [];
+          const probioticos: { nome: string; texto: string; ok: boolean }[] = [];
+          for (const a of ativos) {
+            const nome = a?.nome || a?.name || "";
+            if (!nome) continue;
+            const prob = validarProbiotico(nome);
+            if (prob.eProbiotico) {
+              probioticos.push({ nome, texto: prob.avisoRotulo || "", ok: Boolean(prob.info) });
+              continue;
+            }
+            const adt = validarAditivo(nome);
+            if (adt.encontrado && adt.info) {
+              aditivos.push({ nome, texto: `${adt.info.funcao} — ${adt.info.norm}${adt.info.obs ? " · " + adt.info.obs : ""}`, ok: adt.info.auth });
+            }
+          }
+          if (aditivos.length === 0 && probioticos.length === 0) return null;
+          return (
+            <section className="space-y-4">
+              <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Aditivos e Probióticos (RDC 239/2018 · RDC 241/2018)</h3>
+              {probioticos.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-primary">Probióticos — RDC 241/2018</p>
+                  {probioticos.map((p, i) => (
+                    <div key={`p-${i}`} className={cn("text-sm rounded px-3 py-2 border-l-4", p.ok ? "border-green-500 bg-green-50" : "border-amber-500 bg-amber-50")}>
+                      <span className="font-bold">{p.nome}</span> — {p.ok ? "AUTORIZADO" : "VERIFICAR"}
+                      {p.texto && <span className="block text-xs text-muted-foreground mt-0.5">{p.texto}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {aditivos.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-primary">Aditivos e coadjuvantes — RDC 239/2018</p>
+                  {aditivos.map((a, i) => (
+                    <div key={`a-${i}`} className={cn("text-sm rounded px-3 py-2 border-l-4", a.ok ? "border-green-500 bg-green-50" : "border-amber-500 bg-amber-50")}>
+                      <span className="font-bold">{a.nome}</span> — {a.ok ? "AUTORIZADO" : "VERIFICAR"}
+                      <span className="block text-xs text-muted-foreground mt-0.5">{a.texto}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Excipientes não listados devem ser verificados manualmente pelo RT contra a RDC 239/2018. Cepas probióticas exigem contagem viável (UFC) e identificação de linhagem (RDC 241/2018).</p>
+            </section>
+          );
+        })()}
 
         <footer className="mt-12 pt-8 border-t text-[10px] text-muted-foreground space-y-2">
           <p>*Percentual de valores diários fornecidos pela porção.</p>
