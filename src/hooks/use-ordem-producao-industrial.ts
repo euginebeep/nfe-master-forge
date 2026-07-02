@@ -412,8 +412,10 @@ export function useCreateOrdemProducaoIndustrial() {
           }
         }
       } catch (mrpError) {
+        const errorMsg = mrpError instanceof Error ? mrpError.message : String(mrpError);
         console.error('Erro ao executar MRP:', mrpError);
-        // NÃO trava a criação da OP
+        // Mostrar toast informativo (não trava a criação da OP)
+        toast.warning(`Não foi possível calcular a necessidade de materiais (MRP): ${errorMsg}`);
       }
 
       return { id: opId, codigo, lote_produto_acabado };
@@ -900,7 +902,7 @@ export async function calcularNecessidadeOP(op: any): Promise<Array<{
     // 1. ATIVOS: buscar formula_itens
     const { data: formulaItens, error: errFormula } = await supabase
       .from('formula_itens')
-      .select('produto_materia_prima_id, quantidade_convertida_mg, n_capsulas_por_dose, doses_por_pote')
+      .select('produto_materia_prima_id, quantidade_convertida_mg')
       .eq('formula_id', op.formula_id);
 
     if (errFormula) {
@@ -919,7 +921,7 @@ export async function calcularNecessidadeOP(op: any): Promise<Array<{
         if (insumo) {
           // Calcular necessidade: massa por dose × doses por pote × quantidade de frascos
           const massaPorDose = fi.quantidade_convertida_mg || 0; // em mg
-          const dosesPorPote = fi.doses_por_pote || 1;
+          const dosesPorPote = formulaDados?.doses_por_pote || 1; // vem da fórmula, não do item
           const quantidadeFrascos = op.quantidade_frascos || 0;
 
           let necessidade = (massaPorDose * dosesPorPote * quantidadeFrascos) / 1000; // converter mg para g
@@ -950,6 +952,14 @@ export async function calcularNecessidadeOP(op: any): Promise<Array<{
 
     const nCapsulasPorDose = formulaDados?.n_capsulas_por_dose || 1;
     const dosesPorPote = formulaDados?.doses_por_pote || 1;
+
+    // Guardar contra fórmula sem cápsulas/dose (fórmulas antigas)
+    if (!formulaDados?.n_capsulas_por_dose || !formulaDados?.doses_por_pote) {
+      console.warn(
+        `Fórmula ${op.formula_id} sem n_capsulas_por_dose ou doses_por_pote preenchidos. ` +
+        `Necessidade de cápsulas pode ficar imprecisa. Usando fallback: 1 cápsula/dose, 1 dose/pote.`
+      );
+    }
 
     const { data: configCustos } = await supabase
       .from('config_custos_producao')

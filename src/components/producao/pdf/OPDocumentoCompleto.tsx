@@ -60,9 +60,23 @@ export function OPDocumentoCompleto({
         // pois o BrainX ERP é multi-tenant (cada cliente tem seu próprio `company`).
         const { data: companyData } = await sb
           .from('company')
-          .select('razao_social, nome_fantasia, cnpj, logo_file_id')
+          .select('razao_social, nome_fantasia, cnpj, logo_file_id, endereco_logradouro, endereco_nro, endereco_compl, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep, telefone')
           .eq('id', companyId)
           .maybeSingle();
+
+        // Resolver logo (logo_file_id -> URL de imagem)
+        let logoUrl: string | null = null;
+        if (companyData?.logo_file_id) {
+          const { data: arq } = await sb
+            .from('arquivos')
+            .select('storage_key')
+            .eq('id', companyData.logo_file_id)
+            .maybeSingle();
+          if (arq?.storage_key) {
+            const { data: pub } = sb.storage.from('erp-files').getPublicUrl(arq.storage_key);
+            logoUrl = pub?.publicUrl ?? null;
+          }
+        }
 
         // Buscar balança
         const { data: balancaResult } = await sb
@@ -94,6 +108,10 @@ export function OPDocumentoCompleto({
 
         setOp((prev: any) => ({
           ...initialOp,
+          empresa_logo_url: logoUrl,
+          empresa_endereco: [companyData?.endereco_logradouro, companyData?.endereco_nro,
+            companyData?.endereco_bairro, companyData?.endereco_cidade, companyData?.endereco_uf]
+            .filter(Boolean).join(', '),
           empresa_nome: companyData?.nome_fantasia || companyData?.razao_social || 'Empresa não identificada',
           empresa_cnpj: companyData?.cnpj || null,
           balanca_numero_serie: balancaResult?.numero_serie || null,

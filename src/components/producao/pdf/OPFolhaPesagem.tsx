@@ -404,6 +404,25 @@ export function OPFolhaPesagem({ op, materiasPrimas }: OPFolhaPesagemProps) {
         </div>
       </div>
 
+      {/* CABEÇALHO COM LOGO E ENDEREÇO */}
+      {op.empresa_logo_url && (
+        <div className="mb-4 pb-2 border-b-2 border-slate-300 flex items-center gap-4">
+          <img src={op.empresa_logo_url} alt="Logo" style={{ maxHeight: '60px', maxWidth: '150px', objectFit: 'contain' }} />
+          <div className="flex-1">
+            <div className="text-sm font-bold text-slate-800">{op.empresa_nome || 'Empresa não identificada'}</div>
+            <div className="text-[8px] text-slate-600">{op.empresa_endereco || ''}</div>
+            <div className="text-[8px] text-slate-600">CNPJ: {op.empresa_cnpj || '-'}</div>
+          </div>
+        </div>
+      )}
+      {!op.empresa_logo_url && (
+        <div className="mb-4 pb-2 border-b-2 border-slate-300">
+          <div className="text-sm font-bold text-slate-800">{op.empresa_nome || 'Empresa não identificada'}</div>
+          <div className="text-[8px] text-slate-600">{op.empresa_endereco || ''}</div>
+          <div className="text-[8px] text-slate-600">CNPJ: {op.empresa_cnpj || '-'}</div>
+        </div>
+      )}
+
       {/* RODAPÉ */}
       <div className="mt-4 pt-2 border-t-2 border-slate-400 flex justify-between text-[8px] text-slate-500">
         <div>{op.empresa_nome || 'Empresa não identificada'} | Documento de Produção Industrial</div>
