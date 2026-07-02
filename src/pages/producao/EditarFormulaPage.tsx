@@ -198,6 +198,12 @@ export default function EditarFormulaPage() {
       return;
     }
 
+    // BLOCO 1: Validar que produto_materia_prima_id foi selecionado
+    if (!novoItem.produto_materia_prima_id) {
+      toast.error('Selecione a matéria-prima do cadastro antes de adicionar');
+      return;
+    }
+
     // Verificar se é ativo ultra crítico
     const infoUltraCritico = await verificarAtivoUltraCritico(novoItem.nome_insumo);
     
@@ -256,7 +262,7 @@ export default function EditarFormulaPage() {
     const item = await adicionar({
       formula_id: id,
       nome_insumo: novoItem.nome_insumo,
-      produto_materia_prima_id: null,
+      produto_materia_prima_id: novoItem.produto_materia_prima_id,
       quantidade_informada: novoItem.quantidade_informada,
       unidade_informada: unidadeBanco,
       quantidade_convertida_mg: quantidadeConvertida,

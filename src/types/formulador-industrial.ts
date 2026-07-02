@@ -306,7 +306,11 @@ export function validarFormula(
     });
   };
 
+  // BLOCO 1: Validar que todos os itens tem produto_materia_prima_id
   for (const item of itens) {
+    if (!item.produto_materia_prima_id) {
+      erros.push(`Item "${item.nome_insumo}" nao tem materia-prima vinculada. Edite e selecione do cadastro.`);
+    }
     if (item.unidade_informada === 'UI') {
       const conversao = encontrarConversaoUI(item.nome_insumo);
       if (!conversao) {
