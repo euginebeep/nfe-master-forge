@@ -261,8 +261,9 @@ export function useCreateOrdemProducaoIndustrial() {
       // Ativos com pré-mix primeiro
       for (const item of formula.itens.filter(i => i.exige_premix)) {
         const classificacao = classificarPesagem(item.quantidade_convertida_mg, item.unidade_informada);
-        const quantidadeLoteG = (item.quantidade_convertida_mg * quantidadeComAcrescimo) / 1000;
-        const tolerancia = calcularTolerancia(quantidadeLoteG);
+        const quantidadeTeoricaMg = item.quantidade_convertida_mg * quantidadeComAcrescimo;
+        const quantidadeTeoricaG = quantidadeTeoricaMg / 1000;
+        const tolerancia = calcularTolerancia(quantidadeTeoricaG);
 
         materiasInsert.push({
           op_id: opId,
@@ -271,6 +272,10 @@ export function useCreateOrdemProducaoIndustrial() {
           categoria: 'PREMIX',
           ordem_mistura: ordem++,
           motivo_critico: classificacao.motivo || null,
+          quantidade_teorica_mg: quantidadeTeoricaMg,
+          quantidade_teorica_g: quantidadeTeoricaG,
+          quantidade_teorica_kg: quantidadeTeoricaG / 1000,
+          unidade: 'g',
           // Campos de pesagem — preenchidos depois ao registrar pesagem
           quantidade_pesada_g: null,
           dentro_tolerancia: null,
@@ -282,6 +287,8 @@ export function useCreateOrdemProducaoIndustrial() {
       // Ativos sem pré-mix
       for (const item of formula.itens.filter(i => !i.exige_premix)) {
         const classificacao = classificarPesagem(item.quantidade_convertida_mg, item.unidade_informada);
+        const quantidadeTeoricaMg = item.quantidade_convertida_mg * quantidadeComAcrescimo;
+        const quantidadeTeoricaG = quantidadeTeoricaMg / 1000;
 
         materiasInsert.push({
           op_id: opId,
@@ -290,6 +297,10 @@ export function useCreateOrdemProducaoIndustrial() {
           categoria: 'ATIVO',
           ordem_mistura: ordem++,
           motivo_critico: classificacao.motivo || null,
+          quantidade_teorica_mg: quantidadeTeoricaMg,
+          quantidade_teorica_g: quantidadeTeoricaG,
+          quantidade_teorica_kg: quantidadeTeoricaG / 1000,
+          unidade: 'g',
           quantidade_pesada_g: null,
           dentro_tolerancia: null,
           pesado_por: null,
@@ -298,6 +309,9 @@ export function useCreateOrdemProducaoIndustrial() {
       }
 
       // Veículo base
+      const veiculoTeoricaMg = (calculos.veiculo_base_mg || 0) * quantidadeComAcrescimo;
+      const veiculoTeoricaG = veiculoTeoricaMg / 1000;
+      
       materiasInsert.push({
         op_id: opId,
         insumo_id: null,
@@ -305,6 +319,10 @@ export function useCreateOrdemProducaoIndustrial() {
         categoria: 'VEICULO_BASE',
         ordem_mistura: ordem++,
         motivo_critico: null,
+        quantidade_teorica_mg: veiculoTeoricaMg,
+        quantidade_teorica_g: veiculoTeoricaG,
+        quantidade_teorica_kg: veiculoTeoricaG / 1000,
+        unidade: 'g',
         quantidade_pesada_g: null,
         dentro_tolerancia: null,
         pesado_por: null,
