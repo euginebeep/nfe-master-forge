@@ -541,3 +541,90 @@ export function formatarPorcoesEmbalagem(qtdExata: number): string {
 }
 
 
+
+
+// ============================================================================
+// ADITIVOS E COADJUVANTES DE TECNOLOGIA — RDC nº 239/2018
+// ============================================================================
+// Lista dos aditivos/excipientes mais comuns em suplementos em cápsula.
+// A RDC 239/2018 define os aditivos autorizados por função; esta base cobre
+// os de uso corrente (antiumectantes, deslizantes, lubrificantes, corantes,
+// veículos). Excipientes fora desta lista devem ser verificados manualmente
+// pelo RT contra a RDC 239/2018.
+export interface AditivoInfo {
+  auth: boolean;
+  funcao: string;   // função tecnológica
+  norm: string;
+  obs?: string;
+}
+
+export const ADITIVOS_RDC239: Record<string, AditivoInfo> = {
+  dioxido_de_silicio:     { auth: true, funcao: 'Antiumectante / Deslizante', norm: 'RDC 239/2018', obs: 'INS 551. Sílica / dióxido de silício.' },
+  estearato_de_magnesio:  { auth: true, funcao: 'Antiumectante / Lubrificante', norm: 'RDC 239/2018', obs: 'INS 470. Uso como coadjuvante.' },
+  talco:                  { auth: true, funcao: 'Antiumectante / Deslizante', norm: 'RDC 239/2018', obs: 'INS 553(iii).' },
+  celulose_microcristalina:{ auth: true, funcao: 'Veículo / Agente de massa', norm: 'RDC 239/2018', obs: 'INS 460(i).' },
+  amido:                  { auth: true, funcao: 'Veículo / Agente de massa', norm: 'RDC 239/2018', obs: 'Amido / amido de milho como veículo.' },
+  maltodextrina:          { auth: true, funcao: 'Veículo / Agente de carga', norm: 'RDC 239/2018' },
+  dioxido_de_titanio:     { auth: false, funcao: 'Corante / Opacificante', norm: 'RDC 239/2018', obs: 'ATENÇÃO: uso restrito/sob reavaliação. Verificar com o RT antes de usar (tendência de proibição internacional).' },
+  estearato_de_calcio:    { auth: true, funcao: 'Antiumectante / Lubrificante', norm: 'RDC 239/2018' },
+  gelatina:               { auth: true, funcao: 'Invólucro da cápsula', norm: 'RDC 239/2018', obs: 'Cápsula dura gelatinosa.' },
+  hpmc:                   { auth: true, funcao: 'Invólucro da cápsula (vegetal)', norm: 'RDC 239/2018', obs: 'Hidroxipropilmetilcelulose — cápsula vegetal.' },
+  estearina_vegetal:      { auth: true, funcao: 'Lubrificante', norm: 'RDC 239/2018' },
+};
+
+// Normaliza nome de excipiente para a chave da base (remove acento, minúsculas, underscore)
+function chaveAditivo(nome: string): string {
+  return String(nome || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+/** Valida um excipiente/aditivo contra a RDC 239/2018. */
+export function validarAditivo(nome: string): { encontrado: boolean; info?: AditivoInfo; chave: string } {
+  const chave = chaveAditivo(nome);
+  const info = ADITIVOS_RDC239[chave];
+  return { encontrado: Boolean(info), info, chave };
+}
+
+// ============================================================================
+// PROBIÓTICOS — RDC nº 241/2018
+// ============================================================================
+// A RDC 241/2018 trata dos requisitos para comprovação de segurança e benefícios
+// de probióticos. Cepas devem ter identificação em nível de linhagem, contagem
+// mínima viável (UFC) declarada e comprovação por dossiê. Esta base lista as
+// cepas de uso corrente; cepas fora da lista exigem dossiê próprio (RDC 241/2018).
+export interface ProbioticoInfo {
+  genero: string;
+  norm: string;
+  obs: string;
+}
+
+export const PROBIOTICOS_RDC241: Record<string, ProbioticoInfo> = {
+  lactobacillus_acidophilus:   { genero: 'Lactobacillus', norm: 'RDC 241/2018', obs: 'Exige identificação da linhagem e contagem viável (UFC) declarada.' },
+  lactobacillus_rhamnosus:     { genero: 'Lactobacillus', norm: 'RDC 241/2018', obs: 'Ex.: LGG. Exige dossiê de segurança/benefício.' },
+  lactobacillus_reuteri:       { genero: 'Lactobacillus', norm: 'RDC 241/2018', obs: 'Exige identificação de linhagem.' },
+  lactobacillus_paracasei:     { genero: 'Lactobacillus', norm: 'RDC 241/2018', obs: 'Exige identificação de linhagem.' },
+  lactobacillus_plantarum:     { genero: 'Lactobacillus', norm: 'RDC 241/2018', obs: 'Exige identificação de linhagem.' },
+  bifidobacterium_lactis:      { genero: 'Bifidobacterium', norm: 'RDC 241/2018', obs: 'Ex.: BB-12. Exige contagem viável.' },
+  bifidobacterium_longum:      { genero: 'Bifidobacterium', norm: 'RDC 241/2018', obs: 'Exige identificação de linhagem.' },
+  bifidobacterium_bifidum:     { genero: 'Bifidobacterium', norm: 'RDC 241/2018', obs: 'Exige identificação de linhagem.' },
+  saccharomyces_boulardii:     { genero: 'Saccharomyces', norm: 'RDC 241/2018', obs: 'Levedura probiótica. Exige contagem viável.' },
+  bacillus_coagulans:          { genero: 'Bacillus', norm: 'RDC 241/2018', obs: 'Exige identificação de linhagem e contagem viável.' },
+};
+
+/** Detecta se um nome de constituinte é um provável probiótico e valida contra RDC 241/2018. */
+export function validarProbiotico(nome: string): { eProbiotico: boolean; info?: ProbioticoInfo; chave: string; avisoRotulo?: string } {
+  const chave = chaveAditivo(nome);
+  const info = PROBIOTICOS_RDC241[chave];
+  const generos = ['lactobacillus', 'bifidobacterium', 'saccharomyces', 'bacillus', 'streptococcus', 'lactococcus', 'lacticaseibacillus', 'limosilactobacillus'];
+  const pareceProbiotico = generos.some(g => chave.includes(g));
+  if (info) {
+    return { eProbiotico: true, info, chave, avisoRotulo: 'Declarar a contagem de micro-organismos viáveis (UFC) por porção e a identificação da linhagem (RDC 241/2018).' };
+  }
+  if (pareceProbiotico) {
+    return { eProbiotico: true, chave, avisoRotulo: 'Cepa não consta na base local. Exige dossiê de comprovação de segurança e benefício, identificação de linhagem e contagem viável (UFC) conforme RDC 241/2018.' };
+  }
+  return { eProbiotico: false, chave };
+}

@@ -7,6 +7,8 @@ import {
   resolveAnvisaKey,
   arredondarValorNutricional,
   formatarPorcoesEmbalagem,
+  validarAditivo,
+  validarProbiotico,
 } from "@/lib/anvisa-limits";
 
 const C = {
@@ -470,6 +472,56 @@ function buildResumoExecutivo(produtos: ProdutoItem[], loteId: string): string {
 }
 
 // ─── Bloco individual por produto ─────────────────────────────────────────────
+function buildSecaoAditivosProbioticos(produto: ProdutoItem): string {
+  const ativos = (produto.ativos || []) as any[];
+  if (ativos.length === 0) return '';
+
+  const aditivosDetectados: string[] = [];
+  const probioticosDetectados: string[] = [];
+
+  for (const a of ativos) {
+    const nome = a?.nome || a?.name || '';
+    if (!nome) continue;
+
+    // Probiótico?
+    const prob = validarProbiotico(nome);
+    if (prob.eProbiotico) {
+      const status = prob.info ? 'AUTORIZADO' : 'VERIFICAR';
+      const cor = prob.info ? C.green : C.amber;
+      probioticosDetectados.push(
+        `<div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${cor};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">` +
+        `<strong>${esc(nome)}</strong> — ${status} (RDC 241/2018)<br/>` +
+        `<span style="font-size:8.5pt;color:${C.gray};">${esc(prob.avisoRotulo || '')}</span></div>`
+      );
+      continue;
+    }
+
+    // Aditivo/excipiente?
+    const adt = validarAditivo(nome);
+    if (adt.encontrado && adt.info) {
+      const cor = adt.info.auth ? C.green : C.amber;
+      const status = adt.info.auth ? 'AUTORIZADO' : 'VERIFICAR';
+      aditivosDetectados.push(
+        `<div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${cor};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">` +
+        `<strong>${esc(nome)}</strong> — ${esc(adt.info.funcao)} — ${status} (${esc(adt.info.norm)})` +
+        `${adt.info.obs ? `<br/><span style="font-size:8.5pt;color:${C.gray};">${esc(adt.info.obs)}</span>` : ''}</div>`
+      );
+    }
+  }
+
+  if (aditivosDetectados.length === 0 && probioticosDetectados.length === 0) return '';
+
+  return `
+    <section>
+      <h2 class="section">6. Aditivos e Probióticos (RDC 239/2018 e RDC 241/2018)</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${probioticosDetectados.length > 0 ? `<div style="font-size:9pt;font-weight:700;color:${C.navy};margin-bottom:2px;">Probióticos — RDC 241/2018</div>${probioticosDetectados.join('')}` : ''}
+        ${aditivosDetectados.length > 0 ? `<div style="font-size:9pt;font-weight:700;color:${C.navy};margin:6px 0 2px;">Aditivos e coadjuvantes — RDC 239/2018</div>${aditivosDetectados.join('')}` : ''}
+      </div>
+      <p style="font-size:8pt;color:${C.gray};margin-top:6px;">Excipientes não listados devem ser verificados manualmente pelo Responsável Técnico contra a RDC 239/2018. Cepas probióticas exigem dossiê de segurança/benefício e contagem viável (UFC) por porção conforme RDC 241/2018.</p>
+    </section>`;
+}
+
 function buildBlocoProduto(
   produto: ProdutoItem,
   index: number,
@@ -608,6 +660,8 @@ function buildBlocoProduto(
         ${(produto.avisos_rotulo || []).map((av: string) => `<div style="background:${C.amberBg};border:1px solid #F0D27A;border-left:4px solid ${C.amber};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.amberText};">⚠ ${esc(av)}</div>`).join('')}
       </div>
     </section>
+
+    ${buildSecaoAditivosProbioticos(produto)}
 
     <div class="bloco-final">
       <div class="assinatura">
