@@ -71,7 +71,9 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         company: company ? {
           razao_social: company.razao_social,
           nome_fantasia: company.nome_fantasia,
-          logo_url: company.logo_url
+          logo_url: company.logo_url,
+          cnpj: company.cnpj,
+          endereco: company.endereco
         } : undefined,
         rt: rt ? {
           nome_completo: rt.nome_completo,

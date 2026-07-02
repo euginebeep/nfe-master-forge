@@ -34,10 +34,15 @@ export function useCompanyBranding() {
       if (company.logo_file_id) {
         const { data: arquivo } = await supabase
           .from("arquivos")
-          .select("url")
+          .select("storage_key")
           .eq("id", company.logo_file_id)
           .single();
-        logo_url = arquivo?.url || null;
+        if (arquivo?.storage_key) {
+          const { data: signed } = await supabase.storage
+            .from("erp-files")
+            .createSignedUrl(arquivo.storage_key, 3600);
+          logo_url = signed?.signedUrl || null;
+        }
       }
 
       const partes = [

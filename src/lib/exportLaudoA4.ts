@@ -40,6 +40,8 @@ interface CompanyInfo {
   razao_social?: string;
   nome_fantasia?: string;
   logo_url?: string | null;
+  cnpj?: string | null;
+  endereco?: string | null;
 }
 
 interface ProdutoItem {
@@ -348,6 +350,8 @@ function buildDocHeader(data: LaudoData): string {
       <div>
         <div class="brand-label" style="color:${C.gray};">Fabricante</div>
         <div class="brand-name">${esc(empresaNome)}</div>
+        ${data.company?.cnpj ? `<div class="brand-sub">CNPJ: ${esc(data.company.cnpj)}</div>` : ''}
+        ${data.company?.endereco ? `<div class="brand-sub">${esc(data.company.endereco)}</div>` : ''}
         <div class="brand-sub">Módulo Regulatório · ANVISA Checker</div>
       </div>
     </div>
