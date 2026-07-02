@@ -281,12 +281,12 @@ export function OPFolhaEncapsulamento({ op }: OPFolhaEncapsulamentoProps) {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* BLOCO: AMOSTRA DE RETENÇÃO — RDC 275/2002                      */}
+      {/* BLOCO: AMOSTRA DE RETENÇÃO — RDC 243/2018, IN 28/2018 e RDC 843/2024                      */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="border-2 border-emerald-600 mb-4">
         <div className="bg-emerald-600 px-4 py-2">
           <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
-            <span>🧪</span> AMOSTRA DE RETENÇÃO — RDC 275/2002
+            <span>🧪</span> AMOSTRA DE RETENÇÃO — RDC 243/2018, IN 28/2018 e RDC 843/2024
           </h2>
         </div>
         <div className="p-3 grid grid-cols-4 gap-3 text-xs bg-emerald-50">

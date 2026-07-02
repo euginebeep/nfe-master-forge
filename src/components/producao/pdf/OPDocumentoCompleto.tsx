@@ -64,8 +64,8 @@ export function OPDocumentoCompleto({
           .eq('id', companyId)
           .maybeSingle();
 
-        // Resolver logo (logo_file_id -> URL de imagem)
-        let logoUrl: string | null = null;
+        // Resolver logo (logo_file_id -> URL de imagem com assinatura)
+        let empresa_logo_url: string | null = null;
         if (companyData?.logo_file_id) {
           const { data: arq } = await sb
             .from('arquivos')
@@ -73,8 +73,9 @@ export function OPDocumentoCompleto({
             .eq('id', companyData.logo_file_id)
             .maybeSingle();
           if (arq?.storage_key) {
-            const { data: pub } = sb.storage.from('erp-files').getPublicUrl(arq.storage_key);
-            logoUrl = pub?.publicUrl ?? null;
+            const { data: signed } = await sb.storage.from('erp-files')
+              .createSignedUrl(arq.storage_key, 3600);
+            empresa_logo_url = signed?.signedUrl ?? null;
           }
         }
 
@@ -108,10 +109,11 @@ export function OPDocumentoCompleto({
 
         setOp((prev: any) => ({
           ...initialOp,
-          empresa_logo_url: logoUrl,
+          empresa_logo_url,
+          empresa_razao: companyData?.razao_social,
           empresa_endereco: [companyData?.endereco_logradouro, companyData?.endereco_nro,
             companyData?.endereco_bairro, companyData?.endereco_cidade, companyData?.endereco_uf]
-            .filter(Boolean).join(', '),
+            .filter(Boolean).join(', ') + (companyData?.endereco_cep ? ' — CEP ' + companyData.endereco_cep : ''),
           empresa_nome: companyData?.nome_fantasia || companyData?.razao_social || 'Empresa não identificada',
           empresa_cnpj: companyData?.cnpj || null,
           balanca_numero_serie: balancaResult?.numero_serie || null,

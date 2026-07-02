@@ -9,9 +9,13 @@ interface OPCabecalhoPDFProps {
   subtitulo?: string;
   paginaAtual?: number;
   totalPaginas?: number;
+  empresa_logo_url?: string | null;
+  empresa_razao?: string;
+  empresa_cnpj?: string;
+  empresa_endereco?: string;
 }
 
-export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalPaginas }: OPCabecalhoPDFProps) {
+export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalPaginas, empresa_logo_url, empresa_razao, empresa_cnpj, empresa_endereco }: OPCabecalhoPDFProps) {
   const qrUrl = `${window.location.origin}/verificar-op/${op.codigo}`;
 
   const formatDate = (dateStr: string | undefined) => {
@@ -21,6 +25,20 @@ export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalP
 
   return (
     <>
+      {/* Cabeçalho do Tenant (Logo + Dados) */}
+      {(empresa_logo_url || empresa_razao) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', paddingBottom: '12px', borderBottom: '2px solid #1e293b' }}>
+          {empresa_logo_url && (
+            <img src={empresa_logo_url} alt="Logo" style={{ maxHeight: '50px', maxWidth: '120px', objectFit: 'contain' }} />
+          )}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b' }}>{empresa_razao || 'Empresa'}</div>
+            <div style={{ fontSize: '10px', color: '#64748b' }}>CNPJ: {empresa_cnpj || '-'}</div>
+            <div style={{ fontSize: '9px', color: '#64748b' }}>{empresa_endereco || ''}</div>
+          </div>
+        </div>
+      )}
+
       {/* Cabeçalho */}
       <div className="op-header">
         <div className="op-header-left">
@@ -133,7 +151,7 @@ export function OPCabecalhoPDF({ op, tituloSecao, subtitulo, paginaAtual, totalP
 export function OPRodapePDF({ op }: { op: OPDadosPDF }) {
   return (
     <div className="op-footer">
-      <p>Documento gerado em {new Date().toLocaleString('pt-BR')} | {op.codigo} | Este documento é parte integrante do controle de produção e rastreabilidade ANVISA</p>
+      <p>Documento gerado em {new Date().toLocaleString('pt-BR')} | {op.codigo} | Fabricação de suplemento alimentar conforme RDC 243/2018, IN 28/2018 e RDC 843/2024 (Boas Práticas de Fabricação). Documento controlado — gerado por BrainX ERP.</p>
     </div>
   );
 }
