@@ -10,6 +10,7 @@ import {
   validarAditivo,
   validarProbiotico,
 } from "@/lib/anvisa-limits";
+import { calcularCapsulasPorDose } from "@/lib/formulador-industrial-rules";
 
 const C = {
   navy: '#0F2A44',
@@ -55,7 +56,8 @@ interface ProdutoItem {
   alegacoes_permitidas?: string[];
   alegacoes_proibidas?: string[];
   avisos_rotulo?: string[];
-  sugestao_capsulas?: { n: number; tamanho: string; frasco: number; obs: string };
+  sugestao_capsulas?: { n: number; tamanho: string; frasco: number; obs: string; peso_por_capsula_mg?: number };
+  peso_por_capsula_mg?: number;
   ativos?: any[];
   publico_alvo?: string;
 }
@@ -67,7 +69,8 @@ interface LaudoData {
   alegacoes_permitidas: string[];
   alegacoes_proibidas: string[];
   avisos_rotulo: string[];
-  sugestao_capsulas: { n: number; tamanho: string; frasco: number; obs: string };
+  sugestao_capsulas: { n: number; tamanho: string; frasco: number; obs: string; peso_por_capsula_mg?: number };
+  peso_por_capsula_mg?: number;
   produto: string;
   cliente?: string;
   cliente_logo_url?: string | null;
@@ -211,7 +214,7 @@ function buildTabelaNutricionalOficial(
       </div>`;
   }).join('');
 
-  // Usar peso TOTAL da cápsula (ativos + excipientes) se disponível, senão usar massa de ativos
+  // Peso da porção = 500 mg × nº de cápsulas (peso de cápsula fixo do tenant), passado pronto.
   const pesoPorcaoMg = peso_por_capsula_mg && peso_por_capsula_mg > 0 ? peso_por_capsula_mg : massaTotalPorcaoMg;
   const porcaoTexto = `Porção: ${nCapsulas} cápsula${nCapsulas > 1 ? 's' : ''} (${Math.round(pesoPorcaoMg)} mg)`;
   const porcoesTexto = `Porções por embalagem: ${formatarPorcoesEmbalagem(porcoesPorEmbalagem)}`;
@@ -568,8 +571,26 @@ function buildBlocoProduto(
   const porcoesPorEmbalagem = caps.frasco ? caps.frasco / nCaps : 30;
 
   const comparativoRows = buildComparativoRows(ativos);
-  // Passar peso_por_capsula_mg se disponível (peso TOTAL da cápsula, não apenas massa de ativos)
-  const pesoPorCapsula = produto.peso_por_capsula_mg || data.sugestao_capsulas?.peso_por_capsula_mg || undefined;
+  // Peso da cápsula é FIXO em 500 mg nesta indústria (cápsula única padrão do tenant).
+  // A porção é sempre 500 mg × nº de cápsulas da dose — NÃO depende da massa de ativos.
+  const PESO_CAPSULA_MG = 500;
+  const pesoPorCapsula = PESO_CAPSULA_MG * (nCaps || 1);
+  // Cabimento físico: usa a MESMA função do formulador industrial (reserva 8% de excipientes
+  // técnicos e calcula o nº de cápsulas pela densidade). Assim o laudo não diverge do sistema.
+  const calcCaps = totalMassa > 0 ? calcularCapsulasPorDose(totalMassa, 0) : null;
+  const alertaCapsula = (calcCaps && calcCaps.nivel !== 'ok')
+    ? {
+        severidade: calcCaps.nivel === 'error' ? 'BLOQUEIO' : 'AVISO',
+        mensagem: calcCaps.mensagem || `Dose exige ${calcCaps.n_capsulas} cápsula(s).`,
+        nCapsulasSugerido: calcCaps.n_capsulas,
+      }
+    : null;
+  // Divergência entre o nº de cápsulas do laudo e o calculado pela regra industrial.
+  const divergenciaCaps = (calcCaps && calcCaps.n_capsulas !== nCaps)
+    ? `A regra industrial (8% de excipientes técnicos, cápsula #${caps.tamanho || '0'}) calcula ` +
+      `${calcCaps.n_capsulas} cápsula(s) para ${Math.round(totalMassa)} mg de ativos — o laudo indica ${nCaps}. ` +
+      `Confirmar a posologia com o RT.`
+    : null;
   const nutriTable = buildTabelaNutricionalOficial(ativos, totalMassa, nCaps, porcoesPorEmbalagem, pesoPorCapsula);
   const alertasHTML = buildAlertasHTML(alertas);
   const permitidasHTML = (produto.alegacoes_permitidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
@@ -632,6 +653,8 @@ function buildBlocoProduto(
             ▸ Com excipientes (+30%): ${arredondarValorNutricional(totalMassa * 1.3, 'mg')} mg<br/>
             ▸ Frasco ${caps.frasco || 60}un → ${Math.floor((caps.frasco || 60) / nCaps)} doses
           </div>
+          ${alertaCapsula ? `<div style="margin-top:8px;padding:8px 12px;border-radius:6px;font-size:8.5pt;line-height:1.45;background:${alertaCapsula.severidade === 'BLOQUEIO' ? C.redBg : C.amberBg};border-left:4px solid ${alertaCapsula.severidade === 'BLOQUEIO' ? C.redText : C.amber};color:${alertaCapsula.severidade === 'BLOQUEIO' ? C.redText : C.amberText};"><strong>${alertaCapsula.severidade === 'BLOQUEIO' ? '⛔ Não cabe nas cápsulas' : '⚠ Posologia alta'}:</strong> ${esc(alertaCapsula.mensagem)}</div>` : ''}
+          ${divergenciaCaps ? `<div style="margin-top:6px;padding:8px 12px;border-radius:6px;font-size:8.5pt;line-height:1.45;background:${C.amberBg};border-left:4px solid ${C.amber};color:${C.amberText};"><strong>⚠ Nº de cápsulas:</strong> ${esc(divergenciaCaps)}</div>` : ''}
           ${caps.obs ? `<p style="font-size:8pt;color:${C.gray};font-style:italic;margin-top:8px;">${esc(caps.obs)}</p>` : ''}
         </div>
       </div>
