@@ -308,7 +308,7 @@ function InsumoCard({
                   <div>
                     <Label className="text-xs">CONFERENTE 1</Label>
                     <div className="h-8 border-b-2 border-foreground mt-1 flex items-end">
-                      {pesagemCritica?.operador_pesagem_nome && (
+                      {pesagemCritica && pesagemCritica.operador_pesagem_nome && (
                         <span className="text-sm font-medium">{pesagemCritica.operador_pesagem_nome}</span>
                       )}
                     </div>
@@ -316,7 +316,7 @@ function InsumoCard({
                   <div>
                     <Label className="text-xs">CONFERENTE 2</Label>
                     <div className="h-8 border-b-2 border-foreground mt-1 flex items-end">
-                      {pesagemCritica?.conferente_nome && (
+                      {pesagemCritica && pesagemCritica.conferente_nome && (
                         <span className="text-sm font-medium">{pesagemCritica.conferente_nome}</span>
                       )}
                     </div>
