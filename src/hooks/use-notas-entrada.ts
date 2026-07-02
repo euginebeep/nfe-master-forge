@@ -189,3 +189,159 @@ export async function saveNotaEntradaItem(input: Omit<NotaEntradaItem, 'id'>): P
   if (error) throw error;
   return data as unknown as NotaEntradaItem;
 }
+
+
+// ============================================================
+// PASSO 1 + PASSO 2: Processar Nota (IMPORTADA → PROCESSADA)
+// ============================================================
+export async function processarNota(notaId: string): Promise<{
+  movimentacoes: number;
+  contas_pagar: number;
+}> {
+  try {
+    // 1. Buscar nota
+    const { data: nota, error: notaError } = await supabase
+      .from('notas_entrada')
+      .select('*')
+      .eq('id', notaId)
+      .single();
+
+    if (notaError || !nota) throw new Error('Nota não encontrada');
+    if (nota.status !== 'IMPORTADA') throw new Error('Nota não está em status IMPORTADA');
+
+    // 2. Buscar itens da nota
+    const { data: itens, error: itensError } = await supabase
+      .from('notas_entrada_itens')
+      .select('*')
+      .eq('nota_entrada_id', notaId);
+
+    if (itensError) throw itensError;
+    if (!itens || itens.length === 0) throw new Error('Nota sem itens');
+
+    // 3. Validar que TODOS os itens têm item_id vinculado
+    const itensNaoVinculados = itens.filter((i: any) => !i.item_id);
+    if (itensNaoVinculados.length > 0) {
+      throw new Error(
+        `${itensNaoVinculados.length} item(ns) não vinculado(s) ao cadastro. Vincule todos antes de processar.`
+      );
+    }
+
+    // 4. Registrar movimentações de estoque (ENTRADA)
+    const { useEstoqueMovimentacoes } = await import('@/hooks/use-estoque-movimentacoes');
+    const { registrarMovimentacao } = useEstoqueMovimentacoes();
+
+    let movimentacoesCount = 0;
+    for (const item of itens) {
+      try {
+        await registrarMovimentacao({
+          tipo: 'ENTRADA',
+          item_id: item.item_id,
+          quantidade: item.qcom,
+          unidade: item.ucom,
+          custo_unitario: item.vuncom,
+          documento_ref: 'NOTA_ENTRADA',
+          documento_ref_id: notaId,
+        });
+        movimentacoesCount++;
+      } catch (movErr) {
+        console.error(`Erro ao registrar movimentação para item ${item.item_id}:`, movErr);
+        throw new Error(`Falha ao registrar movimentação: ${movErr}`);
+      }
+    }
+
+    // 5. PASSO 2: Extrair duplicatas do XML e gerar contas a pagar
+    let contasPagarCount = 0;
+
+    // Verificar se já existem contas a pagar para esta nota (evitar duplicação)
+    const { data: contasExistentes } = await supabase
+      .from('contas_pagar')
+      .select('id')
+      .eq('nota_entrada_id', notaId);
+
+    if (!contasExistentes || contasExistentes.length === 0) {
+      // Parsear XML para extrair duplicatas
+      let duplicatas: Array<{ nDup: string; dVenc: string; vDup: number }> = [];
+
+      if (nota.xml_raw) {
+        try {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(nota.xml_raw, 'text/xml');
+
+          // Buscar todas as tags <dup> dentro de <cobr>
+          const dupElements = xmlDoc.querySelectorAll('cobr dup');
+          if (dupElements.length > 0) {
+            dupElements.forEach((dupEl: any) => {
+              const nDupEl = dupEl.querySelector('nDup');
+              const dVencEl = dupEl.querySelector('dVenc');
+              const vDupEl = dupEl.querySelector('vDup');
+
+              if (nDupEl && dVencEl && vDupEl) {
+                duplicatas.push({
+                  nDup: nDupEl.textContent || '',
+                  dVenc: dVencEl.textContent || '',
+                  vDup: parseFloat(vDupEl.textContent || '0'),
+                });
+              }
+            });
+          }
+        } catch (xmlErr) {
+          console.warn('Erro ao parsear XML:', xmlErr);
+        }
+      }
+
+      // Se não encontrou duplicatas, gerar uma conta única (à vista)
+      if (duplicatas.length === 0) {
+        duplicatas = [
+          {
+            nDup: '1',
+            dVenc: nota.dh_emissao.split('T')[0], // data de emissão
+            vDup: nota.total_nota,
+          },
+        ];
+      }
+
+      // Gerar contas a pagar por parcela
+      for (let i = 0; i < duplicatas.length; i++) {
+        const dup = duplicatas[i];
+        const { error: cpError } = await supabase
+          .from('contas_pagar')
+          .insert({
+            nota_entrada_id: notaId,
+            fornecedor_id: nota.fornecedor_id,
+            descricao: `NF ${nota.numero} - parcela ${dup.nDup}`,
+            numero_parcela: i + 1,
+            total_parcelas: duplicatas.length,
+            valor: dup.vDup,
+            data_emissao: nota.dh_emissao.split('T')[0],
+            data_vencimento: dup.dVenc,
+            status: 'PENDENTE',
+            categoria: 'COMPRA_INSUMO',
+            company_id: nota.company_id,
+          });
+
+        if (cpError) {
+          console.error('Erro ao gerar conta a pagar:', cpError);
+          throw new Error(`Falha ao gerar conta a pagar: ${cpError.message}`);
+        }
+        contasPagarCount++;
+      }
+    }
+
+    // 6. Atualizar status da nota para PROCESSADA
+    const { error: updateError } = await supabase
+      .from('notas_entrada')
+      .update({ status: 'PROCESSADA' })
+      .eq('id', notaId);
+
+    if (updateError) throw updateError;
+
+    return {
+      movimentacoes: movimentacoesCount,
+      contas_pagar: contasPagarCount,
+    };
+  } catch (err) {
+    console.error('Erro em processarNota:', err);
+    throw err;
+  }
+}
+

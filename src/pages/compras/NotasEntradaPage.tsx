@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText, Eye, Calendar, Building2, DollarSign, Undo2,
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useNotasEntrada, type NotaEntrada } from "@/hooks/use-notas-entrada";
+import { useNotasEntrada, type NotaEntrada, processarNota } from "@/hooks/use-notas-entrada";
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 import { DeleteNotaDialog } from "@/components/nfe/DeleteNotaDialog";
@@ -302,6 +303,17 @@ export default function NotasEntradaPage() {
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }} title="Visualizar NF-e">
             <Eye className="h-4 w-4" />
           </Button>
+          {item.status === 'IMPORTADA' && (
+            <Button
+              variant="default" size="sm"
+              onClick={(e) => { e.stopPropagation(); handleProcessarNota(item); }}
+              disabled={processando === item.id || (item.qtd_itens_vinculados || 0) < (item.qtd_itens || 0)}
+              title={item.qtd_itens_vinculados < (item.qtd_itens || 0) ? 'Vincule todos os itens primeiro' : 'Processar nota'}
+              className="text-xs"
+            >
+              {processando === item.id ? 'Processando...' : 'Processar'}
+            </Button>
+          )}
           <Button
             variant="ghost" size="icon"
             onClick={(e) => { e.stopPropagation(); handleReverter(item); }}
