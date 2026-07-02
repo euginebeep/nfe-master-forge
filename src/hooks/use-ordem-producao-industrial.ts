@@ -923,16 +923,24 @@ export async function calcularNecessidadeOP(op: any): Promise<Array<{
     }
 
     // 2. COMPLEMENTOS (Fase 4)
+    // PASSO 1: Buscar nº de cápsulas e doses/pote DA FÓRMULA
+    const { data: formulaDados } = await supabase
+      .from('formulas')
+      .select('n_capsulas_por_dose, doses_por_pote')
+      .eq('id', op.formula_id)
+      .single();
+
+    const nCapsulasPorDose = formulaDados?.n_capsulas_por_dose || 1;
+    const dosesPorPote = formulaDados?.doses_por_pote || 1;
+
     const { data: configCustos } = await supabase
       .from('config_custos_producao')
-      .select('capsula_padrao_id, pote_padrao_id, tampa_padrao_id, rotulo_padrao_id, lacre_padrao_id, n_capsulas_por_dose, doses_por_pote')
+      .select('capsula_padrao_id, pote_padrao_id, tampa_padrao_id, rotulo_padrao_id, lacre_padrao_id')
       .eq('company_id', op.company_id)
       .single();
 
     if (configCustos) {
       const quantidadeFrascos = op.quantidade_frascos || 0;
-      const nCapsulasPorDose = configCustos.n_capsulas_por_dose || 0;
-      const dosesPorPote = configCustos.doses_por_pote || 1;
 
       // Cápsulas
       if (configCustos.capsula_padrao_id) {
