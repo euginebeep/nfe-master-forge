@@ -4,7 +4,7 @@ import {
   Factory, ArrowLeft, Play, Check, XCircle,
   Package, Scale, ClipboardCheck, FileText, AlertTriangle,
   Calendar, Users, RefreshCw, Lock, Unlock, Printer,
-  QrCode, Box, ListChecks, Beaker, Siren, Download
+  QrCode, Box, ListChecks, Beaker, Siren, Download, ShoppingCart
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import { OPTabProcesso } from '@/components/producao/OPTabProcesso';
 import { OPCabecalhoMaster } from '@/components/producao/OPCabecalhoMaster';
 import { OPPreMixGeometrico } from '@/components/producao/OPPreMixGeometrico';
 import { OPChecklistOperacional } from '@/components/producao/OPChecklistOperacional';
+import { OPTabConferenciaMateriais } from '@/components/producao/OPTabConferenciaMateriais';
 import { OPImpressaoTemplate } from '@/components/producao/OPImpressaoTemplate';
 import { CustoOPDashboard } from '@/components/producao/CustoOPDashboard';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
@@ -174,6 +175,7 @@ export default function OrdemProducaoDetailPage() {
     const map: Record<StatusOP, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string; className?: string }> = {
       PLANEJADA: { variant: 'outline', label: 'Planejada' },
       AGUARDANDO_MATERIAIS: { variant: 'outline', label: 'Aguardando Materiais', className: 'border-warning text-warning' },
+      AGUARDANDO_COMPRA: { variant: 'outline', label: 'Aguardando Compra', className: 'border-amber-500 text-amber-700 bg-amber-50' },
       EM_PRODUCAO: { variant: 'default', label: 'Em Produção' },
       FINALIZADA: { variant: 'secondary', label: 'Finalizada' },
       BLOQUEADA: { variant: 'destructive', label: 'Bloqueada' },
@@ -574,6 +576,10 @@ export default function OrdemProducaoDetailPage() {
             <QrCode className="h-4 w-4" />
             Resumo & Auditoria
           </TabsTrigger>
+          <TabsTrigger value="conferencia" className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            Conferência de Materiais
+          </TabsTrigger>
           <TabsTrigger value="materias-primas" className="flex items-center gap-2">
             <Scale className="h-4 w-4" />
             Pesagem ({materiasPrimas.length})
@@ -605,6 +611,16 @@ export default function OrdemProducaoDetailPage() {
         {/* Tab: Resumo & Auditoria */}
         <TabsContent value="resumo">
           <OPTabResumoAuditoria op={currentOP as unknown as React.ComponentProps<typeof OPTabResumoAuditoria>['op']} />
+        </TabsContent>
+
+        {/* Tab: Conferência de Materiais */}
+        <TabsContent value="conferencia">
+          <OPTabConferenciaMateriais
+            opId={id!}
+            opStatus={currentOP.status}
+            materiasPrimas={materiasPrimas}
+            onRefresh={refresh}
+          />
         </TabsContent>
 
         {/* Tab: Matérias-Primas - Formato Industrial Profissional */}
@@ -662,6 +678,7 @@ export default function OrdemProducaoDetailPage() {
                     <p className="text-sm text-muted-foreground">
                       {currentOP.status === 'PLANEJADA' && 'Pré-Produção liberada. Itens de Produção / Pós-Produção / QC só após “Iniciar Produção”.'}
                       {currentOP.status === 'AGUARDANDO_MATERIAIS' && 'Pré-Produção liberada. Itens de Produção / Pós-Produção / QC só após “Iniciar Produção”.'}
+                      {currentOP.status === 'AGUARDANDO_COMPRA' && 'Aguardando compra de materiais. Pré-Produção liberada.'}
                       {currentOP.status === 'FINALIZADA' && 'Esta OP já foi finalizada e o checklist não pode ser alterado.'}
                       {currentOP.status === 'BLOQUEADA' && 'Desbloqueie a OP para continuar com o checklist.'}
                       {currentOP.status === 'CANCELADA' && 'Esta OP foi cancelada.'}
@@ -696,7 +713,7 @@ export default function OrdemProducaoDetailPage() {
 
                         const liberadoPorFase =
                           item.categoria === 'PRE_PRODUCAO'
-                            ? status === 'PLANEJADA' || status === 'AGUARDANDO_MATERIAIS' || status === 'EM_PRODUCAO'
+                            ? status === 'PLANEJADA' || status === 'AGUARDANDO_MATERIAIS' || status === 'AGUARDANDO_COMPRA' || status === 'EM_PRODUCAO'
                             : status === 'EM_PRODUCAO';
 
                         const podeInteragir = !item.verificado && !opImutavel && !opBloqueada;
