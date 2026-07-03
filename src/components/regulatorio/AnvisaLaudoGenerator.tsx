@@ -1,1 +1,376 @@
-/**\n * Componente de Geração de Laudos ANVISA Profissionais\n * \n * Interface completa para gerar, visualizar e exportar laudos técnicos\n * com validação 100% legislativa\n */\n\nimport React, { useState } from 'react';\nimport { Card } from '@/components/ui/card';\nimport { Button } from '@/components/ui/button';\nimport { Alert, AlertDescription } from '@/components/ui/alert';\nimport { Badge } from '@/components/ui/badge';\nimport { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';\nimport {\n  AlertCircle,\n  CheckCircle2,\n  Download,\n  Eye,\n  FileText,\n  Printer,\n  Save,\n} from 'lucide-react';\nimport { toast } from 'sonner';\nimport {\n  anvisaLaudoGenerator,\n  type LaudoData,\n  type Product,\n  type RTInfo,\n} from '@/services/anvisa-laudo-generator.service';\n\nconst AnvisaLaudoGenerator: React.FC = () => {\n  const [product, setProduct] = useState<Product>({\n    id: '',\n    name: '',\n    description: '',\n    constituents: [],\n    targetAudience: 'ADULTOS',\n    servingSize: 1,\n    servingSizeUnit: 'cápsula',\n    servingsPerPackage: 30,\n  });\n\n  const [rtInfo, setRTInfo] = useState<RTInfo>({\n    name: '',\n    crfNumber: '',\n    email: '',\n    phone: '',\n    companyName: '',\n    companyLogo: '',\n  });\n\n  const [laudoHTML, setLaudoHTML] = useState<string>('');\n  const [complianceStatus, setComplianceStatus] = useState<'CONFORME' | 'NAO_CONFORME' | 'OBSERVACOES'>(\n    'CONFORME'\n  );\n  const [activeTab, setActiveTab] = useState('form');\n\n  const handleGenerateLaudo = () => {\n    if (!product.name || !rtInfo.name || product.constituents.length === 0) {\n      toast.error('Preencha todos os campos obrigatórios');\n      return;\n    }\n\n    const laudoData: LaudoData = {\n      product,\n      rtInfo,\n      validationDate: new Date(),\n      complianceStatus,\n      issues: [],\n      recommendations: [],\n    };\n\n    const html = anvisaLaudoGenerator.generateLaudoHTML(laudoData);\n    setLaudoHTML(html);\n    setActiveTab('preview');\n    toast.success('Laudo gerado com sucesso!');\n  };\n\n  const handleExportPDF = () => {\n    if (!laudoHTML) {\n      toast.error('Gere um laudo primeiro');\n      return;\n    }\n\n    anvisaLaudoGenerator.exportToPDF(laudoHTML, `laudo-${product.name}`);\n    toast.success('Laudo exportado!');\n  };\n\n  const handlePrint = () => {\n    if (!laudoHTML) {\n      toast.error('Gere um laudo primeiro');\n      return;\n    }\n\n    const printWindow = window.open('', '', 'width=900,height=700');\n    if (printWindow) {\n      printWindow.document.write(laudoHTML);\n      printWindow.document.close();\n      printWindow.print();\n    }\n  };\n\n  return (\n    <div className=\"space-y-6 p-6\">\n      <div>\n        <h1 className=\"text-3xl font-bold mb-2\">📋 Gerador de Laudos ANVISA</h1>\n        <p className=\"text-gray-600\">Gere laudos técnicos profissionais com conformidade 100% legislativa</p>\n      </div>\n\n      <Alert className=\"border-blue-500 bg-blue-50\">\n        <CheckCircle2 className=\"h-4 w-4 text-blue-600\" />\n        <AlertDescription className=\"text-blue-800\">\n          ✅ Validação completa conforme IN 28/2018, IN 75/2020, IN 102/2021, IN 373/2025, IN 438/2026\n        </AlertDescription>\n      </Alert>\n\n      <Tabs value={activeTab} onValueChange={setActiveTab}>\n        <TabsList className=\"grid w-full grid-cols-3\">\n          <TabsTrigger value=\"form\">📝 Formulário</TabsTrigger>\n          <TabsTrigger value=\"preview\">👁️ Prévia</TabsTrigger>\n          <TabsTrigger value=\"export\">💾 Exportar</TabsTrigger>\n        </TabsList>\n\n        {/* ABA 1: FORMULÁRIO */}\n        <TabsContent value=\"form\" className=\"space-y-6\">\n          <Card className=\"p-6\">\n            <h2 className=\"text-xl font-bold mb-4\">Informações do Produto</h2>\n            <div className=\"space-y-4\">\n              <div>\n                <label className=\"block text-sm font-semibold mb-2\">Nome do Produto *</label>\n                <input\n                  type=\"text\"\n                  value={product.name}\n                  onChange={(e) => setProduct({ ...product, name: e.target.value })}\n                  className=\"w-full px-3 py-2 border rounded\"\n                  placeholder=\"Ex: Multivitamínico A-Z\"\n                />\n              </div>\n\n              <div className=\"grid grid-cols-2 gap-4\">\n                <div>\n                  <label className=\"block text-sm font-semibold mb-2\">Porção *</label>\n                  <input\n                    type=\"number\"\n                    value={product.servingSize}\n                    onChange={(e) =>\n                      setProduct({ ...product, servingSize: parseFloat(e.target.value) })\n                    }\n                    className=\"w-full px-3 py-2 border rounded\"\n                    placeholder=\"1\"\n                  />\n                </div>\n                <div>\n                  <label className=\"block text-sm font-semibold mb-2\">Unidade *</label>\n                  <select\n                    value={product.servingSizeUnit}\n                    onChange={(e) =>\n                      setProduct({ ...product, servingSizeUnit: e.target.value })\n                    }\n                    className=\"w-full px-3 py-2 border rounded\"\n                  >\n                    <option>cápsula</option>\n                    <option>comprimido</option>\n                    <option>ml</option>\n                    <option>g</option>\n                  </select>\n                </div>\n              </div>\n\n              <div>\n                <label className=\"block text-sm font-semibold mb-2\">Porções por Embalagem *</label>\n                <input\n                  type=\"number\"\n                  value={product.servingsPerPackage}\n                  onChange={(e) =>\n                    setProduct({ ...product, servingsPerPackage: parseFloat(e.target.value) })\n                  }\n                  className=\"w-full px-3 py-2 border rounded\"\n                  placeholder=\"30\"\n                />\n              </div>\n\n              <div>\n                <label className=\"block text-sm font-semibold mb-2\">Público-Alvo *</label>\n                <select\n                  value={product.targetAudience}\n                  onChange={(e) =>\n                    setProduct({ ...product, targetAudience: e.target.value })\n                  }\n                  className=\"w-full px-3 py-2 border rounded\"\n                >\n                  <option value=\"CRIANCAS_4_8\">Crianças 4-8 anos</option>\n                  <option value=\"CRIANCAS_9_18\">Crianças 9-18 anos</option>\n                  <option value=\"ADULTOS\">Adultos ≥19 anos</option>\n                  <option value=\"GESTANTES\">Gestantes</option>\n                  <option value=\"LACTANTES\">Lactantes</option>\n                </select>\n              </div>\n            </div>\n          </Card>\n\n          <Card className=\"p-6\">\n            <h2 className=\"text-xl font-bold mb-4\">Informações do Responsável Técnico</h2>\n            <div className=\"space-y-4\">\n              <div>\n                <label className=\"block text-sm font-semibold mb-2\">Nome *</label>\n                <input\n                  type=\"text\"\n                  value={rtInfo.name}\n                  onChange={(e) => setRTInfo({ ...rtInfo, name: e.target.value })}\n                  className=\"w-full px-3 py-2 border rounded\"\n                  placeholder=\"João Silva\"\n                />\n              </div>\n\n              <div className=\"grid grid-cols-2 gap-4\">\n                <div>\n                  <label className=\"block text-sm font-semibold mb-2\">CRF *</label>\n                  <input\n                    type=\"text\"\n                    value={rtInfo.crfNumber}\n                    onChange={(e) => setRTInfo({ ...rtInfo, crfNumber: e.target.value })}\n                    className=\"w-full px-3 py-2 border rounded\"\n                    placeholder=\"12345/SP\"\n                  />\n                </div>\n                <div>\n                  <label className=\"block text-sm font-semibold mb-2\">Email *</label>\n                  <input\n                    type=\"email\"\n                    value={rtInfo.email}\n                    onChange={(e) => setRTInfo({ ...rtInfo, email: e.target.value })}\n                    className=\"w-full px-3 py-2 border rounded\"\n                    placeholder=\"rt@empresa.com\"\n                  />\n                </div>\n              </div>\n\n              <div className=\"grid grid-cols-2 gap-4\">\n                <div>\n                  <label className=\"block text-sm font-semibold mb-2\">Telefone *</label>\n                  <input\n                    type=\"tel\"\n                    value={rtInfo.phone}\n                    onChange={(e) => setRTInfo({ ...rtInfo, phone: e.target.value })}\n                    className=\"w-full px-3 py-2 border rounded\"\n                    placeholder=\"(11) 99999-9999\"\n                  />\n                </div>\n                <div>\n                  <label className=\"block text-sm font-semibold mb-2\">Empresa *</label>\n                  <input\n                    type=\"text\"\n                    value={rtInfo.companyName}\n                    onChange={(e) => setRTInfo({ ...rtInfo, companyName: e.target.value })}\n                    className=\"w-full px-3 py-2 border rounded\"\n                    placeholder=\"Minha Empresa Ltda\"\n                  />\n                </div>\n              </div>\n\n              <div>\n                <label className=\"block text-sm font-semibold mb-2\">Logo da Empresa (URL)</label>\n                <input\n                  type=\"url\"\n                  value={rtInfo.companyLogo || ''}\n                  onChange={(e) => setRTInfo({ ...rtInfo, companyLogo: e.target.value })}\n                  className=\"w-full px-3 py-2 border rounded\"\n                  placeholder=\"https://...\"\n                />\n              </div>\n            </div>\n          </Card>\n\n          <Card className=\"p-6\">\n            <h2 className=\"text-xl font-bold mb-4\">Status de Conformidade</h2>\n            <div className=\"space-y-2\">\n              <label className=\"flex items-center gap-2\">\n                <input\n                  type=\"radio\"\n                  checked={complianceStatus === 'CONFORME'}\n                  onChange={() => setComplianceStatus('CONFORME')}\n                />\n                <span>✅ Conforme</span>\n              </label>\n              <label className=\"flex items-center gap-2\">\n                <input\n                  type=\"radio\"\n                  checked={complianceStatus === 'OBSERVACOES'}\n                  onChange={() => setComplianceStatus('OBSERVACOES')}\n                />\n                <span>⚠️ Com Observações</span>\n              </label>\n              <label className=\"flex items-center gap-2\">\n                <input\n                  type=\"radio\"\n                  checked={complianceStatus === 'NAO_CONFORME'}\n                  onChange={() => setComplianceStatus('NAO_CONFORME')}\n                />\n                <span>❌ Não Conforme</span>\n              </label>\n            </div>\n          </Card>\n\n          <Button onClick={handleGenerateLaudo} className=\"w-full gap-2\" size=\"lg\">\n            <FileText className=\"w-4 h-4\" />\n            Gerar Laudo\n          </Button>\n        </TabsContent>\n\n        {/* ABA 2: PRÉVIA */}\n        <TabsContent value=\"preview\">\n          {laudoHTML ? (\n            <div className=\"bg-white p-6 rounded border\">\n              <iframe\n                srcDoc={laudoHTML}\n                className=\"w-full h-96 border rounded\"\n                title=\"Prévia do Laudo\"\n              />\n            </div>\n          ) : (\n            <Alert>\n              <AlertCircle className=\"h-4 w-4\" />\n              <AlertDescription>Gere um laudo primeiro para visualizar</AlertDescription>\n            </Alert>\n          )}\n        </TabsContent>\n\n        {/* ABA 3: EXPORTAR */}\n        <TabsContent value=\"export\" className=\"space-y-4\">\n          <Card className=\"p-6\">\n            <h2 className=\"text-xl font-bold mb-4\">Opções de Exportação</h2>\n            <div className=\"space-y-3\">\n              <Button onClick={handleExportPDF} className=\"w-full gap-2\" variant=\"outline\">\n                <Download className=\"w-4 h-4\" />\n                Baixar como HTML\n              </Button>\n              <Button onClick={handlePrint} className=\"w-full gap-2\" variant=\"outline\">\n                <Printer className=\"w-4 h-4\" />\n                Imprimir\n              </Button>\n            </div>\n          </Card>\n        </TabsContent>\n      </Tabs>\n    </div>\n  );\n};\n\nexport default AnvisaLaudoGenerator;\n
+/**
+ * Componente de Geração de Laudos ANVISA Profissionais
+ * 
+ * Interface completa para gerar, visualizar e exportar laudos técnicos
+ * com validação 100% legislativa
+ */
+
+import React, { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Download,
+  Eye,
+  FileText,
+  Printer,
+  Save,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  anvisaLaudoGenerator,
+  type LaudoData,
+  type Product,
+  type RTInfo,
+} from '@/services/anvisa-laudo-generator.service';
+
+const AnvisaLaudoGenerator: React.FC = () => {
+  const [product, setProduct] = useState<Product>({
+    id: '',
+    name: '',
+    description: '',
+    constituents: [],
+    targetAudience: 'ADULTOS',
+    servingSize: 1,
+    servingSizeUnit: 'cápsula',
+    servingsPerPackage: 30,
+  });
+
+  const [rtInfo, setRTInfo] = useState<RTInfo>({
+    name: '',
+    tipoConselho: 'CRF',
+    numeroRegistro: '',
+    ufConselho: '',
+    email: '',
+    phone: '',
+    companyName: '',
+    companyLogo: '',
+  });
+
+  const [laudoHTML, setLaudoHTML] = useState<string>('');
+  const [complianceStatus, setComplianceStatus] = useState<'CONFORME' | 'NAO_CONFORME' | 'OBSERVACOES'>(
+    'CONFORME'
+  );
+  const [activeTab, setActiveTab] = useState('form');
+
+  const handleGenerateLaudo = () => {
+    if (!product.name || !rtInfo.name || product.constituents.length === 0) {
+      toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    const laudoData: LaudoData = {
+      product,
+      rtInfo,
+      validationDate: new Date(),
+      complianceStatus,
+      issues: [],
+      recommendations: [],
+    };
+
+    const html = anvisaLaudoGenerator.generateLaudoHTML(laudoData);
+    setLaudoHTML(html);
+    setActiveTab('preview');
+    toast.success('Laudo gerado com sucesso!');
+  };
+
+  const handleExportPDF = () => {
+    if (!laudoHTML) {
+      toast.error('Gere um laudo primeiro');
+      return;
+    }
+
+    anvisaLaudoGenerator.exportToPDF(laudoHTML, `laudo-${product.name}`);
+    toast.success('Laudo exportado!');
+  };
+
+  const handlePrint = () => {
+    if (!laudoHTML) {
+      toast.error('Gere um laudo primeiro');
+      return;
+    }
+
+    const printWindow = window.open('', '', 'width=900,height=700');
+    if (printWindow) {
+      printWindow.document.write(laudoHTML);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  return (
+    <div className=\"space-y-6 p-6\">
+      <div>
+        <h1 className=\"text-3xl font-bold mb-2\">📋 Gerador de Laudos ANVISA</h1>
+        <p className=\"text-gray-600\">Gere laudos técnicos profissionais com conformidade 100% legislativa</p>
+      </div>
+
+      <Alert className=\"border-blue-500 bg-blue-50\">
+        <CheckCircle2 className=\"h-4 w-4 text-blue-600\" />
+        <AlertDescription className=\"text-blue-800\">
+          ✅ Validação completa conforme IN 28/2018, IN 75/2020, IN 102/2021, IN 373/2025, IN 438/2026
+        </AlertDescription>
+      </Alert>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className=\"grid w-full grid-cols-3\">
+          <TabsTrigger value=\"form\">📝 Formulário</TabsTrigger>
+          <TabsTrigger value=\"preview\">👁️ Prévia</TabsTrigger>
+          <TabsTrigger value=\"export\">💾 Exportar</TabsTrigger>
+        </TabsList>
+
+        {/* ABA 1: FORMULÁRIO */}
+        <TabsContent value=\"form\" className=\"space-y-6\">
+          <Card className=\"p-6\">
+            <h2 className=\"text-xl font-bold mb-4\">Informações do Produto</h2>
+            <div className=\"space-y-4\">
+              <div>
+                <label className=\"block text-sm font-semibold mb-2\">Nome do Produto *</label>
+                <input
+                  type=\"text\"
+                  value={product.name}
+                  onChange={(e) => setProduct({ ...product, name: e.target.value })}
+                  className=\"w-full px-3 py-2 border rounded\"
+                  placeholder=\"Ex: Multivitamínico A-Z\"
+                />
+              </div>
+
+              <div className=\"grid grid-cols-2 gap-4\">
+                <div>
+                  <label className=\"block text-sm font-semibold mb-2\">Porção *</label>
+                  <input
+                    type=\"number\"
+                    value={product.servingSize}
+                    onChange={(e) =>
+                      setProduct({ ...product, servingSize: parseFloat(e.target.value) })
+                    }
+                    className=\"w-full px-3 py-2 border rounded\"
+                    placeholder=\"1\"
+                  />
+                </div>
+                <div>
+                  <label className=\"block text-sm font-semibold mb-2\">Unidade *</label>
+                  <select
+                    value={product.servingSizeUnit}
+                    onChange={(e) =>
+                      setProduct({ ...product, servingSizeUnit: e.target.value })
+                    }
+                    className=\"w-full px-3 py-2 border rounded\"
+                  >
+                    <option>cápsula</option>
+                    <option>comprimido</option>
+                    <option>ml</option>
+                    <option>g</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className=\"block text-sm font-semibold mb-2\">Porções por Embalagem *</label>
+                <input
+                  type=\"number\"
+                  value={product.servingsPerPackage}
+                  onChange={(e) =>
+                    setProduct({ ...product, servingsPerPackage: parseFloat(e.target.value) })
+                  }
+                  className=\"w-full px-3 py-2 border rounded\"
+                  placeholder=\"30\"
+                />
+              </div>
+
+              <div>
+                <label className=\"block text-sm font-semibold mb-2\">Público-Alvo *</label>
+                <select
+                  value={product.targetAudience}
+                  onChange={(e) =>
+                    setProduct({ ...product, targetAudience: e.target.value })
+                  }
+                  className=\"w-full px-3 py-2 border rounded\"
+                >
+                  <option value=\"CRIANCAS_4_8\">Crianças 4-8 anos</option>
+                  <option value=\"CRIANCAS_9_18\">Crianças 9-18 anos</option>
+                  <option value=\"ADULTOS\">Adultos ≥19 anos</option>
+                  <option value=\"GESTANTES\">Gestantes</option>
+                  <option value=\"LACTANTES\">Lactantes</option>
+                </select>
+              </div>
+            </div>
+          </Card>
+
+          <Card className=\"p-6\">
+            <h2 className=\"text-xl font-bold mb-4\">Informações do Responsável Técnico</h2>
+            <div className=\"space-y-4\">
+              <div>
+                <label className=\"block text-sm font-semibold mb-2\">Nome *</label>
+                <input
+                  type=\"text\"
+                  value={rtInfo.name}
+                  onChange={(e) => setRTInfo({ ...rtInfo, name: e.target.value })}
+                  className=\"w-full px-3 py-2 border rounded\"
+                  placeholder=\"João Silva\"
+                />
+              </div>
+
+              <div className=\"grid grid-cols-2 gap-4\">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Conselho *</label>
+                  <select
+                    value={rtInfo.tipoConselho}
+                    onChange={(e) => setRTInfo({ ...rtInfo, tipoConselho: e.target.value as 'CRN' | 'CRQ' | 'CRF' })}
+                    className="w-full px-3 py-2 border rounded"
+                  >
+                    <option value="CRF">CRF (Farmacêutico)</option>
+                    <option value="CRQ">CRQ (Químico)</option>
+                    <option value="CRN">CRN (Nutricionista)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Nº Registro *</label>
+                  <input
+                    type="text"
+                    value={rtInfo.numeroRegistro}
+                    onChange={(e) => setRTInfo({ ...rtInfo, numeroRegistro: e.target.value })}
+                    className="w-full px-3 py-2 border rounded"
+                    placeholder="12345"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">UF *</label>
+                  <input
+                    type="text"
+                    value={rtInfo.ufConselho}
+                    onChange={(e) => setRTInfo({ ...rtInfo, ufConselho: e.target.value.toUpperCase() })}
+                    className="w-full px-3 py-2 border rounded"
+                    placeholder="SP"
+                    maxLength="2"
+                  />
+                </div>
+                <div>
+                  <label className=\"block text-sm font-semibold mb-2\">Email *</label>
+                  <input
+                    type=\"email\"
+                    value={rtInfo.email}
+                    onChange={(e) => setRTInfo({ ...rtInfo, email: e.target.value })}
+                    className=\"w-full px-3 py-2 border rounded\"
+                    placeholder=\"rt@empresa.com\"
+                  />
+                </div>
+              </div>
+
+              <div className=\"grid grid-cols-2 gap-4\">
+                <div>
+                  <label className=\"block text-sm font-semibold mb-2\">Telefone *</label>
+                  <input
+                    type=\"tel\"
+                    value={rtInfo.phone}
+                    onChange={(e) => setRTInfo({ ...rtInfo, phone: e.target.value })}
+                    className=\"w-full px-3 py-2 border rounded\"
+                    placeholder=\"(11) 99999-9999\"
+                  />
+                </div>
+                <div>
+                  <label className=\"block text-sm font-semibold mb-2\">Empresa *</label>
+                  <input
+                    type=\"text\"
+                    value={rtInfo.companyName}
+                    onChange={(e) => setRTInfo({ ...rtInfo, companyName: e.target.value })}
+                    className=\"w-full px-3 py-2 border rounded\"
+                    placeholder=\"Minha Empresa Ltda\"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className=\"block text-sm font-semibold mb-2\">Logo da Empresa (URL)</label>
+                <input
+                  type=\"url\"
+                  value={rtInfo.companyLogo || ''}
+                  onChange={(e) => setRTInfo({ ...rtInfo, companyLogo: e.target.value })}
+                  className=\"w-full px-3 py-2 border rounded\"
+                  placeholder=\"https://...\"
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card className=\"p-6\">
+            <h2 className=\"text-xl font-bold mb-4\">Status de Conformidade</h2>
+            <div className=\"space-y-2\">
+              <label className=\"flex items-center gap-2\">
+                <input
+                  type=\"radio\"
+                  checked={complianceStatus === 'CONFORME'}
+                  onChange={() => setComplianceStatus('CONFORME')}
+                />
+                <span>✅ Conforme</span>
+              </label>
+              <label className=\"flex items-center gap-2\">
+                <input
+                  type=\"radio\"
+                  checked={complianceStatus === 'OBSERVACOES'}
+                  onChange={() => setComplianceStatus('OBSERVACOES')}
+                />
+                <span>⚠️ Com Observações</span>
+              </label>
+              <label className=\"flex items-center gap-2\">
+                <input
+                  type=\"radio\"
+                  checked={complianceStatus === 'NAO_CONFORME'}
+                  onChange={() => setComplianceStatus('NAO_CONFORME')}
+                />
+                <span>❌ Não Conforme</span>
+              </label>
+            </div>
+          </Card>
+
+          <Button onClick={handleGenerateLaudo} className=\"w-full gap-2\" size=\"lg\">
+            <FileText className=\"w-4 h-4\" />
+            Gerar Laudo
+          </Button>
+        </TabsContent>
+
+        {/* ABA 2: PRÉVIA */}
+        <TabsContent value=\"preview\">
+          {laudoHTML ? (
+            <div className=\"bg-white p-6 rounded border\">
+              <iframe
+                srcDoc={laudoHTML}
+                className=\"w-full h-96 border rounded\"
+                title=\"Prévia do Laudo\"
+              />
+            </div>
+          ) : (
+            <Alert>
+              <AlertCircle className=\"h-4 w-4\" />
+              <AlertDescription>Gere um laudo primeiro para visualizar</AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+
+        {/* ABA 3: EXPORTAR */}
+        <TabsContent value=\"export\" className=\"space-y-4\">
+          <Card className=\"p-6\">
+            <h2 className=\"text-xl font-bold mb-4\">Opções de Exportação</h2>
+            <div className=\"space-y-3\">
+              <Button onClick={handleExportPDF} className=\"w-full gap-2\" variant=\"outline\">
+                <Download className=\"w-4 h-4\" />
+                Baixar como HTML
+              </Button>
+              <Button onClick={handlePrint} className=\"w-full gap-2\" variant=\"outline\">
+                <Printer className=\"w-4 h-4\" />
+                Imprimir
+              </Button>
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default AnvisaLaudoGenerator;
+

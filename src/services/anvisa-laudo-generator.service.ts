@@ -1,1 +1,622 @@
-/**\n * Serviço de Geração de Laudos ANVISA Profissionais\n * \n * Gera laudos técnicos completos conforme legislação ANVISA\n * com validação 100% legislativa, assinatura de RT e rodapé profissional\n */\n\nimport { supabase } from '@/integrations/supabase/client';\nimport { ANVISA_LIMITS } from '@/lib/anvisa-limits';\n\nexport interface Constituent {\n  name: string;\n  dose: number;\n  unit: string;\n  legislacao: string;\n  minDose?: number;\n  maxDose?: number;\n  allowedGroups?: string[];\n  restrictedGroups?: string[];\n}\n\nexport interface Product {\n  id: string;\n  name: string;\n  description: string;\n  constituents: Constituent[];\n  targetAudience: string; // 'CRIANCAS_4_8' | 'CRIANCAS_9_18' | 'ADULTOS' | 'GESTANTES' | 'LACTANTES'\n  servingSize: number;\n  servingSizeUnit: string;\n  servingsPerPackage: number;\n}\n\nexport interface RTInfo {\n  name: string;\n  crfNumber: string; // Número do CRF\n  email: string;\n  phone: string;\n  companyName: string;\n  companyLogo?: string; // URL da logo\n}\n\nexport interface LaudoData {\n  product: Product;\n  rtInfo: RTInfo;\n  validationDate: Date;\n  complianceStatus: 'CONFORME' | 'NAO_CONFORME' | 'OBSERVACOES';\n  issues: string[];\n  recommendations: string[];\n}\n\nclass AnvisaLaudoGeneratorService {\n  /**\n   * Valida constituinte contra legislação ANVISA\n   */\n  validateConstituent(constituent: Constituent): {\n    isValid: boolean;\n    errors: string[];\n    warnings: string[];\n  } {\n    const errors: string[] = [];\n    const warnings: string[] = [];\n\n    // Verificar se constituinte existe em ANVISA\n    const anvisaConstituent = Object.values(ANVISA_LIMITS).find(\n      (c: any) => c.name?.toLowerCase() === constituent.name.toLowerCase()\n    );\n\n    if (!anvisaConstituent) {\n      errors.push(`Constituinte \"${constituent.name}\" não encontrado na legislação ANVISA`);\n      return { isValid: false, errors, warnings };\n    }\n\n    // Validar dose mínima\n    if (anvisaConstituent.min && constituent.dose < anvisaConstituent.min) {\n      errors.push(\n        `Dose de ${constituent.name} (${constituent.dose}${constituent.unit}) está ABAIXO do mínimo permitido (${anvisaConstituent.min}${constituent.unit})`\n      );\n    }\n\n    // Validar dose máxima\n    if (anvisaConstituent.max && constituent.dose > anvisaConstituent.max) {\n      errors.push(\n        `Dose de ${constituent.name} (${constituent.dose}${constituent.unit}) está ACIMA do máximo permitido (${anvisaConstituent.max}${constituent.unit})`\n      );\n    }\n\n    // Validar grupo populacional\n    if (anvisaConstituent.restrictedGroups?.includes(constituent.name)) {\n      errors.push(\n        `${constituent.name} é PROIBIDO para o grupo-alvo especificado (${anvisaConstituent.restrictedGroups.join(', ')})`\n      );\n    }\n\n    // Avisos de dose no limite\n    if (\n      anvisaConstituent.max &&\n      constituent.dose >= anvisaConstituent.max * 0.95\n    ) {\n      warnings.push(\n        `⚠️ ${constituent.name} está próximo ao limite máximo (${constituent.dose}/${anvisaConstituent.max}${constituent.unit})`\n      );\n    }\n\n    return {\n      isValid: errors.length === 0,\n      errors,\n      warnings,\n    };\n  }\n\n  /**\n   * Valida produto completo\n   */\n  validateProduct(product: Product): {\n    isValid: boolean;\n    allErrors: string[];\n    allWarnings: string[];\n    constituentValidations: Map<string, any>;\n  } {\n    const allErrors: string[] = [];\n    const allWarnings: string[] = [];\n    const constituentValidations = new Map();\n\n    // Validar cada constituinte\n    for (const constituent of product.constituents) {\n      const validation = this.validateConstituent(constituent);\n      constituentValidations.set(constituent.name, validation);\n\n      allErrors.push(...validation.errors);\n      allWarnings.push(...validation.warnings);\n    }\n\n    // Validar restrições de associação\n    const restrictions = this.checkRestrictions(product.constituents);\n    allErrors.push(...restrictions.errors);\n    allWarnings.push(...restrictions.warnings);\n\n    return {\n      isValid: allErrors.length === 0,\n      allErrors,\n      allWarnings,\n      constituentValidations,\n    };\n  }\n\n  /**\n   * Verifica restrições de associação entre constituintes\n   */\n  private checkRestrictions(constituents: Constituent[]): {\n    errors: string[];\n    warnings: string[];\n  } {\n    const errors: string[] = [];\n    const warnings: string[] = [];\n\n    // Restrição: Curcumina + Tetraidrocurcuminoides (IN 438/2026)\n    const hasCurcumina = constituents.some(\n      (c) => c.name.toLowerCase().includes('curcumina')\n    );\n    const hasTetraidro = constituents.some(\n      (c) => c.name.toLowerCase().includes('tetraidro')\n    );\n\n    if (hasCurcumina && hasTetraidro) {\n      errors.push(\n        '❌ RESTRIÇÃO: Curcumina e Tetraidrocurcuminoides NÃO podem estar no mesmo produto (IN 438/2026)'\n      );\n    }\n\n    return { errors, warnings };\n  }\n\n  /**\n   * Gera laudo técnico em HTML\n   */\n  generateLaudoHTML(laudoData: LaudoData): string {\n    const { product, rtInfo, validationDate, complianceStatus, issues, recommendations } =\n      laudoData;\n\n    const validation = this.validateProduct(product);\n    const statusColor =\n      complianceStatus === 'CONFORME'\n        ? '#28a745'\n        : complianceStatus === 'NAO_CONFORME'\n          ? '#dc3545'\n          : '#ffc107';\n    const statusText =\n      complianceStatus === 'CONFORME'\n        ? '✅ CONFORME'\n        : complianceStatus === 'NAO_CONFORME'\n          ? '❌ NÃO CONFORME'\n          : '⚠️ COM OBSERVAÇÕES';\n\n    return `\n<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Laudo Técnico ANVISA - ${product.name}</title>\n    <style>\n        * {\n            margin: 0;\n            padding: 0;\n            box-sizing: border-box;\n        }\n\n        body {\n            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            line-height: 1.6;\n            color: #333;\n            background: #f5f5f5;\n        }\n\n        .container {\n            max-width: 900px;\n            margin: 0 auto;\n            background: white;\n            padding: 40px;\n            box-shadow: 0 0 10px rgba(0,0,0,0.1);\n        }\n\n        /* CABEÇALHO */\n        .header {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            border-bottom: 3px solid #003366;\n            padding-bottom: 20px;\n            margin-bottom: 30px;\n        }\n\n        .header-left h1 {\n            font-size: 24px;\n            color: #003366;\n            margin-bottom: 5px;\n        }\n\n        .header-left p {\n            font-size: 12px;\n            color: #666;\n        }\n\n        .header-right {\n            text-align: right;\n        }\n\n        .logo {\n            max-width: 150px;\n            max-height: 80px;\n            margin-bottom: 10px;\n        }\n\n        .company-name {\n            font-size: 14px;\n            font-weight: bold;\n            color: #003366;\n        }\n\n        /* STATUS */\n        .status-box {\n            background: ${statusColor};\n            color: white;\n            padding: 15px;\n            border-radius: 5px;\n            margin-bottom: 20px;\n            font-size: 16px;\n            font-weight: bold;\n            text-align: center;\n        }\n\n        /* SEÇÕES */\n        .section {\n            margin-bottom: 30px;\n        }\n\n        .section-title {\n            font-size: 16px;\n            font-weight: bold;\n            color: #003366;\n            border-bottom: 2px solid #003366;\n            padding-bottom: 10px;\n            margin-bottom: 15px;\n        }\n\n        .info-grid {\n            display: grid;\n            grid-template-columns: 1fr 1fr;\n            gap: 20px;\n            margin-bottom: 15px;\n        }\n\n        .info-item {\n            background: #f9f9f9;\n            padding: 10px;\n            border-left: 3px solid #003366;\n        }\n\n        .info-label {\n            font-weight: bold;\n            color: #003366;\n            font-size: 12px;\n            text-transform: uppercase;\n        }\n\n        .info-value {\n            font-size: 14px;\n            margin-top: 5px;\n        }\n\n        /* TABELA */\n        table {\n            width: 100%;\n            border-collapse: collapse;\n            margin-bottom: 15px;\n        }\n\n        th {\n            background: #003366;\n            color: white;\n            padding: 12px;\n            text-align: left;\n            font-size: 12px;\n            font-weight: bold;\n        }\n\n        td {\n            padding: 10px 12px;\n            border-bottom: 1px solid #ddd;\n            font-size: 12px;\n        }\n\n        tr:nth-child(even) {\n            background: #f9f9f9;\n        }\n\n        .status-ok {\n            color: #28a745;\n            font-weight: bold;\n        }\n\n        .status-error {\n            color: #dc3545;\n            font-weight: bold;\n        }\n\n        .status-warning {\n            color: #ffc107;\n            font-weight: bold;\n        }\n\n        /* ERROS E AVISOS */\n        .error-list, .warning-list {\n            list-style: none;\n            margin-left: 0;\n        }\n\n        .error-list li {\n            padding: 8px;\n            margin-bottom: 5px;\n            background: #f8d7da;\n            border-left: 3px solid #dc3545;\n            color: #721c24;\n        }\n\n        .warning-list li {\n            padding: 8px;\n            margin-bottom: 5px;\n            background: #fff3cd;\n            border-left: 3px solid #ffc107;\n            color: #856404;\n        }\n\n        /* ASSINATURA */\n        .signature-section {\n            margin-top: 50px;\n            page-break-inside: avoid;\n        }\n\n        .signature-line {\n            display: inline-block;\n            width: 300px;\n            border-top: 1px solid #000;\n            margin-top: 40px;\n            margin-right: 50px;\n        }\n\n        .signature-info {\n            font-size: 11px;\n            margin-top: 5px;\n        }\n\n        /* RODAPÉ */\n        .footer {\n            border-top: 2px solid #003366;\n            padding-top: 15px;\n            margin-top: 30px;\n            font-size: 9px;\n            color: #666;\n            text-align: center;\n        }\n\n        .footer-line {\n            margin-bottom: 5px;\n        }\n\n        /* PRINT */\n        @media print {\n            body {\n                background: white;\n            }\n            .container {\n                box-shadow: none;\n                padding: 20px;\n            }\n            .page-break {\n                page-break-after: always;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <!-- CABEÇALHO -->\n        <div class=\"header\">\n            <div class=\"header-left\">\n                <h1>LAUDO TÉCNICO</h1>\n                <p>Conformidade ANVISA - Suplemento Alimentar</p>\n            </div>\n            <div class=\"header-right\">\n                ${rtInfo.companyLogo ? `<img src=\"${rtInfo.companyLogo}\" class=\"logo\" alt=\"Logo\">` : ''}\n                <div class=\"company-name\">${rtInfo.companyName}</div>\n            </div>\n        </div>\n\n        <!-- STATUS -->\n        <div class=\"status-box\">${statusText}</div>\n\n        <!-- INFORMAÇÕES DO PRODUTO -->\n        <div class=\"section\">\n            <div class=\"section-title\">1. INFORMAÇÕES DO PRODUTO</div>\n            <div class=\"info-grid\">\n                <div class=\"info-item\">\n                    <div class=\"info-label\">Nome do Produto</div>\n                    <div class=\"info-value\">${product.name}</div>\n                </div>\n                <div class=\"info-item\">\n                    <div class=\"info-label\">Público-Alvo</div>\n                    <div class=\"info-value\">${this.translateTargetAudience(product.targetAudience)}</div>\n                </div>\n                <div class=\"info-item\">\n                    <div class=\"info-label\">Porção</div>\n                    <div class=\"info-value\">${product.servingSize} ${product.servingSizeUnit}(s)</div>\n                </div>\n                <div class=\"info-item\">\n                    <div class=\"info-label\">Porções por Embalagem</div>\n                    <div class=\"info-value\">${product.servingsPerPackage}</div>\n                </div>\n            </div>\n        </div>\n\n        <!-- CONSTITUINTES -->\n        <div class=\"section\">\n            <div class=\"section-title\">2. ANÁLISE DE CONSTITUINTES</div>\n            <table>\n                <thead>\n                    <tr>\n                        <th>Constituinte</th>\n                        <th>Dose</th>\n                        <th>Mín. Permitido</th>\n                        <th>Máx. Permitido</th>\n                        <th>Legislação</th>\n                        <th>Status</th>\n                    </tr>\n                </thead>\n                <tbody>\n                    ${product.constituents\n                      .map((constituent) => {\n                        const anvisaData = Object.values(ANVISA_LIMITS).find(\n                          (c: any) => c.name?.toLowerCase() === constituent.name.toLowerCase()\n                        ) as any;\n                        const validation = validation.constituentValidations.get(constituent.name);\n                        const status = validation?.isValid\n                          ? '<span class=\"status-ok\">✅ OK</span>'\n                          : '<span class=\"status-error\">❌ ERRO</span>';\n\n                        return `\n                    <tr>\n                        <td><strong>${constituent.name}</strong></td>\n                        <td>${constituent.dose} ${constituent.unit}</td>\n                        <td>${anvisaData?.min || '-'}</td>\n                        <td>${anvisaData?.max || '-'}</td>\n                        <td>${constituent.legislacao}</td>\n                        <td>${status}</td>\n                    </tr>\n                    `;\n                      })\n                      .join('')}\n                </tbody>\n            </table>\n        </div>\n\n        <!-- ERROS -->\n        ${validation.allErrors.length > 0\n          ? `\n        <div class=\"section\">\n            <div class=\"section-title\">3. ❌ ERROS ENCONTRADOS</div>\n            <ul class=\"error-list\">\n                ${validation.allErrors.map((error) => `<li>${error}</li>`).join('')}\n            </ul>\n        </div>\n        `\n          : ''}\n\n        <!-- AVISOS -->\n        ${validation.allWarnings.length > 0\n          ? `\n        <div class=\"section\">\n            <div class=\"section-title\">4. ⚠️ AVISOS</div>\n            <ul class=\"warning-list\">\n                ${validation.allWarnings.map((warning) => `<li>${warning}</li>`).join('')}\n            </ul>\n        </div>\n        `\n          : ''}\n\n        <!-- RECOMENDAÇÕES -->\n        ${recommendations.length > 0\n          ? `\n        <div class=\"section\">\n            <div class=\"section-title\">5. RECOMENDAÇÕES</div>\n            <ul class=\"error-list\">\n                ${recommendations.map((rec) => `<li>${rec}</li>`).join('')}\n            </ul>\n        </div>\n        `\n          : ''}\n\n        <!-- ASSINATURA -->\n        <div class=\"signature-section\">\n            <div class=\"section-title\">ASSINATURA DO RESPONSÁVEL TÉCNICO</div>\n            <div style=\"margin-top: 30px;\">\n                <div class=\"signature-line\"></div>\n                <div class=\"signature-info\">\n                    <strong>${rtInfo.name}</strong><br>\n                    CRF: ${rtInfo.crfNumber}<br>\n                    Email: ${rtInfo.email}<br>\n                    Telefone: ${rtInfo.phone}\n                </div>\n            </div>\n        </div>\n\n        <!-- RODAPÉ -->\n        <div class=\"footer\">\n            <div class=\"footer-line\">Este laudo foi gerado pelo ERP ${rtInfo.companyName}</div>\n            <div class=\"footer-line\">Data: ${validationDate.toLocaleDateString('pt-BR')} às ${validationDate.toLocaleTimeString('pt-BR')}</div>\n            <div class=\"footer-line\">Responsável Técnico: ${rtInfo.name} (CRF: ${rtInfo.crfNumber})</div>\n            <div class=\"footer-line\">Conforme legislação ANVISA: IN 28/2018, IN 75/2020, IN 102/2021, IN 373/2025, IN 438/2026</div>\n        </div>\n    </div>\n</body>\n</html>\n    `;\n  }\n\n  /**\n   * Exporta laudo para PDF\n   */\n  async exportToPDF(laudoHTML: string, filename: string): Promise<void> {\n    const blob = new Blob([laudoHTML], { type: 'text/html' });\n    const url = URL.createObjectURL(blob);\n    const link = document.createElement('a');\n    link.href = url;\n    link.download = `${filename}.html`;\n    link.click();\n    URL.revokeObjectURL(url);\n  }\n\n  /**\n   * Traduz público-alvo\n   */\n  private translateTargetAudience(audience: string): string {\n    const translations: Record<string, string> = {\n      CRIANCAS_4_8: 'Crianças 4-8 anos',\n      CRIANCAS_9_18: 'Crianças 9-18 anos',\n      ADULTOS: 'Adultos ≥19 anos',\n      GESTANTES: 'Gestantes',\n      LACTANTES: 'Lactantes',\n    };\n    return translations[audience] || audience;\n  }\n\n  /**\n   * Salva laudo no banco de dados\n   */\n  async saveLaudo(laudoData: LaudoData, userId: string): Promise<string> {\n    const { data, error } = await supabase\n      .from('anvisa_laudos')\n      .insert([\n        {\n          user_id: userId,\n          product_name: laudoData.product.name,\n          product_data: laudoData.product,\n          rt_info: laudoData.rtInfo,\n          compliance_status: laudoData.complianceStatus,\n          validation_date: laudoData.validationDate.toISOString(),\n          issues: laudoData.issues,\n          recommendations: laudoData.recommendations,\n        },\n      ])\n      .select()\n      .single();\n\n    if (error) throw error;\n    return data.id;\n  }\n}\n\nexport const anvisaLaudoGenerator = new AnvisaLaudoGeneratorService();\n
+/**
+ * Serviço de Geração de Laudos ANVISA Profissionais
+ * 
+ * Gera laudos técnicos completos conforme legislação ANVISA
+ * com validação 100% legislativa, assinatura de RT e rodapé profissional
+ */
+
+import { supabase } from '@/integrations/supabase/client';
+import { ANVISA_LIMITS } from '@/lib/anvisa-limits';
+
+export interface Constituent {
+  name: string;
+  dose: number;
+  unit: string;
+  legislacao: string;
+  minDose?: number;
+  maxDose?: number;
+  allowedGroups?: string[];
+  restrictedGroups?: string[];
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  constituents: Constituent[];
+  targetAudience: string; // 'CRIANCAS_4_8' | 'CRIANCAS_9_18' | 'ADULTOS' | 'GESTANTES' | 'LACTANTES'
+  servingSize: number;
+  servingSizeUnit: string;
+  servingsPerPackage: number;
+}
+
+export interface RTInfo {
+  name: string;
+  tipoConselho: 'CRN' | 'CRQ' | 'CRF';
+  numeroRegistro: string;
+  ufConselho: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  companyLogo?: string;
+}
+
+export interface LaudoData {
+  product: Product;
+  rtInfo: RTInfo;
+  validationDate: Date;
+  complianceStatus: 'CONFORME' | 'NAO_CONFORME' | 'OBSERVACOES';
+  issues: string[];
+  recommendations: string[];
+}
+
+class AnvisaLaudoGeneratorService {
+  /**
+   * Valida constituinte contra legislação ANVISA
+   */
+  validateConstituent(constituent: Constituent): {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Verificar se constituinte existe em ANVISA
+    const anvisaConstituent = Object.values(ANVISA_LIMITS).find(
+      (c: any) => c.name?.toLowerCase() === constituent.name.toLowerCase()
+    );
+
+    if (!anvisaConstituent) {
+      errors.push(`Constituinte \"${constituent.name}\" não encontrado na legislação ANVISA`);
+      return { isValid: false, errors, warnings };
+    }
+
+    // Validar dose mínima
+    if (anvisaConstituent.min && constituent.dose < anvisaConstituent.min) {
+      errors.push(
+        `Dose de ${constituent.name} (${constituent.dose}${constituent.unit}) está ABAIXO do mínimo permitido (${anvisaConstituent.min}${constituent.unit})`
+      );
+    }
+
+    // Validar dose máxima
+    if (anvisaConstituent.max && constituent.dose > anvisaConstituent.max) {
+      errors.push(
+        `Dose de ${constituent.name} (${constituent.dose}${constituent.unit}) está ACIMA do máximo permitido (${anvisaConstituent.max}${constituent.unit})`
+      );
+    }
+
+    // Validar grupo populacional
+    if (anvisaConstituent.restrictedGroups?.includes(constituent.name)) {
+      errors.push(
+        `${constituent.name} é PROIBIDO para o grupo-alvo especificado (${anvisaConstituent.restrictedGroups.join(', ')})`
+      );
+    }
+
+    // Avisos de dose no limite
+    if (
+      anvisaConstituent.max &&
+      constituent.dose >= anvisaConstituent.max * 0.95
+    ) {
+      warnings.push(
+        `⚠️ ${constituent.name} está próximo ao limite máximo (${constituent.dose}/${anvisaConstituent.max}${constituent.unit})`
+      );
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * Valida produto completo
+   */
+  validateProduct(product: Product): {
+    isValid: boolean;
+    allErrors: string[];
+    allWarnings: string[];
+    constituentValidations: Map<string, any>;
+  } {
+    const allErrors: string[] = [];
+    const allWarnings: string[] = [];
+    const constituentValidations = new Map();
+
+    // Validar cada constituinte
+    for (const constituent of product.constituents) {
+      const validation = this.validateConstituent(constituent);
+      constituentValidations.set(constituent.name, validation);
+
+      allErrors.push(...validation.errors);
+      allWarnings.push(...validation.warnings);
+    }
+
+    // Validar restrições de associação
+    const restrictions = this.checkRestrictions(product.constituents);
+    allErrors.push(...restrictions.errors);
+    allWarnings.push(...restrictions.warnings);
+
+    return {
+      isValid: allErrors.length === 0,
+      allErrors,
+      allWarnings,
+      constituentValidations,
+    };
+  }
+
+  /**
+   * Verifica restrições de associação entre constituintes
+   */
+  private checkRestrictions(constituents: Constituent[]): {
+    errors: string[];
+    warnings: string[];
+  } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Restrição: Curcumina + Tetraidrocurcuminoides (IN 438/2026)
+    const hasCurcumina = constituents.some(
+      (c) => c.name.toLowerCase().includes('curcumina')
+    );
+    const hasTetraidro = constituents.some(
+      (c) => c.name.toLowerCase().includes('tetraidro')
+    );
+
+    if (hasCurcumina && hasTetraidro) {
+      errors.push(
+        '❌ RESTRIÇÃO: Curcumina e Tetraidrocurcuminoides NÃO podem estar no mesmo produto (IN 438/2026)'
+      );
+    }
+
+    return { errors, warnings };
+  }
+
+  /**
+   * Gera laudo técnico em HTML
+   */
+  generateLaudoHTML(laudoData: LaudoData): string {
+    const { product, rtInfo, validationDate, complianceStatus, issues, recommendations } =
+      laudoData;
+
+    const validation = this.validateProduct(product);
+    const statusColor =
+      complianceStatus === 'CONFORME'
+        ? '#28a745'
+        : complianceStatus === 'NAO_CONFORME'
+          ? '#dc3545'
+          : '#ffc107';
+    const statusText =
+      complianceStatus === 'CONFORME'
+        ? '✅ CONFORME'
+        : complianceStatus === 'NAO_CONFORME'
+          ? '❌ NÃO CONFORME'
+          : '⚠️ COM OBSERVAÇÕES';
+
+    return `
+<!DOCTYPE html>
+<html lang=\"pt-BR\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>Laudo Técnico ANVISA - ${product.name}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* CABEÇALHO */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #003366;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .header-left h1 {
+            font-size: 24px;
+            color: #003366;
+            margin-bottom: 5px;
+        }
+
+        .header-left p {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .logo {
+            max-width: 150px;
+            max-height: 80px;
+            margin-bottom: 10px;
+        }
+
+        .company-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #003366;
+        }
+
+        /* STATUS */
+        .status-box {
+            background: ${statusColor};
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* SEÇÕES */
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #003366;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            background: #f9f9f9;
+            padding: 10px;
+            border-left: 3px solid #003366;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #003366;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* TABELA */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        th {
+            background: #003366;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .status-ok {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .status-error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .status-warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        /* ERROS E AVISOS */
+        .error-list, .warning-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .error-list li {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #f8d7da;
+            border-left: 3px solid #dc3545;
+            color: #721c24;
+        }
+
+        .warning-list li {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #fff3cd;
+            border-left: 3px solid #ffc107;
+            color: #856404;
+        }
+
+        /* ASSINATURA */
+        .signature-section {
+            margin-top: 50px;
+            page-break-inside: avoid;
+        }
+
+        .signature-line {
+            display: inline-block;
+            width: 300px;
+            border-top: 1px solid #000;
+            margin-top: 40px;
+            margin-right: 50px;
+        }
+
+        .signature-info {
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
+        /* RODAPÉ */
+        .footer {
+            border-top: 2px solid #003366;
+            padding-top: 15px;
+            margin-top: 30px;
+            font-size: 9px;
+            color: #666;
+            text-align: center;
+        }
+
+        .footer-line {
+            margin-bottom: 5px;
+        }
+
+        /* PRINT */
+        @media print {
+            body {
+                background: white;
+            }
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class=\"container\">
+        <!-- CABEÇALHO -->
+        <div class=\"header\">
+            <div class=\"header-left\">
+                <h1>LAUDO TÉCNICO</h1>
+                <p>Conformidade ANVISA - Suplemento Alimentar</p>
+            </div>
+            <div class=\"header-right\">
+                ${rtInfo.companyLogo ? `<img src=\"${rtInfo.companyLogo}\" class=\"logo\" alt=\"Logo\">` : ''}
+                <div class=\"company-name\">${rtInfo.companyName}</div>
+            </div>
+        </div>
+
+        <!-- STATUS -->
+        <div class=\"status-box\">${statusText}</div>
+
+        <!-- INFORMAÇÕES DO PRODUTO -->
+        <div class=\"section\">
+            <div class=\"section-title\">1. INFORMAÇÕES DO PRODUTO</div>
+            <div class=\"info-grid\">
+                <div class=\"info-item\">
+                    <div class=\"info-label\">Nome do Produto</div>
+                    <div class=\"info-value\">${product.name}</div>
+                </div>
+                <div class=\"info-item\">
+                    <div class=\"info-label\">Público-Alvo</div>
+                    <div class=\"info-value\">${this.translateTargetAudience(product.targetAudience)}</div>
+                </div>
+                <div class=\"info-item\">
+                    <div class=\"info-label\">Porção</div>
+                    <div class=\"info-value\">${product.servingSize} ${product.servingSizeUnit}(s)</div>
+                </div>
+                <div class=\"info-item\">
+                    <div class=\"info-label\">Porções por Embalagem</div>
+                    <div class=\"info-value\">${product.servingsPerPackage}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONSTITUINTES -->
+        <div class=\"section\">
+            <div class=\"section-title\">2. ANÁLISE DE CONSTITUINTES</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Constituinte</th>
+                        <th>Dose</th>
+                        <th>Mín. Permitido</th>
+                        <th>Máx. Permitido</th>
+                        <th>Legislação</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${product.constituents
+                      .map((constituent) => {
+                        const anvisaData = Object.values(ANVISA_LIMITS).find(
+                          (c: any) => c.name?.toLowerCase() === constituent.name.toLowerCase()
+                        ) as any;
+                        const validation = validation.constituentValidations.get(constituent.name);
+                        const status = validation?.isValid
+                          ? '<span class=\"status-ok\">✅ OK</span>'
+                          : '<span class=\"status-error\">❌ ERRO</span>';
+
+                        return `
+                    <tr>
+                        <td><strong>${constituent.name}</strong></td>
+                        <td>${constituent.dose} ${constituent.unit}</td>
+                        <td>${anvisaData?.min || '-'}</td>
+                        <td>${anvisaData?.max || '-'}</td>
+                        <td>${constituent.legislacao}</td>
+                        <td>${status}</td>
+                    </tr>
+                    `;
+                      })
+                      .join('')}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ERROS -->
+        ${validation.allErrors.length > 0
+          ? `
+        <div class=\"section\">
+            <div class=\"section-title\">3. ❌ ERROS ENCONTRADOS</div>
+            <ul class=\"error-list\">
+                ${validation.allErrors.map((error) => `<li>${error}</li>`).join('')}
+            </ul>
+        </div>
+        `
+          : ''}
+
+        <!-- AVISOS -->
+        ${validation.allWarnings.length > 0
+          ? `
+        <div class=\"section\">
+            <div class=\"section-title\">4. ⚠️ AVISOS</div>
+            <ul class=\"warning-list\">
+                ${validation.allWarnings.map((warning) => `<li>${warning}</li>`).join('')}
+            </ul>
+        </div>
+        `
+          : ''}
+
+        <!-- RECOMENDAÇÕES -->
+        ${recommendations.length > 0
+          ? `
+        <div class=\"section\">
+            <div class=\"section-title\">5. RECOMENDAÇÕES</div>
+            <ul class=\"error-list\">
+                ${recommendations.map((rec) => `<li>${rec}</li>`).join('')}
+            </ul>
+        </div>
+        `
+          : ''}
+
+        <!-- ASSINATURA -->
+        <div class=\"signature-section\">
+            <div class=\"section-title\">ASSINATURA DO RESPONSÁVEL TÉCNICO</div>
+            <div style=\"margin-top: 30px;\">
+                <div class=\"signature-line\"></div>
+                <div class=\"signature-info\">
+                    <strong>${rtInfo.name}</strong><br>
+                    ${rtInfo.tipoConselho}: ${rtInfo.numeroRegistro}/${rtInfo.ufConselho}<br>
+                    Email: ${rtInfo.email}<br>
+                    Telefone: ${rtInfo.phone}
+                </div>
+            </div>
+        </div>
+
+        <!-- RODAPÉ -->
+        <div class=\"footer\">
+            <div class=\"footer-line\">Este laudo foi gerado pelo ERP ${rtInfo.companyName}</div>
+            <div class=\"footer-line\">Data: ${validationDate.toLocaleDateString('pt-BR')} às ${validationDate.toLocaleTimeString('pt-BR')}</div>
+            <div class=\"footer-line\">Responsável Técnico: ${rtInfo.name} (${rtInfo.tipoConselho}: ${rtInfo.numeroRegistro}/${rtInfo.ufConselho})</div>
+            <div class=\"footer-line\">Conforme legislação ANVISA: IN 28/2018, IN 75/2020, IN 102/2021, IN 373/2025, IN 438/2026</div>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Exporta laudo para PDF
+   */
+  async exportToPDF(laudoHTML: string, filename: string): Promise<void> {
+    const blob = new Blob([laudoHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Traduz público-alvo
+   */
+  private translateTargetAudience(audience: string): string {
+    const translations: Record<string, string> = {
+      CRIANCAS_4_8: 'Crianças 4-8 anos',
+      CRIANCAS_9_18: 'Crianças 9-18 anos',
+      ADULTOS: 'Adultos ≥19 anos',
+      GESTANTES: 'Gestantes',
+      LACTANTES: 'Lactantes',
+    };
+    return translations[audience] || audience;
+  }
+
+  /**
+   * Salva laudo no banco de dados
+   */
+  async saveLaudo(laudoData: LaudoData, userId: string): Promise<string> {
+    const { data, error } = await supabase
+      .from('anvisa_laudos')
+      .insert([
+        {
+          user_id: userId,
+          product_name: laudoData.product.name,
+          product_data: laudoData.product,
+          rt_info: laudoData.rtInfo,
+          compliance_status: laudoData.complianceStatus,
+          validation_date: laudoData.validationDate.toISOString(),
+          issues: laudoData.issues,
+          recommendations: laudoData.recommendations,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data.id;
+  }
+}
+
+export const anvisaLaudoGenerator = new AnvisaLaudoGeneratorService();
+
