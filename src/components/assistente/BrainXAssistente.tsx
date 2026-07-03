@@ -174,7 +174,7 @@ export function BrainXERPAssistente() {
   return (
     <>
       {!aberto && (
-        <div className="fixed bottom-6 right-6 z-[9997] flex items-center gap-3">
+        <div className="assistente-flutuante fixed bottom-6 right-6 z-[9997] flex items-center gap-3">
           <span className="relative bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg shadow-md whitespace-nowrap pointer-events-none">
             Precisa de ajuda?
             <span className="absolute right-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 bg-foreground rotate-45" />
@@ -194,7 +194,7 @@ export function BrainXERPAssistente() {
       )}
 
       {aberto && (
-        <div className="fixed bottom-6 right-6 z-[9997] w-[400px] h-[600px] bg-card border rounded-xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="assistente-flutuante fixed bottom-6 right-6 z-[9997] w-[400px] h-[600px] bg-card border rounded-xl shadow-2xl flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b bg-primary/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

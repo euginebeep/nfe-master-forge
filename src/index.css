@@ -616,3 +616,13 @@ body.pdf-export-anvisa #anvisa-print-area * {
 body.pdf-export-anvisa #anvisa-print-area .no-print {
   display: none !important;
 }
+
+/* ============================================================
+   Impressão — oculta o widget flutuante do assistente ("Precisa
+   de ajuda?") para que ele não apareça no PDF/impressão da OP.
+   ============================================================ */
+@media print {
+  .assistente-flutuante {
+    display: none !important;
+  }
+}
