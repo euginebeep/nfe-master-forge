@@ -59,7 +59,8 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         setCompanyData(op.company);
       } catch (err) {
         console.error('Erro ao buscar dados da OP:', err);
-        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+        const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
+        setError(`Erro ao carregar OP: ${errorMsg}`);
       } finally {
         setLoading(false);
       }
@@ -110,9 +111,10 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
   }
 
   // Agrupar materias primas por categoria
-  const ativos = opData.op_materias_primas?.filter(m => m.categoria === 'ATIVO') || [];
-  const excipienteBase = opData.op_materias_primas?.filter(m => m.categoria === 'EXCIPIENTE_BASE') || [];
-  const excipienteTec = opData.op_materias_primas?.filter(m => m.categoria === 'EXCIPIENTE_TECNOLOGICO') || [];
+  const materiasPrimas = opData.op_materias_primas || [];
+  const ativos = materiasPrimas.filter(m => m?.categoria === 'ATIVO');
+  const excipienteBase = materiasPrimas.filter(m => m?.categoria === 'EXCIPIENTE_BASE');
+  const excipienteTec = materiasPrimas.filter(m => m?.categoria === 'EXCIPIENTE_TECNOLOGICO');
 
   // Helpers
   const formatarQtd = (valor: number, unidade: string = 'g'): string => {
