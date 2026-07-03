@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { OPIndustrialData } from '@/types/op-industrial';
 import { calcularDistribuicaoGeometrica } from '@/lib/distribuicao-geometrica';
@@ -17,9 +16,8 @@ interface OPImpressaoProps {
  * - Rota: /producao/ordens/:id/imprimir
  * - window.print() é chamado automaticamente se autoprint=true
  */
-export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpressaoProps) {
-  const { id: routeOpId } = useParams<{ id: string }>();
-  const opId = propOpId || routeOpId;
+export function OPImpressaoTemplate({ opId: propOpId, autoprint = false }: OPImpressaoProps) {
+  const opId = propOpId;
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [opData, setOpData] = useState<OPIndustrialData | null>(null);
