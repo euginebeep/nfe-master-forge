@@ -32,12 +32,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateItem } from "@/hooks/use-itens";
 import type { HybridItem } from "@/hooks/use-hybrid-data";
 
-// Enums espelhados do cadastro normal (ItemFormDialog)
+// Enums válidos no banco (check constraint itens_tipo_item_check):
+// 'MP','EMBALAGEM','ROTULO','TAMPA','POTE','SILICA','CAPSULA_VAZIA','PA','OUTRO'.
+// Para insumo de fórmula o correto é MP (default do cadastro normal = matéria-prima ativa).
 const UNIDADES = ["g", "mg", "kg", "un", "ml", "l"] as const;
 const TIPOS_ITEM = [
-  { value: "ATIVO", label: "Ativo (componente funcional)" },
-  { value: "MP", label: "Matéria-prima" },
-  { value: "EXCIPIENTE", label: "Excipiente (veículo/enchimento)" },
+  { value: "MP", label: "Matéria-prima (ativo)" },
   { value: "OUTRO", label: "Outro" },
 ] as const;
 
@@ -57,7 +57,7 @@ export function CadastroRapidoInsumo({
   const createItem = useCreateItem();
 
   const [nome, setNome] = useState(nomeInicial);
-  const [tipoItem, setTipoItem] = useState<string>("ATIVO");
+  const [tipoItem, setTipoItem] = useState<string>("MP");
   const [unidadeInterna, setUnidadeInterna] = useState<string>("g");
   const [unidadePesagem, setUnidadePesagem] = useState<string>("g");
   const [unidadeDeclaracao, setUnidadeDeclaracao] = useState<string>("mg");
@@ -69,7 +69,7 @@ export function CadastroRapidoInsumo({
   useEffect(() => {
     if (open) {
       setNome(nomeInicial);
-      setTipoItem("ATIVO");
+      setTipoItem("MP");
       setUnidadeInterna("g");
       setUnidadePesagem("g");
       setUnidadeDeclaracao("mg");
@@ -110,8 +110,8 @@ export function CadastroRapidoInsumo({
       return;
     }
 
-    // Espelha os defaults do cadastro normal (ItemFormDialog): ATIVO/MP => CRITICO.
-    const criticidade = tipoItem === "ATIVO" || tipoItem === "MP" ? "CRITICO" : "NORMAL";
+    // Espelha os defaults do cadastro normal (ItemFormDialog): MP (matéria-prima ativa) => CRITICO.
+    const criticidade = tipoItem === "MP" ? "CRITICO" : "NORMAL";
 
     try {
       const item = await createItem.mutateAsync({
