@@ -28,6 +28,7 @@ import {
   formatarEnderecoEmpresa,
   gerarTextoListaPura,
 } from '@/lib/conferencia-materiais';
+import { setOpStatusAguardandoCompra } from '@/lib/op-status-update';
 
 interface OPTabConferenciaMateriaisProps {
   opId: string;
@@ -216,14 +217,11 @@ export function OPTabConferenciaMateriais({
       if (prepErr) throw prepErr;
 
       const itensFaltantes = prep?.itens_para_comprar || 0;
+      let usedFallback = false;
 
       if (itensFaltantes > 0) {
-        const { error: statusErr } = await supabase
-          .from('ordens_producao_industrial')
-          .update({ status: 'AGUARDANDO_COMPRA' })
-          .eq('id', opId);
-
-        if (statusErr) throw statusErr;
+        const result = await setOpStatusAguardandoCompra(opId);
+        usedFallback = result.usedFallback;
       }
 
       let numeroInterno = '';
@@ -244,10 +242,10 @@ export function OPTabConferenciaMateriais({
       onRefresh();
 
       if (itensFaltantes > 0) {
-        const msg = numeroInterno
+        const baseMsg = numeroInterno
           ? `Requisição ${numeroInterno} gerada — ${itensFaltantes} insumo(s) para comprar`
           : `Requisição gerada — ${itensFaltantes} insumo(s) para comprar`;
-        toast.success(msg);
+        toast.success(usedFallback ? `${baseMsg} (status: Aguardando Materiais)` : baseMsg);
       } else {
         toast.success('Materiais conferidos — estoque suficiente');
       }
@@ -366,10 +364,10 @@ export function OPTabConferenciaMateriais({
             </div>
           )}
 
-          {opStatus === 'AGUARDANDO_COMPRA' && (
+          {(opStatus === 'AGUARDANDO_COMPRA' || opStatus === 'AGUARDANDO_MATERIAIS') && (
             <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4 text-sm text-amber-800">
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              OP aguardando compra de materiais
+              OP aguardando {opStatus === 'AGUARDANDO_COMPRA' ? 'compra de materiais' : 'materiais'}
             </div>
           )}
 
