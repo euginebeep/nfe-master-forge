@@ -32,6 +32,7 @@ import {
 } from "@/hooks/use-formulador-industrial";
 import { StatusFormula, TipoApresentacao } from "@/types/formulador-industrial";
 import { calcularCapsulaIndustrial, calcularCapsulasPorDose, CodigoVeiculoBase, CAPSULA_PESO_ALVO_MG, CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, type TamanhoCapsula } from "@/lib/formulador-industrial-rules";
+import { formatarUnidadeInformada } from "@/lib/unidades-dose";
 import { FichaTecnicaPDF } from "@/components/formulador/FichaTecnicaPDF";
 import { useCompany } from "@/hooks/use-company";
 
@@ -346,7 +347,7 @@ export default function VisualizarFormulaPage() {
                       <TableCell className="font-mono text-muted-foreground">{index + 1}</TableCell>
                       <TableCell className="font-medium">{item.nome_insumo}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {item.quantidade_informada} {item.unidade_informada.toLowerCase()}
+                        {item.quantidade_informada} {formatarUnidadeInformada(item.unidade_informada)}
                       </TableCell>
                       <TableCell className="text-right font-mono font-medium">
                         {item.quantidade_convertida_mg.toFixed(4)} mg

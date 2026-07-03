@@ -5,6 +5,7 @@
 // ====================================================
 
 import type { UnidadeFornecedor, UnidadeInternaLocal } from '@/hooks/use-local-itens';
+import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
 
 // ====================================================
 // REGRAS DE CONVERSÃO
@@ -285,7 +286,7 @@ export function formatarUnidade(unidade: string): string {
     'l': 'L',
     'ml': 'mL',
     'UI_g': 'UI/g',
-    'mcg_g': 'mcg/g',
+    'mcg_g': `${SIMBOLO_MICROGRAMA}/g`,
   };
   return mapa[unidade] || unidade;
 }

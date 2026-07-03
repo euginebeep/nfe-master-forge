@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
 import type { OPMateriaPrima, OPPesagemCritica } from '@/types/op-industrial';
 
 interface OPTabPesagemIndustrialProps {
@@ -74,7 +75,7 @@ function unidadeIdeal(valorG: number): { valor: string; unidade: string; balanca
   } else {
     return { 
       valor: (valorG * 1000000).toFixed(2), 
-      unidade: 'mcg', 
+      unidade: SIMBOLO_MICROGRAMA, 
       balanca: '5+ casas decimais (ultra-analítica)' 
     };
   }
@@ -246,7 +247,7 @@ function InsumoCard({
                 <p className="text-xs text-muted-foreground mb-1">DOSE POR CÁPSULA</p>
                 <p className="font-mono font-bold text-lg">
                   {qtdPorCapsula < 1 
-                    ? `${(qtdPorCapsula * 1000).toFixed(2)} mcg`
+                    ? `${(qtdPorCapsula * 1000).toFixed(2)} ${SIMBOLO_MICROGRAMA}`
                     : `${qtdPorCapsula.toFixed(4)} mg`
                   }
                 </p>
@@ -506,7 +507,7 @@ export function OPTabPesagemIndustrial({
             ⚠️ ATIVOS CRÍTICOS DETECTADOS – PESAGEM COM DUPLA CONFERÊNCIA OBRIGATÓRIA
           </AlertTitle>
           <AlertDescription>
-            Esta OP contém {pesagensCriticas.length} ativo(s) com quantidade menor que 1mg ou em unidades UI/mcg.
+            Esta OP contém {pesagensCriticas.length} ativo(s) com quantidade menor que 1mg ou em unidades UI/{SIMBOLO_MICROGRAMA}.
             A pesagem desses itens exige registro de dois conferentes e é PROIBIDA a pesagem direta no lote final.
           </AlertDescription>
         </Alert>

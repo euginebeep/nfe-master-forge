@@ -2,6 +2,7 @@ import {
   Package, Calculator, DollarSign, FileText, ClipboardList, Users, Tag, Check,
 } from "lucide-react";
 import type { UnidadeFornecedor, UnidadeInternaLocal, TipoItemLocal } from "@/hooks/use-local-itens";
+import { LABEL_MCG_POR_GRAMA } from "@/lib/unidades-dose";
 
 export const TIPOS_ITEM: { value: TipoItemLocal; label: string; description: string }[] = [
   { value: "MP", label: "Matéria Prima", description: "Insumos para produção" },
@@ -58,7 +59,7 @@ export const TIPOS_POTENCIA = [
   { value: "NENHUMA", label: "Nenhuma (excipiente)" },
   { value: "PERCENTUAL", label: "Percentual (%)" },
   { value: "UI_POR_GRAMA", label: "UI por grama (UI/g)" },
-  { value: "MCG_POR_GRAMA", label: "Micrograma por grama (mcg/g)" },
+  { value: "MCG_POR_GRAMA", label: LABEL_MCG_POR_GRAMA },
 ];
 
 export const TAMANHOS_CAPSULA = ['000', '00', '0', '1', '2', '3', '4', '5'];

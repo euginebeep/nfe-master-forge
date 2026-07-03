@@ -49,6 +49,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { StatusOP, OPMateriaPrima, OPChecklist, OPPesagemCritica } from '@/types/op-industrial';
 import { QRCodeAuditoria } from '@/components/shared/QRCodeAuditoria';
+import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
 
 export default function OrdemProducaoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -776,7 +777,7 @@ export default function OrdemProducaoDetailPage() {
                 Pesagem Crítica - Dupla Conferência Obrigatória
               </CardTitle>
               <CardDescription>
-                Ativos com quantidade &lt; 1mg ou em unidades UI/MCG exigem conferência dupla
+                Ativos com quantidade &lt; 1mg ou em unidades UI/{SIMBOLO_MICROGRAMA} exigem conferência dupla
               </CardDescription>
             </CardHeader>
             <CardContent>
