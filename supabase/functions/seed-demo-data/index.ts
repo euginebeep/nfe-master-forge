@@ -301,6 +301,7 @@ Deno.serve(async (req) => {
         data_val: isExpiring ? addDays(15 + i % 20) : addDays(365 + i * 10),
         fornecedor_id: pick(fornecedoresIds, i),
         observacoes_qc: status === 'QUARENTENA' ? 'Aguardando análise de COA' : null,
+        origem: 'SEED',
       });
     });
     const { error: ltErr } = await supabase.from('estoque_lotes').insert(lotes);

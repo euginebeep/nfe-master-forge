@@ -665,15 +665,26 @@ export async function importarNFeCompletaSupabase(
         const qtdInterna = qtdOriginal * fatorConversao;
         const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConversao);
         
+        // BLOQUEIO: Não permitir criação de lotes fantasma em empresas reais
+        // Se o XML não tem rastro, deve ser rejeitado (não fabricar LOTE-*)
+        if (!rastro?.numero_lote) {
+          throw new Error(
+            `Item ${itemIndex + 1} (${itemData.item.descricao}): XML não contém rastro/lote. ` +
+            `Importação de itens sem rastreabilidade não é permitida. ` +
+            `Verifique o arquivo XML ou use lançamento manual de estoque.`
+          );
+        }
+        
         const { data: lote, error: loteError } = await supabase.from('estoque_lotes').insert({
           company_id: companyId,
           item_id: itemId,
           fornecedor_id: emitente.id,
           nota_entrada_item_id: notaItem.id,
-          numero_lote: rastro?.numero_lote || `LOTE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-          data_fab: rastro?.data_fabricacao || null,
-          data_val: rastro?.data_validade || null,
-          codigo_agregacao: rastro?.codigo_agregacao || null,
+          numero_lote: rastro.numero_lote,
+          data_fab: rastro.data_fabricacao || null,
+          data_val: rastro.data_validade || null,
+          origem: 'NF-E',
+          codigo_agregacao: rastro.codigo_agregacao || null,
           quantidade_original: qtdOriginal,
           unidade_original: uCom,
           quantidade_interna: qtdInterna,

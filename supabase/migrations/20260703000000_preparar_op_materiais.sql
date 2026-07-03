@@ -86,10 +86,16 @@ BEGIN
       v_need_int := r.need_mg / v_div;
 
       SELECT COALESCE(SUM(quantidade_interna),0) INTO v_avail
-        FROM estoque_lotes WHERE item_id=r.item_id AND status IN ('DISPONIVEL','QUARENTENA');
+        FROM estoque_lotes 
+        WHERE item_id=r.item_id 
+          AND status IN ('DISPONIVEL','QUARENTENA')
+          AND COALESCE(origem,'NF-E') != 'SEED';
 
       SELECT * INTO v_lote FROM estoque_lotes
-        WHERE item_id=r.item_id AND status IN ('DISPONIVEL','QUARENTENA') AND quantidade_interna>0
+        WHERE item_id=r.item_id 
+          AND status IN ('DISPONIVEL','QUARENTENA') 
+          AND quantidade_interna>0
+          AND COALESCE(origem,'NF-E') != 'SEED'
         ORDER BY (status='DISPONIVEL') DESC, data_val ASC NULLS LAST LIMIT 1;
 
       v_obs := NULL;
@@ -127,9 +133,15 @@ BEGIN
       UNION ALL SELECT 'TAMPA', v_tampa_id, v_op.tampa_item_nome, v_frascos::numeric
   LOOP
       SELECT COALESCE(SUM(quantidade_interna),0) INTO v_avail
-        FROM estoque_lotes WHERE item_id=r.item_id AND status IN ('DISPONIVEL','QUARENTENA');
+        FROM estoque_lotes 
+        WHERE item_id=r.item_id 
+          AND status IN ('DISPONIVEL','QUARENTENA')
+          AND COALESCE(origem,'NF-E') != 'SEED';
       SELECT * INTO v_lote FROM estoque_lotes
-        WHERE item_id=r.item_id AND status IN ('DISPONIVEL','QUARENTENA') AND quantidade_interna>0
+        WHERE item_id=r.item_id 
+          AND status IN ('DISPONIVEL','QUARENTENA') 
+          AND quantidade_interna>0
+          AND COALESCE(origem,'NF-E') != 'SEED'
         ORDER BY (status='DISPONIVEL') DESC, data_val ASC NULLS LAST LIMIT 1;
 
       INSERT INTO op_embalagens
