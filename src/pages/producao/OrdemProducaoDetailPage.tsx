@@ -920,24 +920,11 @@ export default function OrdemProducaoDetailPage() {
                 </Button>
               </div>
               
-              <Separator />
               
-              {/* Miniatura do Template (opcional) */}
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-muted-foreground">Prévia (clique nos botões acima para imprimir)</p>
-                <div 
-                  className="border rounded overflow-auto bg-muted/30"
-                  style={{
-                    height: '400px',
-                    transform: 'scale(0.5)',
-                    transformOrigin: 'top left',
-                    width: '200%'
-                  }}
-                >
-                  <div style={{ pointerEvents: 'none' }}>
-                    <OPImpressaoTemplate opId={currentOP.id} autoprint={false} />
-                  </div>
-                </div>
+              <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                <p className="text-sm text-blue-900">
+                  💡 Clique em <strong>"Abrir / Imprimir (A4)"</strong> para visualizar a impressão em tela cheia com formatação profissional (7 páginas).
+                </p>
               </div>
             </CardContent>
           </Card>
