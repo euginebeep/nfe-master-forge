@@ -71,11 +71,20 @@ export default function OrdemProducaoDetailPage() {
 
   const [pesagensCriticas, setPesagensCriticas] = useState<OPPesagemCritica[]>([]);
   const [dialogFinalizar, setDialogFinalizar] = useState(false);
+  const [dialogImpressao, setDialogImpressao] = useState(false);
   const [qtdProduzida, setQtdProduzida] = useState('');
   const [qtdAprovada, setQtdAprovada] = useState('');
   const [etapaAtual, setEtapaAtual] = useState<EtapaProducao | null>(null);
   const [isRecalculando, setIsRecalculando] = useState(false);
   const [bannerRequisicao, setBannerRequisicao] = useState<{ itens: number; requisicaoId: string } | null>(null);
+
+  const handleAbrirImpressao = () => {
+    setDialogImpressao(true);
+  };
+
+  const handleImprimir = () => {
+    window.print();
+  };
 
   const handleRecalcularMateriais = async () => {
     if (!id) return;
@@ -902,7 +911,7 @@ export default function OrdemProducaoDetailPage() {
               {/* Botões de Ação */}
               <div className="flex gap-4">
                 <Button 
-                  onClick={() => navigate(`/producao/ordens/${currentOP.id}/imprimir`)}
+                  onClick={handleAbrirImpressao}
                   className="flex-1 gap-2"
                   size="lg"
                 >
@@ -910,7 +919,7 @@ export default function OrdemProducaoDetailPage() {
                   Abrir / Imprimir (A4)
                 </Button>
                 <Button 
-                  onClick={() => navigate(`/producao/ordens/${currentOP.id}/imprimir`)}
+                  onClick={handleAbrirImpressao}
                   variant="outline"
                   className="flex-1 gap-2"
                   size="lg"
@@ -930,6 +939,39 @@ export default function OrdemProducaoDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de Impressão */}
+      <Dialog open={dialogImpressao} onOpenChange={setDialogImpressao}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-auto" style={{ width: '100%' }}>
+          <DialogHeader>
+            <DialogTitle>Impressão da OP {currentOP.numero}</DialogTitle>
+            <DialogDescription>
+              Visualize como ficará a impressão antes de imprimir
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Template de Impressão */}
+          <div className="mt-4 border rounded p-4 bg-white" style={{ minHeight: '600px' }}>
+            <OPImpressaoTemplate opId={currentOP.id} autoprint={false} />
+          </div>
+          
+          <DialogFooter className="mt-6">
+            <Button 
+              variant="outline"
+              onClick={() => setDialogImpressao(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleImprimir}
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir Agora
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Custo Real Industrial */}
       {currentOP.status === 'FINALIZADA' && (
