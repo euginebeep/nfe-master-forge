@@ -348,6 +348,65 @@ function inferirUnidadeInterna(uCom: string, tipoItem: string, descricao: string
  * Supports compound units: "500 G" → each unit = 500g → factor to 'g' = 500
  * Supports decimals: "0.5 KG" → each unit = 0.5kg = 500g → factor to 'g' = 500
  */
+// ============================================
+// BLOCO 2: Usar funcoes _uom_* do banco
+// ============================================
+async function obterUnidadeEFatorDoBank(uCom: string): Promise<{ unidade: string; fator: number }> {
+  try {
+    // Chamar funcoes SQL do banco: _uom_unidade(ucom) e _uom_fator(ucom)
+    const { data, error } = await supabase
+      .rpc('get_uom_info', { p_ucom: uCom.toUpperCase() });
+    
+    if (error || !data) {
+      console.warn(`[UOM] Erro ao buscar UOM para "${uCom}":`, error?.message);
+      // Fallback para logica local
+      return obterUnidadeEFatorLocal(uCom);
+    }
+    
+    return {
+      unidade: data.unidade_interna || 'g',
+      fator: data.fator_conversao || 1,
+    };
+  } catch (err) {
+    console.warn(`[UOM] Excecao ao chamar RPC:`, err);
+    return obterUnidadeEFatorLocal(uCom);
+  }
+}
+
+// Fallback local se RPC nao existir
+function obterUnidadeEFatorLocal(uCom: string): { unidade: string; fator: number } {
+  const { multiplier, baseUnit } = parseCompoundUnit(uCom);
+  const uComUpper = baseUnit.toUpperCase();
+  
+  // Tabela de conversao conforme handoff BLOCO 5
+  let unidade = 'g';
+  let baseFator = 1;
+  
+  if (['KG', 'G', 'MG', 'MCG'].includes(uComUpper)) {
+    unidade = 'g';
+    if (uComUpper === 'KG') baseFator = 1000;
+    else if (uComUpper === 'G') baseFator = 1;
+    else if (uComUpper === 'MG') baseFator = 0.001;
+    else if (uComUpper === 'MCG') baseFator = 0.000001;
+  } else if (['L', 'LT', 'ML'].includes(uComUpper)) {
+    unidade = 'ml';
+    if (uComUpper === 'L' || uComUpper === 'LT') baseFator = 1000;
+    else if (uComUpper === 'ML') baseFator = 1;
+  } else if (['UN', 'UND', 'UNID', 'MILHEIRO', 'MI', 'MIL'].includes(uComUpper)) {
+    unidade = 'un';
+    if (uComUpper === 'MILHEIRO' || uComUpper === 'MI' || uComUpper === 'MIL') baseFator = 1000;
+    else baseFator = 1;
+  } else if (['TON', 'T'].includes(uComUpper)) {
+    unidade = 'g';
+    baseFator = 1000000;
+  }
+  
+  return {
+    unidade,
+    fator: multiplier * baseFator,
+  };
+}
+
 function calcularFatorConversao(uCom: string, unidadeInterna: string): number {
   const { multiplier, baseUnit } = parseCompoundUnit(uCom);
   

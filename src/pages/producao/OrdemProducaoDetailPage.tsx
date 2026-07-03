@@ -40,7 +40,7 @@ import { OPTabProcesso } from '@/components/producao/OPTabProcesso';
 import { OPCabecalhoMaster } from '@/components/producao/OPCabecalhoMaster';
 import { OPPreMixGeometrico } from '@/components/producao/OPPreMixGeometrico';
 import { OPChecklistOperacional } from '@/components/producao/OPChecklistOperacional';
-import { OPDocumentoCompleto } from '@/components/producao/pdf/OPDocumentoCompleto';
+import { OPImpressaoTemplate } from '@/components/producao/OPImpressaoTemplate';
 import { CustoOPDashboard } from '@/components/producao/CustoOPDashboard';
 import { useOPIndustrial } from '@/hooks/use-op-industrial';
 import { useCustoOPActions, useCustoOP, useConfigCustosProducao } from '@/hooks/use-custo-industrial';
@@ -834,12 +834,7 @@ export default function OrdemProducaoDetailPage() {
 
         {/* Tab: Documentos A4 - Impressão Profissional */}
         <TabsContent value="documentos">
-          <OPDocumentoCompleto
-            op={currentOP}
-            materiasPrimas={materiasPrimas}
-            embalagens={[]}
-            checklist={checklist}
-          />
+          <OPImpressaoTemplate opId={currentOP.id} autoprint={false} />
         </TabsContent>
       </Tabs>
 
