@@ -79,6 +79,66 @@ const faqSections: FAQSection[] = [
     items: [
       { q: "O que é o ANVISA Checker?", a: "É um módulo que valida se as substâncias e dosagens da sua fórmula estão em conformidade com as Instruções Normativas da ANVISA (como a IN 28/2018). Ele alerta sobre limites excedidos para diferentes grupos (adultos, gestantes, etc)." }
     ]
+  },
+  {
+    id: "excipientes-config",
+    icon: <FlaskConical className="h-5 w-5" />,
+    title: "6. Excipientes Configuráveis",
+    items: [
+      { q: "O que são excipientes configuráveis?", a: "Excipientes são substâncias inertes adicionadas à fórmula (deslizantes, lubrificantes, bases). No BrainX, você configura quais excipientes usar, suas percentagens e se devem ser adicionados por último. Vá em Produção → Parâmetros → Excipientes." },
+      { q: "Como adicionar um novo excipiente?", a: "Em Parâmetros → Excipientes, clique em '+ Adicionar'. Preencha nome, categoria (Técnico ou Base), função, percentual e selecione o item do cadastro. Clique Salvar." },
+      { q: "Qual é a diferença entre Base e Excipiente Técnico?", a: "Base (QSP) é o excipiente que completa a fórmula até atingir 100% (ex: Amido). Excipientes Técnicos são aditivos em percentual fixo (ex: Talco 5%, SiO₂ 2%)." }
+    ]
+  },
+  {
+    id: "recalcular-materiais",
+    icon: <ArrowRightLeft className="h-5 w-5" />,
+    title: "7. Recalcular Materiais da OP",
+    items: [
+      { q: "Quando devo usar 'Recalcular Materiais'?", a: "Use quando a fórmula foi alterada APÓS criar a OP, ou quando novos excipientes foram configurados. O sistema vai reexplodir a fórmula usando as novas regras e gerar requisição de compra para itens faltantes." },
+      { q: "O que acontece ao clicar 'Recalcular'?", a: "O sistema chama a RPC preparar_op_materiais, que: (1) Limpa os materiais antigos, (2) Explode a fórmula com novos excipientes, (3) Reserva do estoque (FEFO), (4) Gera requisição de compra se houver falta." },
+      { q: "Posso recalcular uma OP em produção?", a: "Não. O botão 'Recalcular' só aparece em OPs no status PLANEJADA. Após iniciar a produção, os materiais são fixos." }
+    ]
+  },
+  {
+    id: "quarentena-lotes",
+    icon: <Package className="h-5 w-5" />,
+    title: "8. Quarentena de Lotes",
+    items: [
+      { q: "O que é quarentena de lotes?", a: "Quarentena é um status temporário para lotes recém-recebidos que aguardam liberação do RT (Responsável Técnico) antes de serem usados em produção. O sistema marca como QUARENTENA até aprovação." },
+      { q: "Como liberar um lote da quarentena?", a: "Vá em Estoque → Lotes, selecione o lote em QUARENTENA e clique 'Liberar'. Apenas RTs (com permissão) podem fazer isso. O lote passa para DISPONÍVEL." },
+      { q: "O que acontece se usar um lote em quarentena?", a: "O sistema bloqueia — aparece um alerta âmbar na tela de pesagem: '⚠️ Quarentena - Liberar RT'. Você não consegue finalizar a pesagem até liberar o lote." }
+    ]
+  },
+  {
+    id: "nfe-import",
+    icon: <FileInput className="h-5 w-5" />,
+    title: "9. Importação de NF-e",
+    items: [
+      { q: "Como importar uma NF-e de entrada?", a: "Vá em Compras → Notas de Entrada → Importar NF-e. Selecione o arquivo XML. O sistema lê automaticamente: itens, quantidades, preços, fornecedor, lote, validade e cria a entrada de estoque." },
+      { q: "O que acontece se reimportar a mesma NF-e?", a: "O sistema detecta a chave_nfe duplicada e bloqueia. Aparece mensagem: 'Esta NF-e já foi importada'. Você não consegue duplicar entradas." },
+      { q: "Como o sistema trata lotes e validade da NF-e?", a: "Se a NF-e contém <rastro> (lote, fab, validade), o sistema cria automaticamente um lote em QUARENTENA com essas informações. Caso contrário, cria um lote genérico." }
+    ]
+  },
+  {
+    id: "requisicoes-compra",
+    icon: <ShoppingCart className="h-5 w-5" />,
+    title: "10. Requisições de Compra",
+    items: [
+      { q: "Como é gerada uma requisição de compra?", a: "Quando você cria uma OP e há insumos sem estoque, o sistema gera automaticamente uma requisição de compra com status ABERTA. Você pode visualizar em Compras → Requisições." },
+      { q: "Posso editar uma requisição após criada?", a: "Sim. Em Compras → Requisições, clique na requisição e edite quantidade, fornecedor ou observações. Clique Salvar. Apenas requisições em ABERTA podem ser editadas." },
+      { q: "Como converter requisição em pedido de compra?", a: "Selecione a requisição e clique 'Converter em Pedido'. O sistema cria um pedido com os mesmos itens e muda o status da requisição para CONVERTIDA." }
+    ]
+  },
+  {
+    id: "impressao-op",
+    icon: <FileText className="h-5 w-5" />,
+    title: "11. Impressão da OP",
+    items: [
+      { q: "Como imprimir uma OP?", a: "Na tela da OP, clique no botão 'Imprimir' (ou ícone de impressora). O sistema abre um template profissional com 7 páginas: Capa, Separação, Pesagem, Mistura, Encapsulamento, Embalagem e Checklist. Pressione Ctrl+P para imprimir." },
+      { q: "O que aparece no rodapé de cada página?", a: "Rodapé padrão: Nome da empresa · RT · Lote · Data de fabricação · 'Gerado por www.brainx.erp' · Número da página (ex: Pág 3/7)." },
+      { q: "Posso customizar o template de impressão?", a: "Atualmente, o template é fixo. Futuras versões permitirão customização. Para mudanças, entre em contato com suporte." }
+    ]
   }
 ];
 
