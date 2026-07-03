@@ -5,14 +5,12 @@
 // ============================================================
 
 import { useState, useMemo } from "react";
-import { Check, ChevronsUpDown, Search, Package, ExternalLink } from "lucide-react";
+import { Check, ChevronsUpDown, Search, Package, ExternalLink, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
@@ -24,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useHybridItens, type HybridItem } from "@/hooks/use-hybrid-data";
 import { Link } from "react-router-dom";
+import { CadastroRapidoInsumo } from "./CadastroRapidoInsumo";
 
 interface ItemSelectorProps {
   value?: string; // item_id selecionado
@@ -40,6 +39,14 @@ export function ItemSelector({
 }: ItemSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [cadastroOpen, setCadastroOpen] = useState(false);
+  const [cadastroNome, setCadastroNome] = useState("");
+
+  const abrirCadastro = () => {
+    setCadastroNome(search.trim());
+    setOpen(false);
+    setCadastroOpen(true);
+  };
 
   // Buscar TODOS os itens ativos usando hook híbrido (Supabase + localStorage)
   const { data: itens = [], isLoading } = useHybridItens({ ativo: true });
@@ -74,6 +81,7 @@ export function ItemSelector({
   };
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
@@ -128,9 +136,22 @@ export function ItemSelector({
                 </Link>
               </div>
             ) : itensFiltrados.length === 0 ? (
-              <CommandEmpty>
-                Nenhum item encontrado com "{search}".
-              </CommandEmpty>
+              <div className="py-6 px-4 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Nenhum item encontrado com "{search}".
+                </p>
+                {search.trim().length >= 2 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={abrirCadastro}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Cadastrar novo insumo: "{search.trim()}"
+                  </Button>
+                )}
+              </div>
             ) : (
               <CommandGroup>
                 {value && (
@@ -181,5 +202,16 @@ export function ItemSelector({
         </Command>
       </PopoverContent>
     </Popover>
+
+    <CadastroRapidoInsumo
+      open={cadastroOpen}
+      onOpenChange={setCadastroOpen}
+      nomeInicial={cadastroNome}
+      onCreated={(item) => {
+        handleSelect(item);
+        setCadastroOpen(false);
+      }}
+    />
+    </>
   );
 }
