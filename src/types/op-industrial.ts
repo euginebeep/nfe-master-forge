@@ -10,6 +10,7 @@
 export type StatusOP = 
   | 'PLANEJADA' 
   | 'AGUARDANDO_MATERIAIS'
+  | 'AGUARDANDO_COMPRA'
   | 'EM_PRODUCAO' 
   | 'FINALIZADA' 
   | 'BLOQUEADA'
