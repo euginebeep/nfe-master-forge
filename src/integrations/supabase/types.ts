@@ -4970,6 +4970,8 @@ export type Database = {
           created_at: string | null
           custo_total: number | null
           custo_unitario: number | null
+          data_fabricacao: string | null
+          data_validade: string | null
           id: string
           insumo_id: string | null
           insumo_nome: string
@@ -4985,6 +4987,8 @@ export type Database = {
           created_at?: string | null
           custo_total?: number | null
           custo_unitario?: number | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
           id?: string
           insumo_id?: string | null
           insumo_nome: string
@@ -5000,6 +5004,8 @@ export type Database = {
           created_at?: string | null
           custo_total?: number | null
           custo_unitario?: number | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
           id?: string
           insumo_id?: string | null
           insumo_nome?: string
@@ -5012,6 +5018,66 @@ export type Database = {
           tipo_embalagem?: string
         }
         Relationships: []
+      }
+      op_excipientes_config: {
+        Row: {
+          ativo: boolean
+          adicionar_por_ultimo: boolean
+          categoria: string
+          company_id: string
+          created_at: string
+          funcao: string | null
+          id: string
+          item_id: string | null
+          nome: string
+          ordem: number
+          percentual: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          adicionar_por_ultimo?: boolean
+          categoria: string
+          company_id: string
+          created_at?: string
+          funcao?: string | null
+          id?: string
+          item_id?: string | null
+          nome: string
+          ordem?: number
+          percentual?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          adicionar_por_ultimo?: boolean
+          categoria?: string
+          company_id?: string
+          created_at?: string
+          funcao?: string | null
+          id?: string
+          item_id?: string | null
+          nome?: string
+          ordem?: number
+          percentual?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "op_excipientes_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_excipientes_config_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       op_historico_etapas: {
         Row: {
@@ -5057,6 +5123,8 @@ export type Database = {
           conferido_em: string | null
           conferido_por: string | null
           created_at: string | null
+          data_fabricacao: string | null
+          data_validade: string | null
           dentro_tolerancia: boolean | null
           fornecedor_id: string | null
           fornecedor_nome: string | null
@@ -5088,6 +5156,8 @@ export type Database = {
           conferido_em?: string | null
           conferido_por?: string | null
           created_at?: string | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
           dentro_tolerancia?: boolean | null
           fornecedor_id?: string | null
           fornecedor_nome?: string | null
@@ -5119,6 +5189,8 @@ export type Database = {
           conferido_em?: string | null
           conferido_por?: string | null
           created_at?: string | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
           dentro_tolerancia?: boolean | null
           fornecedor_id?: string | null
           fornecedor_nome?: string | null

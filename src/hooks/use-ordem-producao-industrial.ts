@@ -254,84 +254,13 @@ export function useCreateOrdemProducaoIndustrial() {
 
       if (opError) throw opError;
 
-      // ── 2. Inserir matérias-primas (op_materias_primas) ──────
-      const materiasInsert = [];
-      let ordem = 1;
-
-      // Ativos com pré-mix primeiro
-      for (const item of formula.itens.filter(i => i.exige_premix)) {
-        const classificacao = classificarPesagem(item.quantidade_convertida_mg, item.unidade_informada);
-        const quantidadeTeoricaMg = item.quantidade_convertida_mg * quantidadeComAcrescimo;
-        const quantidadeTeoricaG = quantidadeTeoricaMg / 1000;
-        const tolerancia = calcularTolerancia(quantidadeTeoricaG);
-
-        materiasInsert.push({
-          op_id: opId,
-          insumo_id: item.id,
-          insumo_nome: item.nome_insumo,
-          categoria: 'ATIVO',
-          ordem_mistura: ordem++,
-          motivo_critico: classificacao.motivo || null,
-          quantidade_teorica_mg: quantidadeTeoricaMg,
-          quantidade_teorica_g: quantidadeTeoricaG,
-          unidade: 'g',
-          // Campos de pesagem — preenchidos depois ao registrar pesagem
-          quantidade_pesada_g: null,
-          dentro_tolerancia: null,
-          pesado_por: null,
-          pesado_em: null,
-        });
-      }
-
-      // Ativos sem pré-mix
-      for (const item of formula.itens.filter(i => !i.exige_premix)) {
-        const classificacao = classificarPesagem(item.quantidade_convertida_mg, item.unidade_informada);
-        const quantidadeTeoricaMg = item.quantidade_convertida_mg * quantidadeComAcrescimo;
-        const quantidadeTeoricaG = quantidadeTeoricaMg / 1000;
-
-        materiasInsert.push({
-          op_id: opId,
-          insumo_id: item.id,
-          insumo_nome: item.nome_insumo,
-          categoria: 'ATIVO',
-          ordem_mistura: ordem++,
-          motivo_critico: classificacao.motivo || null,
-          quantidade_teorica_mg: quantidadeTeoricaMg,
-          quantidade_teorica_g: quantidadeTeoricaG,
-          unidade: 'g',
-          quantidade_pesada_g: null,
-          dentro_tolerancia: null,
-          pesado_por: null,
-          pesado_em: null,
-        });
-      }
-
-      // Veículo base
-      const veiculoTeoricaMg = (calculos.veiculo_base_mg || 0) * quantidadeComAcrescimo;
-      const veiculoTeoricaG = veiculoTeoricaMg / 1000;
+      // ── 2. Chamar RPC preparar_op_materiais (fonte única) ────
+      // A RPC explode a fórmula (ativos + excipientes técnicos + veículo QSP),
+      // aloca lote por FEFO e gera requisição de compra se houver faltantes.
+      const { data: prep, error: prepErr } = await supabase
+        .rpc('preparar_op_materiais', { p_op_id: opId });
       
-      materiasInsert.push({
-        op_id: opId,
-        insumo_id: null,
-        insumo_nome: calculos.veiculo_base_nome,
-        categoria: 'EXCIPIENTE_BASE',
-        ordem_mistura: ordem++,
-        motivo_critico: null,
-        quantidade_teorica_mg: veiculoTeoricaMg,
-        quantidade_teorica_g: veiculoTeoricaG,
-        unidade: 'g',
-        quantidade_pesada_g: null,
-        dentro_tolerancia: null,
-        pesado_por: null,
-        pesado_em: null,
-      });
-
-      if (materiasInsert.length > 0) {
-        const { error: mpError } = await supabase
-          .from('op_materias_primas')
-          .insert(materiasInsert);
-        if (mpError) throw mpError;
-      }
+      if (prepErr) throw prepErr;
 
       // ── 3. Inserir controle de perdas inicial ────────────────
       const { error: perdaError } = await supabase
@@ -344,75 +273,13 @@ export function useCreateOrdemProducaoIndustrial() {
         });
       if (perdaError) throw perdaError;
 
-      // ── 4. Verificação MRP (PASSO 3) ────────────────────────
-      try {
-        const necessidades = await calcularNecessidadeOP({
-          formula_id: formula.id,
-          quantidade_frascos: quantidade_unidades,
-          company_id: companyId,
-        });
-
-        if (necessidades.length > 0) {
-          // Buscar saldos dos itens
-          const itemIds = necessidades.map(n => n.item_id);
-          const { getSaldos } = await import('@/hooks/use-estoque-movimentacoes');
-          const saldos = await getSaldos(itemIds);
-
-          // Verificar faltantes
-          const faltantes = necessidades.filter(n => {
-            const saldo = saldos[n.item_id] || 0;
-            return n.quantidade > saldo;
-          });
-
-          if (faltantes.length > 0) {
-            // OP nasce em AGUARDANDO_MATERIAIS
-            const { error: updateError } = await supabase
-              .from('ordens_producao_industrial')
-              .update({ status: 'AGUARDANDO_MATERIAIS' })
-              .eq('id', opId);
-
-            if (!updateError) {
-              // Criar requisição de compra
-              const { data: reqData, error: reqError } = await supabase
-                .from('requisicoes_compra')
-                .insert({
-                  op_id: opId,
-                  status: 'ABERTA',
-                  origem: 'MRP',
-                  company_id: companyId,
-                })
-                .select()
-                .single();
-
-              if (reqData && !reqError) {
-                // Criar itens da requisição
-                const itensReq = faltantes.map(f => ({
-                  requisicao_id: reqData.id,
-                  item_id: f.item_id,
-                  item_nome: f.item_nome,
-                  quantidade_necessaria: f.quantidade,
-                  quantidade_disponivel: saldos[f.item_id] || 0,
-                  quantidade_faltante: f.quantidade - (saldos[f.item_id] || 0),
-                  unidade: f.unidade,
-                  status: 'PENDENTE',
-                }));
-
-                const { error: itensError } = await supabase
-                  .from('requisicoes_compra_itens')
-                  .insert(itensReq);
-
-                if (!itensError) {
-                  console.log(`MRP: OP ${codigo} em AGUARDANDO_MATERIAIS com ${faltantes.length} itens faltantes`);
-                }
-              }
-            }
-          }
-        }
-      } catch (mrpError) {
-        const errorMsg = mrpError instanceof Error ? mrpError.message : String(mrpError);
-        console.error('Erro ao executar MRP:', mrpError);
-        // Mostrar toast informativo (não trava a criação da OP)
-        toast.warning(`Não foi possível calcular a necessidade de materiais (MRP): ${errorMsg}`);
+      // ── 4. Se houver faltantes, atualizar status da OP ────────
+      if (prep?.possui_requisicao) {
+        const { error: updateError } = await supabase
+          .from('ordens_producao_industrial')
+          .update({ status: 'AGUARDANDO_MATERIAIS' })
+          .eq('id', opId);
+        if (updateError) throw updateError;
       }
 
       return { id: opId, codigo, lote_produto_acabado };

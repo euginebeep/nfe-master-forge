@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Settings, Package } from 'lucide-react';
+import { Settings, Package, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ItemComplemento {
   id: string;
@@ -63,6 +65,68 @@ export default function ParametrosIndustriaPage() {
   });
 
   const [saving, setSaving] = useState(false);
+  const [excipientes, setExcipientes] = useState<any[]>([]);
+  const [dialogExcipiente, setDialogExcipiente] = useState(false);
+  const [editandoExcipiente, setEditandoExcipiente] = useState<any>(null);
+  const [formExcipiente, setFormExcipiente] = useState({
+    nome: '',
+    categoria: 'EXCIPIENTE_TECNOLOGICO',
+    funcao: '',
+    percentual: 0,
+    ordem: 0,
+    adicionar_por_ultimo: false,
+    ativo: true,
+    item_id: '',
+  });
+
+  // Carregar excipientes
+  useEffect(() => {
+    const carregarExcipientes = async () => {
+      const { data } = await supabase
+        .from('op_excipientes_config')
+        .select('*')
+        .order('ordem', { ascending: true });
+      if (data) setExcipientes(data);
+    };
+    carregarExcipientes();
+  }, []);
+
+  // Salvar excipiente
+  const handleSalvarExcipiente = async () => {
+    if (!formExcipiente.nome || !formExcipiente.item_id) {
+      toast.error('Preencha nome e item');
+      return;
+    }
+    if (formExcipiente.categoria === 'EXCIPIENTE_BASE' && formExcipiente.ativo) {
+      const temOutraBase = excipientes.some(
+        e => e.categoria === 'EXCIPIENTE_BASE' && e.ativo && e.id !== editandoExcipiente?.id
+      );
+      if (temOutraBase) {
+        toast.error('Já existe uma base ativa.');
+        return;
+      }
+    }
+    try {
+      if (editandoExcipiente) {
+        await supabase.from('op_excipientes_config').update(formExcipiente).eq('id', editandoExcipiente.id);
+      } else {
+        await supabase.from('op_excipientes_config').insert([formExcipiente]);
+      }
+      toast.success('Salvo com sucesso');
+      setDialogExcipiente(false);
+      setEditandoExcipiente(null);
+      const { data } = await supabase.from('op_excipientes_config').select('*').order('ordem', { ascending: true });
+      if (data) setExcipientes(data);
+    } catch (err) {
+      toast.error('Erro ao salvar');
+    }
+  };
+
+  const handleDeletarExcipiente = async (id: string) => {
+    if (!confirm('Deletar?')) return;
+    await supabase.from('op_excipientes_config').delete().eq('id', id);
+    setExcipientes(excipientes.filter(e => e.id !== id));
+  };
 
   // Carregar config inicial
   useEffect(() => {

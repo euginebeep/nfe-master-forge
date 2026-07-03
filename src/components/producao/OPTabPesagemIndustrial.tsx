@@ -205,6 +205,12 @@ function InsumoCard({
               <p className="text-sm font-medium text-primary">{ideal.unidade}</p>
               {item.numero_lote && (
                 <p className="text-xs text-muted-foreground mt-1">Lote: {item.numero_lote}</p>
+              {item.data_validade && (
+                <p className="text-xs text-muted-foreground">Validade: {new Date(item.data_validade).toLocaleDateString("pt-BR")}</p>
+              )}
+              {item.observacoes && item.observacoes.includes("QUARENTENA") && (
+                <p className="text-xs text-amber-600 font-semibold mt-1">⚠️ Quarentena - Liberar RT</p>
+              )}
               )}
             </div>
             

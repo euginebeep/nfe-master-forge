@@ -74,6 +74,38 @@ export default function OrdemProducaoDetailPage() {
   const [qtdProduzida, setQtdProduzida] = useState('');
   const [qtdAprovada, setQtdAprovada] = useState('');
   const [etapaAtual, setEtapaAtual] = useState<EtapaProducao | null>(null);
+  const [isRecalculando, setIsRecalculando] = useState(false);
+  const [bannerRequisicao, setBannerRequisicao] = useState<{ itens: number; requisicaoId: string } | null>(null);
+
+  const handleRecalcularMateriais = async () => {
+    if (!id) return;
+    setIsRecalculando(true);
+    try {
+      const { data: prep, error: prepErr } = await supabase
+        .rpc('preparar_op_materiais', { p_op_id: id });
+      
+      if (prepErr) throw prepErr;
+
+      // Invalidar queries para recarregar dados
+      await buscarOP(id);
+      await buscarMateriasPrimas(id);
+
+      if (prep?.possui_requisicao) {
+        setBannerRequisicao({
+          itens: prep.itens_para_comprar || 0,
+          requisicaoId: prep.requisicao_id || '',
+        });
+        toast.info(`${prep.itens_para_comprar} insumo(s) sem estoque — requisição de compra gerada`);
+      } else {
+        toast.success('Materiais recalculados com sucesso');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      toast.error(`Erro ao recalcular materiais: ${msg}`);
+    } finally {
+      setIsRecalculando(false);
+    }
+  };
 
   // Carregar dados da OP
   useEffect(() => {
@@ -300,10 +332,20 @@ export default function OrdemProducaoDetailPage() {
             </Button>
             
             {currentOP.status === 'PLANEJADA' && (
-              <Button onClick={handleIniciar}>
-                <Play className="h-4 w-4 mr-2" />
-                Iniciar Produção
-              </Button>
+              <>
+                <Button onClick={handleIniciar}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Iniciar Produção
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={handleRecalcularMateriais}
+                  disabled={isRecalculando}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRecalculando ? 'animate-spin' : ''}`} />
+                  {isRecalculando ? 'Recalculando...' : 'Recalcular Materiais'}
+                </Button>
+              </>
             )}
             
             {currentOP.status === 'EM_PRODUCAO' && (
@@ -335,6 +377,25 @@ export default function OrdemProducaoDetailPage() {
           </div>
         }
       />
+
+      {/* Banner de requisição de compra */}
+      {bannerRequisicao && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <span className="text-sm text-amber-800">
+              <strong>{bannerRequisicao.itens} insumo(s) sem estoque</strong> — requisição de compra gerada
+            </span>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => navigate('/producao/requisicoes')}
+          >
+            Ver Requisições
+          </Button>
+        </div>
+      )}
 
       {/* Cabeçalho com informações principais */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
