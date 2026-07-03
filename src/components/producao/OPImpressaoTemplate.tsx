@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { OPIndustrialData } from '@/types/op-industrial';
+import { calcularDistribuicaoGeometrica } from '@/lib/distribuicao-geometrica';
 
 interface OPImpressaoProps {
   opId?: string;
@@ -117,12 +118,20 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
   const excipienteTec = materiasPrimas.filter(m => m?.categoria === 'EXCIPIENTE_TECNOLOGICO');
 
   // Helpers
-  const formatarQtd = (valor: number, unidade: string = 'g'): string => {
-    if (valor < 1 && unidade === 'g') {
-      return `${(valor * 1000).toFixed(4)} mg`;
-    }
-    return `${valor.toFixed(4)} ${unidade}`;
+  // Peso em GRAMAS → unidade humana (mg/g/kg), vírgula decimal, no máx. 3 casas, sem zeros à direita.
+  const formatarQtd = (valorG: number | null | undefined): string => {
+    if (valorG == null || isNaN(Number(valorG))) return '—';
+    const g = Number(valorG);
+    let n: number, u: string;
+    if (g < 1)         { n = g * 1000; u = 'mg'; }
+    else if (g < 1000) { n = g;        u = 'g';  }
+    else               { n = g / 1000; u = 'kg'; }
+    return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} ${u}`;
   };
+
+  // Pesagem crítica: < 1 g (micro-dose)
+  const ehCritico = (valorG: number | null | undefined) =>
+    valorG != null && !isNaN(Number(valorG)) && Number(valorG) < 1;
 
   const formatarData = (data: string | null): string => {
     if (!data) return '';
@@ -727,7 +736,14 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
                   <tr key={item.id}>
                     <td className="c">{idx + 1}</td>
                     <td>{item.insumo_nome}</td>
-                    <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
+                    <td className="num">
+                      {formatarQtd(item.quantidade_teorica_g)}
+                      {ehCritico(item.quantidade_teorica_g) && (
+                        <span className="tag" style={{ background:'#fbeee9', color:'#a8341f', marginLeft:'5px' }}>
+                          ⚠ balança analítica · dupla conferência
+                        </span>
+                      )}
+                    </td>
                     <td className="qc">{item.numero_lote || '—'}</td>
                     <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
                     <td className="qc c"></td>
@@ -759,7 +775,14 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
                   <tr key={item.id}>
                     <td className="c">{ativos.length + idx + 1}</td>
                     <td>{item.insumo_nome}</td>
-                    <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
+                    <td className="num">
+                      {formatarQtd(item.quantidade_teorica_g)}
+                      {ehCritico(item.quantidade_teorica_g) && (
+                        <span className="tag" style={{ background:'#fbeee9', color:'#a8341f', marginLeft:'5px' }}>
+                          ⚠ balança analítica · dupla conferência
+                        </span>
+                      )}
+                    </td>
                     <td className="qc">{item.numero_lote || '—'}</td>
                     <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
                     <td className="qc c"></td>
@@ -791,7 +814,14 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
                   <tr key={item.id}>
                     <td className="c">{ativos.length + excipienteBase.length + idx + 1}</td>
                     <td>{item.insumo_nome}</td>
-                    <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
+                    <td className="num">
+                      {formatarQtd(item.quantidade_teorica_g)}
+                      {ehCritico(item.quantidade_teorica_g) && (
+                        <span className="tag" style={{ background:'#fbeee9', color:'#a8341f', marginLeft:'5px' }}>
+                          ⚠ balança analítica · dupla conferência
+                        </span>
+                      )}
+                    </td>
                     <td className="qc">{item.numero_lote || '—'}</td>
                     <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
                     <td className="qc c"></td>
@@ -888,6 +918,11 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           </tbody>
         </table>
 
+        <div className="rules" style={{ marginBottom:'8px' }}>
+          <b className="warn">Itens abaixo de 1 g são pesagem crítica:</b> usar balança analítica
+          (mín. 4 casas decimais) e registrar dupla conferência (operador + conferente).
+        </div>
+
         <div className="sec"><span className="n">4</span><h2>Referência de balanças</h2></div>
         <table>
           <thead><tr><th>Faixa de peso</th><th>Tipo de balança</th><th>Precisão</th></tr></thead>
@@ -918,6 +953,33 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           <li><b className="warn">Estearato de Magnésio: SEMPRE adicionar POR ÚLTIMO</b> — máximo 2 minutos de mistura.</li>
           <li><b>Ambiente:</b> temperatura 15–25 °C · umidade relativa &lt; 60%.</li>
         </ul>
+
+        {/* Distribuição geométrica para ativos < 1 g */}
+        {ativos.filter(a => Number(a.quantidade_teorica_g) < 1).map((ativo) => {
+          const passos = calcularDistribuicaoGeometrica(
+            Number(ativo.quantidade_teorica_g) * 1000,      // ativo em mg
+            (excipienteBase[0]?.quantidade_teorica_g ?? 0) * 1000 // diluente (amido) em mg
+          );
+          return (
+            <div key={ativo.id}>
+              <div className="sec"><span className="n warn" style={{ background:'var(--warn)' }}>⚠</span>
+                <h2>Pré-mix / diluição geométrica — {ativo.insumo_nome}</h2>
+                <span className="cnt">ativo ultra-crítico &lt; 1 g</span></div>
+              <table>
+                <thead><tr><th className="c" style={{width:'34px'}}>Passo</th><th>Descrição</th>
+                  <th className="num" style={{width:'96px'}}>Massa adicionada</th>
+                  <th className="num" style={{width:'96px'}}>Massa total</th>
+                  <th className="c" style={{width:'80px'}}>Tempo</th></tr></thead>
+                <tbody>{passos.map(p => (
+                  <tr key={p.passo}><td className="c">{p.passo}</td><td>{p.descricao}</td>
+                    <td className="num">{p.massa_adicionada}</td><td className="num">{p.massa_total}</td>
+                    <td className="c">{p.tempo_mistura}</td></tr>
+                ))}</tbody>
+              </table>
+              <div className="note warn">Homogeneizar cada etapa antes de adicionar a próxima; nunca adicionar o ativo direto na massa total.</div>
+            </div>
+          );
+        })}
 
         <div className="sec"><span className="n">2</span><h2>Sequência de mistura</h2></div>
         <table>
