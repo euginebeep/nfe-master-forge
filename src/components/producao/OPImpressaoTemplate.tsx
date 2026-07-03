@@ -289,157 +289,118 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         .op-doc .idx{ margin-top:20px; }
         .op-doc .idx .h{ font-size:12px; font-weight:800; color:var(--ink); letter-spacing:.5px; text-transform:uppercase; margin-bottom:7px; }
         .op-doc .idx .row{ display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
-        .op-doc .idx .row:last-child{ border-bottom:0; }
-        .op-doc .idx .row .n{ font-weight:800; color:var(--ink); min-width:24px; }
-        .op-doc .idx .row .t{ color:var(--ink-2); flex:1; }
+        .op-doc .idx .no{ width:24px; height:24px; border-radius:5px; background:var(--gold); color:#fff; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; flex:none; }
+        .op-doc .idx .ph{ font-size:8px; letter-spacing:1px; color:var(--gold); font-weight:800; text-transform:uppercase; }
+        .op-doc .idx .nm{ font-size:13px; color:var(--ink); font-weight:700; }
+      
       `}</style>
 
-      {/* Página 1: Capa */}
+      {!autoprint && (
+        <div className="op-toolbar">
+          <span>Pré-visualização do documento A4 · {opData.codigo}</span>
+          <button type="button" onClick={() => window.open(`/producao/ordens/${opId}/imprimir`, '_blank')}>
+            🖨️ Imprimir / Salvar PDF (A4)
+          </button>
+        </div>
+      )}
+
+      {/* ===== CAPA ===== */}
       <div className="page">
         <div className="cover">
-          <div className="co">ORDEM DE PRODUÇÃO</div>
-          <h1>Produção Industrial</h1>
-          <div className="op">{opData.codigo}</div>
-          <div className="prod">{opData.produto_nome}</div>
-          <div className="grid c4">
-            <div className="cell"><div className="k">Fórmula</div><div className="v">{opData.formula_codigo}</div></div>
-            <div className="cell"><div className="k">Lote</div><div className="v">{opData.lote_produto_acabado}</div></div>
-            <div className="cell"><div className="k">Quantidade</div><div className="v">{opData.quantidade_frascos} fr</div></div>
-            <div className="cell"><div className="k">Status</div><div className="v">{opData.status}</div></div>
+          <div>
+            <div className="logo-large">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" />
+              ) : (
+                <>
+                  <b>{companyData.nome_fantasia?.substring(0, 2).toUpperCase()}</b>
+                  <span>{companyData.nome_fantasia?.substring(0, 5).toUpperCase()}</span>
+                </>
+              )}
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div className="op">{opData.codigo}</div>
+              <div className="prod">{opData.produto_nome}</div>
+              <div style={{ fontSize: '9px', color: '#999', marginTop: '6px' }}>
+                Lote {opData.lote_produto_acabado}
+              </div>
+            </div>
           </div>
+
+          <div className="grid c4" style={{ marginTop: '16px' }}>
+            <div className="cell"><div className="k">Empresa</div><div className="v">{companyData.nome_fantasia}</div></div>
+            <div className="cell"><div className="k">Responsável Técnico</div><div className="v">{opData.rt_nome}</div></div>
+            <div className="cell"><div className="k">Conselho</div><div className="v">{opData.rt_tipo_conselho}-{opData.rt_uf_conselho}</div></div>
+            <div className="cell"><div className="k">Registro</div><div className="v">{opData.rt_numero_registro}</div></div>
+            <div className="cell"><div className="k">Data Fabricação</div><div className="v">{formatarData(opData.data_fabricacao)}</div></div>
+            <div className="cell"><div className="k">Validade</div><div className="v">{formatarData(opData.data_validade)}</div></div>
+            <div className="cell"><div className="k">Quantidade</div><div className="v">{opData.quantidade_frascos} fr</div></div>
+            <div className="cell"><div className="k">Total</div><div className="v">{opData.total_capsulas_com_acrescimo?.toLocaleString('pt-BR')} un</div></div>
+          </div>
+
           <div className="idx">
-            <div className="h">Conteúdo</div>
-            <div className="row"><div className="n">1.</div><div className="t">Separação e Pesagem de Matérias-Primas</div></div>
-            <div className="row"><div className="n">2.</div><div className="t">Preparação de Excipientes</div></div>
-            <div className="row"><div className="n">3.</div><div className="t">Mistura e Distribuição Geométrica</div></div>
-            <div className="row"><div className="n">4.</div><div className="t">Encapsulação</div></div>
-            <div className="row"><div className="n">5.</div><div className="t">Embalagem</div></div>
-            <div className="row"><div className="n">6.</div><div className="t">Controle de Qualidade</div></div>
-            <div className="row"><div className="n">7.</div><div className="t">Assinaturas e Conformidade</div></div>
+            <div className="h">Índice de páginas</div>
+            {[
+              { no: 1, ph: 'CAPA', nm: 'Folha de Rosto' },
+              { no: 2, ph: 'Fase 1 — Pré-produção', nm: 'Folha de Separação de Materiais' },
+              { no: 3, ph: 'Fase 2 — Pesagem', nm: 'Folha de Pesagem de Matérias-Primas' },
+              { no: 4, ph: 'Fase 3 — Mistura', nm: 'Folha de Ordem de Mistura' },
+              { no: 5, ph: 'Fase 4 — Encapsulamento', nm: 'Folha de Encapsulamento' },
+              { no: 6, ph: 'Fase 5 — Embalagem', nm: 'Folha de Embalagem e Rotulagem' },
+              { no: 7, ph: 'Verificações', nm: 'Checklist Operacional e Liberação do Lote' }
+            ].map(item => (
+              <div key={item.no} className="row">
+                <div className="no">{item.no}</div>
+                <div>
+                  <div className="ph">{item.ph}</div>
+                  <div className="nm">{item.nm}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize: '7.6px', marginTop: '16px', color: '#8f887a' }}>
+            {companyData.nome_fantasia} · Total de páginas: 7 · Rastreabilidade ANVISA/BPF · Gerado em {formatarData(new Date().toISOString())}
           </div>
         </div>
       </div>
 
-      {/* Página 2: Separação e Pesagem */}
+      {/* ===== FASE 1 — SEPARAÇÃO ===== */}
       <div className="page">
-        <FaseHeader faseK="Fase 1" faseT="Separação e Pesagem" />
-        <div className="sec"><div className="n">1</div><h2>Matérias-Primas (Ativos)</h2></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Lote</th>
-              <th>Validade</th>
-              <th className="num">Qtd. Teórica</th>
-              <th className="num">Qtd. Real</th>
-              <th className="c">Conferência</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ativos.map((item, i) => (
-              <tr key={i}>
-                <td>{item.nome_item}</td>
-                <td className="qc">{item.numero_lote || '—'}</td>
-                <td className="qc">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
-                <td className="num">{formatarQtd(item.quantidade_mg)}{ehCritico(item.quantidade_mg) ? ' ⚠' : ''}</td>
-                <td className="qc"><span className="fill">_______</span></td>
-                <td className="c"><span className="box"></span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {ativos.some(a => ehCritico(a.quantidade_mg)) && (
-          <div className="rules" style={{ marginTop: '12px' }}>
-            <strong>⚠ Pesagem Crítica Detectada</strong>
-            <li>Use balança analítica (precisão ≥ 0,001 g)</li>
-            <li>Dupla conferência obrigatória</li>
-            <li>Registre na célula de quantidade real</li>
-          </div>
-        )}
-      </div>
+        <FaseHeader faseK="FASE 1 · PRÉ-PRODUÇÃO" faseT="Folha de Separação de Materiais" />
 
-      {/* Página 3: Excipientes */}
-      <div className="page">
-        <FaseHeader faseK="Fase 2" faseT="Preparação de Excipientes" />
-        <div className="sec"><div className="n">2</div><h2>Excipiente Base</h2></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Lote</th>
-              <th>Validade</th>
-              <th className="num">Qtd. Teórica</th>
-              <th className="num">Qtd. Real</th>
-              <th className="c">Conferência</th>
-            </tr>
-          </thead>
-          <tbody>
-            {excipienteBase.map((item, i) => (
-              <tr key={i}>
-                <td>{item.nome_item}</td>
-                <td className="qc">{item.numero_lote || '—'}</td>
-                <td className="qc">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
-                <td className="num">{formatarQtd(item.quantidade_mg)}</td>
-                <td className="qc"><span className="fill">_______</span></td>
-                <td className="c"><span className="box"></span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className="sec" style={{ marginTop: '18px' }}><div className="n">2</div><h2>Excipiente Tecnológico</h2></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Lote</th>
-              <th>Validade</th>
-              <th className="num">Qtd. Teórica</th>
-              <th className="num">Qtd. Real</th>
-              <th className="c">Conferência</th>
-            </tr>
-          </thead>
-          <tbody>
-            {excipienteTec.map((item, i) => (
-              <tr key={i}>
-                <td>{item.nome_item}</td>
-                <td className="qc">{item.numero_lote || '—'}</td>
-                <td className="qc">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
-                <td className="num">{formatarQtd(item.quantidade_mg)}</td>
-                <td className="qc"><span className="fill">_______</span></td>
-                <td className="c"><span className="box"></span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Página 4: Mistura e Distribuição Geométrica */}
-      <div className="page">
-        <FaseHeader faseK="Fase 3" faseT="Mistura e Distribuição Geométrica" />
-        
-        {ativos.some(a => ehCritico(a.quantidade_mg)) && (
+        {ativos.length > 0 && (
           <>
-            <div className="sec"><div className="n">3</div><h2>Pré-Mix Geométrico</h2></div>
+            <div className="sec"><span className="n">1</span><h2>Ativos (Princípios ativos)</h2><span className="cnt">{ativos.length} itens</span></div>
             <table>
               <thead>
                 <tr>
-                  <th>Passo</th>
-                  <th>Descrição</th>
-                  <th className="num">Massa (g)</th>
-                  <th className="num">Tempo (min)</th>
+                  <th className="c" style={{ width: '20px' }}>Ord.</th>
+                  <th>Insumo</th>
+                  <th className="num" style={{ width: '64px' }}>Teórica</th>
+                  <th className="qc" style={{ width: '60px' }}>Lote MP</th>
+                  <th className="qc c" style={{ width: '56px' }}>Validade</th>
+                  <th className="qc c" style={{ width: '22px' }}><span className="box"></span></th>
+                  <th className="qc" style={{ width: '96px' }}>Conferido por</th>
                 </tr>
               </thead>
               <tbody>
-                {calcularDistribuicaoGeometrica(
-                  ativos.filter(a => ehCritico(a.quantidade_mg)).map(a => ({ ...a, quantidade_mg: a.quantidade_mg || 0 })),
-                  1000
-                ).passos.map((passo, i) => (
-                  <tr key={i}>
-                    <td className="c">{passo.passo}</td>
-                    <td>{passo.descricao}</td>
-                    <td className="num">{passo.massa}</td>
-                    <td className="num">{passo.tempo}</td>
+                {ativos.map((item, idx) => (
+                  <tr key={item.id}>
+                    <td className="c">{idx + 1}</td>
+                    <td>{item.insumo_nome}</td>
+                    <td className="num">
+                      {formatarQtd(item.quantidade_teorica_g)}
+                      {ehCritico(item.quantidade_teorica_g) && (
+                        <span className="tag" style={{ background:'#fbeee9', color:'#a8341f', marginLeft:'5px' }}>
+                          ⚠ balança analítica · dupla conferência
+                        </span>
+                      )}
+                    </td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
+                    <td className="qc c"></td>
+                    <td className="qc"></td>
                   </tr>
                 ))}
               </tbody>
@@ -447,131 +408,425 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           </>
         )}
 
-        <div className="sec"><div className="n">3</div><h2>Sequência de Mistura</h2></div>
-        <div className="rules">
-          <li>Adicionar ativos em pequenas porções</li>
-          <li>Misturar por 5 minutos entre adições</li>
-          <li>Verificar homogeneidade visual</li>
-          <li>Registrar tempo de início e fim</li>
-        </div>
+        {excipienteBase.length > 0 && (
+          <>
+            <div className="sec"><span className="n">2</span><h2>Excipiente base (Q.S.P.)</h2><span className="cnt">{excipienteBase.length} item</span></div>
+            <table>
+              <thead>
+                <tr>
+                  <th className="c" style={{ width: '20px' }}>Ord.</th>
+                  <th>Insumo</th>
+                  <th className="num" style={{ width: '64px' }}>Teórica</th>
+                  <th className="qc" style={{ width: '60px' }}>Lote MP</th>
+                  <th className="qc c" style={{ width: '56px' }}>Validade</th>
+                  <th className="qc c" style={{ width: '22px' }}><span className="box"></span></th>
+                  <th className="qc" style={{ width: '96px' }}>Conferido por</th>
+                </tr>
+              </thead>
+              <tbody>
+                {excipienteBase.map((item, idx) => (
+                  <tr key={item.id}>
+                    <td className="c">{ativos.length + idx + 1}</td>
+                    <td>{item.insumo_nome}</td>
+                    <td className="num">
+                      {formatarQtd(item.quantidade_teorica_g)}
+                      {ehCritico(item.quantidade_teorica_g) && (
+                        <span className="tag" style={{ background:'#fbeee9', color:'#a8341f', marginLeft:'5px' }}>
+                          ⚠ balança analítica · dupla conferência
+                        </span>
+                      )}
+                    </td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
+                    <td className="qc c"></td>
+                    <td className="qc"></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {excipienteTec.length > 0 && (
+          <>
+            <div className="sec"><span className="n">3</span><h2>Excipientes tecnológicos</h2><span className="cnt">{excipienteTec.length} itens</span></div>
+            <table>
+              <thead>
+                <tr>
+                  <th className="c" style={{ width: '20px' }}>Ord.</th>
+                  <th>Insumo</th>
+                  <th className="num" style={{ width: '64px' }}>Teórica</th>
+                  <th className="qc" style={{ width: '60px' }}>Lote MP</th>
+                  <th className="qc c" style={{ width: '56px' }}>Validade</th>
+                  <th className="qc c" style={{ width: '22px' }}><span className="box"></span></th>
+                  <th className="qc" style={{ width: '96px' }}>Conferido por</th>
+                </tr>
+              </thead>
+              <tbody>
+                {excipienteTec.map((item, idx) => (
+                  <tr key={item.id}>
+                    <td className="c">{ativos.length + excipienteBase.length + idx + 1}</td>
+                    <td>{item.insumo_nome}</td>
+                    <td className="num">
+                      {formatarQtd(item.quantidade_teorica_g)}
+                      {ehCritico(item.quantidade_teorica_g) && (
+                        <span className="tag" style={{ background:'#fbeee9', color:'#a8341f', marginLeft:'5px' }}>
+                          ⚠ balança analítica · dupla conferência
+                        </span>
+                      )}
+                    </td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
+                    <td className="qc c"></td>
+                    <td className="qc"></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {opData.op_embalagens && opData.op_embalagens.length > 0 && (
+          <>
+            <div className="sec"><span className="n">4</span><h2>Materiais de embalagem</h2><span className="cnt">{opData.op_embalagens.length} itens</span></div>
+            <table>
+              <thead>
+                <tr>
+                  <th className="c" style={{ width: '20px' }}>Ord.</th>
+                  <th>Material</th>
+                  <th className="num" style={{ width: '64px' }}>Necessária</th>
+                  <th className="qc" style={{ width: '60px' }}>Lote</th>
+                  <th className="qc c" style={{ width: '56px' }}>Validade</th>
+                  <th className="qc c" style={{ width: '22px' }}><span className="box"></span></th>
+                  <th className="qc" style={{ width: '96px' }}>Conferido por</th>
+                </tr>
+              </thead>
+              <tbody>
+                {opData.op_embalagens.map((item: any, idx: number) => (
+                  <tr key={item.id}>
+                    <td className="c">{idx + 1}</td>
+                    <td>{item.insumo_nome}</td>
+                    <td className="num">{item.quantidade_planejada} un</td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
+                    <td className="qc c"></td>
+                    <td className="qc"></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
       </div>
 
-      {/* Página 5: Encapsulação */}
+      {/* ===== FASE 2 — PESAGEM ===== */}
       <div className="page">
-        <FaseHeader faseK="Fase 4" faseT="Encapsulação" />
-        <div className="sec"><div className="n">4</div><h2>Parâmetros de Encapsulação</h2></div>
+        <FaseHeader faseK="FASE 2 · PESAGEM" faseT="Folha de Pesagem de Matérias-Primas" />
+
+        <div className="sec"><span className="n">1</span><h2>Condições ambientais</h2><span className="cnt">RDC 243/2018 · IN 28/2018 · RDC 843/2024</span></div>
         <div className="grid c4">
-          <div className="cell"><div className="k">Peso Alvo</div><div className="v">{formatarQtd(pesoAlvo)}</div></div>
-          <div className="cell"><div className="k">Tolerância</div><div className="v">±5%</div></div>
-          <div className="cell"><div className="k">Velocidade</div><div className="v">{opData.velocidade_encapsuladora || '—'} cáps/min</div></div>
-          <div className="cell"><div className="k">Temperatura</div><div className="v">{opData.temperatura_ambiente || '—'}°C</div></div>
+          <div className="cell"><div className="k">Temperatura</div><div className="v blank">______ °C</div></div>
+          <div className="cell"><div className="k">Umidade relativa</div><div className="v blank">______ %</div></div>
+          <div className="cell"><div className="k">Verificado por</div><div className="v blank">____________</div></div>
+          <div className="cell"><div className="k">Hora</div><div className="v blank">______</div></div>
         </div>
 
-        <div className="sec"><div className="n">4</div><h2>Pesagens Críticas</h2></div>
+        <div className="sec"><span className="n">2</span><h2>Pesagem de ativos</h2><span className="cnt">{ativos.length} itens · tolerância ±10%</span></div>
         <table>
-          <thead>
-            <tr>
-              <th>Hora</th>
-              <th className="num">Peso (mg)</th>
-              <th className="c">Dentro Especificação</th>
-              <th>Observações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(opData.op_pesagens_criticas || []).map((p, i) => (
-              <tr key={i}>
-                <td>{formatarData(p.data_pesagem)}</td>
-                <td className="num">{formatarQtd(p.peso_mg)}</td>
-                <td className="c"><span className="box"></span></td>
-                <td className="qc">{p.observacoes || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Página 6: Embalagem */}
-      <div className="page">
-        <FaseHeader faseK="Fase 5" faseT="Embalagem" />
-        <div className="sec"><div className="n">5</div><h2>Materiais de Embalagem</h2></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Lote</th>
-              <th>Validade</th>
-              <th className="num">Qtd. Teórica</th>
-              <th className="num">Qtd. Real</th>
-              <th className="c">Conferência</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(opData.op_embalagens || []).map((item, i) => (
-              <tr key={i}>
-                <td>{item.nome_item}</td>
-                <td className="qc">{item.numero_lote || '—'}</td>
-                <td className="qc">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
-                <td className="num">{formatarQtd(item.quantidade_mg)}</td>
-                <td className="qc"><span className="fill">_______</span></td>
-                <td className="c"><span className="box"></span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Página 7: Controle de Qualidade e Assinaturas */}
-      <div className="page">
-        <FaseHeader faseK="Fase 6" faseT="Controle de Qualidade" />
-        <div className="sec"><div className="n">6</div><h2>Checklist de Qualidade</h2></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th className="c">Conforme</th>
-              <th className="c">Não Conforme</th>
-              <th>Observações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {checklistCat('QUALIDADE').map((c, i) => (
-              <tr key={i}>
-                <td>{c.descricao}</td>
-                <td className="c"><span className="box"></span></td>
-                <td className="c"><span className="box"></span></td>
-                <td className="qc">—</td>
-              </tr>
-            ))}
+          <thead><tr>
+            <th className="c" style={{width:'20px'}}>Ord.</th><th>Insumo</th>
+            <th className="num" style={{width:'64px'}}>Teórica</th>
+            <th className="qc c" style={{width:'52px'}}>Balança nº</th>
+            <th className="qc c" style={{width:'60px'}}>Peso real</th>
+            <th className="qc" style={{width:'80px'}}>Lote MP</th>
+            <th className="qc" style={{width:'70px'}}>Pesado por</th>
+            <th className="qc c" style={{width:'20px'}}><span className="box"></span></th>
+          </tr></thead>
+          <tbody>{ativos.map((item,idx)=>(
+            <tr key={item.id}>
+              <td className="c">{idx+1}</td><td>{item.insumo_nome}</td>
+              <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
+              <td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc c"></td>
+            </tr>))}
           </tbody>
         </table>
 
-        <div className="sec"><div className="n">7</div><h2>Assinaturas e Conformidade</h2></div>
+        <div className="sec"><span className="n">3</span><h2>Pesagem de excipientes</h2><span className="cnt">{excipienteTec.length + excipienteBase.length} itens</span></div>
+        <table>
+          <thead><tr>
+            <th className="c" style={{width:'20px'}}>Ord.</th><th>Insumo</th><th style={{width:'76px'}}>Categoria</th>
+            <th className="num" style={{width:'64px'}}>Teórica</th>
+            <th className="qc c" style={{width:'52px'}}>Balança nº</th>
+            <th className="qc c" style={{width:'60px'}}>Peso real</th>
+            <th className="qc" style={{width:'76px'}}>Lote MP</th>
+            <th className="qc c" style={{width:'20px'}}><span className="box"></span></th>
+          </tr></thead>
+          <tbody>{[...excipienteTec, ...excipienteBase].map((item,idx)=>(
+            <tr key={item.id}>
+              <td className="c">{ativos.length+idx+1}</td><td>{item.insumo_nome}</td>
+              <td>{item.categoria === 'EXCIPIENTE_BASE' ? 'Base (QSP)' : 'Tecnológico'}</td>
+              <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
+              <td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc c"></td>
+            </tr>))}
+          </tbody>
+        </table>
+
+        <div className="rules" style={{ marginBottom:'8px' }}>
+          <b className="warn">Itens abaixo de 1 g são pesagem crítica:</b> usar balança analítica
+          (mín. 4 casas decimais) e registrar dupla conferência (operador + conferente).
+        </div>
+
+        <div className="sec"><span className="n">4</span><h2>Referência de balanças</h2></div>
+        <table>
+          <thead><tr><th>Faixa de peso</th><th>Tipo de balança</th><th>Precisão</th></tr></thead>
+          <tbody>
+            <tr><td>≥ 1 kg</td><td>Semi-analítica</td><td>2 casas decimais</td></tr>
+            <tr><td>1 g a 1 kg</td><td>Semi-analítica</td><td>3 ou 4 casas</td></tr>
+            <tr><td>1 mg a 1 g</td><td>Analítica</td><td>4 ou 5 casas</td></tr>
+            <tr><td>&lt; 1 mg</td><td>Ultra-analítica</td><td>5+ casas</td></tr>
+          </tbody>
+        </table>
+
+        <div className="sec"><span className="n">5</span><h2>Assinaturas e aprovações</h2></div>
         <div className="signs">
-          <div className="sign">
-            <div className="line"></div>
-            <div className="who">{opData.rt_nome}</div>
-            <div className="role">Responsável Técnico</div>
-            <div className="reg">{opData.rt_tipo_conselho}: {opData.rt_numero_registro}/{opData.rt_uf_conselho}</div>
-            <div className="date">{formatarData(new Date().toISOString())}</div>
-          </div>
-          <div className="sign">
-            <div className="line"></div>
-            <div className="who">_________________</div>
-            <div className="role">Supervisor de Produção</div>
-            <div className="date">{formatarData(new Date().toISOString())}</div>
-          </div>
-          <div className="sign">
-            <div className="line"></div>
-            <div className="who">_________________</div>
-            <div className="role">Controle de Qualidade</div>
-            <div className="date">{formatarData(new Date().toISOString())}</div>
-          </div>
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Operador de pesagem</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Conferente · verificação</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">{opData.rt_nome}</div><div className="role">RT · liberação da pesagem</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
         </div>
       </div>
 
+      {/* ===== FASE 3 — MISTURA ===== */}
+      <div className="page">
+        <FaseHeader faseK="FASE 3 · MISTURA" faseT="Folha de Ordem de Mistura" />
+
+        <div className="sec"><span className="n">1</span><h2>Regras obrigatórias de mistura</h2></div>
+        <ul className="rules">
+          <li><b>Homogeneização:</b> mínimo 5 minutos entre cada adição de componente.</li>
+          <li><b>Dióxido de Silício:</b> adicionar ANTES do Talco para melhor fluidez.</li>
+          <li><b className="warn">Estearato de Magnésio: SEMPRE adicionar POR ÚLTIMO</b> — máximo 2 minutos de mistura.</li>
+          <li><b>Ambiente:</b> temperatura 15–25 °C · umidade relativa &lt; 60%.</li>
+        </ul>
+
+        {/* Distribuição geométrica para ativos < 1 g */}
+        {ativos.filter(a => Number(a.quantidade_teorica_g) < 1).map((ativo) => {
+          const passos = calcularDistribuicaoGeometrica(
+            Number(ativo.quantidade_teorica_g) * 1000,      // ativo em mg
+            (excipienteBase[0]?.quantidade_teorica_g ?? 0) * 1000 // diluente (amido) em mg
+          );
+          return (
+            <div key={ativo.id}>
+              <div className="sec"><span className="n warn" style={{ background:'var(--warn)' }}>⚠</span>
+                <h2>Pré-mix / diluição geométrica — {ativo.insumo_nome}</h2>
+                <span className="cnt">ativo ultra-crítico &lt; 1 g</span></div>
+              <table>
+                <thead><tr><th className="c" style={{width:'34px'}}>Passo</th><th>Descrição</th>
+                  <th className="num" style={{width:'96px'}}>Massa adicionada</th>
+                  <th className="num" style={{width:'96px'}}>Massa total</th>
+                  <th className="c" style={{width:'80px'}}>Tempo</th></tr></thead>
+                <tbody>{passos.map(p => (
+                  <tr key={p.passo}><td className="c">{p.passo}</td><td>{p.descricao}</td>
+                    <td className="num">{p.massa_adicionada}</td><td className="num">{p.massa_total}</td>
+                    <td className="c">{p.tempo_mistura}</td></tr>
+                ))}</tbody>
+              </table>
+              <div className="note warn">Homogeneizar cada etapa antes de adicionar a próxima; nunca adicionar o ativo direto na massa total.</div>
+            </div>
+          );
+        })}
+
+        <div className="sec"><span className="n">2</span><h2>Sequência de mistura</h2></div>
+        <table>
+          <thead><tr>
+            <th className="c" style={{width:'30px'}}>Etapa</th><th>Componente</th>
+            <th className="num" style={{width:'90px'}}>Quantidade</th><th style={{width:'96px'}}>Função</th>
+            <th className="qc c" style={{width:'54px'}}>Início</th><th className="qc c" style={{width:'54px'}}>Fim</th>
+            <th className="qc c" style={{width:'60px'}}>Tempo real</th>
+          </tr></thead>
+          <tbody>{(opData.op_materias_primas||[])
+            .slice().sort((a:any,b:any)=>(a.ordem_mistura||0)-(b.ordem_mistura||0))
+            .map((item:any,idx:number)=>{
+              const ultimo = /estearato/i.test(item.insumo_nome || '');
+              return (
+              <tr key={item.id} style={ultimo ? {background:'#fbeee9'} : undefined}>
+                <td className={"c"+(ultimo?" warn":"")}>{idx+1}</td>
+                <td className={ultimo?"warn":undefined}>{item.insumo_nome}{ultimo?" (ÚLTIMO)":""}</td>
+                <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
+                <td>{item.categoria === 'ATIVO' ? 'Princípio ativo' : (item.funcao_tecnologica || 'Excipiente')}</td>
+                <td className="qc"></td><td className="qc"></td><td className="qc"></td>
+              </tr>);
+            })}
+          </tbody>
+        </table>
+
+        <div className="sec"><span className="n">3</span><h2>Controle de qualidade — pó final</h2></div>
+        <table>
+          <thead><tr><th>Teste</th><th className="qc" style={{width:'130px'}}>Resultado</th><th className="c" style={{width:'96px'}}>Conforme?</th><th className="qc">Observação</th></tr></thead>
+          <tbody>{['Aparência do pó','Cor','Fluidez','Homogeneidade visual','Ausência de grumos'].map((t)=>(
+            <tr key={t}><td>{t}</td><td className="qc"></td><td className="c fill"><span className="box"></span> Sim &nbsp; <span className="box"></span> Não</td><td className="qc"></td></tr>
+          ))}</tbody>
+        </table>
+
+        <div className="sec"><span className="n">4</span><h2>Assinaturas e aprovações</h2></div>
+        <div className="signs">
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Operador de mistura</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Conferente · verificação</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">{opData.rt_nome}</div><div className="role">RT · liberação da mistura</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+        </div>
+      </div>
+
+      {/* ===== FASE 4 — ENCAPSULAMENTO ===== */}
+      <div className="page">
+        <FaseHeader faseK="FASE 4 · ENCAPSULAMENTO" faseT="Folha de Encapsulamento" />
+
+        <div className="sec"><span className="n">1</span><h2>Setup da encapsuladora</h2></div>
+        <table>
+          <thead><tr><th>Item de verificação</th><th style={{width:'150px'}}>Parâmetro</th><th className="c" style={{width:'60px'}}>Verif.</th><th className="qc" style={{width:'120px'}}>Responsável</th></tr></thead>
+          <tbody>
+            <tr><td>Limpeza do equipamento</td><td>Visualmente limpo</td><td className="c fill"><span className="box"></span> OK</td><td className="qc"></td></tr>
+            <tr><td>Troca de placas (se aplicável)</td><td>Tamanho {opData.tamanho_capsula || 0}</td><td className="c fill"><span className="box"></span> OK</td><td className="qc"></td></tr>
+            <tr><td>Ajuste de dosagem</td><td>{pesoAlvo} mg ± 5%</td><td className="c fill"><span className="box"></span> OK</td><td className="qc"></td></tr>
+            <tr><td>Teste de peso (10 cápsulas)</td><td>Dentro da tolerância</td><td className="c fill"><span className="box"></span> OK</td><td className="qc"></td></tr>
+            <tr><td>Fechamento das cápsulas</td><td>Sem vazamento de pó</td><td className="c fill"><span className="box"></span> OK</td><td className="qc"></td></tr>
+          </tbody>
+        </table>
+
+        <div className="sec"><span className="n">2</span><h2>Controle de peso durante produção</h2><span className="cnt">a cada 30 min ou 1.000 cáps · alvo {pesoAlvo} mg (±5%)</span></div>
+        <table>
+          <thead><tr><th style={{width:'54px'}}>Hora</th><th className="c">C.1</th><th className="c">C.2</th><th className="c">C.3</th><th className="c">C.4</th><th className="c">C.5</th><th className="c">Média</th><th className="c">Desvio</th><th className="c" style={{width:'40px'}}>OK?</th><th className="qc" style={{width:'80px'}}>Operador</th></tr></thead>
+          <tbody>{[0,1,2,3].map(i=>(
+            <tr key={i}><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="c"><span className="box"></span></td><td className="qc"></td></tr>
+          ))}</tbody>
+        </table>
+
+        <div className="sec"><span className="n">3</span><h2>Controle de qualidade e rendimento</h2></div>
+        <div className="grid c4">
+          <div className="cell"><div className="k">Planejada (+{perdas?.acrescimo_percentual ?? 5}%)</div><div className="v">{(perdas?.quantidade_com_acrescimo ?? opData.total_capsulas_com_acrescimo)?.toLocaleString('pt-BR')} un</div></div>
+          <div className="cell"><div className="k">Produzida</div><div className="v blank">______</div></div>
+          <div className="cell"><div className="k">Aprovada</div><div className="v blank">______</div></div>
+          <div className="cell"><div className="k">Rendimento</div><div className="v blank">______ %</div></div>
+        </div>
+
+        <div className="sec"><span className="n">4</span><h2>Amostra de retenção</h2><span className="cnt">RDC 243/2018 · obrigatório BPF</span></div>
+        <div className="grid c4">
+          <div className="cell"><div className="k">Qtd. retida</div><div className="v blank">mín. 1 frasco</div></div>
+          <div className="cell"><div className="k">Localização</div><div className="v blank">ex.: Prateleira A3-B2</div></div>
+          <div className="cell"><div className="k">Data de coleta</div><div className="v">{formatarData(opData.data_fabricacao)}</div></div>
+          <div className="cell"><div className="k">Descarte após</div><div className="v">validade + 12 meses</div></div>
+        </div>
+
+        <div className="sec"><span className="n">5</span><h2>Assinaturas e aprovações</h2></div>
+        <div className="signs">
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Operador de encapsulamento</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Conferente · verificação</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">{opData.rt_nome}</div><div className="role">RT · liberação</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+        </div>
+      </div>
+
+      {/* ===== FASE 5 — EMBALAGEM ===== */}
+      <div className="page">
+        <FaseHeader faseK="FASE 5 · EMBALAGEM" faseT="Folha de Embalagem e Rotulagem" />
+
+        <div className="sec"><span className="n">1</span><h2>Conferência de materiais de embalagem</h2><span className="cnt">{opData.op_embalagens?.length || 0} itens</span></div>
+        <table>
+          <thead><tr>
+            <th className="c" style={{width:'20px'}}>Ord.</th><th>Material</th><th style={{width:'104px'}}>Tipo</th>
+            <th className="num" style={{width:'70px'}}>Necessária</th><th className="qc" style={{width:'80px'}}>Lote</th>
+            <th className="qc c" style={{width:'56px'}}>Qtd. usada</th><th className="qc c" style={{width:'20px'}}><span className="box"></span></th>
+          </tr></thead>
+          <tbody>{(opData.op_embalagens||[]).map((item:any,idx:number)=>(
+            <tr key={item.id}><td className="c">{idx+1}</td><td>{item.insumo_nome}</td><td>{item.tipo_embalagem}</td>
+              <td className="num">{item.quantidade_planejada} un</td><td className="qc"></td><td className="qc"></td><td className="qc c"></td></tr>
+          ))}</tbody>
+        </table>
+
+        <div className="sec"><span className="n">2</span><h2>Conferência de rótulo</h2><span className="cnt warn">verificar ANTES de aplicar</span></div>
+        <table>
+          <thead><tr><th>Item de verificação</th><th className="c" style={{width:'96px'}}>Conforme?</th><th className="qc">Observação</th></tr></thead>
+          <tbody>{[
+            'Nome do produto confere com a OP',`Lote impresso: ${opData.lote_produto_acabado}`,
+            'Data de fabricação impressa corretamente','Data de validade impressa corretamente',
+            'Tabela nutricional presente e legível','Ingredientes listados corretamente',
+            'Modo de uso / conservação presentes','Dados do fabricante presentes',
+            'Registro / Dispensa ANVISA presente','Alegações conforme permitido pela ANVISA'
+          ].map((t)=>(
+            <tr key={t}><td>{t}</td><td className="c fill"><span className="box"></span> Sim <span className="box"></span> Não</td><td className="qc"></td></tr>
+          ))}</tbody>
+        </table>
+
+        <div className="sec"><span className="n">3</span><h2>Envase, rotulagem e contagem final</h2></div>
+        <div className="grid c4">
+          <div className="cell"><div className="k">Frascos envasados</div><div className="v blank">______</div></div>
+          <div className="cell"><div className="k">Frascos rotulados</div><div className="v blank">______</div></div>
+          <div className="cell"><div className="k">Aprovados p/ expedição</div><div className="v blank">______</div></div>
+          <div className="cell"><div className="k">Rejeitados</div><div className="v blank">______</div></div>
+        </div>
+
+        <div className="sec"><span className="n">4</span><h2>Assinaturas e aprovações</h2></div>
+        <div className="signs">
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Operador de embalagem</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Conferente · verificação</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">{opData.rt_nome}</div><div className="role">RT · liberação final</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+        </div>
+      </div>
+
+      {/* ===== CHECKLIST OPERACIONAL ===== */}
+      <div className="page">
+        <FaseHeader faseK="VERIFICAÇÕES" faseT="Checklist Operacional e Liberação do Lote" />
+
+        <ul className="rules" style={{marginBottom:'8px'}}>
+          <li>Marcar cada item após verificação completa. Itens obrigatórios: 100% concluídos para liberar o lote.</li>
+          <li>Não-conformidades devem ser registradas no bloco específico e comunicadas ao RT.</li>
+          <li>Documento parte do dossiê de produção — arquivar por 5 anos.</li>
+        </ul>
+
+        {([
+          ['PRE_PRODUCAO','Pré-produção'],['DURANTE_PRODUCAO','Durante a produção'],
+          ['POS_PRODUCAO','Pós-produção'],['QC','Controle de qualidade']
+        ] as const).map(([cat,label])=>{
+          const itens = checklistCat(cat);
+          if (!itens.length) return null;
+          return (
+            <table key={cat} style={{marginBottom:'6px'}}>
+              <thead><tr><th className="c" style={{width:'20px'}}><span className="box"></span></th><th>{label} · {itens.length} itens</th><th className="c" style={{width:'90px'}}>Responsável</th><th className="c" style={{width:'50px'}}>Hora</th><th className="c" style={{width:'56px'}}>Data</th></tr></thead>
+              <tbody>{itens.map((c:any)=>(
+                <tr key={c.id}><td className="c"><span className="box"></span></td><td>{c.item}</td><td className="qc"></td><td className="qc"></td><td className="qc"></td></tr>
+              ))}</tbody>
+            </table>
+          );
+        })}
+
+        <div className="sec"><span className="n warn" style={{background:'var(--warn)'}}>!</span><h2>Registro de não-conformidades</h2><span className="cnt">se houver</span></div>
+        <table>
+          <thead><tr><th className="c" style={{width:'18px'}}>#</th><th>Descrição</th><th>Ação corretiva</th><th style={{width:'90px'}}>Responsável</th><th className="c" style={{width:'80px'}}>Status</th><th className="c" style={{width:'56px'}}>Data</th></tr></thead>
+          <tbody>{[1,2,3].map(n=>(
+            <tr key={n}><td className="c">{n}</td><td className="qc"></td><td className="qc"></td><td className="qc"></td><td className="c fill"><span className="box"></span> Resolvido</td><td className="qc"></td></tr>
+          ))}</tbody>
+        </table>
+
+        <div className="sec"><span className="n" style={{background:'#2e7d32'}}>✓</span><h2>Liberação do lote</h2></div>
+        <div className="grid" style={{gridTemplateColumns:'1fr 1fr'}}>
+          <div className="cell"><div className="k">Checklist 100% concluído?</div><div className="v fill"><span className="box"></span> Sim &nbsp; <span className="box"></span> Não</div></div>
+          <div className="cell"><div className="k">Lote liberado para expedição?</div><div className="v fill"><span className="box"></span> Sim &nbsp; <span className="box"></span> Não</div></div>
+          <div className="cell"><div className="k">Não-conformidades resolvidas?</div><div className="v fill"><span className="box"></span> Sim &nbsp; <span className="box"></span> Não &nbsp; <span className="box"></span> N/A</div></div>
+          <div className="cell"><div className="k">Documentação completa?</div><div className="v fill"><span className="box"></span> Sim &nbsp; <span className="box"></span> Não</div></div>
+        </div>
+
+        <div className="sec"><span className="n">✎</span><h2>Assinaturas e aprovações finais</h2></div>
+        <div className="signs">
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Supervisor de produção</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">&nbsp;</div><div className="role">Controle de qualidade · QC</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+          <div className="sign"><div className="line"></div><div className="who">{opData.rt_nome}</div><div className="role">RT · liberação final do lote</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+        </div>
+      </div>
+
+      {/* RODAPÉ DINÂMICO — Aparece em todas as páginas na impressão */}
       <div className="footer">
-        <div className="footer-left">BrainX ERP · OP <b>{opData.codigo}</b> · {formatarData(new Date().toISOString())}</div>
-        <div className="footer-right">RT: {opData.rt_tipo_conselho}: {opData.rt_numero_registro}/{opData.rt_uf_conselho}</div>
+        <div className="footer-left">
+          <b>{companyData.nome_fantasia}</b> · RT: {opData.rt_nome} ({opData.rt_tipo_conselho}-{opData.rt_uf_conselho} {opData.rt_numero_registro})
+        </div>
+        <div className="footer-right">
+          Lote {opData.lote_produto_acabado} · {formatarData(opData.data_fabricacao)} · Gerado por <b>www.brainx.erp</b> · Pág <span className="pageNumber">1</span>/<span className="totalPages">7</span>
+        </div>
       </div>
     </div>
   );
