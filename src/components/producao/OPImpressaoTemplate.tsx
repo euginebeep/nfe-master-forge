@@ -206,8 +206,12 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           .op-doc .footer{ display:none; }
         }
         @media print{
-          .op-doc{ background:#fff; padding:0; }
-          .op-doc .page{ width:210mm; height:297mm; padding:9mm; margin:0 auto; box-shadow:none; }
+          /* Ocultar tudo exceto o documento */
+          body > *:not(.op-doc) { display:none !important; }
+          body { margin:0; padding:0; background:#fff; }
+          
+          .op-doc{ background:#fff; padding:0; margin:0; width:100%; }
+          .op-doc .page{ width:210mm; height:297mm; padding:9mm; margin:0; box-shadow:none; }
           .op-doc .footer{
             position:fixed; bottom:0; left:0; right:0; height:14mm; padding:0 9mm;
             display:flex; align-items:center; justify-content:space-between;
