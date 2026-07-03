@@ -188,8 +188,9 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           --ink:#14110d; --ink-2:#4a453c; --line:#ddd7c9; --line-2:#bcb4a4;
           --gold:#b8860b; --gold-soft:#f5edd6; --zebra:#faf8f2; --blank:#c3bcac; --warn:#a8341f;
           font-family:"Helvetica Neue",Arial,sans-serif; color:var(--ink-2);
-          font-size:12px; line-height:1.35;
+          font-size:11pt; line-height:1.35;
           -webkit-print-color-adjust:exact; print-color-adjust:exact;
+          -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
         }
         .op-doc *{ box-sizing:border-box; margin:0; padding:0; }
 

@@ -87,6 +87,31 @@ export default function OrdemProducaoDetailPage() {
     navigate(`/producao/ordens/${currentOP.id}/imprimir`);
   };
 
+  const handleExportarPDF = async () => {
+    if (!currentOP?.id) return;
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      const element = document.querySelector('.op-doc');
+      if (!element) {
+        toast.error('Documento não encontrado');
+        return;
+      }
+      const opt = {
+        margin: 0,
+        filename: `OP-${currentOP.numero}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, dpi: 300 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', precision: 16 },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      };
+      html2pdf().set(opt).from(element).save();
+      toast.success('PDF exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      toast.error('Erro ao exportar PDF');
+    }
+  };
+
   const handleRecalcularMateriais = async () => {
     if (!id) return;
     setIsRecalculando(true);
@@ -920,7 +945,7 @@ export default function OrdemProducaoDetailPage() {
                   Abrir / Imprimir (A4)
                 </Button>
                 <Button 
-                  onClick={handleAbrirImpressao}
+                  onClick={handleExportarPDF}
                   variant="outline"
                   className="flex-1 gap-2"
                   size="lg"
