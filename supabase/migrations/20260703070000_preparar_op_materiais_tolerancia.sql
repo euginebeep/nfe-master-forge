@@ -1,39 +1,21 @@
 -- ============================================================================
--- Excipientes configuráveis por empresa (multi-tenant)
---   - Cria op_excipientes_config (cada empresa define seus excipientes, o item
---     real do cadastro, a função, o % do peso de enchimento e a ordem).
---   - Reescreve preparar_op_materiais para LER dessa config (nada hardcoded).
---   - Semeia a config atual do ProLab (mantém o comportamento validado).
+-- BUG 1 (origem) — preparar_op_materiais passa a gravar a tolerância de pesagem
+--
+--   A migration 20260703010000 já foi aplicada em produção e NÃO re-executa, então
+--   o CREATE OR REPLACE precisa vir aqui para valer no banco existente.
+--
+--   Esta função é o CORPO COMPLETO E ATUAL de preparar_op_materiais (copiado
+--   integralmente da 20260703010000 — FEFO, requisições de compra, config de
+--   excipientes, embalagens etc. preservados), com a ÚNICA alteração sendo o
+--   acréscimo de 3 colunas/valores no INSERT INTO op_materias_primas:
+--       tolerancia_percentual = 10
+--       quantidade_minima_g   = ROUND((r.need_mg/1000.0*0.9)::numeric,4)
+--       quantidade_maxima_g   = ROUND((r.need_mg/1000.0*1.1)::numeric,4)
+--   (mesma regra que CriarOPDialog.tsx já aplica no assistente).
+--
+--   Após aplicar: NOTIFY pgrst, 'reload schema';
 -- ============================================================================
 
--- 1. Tabela de configuração ---------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.op_excipientes_config (
-  id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id           uuid NOT NULL,
-  item_id              uuid REFERENCES public.itens(id) ON DELETE SET NULL,
-  nome                 text NOT NULL,                 -- rótulo exibido / gravado na OP
-  categoria            text NOT NULL CHECK (categoria IN ('EXCIPIENTE_TECNOLOGICO','EXCIPIENTE_BASE')),
-  funcao               text,                          -- Deslizante / Lubrificante / Diluente...
-  percentual           numeric NOT NULL DEFAULT 0,    -- % do peso de enchimento (base usa QSP, ignora %)
-  ordem                int NOT NULL DEFAULT 0,
-  adicionar_por_ultimo boolean NOT NULL DEFAULT false,-- ex.: estearato de magnésio
-  ativo                boolean NOT NULL DEFAULT true,
-  created_at           timestamptz NOT NULL DEFAULT now(),
-  updated_at           timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (company_id, nome)
-);
-
-CREATE INDEX IF NOT EXISTS idx_excip_config_company ON public.op_excipientes_config(company_id, ativo);
-
--- 2. RLS (mesmo padrão das OPs) ----------------------------------------------
-ALTER TABLE public.op_excipientes_config ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS t_excip_config ON public.op_excipientes_config;
-CREATE POLICY t_excip_config ON public.op_excipientes_config
-  FOR ALL
-  USING (company_id = get_user_company_id())
-  WITH CHECK (company_id = get_user_company_id());
-
--- 3. RPC reescrita (excipientes vêm da config) --------------------------------
 CREATE OR REPLACE FUNCTION public.preparar_op_materiais(p_op_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -128,11 +110,13 @@ BEGIN
       INSERT INTO op_materias_primas
         (op_id,insumo_id,insumo_nome,categoria,quantidade_teorica_mg,quantidade_teorica_g,
          unidade,ordem_mistura,lote_id,numero_lote,data_fabricacao,data_validade,
-         fornecedor_id,fornecedor_nome,observacoes)
+         fornecedor_id,fornecedor_nome,observacoes,
+         tolerancia_percentual,quantidade_minima_g,quantidade_maxima_g)
       VALUES
         (p_op_id,r.item_id,r.nome,r.cat,r.need_mg,r.need_mg/1000,
          COALESCE(r.ui,'g'),v_ordem,v_lote.id,v_lote.numero_lote,v_lote.data_fab,v_lote.data_val,
-         v_lote.fornecedor_id,(SELECT razao_social FROM entidades WHERE id=v_lote.fornecedor_id),v_obs);
+         v_lote.fornecedor_id,(SELECT razao_social FROM entidades WHERE id=v_lote.fornecedor_id),v_obs,
+         10, ROUND((r.need_mg/1000.0*0.9)::numeric,4), ROUND((r.need_mg/1000.0*1.1)::numeric,4));
       v_mp := v_mp + 1;
 
       v_short := v_need_int - v_avail;
@@ -192,22 +176,4 @@ $function$;
 
 GRANT EXECUTE ON FUNCTION public.preparar_op_materiais(uuid) TO authenticated;
 
--- 4. Seed da config atual do ProLab (mantém o comportamento validado) ---------
-INSERT INTO public.op_excipientes_config
-  (company_id, item_id, nome, categoria, funcao, percentual, ordem, adicionar_por_ultimo)
-SELECT '60d2caee-d99d-4954-8bab-38ddf2cf5019'::uuid, i.id, x.nome, x.categoria, x.funcao, x.percentual, x.ordem, x.ultimo
-FROM (VALUES
-  ('%tixosil%',   'Dióxido de Silício (Tixosil)', 'EXCIPIENTE_TECNOLOGICO', 'Deslizante / antiumectante', 2.0::numeric, 1, false),
-  ('%talco%',     'Talco',                        'EXCIPIENTE_TECNOLOGICO', 'Lubrificante',               5.0::numeric, 2, false),
-  ('%estearato%', 'Estearato de Magnésio',        'EXCIPIENTE_TECNOLOGICO', 'Lubrificante',               1.0::numeric, 3, true ),
-  ('%amido%',     'Amido (QSP veículo base)',     'EXCIPIENTE_BASE',        'Diluente (QSP)',             0.0::numeric, 1, false)
-) AS x(pat, nome, categoria, funcao, percentual, ordem, ultimo)
-JOIN LATERAL (
-  SELECT id FROM public.itens
-  WHERE company_id='60d2caee-d99d-4954-8bab-38ddf2cf5019' AND descricao_interna ILIKE x.pat
-  ORDER BY created_at LIMIT 1
-) i ON true
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.op_excipientes_config c
-  WHERE c.company_id='60d2caee-d99d-4954-8bab-38ddf2cf5019' AND c.nome = x.nome
-);
+NOTIFY pgrst, 'reload schema';
