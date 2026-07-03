@@ -83,7 +83,8 @@ export default function OrdemProducaoDetailPage() {
   };
 
   const handleImprimir = () => {
-    window.print();
+    setDialogImpressao(false);
+    navigate(`/producao/ordens/${currentOP.id}/imprimir`);
   };
 
   const handleRecalcularMateriais = async () => {
@@ -950,9 +951,11 @@ export default function OrdemProducaoDetailPage() {
             </DialogDescription>
           </DialogHeader>
           
-          {/* Template de Impressão */}
-          <div className="mt-4 border rounded p-4 bg-white" style={{ minHeight: '600px' }}>
-            <OPImpressaoTemplate opId={currentOP.id} autoprint={false} />
+            {/* Mensagem informativa */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+            <p className="text-sm text-blue-900">
+              Clique em <strong>"Imprimir Agora"</strong> para abrir a impressão em tela cheia com formatação profissional (7 páginas).
+            </p>
           </div>
           
           <DialogFooter className="mt-6">

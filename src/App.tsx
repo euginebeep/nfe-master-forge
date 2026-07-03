@@ -45,6 +45,7 @@ const ParametrosIndustriaPage = lazy(() => import("./pages/producao/ParametrosIn
 const RequisicoesCompraPage = lazy(() => import("./pages/producao/RequisicoesCompraPage"));
 const OrdensProducaoIndustrialPage = lazy(() => import("./pages/producao/OrdensProducaoIndustrialPage"));
 const OrdemProducaoDetailPage = lazy(() => import("./pages/producao/OrdemProducaoDetailPage"));
+const OrdemProducaoImpressaoPage = lazy(() => import("./pages/producao/OrdemProducaoImpressaoPage"));
 const DashboardIndustrialPage = lazy(() => import("./pages/producao/DashboardIndustrialPage"));
 const DashboardExecutivoPage = lazy(() => import("./pages/producao/DashboardExecutivoPage"));
 const QuarentenaPage = lazy(() => import("./pages/estoque/QuarentenaPage"));
@@ -202,6 +203,7 @@ const App = () => (
                 <Route path="/regulatorio/consulta-anvisa" element={<Navigate to="/regulatorio/anvisa" replace />} />
                 <Route path="/producao/ordens" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><OrdensProducaoIndustrialPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/ordens/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><OrdemProducaoDetailPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/ordens/:id/imprimir" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><OrdemProducaoImpressaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
 
                 <Route path="/producao/dashboard" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><DashboardIndustrialPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/executivo" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><DashboardExecutivoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
