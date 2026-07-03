@@ -728,8 +728,8 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
                     <td className="c">{idx + 1}</td>
                     <td>{item.insumo_nome}</td>
                     <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
-                    <td className="qc"></td>
-                    <td className="qc c"></td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
                     <td className="qc c"></td>
                     <td className="qc"></td>
                   </tr>
@@ -760,8 +760,8 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
                     <td className="c">{ativos.length + idx + 1}</td>
                     <td>{item.insumo_nome}</td>
                     <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
-                    <td className="qc"></td>
-                    <td className="qc c"></td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
                     <td className="qc c"></td>
                     <td className="qc"></td>
                   </tr>
@@ -792,8 +792,8 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
                     <td className="c">{ativos.length + excipienteBase.length + idx + 1}</td>
                     <td>{item.insumo_nome}</td>
                     <td className="num">{formatarQtd(item.quantidade_teorica_g)}</td>
-                    <td className="qc"></td>
-                    <td className="qc c"></td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
                     <td className="qc c"></td>
                     <td className="qc"></td>
                   </tr>
@@ -824,8 +824,8 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
                     <td className="c">{idx + 1}</td>
                     <td>{item.insumo_nome}</td>
                     <td className="num">{item.quantidade_planejada} un</td>
-                    <td className="qc"></td>
-                    <td className="qc c"></td>
+                    <td className="qc">{item.numero_lote || '—'}</td>
+                    <td className="qc c">{item.data_validade ? formatarData(item.data_validade) : '—'}</td>
                     <td className="qc c"></td>
                     <td className="qc"></td>
                   </tr>
