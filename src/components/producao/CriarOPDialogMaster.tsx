@@ -4,7 +4,7 @@
 // Refatorado: lógica extraída para useOPWizardState
 // ============================================================
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { 
   CalendarIcon, Package, FlaskConical, User, Hash, Calculator, 
   AlertTriangle, UserCheck, Beaker, Scale, Factory, ChevronRight,
@@ -61,6 +61,12 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
     podeAvancar, avancar, voltar, onSubmit, progressoEtapas,
   } = state;
 
+  useEffect(() => {
+    if (open && form.getValues("tipo_op") === "MANUAL") {
+      form.setValue("tipo_op", "BASEADA_FORMULA");
+    }
+  }, [open, form]);
+
   // ============================================================
   // ETAPA 1: TIPO DE OP
   // ============================================================
@@ -74,13 +80,26 @@ export function CriarOPDialogMaster({ open, onOpenChange, onSuccess }: CriarOPDi
       <FormField control={form.control} name="tipo_op" render={({ field }) => (
         <FormItem className="space-y-4">
           <FormControl>
-            <RadioGroup value={field.value} onValueChange={field.onChange} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <RadioGroup
+              value={field.value}
+              onValueChange={(value) => {
+                if (value !== "MANUAL") field.onChange(value);
+              }}
+              className="grid grid-cols-2 md:grid-cols-4 gap-4"
+            >
               <div>
-                <RadioGroupItem value="MANUAL" id="manual" className="peer sr-only" />
-                <Label htmlFor="manual" className={cn("flex flex-col items-center justify-between rounded-lg border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground", field.value === "MANUAL" ? "border-primary bg-primary/5" : "border-muted")}>
-                  <FileText className="h-8 w-8 mb-2" /><span className="font-semibold">OP Manual</span>
+                <RadioGroupItem value="MANUAL" id="manual" className="peer sr-only" disabled />
+                <div
+                  title="Desativado temporariamente — use o Formulador"
+                  className="relative flex flex-col items-center justify-between rounded-lg border-2 border-muted p-4 opacity-50 grayscale pointer-events-none"
+                >
+                  <Badge variant="secondary" className="absolute top-2 right-2 text-[10px] px-1.5 py-0">
+                    EM BREVE
+                  </Badge>
+                  <FileText className="h-8 w-8 mb-2" />
+                  <span className="font-semibold">OP Manual</span>
                   <span className="text-xs text-muted-foreground text-center mt-1">Definir ativos e quantidades manualmente</span>
-                </Label>
+                </div>
               </div>
               <div>
                 <RadioGroupItem value="BASEADA_FORMULA" id="formula" className="peer sr-only" />
