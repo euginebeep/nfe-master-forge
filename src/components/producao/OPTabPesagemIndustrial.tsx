@@ -267,10 +267,10 @@ function InsumoCard({
               <div className="p-3 bg-muted/30 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">TOLERÂNCIA (±{item.tolerancia_percentual}%)</p>
                 <p className="font-mono text-sm">
-                  <span className="text-muted-foreground">Mín:</span> {item.quantidade_minima_g.toFixed(4)} g
+                  <span className="text-muted-foreground">Mín:</span> {(item.quantidade_minima_g ?? (item.quantidade_teorica_g != null ? item.quantidade_teorica_g * (1 - (item.tolerancia_percentual ?? 10) / 100) : null))?.toFixed(4) ?? '—'} g
                 </p>
                 <p className="font-mono text-sm">
-                  <span className="text-muted-foreground">Máx:</span> {item.quantidade_maxima_g.toFixed(4)} g
+                  <span className="text-muted-foreground">Máx:</span> {(item.quantidade_maxima_g ?? (item.quantidade_teorica_g != null ? item.quantidade_teorica_g * (1 + (item.tolerancia_percentual ?? 10) / 100) : null))?.toFixed(4) ?? '—'} g
                 </p>
               </div>
             </div>
@@ -379,7 +379,7 @@ function InsumoCard({
           <div className="space-y-4 py-4">
             <div className="p-3 bg-muted rounded-lg text-sm">
               <p><strong>Quantidade Teórica:</strong> {ideal.valor} {ideal.unidade}</p>
-              <p><strong>Tolerância:</strong> {item.quantidade_minima_g.toFixed(4)} g – {item.quantidade_maxima_g.toFixed(4)} g</p>
+              <p><strong>Tolerância:</strong> {(item.quantidade_minima_g ?? (item.quantidade_teorica_g != null ? item.quantidade_teorica_g * (1 - (item.tolerancia_percentual ?? 10) / 100) : null))?.toFixed(4) ?? '—'} g – {(item.quantidade_maxima_g ?? (item.quantidade_teorica_g != null ? item.quantidade_teorica_g * (1 + (item.tolerancia_percentual ?? 10) / 100) : null))?.toFixed(4) ?? '—'} g</p>
             </div>
             
             <div className="space-y-2">
