@@ -5,8 +5,8 @@
 export interface PassoDistribuicao {
   passo: number;
   descricao: string;
-  massa_adicionada: string;
-  massa_total: string;
+  massa_adicionada: string;  // Formato: "630 mg" (sem zeros inúteis)
+  massa_total: string;       // Formato: "630 mg" (sem zeros inúteis)
   tempo_mistura: string;
 }
 
@@ -25,11 +25,14 @@ export function calcularDistribuicaoGeometrica(
   let passo = 1;
   
   // Passo 1: Peso do ativo
+  const formatarMassa = (valor: number) => 
+    `${valor.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} mg`;
+  
   passos.push({
     passo: 1,
     descricao: `Pesar o ativo puro`,
-    massa_adicionada: `${quantidadeAtivo.toFixed(4)} mg`,
-    massa_total: `${quantidadeAtivo.toFixed(4)} mg`,
+    massa_adicionada: formatarMassa(quantidadeAtivo),
+    massa_total: formatarMassa(quantidadeAtivo),
     tempo_mistura: '–'
   });
   
@@ -45,8 +48,8 @@ export function calcularDistribuicaoGeometrica(
     passos.push({
       passo,
       descricao: passo === 2 ? 'Adicionar quantidade IGUAL de diluente' : `Dobrar volume com diluente`,
-      massa_adicionada: `${massaAdicionar.toFixed(4)} mg`,
-      massa_total: `${massaAtual.toFixed(4)} mg`,
+      massa_adicionada: formatarMassa(massaAdicionar),
+      massa_total: formatarMassa(massaAtual),
       tempo_mistura: '2 minutos'
     });
   }
@@ -56,7 +59,7 @@ export function calcularDistribuicaoGeometrica(
     passo: passo + 1,
     descricao: 'Homogeneização final do pré-mix',
     massa_adicionada: '–',
-    massa_total: `${(quantidadeAtivo + quantidadeDiluente).toFixed(4)} mg`,
+    massa_total: formatarMassa(quantidadeAtivo + quantidadeDiluente),
     tempo_mistura: '5 minutos (mínimo)'
   });
   

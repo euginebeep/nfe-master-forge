@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { calcularDistribuicaoGeometrica } from '@/lib/distribuicao-geometrica';
 
 interface AtivoCritico {
   id: string;
@@ -32,53 +33,7 @@ interface OPPreMixGeometricoProps {
   diluenteQuantidadeTotal: number;
 }
 
-// Calcular passos de distribuição geométrica
-function calcularDistribuicaoGeometrica(
-  quantidadeAtivo: number,
-  quantidadeDiluente: number
-): { passo: number; descricao: string; massa_adicionada: string; massa_total: string; tempo_mistura: string }[] {
-  const passos = [];
-  let massaAtual = quantidadeAtivo;
-  let passo = 1;
-  
-  // Passo 1: Peso do ativo
-  passos.push({
-    passo: 1,
-    descricao: `Pesar o ativo puro`,
-    massa_adicionada: `${quantidadeAtivo.toFixed(4)} g`,
-    massa_total: `${quantidadeAtivo.toFixed(4)} g`,
-    tempo_mistura: '–'
-  });
-  
-  // Passos de distribuição geométrica (dobrar a cada etapa)
-  let massaDiluenteRestante = quantidadeDiluente;
-  
-  while (massaDiluenteRestante > 0 && passo < 10) {
-    passo++;
-    const massaAdicionar = Math.min(massaAtual, massaDiluenteRestante);
-    massaDiluenteRestante -= massaAdicionar;
-    massaAtual += massaAdicionar;
-    
-    passos.push({
-      passo,
-      descricao: passo === 2 ? 'Adicionar quantidade IGUAL de diluente' : `Dobrar volume com diluente`,
-      massa_adicionada: `${massaAdicionar.toFixed(4)} g`,
-      massa_total: `${massaAtual.toFixed(4)} g`,
-      tempo_mistura: '2 minutos'
-    });
-  }
-  
-  // Passo final: Homogeneização
-  passos.push({
-    passo: passo + 1,
-    descricao: 'Homogeneização final do pré-mix',
-    massa_adicionada: '–',
-    massa_total: `${(quantidadeAtivo + quantidadeDiluente).toFixed(4)} g`,
-    tempo_mistura: '5 minutos (mínimo)'
-  });
-  
-  return passos;
-}
+
 
 export function OPPreMixGeometrico({ 
   ativosCriticos, 
@@ -112,10 +67,10 @@ export function OPPreMixGeometrico({
           ? Math.round(diluenteQuantidadeTotal / ativo.quantidade_g)
           : 1000;
         const passosGeometricos = calcularDistribuicaoGeometrica(
-          ativo.quantidade_g,
-          Math.min(diluenteQuantidadeTotal * 0.1, 50) // Usar no máximo 10% do diluente ou 50g para o pré-mix
+          ativo.quantidade_mg, // Converter para mg (já vem em mg)
+          Math.min(diluenteQuantidadeTotal * 0.1, 50) * 1000 // Converter para mg
         );
-        const massaFinalPremix = ativo.quantidade_g + Math.min(diluenteQuantidadeTotal * 0.1, 50);
+        const massaFinalPremix = (ativo.quantidade_mg + Math.min(diluenteQuantidadeTotal * 0.1, 50) * 1000) / 1000; // Voltar para g para exibição
 
         return (
           <Card key={ativo.id} className="border-2 border-destructive/50 bg-destructive/5">
