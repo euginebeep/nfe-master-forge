@@ -128,11 +128,13 @@ BEGIN
       INSERT INTO op_materias_primas
         (op_id,insumo_id,insumo_nome,categoria,quantidade_teorica_mg,quantidade_teorica_g,
          unidade,ordem_mistura,lote_id,numero_lote,data_fabricacao,data_validade,
-         fornecedor_id,fornecedor_nome,observacoes)
+         fornecedor_id,fornecedor_nome,observacoes,
+         tolerancia_percentual,quantidade_minima_g,quantidade_maxima_g)
       VALUES
         (p_op_id,r.item_id,r.nome,r.cat,r.need_mg,r.need_mg/1000,
          COALESCE(r.ui,'g'),v_ordem,v_lote.id,v_lote.numero_lote,v_lote.data_fab,v_lote.data_val,
-         v_lote.fornecedor_id,(SELECT razao_social FROM entidades WHERE id=v_lote.fornecedor_id),v_obs);
+         v_lote.fornecedor_id,(SELECT razao_social FROM entidades WHERE id=v_lote.fornecedor_id),v_obs,
+         10, ROUND((r.need_mg/1000.0*0.9)::numeric,4), ROUND((r.need_mg/1000.0*1.1)::numeric,4));
       v_mp := v_mp + 1;
 
       v_short := v_need_int - v_avail;
