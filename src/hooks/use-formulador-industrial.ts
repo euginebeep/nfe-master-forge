@@ -241,7 +241,8 @@ export function useFormulaCRUD() {
       toast.success(`Fórmula ${codigo} criada`);
       return formula as Formula;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao criar fórmula: ' + msg);
       return null;
     }
@@ -261,7 +262,8 @@ export function useFormulaCRUD() {
       toast.success('Fórmula atualizada');
       return formula as Formula;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao atualizar: ' + msg);
       return null;
     }
@@ -279,7 +281,8 @@ export function useFormulaCRUD() {
       toast.success('Fórmula excluída');
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao excluir: ' + msg);
       return false;
     }
@@ -303,7 +306,8 @@ export function useFormulaItensCRUD() {
       if (error) throw error;
       return data as FormulaItem;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao adicionar item: ' + msg);
       return null;
     }
@@ -321,7 +325,8 @@ export function useFormulaItensCRUD() {
       if (error) throw error;
       return item as FormulaItem;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao atualizar item: ' + msg);
       return null;
     }
@@ -337,7 +342,8 @@ export function useFormulaItensCRUD() {
       if (error) throw error;
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao remover item: ' + msg);
       return false;
     }
@@ -416,7 +422,8 @@ export function useAprovarFormula() {
       toast.success(`Fórmula aprovada! OP ${opBase.codigo} gerada`);
       return { formula: formulaAtualizada as Formula, op: opBase };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao aprovar: ' + msg);
       return null;
     }
@@ -438,7 +445,8 @@ export function useAprovarFormula() {
       toast.warning('Fórmula bloqueada');
       return data as Formula;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao bloquear: ' + msg);
       return null;
     }
@@ -550,7 +558,8 @@ export function useTabelaNutricional(formulaId: string | undefined) {
       toast.success('Tabela nutricional gerada');
       return data;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      const e = err as any;
+      const msg = e?.message || e?.details || e?.code || 'Erro desconhecido';
       toast.error('Erro ao gerar tabela: ' + msg);
       return null;
     }
