@@ -40,6 +40,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           .from('ordens_producao_industrial')
           .select(`
             *,
+            company:company(*),
             op_materias_primas(*),
             op_embalagens(*),
             op_pesagens_criticas(*),
@@ -54,15 +55,8 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         if (opError) throw opError;
         if (!op) throw new Error('OP não encontrada');
 
-        // Buscar empresa separadamente
-        const { data: company } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('id', op.company_id)
-          .single();
-
         setOpData(op);
-        setCompanyData(company);
+        setCompanyData(op.company);
       } catch (err) {
         console.error('Erro ao buscar dados da OP:', err);
         const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
