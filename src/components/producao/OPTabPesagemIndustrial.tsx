@@ -127,6 +127,13 @@ function InsumoCard({
   const qtd = formatarQuantidade(item.quantidade_teorica_g);
   const ideal = unidadeIdeal(item.quantidade_teorica_g);
   const qtdPorCapsula = item.quantidade_teorica_mg || (totalCapsulas > 0 ? item.quantidade_teorica_g / totalCapsulas * 1000 : 0);
+
+  // Tolerância defensiva: OPs criadas via RPC preparar_op_materiais podem ter
+  // quantidade_minima_g/maxima_g nulos. Calcula o fallback a partir da teórica
+  // (±tolerância) para nunca chamar .toFixed em null e derrubar a página.
+  const tolPct = item.tolerancia_percentual ?? 10;
+  const minG = item.quantidade_minima_g ?? (item.quantidade_teorica_g != null ? item.quantidade_teorica_g * (1 - tolPct / 100) : null);
+  const maxG = item.quantidade_maxima_g ?? (item.quantidade_teorica_g != null ? item.quantidade_teorica_g * (1 + tolPct / 100) : null);
   
   const funcaoTecnologica = 
     item.categoria === 'EXCIPIENTE_TECNOLOGICO' 
@@ -265,12 +272,12 @@ function InsumoCard({
 
               {/* Bloco: Tolerância */}
               <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">TOLERÂNCIA (±{item.tolerancia_percentual}%)</p>
+                <p className="text-xs text-muted-foreground mb-1">TOLERÂNCIA (±{tolPct}%)</p>
                 <p className="font-mono text-sm">
-                  <span className="text-muted-foreground">Mín:</span> {item.quantidade_minima_g.toFixed(4)} g
+                  <span className="text-muted-foreground">Mín:</span> {minG?.toFixed(4) ?? '—'} g
                 </p>
                 <p className="font-mono text-sm">
-                  <span className="text-muted-foreground">Máx:</span> {item.quantidade_maxima_g.toFixed(4)} g
+                  <span className="text-muted-foreground">Máx:</span> {maxG?.toFixed(4) ?? '—'} g
                 </p>
               </div>
             </div>
@@ -379,7 +386,7 @@ function InsumoCard({
           <div className="space-y-4 py-4">
             <div className="p-3 bg-muted rounded-lg text-sm">
               <p><strong>Quantidade Teórica:</strong> {ideal.valor} {ideal.unidade}</p>
-              <p><strong>Tolerância:</strong> {item.quantidade_minima_g.toFixed(4)} g – {item.quantidade_maxima_g.toFixed(4)} g</p>
+              <p><strong>Tolerância:</strong> {minG?.toFixed(4) ?? '—'} g – {maxG?.toFixed(4) ?? '—'} g</p>
             </div>
             
             <div className="space-y-2">
