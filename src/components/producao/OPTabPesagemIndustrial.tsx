@@ -126,7 +126,7 @@ function InsumoCard({
   const risco = classificarRisco(item);
   const qtd = formatarQuantidade(item.quantidade_teorica_g);
   const ideal = unidadeIdeal(item.quantidade_teorica_g);
-  const qtdPorCapsula = item.quantidade_teorica_mg || (item.quantidade_teorica_g / totalCapsulas * 1000);
+  const qtdPorCapsula = item.quantidade_teorica_mg || (totalCapsulas > 0 ? item.quantidade_teorica_g / totalCapsulas * 1000 : 0);
   
   const funcaoTecnologica = 
     item.categoria === 'EXCIPIENTE_TECNOLOGICO' 
