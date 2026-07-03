@@ -47,7 +47,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
             op_controle_qualidade(*),
             op_controle_perdas(*),
             op_checklist(*),
-            op_assinaturas_rt(*)
+            op_assinaturas_rt!op_assinaturas_rt_op_id_fkey(*)
           `)
           .eq('id', opId)
           .single();
