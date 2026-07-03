@@ -4,7 +4,7 @@ import {
   Factory, ArrowLeft, Play, Check, XCircle,
   Package, Scale, ClipboardCheck, FileText, AlertTriangle,
   Calendar, Users, RefreshCw, Lock, Unlock, Printer,
-  QrCode, Box, ListChecks, Beaker, Siren
+  QrCode, Box, ListChecks, Beaker, Siren, Download
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -861,14 +861,7 @@ export default function OrdemProducaoDetailPage() {
                 </div>
               )}
               
-              <Separator className="my-6" />
-              
-              <div className="flex justify-end">
-                <Button variant="outline" disabled>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir Ficha (Em breve)
-                </Button>
-              </div>
+
             </CardContent>
           </Card>
         </TabsContent>
@@ -895,7 +888,59 @@ export default function OrdemProducaoDetailPage() {
 
         {/* Tab: Documentos A4 - Impressão Profissional */}
         <TabsContent value="documentos">
-          <OPImpressaoTemplate opId={currentOP.id} autoprint={false} />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Documentos A4 (7 Páginas)
+              </CardTitle>
+              <CardDescription>
+                Impressão profissional com formatação ANVISA BPF, assinaturas de RT e checklist completo
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Botões de Ação */}
+              <div className="flex gap-4">
+                <Button 
+                  onClick={() => navigate(`/producao/ordens/${currentOP.id}/imprimir`)}
+                  className="flex-1 gap-2"
+                  size="lg"
+                >
+                  <Printer className="h-4 w-4" />
+                  Abrir / Imprimir (A4)
+                </Button>
+                <Button 
+                  onClick={() => navigate(`/producao/ordens/${currentOP.id}/imprimir`)}
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  size="lg"
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar PDF
+                </Button>
+              </div>
+              
+              <Separator />
+              
+              {/* Miniatura do Template (opcional) */}
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-muted-foreground">Prévia (clique nos botões acima para imprimir)</p>
+                <div 
+                  className="border rounded overflow-auto bg-muted/30"
+                  style={{
+                    height: '400px',
+                    transform: 'scale(0.5)',
+                    transformOrigin: 'top left',
+                    width: '200%'
+                  }}
+                >
+                  <div style={{ pointerEvents: 'none' }}>
+                    <OPImpressaoTemplate opId={currentOP.id} autoprint={false} />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
