@@ -1,373 +1,257 @@
+// anvisa-powerbi-sync — motor de sincronização da base ANVISA
+// REESCRITO 2026-07-04: usa o Power BI OFICIAL da ANVISA ("Contituintes IN 28")
+// em vez de Firecrawl. Sem chave externa (relatório público). Popula anvisa_constituintes.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
 }
 
-const FIRECRAWL_API = 'https://api.firecrawl.dev/v1'
-// Endpoint nativo Gemini generateContent
-const GEMINI_MODEL = 'gemini-2.5-flash'
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+const POWERBI_RESOURCE_KEY = '458ce16a-f74b-4e92-977a-e12e2927d746'
+const POWERBI_API = 'https://wabi-brazil-south-api.analysis.windows.net'
 
-async function searchAnvisa(firecrawlKey: string, query: string): Promise<string> {
-  const results: string[] = []
+const POWERBI_FIELDS = [
+  'Categoria',
+  'Constituintes Autorizados',
+  'CAS',
+  'Função',
+  '0 a 6 meses',
+  '7 a 11 meses',
+  '1 a 3 anos',
+  '4 a 8 anos ',
+  '9 a 18 anos',
+  'Maiores 19 anos ',
+  'Gestantes ',
+  'Lactantes',
+  'Alegações autorizadas e requisitos para uso da alegação',
+  'Requisitos de Rotulagem Complementar e outros',
+  'Especificações',
+  'Observações',
+  'Outras Informações',
+  'Nutriente/Substância Bioativa/Enzima',
+  'Link de acesso a especificações publicadas',
+] as const
 
-  // Search 1: Direct ANVISA search for the substance
-  try {
-    const res = await fetch(`${FIRECRAWL_API}/search`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `site:gov.br/anvisa "${query}" suplemento alimentar constituinte autorizado IN 28/2018`,
-        limit: 5,
-        scrapeOptions: { formats: ['markdown'] },
-      }),
-    })
-    const data = await res.json()
-    if (data?.data?.length) {
-      for (const r of data.data) {
-        if (r.markdown) results.push(`[ANVISA] ${r.url}\n${r.markdown.substring(0, 5000)}`)
-        else if (r.description) results.push(`[ANVISA] ${r.url}: ${r.description}`)
+type PowerBiRow = Record<(typeof POWERBI_FIELDS)[number], string | null>
+
+const normalize = (value: unknown) =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+function decodePowerBiRows(payload: unknown): PowerBiRow[] {
+  const data = payload as Record<string, any>
+  const ds = data?.results?.[0]?.result?.data?.dsr?.DS?.[0]
+  const records = ds?.PH?.[0]?.DM0
+  const valueDicts = ds?.ValueDicts || {}
+  if (!Array.isArray(records) || records.length === 0) return []
+  const columns = records[0]?.S || []
+  const previous = new Array(columns.length).fill(null)
+  const rows: PowerBiRow[] = []
+
+  for (const record of records) {
+    const values: (string | null)[] = []
+    const repeatedMask = Number(record.R || 0)
+    const nullMask = Number(record['Ø'] || 0)
+    const cells = Array.isArray(record.C) ? record.C : []
+    let cellIndex = 0
+
+    for (let index = 0; index < columns.length; index++) {
+      let value: string | null = null
+      if (repeatedMask & (1 << index)) {
+        value = previous[index]
+      } else if (nullMask & (1 << index)) {
+        value = null
+      } else {
+        const raw = cells[cellIndex++]
+        const dictName = columns[index]?.DN
+        const dict = dictName ? valueDicts[dictName] : null
+        value = Array.isArray(dict) && Number.isInteger(raw) ? dict[raw] ?? null : raw ?? null
       }
+      values[index] = typeof value === 'string' ? value.replace(/^'|'$/g, '') : value
     }
-  } catch (e) {
-    console.warn('ANVISA search failed:', e)
-  }
 
-  // Search 2: Broader regulatory search
-  try {
-    const res = await fetch(`${FIRECRAWL_API}/search`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `ANVISA "${query}" autorizado proibido suplemento alimentar 2025 2026`,
-        limit: 5,
-        scrapeOptions: { formats: ['markdown'] },
-      }),
-    })
-    const data = await res.json()
-    if (data?.data?.length) {
-      for (const r of data.data) {
-        if (r.markdown) results.push(`[WEB] ${r.url}\n${r.markdown.substring(0, 5000)}`)
-        else if (r.description) results.push(`[WEB] ${r.url}: ${r.description}`)
-      }
-    }
-  } catch (e) {
-    console.warn('Broad search failed:', e)
+    for (let index = 0; index < values.length; index++) previous[index] = values[index]
+    const row = Object.fromEntries(
+      POWERBI_FIELDS.map((field, index) => [field, values[index] ?? null]),
+    ) as PowerBiRow
+    if (row['Constituintes Autorizados']) rows.push(row)
   }
-
-  // Search 3: Power BI specific search (cached results from indexers)
-  try {
-    const res = await fetch(`${FIRECRAWL_API}/search`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `ANVISA power bi constituintes autorizados suplementos alimentares "${query}" IN 28`,
-        limit: 3,
-      }),
-    })
-    const data = await res.json()
-    if (data?.data?.length) {
-      for (const r of data.data) {
-        results.push(`[PBI-INDEX] ${r.url}: ${r.title || ''} ${r.description || ''}`)
-      }
-    }
-  } catch (e) {
-    console.warn('PBI index search failed:', e)
-  }
-
-  return results.join('\n\n---\n\n')
+  return rows
 }
 
-async function scrapeAnvisaPortal(firecrawlKey: string): Promise<string> {
-  const urls = [
-    'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares',
-  ]
-  const results: string[] = []
+async function fetchPowerBiRows(): Promise<PowerBiRow[]> {
+  const headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ActivityId: crypto.randomUUID(),
+    RequestId: crypto.randomUUID(),
+    'X-PowerBI-ResourceKey': POWERBI_RESOURCE_KEY,
+    Referer: 'https://app.powerbi.com/',
+  }
 
-  for (const url of urls) {
-    try {
-      const res = await fetch(`${FIRECRAWL_API}/scrape`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${firecrawlKey}`,
-          'Content-Type': 'application/json',
+  const metaResponse = await fetch(
+    `${POWERBI_API}/public/reports/${POWERBI_RESOURCE_KEY}/modelsAndExploration?preferReadOnlySession=true`,
+    { headers },
+  )
+  if (!metaResponse.ok) throw new Error(`powerbi_metadata_${metaResponse.status}`)
+  const meta = await metaResponse.json()
+  const modelId = meta?.exploration?.report?.modelId || meta?.models?.[0]?.id
+  const datasetId = meta?.models?.[0]?.dbName
+  const reportId = String(meta?.exploration?.report?.id || meta?.exploration?.reportId || '')
+
+  const select = POWERBI_FIELDS.map((field) => ({
+    Column: { Expression: { SourceRef: { Source: 'c' } }, Property: field },
+    Name: `Consulta1.${field}`,
+  }))
+  const semanticQuery = {
+    Commands: [{
+      SemanticQueryDataShapeCommand: {
+        Query: { Version: 2, From: [{ Name: 'c', Entity: 'Contituintes IN 28', Type: 0 }], Select: select },
+        Binding: {
+          Primary: { Groupings: [{ Projections: POWERBI_FIELDS.map((_, index) => index) }] },
+          DataReduction: { DataVolume: 4, Primary: { Window: { Count: 1000 } } },
+          Version: 1,
         },
-        body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true, waitFor: 3000 }),
-      })
-      const data = await res.json()
-      const md = data?.data?.markdown || data?.markdown || ''
-      if (md) {
-        results.push(`--- PORTAL ANVISA ---\n${md.substring(0, 12000)}`)
-        console.log(`Scraped portal: ${md.length} chars`)
-      }
-    } catch (e) {
-      console.warn(`Failed to scrape ${url}:`, e)
-    }
+        ExecutionMetricsKind: 1,
+      },
+    }],
   }
+  const queryResponse = await fetch(`${POWERBI_API}/public/reports/querydata?synchronous=true`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      version: '1.0.0',
+      queries: [{
+        Query: semanticQuery,
+        CacheKey: JSON.stringify(semanticQuery),
+        QueryId: '',
+        ApplicationContext: { DatasetId: datasetId, Sources: [{ ReportId: reportId }] },
+      }],
+      cancelQueries: [],
+      modelId,
+    }),
+  })
+  if (!queryResponse.ok) throw new Error(`powerbi_query_${queryResponse.status}`)
+  return decodePowerBiRows(await queryResponse.json())
+}
 
-  return results.join('\n\n')
+const arr = (v: string | null) => (v && v.trim() ? [v.trim()] : [])
+const jbo = (v: string | null) => (v && v.trim() ? { texto: v.trim() } : null)
+
+function mapRow(row: PowerBiRow) {
+  const nome = (row['Constituintes Autorizados'] || '').trim()
+  return {
+    chave_norm: normalize(nome),
+    nome_tecnico: nome,
+    nome_rotulo: nome,
+    categoria: row['Categoria']?.trim() || 'Não classificado',
+    subcategoria: row['Nutriente/Substância Bioativa/Enzima']?.trim() || null,
+    fonte_de: row['Função']?.trim() || null,
+    cas_number: row['CAS']?.trim() || null,
+    limites_0_6_meses: jbo(row['0 a 6 meses']),
+    limites_7_11_meses: jbo(row['7 a 11 meses']),
+    limites_1_3_anos: jbo(row['1 a 3 anos']),
+    limites_4_8_anos: jbo(row['4 a 8 anos ']),
+    limites_9_18_anos: jbo(row['9 a 18 anos']),
+    limites_19_mais: jbo(row['Maiores 19 anos ']),
+    limites_gestantes: jbo(row['Gestantes ']),
+    limites_lactantes: jbo(row['Lactantes']),
+    alegacoes: arr(row['Alegações autorizadas e requisitos para uso da alegação']),
+    rotulagem_complementar: arr(row['Requisitos de Rotulagem Complementar e outros']),
+    advertencias: arr(row['Observações']),
+    referencias_especificacao: arr(row['Especificações']),
+    restricoes_uso: row['Outras Informações']?.trim() || null,
+    fonte_url: row['Link de acesso a especificações publicadas']?.trim() || null,
+    anexo_origem: 'IN 28 (Power BI ANVISA)',
+    norma_inclusao: 'IN 28/2018',
+    is_proibido: false,
+    ativo: true,
+    sincronizado_em: new Date().toISOString(),
+  }
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  let firecrawlKey: string | null = Deno.env.get('FIRECRAWL_API_KEY') || null
-  let geminiKey: string | null = Deno.env.get('GEMINI_API_KEY') || null
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const supabase = createClient(supabaseUrl, serviceKey)
 
-  // Fallback: buscar chaves do banco erp_system_config (configuração global do ERP)
-  if (!firecrawlKey || !geminiKey) {
-    try {
-      const cfgRes = await fetch(
-        `${supabaseUrl}/rest/v1/erp_system_config?chave=in.(gemini_api_key,firecrawl_api_key)&select=chave,valor`,
-        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
-      )
-      if (cfgRes.ok) {
-        const cfgData = await cfgRes.json()
-        for (const row of cfgData || []) {
-          if (row.chave === 'gemini_api_key' && row.valor) geminiKey = row.valor
-          if (row.chave === 'firecrawl_api_key' && row.valor) firecrawlKey = row.valor
-        }
-      }
-    } catch (e) {
-      console.warn('Falha ao buscar chaves do banco:', e)
-    }
-  }
-
-  if (!firecrawlKey || !geminiKey) {
-    console.error('Missing required API keys:', { firecrawl: !!firecrawlKey, gemini: !!geminiKey })
-    return new Response(JSON.stringify({ error: 'Serviço temporariamente indisponível. Configure as chaves no painel Admin Master → Integrações de IA.' }), {
-      status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
-  // Auth check
+  // auth: exige usuário autenticado (disparado pelo painel)
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 
-  const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authHeader } }
-  })
-  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey)
-
-  // Parse body
-  let substanciaBusca: string | null = null
-  try {
-    const body = await req.json()
-    substanciaBusca = body?.substancia || null
-  } catch { /* no body */ }
-
-  // Create sync record
-  const { data: syncRecord, error: syncErr } = await supabase
+  // registra início do sync
+  const { data: hist } = await supabase
     .from('anvisa_sync_history')
-    .insert({
-      tipo: 'powerbi_firecrawl',
-      status: 'em_andamento',
-      fonte_url: 'firecrawl-search',
-      iniciado_por: user.id,
-    })
-    .select().single()
-
-  if (syncErr) {
-    console.error('Sync record creation error:', syncErr.message)
-    return new Response(JSON.stringify({ error: 'Falha ao iniciar sincronização. Tente novamente.' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
+    .insert({ tipo: 'powerbi', status: 'em_andamento', iniciado_em: new Date().toISOString() })
+    .select('id')
+    .single()
+  const histId = hist?.id
 
   try {
-    // Step 1: Search ANVISA data using Firecrawl Search (instead of broken Power BI scrape)
-    const searchQuery = substanciaBusca || 'constituintes autorizados suplementos alimentares atualização'
-    console.log(`Searching ANVISA data for: ${searchQuery}`)
+    const { count: antes } = await supabase
+      .from('anvisa_constituintes')
+      .select('*', { count: 'exact', head: true })
 
-    const [searchContent, portalContent] = await Promise.all([
-      searchAnvisa(firecrawlKey, searchQuery),
-      scrapeAnvisaPortal(firecrawlKey),
-    ])
+    const rows = await fetchPowerBiRows()
+    if (!rows.length) throw new Error('powerbi_sem_dados: consulta retornou 0 linhas')
 
-    const combinedContent = [searchContent, portalContent].filter(Boolean).join('\n\n===\n\n')
+    const mapped = rows.map(mapRow)
+    // dedupe por chave_norm (o Power BI pode repetir o nome do constituinte) — last-wins
+    const seen = new Map<string, ReturnType<typeof mapRow>>()
+    for (const p of mapped) if (p.chave_norm) seen.set(p.chave_norm, p)
+    const payload = Array.from(seen.values())
+    // upsert por chave_norm — NÃO inclui homologado/homologado_por/em (preserva flags da RT)
+    const { error: upErr } = await supabase
+      .from('anvisa_constituintes')
+      .upsert(payload, { onConflict: 'chave_norm' })
+    if (upErr) throw upErr
 
-    if (!combinedContent || combinedContent.length < 50) {
-      throw new Error('Nenhuma informação ANVISA pôde ser obtida via busca web')
+    const { count: depois } = await supabase
+      .from('anvisa_constituintes')
+      .select('*', { count: 'exact', head: true })
+
+    const novos = Math.max(0, (depois || 0) - (antes || 0))
+    const atualizados = payload.length - novos
+
+    if (histId) {
+      await supabase.from('anvisa_sync_history').update({
+        status: 'sucesso',
+        registros_novos: novos,
+        registros_atualizados: atualizados,
+        fonte_url: `${POWERBI_API}/public/reports/${POWERBI_RESOURCE_KEY}`,
+        versao_legislacao: 'IN 28 (Power BI oficial)',
+        finalizado_em: new Date().toISOString(),
+        detalhes: { total_linhas: payload.length },
+      }).eq('id', histId)
     }
-
-    console.log(`Total content gathered: ${combinedContent.length} chars`)
-
-    // Step 2: Fetch current DB state
-    let dbContext = ''
-    if (substanciaBusca) {
-      const { data: existingData } = await supabase
-        .from('anvisa_constituintes')
-        .select('nome_tecnico, nome_generico, ativo, is_proibido, categoria, norma_inclusao, motivo_proibicao')
-        .or(`nome_tecnico.ilike.%${substanciaBusca}%,nome_generico.ilike.%${substanciaBusca}%`)
-        .limit(5)
-
-      if (existingData?.length) {
-        dbContext = `\n\nDADOS ATUAIS NO BANCO:\n${JSON.stringify(existingData, null, 2)}`
-      }
-    }
-
-    // Step 3: AI analysis
-    const searchContext = substanciaBusca
-      ? `FOCO DA ANÁLISE: "${substanciaBusca}" — Verifique especificamente o status regulatório desta substância no contexto da ANVISA e IN 28/2018.`
-      : 'Faça uma análise geral de todas as substâncias e mudanças recentes.'
-
-    const systemPromptPowerBi = `Você é um analista regulatório especializado em ANVISA e suplementos alimentares.
-Analise o conteúdo das buscas web sobre o portal ANVISA e a IN 28/2018.
-
-${searchContext}
-${dbContext}
-
-IMPORTANTE: O Power BI da ANVISA contém a lista oficial de constituintes autorizados da IN 28/2018.
-Se a substância NÃO aparece nas buscas como autorizada, marque como NAO_ENCONTRADA.
-Se há evidência de que foi PROIBIDA ou REMOVIDA, marque adequadamente.
-
-Sua tarefa:
-1. Identificar quais substâncias estão AUTORIZADAS e quais foram REMOVIDAS/PROIBIDAS
-2. Verificar doses máximas e alterações recentes
-3. Detectar alertas sanitários e mudanças na legislação
-4. Se uma substância específica foi consultada, dizer claramente se ela ESTÁ ou NÃO ESTÁ autorizada
-
-Responda em JSON:
-{
-  "substancias_analisadas": [{
-    "nome": "...",
-    "status": "AUTORIZADA" | "PROIBIDA" | "REMOVIDA" | "RESTRITA" | "NAO_ENCONTRADA",
-    "motivo": "...",
-    "norma_referencia": "...",
-    "dose_maxima": "...",
-    "observacoes": "..."
-  }],
-  "alertas_recentes": [{"titulo": "...", "descricao": "...", "data": "..."}],
-  "mudancas_legislacao": [{"descricao": "...", "norma": "...", "data": "..."}],
-  "resumo_geral": "...",
-  "confianca_dados": "ALTA" | "MEDIA" | "BAIXA",
-  "fontes_consultadas": ["..."]
-}`
-
-    // Chamada ao endpoint nativo Gemini generateContent
-    const geminiUrl = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`
-    const aiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPromptPowerBi }] },
-        contents: [{ role: 'user', parts: [{ text: combinedContent.substring(0, 30000) }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-          maxOutputTokens: 8192,
-        },
-      }),
-    })
-
-    const aiData = await aiResponse.json()
-    const aiContent: string = aiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-
-    let analise: Record<string, unknown> = {}
-    try {
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/)
-      if (jsonMatch) analise = JSON.parse(jsonMatch[0])
-    } catch {
-      analise = { resumo_geral: aiContent, confianca_dados: 'BAIXA' }
-    }
-
-    // Step 4: Update database based on AI analysis
-    const substancias = (analise.substancias_analisadas as Array<Record<string, string>>) || []
-    let atualizados = 0
-
-    for (const sub of substancias) {
-      if (!sub.nome || sub.status === 'NAO_ENCONTRADA') continue
-
-      const isProibido = ['PROIBIDA', 'REMOVIDA'].includes(sub.status)
-      const isRestrito = sub.status === 'RESTRITA'
-      const isAtivo = sub.status === 'AUTORIZADA'
-
-      const { data: matches } = await supabase
-        .from('anvisa_constituintes')
-        .select('id, nome_tecnico, ativo, is_proibido')
-        .or(`nome_tecnico.ilike.%${sub.nome}%,nome_generico.ilike.%${sub.nome}%`)
-        .limit(5)
-
-      for (const match of (matches || [])) {
-        const needsUpdate =
-          (isProibido && (!match.is_proibido || match.ativo)) ||
-          (isAtivo && (match.is_proibido || !match.ativo)) ||
-          isRestrito
-
-        if (needsUpdate) {
-          await supabase.from('anvisa_constituintes').update({
-            ativo: isAtivo || isRestrito,
-            is_proibido: isProibido,
-            motivo_proibicao: isProibido ? sub.motivo || sub.observacoes : null,
-            norma_ultima_alteracao: sub.norma_referencia || null,
-            restricoes_uso: isRestrito ? sub.observacoes : null,
-            verificado_em: new Date().toISOString(),
-            sync_id: syncRecord.id,
-          }).eq('id', match.id)
-
-          atualizados++
-        }
-      }
-    }
-
-    // Step 5: Update sync record
-    await supabase.from('anvisa_sync_history').update({
-      status: 'sucesso',
-      finalizado_em: new Date().toISOString(),
-      registros_atualizados: atualizados,
-      detalhes: {
-        ...analise,
-        metodo: 'firecrawl-search',
-        substancia_consultada: substanciaBusca,
-      },
-    }).eq('id', syncRecord.id)
 
     return new Response(JSON.stringify({
-      success: true,
-      analise,
-      registros_atualizados: atualizados,
-      sync_id: syncRecord.id,
+      ok: true, total: payload.length, novos, atualizados,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-
-  } catch (error: unknown) {
-    const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido'
-    console.error('Sync error:', errorMsg)
-
-    await supabase.from('anvisa_sync_history').update({
-      status: 'erro',
-      finalizado_em: new Date().toISOString(),
-      erro_mensagem: errorMsg,
-    }).eq('id', syncRecord.id)
-
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Erro durante a sincronização ANVISA. Tente novamente.',
-    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  } catch (e) {
+    const anyE = e as any
+    const msg = e instanceof Error ? e.message
+      : (anyE?.message || anyE?.hint || anyE?.details || anyE?.code || JSON.stringify(anyE))
+    if (histId) {
+      await supabase.from('anvisa_sync_history').update({
+        status: 'erro', erro_mensagem: msg, finalizado_em: new Date().toISOString(),
+      }).eq('id', histId)
+    }
+    console.error('anvisa-powerbi-sync erro:', msg)
+    return new Response(JSON.stringify({ ok: false, error: msg }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })
