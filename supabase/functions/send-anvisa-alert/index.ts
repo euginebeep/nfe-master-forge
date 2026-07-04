@@ -18,10 +18,56 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
+const DEFAULT_FROM = 'BrainX ERP <noreply@brainxerp.com.br>';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+async function resolveFromAddress(
+  req: Request,
+  admin: ReturnType<typeof createClient>,
+): Promise<string> {
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader) {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData } = await userClient.auth.getUser();
+    if (userData?.user) {
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('company_id')
+        .eq('id', userData.user.id)
+        .maybeSingle();
+
+      if (profile?.company_id) {
+        const { data: company } = await admin
+          .from('company')
+          .select('smtp_from_email, smtp_from_name')
+          .eq('id', profile.company_id)
+          .maybeSingle();
+
+        const fromEmail = (company?.smtp_from_email || '').trim();
+        if (fromEmail) {
+          const fromName = (company?.smtp_from_name || 'BrainX ERP').trim();
+          return `${fromName} <${fromEmail}>`;
+        }
+      }
+    }
+  }
+
+  const envFrom = (Deno.env.get('RESEND_DEFAULT_FROM') || DEFAULT_FROM).trim();
+  if (!envFrom) {
+    throw new Error(
+      'Remetente não configurado: cadastre smtp_from_email em Configurações → Empresa ou defina RESEND_DEFAULT_FROM.',
+    );
+  }
+  return envFrom;
+}
 
 serve(async (req) => {
   // Handle CORS
@@ -40,19 +86,21 @@ serve(async (req) => {
       );
     }
 
-    // Construir corpo do email
-    const emailBody = generateEmailBody(alerts, productsNonCompliant, timestamp);
-
-    // Enviar email via Resend (ou outro serviço)
-    const response = await sendEmailViaResend(to, subject, emailBody);
-
-    // Registrar no banco de dados
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') || '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     );
 
-    await supabase
+    const fromAddress = await resolveFromAddress(req, supabase);
+
+    // Construir corpo do email
+    const emailBody = generateEmailBody(alerts, productsNonCompliant, timestamp);
+
+    // Enviar email via Resend (ou outro serviço)
+    await sendEmailViaResend(to, subject, emailBody, fromAddress);
+
+    // Registrar no banco de dados
+    const { error: logError } = await supabase
       .from('anvisa_alert_logs')
       .insert({
         recipient: to,
@@ -63,14 +111,25 @@ serve(async (req) => {
         timestamp: new Date().toISOString(),
       });
 
+    if (logError) {
+      console.error('Falha ao registrar log de alerta ANVISA:', logError);
+      return new Response(
+        JSON.stringify({
+          error: `Alerta enviado, mas falha ao registrar log: ${logError.message || logError.code}`,
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: true, message: 'Alert sent successfully' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error sending ANVISA alert:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -219,7 +278,7 @@ function generateEmailBody(alerts: any[], productsNonCompliant: any[], timestamp
 
       <div class="timestamp">
         <p>Verificação realizada em: ${new Date(timestamp).toLocaleString('pt-BR')}</p>
-        <p>Sistema de Monitoramento ANVISA — Vitalnow ERP</p>
+        <p>Sistema de Monitoramento ANVISA — BrainX ERP</p>
       </div>
     </div>
 
@@ -235,11 +294,22 @@ function generateEmailBody(alerts: any[], productsNonCompliant: any[], timestamp
 /**
  * Envia email via Resend
  */
-async function sendEmailViaResend(to: string, subject: string, html: string): Promise<Response> {
+async function sendEmailViaResend(
+  to: string,
+  subject: string,
+  html: string,
+  from: string,
+): Promise<Response> {
   const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
   if (!resendApiKey) {
     throw new Error('RESEND_API_KEY not configured');
+  }
+
+  if (!from?.trim()) {
+    throw new Error(
+      'Remetente não configurado: cadastre smtp_from_email em Configurações → Empresa ou defina RESEND_DEFAULT_FROM.',
+    );
   }
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -249,7 +319,7 @@ async function sendEmailViaResend(to: string, subject: string, html: string): Pr
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'noreply@vitalnow.com.br',
+      from: from.trim(),
       to,
       subject,
       html,
@@ -258,7 +328,7 @@ async function sendEmailViaResend(to: string, subject: string, html: string): Pr
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Failed to send email: ${error.message}`);
+    throw new Error(`Failed to send email: ${error.message || response.statusText}`);
   }
 
   return response;

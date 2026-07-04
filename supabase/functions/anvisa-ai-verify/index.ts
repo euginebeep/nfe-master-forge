@@ -585,9 +585,7 @@ Deno.serve(async (req) => {
         console.warn('Sync Power BI failed during analyze_formula:', e);
       }
 
-      const systemPrompt = `Você é um especialista regulatório em suplementos 
-alimentares brasileiros da Vitalnow Indústria Ltda. Analise a fórmula fornecida com base na IN 28/2018 
-e suas atualizações reais em tempo real (incluindo IN 438/2026).
+      const systemPrompt = `Você é um especialista regulatório em suplementos alimentares brasileiros. Analise a fórmula fornecida com base na IN 28/2018 e suas atualizações vigentes.
 
 CONTEXTO ATUAL ANVISA (Power BI Sync):
 ${powerBiData || 'Dados de sincronização indisponíveis no momento.'}
@@ -678,7 +676,7 @@ Retorne JSON com:
         }
       }
 
-      const systemPrompt = `Você é um especialista regulatório da Vitalnow Indústria Ltda. Sua tarefa é analisar TODOS os produtos contidos no arquivo enviado e retornar um JSON completo com a análise regulatória de CADA produto individualmente.
+      const systemPrompt = `Você é um especialista regulatório em suplementos alimentares brasileiros. Sua tarefa é analisar TODOS os produtos contidos no arquivo enviado e retornar um JSON completo com a análise regulatória de CADA produto individualmente.
 
 INSTRUÇÕES CRÍTICAS:
 1. Se o arquivo for um ZIP com múltiplos briefings, analise CADA produto separadamente

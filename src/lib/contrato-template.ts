@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 export const TAGS_DISPONIVEIS = [
   // Empresa (Contratada)
-  { tag: "EMPRESA_RAZAO_SOCIAL", descricao: "Razão social da empresa (Contratada)", exemplo: "VITALNOW INDUSTRIA LTDA" },
+  { tag: "EMPRESA_RAZAO_SOCIAL", descricao: "Razão social da empresa (Contratada)", exemplo: "SUA EMPRESA LTDA" },
   { tag: "EMPRESA_CNPJ", descricao: "CNPJ da empresa", exemplo: "52.693.922/0001-25" },
   { tag: "EMPRESA_ENDERECO_COMPLETO", descricao: "Endereço completo da empresa", exemplo: "Rua Venezuela, nº 1680, Bairro America, Barretos/SP, CEP: 14.783-183" },
   { tag: "EMPRESA_CIDADE", descricao: "Cidade da empresa", exemplo: "Barretos" },
