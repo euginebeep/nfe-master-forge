@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   ativoEntraNaMassa,
+  casarCamadaExata,
   casarInsumoPorNome,
   chaveAtivoLaudo,
   listarAtivosSemInsumo,
+  normForte,
   normalizarUnidadeInformadaCodigo,
   resolverInsumoId,
 } from '@/lib/laudo-insumos';
@@ -38,6 +40,28 @@ describe('ativoEntraNaMassa', () => {
     expect(ativoEntraNaMassa({ nome: 'Lacto', dose: 1, unit: 'UFC' })).toBe(false);
     expect(ativoEntraNaMassa({ nome: 'Enzima', dose: 1, unit: 'FCC' })).toBe(false);
     expect(ativoEntraNaMassa({ nome: 'X', dose: 1, unit: 'mol' })).toBe(false);
+  });
+});
+
+describe('normForte', () => {
+  it('remove percentuais e expande vit', () => {
+    expect(normForte('VIT. K2 1,3%')).toBe('vitamina k2');
+    expect(normForte('Vitamina D3 USP')).toBe('vitamina d3');
+  });
+});
+
+describe('casarCamadaExata', () => {
+  it('marca match exato com tipo exato', () => {
+    const r = casarCamadaExata('Vitamina C', insumos);
+    expect(r.tipo).toBe('exato');
+    expect(r.insumoId).toBe('ins-1');
+    expect(r.sugestaoNome).toBe('Vitamina C');
+  });
+
+  it('marca match parcial como exato (camada 1)', () => {
+    const r = casarCamadaExata('Vitamina D3', insumos);
+    expect(r.tipo).toBe('exato');
+    expect(r.insumoId).toBe('ins-3');
   });
 });
 

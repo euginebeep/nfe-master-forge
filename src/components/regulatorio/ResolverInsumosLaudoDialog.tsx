@@ -6,6 +6,8 @@ import {
   Link2,
   Loader2,
   Plus,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import {
   Dialog,
@@ -22,11 +24,14 @@ import { Separator } from '@/components/ui/separator';
 import { CadastroRapidoInsumo } from '@/components/formulador/CadastroRapidoInsumo';
 import { ItemSelector } from '@/components/formulador/ItemSelector';
 import { useCriarFormulaDoLaudo } from '@/hooks/use-criar-formula-do-laudo';
+import { getUserCompanyId } from '@/hooks/use-user-company';
 import type { AtivoLaudo } from '@/lib/laudo-insumos';
 import {
   ativoEntraNaMassa,
   chaveAtivoLaudo,
+  resolverMatchLaudo,
 } from '@/lib/laudo-insumos';
+import { formatarUnidadeInformada } from '@/lib/unidades-dose';
 import type { HybridItem } from '@/hooks/use-hybrid-data';
 import { cn } from '@/lib/utils';
 
@@ -37,15 +42,27 @@ interface ResolverInsumosLaudoDialogProps {
   ativos: AtivoLaudo[];
 }
 
+type StatusLinha = 'carregando' | 'pendente' | 'sugerido' | 'confirmado';
+
+interface LinhaMatchState {
+  carregando: boolean;
+  sugestao?: { id: string; nome: string; tipo: 'similar' | 'ia' };
+}
+
+function formatarDoseLaudo(ativo: AtivoLaudo): string {
+  return `${ativo.dose} ${formatarUnidadeInformada(ativo.unit || 'mg')}`;
+}
+
 export function ResolverInsumosLaudoDialog({
   open,
   onOpenChange,
   produtoNome,
   ativos,
 }: ResolverInsumosLaudoDialogProps) {
-  const { criarDoLaudo, casarInsumo, buscarNomeInsumo } = useCriarFormulaDoLaudo();
+  const { criarDoLaudo, buscarNomeInsumo, insumos } = useCriarFormulaDoLaudo();
   const [resolucoes, setResolucoes] = useState<Record<string, string>>({});
   const [nomesResolvidos, setNomesResolvidos] = useState<Record<string, string>>({});
+  const [linhaStates, setLinhaStates] = useState<Record<string, LinhaMatchState>>({});
   const [cadastroAtivo, setCadastroAtivo] = useState<{ key: string; nome: string } | null>(null);
   const [vincularKey, setVincularKey] = useState<string | null>(null);
   const [criando, setCriando] = useState(false);
@@ -61,45 +78,122 @@ export function ResolverInsumosLaudoDialog({
     [ativos],
   );
 
-  const ativosMassa = linhas.filter((l) => l.naMassa);
-  const ativosForaMassa = linhas.filter((l) => !l.naMassa && l.ativo.nome?.trim());
+  const ativosMassa = useMemo(() => linhas.filter((l) => l.naMassa), [linhas]);
+  const ativosForaMassa = useMemo(
+    () => linhas.filter((l) => !l.naMassa && l.ativo.nome?.trim()),
+    [linhas],
+  );
 
   useEffect(() => {
     if (!open) return;
 
-    const inicial: Record<string, string> = {};
-    const nomesIniciais: Record<string, string> = {};
-    linhas.forEach(({ ativo, key, naMassa }) => {
-      if (!naMassa) return;
-      const id = casarInsumo(ativo.nome);
-      if (id) {
-        inicial[key] = id;
-        const nome = buscarNomeInsumo(id);
-        if (nome) nomesIniciais[key] = nome;
+    let cancelado = false;
+
+    const resolverTodos = async () => {
+      setResolucoes({});
+      setNomesResolvidos({});
+      setCadastroAtivo(null);
+      setVincularKey(null);
+      setCriando(false);
+
+      const loadingInicial: Record<string, LinhaMatchState> = {};
+      ativosMassa.forEach(({ key }) => {
+        loadingInicial[key] = { carregando: true };
+      });
+      setLinhaStates(loadingInicial);
+
+      const companyId = await getUserCompanyId();
+      const novasResolucoes: Record<string, string> = {};
+      const novosNomes: Record<string, string> = {};
+      const novosEstados: Record<string, LinhaMatchState> = {};
+
+      await Promise.all(
+        ativosMassa.map(async ({ ativo, key }) => {
+          const resultado = await resolverMatchLaudo(ativo.nome, insumos, companyId);
+          if (cancelado) return;
+
+          if (resultado.tipo === 'exato' && resultado.insumoId) {
+            novasResolucoes[key] = resultado.insumoId;
+            novosNomes[key] =
+              resultado.sugestaoNome ||
+              insumos.find((i) => i.id === resultado.insumoId)?.descricao_interna ||
+              ativo.nome;
+            novosEstados[key] = { carregando: false };
+          } else if (
+            (resultado.tipo === 'similar' || resultado.tipo === 'ia') &&
+            resultado.insumoId
+          ) {
+            novosEstados[key] = {
+              carregando: false,
+              sugestao: {
+                id: resultado.insumoId,
+                nome: resultado.sugestaoNome || ativo.nome,
+                tipo: resultado.tipo,
+              },
+            };
+          } else {
+            novosEstados[key] = { carregando: false };
+          }
+        }),
+      );
+
+      if (!cancelado) {
+        setResolucoes(novasResolucoes);
+        setNomesResolvidos(novosNomes);
+        setLinhaStates(novosEstados);
       }
+    };
+
+    resolverTodos();
+    return () => {
+      cancelado = true;
+    };
+  }, [open, ativosMassa, insumos]);
+
+  const getStatus = (key: string): StatusLinha => {
+    if (linhaStates[key]?.carregando) return 'carregando';
+    if (resolucoes[key]) return 'confirmado';
+    if (linhaStates[key]?.sugestao) return 'sugerido';
+    return 'pendente';
+  };
+
+  const pendentesOuSugeridos = ativosMassa.filter(({ key }) => getStatus(key) !== 'confirmado');
+  const todosConfirmados = ativosMassa.length > 0 && pendentesOuSugeridos.length === 0;
+  const algumCarregando = ativosMassa.some(({ key }) => getStatus(key) === 'carregando');
+
+  const confirmarSugestao = (key: string) => {
+    const sug = linhaStates[key]?.sugestao;
+    if (!sug) return;
+    setResolucoes((prev) => ({ ...prev, [key]: sug.id }));
+    setNomesResolvidos((prev) => ({ ...prev, [key]: sug.nome }));
+    setLinhaStates((prev) => ({ ...prev, [key]: { carregando: false } }));
+  };
+
+  const trocarVinculo = (key: string) => {
+    setResolucoes((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
     });
-    setResolucoes(inicial);
-    setNomesResolvidos(nomesIniciais);
-    setCadastroAtivo(null);
-    setVincularKey(null);
-    setCriando(false);
-  }, [open, linhas, casarInsumo, buscarNomeInsumo]);
+    setNomesResolvidos((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setLinhaStates((prev) => ({ ...prev, [key]: { carregando: false } }));
+    setVincularKey(key);
+  };
 
-  const pendentesKeys = ativosMassa
-    .filter(({ key }) => !resolucoes[key])
-    .map(({ key }) => key);
-
-  const todosResolvidos = ativosMassa.length > 0 && pendentesKeys.length === 0;
-
-  const marcarResolvido = (key: string, item: HybridItem) => {
+  const marcarConfirmado = (key: string, item: HybridItem) => {
     setResolucoes((prev) => ({ ...prev, [key]: item.id }));
     setNomesResolvidos((prev) => ({ ...prev, [key]: item.descricao_interna }));
+    setLinhaStates((prev) => ({ ...prev, [key]: { carregando: false } }));
     setCadastroAtivo(null);
     setVincularKey(null);
   };
 
   const handleCriarFormula = async () => {
-    if (!todosResolvidos) return;
+    if (!todosConfirmados) return;
     setCriando(true);
     try {
       await criarDoLaudo(produtoNome, ativos, resolucoes);
@@ -119,8 +213,8 @@ export function ResolverInsumosLaudoDialog({
               Resolver insumos antes de criar a fórmula
             </DialogTitle>
             <DialogDescription>
-              Produto: <strong>{produtoNome}</strong>. Todos os ativos que entram na massa
-              precisam estar vinculados a um insumo do cadastro.
+              Produto: <strong>{produtoNome}</strong>. Confirme cada vínculo sugerido antes de
+              criar a fórmula — sugestões automáticas não são aplicadas sem sua aprovação.
             </DialogDescription>
           </DialogHeader>
 
@@ -133,53 +227,121 @@ export function ResolverInsumosLaudoDialog({
             </Alert>
           ) : (
             <div className="space-y-3">
-              {pendentesKeys.length > 0 && (
+              {pendentesOuSugeridos.length > 0 && !algumCarregando && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    {pendentesKeys.length} ativo(s) pendente(s) de vínculo com o cadastro.
+                    {pendentesOuSugeridos.length} ativo(s) aguardando confirmação ou vínculo manual.
                   </AlertDescription>
                 </Alert>
               )}
 
               {ativosMassa.map(({ ativo, key }) => {
-                const insumoId = resolucoes[key];
+                const status = getStatus(key);
+                const sugestao = linhaStates[key]?.sugestao;
                 const nomeInsumo =
-                  nomesResolvidos[key] || (insumoId ? buscarNomeInsumo(insumoId) : null);
-                const resolvido = Boolean(insumoId);
+                  nomesResolvidos[key] ||
+                  (resolucoes[key] ? buscarNomeInsumo(resolucoes[key]) : null);
 
                 return (
                   <div
                     key={key}
                     className={cn(
                       'rounded-lg border p-4 space-y-3',
-                      resolvido ? 'border-green-500/40 bg-green-500/5' : 'border-amber-500/40 bg-amber-500/5',
+                      status === 'confirmado' && 'border-green-500/40 bg-green-500/5',
+                      status === 'sugerido' && 'border-blue-500/40 bg-blue-500/5',
+                      status === 'pendente' && 'border-amber-500/40 bg-amber-500/5',
+                      status === 'carregando' && 'border-muted bg-muted/30',
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold">{ativo.nome}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {ativo.dose} {ativo.unit}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{formatarDoseLaudo(ativo)}</p>
                       </div>
-                      <Badge variant={resolvido ? 'default' : 'secondary'}>
-                        {resolvido ? (
+                      <Badge
+                        variant={
+                          status === 'confirmado'
+                            ? 'default'
+                            : status === 'sugerido'
+                              ? 'outline'
+                              : 'secondary'
+                        }
+                      >
+                        {status === 'carregando' && (
+                          <span className="flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Buscando...
+                          </span>
+                        )}
+                        {status === 'confirmado' && (
                           <span className="flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" />
-                            OK
+                            Confirmado
                           </span>
-                        ) : (
-                          'Pendente'
                         )}
+                        {status === 'sugerido' && (
+                          <span className="flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            Sugerido
+                          </span>
+                        )}
+                        {status === 'pendente' && 'Pendente'}
                       </Badge>
                     </div>
 
-                    {resolvido ? (
-                      <p className="text-sm text-green-700">
-                        Vinculado a: <strong>{nomeInsumo}</strong>
-                      </p>
-                    ) : (
+                    {status === 'confirmado' && (
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm text-green-700">
+                          ✓ Vinculado a: <strong>{nomeInsumo}</strong>
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-7"
+                          onClick={() => trocarVinculo(key)}
+                        >
+                          trocar
+                        </Button>
+                      </div>
+                    )}
+
+                    {status === 'sugerido' && sugestao && (
+                      <div className="space-y-2">
+                        <p className="text-sm">
+                          Sugerido: <strong>{sugestao.nome}</strong>
+                          <span className="text-muted-foreground">
+                            {' '}
+                            · {ativo.nome} · {formatarDoseLaudo(ativo)}
+                          </span>
+                          {sugestao.tipo === 'ia' && (
+                            <Badge variant="secondary" className="ml-2 text-[10px]">
+                              IA
+                            </Badge>
+                          )}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => confirmarSugestao(key)}
+                          >
+                            Confirmar
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => trocarVinculo(key)}
+                          >
+                            Trocar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {status === 'pendente' && (
                       <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
@@ -218,7 +380,7 @@ export function ResolverInsumosLaudoDialog({
                 </p>
                 {ativosForaMassa.map(({ ativo, key }) => (
                   <div key={key} className="text-sm text-muted-foreground rounded border px-3 py-2">
-                    {ativo.nome} — {ativo.dose} {ativo.unit}
+                    {ativo.nome} — {formatarDoseLaudo(ativo)}
                   </div>
                 ))}
               </div>
@@ -231,13 +393,18 @@ export function ResolverInsumosLaudoDialog({
             </Button>
             <Button
               type="button"
-              disabled={!todosResolvidos || criando || ativosMassa.length === 0}
+              disabled={!todosConfirmados || criando || algumCarregando || ativosMassa.length === 0}
               onClick={handleCriarFormula}
             >
               {criando ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Criando fórmula...
+                </>
+              ) : algumCarregando ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Analisando insumos...
                 </>
               ) : (
                 'Criar fórmula'
@@ -254,7 +421,7 @@ export function ResolverInsumosLaudoDialog({
             if (!isOpen) setCadastroAtivo(null);
           }}
           nomeInicial={cadastroAtivo.nome}
-          onCreated={(item) => marcarResolvido(cadastroAtivo.key, item)}
+          onCreated={(item) => marcarConfirmado(cadastroAtivo.key, item)}
         />
       )}
 
@@ -271,7 +438,7 @@ export function ResolverInsumosLaudoDialog({
               value={resolucoes[vincularKey]}
               placeholder="Buscar insumo no cadastro..."
               onSelect={(item) => {
-                if (item) marcarResolvido(vincularKey, item);
+                if (item) marcarConfirmado(vincularKey, item);
               }}
             />
           )}
