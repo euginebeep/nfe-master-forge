@@ -1,3 +1,5 @@
+import { canonicalizarUnidadeDose } from '@/lib/unidades-dose';
+
 export interface AnvisaLimit {
   auth: boolean;
   min: number;
@@ -253,10 +255,12 @@ export const VD_REFERENCE: Record<string, { vd: number; unit: string }> = {
 // FUNÇÕES DE CONVERSÃO E CÁLCULO — obrigatórias para laudos corretos
 // ============================================================
 
+import { canonicalizarUnidadeDose } from '@/lib/unidades-dose';
+
 /** Normaliza a dose para a unidade do limite (ex: UI → mcg, g → mg) */
 export function normalizeDoseToLimitUnit(dose: number, unit: string, limitUnit: string, key: string): number {
-  const u = (unit || '').toLowerCase().trim();
-  const l = (limitUnit || '').toLowerCase().trim();
+  const u = canonicalizarUnidadeDose(unit || '');
+  const l = canonicalizarUnidadeDose(limitUnit || '');
   if (u === l) return dose;
   if (u === 'g'   && l === 'mg')  return dose * 1000;
   if (u === 'mg'  && l === 'mcg') return dose * 1000;
@@ -441,7 +445,7 @@ export function arredondarValorNutricional(valor: number, unidade: string): stri
   }
   const u = unidade.toLowerCase();
   if (u === 'g') return (Math.round(valor * 10) / 10).toFixed(1);
-  if (u === 'mg' || u === 'mcg' || u === '\u03bcg') {
+  if (u === 'mg' || canonicalizarUnidadeDose(u) === 'mcg') {
     const rounded2 = Math.round(valor * 100) / 100;
     const str2 = rounded2.toFixed(2);
     return str2.endsWith('0') ? rounded2.toFixed(1) : str2;

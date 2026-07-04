@@ -70,6 +70,7 @@ import {
   sugerirPesoAlvoMg, validarPesoAlvoFisico, type TamanhoCapsula,
   calcularCapsulasPorDose,
 } from "@/lib/formulador-industrial-rules";
+import { formatarUnidadeInformada, SIMBOLO_MICROGRAMA } from "@/lib/unidades-dose";
 import { ItemSelector } from "@/components/formulador/ItemSelector";
 import { ConsultaRegulatoriaANVISA } from "@/components/formulador/ConsultaRegulatoriaANVISA";
 import { useHybridItens } from "@/hooks/use-hybrid-data";
@@ -449,7 +450,7 @@ export default function EditarFormulaPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="MG">mg</SelectItem>
-                        <SelectItem value="MCG">mcg</SelectItem>
+                        <SelectItem value="MCG">{SIMBOLO_MICROGRAMA}</SelectItem>
                         <SelectItem value="UI">UI</SelectItem>
                         <SelectItem value="G">g</SelectItem>
                       </SelectContent>
@@ -600,7 +601,7 @@ export default function EditarFormulaPage() {
                           <div className="font-medium">{item.nome_insumo}</div>
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {item.quantidade_informada} {item.unidade_informada.toLowerCase()}
+                          {item.quantidade_informada} {formatarUnidadeInformada(item.unidade_informada)}
                         </TableCell>
                         <TableCell className="text-right font-mono font-medium">
                           {item.quantidade_convertida_mg.toFixed(4)} mg

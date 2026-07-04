@@ -11,7 +11,7 @@ import {
   converterGparaMG,
   converterUIparaMG,
 } from '@/lib/formulador-industrial-rules';
-import { normalizarUnidadeInformadaCodigo } from '@/lib/laudo-insumos';
+import { normalizarUnidadeInformadaCodigo } from '@/lib/unidades-dose';
 import {
   type AtivoLaudo,
   ativoEntraNaMassa,

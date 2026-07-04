@@ -1,15 +1,11 @@
+import { normalizarUnidadeInformadaCodigo } from '@/lib/unidades-dose';
+
 export type AtivoLaudo = { nome: string; dose: number; unit: string; key?: string };
+
+export { normalizarUnidadeInformadaCodigo };
 
 export const norm = (s: string) =>
   (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
-/** Normaliza unidade de laudo para código interno (MG, MCG, UI, G, UFC, FCC...) */
-export function normalizarUnidadeInformadaCodigo(unidade: string): string {
-  const raw = (unidade || '').trim();
-  const lower = raw.toLowerCase();
-  if (lower === 'mcg' || lower === 'µg' || lower === '\u03bcg' || lower === 'μg') return 'MCG';
-  return raw.toUpperCase();
-}
 
 export function chaveAtivoLaudo(ativo: AtivoLaudo, index: number): string {
   if (ativo.key) return ativo.key;

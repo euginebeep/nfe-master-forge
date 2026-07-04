@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
 
 interface PassoProducao {
   numero: number;
@@ -185,7 +186,7 @@ export function OPTabProcesso({
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Atenção: Ativos Críticos</AlertTitle>
           <AlertDescription>
-            Esta OP contém ativos com quantidade menor que 1mg ou em unidades UI/mcg. 
+            Esta OP contém ativos com quantidade menor que 1mg ou em unidades UI/{SIMBOLO_MICROGRAMA}. 
             A pesagem desses itens exige dupla conferência com registro de dois operadores.
           </AlertDescription>
         </Alert>

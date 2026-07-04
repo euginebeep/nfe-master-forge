@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
 import { cn } from '@/lib/utils';
 import { calcularDistribuicaoGeometrica } from '@/lib/distribuicao-geometrica';
 
@@ -112,7 +113,7 @@ export function OPPreMixGeometrico({
                     ) : (
                       <>
                         <p className="font-mono font-bold text-xl">{(ativo.quantidade_g * 1000).toFixed(4)} mg</p>
-                        <p className="text-xs text-muted-foreground">= {(ativo.quantidade_g * 1000000).toFixed(2)} mcg</p>
+                        <p className="text-xs text-muted-foreground">= {(ativo.quantidade_g * 1000000).toFixed(2)} {SIMBOLO_MICROGRAMA}</p>
                       </>
                     )}
                   </div>
