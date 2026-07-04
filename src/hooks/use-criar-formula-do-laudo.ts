@@ -27,7 +27,7 @@ export function useCriarFormulaDoLaudo() {
   const { criar } = useFormulaCRUD();
   const { adicionar } = useFormulaItensCRUD();
   const { buscarFator } = useConversoesUnidades();
-  const { data: insumos = [] } = useHybridItens({ ativo: true });
+  const { data: insumos = [], isLoading: insumosLoading } = useHybridItens({ ativo: true });
 
   const casarInsumo = useCallback(
     (nome: string) => casarInsumoPorNome(nome, insumos),
@@ -162,5 +162,6 @@ export function useCriarFormulaDoLaudo() {
     casarInsumo,
     buscarNomeInsumo,
     insumos,
+    insumosLoading,
   };
 }

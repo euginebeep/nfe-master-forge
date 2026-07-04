@@ -3,6 +3,8 @@ import {
   ativoEntraNaMassa,
   casarCamadaExata,
   casarInsumoPorNome,
+  casarPorNormForte,
+  casarPorSimilaridadeLocal,
   chaveAtivoLaudo,
   listarAtivosSemInsumo,
   normForte,
@@ -14,6 +16,10 @@ const insumos = [
   { id: 'ins-1', descricao_interna: 'Vitamina C' },
   { id: 'ins-2', descricao_interna: 'Ácido Ascórbico' },
   { id: 'ins-3', descricao_interna: 'Colecalciferol (Vitamina D3)' },
+  { id: 'ins-4', descricao_interna: 'COLAGENO T II' },
+  { id: 'ins-5', descricao_interna: 'ACIDO HIALURONICO PO 95%' },
+  { id: 'ins-6', descricao_interna: 'VIT. K2 1,3%' },
+  { id: 'ins-7', descricao_interna: 'MAGNESIO BISGLICINATO' },
 ];
 
 describe('normalizarUnidadeInformadaCodigo', () => {
@@ -48,6 +54,39 @@ describe('normForte', () => {
     expect(normForte('VIT. K2 1,3%')).toBe('vitamina k2');
     expect(normForte('Vitamina D3 USP')).toBe('vitamina d3');
   });
+
+  it('normaliza tipo para t (colágeno tipo II)', () => {
+    expect(normForte('Colágeno Tipo II')).toBe('colageno t ii');
+    expect(normForte('COLAGENO T II')).toBe('colageno t ii');
+  });
+});
+
+describe('casarPorNormForte', () => {
+  it('casa Colágeno Tipo II com COLAGENO T II como exato', () => {
+    const r = casarPorNormForte('Colágeno Tipo II', insumos);
+    expect(r.tipo).toBe('exato');
+    expect(r.insumoId).toBe('ins-4');
+    expect(r.sugestaoNome).toBe('COLAGENO T II');
+  });
+
+  it('casa Vitamina K2 com VIT. K2 1,3% como exato', () => {
+    const r = casarPorNormForte('Vitamina K2', insumos);
+    expect(r.tipo).toBe('exato');
+    expect(r.insumoId).toBe('ins-6');
+  });
+
+  it('casa Ácido Hialurônico com cadastro comercial', () => {
+    const r = casarPorNormForte('Ácido Hialurônico', insumos);
+    expect(r.insumoId).toBe('ins-5');
+  });
+});
+
+describe('casarPorSimilaridadeLocal', () => {
+  it('sugere magnésio por token compartilhado', () => {
+    const r = casarPorSimilaridadeLocal('Magnésio Dimalato', insumos, 0.35);
+    expect(r.insumoId).toBe('ins-7');
+    expect(r.tipo).toBe('similar');
+  });
 });
 
 describe('casarCamadaExata', () => {
@@ -75,7 +114,7 @@ describe('casarInsumoPorNome', () => {
   });
 
   it('retorna null quando não encontra', () => {
-    expect(casarInsumoPorNome('Magnésio Quelato', insumos)).toBeNull();
+    expect(casarInsumoPorNome('Zinco Quelato', insumos)).toBeNull();
   });
 });
 
@@ -96,11 +135,11 @@ describe('listarAtivosSemInsumo', () => {
   it('lista apenas ativos da massa sem vínculo', () => {
     const ativos = [
       { nome: 'Vitamina C', dose: 500, unit: 'mg' },
-      { nome: 'Magnésio', dose: 100, unit: 'mg' },
+      { nome: 'Zinco', dose: 100, unit: 'mg' },
       { nome: 'Lactobacillus', dose: 1, unit: 'UFC' },
     ];
 
-    expect(listarAtivosSemInsumo(ativos, insumos)).toEqual(['Magnésio']);
+    expect(listarAtivosSemInsumo(ativos, insumos)).toEqual(['Zinco']);
   });
 
   it('considera resoluções manuais', () => {

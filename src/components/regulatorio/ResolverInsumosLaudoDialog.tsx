@@ -59,7 +59,7 @@ export function ResolverInsumosLaudoDialog({
   produtoNome,
   ativos,
 }: ResolverInsumosLaudoDialogProps) {
-  const { criarDoLaudo, buscarNomeInsumo, insumos } = useCriarFormulaDoLaudo();
+  const { criarDoLaudo, buscarNomeInsumo, insumos, insumosLoading } = useCriarFormulaDoLaudo();
   const [resolucoes, setResolucoes] = useState<Record<string, string>>({});
   const [nomesResolvidos, setNomesResolvidos] = useState<Record<string, string>>({});
   const [linhaStates, setLinhaStates] = useState<Record<string, LinhaMatchState>>({});
@@ -85,7 +85,7 @@ export function ResolverInsumosLaudoDialog({
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || insumosLoading) return;
 
     let cancelado = false;
 
@@ -148,7 +148,7 @@ export function ResolverInsumosLaudoDialog({
     return () => {
       cancelado = true;
     };
-  }, [open, ativosMassa, insumos]);
+  }, [open, ativosMassa, insumos, insumosLoading]);
 
   const getStatus = (key: string): StatusLinha => {
     if (linhaStates[key]?.carregando) return 'carregando';
