@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 // LocalDb removido — busca de clientes 100% via Supabase
 import { CHECKLIST_PADRAO } from "@/types/op-industrial";
+import { SIMBOLO_MICROGRAMA } from "@/lib/unidades-dose";
 import {
   type Formula,
   type PedidoVenda,
@@ -503,7 +504,7 @@ async function criarMateriasPrimasDaFormula(opId: string, formulaId: string, tot
       let motivoCritico: string | undefined;
       if (item.quantidade_convertida_mg < 1) motivoCritico = "Quantidade < 1mg";
       else if (item.unidade_informada === "UI") motivoCritico = "Unidade UI";
-      else if (item.unidade_informada === "MCG") motivoCritico = "Unidade mcg";
+      else if (item.unidade_informada === "MCG") motivoCritico = `Unidade ${SIMBOLO_MICROGRAMA}`;
 
       materiasData.push({
         op_id: opId, insumo_id: item.produto_materia_prima_id || undefined,

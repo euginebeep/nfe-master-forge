@@ -22,6 +22,7 @@ import type { NFeParseResult, ClassificacaoNota } from "@/types/nfe-completa";
 import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/FiscalReviewDialog";
 import { ItemVinculoSelector } from "@/components/nfe/ItemVinculoSelector";
 import type { LocalItem } from "@/hooks/use-local-itens";
+import { preprocessarUnidadeComercial } from "@/lib/unidades-dose";
 
 const CLASSIFICACOES_NOTA: { value: ClassificacaoNota; label: string; description: string }[] = [
   { value: "MATERIA_PRIMA", label: "Matéria Prima", description: "Insumos para produção" },
@@ -74,7 +75,7 @@ export default function NFeImportPage() {
    * Parses compound units like "500 G", "500G", "250ML", "1.5KG", "0.5L"
    */
   const parseCompoundUnit = useCallback((uCom: string): { multiplier: number; baseUnit: string } => {
-    const u = uCom.trim().toUpperCase();
+    const u = preprocessarUnidadeComercial(uCom).trim().toUpperCase();
     const match = u.match(/^(\d+(?:[.,]\d+)?)\s*(G|KG|MG|MCG|ML|L|LT|TON|T|UN|UND|UNID)$/);
     if (match) {
       const multiplier = parseFloat(match[1].replace(',', '.'));

@@ -42,6 +42,7 @@ import {
   DENSIDADE_PADRAO_KG_L,
   type TamanhoCapsula,
 } from "@/lib/formulador-industrial-rules";
+import { formatarUnidadeInformada } from "@/lib/unidades-dose";
 
 interface FichaTecnicaPDFProps {
   formula: Formula;
@@ -236,7 +237,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                     <TableCell className="font-mono text-muted-foreground">{idx + 1}</TableCell>
                     <TableCell className="font-medium">{item.nome_insumo}</TableCell>
                     <TableCell className="text-right font-mono">
-                      {item.quantidade_informada} {item.unidade_informada.toLowerCase()}
+                      {item.quantidade_informada} {formatarUnidadeInformada(item.unidade_informada)}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
                       {item.quantidade_convertida_mg.toFixed(4)}

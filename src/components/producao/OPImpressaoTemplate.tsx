@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { OPIndustrialData } from '@/types/op-industrial';
+import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
 
 interface OPImpressaoProps {
   opId?: string;
@@ -91,7 +92,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
   const porCapsula = (valorG: number | null | undefined): string => {
     if (valorG == null || totalCaps <= 0) return '—';
     const mg = (Number(valorG) * 1000) / totalCaps;
-    if (mg < 1) return `${(mg * 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mcg`;
+    if (mg < 1) return `${(mg * 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ${SIMBOLO_MICROGRAMA}`;
     return `${mg.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mg`;
   };
   const ehCritico = (g: number | null | undefined) => g != null && !isNaN(Number(g)) && Number(g) < 1;

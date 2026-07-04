@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getUserCompanyId } from '@/hooks/use-user-company';
 import type { NFeParseResult, ClassificacaoNota, EntidadeXML } from '@/types/nfe-completa';
+import { preprocessarUnidadeComercial } from '@/lib/unidades-dose';
 
 export interface ImportStats {
   entidadesCriadas: number;
@@ -175,7 +176,7 @@ function classificarPorNCM(ncm: string | undefined): { risco: string; categoria:
 // REGEX PARA POTÊNCIA NA DESCRIÇÃO DO PRODUTO
 // ============================================
 function extrairPotenciaDescricao(descricao: string): number | null {
-  const desc = descricao.toUpperCase();
+  const desc = preprocessarUnidadeComercial(descricao).toUpperCase();
   const patterns = [
     /(\d+[\.,]?\d*)\s*UI\/G/i,
     /(\d+[\.,]?\d*)\s*MCG\/G/i,
@@ -320,7 +321,7 @@ function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: str
  * Returns { multiplier, baseUnit } e.g. "500 G" → { multiplier: 500, baseUnit: "G" }
  */
 function parseCompoundUnit(uCom: string): { multiplier: number; baseUnit: string } {
-  const u = uCom.trim().toUpperCase();
+  const u = preprocessarUnidadeComercial(uCom).trim().toUpperCase();
   // Try to match patterns like "500 G", "500G", "1.5 KG", "250ML", "0.5L"
   const match = u.match(/^(\d+(?:[.,]\d+)?)\s*(G|KG|MG|MCG|ML|L|LT|TON|T|UN|UND|UNID)$/);
   if (match) {

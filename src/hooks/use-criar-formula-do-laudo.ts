@@ -6,6 +6,7 @@ import {
   CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, sugerirPesoAlvoMg,
   converterMCGparaMG, converterGparaMG, converterUIparaMG,
 } from "@/lib/formulador-industrial-rules";
+import { normalizarUnidadeInformadaCodigo } from "@/lib/unidades-dose";
 
 type AtivoLaudo = { nome: string; dose: number; unit: string; key?: string };
 
@@ -36,7 +37,7 @@ export function useCriarFormulaDoLaudo() {
 
     // 1) Identifica constituintes fora da massa (UFC, FCC, etc.)
     for (const a of ativos) {
-      const u = (a.unit || "mg").toUpperCase();
+      const u = normalizarUnidadeInformadaCodigo(a.unit || "mg");
       const nome = a.nome?.trim();
       if (!nome) continue;
 
@@ -68,7 +69,7 @@ export function useCriarFormulaDoLaudo() {
     // 3) insere cada ativo, aplicando normalização + flags
     let ordem = 1;
     for (const a of ativos) {
-      const u = (a.unit || "mg").toUpperCase();
+      const u = normalizarUnidadeInformadaCodigo(a.unit || "mg");
       const nome = a.nome?.trim();
       if (!nome) continue;
 

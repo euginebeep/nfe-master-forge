@@ -21,6 +21,7 @@ import {
   formatarUnidade,
   validarFatorConversao 
 } from "@/lib/erp-validation";
+import { LABEL_MCG_POR_GRAMA } from "@/lib/unidades-dose";
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -83,7 +84,7 @@ const TIPOS_POTENCIA = [
   { value: "NENHUMA", label: "Nenhuma (excipiente)" },
   { value: "PERCENTUAL", label: "Percentual (%)" },
   { value: "UI_POR_GRAMA", label: "UI por grama (UI/g)" },
-  { value: "MCG_POR_GRAMA", label: "Micrograma por grama (mcg/g)" },
+  { value: "MCG_POR_GRAMA", label: LABEL_MCG_POR_GRAMA },
 ];
 
 const TAMANHOS_CAPSULA = ['000', '00', '0', '1', '2', '3', '4', '5'];

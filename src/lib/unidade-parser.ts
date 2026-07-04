@@ -10,6 +10,8 @@
  * - "KG" → { unidade: "KG", multiplicador: 1, quantidadeReal: 1 }
  */
 
+import { canonicalizarUnidadeDose } from '@/lib/unidades-dose';
+
 export interface UnidadeParsed {
   unidade: string;           // Unidade corrigida (ex: "KG", "g", "ml")
   multiplicador: number;     // Número extraído (ex: 25, 500, 1)
@@ -146,10 +148,9 @@ export function isUnidadeValida(unidade: string): boolean {
   return unidadesValidas.includes(unidade.toUpperCase());
 }
 
-/**
- * Normaliza unidade para formato padrão
- */
 export function normalizarUnidade(unidade: string): string {
+  if (canonicalizarUnidadeDose(unidade) === 'mcg') return 'MCG';
+
   const mapa: Record<string, string> = {
     'UNIDADE': 'UN',
     'UNIDADES': 'UN',
@@ -171,6 +172,7 @@ export function normalizarUnidade(unidade: string): string {
     'PACOTES': 'PACOTE',
     'MILHEIRO': 'MILHEIRO',
     'MILHAR': 'MILHEIRO',
+    'MCG': 'MCG',
   };
 
   const upper = unidade.toUpperCase().trim();
