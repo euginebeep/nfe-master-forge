@@ -9,7 +9,7 @@ import { ANVISA_LIMITS, VD_REFERENCE, validarAditivo, validarProbiotico } from "
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { useRTAtivo } from "@/hooks/use-rt-ativo";
-import { useCriarFormulaDoLaudo } from "@/hooks/use-criar-formula-do-laudo";
+import { ResolverInsumosLaudoDialog } from "@/components/regulatorio/ResolverInsumosLaudoDialog";
 import { cn } from "@/lib/utils";
 
 const normalizeProductName = (value: unknown) =>
@@ -55,7 +55,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
   const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
   const { data: company } = useCompanyBranding();
   const { data: rt } = useRTAtivo();
-  const { criarDoLaudo } = useCriarFormulaDoLaudo();
+  const [resolverOpen, setResolverOpen] = React.useState(false);
   
   const isMultiproduto = produtosUnicos.length > 1;
 
@@ -116,10 +116,22 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
             {isMultiproduto ? `Exportar Laudo Completo (${produtosUnicos.length} produtos)` : 'Exportar Laudo (A4/PDF)'}
           </Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink}><Copy className="w-4 h-4 mr-2" /> Copiar link</Button>
-          <Button variant="secondary" size="sm" onClick={() => criarDoLaudo(data.produto, data.ativos || [])}><FlaskConical className="w-4 h-4 mr-2" /> Criar fórmula a partir deste laudo</Button>
+          <Button variant="secondary" size="sm" onClick={() => setResolverOpen(true)}><FlaskConical className="w-4 h-4 mr-2" /> Criar fórmula a partir deste laudo</Button>
           <Button variant="default" size="sm" onClick={onReset}><RefreshCw className="w-4 h-4 mr-2" /> Nova análise</Button>
         </div>
       </div>
+
+      <ResolverInsumosLaudoDialog
+        open={resolverOpen}
+        onOpenChange={setResolverOpen}
+        produtoNome={data.produto}
+        ativos={(data.ativos || []).map((a) => ({
+          nome: a.nome || a.name || '',
+          dose: Number(a.dose) || 0,
+          unit: a.unit || 'mg',
+          key: a.key || a.anvisaKey,
+        }))}
+      />
 
       <div id="laudo-content" className="space-y-8 bg-background p-8 border rounded-lg shadow-sm">
         {produtosUnicos.length > 1 && (
