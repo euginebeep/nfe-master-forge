@@ -58,9 +58,22 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
 
   useEffect(() => {
     if (!companyData?.logo_file_id) return;
-    supabase.storage.from('company-assets').createSignedUrl(companyData.logo_file_id, 3600)
-      .then(({ data }) => setLogoUrl(data?.signedUrl || ''))
-      .catch(() => {});
+    (async () => {
+      try {
+        const { data: arquivo } = await supabase
+          .from('arquivos')
+          .select('storage_key')
+          .eq('id', companyData.logo_file_id)
+          .maybeSingle();
+        if (!arquivo?.storage_key) return;
+        const { data: signed } = await supabase.storage
+          .from('erp-files')
+          .createSignedUrl(arquivo.storage_key, 3600);
+        setLogoUrl(signed?.signedUrl || '');
+      } catch (err) {
+        console.error('Erro ao carregar logo da empresa na OP:', err);
+      }
+    })();
   }, [companyData]);
 
   useEffect(() => {
@@ -104,13 +117,21 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
   // ===== campos de empresa/cliente (novos — com fallback seguro) =====
   const fabNome = (companyData as any).razao_social || companyData.nome_fantasia || '—';
   const fabCnpj = (companyData as any).cnpj || '';
-  const fabEndereco = [(companyData as any).logradouro, (companyData as any).numero, (companyData as any).bairro, (companyData as any).cidade && `${(companyData as any).cidade}/${(companyData as any).uf || ''}`, (companyData as any).cep && `CEP ${(companyData as any).cep}`].filter(Boolean).join(' · ');
+  const fabEndereco = [
+    (companyData as any).endereco_logradouro,
+    (companyData as any).endereco_nro,
+    (companyData as any).endereco_bairro,
+    (companyData as any).endereco_cidade && (companyData as any).endereco_uf
+      ? `${(companyData as any).endereco_cidade}/${(companyData as any).endereco_uf}`
+      : (companyData as any).endereco_cidade || (companyData as any).endereco_uf,
+    (companyData as any).endereco_cep ? `CEP ${(companyData as any).endereco_cep}` : null,
+  ].filter(Boolean).join(' · ');
   const clienteNome = (opData as any).cliente_nome || null; // null = produção própria
   const clienteCnpj = (opData as any).cliente_cnpj || '';
   const statusLabel = (op.status || 'PLANEJADA').toUpperCase();
   const Logo = ({ big = false }: { big?: boolean }) => (
     <div className={`logo${big ? ' logo-large' : ''}`}>
-      {logoUrl ? <img src={logoUrl} alt="Logo" /> : <><b>{(companyData.nome_fantasia || 'OP').substring(0, 2).toUpperCase()}</b><span>{(companyData.nome_fantasia || '').substring(0, 5).toUpperCase()}</span></>}
+      {logoUrl ? <img src={logoUrl} alt="Logo" /> : <><b>{(companyData.nome_fantasia || companyData.razao_social || 'OP').substring(0, 2).toUpperCase()}</b><span>{(companyData.nome_fantasia || companyData.razao_social || '').substring(0, 5).toUpperCase()}</span></>}
     </div>
   );
 

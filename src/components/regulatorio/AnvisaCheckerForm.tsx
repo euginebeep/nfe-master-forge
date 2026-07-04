@@ -384,7 +384,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       // ── NORMALIZAR CADA PRODUTO
       produtos = produtos.map((p: any) => ({
         nome: p.nome || p.produto || p.name || file.name.replace(/\.[^/.]+$/, ''),
-        cliente: p.cliente || clientName || 'PROLAB',
+        cliente: p.cliente || clientName || '',
         categoria: p.categoria || p.category || '',
         status_geral: p.status_geral || p.status || 'VERIFICAR',
         // Normalizar ativos — garantir nome e key sempre preenchidos
