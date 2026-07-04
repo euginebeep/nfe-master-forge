@@ -50,6 +50,13 @@ import { supabase } from '@/integrations/supabase/client';
 import type { StatusOP, OPMateriaPrima, OPChecklist, OPPesagemCritica } from '@/types/op-industrial';
 import { QRCodeAuditoria } from '@/components/shared/QRCodeAuditoria';
 import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
+import { useFormPersist } from '@/hooks/use-form-persist';
+
+type OpDetailDraft = {
+  qtdProduzida: string;
+  qtdAprovada: string;
+  etapaAtual: EtapaProducao | null;
+};
 
 export default function OrdemProducaoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -74,9 +81,14 @@ export default function OrdemProducaoDetailPage() {
   const [pesagensCriticas, setPesagensCriticas] = useState<OPPesagemCritica[]>([]);
   const [dialogFinalizar, setDialogFinalizar] = useState(false);
   const [dialogImpressao, setDialogImpressao] = useState(false);
-  const [qtdProduzida, setQtdProduzida] = useState('');
-  const [qtdAprovada, setQtdAprovada] = useState('');
-  const [etapaAtual, setEtapaAtual] = useState<EtapaProducao | null>(null);
+  const [draft, setDraft, clearDraft] = useFormPersist<OpDetailDraft>(
+    `op-detail:${id ?? 'new'}`,
+    { qtdProduzida: '', qtdAprovada: '', etapaAtual: null },
+  );
+  const { qtdProduzida, qtdAprovada, etapaAtual } = draft;
+  const setQtdProduzida = (v: string) => setDraft((d) => ({ ...d, qtdProduzida: v }));
+  const setQtdAprovada = (v: string) => setDraft((d) => ({ ...d, qtdAprovada: v }));
+  const setEtapaAtual = (v: EtapaProducao | null) => setDraft((d) => ({ ...d, etapaAtual: v }));
   const [isRecalculando, setIsRecalculando] = useState(false);
   const [bannerRequisicao, setBannerRequisicao] = useState<{ itens: number; requisicaoId: string } | null>(null);
 
@@ -305,6 +317,7 @@ export default function OrdemProducaoDetailPage() {
         }
 
         setDialogFinalizar(false);
+        clearDraft({ qtdProduzida: '', qtdAprovada: '', etapaAtual: null });
         refresh();
       }
     }

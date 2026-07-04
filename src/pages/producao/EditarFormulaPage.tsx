@@ -3,7 +3,7 @@
 // VERSÃO DEFINITIVA - REGRAS INDUSTRIAIS FIXAS
 // ============================================================
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
   ArrowLeft, FlaskConical, Save, Plus, Trash2, AlertTriangle, 
@@ -82,6 +82,26 @@ import {
   ALERTA_ULTRA_CRITICO_PADRAO,
 } from "@/lib/ativo-ultra-critico";
 import { toast } from "sonner";
+import { useFormPersist } from "@/hooks/use-form-persist";
+
+type FormulaEditDraft = {
+  itensLocal: FormulaItem[];
+  novoItem: {
+    nome_insumo: string;
+    produto_materia_prima_id: string | null;
+    quantidade_informada: number;
+    unidade_informada: UnidadeInformada;
+    exige_premix: boolean;
+  };
+};
+
+const initialNovoItem = {
+  nome_insumo: "",
+  produto_materia_prima_id: null as string | null,
+  quantidade_informada: 0,
+  unidade_informada: "MG" as UnidadeInformada,
+  exige_premix: false,
+};
 
 export default function EditarFormulaPage() {
   const navigate = useNavigate();
@@ -107,15 +127,24 @@ export default function EditarFormulaPage() {
     return map;
   }, [itensHybrid]);
 
-  // Estado local dos itens
-  const [itensLocal, setItensLocal] = useState<FormulaItem[]>([]);
-  const [novoItem, setNovoItem] = useState({
-    nome_insumo: "",
-    produto_materia_prima_id: null as string | null,
-    quantidade_informada: 0,
-    unidade_informada: "MG" as UnidadeInformada,
-    exige_premix: false, // SEMPRE DESMARCADO por padrão
-  });
+  // Estado local dos itens (rascunho persistido; dados do banco têm prioridade ao carregar)
+  const [draft, setDraft, clearDraft] = useFormPersist<FormulaEditDraft>(
+    `formula-edit:${id ?? "new"}`,
+    { itensLocal: [], novoItem: initialNovoItem },
+  );
+  const { itensLocal, novoItem } = draft;
+  const setItensLocal = (v: FormulaItem[] | ((prev: FormulaItem[]) => FormulaItem[])) =>
+    setDraft((d) => ({
+      ...d,
+      itensLocal: typeof v === "function" ? v(d.itensLocal) : v,
+    }));
+  const setNovoItem = (v: FormulaEditDraft["novoItem"] | ((prev: FormulaEditDraft["novoItem"]) => FormulaEditDraft["novoItem"])) =>
+    setDraft((d) => ({
+      ...d,
+      novoItem: typeof v === "function" ? v(d.novoItem) : v,
+    }));
+
+  const dbLoadedRef = useRef(false);
   const [alertaUltraCritico, setAlertaUltraCritico] = useState<{
     nome: string;
     alertas: string[];
@@ -124,9 +153,10 @@ export default function EditarFormulaPage() {
   const [saving, setSaving] = useState(false);
   const [aprovando, setAprovando] = useState(false);
 
-  // Sincronizar itens quando carregar
+  // Sincronizar itens quando carregar — banco tem prioridade sobre rascunho antigo
   useEffect(() => {
-    if (itens.length > 0) {
+    if (itens.length > 0 && !dbLoadedRef.current) {
+      dbLoadedRef.current = true;
       setItensLocal(itens);
     }
   }, [itens, formula?.custo_overrides_por_item, formula?.custo_complementos_dose]);
@@ -323,6 +353,7 @@ export default function EditarFormulaPage() {
       
       const resultado = await aprovar(formulaComCapsulasPorDose, itensLocal);
       if (resultado) {
+        clearDraft({ itensLocal: [], novoItem: initialNovoItem });
         navigate(`/producao/formulas/${id}`);
       }
     } finally {

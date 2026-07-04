@@ -10,6 +10,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Upload, FileArchive, FileText, Image as ImageIcon, X, CheckCircle2, Loader2, AlertCircle, FileSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useFormPersist } from "@/hooks/use-form-persist";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveAnvisaKey } from "@/lib/anvisa-limits";
 import JSZip from "jszip";
@@ -52,16 +54,42 @@ const uniqueProductsByName = (items: any[]) => {
 
 export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void }) {
   const { toast } = useToast();
+  const { profile } = useAuth();
+
+  type FormDraft = {
+    audience: string;
+    outputType: string;
+    clientName: string;
+    fileName: string | null;
+    zipContents: string[];
+    clientLogoFileName: string | null;
+  };
+
+  const initialFormDraft: FormDraft = {
+    audience: "ADULTOS",
+    outputType: "COMPLETO",
+    clientName: "",
+    fileName: null,
+    zipContents: [],
+    clientLogoFileName: null,
+  };
+
+  const [formDraft, setFormDraft, clearFormDraft] = useFormPersist(
+    `anvisa-form:${profile?.company_id ?? "pending"}`,
+    initialFormDraft,
+  );
+
+  const { audience, outputType, clientName, fileName, zipContents, clientLogoFileName } = formDraft;
+  const setAudience = (v: string) => setFormDraft((d) => ({ ...d, audience: v }));
+  const setOutputType = (v: string) => setFormDraft((d) => ({ ...d, outputType: v }));
+  const setClientName = (v: string) => setFormDraft((d) => ({ ...d, clientName: v }));
+
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [audience, setAudience] = useState("ADULTOS");
-  const [outputType, setOutputType] = useState("COMPLETO");
-  const [clientName, setClientName] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [errorDetails, setErrorDetails] = useState<{ message: string; step: string } | null>(null);
-  const [zipContents, setZipContents] = useState<string[]>([]);
   const [isValidating, setIsValidating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [clientLogoFile, setClientLogoFile] = useState<File | null>(null);
@@ -77,11 +105,13 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     }
     setClientLogoFile(f);
     setClientLogoPreview(URL.createObjectURL(f));
+    setFormDraft((d) => ({ ...d, clientLogoFileName: f.name }));
   };
 
   const removeClientLogo = () => {
     setClientLogoFile(null);
     setClientLogoPreview(null);
+    setFormDraft((d) => ({ ...d, clientLogoFileName: null }));
     if (clientLogoInputRef.current) clientLogoInputRef.current.value = "";
   };
 
@@ -167,7 +197,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       return;
     }
 
-    setZipContents([]);
+    setFormDraft((d) => ({ ...d, zipContents: [] }));
     
     // Validação específica para ZIP
     if (selectedFile.type.includes('zip') || selectedFile.name.endsWith('.zip')) {
@@ -211,7 +241,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           });
         }
 
-        setZipContents(filesFound);
+        setFormDraft((d) => ({ ...d, zipContents: filesFound }));
       } catch (err) {
         toast({
           variant: "destructive",
@@ -225,6 +255,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     }
 
     setFile(selectedFile);
+    setFormDraft((d) => ({ ...d, fileName: selectedFile.name }));
     if (selectedFile.type.startsWith('image/')) {
       const url = URL.createObjectURL(selectedFile);
       setPreviewUrl(url);
@@ -236,6 +267,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
   const getFileIcon = () => {
     if (previewUrl) return <img src={previewUrl} className="w-48 h-48 object-cover rounded-3xl mb-4 shadow-2xl ring-4 ring-primary/20 animate-in zoom-in duration-500" alt="Preview" />;
+    if (!file && fileName) return <FileText className="w-20 h-20 text-amber-600 mb-4 animate-in zoom-in duration-300" />;
     if (!file) return <Upload className="w-20 h-20 text-muted-foreground mb-4 group-hover:scale-110 transition-transform duration-500" />;
     
     const iconClass = "w-20 h-20 text-primary mb-4 animate-in zoom-in duration-300";
@@ -245,8 +277,9 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
   };
 
   const getChipInfo = () => {
-    if (!file) return null;
-    if (file.type.includes('zip') || file.name.endsWith('.zip')) {
+    if (!file && !fileName) return null;
+    const displayName = file?.name || fileName;
+    if (displayName && (displayName.includes('.zip') || file?.type.includes('zip'))) {
       return { 
         text: zipContents.length > 0 
           ? `📦 ${zipContents.length} produto(s) detectados` 
@@ -254,9 +287,10 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         variant: "default" 
       };
     }
-    if (file.name.endsWith('.docx')) return { text: "📄 Briefing individual", variant: "secondary" };
-    if (file.type === 'application/pdf') return { text: "📋 Ficha técnica PDF", variant: "secondary" };
-    if (file.type.includes('image')) return { text: "📷 Análise por visão computacional", variant: "outline" };
+    if (displayName?.endsWith('.docx')) return { text: "📄 Briefing individual", variant: "secondary" };
+    if (file?.type === 'application/pdf' || displayName?.endsWith('.pdf')) return { text: "📋 Ficha técnica PDF", variant: "secondary" };
+    if (file?.type.includes('image')) return { text: "📷 Análise por visão computacional", variant: "outline" };
+    if (!file && fileName) return { text: `📎 ${fileName} (reenvie o arquivo)`, variant: "outline" };
     return null;
   };
 
@@ -404,6 +438,11 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         title: "Análise concluída", 
         description: `${produtos.length} produto(s) analisado(s) com sucesso` 
       });
+      clearFormDraft(initialFormDraft);
+      setFile(null);
+      setPreviewUrl(null);
+      setClientLogoFile(null);
+      setClientLogoPreview(null);
     } catch (error: any) {
       console.error(error);
       const stepName = steps[currentStep] || "Processamento inicial";
@@ -457,7 +496,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
     e.stopPropagation();
     setFile(null);
     setPreviewUrl(null);
-    setZipContents([]);
+    setFormDraft((d) => ({ ...d, fileName: null, zipContents: [] }));
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
