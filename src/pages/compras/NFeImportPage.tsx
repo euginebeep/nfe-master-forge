@@ -23,6 +23,8 @@ import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/Fisc
 import { ItemVinculoSelector } from "@/components/nfe/ItemVinculoSelector";
 import type { LocalItem } from "@/hooks/use-local-itens";
 import { preprocessarUnidadeComercial } from "@/lib/unidades-dose";
+import { useAuth } from "@/hooks/use-auth";
+import { useFormPersist } from "@/hooks/use-form-persist";
 
 const CLASSIFICACOES_NOTA: { value: ClassificacaoNota; label: string; description: string }[] = [
   { value: "MATERIA_PRIMA", label: "Matéria Prima", description: "Insumos para produção" },
@@ -60,16 +62,51 @@ interface ItemConversaoConfig {
 
 export default function NFeImportPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<ImportStep>('upload');
+  const { profile } = useAuth();
+
+  type NFeImportDraft = {
+    step: ImportStep;
+    fileName: string | null;
+    parsedResult: NFeParseResult | null;
+    classificacao: ClassificacaoNota | null;
+    itemConfigs: Record<number, ItemConversaoConfig>;
+    fiscalConfigs: FiscalItemConfig[];
+    itemVinculos: Record<number, string | undefined>;
+  };
+
+  const initialImportDraft: NFeImportDraft = {
+    step: "upload",
+    fileName: null,
+    parsedResult: null,
+    classificacao: null,
+    itemConfigs: {},
+    fiscalConfigs: [],
+    itemVinculos: {},
+  };
+
+  const [draft, setDraft, clearDraft] = useFormPersist(
+    `nfe-import:${profile?.company_id ?? "pending"}`,
+    initialImportDraft,
+  );
+
+  const {
+    step, fileName, parsedResult, classificacao, itemConfigs, fiscalConfigs, itemVinculos,
+  } = draft;
+
+  const setStep = (v: ImportStep) => setDraft((d) => ({ ...d, step: v }));
+  const setParsedResult = (v: NFeParseResult | null) => setDraft((d) => ({ ...d, parsedResult: v }));
+  const setClassificacao = (v: ClassificacaoNota | null) => setDraft((d) => ({ ...d, classificacao: v }));
+  const setItemConfigs = (v: Record<number, ItemConversaoConfig> | ((prev: Record<number, ItemConversaoConfig>) => Record<number, ItemConversaoConfig>)) =>
+    setDraft((d) => ({ ...d, itemConfigs: typeof v === "function" ? v(d.itemConfigs) : v }));
+  const setFiscalConfigs = (v: FiscalItemConfig[] | ((prev: FiscalItemConfig[]) => FiscalItemConfig[])) =>
+    setDraft((d) => ({ ...d, fiscalConfigs: typeof v === "function" ? v(d.fiscalConfigs) : v }));
+  const setItemVinculos = (v: Record<number, string | undefined> | ((prev: Record<number, string | undefined>) => Record<number, string | undefined>)) =>
+    setDraft((d) => ({ ...d, itemVinculos: typeof v === "function" ? v(d.itemVinculos) : v }));
+
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
-  const [parsedResult, setParsedResult] = useState<NFeParseResult | null>(null);
-  const [classificacao, setClassificacao] = useState<ClassificacaoNota | null>(null);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
-  const [itemConfigs, setItemConfigs] = useState<Record<number, ItemConversaoConfig>>({});
   const [fiscalReviewOpen, setFiscalReviewOpen] = useState(false);
-  const [fiscalConfigs, setFiscalConfigs] = useState<FiscalItemConfig[]>([]);
-  const [itemVinculos, setItemVinculos] = useState<Record<number, string | undefined>>({});
 
   /**
    * Parses compound units like "500 G", "500G", "250ML", "1.5KG", "0.5L"
@@ -149,12 +186,16 @@ export default function NFeImportPage() {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setParsedResult(null);
-      setClassificacao(null);
-      setItemConfigs({});
-      setStep('upload');
+      setDraft((d) => ({
+        ...d,
+        fileName: selectedFile.name,
+        parsedResult: null,
+        classificacao: null,
+        itemConfigs: {},
+        step: "upload",
+      }));
     }
-  }, []);
+  }, [setDraft]);
 
   const handleParse = async () => {
     if (!file) return;
@@ -247,8 +288,8 @@ export default function NFeImportPage() {
       
       const result = await importarNFeCompletaSupabase(parsedResult, classificacao, configuracoesItens);
       setImportStats(result.stats);
-      
-      setStep('complete');
+      setFile(null);
+      setDraft({ ...initialImportDraft, step: "complete" });
       toast.success(`NF-e ${parsedResult.notaFiscal.numero} importada com sucesso!`);
       
     } catch (error) {
@@ -313,13 +354,9 @@ export default function NFeImportPage() {
   }, [itemConfigs]);
 
   const resetImport = () => {
-    setStep('upload');
+    clearDraft(initialImportDraft);
     setFile(null);
-    setParsedResult(null);
-    setClassificacao(null);
     setImportStats(null);
-    setItemConfigs({});
-    setItemVinculos({});
   };
 
   const goToHistory = () => {

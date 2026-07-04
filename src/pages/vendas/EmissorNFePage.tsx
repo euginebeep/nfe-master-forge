@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useCallback } from "react";
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
   Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck
@@ -17,6 +17,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/use-company";
+import { useAuth } from "@/hooks/use-auth";
+import { useFormPersist } from "@/hooks/use-form-persist";
 import { useNavigate } from "react-router-dom";
 import { useOPsPorProduto, gerarInfoAdProdOP, gerarRastreabilidadeMPs, type OPRastreabilidade } from "@/hooks/use-ops-por-produto";
 
@@ -257,61 +259,172 @@ const fmtQtd = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits:
 
 const readOnlyClass = "bg-muted/60 border-dashed text-muted-foreground cursor-not-allowed font-medium";
 
+type TransportadoraState = {
+  razao: string; cnpj: string; ie: string; endereco: string; municipio: string; uf: string;
+  placa: string; ufVeiculo: string; rntc: string;
+  qtdVolumes: string; especie: string; marca: string; numeracao: string; pesoLiq: string; pesoBruto: string;
+};
+
+type NfeDraft = {
+  activeTab: string;
+  naturezaOperacao: string;
+  tpNF: string;
+  idDest: string;
+  finalidadeEmissao: string;
+  indicadorPresenca: string;
+  indFinal: string;
+  modelo: string;
+  tpEmis: string;
+  tpImp: string;
+  dataSaida: string;
+  horaSaida: string;
+  clienteId: string;
+  indIEDest: string;
+  emailDest: string;
+  itens: NotaItem[];
+  modalidadeFrete: string;
+  transportadora: TransportadoraState;
+  meioPagamento: string;
+  valorPagamento: number;
+  vTroco: number;
+  infoAdicionais: string;
+  infoFisco: string;
+  fatNumero: string;
+  fatValorOriginal: number;
+  fatValorDesconto: number;
+  fatValorLiquido: number;
+  duplicatas: Duplicata[];
+  valorFrete: number;
+  valorSeguro: number;
+  valorDesconto: number;
+  valorOutros: number;
+  lotesCache: Record<string, any[]>;
+  opSelecionadaPorItem: Record<number, OPRastreabilidade>;
+  produtoFocoId: string | undefined;
+  itemFocoIdx: number;
+  serie: number;
+};
+
+const createInitialNfeDraft = (): NfeDraft => ({
+  activeTab: "destino",
+  naturezaOperacao: "Venda de produto do estabelecimento",
+  tpNF: "1",
+  idDest: "1",
+  finalidadeEmissao: "1",
+  indicadorPresenca: "1",
+  indFinal: "1",
+  modelo: "55",
+  tpEmis: "1",
+  tpImp: "1",
+  dataSaida: new Date().toISOString().slice(0, 10),
+  horaSaida: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+  clienteId: "",
+  indIEDest: "9",
+  emailDest: "",
+  itens: [],
+  modalidadeFrete: "9",
+  transportadora: {
+    razao: "", cnpj: "", ie: "", endereco: "", municipio: "", uf: "",
+    placa: "", ufVeiculo: "", rntc: "",
+    qtdVolumes: "", especie: "", marca: "", numeracao: "", pesoLiq: "", pesoBruto: "",
+  },
+  meioPagamento: "17",
+  valorPagamento: 0,
+  vTroco: 0,
+  infoAdicionais: "",
+  infoFisco: "",
+  fatNumero: "",
+  fatValorOriginal: 0,
+  fatValorDesconto: 0,
+  fatValorLiquido: 0,
+  duplicatas: [],
+  valorFrete: 0,
+  valorSeguro: 0,
+  valorDesconto: 0,
+  valorOutros: 0,
+  lotesCache: {},
+  opSelecionadaPorItem: {},
+  produtoFocoId: undefined,
+  itemFocoIdx: -1,
+  serie: 1,
+});
+
 export default function EmissorNFePage() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const { data: company } = useCompany();
   const queryClient = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
 
-  // ─── IDE state ───
-  const [activeTab, setActiveTab] = useState("destino");
-  const [naturezaOperacao, setNaturezaOperacao] = useState("Venda de produto do estabelecimento");
-  const [tpNF, setTpNF] = useState("1"); // 0=Entrada, 1=Saída
-  const [idDest, setIdDest] = useState("1"); // 1=Interna, 2=Interestadual, 3=Exterior
-  const [finalidadeEmissao, setFinalidadeEmissao] = useState("1");
-  const [indicadorPresenca, setIndicadorPresenca] = useState("1");
-  const [indFinal, setIndFinal] = useState("1"); // Consumidor final
-  const [modelo, setModelo] = useState("55");
-  const [tpEmis, setTpEmis] = useState("1"); // Forma de emissão
-  const [tpImp, setTpImp] = useState("1"); // Formato impressão
-  const [dataSaida, setDataSaida] = useState(new Date().toISOString().slice(0, 10));
-  const [horaSaida, setHoraSaida] = useState(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+  const [draft, setDraft, clearDraft] = useFormPersist(
+    `nfe:${profile?.company_id ?? "pending"}`,
+    createInitialNfeDraft(),
+  );
 
-  // ─── DEST state ───
-  const [clienteId, setClienteId] = useState("");
-  const [indIEDest, setIndIEDest] = useState("9"); // 1=Contrib, 2=Isento, 9=Não contrib
-  const [emailDest, setEmailDest] = useState("");
+  const setField = useCallback(<K extends keyof NfeDraft>(
+    key: K,
+    value: NfeDraft[K] | ((prev: NfeDraft[K]) => NfeDraft[K]),
+  ) => {
+    setDraft((prev) => ({
+      ...prev,
+      [key]: typeof value === "function"
+        ? (value as (p: NfeDraft[K]) => NfeDraft[K])(prev[key])
+        : value,
+    }));
+  }, [setDraft]);
 
-  // ─── Itens state ───
-  const [itens, setItens] = useState<NotaItem[]>([]);
+  const {
+    activeTab, naturezaOperacao, tpNF, idDest, finalidadeEmissao, indicadorPresenca, indFinal,
+    modelo, tpEmis, tpImp, dataSaida, horaSaida, clienteId, indIEDest, emailDest, itens,
+    modalidadeFrete, transportadora, meioPagamento, valorPagamento, vTroco, infoAdicionais, infoFisco,
+    fatNumero, fatValorOriginal, fatValorDesconto, fatValorLiquido, duplicatas,
+    valorFrete, valorSeguro, valorDesconto, valorOutros,
+    lotesCache, opSelecionadaPorItem, produtoFocoId, itemFocoIdx, serie,
+  } = draft;
 
-  // ─── Transporte state ───
-  const [modalidadeFrete, setModalidadeFrete] = useState("9");
-  const [transportadora, setTransportadora] = useState({
-    razao: "", cnpj: "", ie: "", endereco: "", municipio: "", uf: "",
-    placa: "", ufVeiculo: "", rntc: "",
-    qtdVolumes: "", especie: "", marca: "", numeracao: "", pesoLiq: "", pesoBruto: "",
-  });
+  const setActiveTab = (v: string | ((p: string) => string)) => setField("activeTab", v as NfeDraft["activeTab"]);
+  const setNaturezaOperacao = (v: string | ((p: string) => string)) => setField("naturezaOperacao", v as NfeDraft["naturezaOperacao"]);
+  const setTpNF = (v: string | ((p: string) => string)) => setField("tpNF", v as NfeDraft["tpNF"]);
+  const setIdDest = (v: string | ((p: string) => string)) => setField("idDest", v as NfeDraft["idDest"]);
+  const setFinalidadeEmissao = (v: string | ((p: string) => string)) => setField("finalidadeEmissao", v as NfeDraft["finalidadeEmissao"]);
+  const setIndicadorPresenca = (v: string | ((p: string) => string)) => setField("indicadorPresenca", v as NfeDraft["indicadorPresenca"]);
+  const setIndFinal = (v: string | ((p: string) => string)) => setField("indFinal", v as NfeDraft["indFinal"]);
+  const setModelo = (v: string | ((p: string) => string)) => setField("modelo", v as NfeDraft["modelo"]);
+  const setTpEmis = (v: string | ((p: string) => string)) => setField("tpEmis", v as NfeDraft["tpEmis"]);
+  const setTpImp = (v: string | ((p: string) => string)) => setField("tpImp", v as NfeDraft["tpImp"]);
+  const setDataSaida = (v: string | ((p: string) => string)) => setField("dataSaida", v as NfeDraft["dataSaida"]);
+  const setHoraSaida = (v: string | ((p: string) => string)) => setField("horaSaida", v as NfeDraft["horaSaida"]);
+  const setClienteId = (v: string | ((p: string) => string)) => setField("clienteId", v as NfeDraft["clienteId"]);
+  const setIndIEDest = (v: string | ((p: string) => string)) => setField("indIEDest", v as NfeDraft["indIEDest"]);
+  const setEmailDest = (v: string | ((p: string) => string)) => setField("emailDest", v as NfeDraft["emailDest"]);
+  const setItens = (v: NotaItem[] | ((p: NotaItem[]) => NotaItem[])) => setField("itens", v as NfeDraft["itens"]);
+  const setModalidadeFrete = (v: string | ((p: string) => string)) => setField("modalidadeFrete", v as NfeDraft["modalidadeFrete"]);
+  const setTransportadora = (v: TransportadoraState | ((p: TransportadoraState) => TransportadoraState)) => setField("transportadora", v as NfeDraft["transportadora"]);
+  const setMeioPagamento = (v: string | ((p: string) => string)) => setField("meioPagamento", v as NfeDraft["meioPagamento"]);
+  const setValorPagamento = (v: number | ((p: number) => number)) => setField("valorPagamento", v as NfeDraft["valorPagamento"]);
+  const setVTroco = (v: number | ((p: number) => number)) => setField("vTroco", v as NfeDraft["vTroco"]);
+  const setInfoAdicionais = (v: string | ((p: string) => string)) => setField("infoAdicionais", v as NfeDraft["infoAdicionais"]);
+  const setInfoFisco = (v: string | ((p: string) => string)) => setField("infoFisco", v as NfeDraft["infoFisco"]);
+  const setFatNumero = (v: string | ((p: string) => string)) => setField("fatNumero", v as NfeDraft["fatNumero"]);
+  const setFatValorOriginal = (v: number | ((p: number) => number)) => setField("fatValorOriginal", v as NfeDraft["fatValorOriginal"]);
+  const setFatValorDesconto = (v: number | ((p: number) => number)) => setField("fatValorDesconto", v as NfeDraft["fatValorDesconto"]);
+  const setFatValorLiquido = (v: number | ((p: number) => number)) => setField("fatValorLiquido", v as NfeDraft["fatValorLiquido"]);
+  const setDuplicatas = (v: Duplicata[] | ((p: Duplicata[]) => Duplicata[])) => setField("duplicatas", v as NfeDraft["duplicatas"]);
+  const setValorFrete = (v: number | ((p: number) => number)) => setField("valorFrete", v as NfeDraft["valorFrete"]);
+  const setValorSeguro = (v: number | ((p: number) => number)) => setField("valorSeguro", v as NfeDraft["valorSeguro"]);
+  const setValorDesconto = (v: number | ((p: number) => number)) => setField("valorDesconto", v as NfeDraft["valorDesconto"]);
+  const setValorOutros = (v: number | ((p: number) => number)) => setField("valorOutros", v as NfeDraft["valorOutros"]);
+  const setLotesCache = (v: Record<string, any[]> | ((p: Record<string, any[]>) => Record<string, any[]>)) => setField("lotesCache", v as NfeDraft["lotesCache"]);
+  const setOpSelecionadaPorItem = (v: Record<number, OPRastreabilidade> | ((p: Record<number, OPRastreabilidade>) => Record<number, OPRastreabilidade>)) => setField("opSelecionadaPorItem", v as NfeDraft["opSelecionadaPorItem"]);
+  const setProdutoFocoId = (v: string | undefined | ((p: string | undefined) => string | undefined)) => setField("produtoFocoId", v as NfeDraft["produtoFocoId"]);
+  const setItemFocoIdx = (v: number | ((p: number) => number)) => setField("itemFocoIdx", v as NfeDraft["itemFocoIdx"]);
+  const setSerie = (v: number | ((p: number) => number)) => setField("serie", v as NfeDraft["serie"]);
 
-  // ─── Pagamento state ───
-  const [meioPagamento, setMeioPagamento] = useState("17");
-  const [valorPagamento, setValorPagamento] = useState(0);
-  const [vTroco, setVTroco] = useState(0);
-  const [infoAdicionais, setInfoAdicionais] = useState("");
-  const [infoFisco, setInfoFisco] = useState("");
-
-  // ─── Cobrança / Fatura state ───
-  const [fatNumero, setFatNumero] = useState("");
-  const [fatValorOriginal, setFatValorOriginal] = useState(0);
-  const [fatValorDesconto, setFatValorDesconto] = useState(0);
-  const [fatValorLiquido, setFatValorLiquido] = useState(0);
-  const [duplicatas, setDuplicatas] = useState<Duplicata[]>([]);
-
-  // ─── Valores globais ───
-  const [valorFrete, setValorFrete] = useState(0);
-  const [valorSeguro, setValorSeguro] = useState(0);
-  const [valorDesconto, setValorDesconto] = useState(0);
-  const [valorOutros, setValorOutros] = useState(0);
+  useEffect(() => {
+    if (company?.nfe_serie_padrao && draft.serie === 1) {
+      setSerie(company.nfe_serie_padrao);
+    }
+  }, [company?.nfe_serie_padrao]);
 
   // ─── Queries ───
   const { data: logoUrl } = useQuery({
@@ -380,16 +493,6 @@ export default function EmissorNFePage() {
       return data;
     },
   });
-
-  // Lotes disponíveis por item (cache para seleção manual de lote de estoque)
-  const [lotesCache, setLotesCache] = React.useState<Record<string, any[]>>({});
-
-  // OP selecionada por índice de item: { [itemIndex]: OPRastreabilidade }
-  const [opSelecionadaPorItem, setOpSelecionadaPorItem] = React.useState<Record<number, OPRastreabilidade>>({});
-
-  // Produto atualmente ativo para busca de OPs (controlado pelo item em foco)
-  const [produtoFocoId, setProdutoFocoId] = React.useState<string | undefined>(undefined);
-  const [itemFocoIdx, setItemFocoIdx] = React.useState<number>(-1);
 
   // Hook que busca OPs do produto em foco
   const { data: opsDoProduto, isLoading: loadingOPs } = useOPsPorProduto(produtoFocoId);
@@ -634,7 +737,6 @@ export default function EmissorNFePage() {
   const numero = company?.nfe_numero_inicial
     ? String(company.nfe_numero_inicial).padStart(9, "0").replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3")
     : "000.000.001";
-  const [serie, setSerie] = useState(company?.nfe_serie_padrao || 1);
   const isHomolog = company?.nfe_ambiente === "HOMOLOGACAO" || !company?.nfe_ambiente;
 
   const criarNota = useMutation({
@@ -762,6 +864,7 @@ export default function EmissorNFePage() {
         toast.warning("NF-e emitida, mas verifique o estoque manualmente.");
       }
       toast.success("NF-e emitida com sucesso! Conta a receber gerada e estoque atualizado.");
+      clearDraft(createInitialNfeDraft());
     },
     onError: (err: any) => toast.error("Erro: " + err.message),
   });

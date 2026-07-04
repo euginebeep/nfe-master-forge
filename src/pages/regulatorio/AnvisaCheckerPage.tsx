@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnvisaCheckerForm } from "@/components/regulatorio/AnvisaCheckerForm";
@@ -8,22 +8,42 @@ import { AnvisaBaseConstituintes } from "@/components/regulatorio/AnvisaBaseCons
 import { AnvisaLaudoView } from "@/components/regulatorio/AnvisaLaudoView";
 import { FlaskConical, FileText, LayoutList, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { useFormPersist } from "@/hooks/use-form-persist";
+
+type PageDraft = {
+  activeTab: string;
+  selectedLaudo: any;
+  tabelaData: any;
+};
+
+const initialPageDraft: PageDraft = {
+  activeTab: "formula",
+  selectedLaudo: null,
+  tabelaData: null,
+};
 
 export default function AnvisaCheckerPage() {
-  const [activeTab, setActiveTab] = useState("formula");
-  const [selectedLaudo, setSelectedLaudo] = useState<any>(null);
-  const [tabelaData, setTabelaData] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  const [pageDraft, setPageDraft] = useFormPersist(
+    `anvisa-checker:${profile?.company_id ?? "pending"}`,
+    initialPageDraft,
+  );
+
+  const { activeTab, selectedLaudo, tabelaData } = pageDraft;
+  const setActiveTab = (v: string) => setPageDraft((d) => ({ ...d, activeTab: v }));
+  const setSelectedLaudo = (v: any) => setPageDraft((d) => ({ ...d, selectedLaudo: v }));
+  const setTabelaData = (v: any) => setPageDraft((d) => ({ ...d, tabelaData: v }));
 
 
   const handleLaudoGenerated = async (laudo: any) => {
     setSelectedLaudo(laudo);
     setTabelaData(laudo.resultado_ia);
-    setActiveTab("laudos"); // Vai direto para a aba de laudos após gerar
+    setActiveTab("laudos");
 
-    // Persistir o laudo (histórico + rastreabilidade). Grava UMA vez, para qualquer
-    // fluxo (fórmula OU arquivo/imagem). Não bloqueia a exibição se a gravação falhar.
     try {
-      // Se o laudo já veio do histórico (já tem id), não re-inserir
       if (laudo?.id) return;
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -35,7 +55,6 @@ export default function AnvisaCheckerPage() {
         .maybeSingle();
       if (!profile?.company_id) return;
 
-      // Suporta 1 produto (análise de fórmula) ou vários (ZIP com múltiplos briefings).
       const lista = Array.isArray(laudo?.multiplos_produtos) && laudo.multiplos_produtos.length > 0
         ? laudo.multiplos_produtos
         : [laudo?.resultado_ia || laudo || {}];
@@ -46,21 +65,29 @@ export default function AnvisaCheckerPage() {
         cliente: p?.cliente || laudo?.cliente || null,
         cliente_logo_url: laudo?.cliente_logo_url || null,
         cliente_nome_exibicao: laudo?.cliente_nome_exibicao || p?.cliente || laudo?.cliente || null,
-        status_geral: p?.status_geral || "VERIFICAR",
-        payload_entrada: { ativos: p?.ativos || [] },
+        status_geral: p?.status_geral || laudo?.status_geral || "VERIFICAR",
+        payload_entrada: { ativos: p?.ativos || laudo?.ativos || [] },
         resultado_ia: p,
         criado_por: user.id,
       }));
 
-      await supabase.from("anvisa_laudos").insert(registros);
-    } catch (e) {
+      const { error } = await supabase.from("anvisa_laudos").insert(registros);
+      if (error) {
+        console.error("Falha ao gravar laudo ANVISA:", error);
+        toast.error("Falha ao salvar laudo: " + (error.message || error.code));
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["anvisa_laudos"] });
+      }
+    } catch (e: unknown) {
+      const err = e as { message?: string; code?: string };
       console.error("Falha ao gravar laudo ANVISA:", e);
+      toast.error("Falha ao salvar laudo: " + (err?.message || err?.code || "erro desconhecido"));
     }
   };
 
 
   const handleReset = () => {
-    setSelectedLaudo(null);
+    setPageDraft((d) => ({ ...d, selectedLaudo: null, activeTab: "formula" }));
   };
 
   return (

@@ -30,6 +30,8 @@ import {
   Oportunidade, VendedorExterno,
 } from "@/hooks/use-crm";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { useFormPersist } from "@/hooks/use-form-persist";
 
 const ETAPAS: Oportunidade["status"][] = ["LEAD", "CONTATO", "PROPOSTA", "NEGOCIACAO", "FECHADO", "PERDIDO"];
 const ETAPA_LABEL: Record<string, string> = {
@@ -77,10 +79,19 @@ export default function CRMPage() {
 
 // ═══════════════════════ TAB 1: PIPELINE ═══════════════════════
 function PipelineTab() {
-  const [busca, setBusca] = useState("");
-  const [vendedorFiltro, setVendedorFiltro] = useState<string>("__all__");
-  const [origemFiltro, setOrigemFiltro] = useState<string>("__all__");
-  const [produtoFiltro, setProdutoFiltro] = useState<string>("__all__");
+  const { profile } = useAuth();
+  const [filters, setFilters] = useFormPersist(`crm-pipeline:${profile?.company_id ?? "pending"}`, {
+    busca: "",
+    vendedorFiltro: "__all__",
+    origemFiltro: "__all__",
+    produtoFiltro: "__all__",
+  });
+  const { busca, vendedorFiltro, origemFiltro, produtoFiltro } = filters;
+  const setBusca = (v: string) => setFilters((f) => ({ ...f, busca: v }));
+  const setVendedorFiltro = (v: string) => setFilters((f) => ({ ...f, vendedorFiltro: v }));
+  const setOrigemFiltro = (v: string) => setFilters((f) => ({ ...f, origemFiltro: v }));
+  const setProdutoFiltro = (v: string) => setFilters((f) => ({ ...f, produtoFiltro: v }));
+
   const [selecionado, setSelecionado] = useState<Oportunidade | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
 
@@ -458,21 +469,22 @@ function LeadFormDialog({ open, onOpenChange, editing, vendedores }: {
 }) {
   const criar = useCriarOportunidade();
   const atualizar = useAtualizarOportunidade();
+  const { profile } = useAuth();
 
-  const [form, setForm] = useState<any>({
+  const initialLeadForm = {
     empresa: "", contato_nome: "", telefone: "", email: "",
-    cidade: "", estado: "", origem: "DIRETO", vendedor_id: null,
+    cidade: "", estado: "", origem: "DIRETO", vendedor_id: null as string | null,
     produtos_interesse: "", valor_estimado: 0, score: 50, observacoes: "",
-  });
+  };
+
+  const [form, setForm, clearForm] = useFormPersist(
+    editing ? `crm-lead-edit:${editing.id}` : `crm-lead-form:${profile?.company_id ?? "pending"}`,
+    initialLeadForm,
+  );
 
   useEffect(() => {
     if (!open) return;
     if (editing) setForm({ ...editing });
-    else setForm({
-      empresa: "", contato_nome: "", telefone: "", email: "",
-      cidade: "", estado: "", origem: "DIRETO", vendedor_id: null,
-      produtos_interesse: "", valor_estimado: 0, score: 50, observacoes: "",
-    });
   }, [open, editing?.id]);
 
   const submit = () => {
@@ -490,7 +502,12 @@ function LeadFormDialog({ open, onOpenChange, editing, vendedores }: {
     if (editing) {
       atualizar.mutate({ id: editing.id, dados: payload }, { onSuccess: () => onOpenChange(false) });
     } else {
-      criar.mutate(payload, { onSuccess: () => onOpenChange(false) });
+      criar.mutate(payload, {
+        onSuccess: () => {
+          clearForm(initialLeadForm);
+          onOpenChange(false);
+        },
+      });
     }
   };
 

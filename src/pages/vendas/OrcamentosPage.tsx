@@ -60,6 +60,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { maskCNPJ, maskCPF, maskPhone } from "@/lib/masks";
 import { ContratoWorkflowDialog } from "@/components/orcamentos/ContratoWorkflowDialog";
+import { useFormPersist } from "@/hooks/use-form-persist";
 
 interface Orcamento {
   id: string;
@@ -136,6 +137,40 @@ interface ItemOrcamento {
   incluir_silica: boolean;
 }
 
+const defaultOrcamentoItem = (): ItemOrcamento => ({
+  produto_nome: "",
+  quantidade: 1,
+  preco_unitario: 0,
+  valor_total: 0,
+  unidades_por_frasco: 60,
+  incluir_silica: true,
+  capsula_cor: "Transparente",
+  pote_cor: "Âmbar",
+  tampa_cor: "Preta",
+});
+
+type OrcamentoFormDraft = {
+  clienteSearch: string;
+  clienteId: string;
+  clienteSelecionado: ClienteCompleto | null;
+  vendedorNome: string;
+  observacoes: string;
+  formaPagamento: string;
+  descontoPercentual: number;
+  itens: ItemOrcamento[];
+};
+
+const createInitialOrcamentoForm = (): OrcamentoFormDraft => ({
+  clienteSearch: "",
+  clienteId: "",
+  clienteSelecionado: null,
+  vendedorNome: "",
+  observacoes: "",
+  formaPagamento: "A_VISTA",
+  descontoPercentual: 0,
+  itens: [defaultOrcamentoItem()],
+});
+
 const CORES_CAPSULA = [
   "Transparente", "Branca", "Verde", "Vermelha", "Azul", "Preta", 
   "Amarela", "Laranja", "Rosa", "Roxa", "Marrom", "Cinza"
@@ -161,31 +196,33 @@ export default function OrcamentosPage() {
   
   // Auth & profile
   const { profile } = useAuth();
+
+  const [formDraft, setFormDraft, clearFormDraft] = useFormPersist(
+    `orcamento-form:${profile?.company_id ?? "pending"}`,
+    createInitialOrcamentoForm(),
+  );
+
+  const {
+    clienteSearch, clienteId, clienteSelecionado, vendedorNome, observacoes,
+    formaPagamento, descontoPercentual, itens,
+  } = formDraft;
+
+  const setClienteSearch = (v: string) => setFormDraft((d) => ({ ...d, clienteSearch: v }));
+  const setClienteId = (v: string) => setFormDraft((d) => ({ ...d, clienteId: v }));
+  const setClienteSelecionado = (v: ClienteCompleto | null) => setFormDraft((d) => ({ ...d, clienteSelecionado: v }));
+  const setVendedorNome = (v: string) => setFormDraft((d) => ({ ...d, vendedorNome: v }));
+  const setObservacoes = (v: string) => setFormDraft((d) => ({ ...d, observacoes: v }));
+  const setFormaPagamento = (v: string) => setFormDraft((d) => ({ ...d, formaPagamento: v }));
+  const setDescontoPercentual = (v: number) => setFormDraft((d) => ({ ...d, descontoPercentual: v }));
+  const setItens = (v: ItemOrcamento[] | ((prev: ItemOrcamento[]) => ItemOrcamento[])) =>
+    setFormDraft((d) => ({
+      ...d,
+      itens: typeof v === "function" ? v(d.itens) : v,
+    }));
   
-  // Form state
-  const [clienteSearch, setClienteSearch] = useState("");
-  const [clienteId, setClienteId] = useState("");
-  const [clienteSelecionado, setClienteSelecionado] = useState<ClienteCompleto | null>(null);
   const [showClienteNotFound, setShowClienteNotFound] = useState(false);
   const [clienteComboOpen, setClienteComboOpen] = useState(false);
   const [showCadastroClienteDialog, setShowCadastroClienteDialog] = useState(false);
-  const [vendedorNome, setVendedorNome] = useState("");
-  const [observacoes, setObservacoes] = useState("");
-  const [formaPagamento, setFormaPagamento] = useState("A_VISTA");
-  const [descontoPercentual, setDescontoPercentual] = useState(0);
-  const [itens, setItens] = useState<ItemOrcamento[]>([
-    { 
-      produto_nome: "", 
-      quantidade: 1, 
-      preco_unitario: 0, 
-      valor_total: 0, 
-      unidades_por_frasco: 60,
-      incluir_silica: true,
-      capsula_cor: "Transparente",
-      pote_cor: "Âmbar",
-      tampa_cor: "Preta",
-    }
-  ]);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -516,35 +553,33 @@ export default function OrcamentosPage() {
 
     // Buscar cliente completo
     const clienteEncontrado = clientes?.find(c => c.id === orcamento.cliente_id);
-    if (clienteEncontrado) {
-      setClienteId(clienteEncontrado.id);
-      setClienteSelecionado(clienteEncontrado);
-      setClienteSearch(clienteEncontrado.razao_social);
-    } else {
-      setClienteSearch(orcamento.cliente_nome);
-    }
+    const loadedItens = itensOrc && itensOrc.length > 0
+      ? itensOrc.map((item: any) => ({
+          id: item.id,
+          formula_id: item.formula_id || undefined,
+          produto_nome: item.produto_nome,
+          quantidade: item.quantidade,
+          preco_unitario: item.preco_unitario,
+          valor_total: item.valor_total,
+          unidades_por_frasco: item.unidades_por_frasco || 60,
+          rotulo: item.rotulo || "",
+          tampa_cor: item.tampa_cor || "Preta",
+          capsula_cor: item.capsula_cor || "Transparente",
+          pote_cor: item.pote_cor || "Âmbar",
+          incluir_silica: item.incluir_silica ?? true,
+        }))
+      : [defaultOrcamentoItem()];
 
-    setVendedorNome((orcamento as any).vendedor_nome || "");
-    setObservacoes(orcamento.observacoes || "");
-    setFormaPagamento((orcamento as any).forma_pagamento || "A_VISTA");
-    setDescontoPercentual(Number((orcamento as any).desconto_percentual || 0));
-
-    if (itensOrc && itensOrc.length > 0) {
-      setItens(itensOrc.map((item: any) => ({
-        id: item.id,
-        formula_id: item.formula_id || undefined,
-        produto_nome: item.produto_nome,
-        quantidade: item.quantidade,
-        preco_unitario: item.preco_unitario,
-        valor_total: item.valor_total,
-        unidades_por_frasco: item.unidades_por_frasco || 60,
-        rotulo: item.rotulo || "",
-        tampa_cor: item.tampa_cor || "Preta",
-        capsula_cor: item.capsula_cor || "Transparente",
-        pote_cor: item.pote_cor || "Âmbar",
-        incluir_silica: item.incluir_silica ?? true,
-      })));
-    }
+    setFormDraft({
+      clienteId: clienteEncontrado?.id || "",
+      clienteSelecionado: clienteEncontrado || null,
+      clienteSearch: clienteEncontrado?.razao_social || orcamento.cliente_nome,
+      vendedorNome: (orcamento as any).vendedor_nome || "",
+      observacoes: orcamento.observacoes || "",
+      formaPagamento: (orcamento as any).forma_pagamento || "A_VISTA",
+      descontoPercentual: Number((orcamento as any).desconto_percentual || 0),
+      itens: loadedItens,
+    });
 
     setEditingOrcamentoId(orcamento.id);
     setDialogOpen(true);
@@ -639,26 +674,12 @@ export default function OrcamentosPage() {
   });
 
   const resetForm = () => {
-    setClienteId("");
-    setClienteSearch("");
-    setClienteSelecionado(null);
+    clearFormDraft({
+      ...createInitialOrcamentoForm(),
+      vendedorNome: profile?.nome_completo || "",
+    });
     setShowClienteNotFound(false);
-    setVendedorNome(profile?.nome_completo || "");
-    setObservacoes("");
-    setFormaPagamento("A_VISTA");
-    setDescontoPercentual(0);
     setEditingOrcamentoId(null);
-    setItens([{ 
-      produto_nome: "", 
-      quantidade: 1, 
-      preco_unitario: 0, 
-      valor_total: 0, 
-      unidades_por_frasco: 60,
-      incluir_silica: true,
-      capsula_cor: "Transparente",
-      pote_cor: "Âmbar",
-      tampa_cor: "Preta",
-    }]);
   };
 
   const handleEditClick = (orcamento: Orcamento) => {
