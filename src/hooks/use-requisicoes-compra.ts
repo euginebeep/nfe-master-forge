@@ -1,0 +1,321 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import {
+  STATUS_REQ,
+  type StatusRequisicao,
+  calcularValorTotal,
+  podeTransicionar,
+  avaliarRecebimento,
+} from '@/lib/requisicoes-compra';
+
+export interface RequisicaoCompraItem {
+  id: string;
+  requisicao_id: string;
+  item_id: string | null;
+  item_nome: string;
+  quantidade_necessaria: number | null;
+  quantidade_disponivel: number | null;
+  quantidade_faltante: number | null;
+  unidade: string | null;
+  status: string | null;
+  quantidade_comprar: number | null;
+  preco_cotado: number | null;
+  quantidade_recebida: number | null;
+  fornecedor_id: string | null;
+}
+
+export interface RequisicaoCompra {
+  id: string;
+  company_id: string;
+  op_id: string | null;
+  status: string;
+  origem: string | null;
+  observacoes: string | null;
+  numero_interno: string | null;
+  fornecedor_id: string | null;
+  prazo_pagamento: string | null;
+  condicao_pagamento: string | null;
+  valor_total: number | null;
+  aprovada_por: string | null;
+  aprovada_por_nome: string | null;
+  aprovada_em: string | null;
+  pedido_enviado_em: string | null;
+  recebida_em: string | null;
+  nota_entrada_id: string | null;
+  created_at: string;
+  updated_at: string;
+  ordens_producao_industrial?: { codigo: string | null } | null;
+  fornecedor?: { id: string; razao_social: string; nome_fantasia: string | null } | null;
+  requisicoes_compra_itens?: RequisicaoCompraItem[];
+}
+
+export interface HistoricoCompraItem {
+  item_id: string;
+  num_compras: number | null;
+  preco_medio: number | null;
+  ultimo_preco: number | null;
+  ultima_qtd: number | null;
+  ultima_compra_data: string | null;
+  ultimo_fornecedor_id: string | null;
+  ultimo_fornecedor_nome: string | null;
+}
+
+const REQUISICAO_SELECT = `
+  id, company_id, op_id, status, origem, observacoes, created_at, updated_at,
+  numero_interno, fornecedor_id, prazo_pagamento, condicao_pagamento, valor_total,
+  aprovada_por, aprovada_por_nome, aprovada_em, pedido_enviado_em, recebida_em, nota_entrada_id,
+  ordens_producao_industrial(codigo),
+  fornecedor:entidades!requisicoes_compra_fornecedor_id_fkey(id, razao_social, nome_fantasia),
+  requisicoes_compra_itens(
+    id, requisicao_id, item_id, item_nome, quantidade_necessaria, quantidade_disponivel,
+    quantidade_faltante, unidade, status, quantidade_comprar, preco_cotado,
+    quantidade_recebida, fornecedor_id
+  )
+`;
+
+export function useRequisicoesCompra() {
+  return useQuery({
+    queryKey: ['requisicoes-compra'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('requisicoes_compra')
+        .select(REQUISICAO_SELECT)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as RequisicaoCompra[];
+    },
+  });
+}
+
+export function useHistoricoCompra(itemIds: string[]) {
+  return useQuery({
+    queryKey: ['item-historico-compra', itemIds],
+    enabled: itemIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('item_historico_compra' as 'itens')
+        .select(
+          'item_id, num_compras, preco_medio, ultimo_preco, ultima_qtd, ultima_compra_data, ultimo_fornecedor_id, ultimo_fornecedor_nome',
+        )
+        .in('item_id', itemIds);
+      if (error) throw error;
+      const map = new Map<string, HistoricoCompraItem>();
+      for (const row of (data || []) as unknown as HistoricoCompraItem[]) {
+        if (row.item_id) map.set(row.item_id, row);
+      }
+      return map;
+    },
+  });
+}
+
+interface SalvarRequisicaoInput {
+  id: string;
+  fornecedor_id?: string | null;
+  prazo_pagamento?: string | null;
+  condicao_pagamento?: string | null;
+  valor_total: number;
+  status?: StatusRequisicao;
+  itens: Array<{
+    id: string;
+    quantidade_comprar: number | null;
+    preco_cotado: number | null;
+    fornecedor_id?: string | null;
+  }>;
+}
+
+export function useSalvarRequisicaoCompra() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: SalvarRequisicaoInput) => {
+      const cabPayload: Record<string, unknown> = {
+        fornecedor_id: input.fornecedor_id || null,
+        prazo_pagamento: input.prazo_pagamento?.trim() || null,
+        condicao_pagamento: input.condicao_pagamento?.trim() || null,
+        valor_total: input.valor_total,
+        updated_at: new Date().toISOString(),
+      };
+      if (input.status) cabPayload.status = input.status;
+
+      const { error: cabErr } = await supabase
+        .from('requisicoes_compra')
+        .update(cabPayload)
+        .eq('id', input.id);
+      if (cabErr) throw cabErr;
+
+      for (const item of input.itens) {
+        const { error: itemErr } = await supabase
+          .from('requisicoes_compra_itens')
+          .update({
+            quantidade_comprar: item.quantidade_comprar,
+            preco_cotado: item.preco_cotado,
+            fornecedor_id: item.fornecedor_id ?? null,
+          })
+          .eq('id', item.id);
+        if (itemErr) throw itemErr;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+      toast.success('Requisição salva');
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao salvar requisição');
+    },
+  });
+}
+
+export function useAprovarRequisicaoCompra() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      aprovada_por: string;
+      aprovada_por_nome: string;
+      itens: SalvarRequisicaoInput['itens'];
+      fornecedor_id?: string | null;
+      prazo_pagamento?: string | null;
+      condicao_pagamento?: string | null;
+      valor_total: number;
+    }) => {
+      const agora = new Date().toISOString();
+
+      for (const item of input.itens) {
+        const { error: itemErr } = await supabase
+          .from('requisicoes_compra_itens')
+          .update({
+            quantidade_comprar: item.quantidade_comprar,
+            preco_cotado: item.preco_cotado,
+            fornecedor_id: item.fornecedor_id ?? null,
+          })
+          .eq('id', item.id);
+        if (itemErr) throw itemErr;
+      }
+
+      const { error } = await supabase
+        .from('requisicoes_compra')
+        .update({
+          status: STATUS_REQ.APROVADA,
+          aprovada_por: input.aprovada_por,
+          aprovada_por_nome: input.aprovada_por_nome,
+          aprovada_em: agora,
+          fornecedor_id: input.fornecedor_id || null,
+          prazo_pagamento: input.prazo_pagamento?.trim() || null,
+          condicao_pagamento: input.condicao_pagamento?.trim() || null,
+          valor_total: input.valor_total,
+          updated_at: agora,
+        })
+        .eq('id', input.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+      toast.success('Compra aprovada');
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao aprovar compra');
+    },
+  });
+}
+
+export function useMarcarPedidoEnviado() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('requisicoes_compra')
+        .update({
+          status: STATUS_REQ.PEDIDO_ENVIADO,
+          pedido_enviado_em: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+      toast.success('Pedido marcado como enviado');
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao marcar pedido enviado');
+    },
+  });
+}
+
+export function useRegistrarRecebimento() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      itens: Array<{ id: string; quantidade_recebida: number | null }>;
+      nota_entrada_id?: string | null;
+    }) => {
+      for (const item of input.itens) {
+        const { error: itemErr } = await supabase
+          .from('requisicoes_compra_itens')
+          .update({ quantidade_recebida: item.quantidade_recebida })
+          .eq('id', item.id);
+        if (itemErr) throw itemErr;
+      }
+
+      const { data: itensAtualizados, error: fetchErr } = await supabase
+        .from('requisicoes_compra_itens')
+        .select('quantidade_comprar, quantidade_recebida')
+        .eq('requisicao_id', input.id);
+      if (fetchErr) throw fetchErr;
+
+      const novoStatus = avaliarRecebimento(itensAtualizados || []);
+      const agora = new Date().toISOString();
+      const cabUpdate: Record<string, unknown> = {
+        status: novoStatus,
+        updated_at: agora,
+      };
+      if (novoStatus === STATUS_REQ.RECEBIDA) cabUpdate.recebida_em = agora;
+      if (input.nota_entrada_id) cabUpdate.nota_entrada_id = input.nota_entrada_id;
+
+      const { error } = await supabase
+        .from('requisicoes_compra')
+        .update(cabUpdate)
+        .eq('id', input.id);
+      if (error) throw error;
+
+      return novoStatus;
+    },
+    onSuccess: (status) => {
+      queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+      toast.success(
+        status === STATUS_REQ.RECEBIDA ? 'Recebimento completo registrado' : 'Recebimento parcial registrado',
+      );
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao registrar recebimento');
+    },
+  });
+}
+
+export function useIniciarCotacao() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('requisicoes_compra')
+        .update({ status: STATUS_REQ.COTACAO, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+      toast.success('Requisição em cotação');
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao iniciar cotação');
+    },
+  });
+}
+
+export { calcularValorTotal, podeTransicionar, STATUS_REQ };
