@@ -28,6 +28,8 @@ export interface FornecedorHistorico {
   ultima_compra_data: string | null;
   preco_medio: number | null;
   num_compras: number | null;
+  ultima_unidade: string | null;
+  ultima_qtd: number | null;
 }
 
 export interface ItemHistoricoGeral {
@@ -70,7 +72,7 @@ const REQUISICAO_DETALHE_SELECT = `
     id, requisicao_id, item_id, item_nome, quantidade_necessaria, quantidade_disponivel,
     quantidade_faltante, unidade, status, quantidade_comprar, preco_cotado,
     quantidade_recebida, fornecedor_id,
-    item:itens(embalagem_compra_qtd, embalagem_compra_unidade, unidade_interna)
+    item:itens(embalagem_compra_qtd, embalagem_compra_unidade, unidade_interna, tipo_item)
   )
 `;
 
@@ -109,7 +111,7 @@ async function fetchInteligenciaCompra(
   const [fornHistRes, itemHistRes] = await Promise.all([
     supabase
       .from('item_fornecedor_historico' as 'itens')
-      .select('item_id, fornecedor_id, num_compras, preco_medio, ultimo_preco, ultima_compra_data')
+      .select('item_id, fornecedor_id, num_compras, preco_medio, ultimo_preco, ultima_compra_data, ultima_unidade, ultima_qtd')
       .in('item_id', itemIds)
       .eq('company_id', companyId),
     supabase
@@ -129,6 +131,8 @@ async function fetchInteligenciaCompra(
     preco_medio: number | null;
     ultimo_preco: number | null;
     ultima_compra_data: string | null;
+    ultima_unidade: string | null;
+    ultima_qtd: number | null;
   }>) {
     if (!row.item_id || !row.fornecedor_id) continue;
     fornHistMap.set(historicoFornecedorKey(row.item_id, row.fornecedor_id), {
@@ -136,6 +140,8 @@ async function fetchInteligenciaCompra(
       ultima_compra_data: row.ultima_compra_data ?? null,
       preco_medio: row.preco_medio ?? null,
       num_compras: row.num_compras ?? null,
+      ultima_unidade: row.ultima_unidade ?? null,
+      ultima_qtd: row.ultima_qtd ?? null,
     });
   }
 

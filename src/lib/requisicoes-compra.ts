@@ -4,6 +4,7 @@ import {
   paraGramas,
   type EmbalagemInfo,
 } from '@/lib/conferencia-materiais';
+import { calcularQuantidadeCotacao } from '@/lib/cotacao-embalagem';
 
 export const STATUS_REQ = {
   ABERTA: 'ABERTA',
@@ -216,21 +217,17 @@ export function avaliarRecebimento(
   return STATUS_REQ.PO_EMITIDO;
 }
 
-/** Arredonda quantidade a comprar com base na cotação escolhida */
+/** Quantidade a comprar na cotação: pacote inteiro ou necessidade exata */
 export function calcularQtdComprarCotacao(
   quantidadeFaltante: number | null | undefined,
   unidadeFaltante: string | null | undefined,
   unidadeCompra: string | null | undefined,
   qtdPorPacote: number | null | undefined,
 ): number {
-  const faltaG = faltanteEmGramas(quantidadeFaltante, unidadeFaltante);
-  const unidade = unidadeCompra || unidadeFaltante || 'g';
-
-  if (qtdPorPacote != null && qtdPorPacote > 0) {
-    const emb: EmbalagemInfo = { qtd: qtdPorPacote, unidade, fonte: 'cadastro' };
-    return calcularCompraArredondada(faltaG, emb).comprarQtd;
-  }
-
-  const faltaNaUnidade = deGramas(faltaG, unidade);
-  return Math.ceil(faltaNaUnidade);
+  return calcularQuantidadeCotacao(
+    quantidadeFaltante,
+    unidadeFaltante,
+    unidadeCompra,
+    qtdPorPacote,
+  ).quantidade;
 }

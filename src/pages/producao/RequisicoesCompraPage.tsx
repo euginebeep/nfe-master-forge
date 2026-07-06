@@ -90,7 +90,10 @@ export default function RequisicoesCompraPage() {
 
     setGerandoRfqId(req.id);
     try {
-      const blocos = await montarBlocosRfqPorFornecedor(req.requisicoes_compra_itens || []);
+      const blocos = await montarBlocosRfqPorFornecedor(
+        req.requisicoes_compra_itens || [],
+        req.company_id,
+      );
       await pedirCotacao.mutateAsync(req.id);
       setRfqDialog({
         numeroInterno: req.numero_interno || 'REQ-PENDENTE',
@@ -248,7 +251,7 @@ export default function RequisicoesCompraPage() {
                   <div key={bloco.fornecedorId ?? `sem-${idx}`} className="space-y-2">
                     <ListaPuraCompraPanel
                       numeroInterno={rfqDialog.numeroInterno}
-                      itens={bloco.itens}
+                      grupos={bloco.grupos}
                       tituloDocumento="PEDIDO DE COTAÇÃO"
                       fornecedorNome={bloco.fornecedorNome}
                     />
