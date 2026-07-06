@@ -14,6 +14,7 @@ export interface ItemCadastroEmbalagem {
   embalagem_compra_qtd: number | null;
   embalagem_compra_unidade: string | null;
   unidade_interna: string | null;
+  tipo_item?: string | null;
 }
 
 export interface RequisicaoCompraItem {

@@ -141,7 +141,11 @@ export function gerarTextoListaPura(
   razaoSocial: string,
   endereco: string,
   itens: Array<{ nome: string; qtd: string }>,
-  opts?: { tituloDocumento?: string; fornecedorNome?: string },
+  opts?: {
+    tituloDocumento?: string;
+    fornecedorNome?: string;
+    grupos?: Array<{ categoria: string; itens: Array<{ nome: string; qtd: string }> }>;
+  },
 ): string {
   const titulo = opts?.tituloDocumento
     ? `${opts.tituloDocumento} — ${numeroInterno}`
@@ -159,10 +163,26 @@ export function gerarTextoListaPura(
 
   linhas.push('─'.repeat(30));
 
-  const maxNome = Math.max(...itens.map(i => i.nome.length), 10);
-  for (const item of itens) {
-    const dots = '.'.repeat(Math.max(1, maxNome - item.nome.length + 6));
-    linhas.push(`${item.nome} ${dots} ${item.qtd}`);
+  const renderItem = (nome: string, qtd: string, maxNome: number) => {
+    const dots = '.'.repeat(Math.max(1, maxNome - nome.length + 6));
+    linhas.push(`${nome} ${dots} ${qtd}`);
+  };
+
+  if (opts?.grupos && opts.grupos.length > 0) {
+    for (const grupo of opts.grupos) {
+      if (grupo.itens.length === 0) continue;
+      linhas.push('');
+      linhas.push(`[ ${grupo.categoria} ]`);
+      const maxNome = Math.max(...grupo.itens.map(i => i.nome.length), 10);
+      for (const item of grupo.itens) {
+        renderItem(item.nome, item.qtd, maxNome);
+      }
+    }
+  } else {
+    const maxNome = Math.max(...itens.map(i => i.nome.length), 10);
+    for (const item of itens) {
+      renderItem(item.nome, item.qtd, maxNome);
+    }
   }
 
   linhas.push('─'.repeat(30));
