@@ -324,19 +324,19 @@ export default function NFeImportPage() {
   }, []);
 
   // Vincular item manualmente
-  const handleItemVinculo = useCallback((index: number, item: LocalItem | null) => {
+  const handleItemVinculo = useCallback((index: number, item: LocalItem | null, fatorCalculado?: number) => {
     setItemVinculos(prev => ({
       ...prev,
       [index]: item?.id,
     }));
     
-    // Se vinculou, atualizar config com unidade do item
     if (item) {
       setItemConfigs(prev => ({
         ...prev,
         [index]: {
           ...prev[index],
           unidadeInterna: item.unidade_interna,
+          fatorConversao: fatorCalculado ?? prev[index]?.fatorConversao ?? 1,
           vinculoItemId: item.id,
           vinculoTipoItem: item.tipo_item,
         }
@@ -840,8 +840,10 @@ export default function NFeImportPage() {
                                 xmlCodigo={itemData.item.codigo_produto}
                                 xmlNcm={itemData.item.ncm}
                                 xmlEan={itemData.item.ean}
+                                xmlUnidade={itemData.item.unidade_comercial}
+                                xmlQuantidade={itemData.item.quantidade_comercial}
                                 selectedItemId={vinculoId}
-                                onSelect={(item) => handleItemVinculo(index, item)}
+                                onSelect={(item, fator) => handleItemVinculo(index, item, fator)}
                               />
                             </div>
                             

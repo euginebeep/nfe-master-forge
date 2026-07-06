@@ -18,8 +18,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import type { LocalItem } from "@/hooks/use-local-itens";
@@ -130,6 +130,8 @@ export function ItemVinculoSelector({
   xmlCodigo,
   xmlNcm,
   xmlEan,
+  xmlUnidade,
+  xmlQuantidade,
   selectedItemId,
   onSelect,
 }: ItemVinculoSelectorProps) {
@@ -251,19 +253,21 @@ export function ItemVinculoSelector({
   }, [itens, xmlEan, xmlNcm, xmlDescricao]);
 
   const handleSelect = (item: LocalItem) => {
-    let fatorCalculado = item.fator_conversao || 1;
-    
-    if (xmlUnidade && xmlQuantidade) {
-      const unidadeParsed = parseUnidade(xmlUnidade, xmlQuantidade);
-      fatorCalculado = calcularFatorConversao(
-        unidadeParsed.unidade,
-        item.unidade_interna,
-        unidadeParsed.multiplicador
-      );
+    try {
+      let fatorCalculado = item.fator_conversao || 1;
+      if (xmlUnidade && xmlQuantidade) {
+        const unidadeParsed = parseUnidade(xmlUnidade, xmlQuantidade);
+        fatorCalculado = calcularFatorConversao(
+          unidadeParsed.unidade,
+          item.unidade_interna,
+          unidadeParsed.multiplicador
+        );
+      }
+      onSelect(item, fatorCalculado);
+      setOpen(false);
+    } catch (e: any) {
+      toast.error(`Falha ao vincular item: ${e?.message || e?.code || 'erro desconhecido'}`);
     }
-    
-    onSelect(item, fatorCalculado);
-    setOpen(false);
   };
 
   const handleDesvincular = () => {
@@ -391,36 +395,34 @@ export function ItemVinculoSelector({
                         value={search}
                         onValueChange={setSearch}
                       />
-                      <CommandList>
+                      <CommandList className="max-h-[250px] overflow-y-auto">
                         <CommandEmpty>
                           Nenhum item encontrado. O item será criado
                           automaticamente na importação.
                         </CommandEmpty>
                         <CommandGroup>
-                          <ScrollArea className="h-[250px]">
-                            {filteredItens.map((item) => (
-                              <CommandItem
-                                key={item.id}
-                                value={`${item.descricao_interna} ${item.sku_interno} ${item.ncm ?? ""} ${item.ean ?? ""}`}
-                                onSelect={() => handleSelect(item)}
-                                className="flex items-center gap-2 cursor-pointer"
-                              >
-                                <Package className="h-4 w-4 text-muted-foreground" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">
-                                    {item.descricao_interna}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    SKU: {item.sku_interno} | NCM:{" "}
-                                    {item.ncm || "-"} | {item.tipo_item}
-                                  </p>
-                                </div>
-                                {item.id === selectedItemId && (
-                                  <Check className="h-4 w-4 text-primary" />
-                                )}
-                              </CommandItem>
-                            ))}
-                          </ScrollArea>
+                          {filteredItens.map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={`${item.descricao_interna} ${item.sku_interno} ${item.ncm ?? ""} ${item.ean ?? ""}`}
+                              onSelect={() => handleSelect(item)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {item.descricao_interna}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  SKU: {item.sku_interno} | NCM:{" "}
+                                  {item.ncm || "-"} | {item.tipo_item}
+                                </p>
+                              </div>
+                              {item.id === selectedItemId && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </CommandItem>
+                          ))}
                         </CommandGroup>
                       </CommandList>
                     </Command>
