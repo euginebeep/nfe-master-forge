@@ -15,9 +15,16 @@ export interface ItemListaPura {
 interface ListaPuraCompraPanelProps {
   numeroInterno: string;
   itens: ItemListaPura[];
+  tituloDocumento?: string;
+  fornecedorNome?: string;
 }
 
-export function ListaPuraCompraPanel({ numeroInterno, itens }: ListaPuraCompraPanelProps) {
+export function ListaPuraCompraPanel({
+  numeroInterno,
+  itens,
+  tituloDocumento,
+  fornecedorNome,
+}: ListaPuraCompraPanelProps) {
   const listaPuraRef = useRef<HTMLDivElement>(null);
   const { data: branding } = useCompanyBranding();
 
@@ -30,7 +37,14 @@ export function ListaPuraCompraPanel({ numeroInterno, itens }: ListaPuraCompraPa
     qtd: formatarQtdItem(i.quantidade, i.unidade),
   }));
 
-  const textoListaPura = gerarTextoListaPura(numero, razaoSocial, endereco, itensFormatados);
+  const textoListaPura = gerarTextoListaPura(numero, razaoSocial, endereco, itensFormatados, {
+    tituloDocumento,
+    fornecedorNome,
+  });
+
+  const tituloExibicao = tituloDocumento
+    ? `${tituloDocumento} — ${numero}`
+    : `LISTA DE COMPRA — ${numero}`;
 
   const handleCopiarTexto = async () => {
     try {
@@ -75,8 +89,11 @@ export function ListaPuraCompraPanel({ numeroInterno, itens }: ListaPuraCompraPa
         {branding?.logo_url && (
           <img src={branding.logo_url} alt="" className="h-10 mb-3 object-contain" />
         )}
-        <p className="font-bold text-base mb-1">LISTA DE COMPRA — {numero}</p>
+        <p className="font-bold text-base mb-1">{tituloExibicao}</p>
         <p className="mb-0.5">{razaoSocial}</p>
+        {fornecedorNome && (
+          <p className="text-sm font-semibold text-gray-800 mb-1">Fornecedor: {fornecedorNome}</p>
+        )}
         {branding?.cnpj && <p className="text-xs text-gray-600">CNPJ {branding.cnpj}</p>}
         {endereco && <p className="text-gray-600 mb-3 text-xs">{endereco}</p>}
         <div className="border-t border-gray-300 my-2" />

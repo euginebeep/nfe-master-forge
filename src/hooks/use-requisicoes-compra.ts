@@ -7,6 +7,7 @@ import {
   calcularValorTotal,
   podeTransicionar,
   avaliarRecebimento,
+  normalizarStatus,
 } from '@/lib/requisicoes-compra';
 
 export interface ItemCadastroEmbalagem {
@@ -91,7 +92,10 @@ export function useRequisicoesCompra() {
         .select(REQUISICAO_SELECT)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as RequisicaoCompra[];
+      return ((data || []) as RequisicaoCompra[]).map(r => ({
+        ...r,
+        status: normalizarStatus(r.status),
+      }));
     },
   });
 }
@@ -261,7 +265,7 @@ export function useMarcarPedidoEnviado() {
       const { error } = await supabase
         .from('requisicoes_compra')
         .update({
-          status: STATUS_REQ.PEDIDO_ENVIADO,
+          status: STATUS_REQ.PO_EMITIDO,
           pedido_enviado_em: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -330,25 +334,25 @@ export function useRegistrarRecebimento() {
   });
 }
 
-export function useIniciarCotacao() {
+export function usePedirCotacao() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('requisicoes_compra')
-        .update({ status: STATUS_REQ.COTACAO, updated_at: new Date().toISOString() })
+        .update({ status: STATUS_REQ.EM_RFQ, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
-      toast.success('Requisição em cotação');
+      toast.success('Pedido de cotação gerado — requisição em RFQ');
     },
     onError: (err: { message?: string; code?: string }) => {
-      toast.error(err?.message || err?.code || 'Erro ao iniciar cotação');
+      toast.error(err?.message || err?.code || 'Erro ao pedir cotação');
     },
   });
 }
 
-export { calcularValorTotal, podeTransicionar, STATUS_REQ };
+export { calcularValorTotal, podeTransicionar, STATUS_REQ, normalizarStatus };

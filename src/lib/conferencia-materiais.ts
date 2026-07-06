@@ -141,13 +141,23 @@ export function gerarTextoListaPura(
   razaoSocial: string,
   endereco: string,
   itens: Array<{ nome: string; qtd: string }>,
+  opts?: { tituloDocumento?: string; fornecedorNome?: string },
 ): string {
+  const titulo = opts?.tituloDocumento
+    ? `${opts.tituloDocumento} — ${numeroInterno}`
+    : `LISTA DE COMPRA — ${numeroInterno}`;
+
   const linhas: string[] = [
-    `LISTA DE COMPRA — ${numeroInterno}`,
+    titulo,
     razaoSocial,
     endereco,
-    '─'.repeat(30),
   ];
+
+  if (opts?.fornecedorNome) {
+    linhas.push(`Fornecedor: ${opts.fornecedorNome}`);
+  }
+
+  linhas.push('─'.repeat(30));
 
   const maxNome = Math.max(...itens.map(i => i.nome.length), 10);
   for (const item of itens) {

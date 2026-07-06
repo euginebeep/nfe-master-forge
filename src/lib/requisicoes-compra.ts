@@ -7,36 +7,78 @@ import {
 
 export const STATUS_REQ = {
   ABERTA: 'ABERTA',
-  COTACAO: 'COTACAO',
+  EM_RFQ: 'EM_RFQ',
+  EM_MAPA: 'EM_MAPA',
   APROVADA: 'APROVADA',
-  PEDIDO_ENVIADO: 'PEDIDO_ENVIADO',
+  PO_EMITIDO: 'PO_EMITIDO',
   RECEBIDA_PARCIAL: 'RECEBIDA_PARCIAL',
   RECEBIDA: 'RECEBIDA',
 } as const;
 
 export type StatusRequisicao = (typeof STATUS_REQ)[keyof typeof STATUS_REQ];
 
+const LEGACY_STATUS_MAP: Record<string, StatusRequisicao> = {
+  COTACAO: STATUS_REQ.EM_MAPA,
+  PEDIDO_ENVIADO: STATUS_REQ.PO_EMITIDO,
+};
+
+export function normalizarStatus(status: string): StatusRequisicao {
+  const valores = Object.values(STATUS_REQ) as string[];
+  if (valores.includes(status)) return status as StatusRequisicao;
+  return LEGACY_STATUS_MAP[status] ?? (status as StatusRequisicao);
+}
+
 export const STATUS_REQ_ORDEM: StatusRequisicao[] = [
   STATUS_REQ.ABERTA,
-  STATUS_REQ.COTACAO,
+  STATUS_REQ.EM_RFQ,
+  STATUS_REQ.EM_MAPA,
   STATUS_REQ.APROVADA,
-  STATUS_REQ.PEDIDO_ENVIADO,
+  STATUS_REQ.PO_EMITIDO,
   STATUS_REQ.RECEBIDA_PARCIAL,
   STATUS_REQ.RECEBIDA,
 ];
 
+export type AbaRequisicaoCompra =
+  | 'PEDIDOS_INTERNOS'
+  | 'COTACOES'
+  | 'COMPARACAO'
+  | 'COMPRAS'
+  | 'RECEBIMENTO';
+
+export const ABAS_REQUISICAO: Array<{
+  id: AbaRequisicaoCompra;
+  label: string;
+  statuses: StatusRequisicao[];
+}> = [
+  { id: 'PEDIDOS_INTERNOS', label: 'Pedidos internos', statuses: [STATUS_REQ.ABERTA] },
+  { id: 'COTACOES', label: 'Cotações', statuses: [STATUS_REQ.EM_RFQ] },
+  { id: 'COMPARACAO', label: 'Comparação', statuses: [STATUS_REQ.EM_MAPA] },
+  { id: 'COMPRAS', label: 'Compras', statuses: [STATUS_REQ.APROVADA, STATUS_REQ.PO_EMITIDO] },
+  {
+    id: 'RECEBIMENTO',
+    label: 'Recebimento',
+    statuses: [STATUS_REQ.RECEBIDA_PARCIAL, STATUS_REQ.RECEBIDA],
+  },
+];
+
 const TRANSICOES: Record<StatusRequisicao, StatusRequisicao[]> = {
-  [STATUS_REQ.ABERTA]: [STATUS_REQ.COTACAO],
-  [STATUS_REQ.COTACAO]: [STATUS_REQ.APROVADA],
-  [STATUS_REQ.APROVADA]: [STATUS_REQ.PEDIDO_ENVIADO],
-  [STATUS_REQ.PEDIDO_ENVIADO]: [STATUS_REQ.RECEBIDA_PARCIAL, STATUS_REQ.RECEBIDA],
+  [STATUS_REQ.ABERTA]: [STATUS_REQ.EM_RFQ],
+  [STATUS_REQ.EM_RFQ]: [STATUS_REQ.EM_MAPA],
+  [STATUS_REQ.EM_MAPA]: [STATUS_REQ.APROVADA],
+  [STATUS_REQ.APROVADA]: [STATUS_REQ.PO_EMITIDO],
+  [STATUS_REQ.PO_EMITIDO]: [STATUS_REQ.RECEBIDA_PARCIAL, STATUS_REQ.RECEBIDA],
   [STATUS_REQ.RECEBIDA_PARCIAL]: [STATUS_REQ.RECEBIDA],
   [STATUS_REQ.RECEBIDA]: [],
 };
 
 export function podeTransicionar(de: string, para: StatusRequisicao): boolean {
-  const permitidos = TRANSICOES[de as StatusRequisicao];
+  const deNorm = normalizarStatus(de);
+  const permitidos = TRANSICOES[deNorm];
   return Array.isArray(permitidos) && permitidos.includes(para);
+}
+
+export function statusNaAba(status: string, statusesAba: StatusRequisicao[]): boolean {
+  return statusesAba.includes(normalizarStatus(status));
 }
 
 export interface ItemRequisicaoCalculo {
@@ -53,15 +95,17 @@ export function calcularValorTotal(itens: ItemRequisicaoCalculo[]): number {
 }
 
 export function labelStatus(status: string): string {
+  const s = normalizarStatus(status);
   const labels: Record<string, string> = {
     [STATUS_REQ.ABERTA]: 'Aberta',
-    [STATUS_REQ.COTACAO]: 'Em cotação',
+    [STATUS_REQ.EM_RFQ]: 'Em cotação/RFQ',
+    [STATUS_REQ.EM_MAPA]: 'Em comparação',
     [STATUS_REQ.APROVADA]: 'Aprovada',
-    [STATUS_REQ.PEDIDO_ENVIADO]: 'Pedido enviado',
+    [STATUS_REQ.PO_EMITIDO]: 'Pedido emitido',
     [STATUS_REQ.RECEBIDA_PARCIAL]: 'Recebida parcial',
     [STATUS_REQ.RECEBIDA]: 'Recebida',
   };
-  return labels[status] || status;
+  return labels[s] || status;
 }
 
 export interface ItemEmbalagemCadastro {
@@ -169,7 +213,7 @@ export function avaliarRecebimento(
 
   if (todosCompletos) return STATUS_REQ.RECEBIDA;
   if (algumRecebido) return STATUS_REQ.RECEBIDA_PARCIAL;
-  return STATUS_REQ.PEDIDO_ENVIADO;
+  return STATUS_REQ.PO_EMITIDO;
 }
 
 /** Arredonda quantidade a comprar com base na cotação escolhida */
