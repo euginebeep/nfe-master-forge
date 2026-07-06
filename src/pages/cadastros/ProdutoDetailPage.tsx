@@ -1183,9 +1183,9 @@ export function ProdutoDetailPage() {
                             </p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">Valor Total (Nota)</p>
+                            <p className="text-muted-foreground">Valor do Lote (compra)</p>
                             <p className="font-medium">
-                              R$ {l.nota_entrada_item?.vprod?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "-"}
+                              R$ {((l.quantidade_original || 0) * (l.custo_unitario_original || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
                           <div>
