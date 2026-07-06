@@ -197,7 +197,7 @@ const App = () => (
                 <Route path="/producao/formulas/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><VisualizarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/formulas/:id/editar" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><EditarFormulaPage /></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/producao/parametros" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><ParametrosIndustriaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
-                <Route path="/producao/requisicoes" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><RequisicoesCompraPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/producao/requisicoes" element={<Navigate to="/compras/requisicoes" replace />} />
 
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><ConsultaAnvisaPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/regulatorio/consulta-anvisa" element={<Navigate to="/regulatorio/anvisa" replace />} />
@@ -220,6 +220,7 @@ const App = () => (
                 <Route path="/compras/nfe-import" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NFeImportPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NotasEntradaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/fator-conversao" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><FatorConversaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/requisicoes" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><RequisicoesCompraPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Financeiro — gerente+ */}
                 <Route path="/financeiro/pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="financeiro" moduloLabel="Financeiro"><ContasPagarPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/contas-pagar" element={<Navigate to="/financeiro/pagar" replace />} />

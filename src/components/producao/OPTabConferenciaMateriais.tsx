@@ -181,7 +181,7 @@ export function OPTabConferenciaMateriais({
                 variant="link"
                 size="sm"
                 className="ml-auto p-0 h-auto"
-                onClick={() => navigate('/producao/requisicoes')}
+                onClick={() => navigate('/compras/requisicoes')}
               >
                 Ver requisições
                 <ExternalLink className="h-3 w-3 ml-1" />
