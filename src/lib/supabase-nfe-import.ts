@@ -24,6 +24,26 @@ export interface ItemImportConfig {
   potenciaValor?: number;
   potenciaUnidade?: string;
   tipoPotencia?: string;
+  loteManual?: string;
+  dataValidadeManual?: string;
+  dataFabManual?: string;
+  tipoItem?: string;
+}
+
+const TIPOS_LOTE_OPCIONAL = new Set(['EMBALAGEM', 'POTE', 'TAMPA', 'ROTULO', 'OUTRO']);
+const TIPOS_LOTE_EXIGIDO = new Set(['MP', 'SILICA', 'CAPSULA_VAZIA', 'PREMIX']);
+
+export function tipoExigeLote(tipo?: string | null): boolean {
+  const t = (tipo || '').trim().toUpperCase();
+  if (!t) return true;
+  if (TIPOS_LOTE_OPCIONAL.has(t)) return false;
+  if (TIPOS_LOTE_EXIGIDO.has(t)) return true;
+  return true;
+}
+
+export function extrairLoteDaDescricao(descricao: string): string | null {
+  const match = descricao.match(/lote\(?s?\)?\s*:?\s*([A-Za-z0-9][A-Za-z0-9\-\/\.]{2,})/i);
+  return match?.[1]?.trim() || null;
 }
 
 // ============================================
@@ -299,7 +319,7 @@ async function findOrCreateItemSupabase(
   return { id: novoItem.id, isNew: true };
 }
 
-function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: string): string {
+export function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: string): string {
   const descNorm = descricao.toUpperCase();
   if (descNorm.includes('CAPSULA') || descNorm.includes('CÁPSULA')) return 'CAPSULA_VAZIA';
   if (descNorm.includes('ROTULO') || descNorm.includes('RÓTULO')) return 'ROTULO';
@@ -660,32 +680,48 @@ export async function importarNFeCompletaSupabase(
       
       // Criar lotes — todos entram em QUARENTENA
       const rastros = itemData.rastros.length > 0 ? itemData.rastros : [null];
-      
+      const descricao = itemData.item.descricao;
+
+      let tipoItem = configManual?.tipoItem || mapClassificacaoToTipo(classificacao, descricao);
+      if (configManual?.vinculoItemId && !configManual?.tipoItem) {
+        const { data: itemTipoRow } = await supabase
+          .from('itens')
+          .select('tipo_item')
+          .eq('id', configManual.vinculoItemId)
+          .maybeSingle();
+        if (itemTipoRow?.tipo_item) tipoItem = itemTipoRow.tipo_item;
+      }
+
       for (const rastro of rastros) {
         const qtdOriginal = rastro?.quantidade || itemData.item.quantidade_comercial;
         const qtdInterna = qtdOriginal * fatorConversao;
         const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConversao);
-        
-        // BLOQUEIO: Não permitir criação de lotes fantasma em empresas reais
-        // Se o XML não tem rastro, deve ser rejeitado (não fabricar LOTE-*)
-        if (!rastro?.numero_lote) {
-          throw new Error(
-            `Item ${itemIndex + 1} (${itemData.item.descricao}): XML não contém rastro/lote. ` +
-            `Importação de itens sem rastreabilidade não é permitida. ` +
-            `Verifique o arquivo XML ou use lançamento manual de estoque.`
-          );
+
+        let numeroLote = rastro?.numero_lote
+          || extrairLoteDaDescricao(descricao)
+          || configManual?.loteManual?.trim()
+          || null;
+        const dataVal = rastro?.data_validade || configManual?.dataValidadeManual || null;
+        const dataFab = rastro?.data_fabricacao || configManual?.dataFabManual || null;
+
+        if (!numeroLote) {
+          if (tipoExigeLote(tipoItem)) {
+            throw new Error(
+              `Item ${itemIndex + 1} (${descricao}): ativo sem lote. Informe o nº do lote e a validade antes de importar.`,
+            );
+          }
+          numeroLote = 'S/L';
         }
-        
+
         const { data: lote, error: loteError } = await supabase.from('estoque_lotes').insert({
           company_id: companyId,
           item_id: itemId,
           fornecedor_id: emitente.id,
           nota_entrada_item_id: notaItem.id,
-          numero_lote: rastro.numero_lote,
-          data_fab: rastro.data_fabricacao || null,
-          data_val: rastro.data_validade || null,
-          origem: 'NF-E',
-          codigo_agregacao: rastro.codigo_agregacao || null,
+          numero_lote: numeroLote,
+          data_fab: dataFab,
+          data_val: dataVal,
+          codigo_agregacao: rastro?.codigo_agregacao || null,
           quantidade_original: qtdOriginal,
           unidade_original: uCom,
           quantidade_interna: qtdInterna,
