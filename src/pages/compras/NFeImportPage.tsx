@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { parseNFeCompleto, formatCNPJ, formatCurrency, formatDate, formatDateTime } from "@/lib/nfe-parser-completo";
-import { checkNotaFiscalExistsSupabase, importarNFeCompletaSupabase, type ImportStats, type ItemImportConfig } from "@/lib/supabase-nfe-import";
+import { checkNotaFiscalExistsSupabase, importarNFeCompletaSupabase, tipoExigeLote, extrairLoteDaDescricao, mapClassificacaoToTipo, type ImportStats, type ItemImportConfig } from "@/lib/supabase-nfe-import";
 import type { NFeParseResult, ClassificacaoNota } from "@/types/nfe-completa";
 import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/FiscalReviewDialog";
 import { ItemVinculoSelector } from "@/components/nfe/ItemVinculoSelector";
@@ -54,10 +54,14 @@ type ImportStep = 'upload' | 'preview' | 'processing' | 'complete';
 interface ItemConversaoConfig {
   unidadeInterna: string;
   fatorConversao: number;
-  vinculoItemId?: string; // ID do item vinculado manualmente
+  vinculoItemId?: string;
+  vinculoTipoItem?: string;
   potenciaValor?: number;
   potenciaUnidade?: string;
   tipoPotencia?: string;
+  loteManual?: string;
+  dataValidadeManual?: string;
+  dataFabManual?: string;
 }
 
 export default function NFeImportPage() {
@@ -177,6 +181,10 @@ export default function NFeImportPage() {
     const configs: Record<number, ItemConversaoConfig> = {};
     result.itens.forEach((itemData, index) => {
       const sugestao = sugerirConversao(itemData.item.descricao, itemData.item.unidade_comercial);
+      if (itemData.rastros.length === 0) {
+        const loteExtraido = extrairLoteDaDescricao(itemData.item.descricao);
+        if (loteExtraido) sugestao.loteManual = loteExtraido;
+      }
       configs[index] = sugestao;
     });
     setItemConfigs(configs);
@@ -270,6 +278,11 @@ export default function NFeImportPage() {
           potenciaValor: config.potenciaValor,
           potenciaUnidade: config.potenciaUnidade,
           tipoPotencia: config.tipoPotencia,
+          loteManual: config.loteManual,
+          dataValidadeManual: config.dataValidadeManual,
+          dataFabManual: config.dataFabManual,
+          tipoItem: config.vinculoTipoItem
+            || (classificacao ? mapClassificacaoToTipo(classificacao, parsedResult.itens[idx]?.item.descricao || '') : undefined),
           // Adicionar dados fiscais editados se houver
           ...(fiscalConfig && {
             ncm: fiscalConfig.ncm,
@@ -294,8 +307,8 @@ export default function NFeImportPage() {
       
     } catch (error) {
       console.error('Error importing NF-e:', error);
-      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
-      toast.error(msg, { duration: 8000 });
+      const e = error as { message?: string; code?: string };
+      toast.error(e?.message || e?.code || 'Erro desconhecido', { duration: 8000 });
       setStep('preview');
     }
   };
@@ -325,6 +338,7 @@ export default function NFeImportPage() {
           ...prev[index],
           unidadeInterna: item.unidade_interna,
           vinculoItemId: item.id,
+          vinculoTipoItem: item.tipo_item,
         }
       }));
     } else {
@@ -333,6 +347,7 @@ export default function NFeImportPage() {
         [index]: {
           ...prev[index],
           vinculoItemId: undefined,
+          vinculoTipoItem: undefined,
         }
       }));
     }
@@ -352,6 +367,24 @@ export default function NFeImportPage() {
       unidade: config.unidadeInterna,
     };
   }, [itemConfigs]);
+
+  const resolveTipoItem = useCallback((index: number, descricao: string) => {
+    const config = itemConfigs[index];
+    if (config?.vinculoTipoItem) return config.vinculoTipoItem;
+    if (classificacao) return mapClassificacaoToTipo(classificacao, descricao);
+    return 'MP';
+  }, [itemConfigs, classificacao]);
+
+  const importBloqueado = useMemo(() => {
+    if (!parsedResult || !classificacao) return true;
+    return parsedResult.itens.some((itemData, index) => {
+      if (itemData.rastros.length > 0) return false;
+      const config = itemConfigs[index];
+      const tipo = resolveTipoItem(index, itemData.item.descricao);
+      if (!tipoExigeLote(tipo)) return false;
+      return !config?.loteManual?.trim() || !config?.dataValidadeManual?.trim();
+    });
+  }, [parsedResult, classificacao, itemConfigs, resolveTipoItem]);
 
   const resetImport = () => {
     clearDraft(initialImportDraft);
@@ -726,6 +759,56 @@ export default function NFeImportPage() {
                                     ))}
                                   </div>
                                 )}
+                                {itemData.rastros.length === 0 && classificacao && (() => {
+                                  const tipo = resolveTipoItem(index, itemData.item.descricao);
+                                  if (tipoExigeLote(tipo)) {
+                                    const pendente = !config.loteManual?.trim() || !config.dataValidadeManual?.trim();
+                                    return (
+                                      <div className="mt-3 space-y-2">
+                                        <p className="text-xs font-medium text-amber-700">Rastreabilidade obrigatória (ativo)</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                          <div className="space-y-1">
+                                            <Label className="text-xs">Nº do lote *</Label>
+                                            <Input
+                                              className="h-9"
+                                              value={config.loteManual || ''}
+                                              onChange={e => updateItemConfig(index, 'loteManual', e.target.value)}
+                                              placeholder="Ex: HS50-231109"
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <Label className="text-xs">Validade *</Label>
+                                            <Input
+                                              type="date"
+                                              className="h-9"
+                                              value={config.dataValidadeManual || ''}
+                                              onChange={e => updateItemConfig(index, 'dataValidadeManual', e.target.value)}
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <Label className="text-xs">Fabricação</Label>
+                                            <Input
+                                              type="date"
+                                              className="h-9"
+                                              value={config.dataFabManual || ''}
+                                              onChange={e => updateItemConfig(index, 'dataFabManual', e.target.value)}
+                                            />
+                                          </div>
+                                        </div>
+                                        {pendente && (
+                                          <p className="text-xs text-destructive">
+                                            Informe o nº do lote e a validade para importar este item.
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <p className="mt-2 text-xs text-muted-foreground italic">
+                                      sem lote (embalagem) — será registrado como S/L
+                                    </p>
+                                  );
+                                })()}
                               </div>
                               <div className="text-right">
                                 <p className="font-semibold">{formatCurrency(itemData.item.valor_total)}</p>
@@ -1129,14 +1212,14 @@ export default function NFeImportPage() {
                 <Button 
                   variant="outline"
                   onClick={handleOpenFiscalReview}
-                  disabled={!classificacao}
+                  disabled={!classificacao || importBloqueado}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Revisar Fiscal
                 </Button>
                 <Button 
                   onClick={handleOpenFiscalReview}
-                  disabled={!classificacao}
+                  disabled={!classificacao || importBloqueado}
                   size="lg"
                 >
                   <Check className="h-4 w-4 mr-2" />
