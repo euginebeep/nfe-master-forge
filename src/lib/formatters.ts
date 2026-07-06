@@ -49,8 +49,12 @@ export function formatNumber(value: number, decimals = 2): string {
 
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("pt-BR");
+  if (typeof date === "string") {
+    const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
+  return date.toLocaleDateString("pt-BR");
 }
 
 export function formatDateTime(date: string | Date | null | undefined): string {
