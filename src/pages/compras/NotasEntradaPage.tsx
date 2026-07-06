@@ -21,6 +21,7 @@ import { useNotasEntrada, type NotaEntrada, processarNota } from "@/hooks/use-no
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 import { DeleteNotaDialog } from "@/components/nfe/DeleteNotaDialog";
+import { AnexarXmlButton } from "@/components/nfe/AnexarXmlButton";
 import { BackButton } from "@/components/ui/back-button";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
@@ -323,6 +324,15 @@ export default function NotasEntradaPage() {
           >
             <Undo2 className="h-4 w-4" />
           </Button>
+          {!item.xml_raw && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <AnexarXmlButton
+                notaId={item.id}
+                chaveNfe={item.chave_nfe}
+                onDone={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
+              />
+            </div>
+          )}
           <div onClick={(e) => e.stopPropagation()}>
             <DeleteNotaDialog
               notaId={item.id}
