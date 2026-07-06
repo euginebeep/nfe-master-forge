@@ -422,7 +422,7 @@ export default function OrdemProducaoDetailPage() {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => navigate('/producao/requisicoes')}
+            onClick={() => navigate('/compras/requisicoes')}
           >
             Ver Requisições
           </Button>
