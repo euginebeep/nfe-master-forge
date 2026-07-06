@@ -20,6 +20,7 @@ export interface SupabaseItemFornecedor {
   fator_para_unidade_interna: number | null;
   fornecedor_preferencial: boolean | null;
   preco_referencia: number | null;
+  qtd_por_pacote: number | null;
   lead_time_dias: number | null;
   moq: number | null;
   created_at: string | null;
@@ -54,6 +55,7 @@ export function useSupabaseItemFornecedores(itemId: string | undefined) {
       fator_para_unidade_interna?: number;
       fornecedor_preferencial?: boolean;
       preco_referencia?: number;
+      qtd_por_pacote?: number | null;
     }) => {
       // Check duplicate
       const { data: existing } = await supabase
@@ -77,7 +79,10 @@ export function useSupabaseItemFornecedores(itemId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ['item-fornecedores', itemId] });
       toast.success('Fornecedor vinculado');
     },
-    onError: (err) => toast.error((err as Error).message),
+    onError: (err) => {
+      const e = err as { message?: string; code?: string };
+      toast.error(e.message || e.code || 'Erro ao vincular fornecedor');
+    },
   });
 
   const removeMutation = useMutation({
@@ -92,7 +97,10 @@ export function useSupabaseItemFornecedores(itemId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ['item-fornecedores', itemId] });
       toast.success('Fornecedor removido');
     },
-    onError: () => toast.error('Erro ao remover fornecedor'),
+    onError: (err) => {
+      const e = err as { message?: string; code?: string };
+      toast.error(e.message || e.code || 'Erro ao remover fornecedor');
+    },
   });
 
   return {
