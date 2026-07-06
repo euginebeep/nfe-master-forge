@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { calcularQtdComprarCotacao } from '@/lib/requisicoes-compra';
@@ -12,11 +13,26 @@ export interface ItemFornecedorCotacao {
   fator_para_unidade_interna: number | null;
   qtd_por_pacote: number | null;
   fornecedor_preferencial: boolean | null;
+  preco_referencia: number | null;
+  lead_time_dias: number | null;
   fornecedor?: {
     id: string;
     razao_social: string;
     nome_fantasia: string | null;
   } | null;
+  historico?: FornecedorHistorico | null;
+}
+
+export interface FornecedorHistorico {
+  ultimo_preco: number | null;
+  ultima_compra_data: string | null;
+  preco_medio: number | null;
+  num_compras: number | null;
+}
+
+export interface ItemHistoricoGeral {
+  preco_medio: number | null;
+  num_compras: number | null;
 }
 
 export interface RequisicaoCotacao {
@@ -36,6 +52,7 @@ export interface ItemCotacaoDetalhe {
   item: RequisicaoCompraItem;
   fornecedores: ItemFornecedorCotacao[];
   cotacoes: RequisicaoCotacao[];
+  historicoItem?: ItemHistoricoGeral | null;
 }
 
 export interface RequisicaoCotacoesData {
@@ -72,6 +89,96 @@ function queryKey(requisicaoId: string) {
   return ['requisicao-cotacoes', requisicaoId] as const;
 }
 
+function inteligenciaQueryKey(requisicaoId: string, itemIds: string[]) {
+  return ['requisicao-cotacoes-inteligencia', requisicaoId, itemIds] as const;
+}
+
+function historicoFornecedorKey(itemId: string, fornecedorId: string) {
+  return `${itemId}:${fornecedorId}`;
+}
+
+interface InteligenciaCompraData {
+  fornHistMap: Map<string, FornecedorHistorico>;
+  itemHistMap: Map<string, ItemHistoricoGeral>;
+}
+
+async function fetchInteligenciaCompra(
+  itemIds: string[],
+  companyId: string,
+): Promise<InteligenciaCompraData> {
+  const [fornHistRes, itemHistRes] = await Promise.all([
+    supabase
+      .from('item_fornecedor_historico' as 'itens')
+      .select('item_id, fornecedor_id, num_compras, preco_medio, ultimo_preco, ultima_compra_data')
+      .in('item_id', itemIds)
+      .eq('company_id', companyId),
+    supabase
+      .from('item_historico_compra' as 'itens')
+      .select('item_id, num_compras, preco_medio')
+      .in('item_id', itemIds),
+  ]);
+
+  if (fornHistRes.error) throw fornHistRes.error;
+  if (itemHistRes.error) throw itemHistRes.error;
+
+  const fornHistMap = new Map<string, FornecedorHistorico>();
+  for (const row of (fornHistRes.data || []) as unknown as Array<{
+    item_id: string;
+    fornecedor_id: string;
+    num_compras: number | null;
+    preco_medio: number | null;
+    ultimo_preco: number | null;
+    ultima_compra_data: string | null;
+  }>) {
+    if (!row.item_id || !row.fornecedor_id) continue;
+    fornHistMap.set(historicoFornecedorKey(row.item_id, row.fornecedor_id), {
+      ultimo_preco: row.ultimo_preco ?? null,
+      ultima_compra_data: row.ultima_compra_data ?? null,
+      preco_medio: row.preco_medio ?? null,
+      num_compras: row.num_compras ?? null,
+    });
+  }
+
+  const itemHistMap = new Map<string, ItemHistoricoGeral>();
+  for (const row of (itemHistRes.data || []) as unknown as Array<{
+    item_id: string;
+    num_compras: number | null;
+    preco_medio: number | null;
+  }>) {
+    if (!row.item_id) continue;
+    itemHistMap.set(row.item_id, {
+      preco_medio: row.preco_medio ?? null,
+      num_compras: row.num_compras ?? null,
+    });
+  }
+
+  return { fornHistMap, itemHistMap };
+}
+
+function mergeInteligencia(
+  base: RequisicaoCotacoesData,
+  intel?: InteligenciaCompraData | null,
+): RequisicaoCotacoesData {
+  if (!intel) return base;
+
+  return {
+    ...base,
+    itens: base.itens.map(detalhe => {
+      const itemId = detalhe.item.item_id;
+      return {
+        ...detalhe,
+        historicoItem: itemId ? (intel.itemHistMap.get(itemId) ?? null) : null,
+        fornecedores: detalhe.fornecedores.map(forn => ({
+          ...forn,
+          historico: itemId
+            ? (intel.fornHistMap.get(historicoFornecedorKey(itemId, forn.fornecedor_id)) ?? null)
+            : null,
+        })),
+      };
+    }),
+  };
+}
+
 export function useRequisicaoCotacoes(requisicaoId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -96,7 +203,7 @@ export function useRequisicaoCotacoes(requisicaoId: string | undefined) {
           .from('item_fornecedores')
           .select(`
             id, item_id, fornecedor_id, unidade_compra_padrao, fator_para_unidade_interna,
-            qtd_por_pacote, fornecedor_preferencial,
+            qtd_por_pacote, fornecedor_preferencial, preco_referencia, lead_time_dias,
             fornecedor:entidades!item_fornecedores_fornecedor_id_fkey(id, razao_social, nome_fantasia)
           `)
           .in('item_id', itemIds);
@@ -137,6 +244,23 @@ export function useRequisicaoCotacoes(requisicaoId: string | undefined) {
     },
   });
 
+  const itemIds = useMemo(
+    () => [...new Set((query.data?.itens || []).map(i => i.item.item_id).filter(Boolean))] as string[],
+    [query.data?.itens],
+  );
+  const companyId = query.data?.requisicao?.company_id;
+
+  const inteligenciaQuery = useQuery({
+    queryKey: inteligenciaQueryKey(requisicaoId || '', itemIds),
+    enabled: !!requisicaoId && itemIds.length > 0 && !!companyId,
+    queryFn: () => fetchInteligenciaCompra(itemIds, companyId!),
+  });
+
+  const data = useMemo(
+    () => (query.data ? mergeInteligencia(query.data, inteligenciaQuery.data) : undefined),
+    [query.data, inteligenciaQuery.data],
+  );
+
   const upsertCotacao = useMutation({
     mutationFn: async (input: UpsertCotacaoInput) => {
       const payload = {
@@ -160,6 +284,9 @@ export function useRequisicaoCotacoes(requisicaoId: string | undefined) {
       if (requisicaoId) {
         queryClient.invalidateQueries({ queryKey: queryKey(requisicaoId) });
         queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+        queryClient.invalidateQueries({
+          queryKey: ['requisicao-cotacoes-inteligencia', requisicaoId],
+        });
       }
       toast.success('Cotação salva');
     },
@@ -236,6 +363,9 @@ export function useRequisicaoCotacoes(requisicaoId: string | undefined) {
       if (requisicaoId) {
         queryClient.invalidateQueries({ queryKey: queryKey(requisicaoId) });
         queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+        queryClient.invalidateQueries({
+          queryKey: ['requisicao-cotacoes-inteligencia', requisicaoId],
+        });
       }
       toast.success('Fornecedor escolhido para o item');
     },
@@ -246,6 +376,8 @@ export function useRequisicaoCotacoes(requisicaoId: string | undefined) {
 
   return {
     ...query,
+    data,
+    isLoadingInteligencia: inteligenciaQuery.isLoading,
     upsertCotacao,
     escolherFornecedor,
   };
