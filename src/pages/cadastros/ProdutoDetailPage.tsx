@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { centralToast } from "@/components/ui/central-toast";
 import { useParams, useNavigate } from "react-router-dom";
 import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search, Info, TrendingUp, ArrowLeftRight, AlertTriangle } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 import { EstoqueResumoCard } from "@/components/estoque/EstoqueResumoCard";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/ui/page-header";
@@ -1162,7 +1162,7 @@ export function ProdutoDetailPage() {
                                     ? "text-amber-500" 
                                     : "text-emerald-500"
                               }`}>
-                                {l.data_val ? new Date(l.data_val).toLocaleDateString('pt-BR') : "-"}
+                                {l.data_val ? formatDate(l.data_val) : "-"}
                               </p>
                             </div>
                           </div>
@@ -1196,7 +1196,7 @@ export function ProdutoDetailPage() {
                           </div>
                           <div>
                             <p className="text-muted-foreground">Fabricação</p>
-                            <p>{l.data_fab ? new Date(l.data_fab).toLocaleDateString('pt-BR') : "-"}</p>
+                            <p>{l.data_fab ? formatDate(l.data_fab) : "-"}</p>
                           </div>
                         </div>
                         
