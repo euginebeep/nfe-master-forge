@@ -530,9 +530,15 @@ export function formatCurrency(value: number): string {
 export function formatDate(dateStr: string): string {
   if (!dateStr) return '-';
   try {
-    if (dateStr.includes('T') || dateStr.includes('-')) {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('pt-BR');
+    // Data pura YYYY-MM-DD: formatar direto, sem Date (evita o -1 dia por timezone)
+    const dateOnly = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnly) {
+      const [, y, m, d] = dateOnly;
+      return `${d}/${m}/${y}`;
+    }
+    // Datas com hora (ISO): Date normal
+    if (dateStr.includes('T')) {
+      return new Date(dateStr).toLocaleDateString('pt-BR');
     }
     return dateStr;
   } catch {
