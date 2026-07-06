@@ -870,7 +870,10 @@ export function ProdutoDetailPage() {
                               <p className="text-sm text-muted-foreground">
                                 Codigo: {f.codigo_fornecedor || "-"} | 
                                 Unidade: {f.unidade_compra_padrao} | 
-                                Fator: {f.fator_para_unidade_interna}x
+                                Fator: {f.fator_para_unidade_interna}x | 
+                                Pacote: {f.qtd_por_pacote != null
+                                  ? `${f.qtd_por_pacote} ${f.unidade_compra_padrao || ''}`.trim()
+                                  : 'avulso'}
                               </p>
                               <p className="text-sm">
                                 <span className="text-muted-foreground">Preço cadastrado:</span>{" "}
@@ -1384,6 +1387,7 @@ function FornecedorFormDialog({
     fator_para_unidade_interna: 1000,
     fornecedor_preferencial: false,
     preco_referencia: 0,
+    qtd_por_pacote: "",
   });
 
   return (
@@ -1461,6 +1465,25 @@ function FornecedorFormDialog({
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Qtd. por pacote fechado (ex.: 25 = saco de 25kg). Deixe vazio se vende avulso.</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                placeholder="—"
+                value={formData.qtd_por_pacote}
+                onChange={(e) => setFormData({ ...formData, qtd_por_pacote: e.target.value })}
+                className="max-w-[140px]"
+              />
+              {formData.qtd_por_pacote !== "" && (
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  {formData.unidade_compra_padrao}
+                </span>
+              )}
+            </div>
+          </div>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="fornecedor_preferencial"
@@ -1471,7 +1494,18 @@ function FornecedorFormDialog({
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={() => onSave({ ...formData, item_id: itemId })}>Salvar</Button>
+            <Button onClick={() => {
+              const { qtd_por_pacote: qtdRaw, ...rest } = formData;
+              const trimmed = String(qtdRaw).trim();
+              const qtd_por_pacote = trimmed === ''
+                ? null
+                : (Number.isFinite(parseFloat(trimmed)) ? parseFloat(trimmed) : null);
+              onSave({
+                ...rest,
+                item_id: itemId,
+                qtd_por_pacote,
+              });
+            }}>Salvar</Button>
           </div>
         </div>
       </DialogContent>
