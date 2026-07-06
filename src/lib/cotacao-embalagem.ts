@@ -1,8 +1,7 @@
 import {
-  calcularCompraArredondada,
+  deGramas,
   formatarQtdExibicao,
   paraGramas,
-  type EmbalagemInfo,
 } from '@/lib/conferencia-materiais';
 
 export interface ItemCotacaoEmbalagem {
@@ -23,6 +22,13 @@ export interface EmbalagemCotacaoResolvida {
   temPacote: boolean;
 }
 
+export interface QuantidadeCotacaoCalculada {
+  quantidade: number;
+  unidade: string;
+  numPacotes: number | null;
+  temPacote: boolean;
+}
+
 export function grupoCategoria(tipo_item: string | null | undefined): string {
   const t = (tipo_item || '').toUpperCase();
   if (['MP', 'SILICA', 'PREMIX'].includes(t)) return 'ATIVOS / MATÉRIA-PRIMA';
@@ -36,47 +42,74 @@ export const ORDEM_CATEGORIAS_RFQ = [
   'OUTROS',
 ] as const;
 
-export function resolverEmbalagemCotacao(
-  item: ItemCotacaoEmbalagem,
-  fornecedor: FornecedorCotacaoEmbalagem,
-): EmbalagemCotacaoResolvida {
-  const faltaG = paraGramas(Number(item.quantidade_faltante) || 0, item.unidade || 'g');
+/**
+ * COM pacote: arredonda para cima em embalagens inteiras (via gramas).
+ * SEM pacote: necessidade exata na unidade original, sem arredondar.
+ */
+export function calcularQuantidadeCotacao(
+  quantidadeFaltante: number | null | undefined,
+  unidadeFaltante: string | null | undefined,
+  unidadeCompra: string | null | undefined,
+  qtdPorPacote: number | null | undefined,
+): QuantidadeCotacaoCalculada {
+  const falta = Number(quantidadeFaltante) || 0;
+  const unidadeItem = (unidadeFaltante || 'g').trim();
 
-  if (fornecedor.qtd_por_pacote != null && fornecedor.qtd_por_pacote > 0) {
-    const unidade = fornecedor.unidade_compra_padrao || item.unidade || 'kg';
-    const emb: EmbalagemInfo = {
-      qtd: fornecedor.qtd_por_pacote,
-      unidade,
-      fonte: 'cadastro',
-    };
-    const compra = calcularCompraArredondada(faltaG, emb);
-    const qtdFmt = formatarQtdExibicao(compra.comprarQtd, compra.comprarUnidade);
+  if (qtdPorPacote != null && qtdPorPacote > 0) {
+    const unidadeCompraEff = (unidadeCompra || unidadeItem || 'kg').trim();
+    const faltaG = paraGramas(falta, unidadeItem);
+    const pacoteG = paraGramas(qtdPorPacote, unidadeCompraEff);
+    const numPacotes = pacoteG > 0 ? Math.ceil(faltaG / pacoteG) : 1;
+    const comprarG = numPacotes * pacoteG;
 
-    if (compra.numEmbalagens === 1) {
-      return {
-        texto: qtdFmt,
-        temPacote: true,
-      };
-    }
-
-    const sacos = compra.numEmbalagens ?? 1;
     return {
-      texto: `${qtdFmt} (${sacos} sacos de ${fornecedor.qtd_por_pacote} ${unidade})`,
+      quantidade: deGramas(comprarG, unidadeCompraEff),
+      unidade: unidadeCompraEff,
+      numPacotes,
       temPacote: true,
     };
   }
 
-  const ultimaUnidade = fornecedor.ultima_unidade?.trim();
-  if (ultimaUnidade) {
+  return {
+    quantidade: falta,
+    unidade: unidadeItem,
+    numPacotes: null,
+    temPacote: false,
+  };
+}
+
+function formatarNecessidadeExata(valor: number, unidade: string): string {
+  return formatarQtdExibicao(valor, unidade);
+}
+
+export function resolverEmbalagemCotacao(
+  item: ItemCotacaoEmbalagem,
+  fornecedor: FornecedorCotacaoEmbalagem,
+): EmbalagemCotacaoResolvida {
+  const calc = calcularQuantidadeCotacao(
+    item.quantidade_faltante,
+    item.unidade,
+    fornecedor.unidade_compra_padrao,
+    fornecedor.qtd_por_pacote,
+  );
+
+  if (calc.temPacote) {
+    const qtdFmt = formatarQtdExibicao(calc.quantidade, calc.unidade);
+    const pacote = fornecedor.qtd_por_pacote!;
+
+    if (calc.numPacotes === 1) {
+      return { texto: qtdFmt, temPacote: true };
+    }
+
     return {
-      texto: `em ${ultimaUnidade} — informar embalagem mínima vendida`,
-      temPacote: false,
+      texto: `${qtdFmt} (${calc.numPacotes} sacos de ${pacote} ${calc.unidade})`,
+      temPacote: true,
     };
   }
 
-  const unidade = fornecedor.unidade_compra_padrao || item.unidade || 'un';
+  const necessidade = formatarNecessidadeExata(calc.quantidade, calc.unidade);
   return {
-    texto: `em ${unidade} — informar embalagem mínima vendida`,
+    texto: `${necessidade} — informar embalagem mínima vendida`,
     temPacote: false,
   };
 }
