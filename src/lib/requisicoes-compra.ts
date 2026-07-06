@@ -1,3 +1,9 @@
+import {
+  calcularCompraArredondada,
+  paraGramas,
+  type EmbalagemInfo,
+} from '@/lib/conferencia-materiais';
+
 export const STATUS_REQ = {
   ABERTA: 'ABERTA',
   COTACAO: 'COTACAO',
@@ -57,12 +63,90 @@ export function labelStatus(status: string): string {
   return labels[status] || status;
 }
 
+export interface ItemEmbalagemCadastro {
+  embalagem_compra_qtd?: number | null;
+  embalagem_compra_unidade?: string | null;
+  unidade_interna?: string | null;
+}
+
+export interface SugestaoCompra {
+  quantidade: number;
+  unidade: string;
+  numEmbalagens: number | null;
+  semEmbalagem: boolean;
+}
+
+export function faltanteEmGramas(
+  quantidade: number | null | undefined,
+  unidade: string | null | undefined,
+): number {
+  return paraGramas(Number(quantidade) || 0, unidade || 'g');
+}
+
+export function embalagemDoItem(
+  item: ItemEmbalagemCadastro | null | undefined,
+  draft?: { qtd: number; unidade: string } | null,
+): EmbalagemInfo | null {
+  if (draft?.qtd && draft.qtd > 0) {
+    return { qtd: draft.qtd, unidade: draft.unidade || 'g', fonte: 'cadastro' };
+  }
+  if (item?.embalagem_compra_qtd && item.embalagem_compra_qtd > 0) {
+    return {
+      qtd: item.embalagem_compra_qtd,
+      unidade: item.embalagem_compra_unidade || item.unidade_interna || 'g',
+      fonte: 'cadastro',
+    };
+  }
+  return null;
+}
+
+export function sugerirQuantidadeComprar(
+  quantidadeComprarManual: number | null | undefined,
+  quantidadeFaltante: number | null | undefined,
+  unidadeFaltante: string | null | undefined,
+  embalagem: EmbalagemInfo | null,
+): SugestaoCompra {
+  if (quantidadeComprarManual != null && quantidadeComprarManual > 0) {
+    return {
+      quantidade: quantidadeComprarManual,
+      unidade: unidadeFaltante || 'g',
+      numEmbalagens: null,
+      semEmbalagem: false,
+    };
+  }
+
+  const faltaG = faltanteEmGramas(quantidadeFaltante, unidadeFaltante);
+  const compra = calcularCompraArredondada(faltaG, embalagem);
+
+  if (compra.semEmbalagem) {
+    return {
+      quantidade: Number(quantidadeFaltante) || 0,
+      unidade: unidadeFaltante || 'g',
+      numEmbalagens: null,
+      semEmbalagem: true,
+    };
+  }
+
+  return {
+    quantidade: compra.comprarQtd,
+    unidade: compra.comprarUnidade,
+    numEmbalagens: compra.numEmbalagens,
+    semEmbalagem: false,
+  };
+}
+
 export function qtdComprarPadrao(
   quantidadeComprar: number | null | undefined,
   quantidadeFaltante: number | null | undefined,
+  unidadeFaltante?: string | null,
+  embalagem?: EmbalagemInfo | null,
 ): number {
-  if (quantidadeComprar != null && quantidadeComprar > 0) return quantidadeComprar;
-  return Number(quantidadeFaltante) || 0;
+  return sugerirQuantidadeComprar(
+    quantidadeComprar,
+    quantidadeFaltante,
+    unidadeFaltante,
+    embalagem ?? null,
+  ).quantidade;
 }
 
 export function formatarQtdItem(valor: number | null | undefined, unidade: string | null | undefined): string {

@@ -9,6 +9,12 @@ import {
   avaliarRecebimento,
 } from '@/lib/requisicoes-compra';
 
+export interface ItemCadastroEmbalagem {
+  embalagem_compra_qtd: number | null;
+  embalagem_compra_unidade: string | null;
+  unidade_interna: string | null;
+}
+
 export interface RequisicaoCompraItem {
   id: string;
   requisicao_id: string;
@@ -23,6 +29,7 @@ export interface RequisicaoCompraItem {
   preco_cotado: number | null;
   quantidade_recebida: number | null;
   fornecedor_id: string | null;
+  item?: ItemCadastroEmbalagem | null;
 }
 
 export interface RequisicaoCompra {
@@ -70,7 +77,8 @@ const REQUISICAO_SELECT = `
   requisicoes_compra_itens(
     id, requisicao_id, item_id, item_nome, quantidade_necessaria, quantidade_disponivel,
     quantidade_faltante, unidade, status, quantidade_comprar, preco_cotado,
-    quantidade_recebida, fornecedor_id
+    quantidade_recebida, fornecedor_id,
+    item:itens(embalagem_compra_qtd, embalagem_compra_unidade, unidade_interna)
   )
 `;
 
@@ -122,6 +130,26 @@ interface SalvarRequisicaoInput {
     preco_cotado: number | null;
     fornecedor_id?: string | null;
   }>;
+  embalagens?: Array<{
+    item_id: string;
+    embalagem_compra_qtd: number;
+    embalagem_compra_unidade: string;
+  }>;
+}
+
+async function persistirEmbalagens(
+  embalagens: SalvarRequisicaoInput['embalagens'],
+) {
+  for (const emb of embalagens || []) {
+    const { error } = await supabase
+      .from('itens')
+      .update({
+        embalagem_compra_qtd: emb.embalagem_compra_qtd,
+        embalagem_compra_unidade: emb.embalagem_compra_unidade,
+      })
+      .eq('id', emb.item_id);
+    if (error) throw error;
+  }
 }
 
 export function useSalvarRequisicaoCompra() {
@@ -155,6 +183,8 @@ export function useSalvarRequisicaoCompra() {
           .eq('id', item.id);
         if (itemErr) throw itemErr;
       }
+
+      await persistirEmbalagens(input.embalagens);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
@@ -179,6 +209,7 @@ export function useAprovarRequisicaoCompra() {
       prazo_pagamento?: string | null;
       condicao_pagamento?: string | null;
       valor_total: number;
+      embalagens?: SalvarRequisicaoInput['embalagens'];
     }) => {
       const agora = new Date().toISOString();
 
@@ -193,6 +224,8 @@ export function useAprovarRequisicaoCompra() {
           .eq('id', item.id);
         if (itemErr) throw itemErr;
       }
+
+      await persistirEmbalagens(input.embalagens);
 
       const { error } = await supabase
         .from('requisicoes_compra')

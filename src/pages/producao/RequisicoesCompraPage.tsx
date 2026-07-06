@@ -33,7 +33,6 @@ import {
   useMarcarPedidoEnviado,
   useRegistrarRecebimento,
   useIniciarCotacao,
-  calcularValorTotal,
   podeTransicionar,
   STATUS_REQ,
   type RequisicaoCompra,
@@ -42,9 +41,11 @@ import {
 import {
   STATUS_REQ_ORDEM,
   labelStatus,
-  qtdComprarPadrao,
+  embalagemDoItem,
+  sugerirQuantidadeComprar,
   formatarQtdItem,
 } from '@/lib/requisicoes-compra';
+import { formatarQtdExibicao } from '@/lib/conferencia-materiais';
 import { ListaPuraCompraPanel } from '@/components/compras/ListaPuraCompraPanel';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { toast } from 'sonner';
@@ -58,6 +59,20 @@ type ItemEdit = {
   quantidade_recebida: number | null;
   fornecedor_id: string | null;
 };
+
+const UNIDADES_EMBALAGEM = ['g', 'kg', 'mg', 'un'] as const;
+
+function draftEmbalagem(
+  drafts: Record<string, { qtd: string; unidade: string }>,
+  itemId: string | null,
+) {
+  if (!itemId) return null;
+  const d = drafts[itemId];
+  if (!d?.qtd?.trim()) return null;
+  const qtd = Number(d.qtd);
+  if (!Number.isFinite(qtd) || qtd <= 0) return null;
+  return { qtd, unidade: d.unidade || 'g' };
+}
 
 function statusBadgeVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
@@ -86,6 +101,7 @@ export default function RequisicoesCompraPage() {
   const [prazoPagamento, setPrazoPagamento] = useState('');
   const [condicaoPagamento, setCondicaoPagamento] = useState('');
   const [itensEdit, setItensEdit] = useState<ItemEdit[]>([]);
+  const [embalagemDraft, setEmbalagemDraft] = useState<Record<string, { qtd: string; unidade: string }>>({});
 
   const salvar = useSalvarRequisicaoCompra();
   const aprovar = useAprovarRequisicaoCompra();
@@ -114,11 +130,29 @@ export default function RequisicoesCompraPage() {
         fornecedor_id: item.fornecedor_id,
       })),
     );
+    setEmbalagemDraft({});
   }, [selecionada]);
 
+  const itensOriginais = selecionada?.requisicoes_compra_itens || [];
+
+  const resolverSugestao = (item: RequisicaoCompraItem, edit?: ItemEdit) => {
+    const draft = draftEmbalagem(embalagemDraft, item.item_id);
+    const emb = embalagemDoItem(item.item, draft);
+    return sugerirQuantidadeComprar(
+      edit?.quantidade_comprar,
+      item.quantidade_faltante,
+      item.unidade,
+      emb,
+    );
+  };
+
   const valorTotal = useMemo(
-    () => calcularValorTotal(itensEdit),
-    [itensEdit],
+    () => itensOriginais.reduce((acc, item, idx) => {
+      const edit = itensEdit[idx];
+      const sug = resolverSugestao(item, edit);
+      return acc + sug.quantidade * (Number(edit?.preco_cotado) || 0);
+    }, 0),
+    [itensOriginais, itensEdit, embalagemDraft],
   );
 
   const filtradas = useMemo(() => {
@@ -142,18 +176,36 @@ export default function RequisicoesCompraPage() {
 
   const abrirDetalhe = (req: RequisicaoCompra) => setSelecionada(req);
 
-  const itensOriginais = selecionada?.requisicoes_compra_itens || [];
+  const montarEmbalagens = () =>
+    itensOriginais.flatMap(item => {
+      if (!item.item_id) return [];
+      const draft = draftEmbalagem(embalagemDraft, item.item_id);
+      if (!draft) return [];
+      const cadastro = embalagemDoItem(item.item, null);
+      if (cadastro && !embalagemDraft[item.item_id]) return [];
+      return [{
+        item_id: item.item_id,
+        embalagem_compra_qtd: draft.qtd,
+        embalagem_compra_unidade: draft.unidade,
+      }];
+    });
 
   const montarPayloadItens = () =>
-    itensEdit.map((edit, idx) => ({
-      id: edit.id,
-      quantidade_comprar: qtdComprarPadrao(
-        edit.quantidade_comprar,
-        itensOriginais[idx]?.quantidade_faltante,
-      ),
-      preco_cotado: edit.preco_cotado != null ? Number(edit.preco_cotado) : null,
-      fornecedor_id: edit.fornecedor_id,
-    }));
+    itensOriginais.map((item, idx) => {
+      const edit = itensEdit[idx];
+      const sug = resolverSugestao(item, edit);
+      return {
+        id: edit.id,
+        quantidade_comprar: sug.quantidade,
+        preco_cotado: edit.preco_cotado != null ? Number(edit.preco_cotado) : null,
+        fornecedor_id: edit.fornecedor_id,
+      };
+    });
+
+  const payloadSalvar = () => ({
+    embalagens: montarEmbalagens(),
+    itens: montarPayloadItens(),
+  });
 
   const handleSalvar = async (novoStatus?: typeof STATUS_REQ.COTACAO) => {
     if (!selecionada) return;
@@ -169,7 +221,7 @@ export default function RequisicoesCompraPage() {
       condicao_pagamento: condicaoPagamento,
       valor_total: valorTotal,
       status: novoStatus,
-      itens: montarPayloadItens(),
+      ...payloadSalvar(),
     });
     if (novoStatus) {
       setSelecionada({ ...selecionada, status: novoStatus });
@@ -190,7 +242,7 @@ export default function RequisicoesCompraPage() {
       prazo_pagamento: prazoPagamento,
       condicao_pagamento: condicaoPagamento,
       valor_total: valorTotal,
-      itens: montarPayloadItens(),
+      ...payloadSalvar(),
     });
     setSelecionada({ ...selecionada, status: STATUS_REQ.APROVADA });
   };
@@ -230,11 +282,10 @@ export default function RequisicoesCompraPage() {
       selecionada.status as typeof STATUS_REQ.PEDIDO_ENVIADO,
     );
 
-  const itensListaPura = itensOriginais.map((item, idx) => ({
-    nome: item.item_nome,
-    quantidade: qtdComprarPadrao(itensEdit[idx]?.quantidade_comprar, item.quantidade_faltante),
-    unidade: item.unidade,
-  })).filter(i => (Number(i.quantidade) || 0) > 0);
+  const itensListaPura = itensOriginais.map((item, idx) => {
+    const sug = resolverSugestao(item, itensEdit[idx]);
+    return { nome: item.item_nome, quantidade: sug.quantidade, unidade: sug.unidade };
+  }).filter(i => (Number(i.quantidade) || 0) > 0);
 
   const atualizarItem = (id: string, campo: keyof ItemEdit, valor: string) => {
     setItensEdit(prev => prev.map(item => {
@@ -474,8 +525,11 @@ export default function RequisicoesCompraPage() {
                     {itensOriginais.map((item: RequisicaoCompraItem, idx) => {
                       const edit = itensEdit[idx];
                       const hist = item.item_id ? historicoMap?.get(item.item_id) : undefined;
-                      const qtdComprar = qtdComprarPadrao(edit?.quantidade_comprar, item.quantidade_faltante);
-                      const subtotal = qtdComprar * (Number(edit?.preco_cotado) || 0);
+                      const draft = item.item_id ? embalagemDraft[item.item_id] : undefined;
+                      const embCadastro = embalagemDoItem(item.item, null);
+                      const sug = resolverSugestao(item, edit);
+                      const subtotal = sug.quantidade * (Number(edit?.preco_cotado) || 0);
+                      const mostrarDefinirEmbalagem = sug.semEmbalagem && podeEditarCotacao;
 
                       return (
                         <Card key={item.id} className="p-4">
@@ -486,9 +540,83 @@ export default function RequisicoesCompraPage() {
                                 <p className="text-sm text-muted-foreground">
                                   Falta: {formatarQtdItem(item.quantidade_faltante, item.unidade)}
                                 </p>
+                                {embCadastro && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Embalagem cadastrada:{' '}
+                                    {formatarQtdExibicao(embCadastro.qtd, embCadastro.unidade)}
+                                  </p>
+                                )}
                               </div>
                               <p className="font-semibold text-sm">{formatCurrency(subtotal)}</p>
                             </div>
+
+                            {mostrarDefinirEmbalagem && (
+                              <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-amber-700 border-amber-300">
+                                    definir embalagem
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    Informe a embalagem de compra para arredondar a quantidade
+                                  </span>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Qtd. por embalagem</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step="any"
+                                      placeholder="Ex.: 25"
+                                      value={draft?.qtd ?? ''}
+                                      onChange={e => item.item_id && setEmbalagemDraft(prev => ({
+                                        ...prev,
+                                        [item.item_id!]: {
+                                          qtd: e.target.value,
+                                          unidade: prev[item.item_id!]?.unidade || 'kg',
+                                        },
+                                      }))}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Unidade</Label>
+                                    <Select
+                                      value={draft?.unidade || 'kg'}
+                                      onValueChange={v => item.item_id && setEmbalagemDraft(prev => ({
+                                        ...prev,
+                                        [item.item_id!]: {
+                                          qtd: prev[item.item_id!]?.qtd || '',
+                                          unidade: v,
+                                        },
+                                      }))}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {UNIDADES_EMBALAGEM.map(u => (
+                                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {!sug.semEmbalagem && (
+                              <p className="text-sm text-muted-foreground">
+                                Sugestão:{' '}
+                                <span className="font-mono font-medium text-foreground">
+                                  {formatarQtdExibicao(sug.quantidade, sug.unidade)}
+                                </span>
+                                {sug.numEmbalagens != null && sug.numEmbalagens > 1 && (
+                                  <span className="ml-1 text-xs">
+                                    ({sug.numEmbalagens} embalagens)
+                                  </span>
+                                )}
+                              </p>
+                            )}
 
                             <div className="grid gap-3 sm:grid-cols-3">
                               <div className="space-y-1">
@@ -497,7 +625,8 @@ export default function RequisicoesCompraPage() {
                                   type="number"
                                   min={0}
                                   step="any"
-                                  value={edit?.quantidade_comprar ?? qtdComprar}
+                                  value={edit?.quantidade_comprar ?? (sug.semEmbalagem ? '' : sug.quantidade)}
+                                  placeholder={sug.semEmbalagem ? String(sug.quantidade) : undefined}
                                   onChange={e => atualizarItem(item.id, 'quantidade_comprar', e.target.value)}
                                   disabled={!podeEditarCotacao}
                                 />
