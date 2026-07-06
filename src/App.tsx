@@ -43,6 +43,7 @@ const EditarFormulaPage = lazy(() => import("./pages/producao/EditarFormulaPage"
 const VisualizarFormulaPage = lazy(() => import("./pages/producao/VisualizarFormulaPage"));
 const ParametrosIndustriaPage = lazy(() => import("./pages/producao/ParametrosIndustriaPage"));
 const RequisicoesCompraPage = lazy(() => import("./pages/producao/RequisicoesCompraPage"));
+const RequisicaoDetalhePage = lazy(() => import("./pages/compras/RequisicaoDetalhePage"));
 const OrdensProducaoIndustrialPage = lazy(() => import("./pages/producao/OrdensProducaoIndustrialPage"));
 const OrdemProducaoDetailPage = lazy(() => import("./pages/producao/OrdemProducaoDetailPage"));
 const OrdemProducaoImpressaoPage = lazy(() => import("./pages/producao/OrdemProducaoImpressaoPage"));
@@ -221,6 +222,7 @@ const App = () => (
                 <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NotasEntradaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/fator-conversao" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><FatorConversaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/requisicoes" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><RequisicoesCompraPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/requisicoes/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><RequisicaoDetalhePage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Financeiro — gerente+ */}
                 <Route path="/financeiro/pagar" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="financeiro" moduloLabel="Financeiro"><ContasPagarPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/contas-pagar" element={<Navigate to="/financeiro/pagar" replace />} />

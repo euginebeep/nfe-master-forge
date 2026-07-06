@@ -1,5 +1,6 @@
 import {
   calcularCompraArredondada,
+  deGramas,
   paraGramas,
   type EmbalagemInfo,
 } from '@/lib/conferencia-materiais';
@@ -169,4 +170,23 @@ export function avaliarRecebimento(
   if (todosCompletos) return STATUS_REQ.RECEBIDA;
   if (algumRecebido) return STATUS_REQ.RECEBIDA_PARCIAL;
   return STATUS_REQ.PEDIDO_ENVIADO;
+}
+
+/** Arredonda quantidade a comprar com base na cotação escolhida */
+export function calcularQtdComprarCotacao(
+  quantidadeFaltante: number | null | undefined,
+  unidadeFaltante: string | null | undefined,
+  unidadeCompra: string | null | undefined,
+  qtdPorPacote: number | null | undefined,
+): number {
+  const faltaG = faltanteEmGramas(quantidadeFaltante, unidadeFaltante);
+  const unidade = unidadeCompra || unidadeFaltante || 'g';
+
+  if (qtdPorPacote != null && qtdPorPacote > 0) {
+    const emb: EmbalagemInfo = { qtd: qtdPorPacote, unidade, fonte: 'cadastro' };
+    return calcularCompraArredondada(faltaG, emb).comprarQtd;
+  }
+
+  const faltaNaUnidade = deGramas(faltaG, unidade);
+  return Math.ceil(faltaNaUnidade);
 }
