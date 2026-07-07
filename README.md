@@ -2,7 +2,7 @@
 
 ERP industrial para gestão de empresas de suplementos, cosméticos, alimentos, manipulação e operações com controle fiscal, produtivo, regulatório e financeiro.
 
-O sistema foi iniciado no Lovable e está sendo evoluído com GitHub, Supabase, Vercel, Cursor/VS Code e integrações externas.
+O sistema está sendo evoluído com GitHub, Supabase, Vercel, Cursor/VS Code e integrações externas.
 
 ## Objetivo do projeto
 
