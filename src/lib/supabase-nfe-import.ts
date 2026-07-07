@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getUserCompanyId } from '@/hooks/use-user-company';
 import type { NFeParseResult, ClassificacaoNota, EntidadeXML } from '@/types/nfe-completa';
 import { preprocessarUnidadeComercial } from '@/lib/unidades-dose';
+import { similaridadeAceitaParaEan } from '@/lib/item-similaridade';
 
 export interface ImportStats {
   entidadesCriadas: number;
@@ -243,16 +244,18 @@ async function findOrCreateItemSupabase(
   const ncm = itemXML.ncm;
   const descricao = itemXML.descricao;
   
-  // 1. Buscar por EAN dentro da mesma empresa
+  // 1. Buscar por EAN dentro da mesma empresa (com validação de descrição)
   if (ean) {
     const { data: itemPorEan } = await supabase
       .from('itens')
-      .select('id')
+      .select('id, descricao_interna')
       .eq('ean', ean)
       .eq('company_id', companyId)
       .maybeSingle();
-    
-    if (itemPorEan) return { id: itemPorEan.id, isNew: false };
+
+    if (itemPorEan && similaridadeAceitaParaEan(descricao, itemPorEan.descricao_interna)) {
+      return { id: itemPorEan.id, isNew: false };
+    }
   }
   
   // 2. Buscar por descrição exata dentro da mesma empresa
