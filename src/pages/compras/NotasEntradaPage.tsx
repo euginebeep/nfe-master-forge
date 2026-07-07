@@ -21,6 +21,7 @@ import { useNotasEntrada, type NotaEntrada, processarNota } from "@/hooks/use-no
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 import { NotaEntradaAcoesCell } from "@/components/nfe/NotaEntradaAcoesCell";
+import { ImportarCoaNotaDialog } from "@/components/nfe/ImportarCoaNotaDialog";
 import { BackButton } from "@/components/ui/back-button";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
@@ -106,6 +107,8 @@ export default function NotasEntradaPage() {
   const [search, setSearch] = useState("");
   const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
   const [statusFinFiltro, setStatusFinFiltro] = useState<StatusFinFiltro>("todos");
+  const [coaImportNota, setCoaImportNota] = useState<{ id: string; numero: string } | null>(null);
+  const [coaDialogOpen, setCoaDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const handleViewNota = useCallback((nota: NotaEntrada) => {
@@ -119,6 +122,16 @@ export default function NotasEntradaPage() {
     queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
     queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
   }, [queryClient]);
+
+  const handleImportarCoa = useCallback((nota: NotaEntrada) => {
+    setCoaImportNota({ id: nota.id, numero: nota.numero });
+    setCoaDialogOpen(true);
+  }, []);
+
+  const handleCoaDialogOpenChange = useCallback((open: boolean) => {
+    setCoaDialogOpen(open);
+    if (!open) setCoaImportNota(null);
+  }, []);
 
   const handleReverter = useCallback(async (nota: NotaEntrada) => {
     if (!confirm(`Tem certeza que deseja REVERTER a importação da NF-e ${nota.numero}?\n\nIsso apagará todos os lotes, itens da nota e contas a pagar gerados por esta importação.`)) return;
@@ -329,11 +342,12 @@ export default function NotasEntradaPage() {
           onView={handleViewNota}
           onProcessar={handleProcessarNota}
           onReverter={handleReverter}
+          onImportarCoa={handleImportarCoa}
           onRefresh={handleRefreshNotas}
         />
       ),
     },
-  ], [processando, reverting, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas]);
+  ], [processando, reverting, handleViewNota, handleProcessarNota, handleReverter, handleImportarCoa, handleRefreshNotas]);
 
   const periodoLabel: Record<PeriodoFiltro, string> = {
     todos: "Todos os períodos",
@@ -488,6 +502,21 @@ export default function NotasEntradaPage() {
       )}
 
       <NFeVisualizacaoDialog open={showNFeDialog} onOpenChange={setShowNFeDialog} chaveNfe={selectedChaveNfe} />
+
+      {coaImportNota && (
+        <ImportarCoaNotaDialog
+          key={coaImportNota.id}
+          notaId={coaImportNota.id}
+          notaNumero={coaImportNota.numero}
+          open={coaDialogOpen}
+          onOpenChange={handleCoaDialogOpenChange}
+          onDone={() => {
+            handleRefreshNotas();
+            setCoaDialogOpen(false);
+            setCoaImportNota(null);
+          }}
+        />
+      )}
     </div>
   );
 }
