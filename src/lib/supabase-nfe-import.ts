@@ -320,8 +320,12 @@ async function findOrCreateItemSupabase(
 }
 
 export function mapClassificacaoToTipo(classificacao: ClassificacaoNota, descricao: string): string {
-  const descNorm = descricao.toUpperCase();
-  if (descNorm.includes('CAPSULA') || descNorm.includes('CÁPSULA')) return 'CAPSULA_VAZIA';
+  const descNorm = (descricao || '').toUpperCase();
+  if (
+    descNorm.includes('CAPSULA') ||
+    descNorm.includes('CÁPSULA') ||
+    /\bCAPS\s+\d/.test(descNorm)
+  ) return 'CAPSULA_VAZIA';
   if (descNorm.includes('ROTULO') || descNorm.includes('RÓTULO')) return 'ROTULO';
   if (descNorm.includes('TAMPA')) return 'TAMPA';
   if (descNorm.includes('POTE') || descNorm.includes('FRASCO')) return 'POTE';
