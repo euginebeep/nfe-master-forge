@@ -1,60 +1,86 @@
 # BrainX ERP — NFe Master Forge
 
-ERP industrial para gestão de empresas de suplementos, cosméticos, alimentos, manipulação e operações com controle fiscal, produtivo, regulatório e financeiro.
+ERP industrial e fiscal para gestão de operações com produção, estoque, rastreabilidade, qualidade, financeiro, vendas, compras, NF-e, monitoramento ambiental e estrutura SaaS multiempresa.
 
-O sistema está sendo evoluído com GitHub, Supabase, Vercel, Cursor/VS Code e integrações externas.
+Este repositório contém o código-fonte do projeto BrainX ERP / NFe Master Forge, desenvolvido com foco em empresas que precisam controlar processos industriais, fiscais, regulatórios e operacionais em uma única plataforma.
+
+---
 
 ## Objetivo do projeto
 
-O BrainX ERP foi criado para centralizar a operação de uma indústria, desde o cadastro de clientes e fornecedores até a emissão de notas fiscais, produção, estoque, qualidade, rastreabilidade, financeiro e compliance regulatório.
+O BrainX ERP foi desenvolvido para centralizar a operação de empresas industriais, especialmente operações que exigem controle de produção, lotes, rastreabilidade, documentos fiscais, qualidade, estoque e gestão financeira.
 
-A proposta é ter um sistema completo para empresas que precisam controlar:
+O projeto está sendo organizado como ativo digital comercializável, com documentação técnica, estrutura de propriedade intelectual, histórico de desenvolvimento e materiais de apoio para eventual venda, licenciamento, entrada de sócios, investidores ou processo de due diligence por comprador.
 
-- Cadastros de clientes, fornecedores, produtos e transportadoras
-- Fórmulas e ordens de produção
-- Estoque, lotes, quarentena e rastreabilidade
-- Compras e notas fiscais de entrada
-- Vendas, orçamentos, pedidos e notas fiscais de saída
-- Financeiro, contas a pagar, contas a receber, DRE e fluxo de caixa
-- Controle de qualidade, análises, desvios, POPs e calibrações
-- Consulta regulatória ANVISA
+---
+
+## Escopo do sistema
+
+O sistema contempla módulos para:
+
+- Cadastros de clientes, fornecedores, transportadoras, produtos, itens e responsáveis técnicos
+- Produção industrial, fórmulas, ordens de produção e parâmetros produtivos
+- Estoque, lotes, quarentena, movimentações e rastreabilidade
+- Compras, notas fiscais de entrada e importação de XML
+- Vendas, CRM, orçamentos, pedidos, expedição e notas fiscais de saída
+- Emissão e auditoria fiscal de NF-e
+- Financeiro, contas a pagar, contas a receber, fluxo de caixa, conciliação e DRE
+- Qualidade, análises, desvios, calibrações e POPs
+- Regulatório, consulta ANVISA, checker regulatório e biblioteca técnica
 - Monitoramento ambiental por sensores
-- Auditoria, usuários, permissões e painel SaaS
+- Usuários, permissões, auditoria e configurações
+- Estrutura SaaS multiempresa
+- Backup XML, migrações e rotinas técnicas
+
+---
 
 ## Principais módulos
 
 ### Dashboard
-Painel principal para acompanhamento da operação.
+
+Painel principal para acompanhamento da operação, indicadores, atalhos e visão geral do negócio.
 
 ### Cadastros
+
 Gestão de entidades, clientes, fornecedores, transportadoras, produtos, itens e responsáveis técnicos.
 
 ### Produção
-Módulo para fórmulas industriais, ordens de produção, impressão de OP, requisições de compra, parâmetros industriais e dashboards produtivos.
+
+Controle de fórmulas industriais, ordens de produção, impressão de OP, parâmetros industriais, requisições de compra e dashboards produtivos.
 
 ### Estoque
-Controle de lotes, quarentena, movimentações, rastreabilidade, lotes reservados e produtos sem COA.
+
+Gestão de lotes, quarentena, lotes reservados, movimentações, produtos sem COA e rastreabilidade.
 
 ### Compras
-Importação de NF-e, notas de entrada, fator de conversão e requisições.
+
+Importação de NF-e, notas fiscais de entrada, fator de conversão e controle de requisições.
 
 ### Vendas
-CRM, orçamentos, pedidos de venda, marketplace, expedição, emissor de NF-e, notas de saída e auditoria fiscal.
+
+CRM, orçamentos, pedidos de venda, marketplace, expedição, notas fiscais de saída, emissor de NF-e e auditoria fiscal.
 
 ### Financeiro
-Contas a pagar, contas a receber, fluxo de caixa, conciliação e DRE.
+
+Contas a pagar, contas a receber, fluxo de caixa, conciliação financeira e DRE.
 
 ### Qualidade
-Gestão de desvios, análises, POPs e calibrações.
+
+Gestão de análises, desvios, calibrações, POPs e documentos de qualidade.
 
 ### Regulatório
-Consulta ANVISA, checker regulatório e biblioteca técnica.
+
+Consulta ANVISA, checker regulatório, biblioteca RT e apoio para validação de ingredientes, advertências, alegações e requisitos aplicáveis.
 
 ### Ambiental
-Monitoramento de temperatura e umidade por sensores ambientais.
 
-### SaaS
-Painel administrativo SaaS, auditoria ghost mode, assinaturas e controle multiempresa.
+Monitoramento de temperatura e umidade por sensores ambientais, com páginas de configuração, detalhe de sensor e acompanhamento operacional.
+
+### SaaS e administração
+
+Estrutura para multiempresa, painel SaaS, assinatura, usuários, permissões, auditoria e administração do sistema.
+
+---
 
 ## Tecnologias utilizadas
 
@@ -66,15 +92,36 @@ Painel administrativo SaaS, auditoria ghost mode, assinaturas e controle multiem
 - shadcn/ui
 - React Router
 - TanStack Query
+- Zustand
+- Zod
+- Recharts
 - PWA
 - GitHub
 - Vercel
+- Focus NFe
+- XML
+- Vitest
 
+---
 
-## Como rodar o projeto localmente
-
-Antes de começar, instale o Node.js.
+## Estrutura do projeto
 
 ```sh
-npm install
-npm run dev
+src/
+  components/
+  contexts/
+  hooks/
+  integrations/
+  lib/
+  pages/
+  services/
+  types/
+
+supabase/
+  migrations/
+
+public/
+  imagens, ícones, manifest, PWA e arquivos públicos
+
+scripts/
+  scripts auxiliares, backup, migrações, ANVISA, testes e automações
