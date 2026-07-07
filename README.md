@@ -1,74 +1,80 @@
-# Welcome to your Lovable project
+# BrainX ERP — NFe Master Forge
 
-## Project info
+ERP industrial para gestão de empresas de suplementos, cosméticos, alimentos, manipulação e operações com controle fiscal, produtivo, regulatório e financeiro.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+O sistema foi iniciado no Lovable e está sendo evoluído com GitHub, Supabase, Vercel, Cursor/VS Code e integrações externas.
 
-## How can I edit this code?
+## Objetivo do projeto
 
-There are several ways of editing your application.
+O BrainX ERP foi criado para centralizar a operação de uma indústria, desde o cadastro de clientes e fornecedores até a emissão de notas fiscais, produção, estoque, qualidade, rastreabilidade, financeiro e compliance regulatório.
 
-**Use Lovable**
+A proposta é ter um sistema completo para empresas que precisam controlar:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- Cadastros de clientes, fornecedores, produtos e transportadoras
+- Fórmulas e ordens de produção
+- Estoque, lotes, quarentena e rastreabilidade
+- Compras e notas fiscais de entrada
+- Vendas, orçamentos, pedidos e notas fiscais de saída
+- Financeiro, contas a pagar, contas a receber, DRE e fluxo de caixa
+- Controle de qualidade, análises, desvios, POPs e calibrações
+- Consulta regulatória ANVISA
+- Monitoramento ambiental por sensores
+- Auditoria, usuários, permissões e painel SaaS
 
-Changes made via Lovable will be committed automatically to this repo.
+## Principais módulos
 
-**Use your preferred IDE**
+### Dashboard
+Painel principal para acompanhamento da operação.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Cadastros
+Gestão de entidades, clientes, fornecedores, transportadoras, produtos, itens e responsáveis técnicos.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Produção
+Módulo para fórmulas industriais, ordens de produção, impressão de OP, requisições de compra, parâmetros industriais e dashboards produtivos.
 
-Follow these steps:
+### Estoque
+Controle de lotes, quarentena, movimentações, rastreabilidade, lotes reservados e produtos sem COA.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Compras
+Importação de NF-e, notas de entrada, fator de conversão e requisições.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Vendas
+CRM, orçamentos, pedidos de venda, marketplace, expedição, emissor de NF-e, notas de saída e auditoria fiscal.
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Financeiro
+Contas a pagar, contas a receber, fluxo de caixa, conciliação e DRE.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### Qualidade
+Gestão de desvios, análises, POPs e calibrações.
 
-**Edit a file directly in GitHub**
+### Regulatório
+Consulta ANVISA, checker regulatório e biblioteca técnica.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Ambiental
+Monitoramento de temperatura e umidade por sensores ambientais.
 
-**Use GitHub Codespaces**
+### SaaS
+Painel administrativo SaaS, auditoria ghost mode, assinaturas e controle multiempresa.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Tecnologias utilizadas
 
-## What technologies are used for this project?
-
-This project is built with:
-
+- React
 - Vite
 - TypeScript
-- React
-- shadcn-ui
+- Supabase
 - Tailwind CSS
+- shadcn/ui
+- React Router
+- TanStack Query
+- PWA
+- GitHub
+- Vercel
 
-## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Como rodar o projeto localmente
 
-## Can I connect a custom domain to my Lovable project?
+Antes de começar, instale o Node.js.
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-# BLOCO 2 - NF-e Import Fixes
+```sh
+npm install
+npm run dev
