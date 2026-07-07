@@ -144,3 +144,42 @@ export async function montarPreviewImportacaoCoa(
     lotesNotaSemCertificado,
   };
 }
+
+export interface CoaLoteArquivo {
+  loteId: string;
+  storageKey: string;
+  nomeOriginal: string | null;
+}
+
+/** Busca COA mais recente por lote (arquivo_id → arquivos.storage_key) */
+export async function buscarCoasDosLotes(loteIds: string[]): Promise<CoaLoteArquivo[]> {
+  const unicos = [...new Set(loteIds.filter(Boolean))];
+  if (!unicos.length) return [];
+
+  const { data, error } = await supabase
+    .from('lote_documentos')
+    .select('lote_id, arquivo:arquivos(storage_key, nome_original)')
+    .in('lote_id', unicos)
+    .eq('tipo_documento', 'COA')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  type Row = {
+    lote_id: string;
+    arquivo: { storage_key: string; nome_original: string | null } | null;
+  };
+
+  const porLote = new Map<string, CoaLoteArquivo>();
+  for (const row of (data || []) as unknown as Row[]) {
+    if (porLote.has(row.lote_id)) continue;
+    const key = row.arquivo?.storage_key?.trim();
+    if (!key) continue;
+    porLote.set(row.lote_id, {
+      loteId: row.lote_id,
+      storageKey: key,
+      nomeOriginal: row.arquivo?.nome_original ?? null,
+    });
+  }
+  return [...porLote.values()];
+}

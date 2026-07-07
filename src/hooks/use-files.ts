@@ -81,3 +81,29 @@ export function useGetFileUrl() {
     },
   });
 }
+
+const SIGNED_URL_TTL_SEG = 3600;
+
+/** Gera signed URL para arquivo no bucket privado erp-files */
+export async function createSignedFileUrl(
+  storageKey: string,
+  expiresIn = SIGNED_URL_TTL_SEG
+): Promise<string> {
+  const key = storageKey?.trim();
+  if (!key) throw new Error('Arquivo sem chave de storage');
+
+  const { data, error } = await supabase.storage
+    .from('erp-files')
+    .createSignedUrl(key, expiresIn);
+
+  if (error) throw error;
+  if (!data?.signedUrl) throw new Error('URL assinada não gerada');
+  return data.signedUrl;
+}
+
+/** Abre arquivo em nova aba via signed URL */
+export async function abrirArquivoEmNovaAba(storageKey: string): Promise<void> {
+  const url = await createSignedFileUrl(storageKey);
+  const aba = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!aba) throw new Error('Pop-up bloqueado pelo navegador');
+}

@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { VerPdfButton } from "@/components/shared/VerPdfButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -1812,7 +1813,8 @@ function LoteDocumentosDialog({
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 items-center">
+                    <VerPdfButton storageKey={doc.arquivo?.storage_key} />
                     {doc.status_validacao === "PENDENTE" && (
                       <>
                         <Button 

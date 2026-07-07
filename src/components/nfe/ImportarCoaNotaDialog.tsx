@@ -24,10 +24,12 @@ import {
 import {
   montarPreviewImportacaoCoa,
   lotesComCoaExistente,
+  buscarCoasDosLotes,
   type PreviewImportacaoCoa,
   type CasamentoCertificado,
 } from '@/lib/coa-import';
 import { uploadDocumentoLote } from '@/hooks/use-supabase-item-details';
+import { VerPdfButton } from '@/components/shared/VerPdfButton';
 
 type Etapa = 'selecionar' | 'analisando' | 'preview' | 'enviando' | 'concluido';
 
@@ -35,6 +37,7 @@ interface ResumoEnvio {
   anexados: number;
   pulados: number;
   erros: { lote: string; mensagem: string }[];
+  lotesComCoa: { loteId: string; numeroLote: string; storageKey: string | null }[];
 }
 
 function erroMsg(err: unknown): string {
@@ -134,11 +137,13 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
       return;
     }
 
-    const resultado: ResumoEnvio = { anexados: 0, pulados: 0, erros: [] };
+    const resultado: ResumoEnvio = { anexados: 0, pulados: 0, erros: [], lotesComCoa: [] };
     const total = pares.length;
+    const lotesUnicos = new Map<string, string>();
 
     for (let i = 0; i < pares.length; i++) {
       const { cert, loteId, numeroLote } = pares[i];
+      lotesUnicos.set(loteId, numeroLote);
       setProgresso(Math.round(((i + 1) / total) * 100));
 
       if (comCoa.has(loteId)) {
@@ -156,6 +161,18 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
       } catch (err) {
         resultado.erros.push({ lote: numeroLote, mensagem: erroMsg(err) });
       }
+    }
+
+    try {
+      const coas = await buscarCoasDosLotes([...lotesUnicos.keys()]);
+      const coaPorLote = new Map(coas.map((c) => [c.loteId, c.storageKey]));
+      resultado.lotesComCoa = [...lotesUnicos.entries()].map(([loteId, numeroLote]) => ({
+        loteId,
+        numeroLote,
+        storageKey: coaPorLote.get(loteId) ?? null,
+      }));
+    } catch (err) {
+      toast.error(`Erro ao buscar COAs anexados: ${erroMsg(err)}`);
     }
 
     setResumo(resultado);
@@ -298,6 +315,26 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
                 ))}
               </ul>
             </ScrollArea>
+          )}
+          {resumo.lotesComCoa.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2">Lotes com COA</p>
+              <ScrollArea className="max-h-36 rounded border">
+                <ul className="p-2 space-y-2">
+                  {resumo.lotesComCoa.map((l) => (
+                    <li key={l.loteId} className="flex items-center justify-between gap-2 text-xs">
+                      <span>
+                        <code>{l.numeroLote}</code>
+                        {!l.storageKey && (
+                          <span className="text-muted-foreground ml-1">(arquivo indisponível)</span>
+                        )}
+                      </span>
+                      <VerPdfButton storageKey={l.storageKey} />
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            </div>
           )}
         </div>
       )}
