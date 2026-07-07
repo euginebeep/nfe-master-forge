@@ -107,7 +107,7 @@ export async function montarPreviewImportacaoCoa(
 
   const lotesPorNumero = new Map<string, LoteParaCoa[]>();
   for (const lote of lotesGlobais) {
-    const key = lote.numero_lote.trim();
+    const key = lote.numero_lote.trim().toUpperCase();
     const lista = lotesPorNumero.get(key) || [];
     lista.push(lote);
     lotesPorNumero.set(key, lista);
@@ -121,7 +121,7 @@ export async function montarPreviewImportacaoCoa(
       semCorrespondencia.push(cert);
       continue;
     }
-    const lotes = lotesPorNumero.get(cert.loteFabricante.trim()) || [];
+    const lotes = lotesPorNumero.get(cert.loteFabricante.trim().toUpperCase()) || [];
     if (!lotes.length) {
       semCorrespondencia.push(cert);
     } else {
@@ -130,10 +130,10 @@ export async function montarPreviewImportacaoCoa(
   }
 
   const numerosComCertificado = new Set(
-    casamentos.map((c) => c.certificado.loteFabricante.trim())
+    casamentos.map((c) => c.certificado.loteFabricante.trim().toUpperCase())
   );
   const lotesNotaSemCertificado = lotesNota.filter(
-    (l) => !numerosComCertificado.has(l.numero_lote.trim())
+    (l) => !numerosComCertificado.has(l.numero_lote.trim().toUpperCase())
   );
 
   return {
