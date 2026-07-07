@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import type { LocalItem } from "@/hooks/use-local-itens";
 import { parseUnidade, calcularFatorConversao } from "@/lib/unidade-parser";
+import { calcularSimilaridade } from "@/lib/item-similaridade";
 
 interface ItemVinculoSelectorProps {
   xmlDescricao: string;
@@ -34,91 +35,6 @@ interface ItemVinculoSelectorProps {
   xmlQuantidade?: number;  // Quantidade do XML
   selectedItemId?: string;
   onSelect: (item: LocalItem | null, fatorCalculado?: number) => void;  // Retorna fator calculado
-}
-
-// ---------------------------------------------------------------
-// Funções de similaridade de texto — v2
-// Melhorias aplicadas:
-//   M1: Penalidade de especificidade (itens com palavras extras que o XML não menciona)
-//   M2: Normalização de separadores numéricos (100.000 → 100000, 99,9% → 999%)
-//   M3: Score Jaccard bidirecional (interseção/união) em vez de overlap unidirecional
-// ---------------------------------------------------------------
-
-/** Remove acentos, caracteres especiais e normaliza espaços */
-function normalizar(str: string): string {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s%]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/**
- * [M2] Normaliza separadores numéricos antes de tokenizar.
- * Evita que '100.000 UI/g' e '100000 UI/g' sejam tratados como tokens diferentes.
- */
-function normalizarNumeros(str: string): string {
-  return str
-    .replace(/(\d)\.(\d{3})/g, "$1$2")   // 100.000 → 100000
-    .replace(/(\d),(\d)/g, "$1$2");        // 99,9 → 999
-}
-
-/** Extrai palavras relevantes (> 2 chars, excluindo stopwords) */
-const STOPWORDS = new Set(["ext", "seco", "seca", "extrato", "de", "do", "da", "e", "em", "com", "para"]);
-function palavrasChave(str: string): string[] {
-  return normalizar(normalizarNumeros(str))
-    .split(" ")
-    .filter((w) => w.length > 2 && !STOPWORDS.has(w));
-}
-
-/**
- * Calcula score de similaridade entre a descrição do XML e a do cadastro.
- * Retorna valor de 0 a 100.
- *
- * Estratégia v2:
- * [M3] Score base = média ponderada de Jaccard (interseção/união) e cobertura do XML
- * [M1] Penalidade por palavras discriminantes que o item tem mas o XML não menciona
- *      (evita sugerir 'Vitamina C Tamponada' quando o XML pede 'Vitamina C' genérica)
- * Bônus se a primeira palavra-chave (nome principal) coincide
- * Bônus se percentuais (50%, 90%...) coincidem
- */
-function calcularSimilaridade(xmlDesc: string, itemDesc: string): number {
-  const xmlPalavras = palavrasChave(xmlDesc);
-  const itemPalavras = palavrasChave(itemDesc);
-
-  if (xmlPalavras.length === 0 || itemPalavras.length === 0) return 0;
-
-  const xmlSet = new Set(xmlPalavras);
-  const itemSet = new Set(itemPalavras);
-
-  // [M3] Jaccard: interseção / união
-  const intersecao = [...xmlSet].filter((p) => itemSet.has(p)).length;
-  const uniao = new Set([...xmlSet, ...itemSet]).size;
-  const jaccard = uniao > 0 ? intersecao / uniao : 0;
-
-  // Cobertura do XML no item (quantas palavras do XML estão no item)
-  const coberturaXml = xmlPalavras.filter((p) => itemSet.has(p)).length / xmlPalavras.length;
-
-  // Score base: média ponderada
-  const scoreBase = jaccard * 0.5 + coberturaXml * 0.5;
-
-  // Bônus: primeira palavra-chave (nome principal do ingrediente) coincide
-  const bonusPrimeira = xmlPalavras[0] === itemPalavras[0] ? 0.15 : 0;
-
-  // Bônus: percentual (ex: 50%) coincide
-  const xmlPerc = normalizar(normalizarNumeros(xmlDesc)).match(/\d+%/g) || [];
-  const itemPerc = normalizar(normalizarNumeros(itemDesc)).match(/\d+%/g) || [];
-  const bonusPerc =
-    xmlPerc.length > 0 && xmlPerc.some((p) => itemPerc.includes(p)) ? 0.1 : 0;
-
-  // [M1] Penalidade: palavras que o item tem mas o XML NÃO menciona
-  // Indica que o item é uma variante específica não solicitada pelo XML
-  const palavrasExclusivasItem = [...itemSet].filter((p) => !xmlSet.has(p)).length;
-  const penalidade = Math.min(0.20, palavrasExclusivasItem * 0.07);
-
-  return Math.min(100, Math.max(0, Math.round((scoreBase + bonusPrimeira + bonusPerc - penalidade) * 100)));
 }
 
 // ---------------------------------------------------------------
