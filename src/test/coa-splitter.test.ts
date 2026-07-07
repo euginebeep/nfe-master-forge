@@ -92,4 +92,21 @@ describe('parseCertificados', () => {
   it('retorna array vazio para entrada vazia', () => {
     expect(parseCertificados([])).toEqual([]);
   });
+
+  it('extrai insumo e lote corretos de COA real com campos intermediários', () => {
+    const paginaReal = `Insumo: CURCUMA LONGA 95%   Código: 537000.001000   Origem: CHINA
+   Lote Interno: AUTO035097   Lote do Fabricante: 20240802
+   Fabricação: 19/08/2024   Validade: 18/08/2026
+   Data de Emissão: 23/06/2026   Nota Fiscal: 000322721`;
+
+    const resultado = parseCertificados([paginaReal]);
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0]).toMatchObject({
+      insumo: 'CURCUMA LONGA 95%',
+      loteFabricante: '20240802',
+      nota: '322721',
+      paginaInicio: 1,
+      paginaFim: 1,
+    });
+  });
 });
