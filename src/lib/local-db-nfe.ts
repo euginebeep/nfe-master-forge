@@ -388,8 +388,12 @@ function mapClassificacaoToTipoItem(classificacao: ClassificacaoNota, descricao?
   // Detectar cápsula pelo nome do produto
   if (descricao) {
     const descNorm = descricao.toUpperCase();
-    if (descNorm.includes('CAPSULA') || descNorm.includes('CÁPSULA') || 
-        descNorm.includes('CAPS') && (descNorm.includes('VAZIA') || descNorm.includes('GELATINA') || descNorm.includes('VEGETAL'))) {
+    if (
+      descNorm.includes('CAPSULA') ||
+      descNorm.includes('CÁPSULA') ||
+      /\bCAPS\s+\d/.test(descNorm) ||
+      (descNorm.includes('CAPS') && (descNorm.includes('VAZIA') || descNorm.includes('GELATINA') || descNorm.includes('VEGETAL')))
+    ) {
       return 'CAPSULA';
     }
   }
