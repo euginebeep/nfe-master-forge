@@ -6,8 +6,9 @@ export interface CertificadoCoa {
   paginaFim: number;
 }
 
-const RE_INSUMO = /Insumo:\s*(.+?)(?=\s*Lote do Fabricante:|$)/is;
-const RE_LOTE = /Lote do Fabricante:\s*(.+?)(?=\s*Nota Fiscal:|$)/is;
+const RE_INSUMO_COM_CODIGO = /Insumo:\s*(.+?)\s*C[óo]digo:/i;
+const RE_INSUMO_LINHA = /Insumo:\s*([^\n]+)/i;
+const RE_LOTE = /Lote do Fabricante:\s*(\S+)/i;
 const RE_NOTA = /Nota Fiscal:\s*0*(\d+)/i;
 const RE_TEM_INSUMO = /Insumo:/i;
 
@@ -19,13 +20,24 @@ export function normalizarNotaFiscal(valor?: string | null): string {
   return String(parseInt(digits, 10));
 }
 
+function normalizarTextoCampo(valor: string): string {
+  return valor.trim().replace(/\s+/g, ' ');
+}
+
+function extrairInsumo(texto: string): string {
+  const comCodigo = texto.match(RE_INSUMO_COM_CODIGO);
+  if (comCodigo?.[1]) return normalizarTextoCampo(comCodigo[1]);
+  const linha = texto.match(RE_INSUMO_LINHA);
+  return linha?.[1] ? normalizarTextoCampo(linha[1]) : '';
+}
+
 function extrairCampo(texto: string, regex: RegExp): string {
   const match = texto.match(regex);
-  return match?.[1]?.trim().replace(/\s+/g, ' ') ?? '';
+  return match?.[1] ? normalizarTextoCampo(match[1]) : '';
 }
 
 function extrairCamposCertificado(texto: string): Pick<CertificadoCoa, 'insumo' | 'loteFabricante' | 'nota'> {
-  const insumo = extrairCampo(texto, RE_INSUMO);
+  const insumo = extrairInsumo(texto);
   const loteFabricante = extrairCampo(texto, RE_LOTE);
   const notaRaw = texto.match(RE_NOTA)?.[1] ?? '';
   const nota = normalizarNotaFiscal(notaRaw);
@@ -56,7 +68,7 @@ export function parseCertificados(paginasTexto: string[]): CertificadoCoa[] {
       continue;
     }
 
-    const insumo = extrairCampo(texto, RE_INSUMO);
+    const insumo = extrairInsumo(texto);
     if (!insumo) continue;
 
     if (!atual) {
