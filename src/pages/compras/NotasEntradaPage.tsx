@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FileText, Eye, Calendar, Building2, DollarSign, Undo2,
+  FileText, Calendar, Building2, DollarSign,
   Package, CheckCircle2, AlertTriangle, Clock, XCircle,
   TrendingUp, Filter, ChevronDown
 } from "lucide-react";
@@ -20,9 +20,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useNotasEntrada, type NotaEntrada, processarNota } from "@/hooks/use-notas-entrada";
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
-import { DeleteNotaDialog } from "@/components/nfe/DeleteNotaDialog";
-import { AnexarXmlButton } from "@/components/nfe/AnexarXmlButton";
-import { ImportarCoaNotaDialog } from "@/components/nfe/ImportarCoaNotaDialog";
+import { NotaEntradaAcoesCell } from "@/components/nfe/NotaEntradaAcoesCell";
 import { BackButton } from "@/components/ui/back-button";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
@@ -110,14 +108,19 @@ export default function NotasEntradaPage() {
   const [statusFinFiltro, setStatusFinFiltro] = useState<StatusFinFiltro>("todos");
   const queryClient = useQueryClient();
 
-  const handleViewNota = (nota: NotaEntrada) => {
+  const handleViewNota = useCallback((nota: NotaEntrada) => {
     if (nota.chave_nfe) {
       setSelectedChaveNfe(nota.chave_nfe);
       setShowNFeDialog(true);
     }
-  };
+  }, []);
 
-  const handleReverter = async (nota: NotaEntrada) => {
+  const handleRefreshNotas = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
+    queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
+  }, [queryClient]);
+
+  const handleReverter = useCallback(async (nota: NotaEntrada) => {
     if (!confirm(`Tem certeza que deseja REVERTER a importação da NF-e ${nota.numero}?\n\nIsso apagará todos os lotes, itens da nota e contas a pagar gerados por esta importação.`)) return;
     setReverting(nota.id);
     try {
@@ -131,9 +134,9 @@ export default function NotasEntradaPage() {
     } finally {
       setReverting(null);
     }
-  };
+  }, [queryClient]);
 
-  const handleProcessarNota = async (nota: NotaEntrada) => {
+  const handleProcessarNota = useCallback(async (nota: NotaEntrada) => {
     setProcessando(nota.id);
     try {
       const resultado = await processarNota(nota.id);
@@ -148,7 +151,7 @@ export default function NotasEntradaPage() {
     } finally {
       setProcessando(null);
     }
-  };
+  }, [queryClient]);
 
   // ── Dados filtrados ──────────────────────────────────────────
   const notasFiltradas = useMemo(() => {
@@ -181,7 +184,7 @@ export default function NotasEntradaPage() {
   }, [notas]);
 
   // ── Colunas ──────────────────────────────────────────────────
-  const columns = [
+  const columns = useMemo(() => [
     {
       key: "numero",
       header: "Número / Série",
@@ -319,63 +322,18 @@ export default function NotasEntradaPage() {
       header: "Ações",
       className: "min-w-[120px] w-auto",
       render: (item: NotaEntrada) => (
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewNota(item); }} title="Visualizar NF-e">
-            <Eye className="h-4 w-4" />
-          </Button>
-          {item.status === 'IMPORTADA' && (
-            <Button
-              variant="default" size="sm"
-              onClick={(e) => { e.stopPropagation(); handleProcessarNota(item); }}
-              disabled={processando === item.id || (item.qtd_itens_vinculados || 0) < (item.qtd_itens || 0)}
-              title={item.qtd_itens_vinculados < (item.qtd_itens || 0) ? 'Vincule todos os itens primeiro' : 'Processar nota'}
-              className="text-xs"
-            >
-              {processando === item.id ? 'Processando...' : 'Processar'}
-            </Button>
-          )}
-          <Button
-            variant="ghost" size="icon"
-            onClick={(e) => { e.stopPropagation(); handleReverter(item); }}
-            disabled={reverting === item.id}
-            title="Reverter importação"
-            className="text-destructive hover:text-destructive"
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          {!item.xml_raw && (
-            <div onClick={(e) => e.stopPropagation()}>
-              <AnexarXmlButton
-                notaId={item.id}
-                chaveNfe={item.chave_nfe}
-                onDone={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
-              />
-            </div>
-          )}
-          <div onClick={(e) => e.stopPropagation()}>
-            <ImportarCoaNotaDialog
-              notaId={item.id}
-              notaNumero={item.numero}
-              onDone={() => {
-                queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
-                queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
-              }}
-            />
-          </div>
-          <div onClick={(e) => e.stopPropagation()}>
-            <DeleteNotaDialog
-              notaId={item.id}
-              notaNumero={item.numero}
-              notaSerie={item.serie}
-              fornecedorNome={item.fornecedor_nome_fantasia || item.fornecedor_razao || 'Desconhecido'}
-              totalItens={item.qtd_itens || 0}
-              onDeleted={() => queryClient.invalidateQueries({ queryKey: ['notas-entrada'] })}
-            />
-          </div>
-        </div>
+        <NotaEntradaAcoesCell
+          item={item}
+          processandoId={processando}
+          revertendoId={reverting}
+          onView={handleViewNota}
+          onProcessar={handleProcessarNota}
+          onReverter={handleReverter}
+          onRefresh={handleRefreshNotas}
+        />
       ),
     },
-  ];
+  ], [processando, reverting, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas]);
 
   const periodoLabel: Record<PeriodoFiltro, string> = {
     todos: "Todos os períodos",

@@ -227,13 +227,12 @@ export async function processarNota(notaId: string): Promise<{
     }
 
     // 4. Registrar movimentações de estoque (ENTRADA)
-    const { useEstoqueMovimentacoes } = await import('@/hooks/use-estoque-movimentacoes');
-    const { registrarMovimentacao } = useEstoqueMovimentacoes();
+    const { inserirMovimentacaoEstoque } = await import('@/hooks/use-estoque-movimentacoes');
 
     let movimentacoesCount = 0;
     for (const item of itens) {
       try {
-        await registrarMovimentacao({
+        await inserirMovimentacaoEstoque({
           tipo: 'ENTRADA',
           item_id: item.item_id,
           quantidade: item.qcom,
