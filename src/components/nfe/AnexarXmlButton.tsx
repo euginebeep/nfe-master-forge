@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export function AnexarXmlButton({ notaId, chaveNfe, onDone }: {
+export function AnexarXmlButton({ notaId, chaveNfe, onDone, variant = 'icon' }: {
   notaId: string; chaveNfe: string; onDone: () => void;
+  /** icon = botão ícone na tabela; menu = item do dropdown */
+  variant?: 'icon' | 'menu';
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [salvando, setSalvando] = useState(false);
@@ -41,11 +43,24 @@ export function AnexarXmlButton({ notaId, chaveNfe, onDone }: {
   return (
     <>
       <input ref={inputRef} type="file" accept=".xml,text/xml,application/xml" className="hidden" onChange={handleFile} />
-      <Button variant="ghost" size="icon" disabled={salvando}
-        onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
-        title="Anexar XML (nota sem XML salvo)" className="text-amber-600 hover:text-amber-700">
-        <FileUp className="h-4 w-4" />
-      </Button>
+      {variant === 'menu' ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={salvando}
+          onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+          className="w-full justify-start gap-2 h-8 px-2 font-normal text-amber-700 hover:text-amber-800"
+        >
+          <FileUp className="h-4 w-4" />
+          Anexar XML
+        </Button>
+      ) : (
+        <Button variant="ghost" size="icon" disabled={salvando}
+          onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+          title="Anexar XML" className="text-amber-600 hover:text-amber-700">
+          <FileUp className="h-4 w-4" />
+        </Button>
+      )}
     </>
   );
 }
