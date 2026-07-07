@@ -104,6 +104,7 @@ export default function NotasEntradaPage() {
   const [selectedChaveNfe, setSelectedChaveNfe] = useState<string>("");
   const [showNFeDialog, setShowNFeDialog] = useState(false);
   const [reverting, setReverting] = useState<string | null>(null);
+  const [processando, setProcessando] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
   const [statusFinFiltro, setStatusFinFiltro] = useState<StatusFinFiltro>("todos");
@@ -129,6 +130,23 @@ export default function NotasEntradaPage() {
       toast.error('Erro ao reverter importação');
     } finally {
       setReverting(null);
+    }
+  };
+
+  const handleProcessarNota = async (nota: NotaEntrada) => {
+    setProcessando(nota.id);
+    try {
+      const resultado = await processarNota(nota.id);
+      toast.success(
+        `NF-e ${nota.numero} processada: ${resultado.movimentacoes} movimentação(ões), ${resultado.contas_pagar} conta(s) a pagar.`
+      );
+      queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
+      queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
+    } catch (err) {
+      const e = err as { message?: string; code?: string };
+      toast.error(e.message || e.code || 'Erro ao processar nota');
+    } finally {
+      setProcessando(null);
     }
   };
 
