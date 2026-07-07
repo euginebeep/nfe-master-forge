@@ -20,6 +20,44 @@ export interface EstoqueMovimentacao {
   lote?: { numero_lote: string } | null;
 }
 
+export type MovimentacaoInsert = {
+  tipo: string;
+  item_id: string;
+  lote_id?: string;
+  quantidade: number;
+  unidade: string;
+  custo_unitario?: number;
+  motivo?: string;
+  documento_ref?: string;
+  documento_ref_id?: string;
+  origem?: string;
+  observacoes?: string;
+};
+
+/** Insere movimentação sem hook — seguro para uso em funções async utilitárias */
+export async function inserirMovimentacaoEstoque(mov: MovimentacaoInsert): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+  const companyId = await getUserCompanyId();
+  if (!companyId) throw new Error('Empresa não identificada');
+  const { error } = await supabase.from('estoque_movimentacoes').insert({
+    tipo: mov.tipo,
+    item_id: mov.item_id,
+    lote_id: mov.lote_id ?? null,
+    quantidade: mov.quantidade,
+    unidade: mov.unidade,
+    custo_unitario: mov.custo_unitario ?? null,
+    motivo: mov.motivo ?? 'MOVIMENTACAO',
+    documento_ref: mov.documento_ref ?? null,
+    documento_ref_id: mov.documento_ref_id ?? null,
+    origem: mov.origem ?? null,
+    observacoes: mov.observacoes ?? null,
+    usuario_id: user.id,
+    company_id: companyId,
+  });
+  if (error) throw error;
+}
+
 export function useEstoqueMovimentacoes() {
   const queryClient = useQueryClient();
 

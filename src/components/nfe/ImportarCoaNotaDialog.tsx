@@ -328,24 +328,40 @@ interface ImportarCoaNotaDialogProps {
   notaId: string;
   notaNumero: string;
   onDone?: () => void;
+  /** Modo controlado — sem botão trigger (um dialog por página) */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ImportarCoaNotaDialog({ notaId, notaNumero, onDone }: ImportarCoaNotaDialogProps) {
-  const [open, setOpen] = useState(false);
+export function ImportarCoaNotaDialog({
+  notaId,
+  notaNumero,
+  onDone,
+  open: openControlado,
+  onOpenChange: onOpenChangeControlado,
+}: ImportarCoaNotaDialogProps) {
+  const [openInterno, setOpenInterno] = useState(false);
+  const controlado = openControlado !== undefined;
+  const open = controlado ? openControlado : openInterno;
+  const setOpen = controlado ? (onOpenChangeControlado ?? (() => {})) : setOpenInterno;
+
+  const handleFechar = () => setOpen(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Importar COA da nota (PDF compilado)"
-          className="text-blue-600 hover:text-blue-700"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <FileText className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      {!controlado && (
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Importar COA da nota (PDF compilado)"
+            className="text-blue-600 hover:text-blue-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FileText className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
 
       <DialogContent className="max-w-2xl" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
@@ -354,12 +370,14 @@ export function ImportarCoaNotaDialog({ notaId, notaNumero, onDone }: ImportarCo
             NF-e {notaNumero} — selecione o PDF compilado com os certificados de análise.
           </DialogDescription>
         </DialogHeader>
-        <ImportarCoaNotaFlow
-          notaId={notaId}
-          notaNumero={notaNumero}
-          onDone={onDone}
-          onFechar={() => setOpen(false)}
-        />
+        {open && (
+          <ImportarCoaNotaFlow
+            notaId={notaId}
+            notaNumero={notaNumero}
+            onDone={onDone}
+            onFechar={handleFechar}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
