@@ -202,13 +202,13 @@ export default function NotasEntradaPage() {
       key: "numero",
       header: "Número / Série",
       sortable: true,
-      className: "min-w-[140px]",
+      className: "w-[7%] min-w-[88px] max-w-[120px]",
       render: (item: NotaEntrada) => (
-        <button onClick={() => handleViewNota(item)} className="flex items-center gap-2 hover:text-primary transition-colors text-left">
-          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-          <div>
-            <span className="font-mono font-semibold hover:underline">{item.numero}</span>
-            <span className="text-muted-foreground text-xs ml-1">Série {item.serie}</span>
+        <button onClick={() => handleViewNota(item)} className="flex items-center gap-1.5 hover:text-primary transition-colors text-left min-w-0 w-full">
+          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <div className="min-w-0 truncate">
+            <span className="font-mono font-semibold text-sm hover:underline">{item.numero}</span>
+            <span className="text-muted-foreground text-xs ml-1">/{item.serie}</span>
           </div>
         </button>
       ),
@@ -217,10 +217,10 @@ export default function NotasEntradaPage() {
       key: "dh_emissao",
       header: "Emissão",
       sortable: true,
-      className: "min-w-[110px]",
+      className: "w-[7%] min-w-[80px] whitespace-nowrap",
       render: (item: NotaEntrada) => (
-        <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-1 text-sm">
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           {formatDate(item.dh_emissao)}
         </div>
       ),
@@ -228,19 +228,16 @@ export default function NotasEntradaPage() {
     {
       key: "fornecedor_razao",
       header: "Fornecedor",
-      className: "min-w-[200px]",
+      className: "w-[18%] min-w-[120px] max-w-[220px]",
       render: (item: NotaEntrada) => (
-        <div className="flex items-center gap-2 min-w-0">
-          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <div className="min-w-0">
-            <p className="font-medium text-sm truncate max-w-[200px]">
+            <p className="font-medium text-sm truncate" title={item.fornecedor_nome_fantasia || item.fornecedor_razao || undefined}>
               {item.fornecedor_nome_fantasia || item.fornecedor_razao || <span className="text-muted-foreground italic">Não identificado</span>}
             </p>
-            {item.fornecedor_razao && item.fornecedor_nome_fantasia && (
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{item.fornecedor_razao}</p>
-            )}
             {item.fornecedor_cnpj && (
-              <p className="text-xs text-muted-foreground font-mono">{item.fornecedor_cnpj}</p>
+              <p className="text-xs text-muted-foreground font-mono truncate">{item.fornecedor_cnpj}</p>
             )}
           </div>
         </div>
@@ -249,22 +246,22 @@ export default function NotasEntradaPage() {
     {
       key: "qtd_itens",
       header: "Itens",
-      className: "min-w-[100px]",
+      className: "w-[6%] min-w-[64px]",
       render: (item: NotaEntrada) => {
         const total = item.qtd_itens ?? 0;
         const vinc = item.qtd_itens_vinculados ?? 0;
         const pendItens = total - vinc;
         return (
-          <div className="flex items-center gap-1.5">
-            <Package className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1">
+            <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span className="text-sm font-medium">{total}</span>
             {total > 0 && pendItens > 0 && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
-                {pendItens} p/ vincular
+              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-200">
+                {pendItens}
               </Badge>
             )}
             {total > 0 && pendItens === 0 && (
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
             )}
           </div>
         );
@@ -274,20 +271,17 @@ export default function NotasEntradaPage() {
       key: "total_nota",
       header: "Total NF-e",
       sortable: true,
-      className: "min-w-[120px]",
+      className: "w-[9%] min-w-[88px] text-right",
       render: (item: NotaEntrada) => (
-        <div className="text-right">
-          <p className="font-semibold text-sm">{formatCurrency(item.total_nota)}</p>
-          {item.total_produtos !== item.total_nota && (
-            <p className="text-xs text-muted-foreground">Produtos: {formatCurrency(item.total_produtos)}</p>
-          )}
+        <div className="text-right min-w-0">
+          <p className="font-semibold text-sm truncate">{formatCurrency(item.total_nota)}</p>
         </div>
       ),
     },
     {
       key: "vencimento",
       header: "Vencimento",
-      className: "min-w-[110px]",
+      className: "w-[8%] min-w-[80px] whitespace-nowrap",
       render: (item: NotaEntrada) => {
         if (!item.vencimento) return <span className="text-muted-foreground text-xs">—</span>;
         const venc = new Date(item.vencimento);
@@ -309,13 +303,13 @@ export default function NotasEntradaPage() {
     {
       key: "status_financeiro",
       header: "Financeiro",
-      className: "min-w-[110px]",
+      className: "w-[9%] min-w-[88px]",
       render: (item: NotaEntrada) => {
         const cfg = STATUS_FIN_CONFIG[item.status_financeiro ?? "SEM_DUPLICATA"];
         return (
-          <Badge variant="outline" className={cn("gap-1 text-xs font-medium", cfg.color)}>
+          <Badge variant="outline" className={cn("gap-1 text-[10px] font-medium px-1.5", cfg.color)}>
             {cfg.icon}
-            {cfg.label}
+            <span className="truncate">{cfg.label}</span>
           </Badge>
         );
       },
@@ -323,7 +317,7 @@ export default function NotasEntradaPage() {
     {
       key: "status_importacao",
       header: "NF-e",
-      className: "min-w-[100px]",
+      className: "w-[7%] min-w-[72px]",
       render: (item: NotaEntrada) => (
         <StatusBadge variant={STATUS_VARIANTS[item.status]}>
           {item.status}
@@ -332,8 +326,8 @@ export default function NotasEntradaPage() {
     },
     {
       key: "acoes",
-      header: "Ações",
-      className: "min-w-[120px] w-auto",
+      header: "",
+      className: "w-[108px] min-w-[108px] max-w-[108px]",
       render: (item: NotaEntrada) => (
         <NotaEntradaAcoesCell
           item={item}
@@ -488,7 +482,7 @@ export default function NotasEntradaPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex-1 overflow-x-auto border rounded-lg">
+        <div className="flex-1 min-w-0 overflow-hidden border rounded-lg">
           <DataTable
             data={notasFiltradas}
             columns={columns}

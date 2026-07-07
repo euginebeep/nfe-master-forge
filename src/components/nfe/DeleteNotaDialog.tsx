@@ -22,6 +22,8 @@ interface DeleteNotaDialogProps {
   fornecedorNome: string;
   totalItens: number;
   onDeleted?: () => void;
+  /** menu = item compacto no dropdown de ações */
+  variant?: 'button' | 'menu';
 }
 
 export function DeleteNotaDialog({
@@ -31,6 +33,7 @@ export function DeleteNotaDialog({
   fornecedorNome,
   totalItens,
   onDeleted,
+  variant = 'button',
 }: DeleteNotaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -64,15 +67,26 @@ export function DeleteNotaDialog({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button
-          variant="destructive"
-          size="sm"
-          className="gap-2"
-          title="Excluir esta nota de entrada"
-        >
-          <Trash2 className="h-4 w-4" />
-          Excluir
-        </Button>
+        {variant === 'menu' ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 h-8 px-2 font-normal text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+            Excluir nota
+          </Button>
+        ) : (
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-2"
+            title="Excluir nota"
+          >
+            <Trash2 className="h-4 w-4" />
+            Excluir
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>

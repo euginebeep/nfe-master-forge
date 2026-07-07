@@ -1,5 +1,16 @@
-import { Eye, Undo2, FileText } from 'lucide-react';
+import {
+  Eye, Undo2, FileText, MoreHorizontal, Play, Loader2,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AnexarXmlButton } from '@/components/nfe/AnexarXmlButton';
 import { DeleteNotaDialog } from '@/components/nfe/DeleteNotaDialog';
 import type { NotaEntrada } from '@/hooks/use-notas-entrada';
@@ -15,7 +26,16 @@ interface NotaEntradaAcoesCellProps {
   onRefresh: () => void;
 }
 
-/** Célula de ações da tabela — sem hooks (todos ficam no NotasEntradaPage) */
+function AcaoTooltip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** Célula de ações compacta — sem hooks (estado fica no NotasEntradaPage) */
 export function NotaEntradaAcoesCell({
   item,
   processandoId,
@@ -26,62 +46,98 @@ export function NotaEntradaAcoesCell({
   onImportarCoa,
   onRefresh,
 }: NotaEntradaAcoesCellProps) {
+  const processando = processandoId === item.id;
+  const podeProcessar = (item.qtd_itens_vinculados || 0) >= (item.qtd_itens || 0);
+
   return (
-    <div className="flex gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={(e) => { e.stopPropagation(); onView(item); }}
-        title="Visualizar NF-e"
-      >
-        <Eye className="h-4 w-4" />
-      </Button>
-      {item.status === 'IMPORTADA' && (
+    <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+      <AcaoTooltip label="Visualizar NF-e">
         <Button
-          variant="default"
-          size="sm"
-          onClick={(e) => { e.stopPropagation(); onProcessar(item); }}
-          disabled={processandoId === item.id || (item.qtd_itens_vinculados || 0) < (item.qtd_itens || 0)}
-          title={item.qtd_itens_vinculados < (item.qtd_itens || 0) ? 'Vincule todos os itens primeiro' : 'Processar nota'}
-          className="text-xs"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={() => onView(item)}
         >
-          {processandoId === item.id ? 'Processando...' : 'Processar'}
+          <Eye className="h-4 w-4" />
         </Button>
+      </AcaoTooltip>
+
+      {item.status === 'IMPORTADA' && (
+        <AcaoTooltip label={podeProcessar ? 'Processar nota' : 'Vincule todos os itens primeiro'}>
+          <Button
+            variant="default"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => onProcessar(item)}
+            disabled={processando || !podeProcessar}
+          >
+            {processando ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+          </Button>
+        </AcaoTooltip>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={(e) => { e.stopPropagation(); onReverter(item); }}
-        disabled={revertendoId === item.id}
-        title="Reverter importação"
-        className="text-destructive hover:text-destructive"
-      >
-        <Undo2 className="h-4 w-4" />
-      </Button>
-      {!item.xml_raw && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <AnexarXmlButton notaId={item.id} chaveNfe={item.chave_nfe} onDone={onRefresh} />
-        </div>
-      )}
-      <Button
-        variant="ghost"
-        size="icon"
-        title="Importar COA da nota (PDF compilado)"
-        className="text-blue-600 hover:text-blue-700"
-        onClick={(e) => { e.stopPropagation(); onImportarCoa(item); }}
-      >
-        <FileText className="h-4 w-4" />
-      </Button>
-      <div onClick={(e) => e.stopPropagation()}>
-        <DeleteNotaDialog
-          notaId={item.id}
-          notaNumero={item.numero}
-          notaSerie={item.serie}
-          fornecedorNome={item.fornecedor_nome_fantasia || item.fornecedor_razao || 'Desconhecido'}
-          totalItens={item.qtd_itens || 0}
-          onDeleted={onRefresh}
-        />
-      </div>
+
+      <AcaoTooltip label="Importar COA da nota">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 text-blue-600 hover:text-blue-700"
+          onClick={() => onImportarCoa(item)}
+        >
+          <FileText className="h-4 w-4" />
+        </Button>
+      </AcaoTooltip>
+
+      <DropdownMenu>
+        <AcaoTooltip label="Mais ações">
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+        </AcaoTooltip>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem
+            onClick={() => onReverter(item)}
+            disabled={revertendoId === item.id}
+            className="gap-2 text-destructive focus:text-destructive"
+          >
+            <Undo2 className="h-4 w-4" />
+            Reverter importação
+          </DropdownMenuItem>
+          {!item.xml_raw && (
+            <DropdownMenuItem
+              onSelect={(e) => e.preventDefault()}
+              className="gap-2 p-0 focus:bg-transparent"
+            >
+              <AnexarXmlButton
+                notaId={item.id}
+                chaveNfe={item.chave_nfe}
+                onDone={onRefresh}
+                variant="menu"
+              />
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={(e) => e.preventDefault()}
+            className="p-0 focus:bg-transparent"
+          >
+            <DeleteNotaDialog
+              notaId={item.id}
+              notaNumero={item.numero}
+              notaSerie={item.serie}
+              fornecedorNome={item.fornecedor_nome_fantasia || item.fornecedor_razao || 'Desconhecido'}
+              totalItens={item.qtd_itens || 0}
+              onDeleted={onRefresh}
+              variant="menu"
+            />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
