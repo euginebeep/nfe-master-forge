@@ -22,6 +22,7 @@ import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 import { DeleteNotaDialog } from "@/components/nfe/DeleteNotaDialog";
 import { AnexarXmlButton } from "@/components/nfe/AnexarXmlButton";
+import { ImportarCoaNotaDialog } from "@/components/nfe/ImportarCoaNotaDialog";
 import { BackButton } from "@/components/ui/back-button";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
@@ -333,6 +334,16 @@ export default function NotasEntradaPage() {
               />
             </div>
           )}
+          <div onClick={(e) => e.stopPropagation()}>
+            <ImportarCoaNotaDialog
+              notaId={item.id}
+              notaNumero={item.numero}
+              onDone={() => {
+                queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
+                queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
+              }}
+            />
+          </div>
           <div onClick={(e) => e.stopPropagation()}>
             <DeleteNotaDialog
               notaId={item.id}
