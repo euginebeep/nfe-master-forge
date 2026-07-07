@@ -1,0 +1,141 @@
+export interface CertificadoCoa {
+  insumo: string;
+  loteFabricante: string;
+  nota: string;
+  paginaInicio: number;
+  paginaFim: number;
+}
+
+const RE_INSUMO = /Insumo:\s*(.+?)(?=\s*Lote do Fabricante:|$)/is;
+const RE_LOTE = /Lote do Fabricante:\s*(.+?)(?=\s*Nota Fiscal:|$)/is;
+const RE_NOTA = /Nota Fiscal:\s*0*(\d+)/i;
+const RE_TEM_INSUMO = /Insumo:/i;
+
+/** Normaliza número da nota fiscal removendo zeros à esquerda */
+export function normalizarNotaFiscal(valor?: string | null): string {
+  if (!valor) return '';
+  const digits = valor.replace(/\D/g, '');
+  if (!digits) return '';
+  return String(parseInt(digits, 10));
+}
+
+function extrairCampo(texto: string, regex: RegExp): string {
+  const match = texto.match(regex);
+  return match?.[1]?.trim().replace(/\s+/g, ' ') ?? '';
+}
+
+function extrairCamposCertificado(texto: string): Pick<CertificadoCoa, 'insumo' | 'loteFabricante' | 'nota'> {
+  const insumo = extrairCampo(texto, RE_INSUMO);
+  const loteFabricante = extrairCampo(texto, RE_LOTE);
+  const notaRaw = texto.match(RE_NOTA)?.[1] ?? '';
+  const nota = normalizarNotaFiscal(notaRaw);
+  return { insumo, loteFabricante, nota };
+}
+
+/**
+ * Identifica certificados em páginas de texto extraídas de um COA compilado.
+ * Páginas consecutivas sem "Insumo:" continuam o certificado anterior.
+ * Páginas consecutivas com o mesmo insumo são agrupadas.
+ */
+export function parseCertificados(paginasTexto: string[]): CertificadoCoa[] {
+  if (!paginasTexto?.length) return [];
+
+  type Bloco = { paginas: number[]; textos: string[]; insumo: string };
+  const blocos: Bloco[] = [];
+  let atual: Bloco | null = null;
+
+  for (let i = 0; i < paginasTexto.length; i++) {
+    const texto = paginasTexto[i] ?? '';
+    const temInsumo = RE_TEM_INSUMO.test(texto);
+
+    if (!temInsumo) {
+      if (atual) {
+        atual.paginas.push(i + 1);
+        atual.textos.push(texto);
+      }
+      continue;
+    }
+
+    const insumo = extrairCampo(texto, RE_INSUMO);
+    if (!insumo) continue;
+
+    if (!atual) {
+      atual = { paginas: [i + 1], textos: [texto], insumo };
+      continue;
+    }
+
+    if (insumo === atual.insumo) {
+      atual.paginas.push(i + 1);
+      atual.textos.push(texto);
+      continue;
+    }
+
+    blocos.push(atual);
+    atual = { paginas: [i + 1], textos: [texto], insumo };
+  }
+
+  if (atual) blocos.push(atual);
+
+  return blocos.map((bloco) => {
+    const textoCompleto = bloco.textos.join('\n');
+    const campos = extrairCamposCertificado(textoCompleto);
+    return {
+      ...campos,
+      paginaInicio: bloco.paginas[0],
+      paginaFim: bloco.paginas[bloco.paginas.length - 1],
+    };
+  });
+}
+
+/** Extrai texto de cada página de um PDF usando pdfjs-dist */
+export async function extrairTextoPorPagina(file: File): Promise<string[]> {
+  if (!file) return [];
+
+  const pdfjsLib = await import('pdfjs-dist');
+  const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default;
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  const doc = await pdfjsLib.getDocument({ data }).promise;
+  const paginas: string[] = [];
+
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ('str' in item && typeof item.str === 'string' ? item.str : ''))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    paginas.push(text);
+  }
+
+  return paginas;
+}
+
+/**
+ * Recorta um intervalo de páginas (1-based, inclusivo) em um novo PDF.
+ */
+export async function fatiarCertificado(file: File, inicio: number, fim: number): Promise<Blob> {
+  if (!file) throw new Error('Arquivo PDF não informado');
+  if (!Number.isFinite(inicio) || !Number.isFinite(fim) || inicio < 1 || fim < inicio) {
+    throw new Error(`Intervalo de páginas inválido: ${inicio}-${fim}`);
+  }
+
+  const { PDFDocument } = await import('pdf-lib');
+  const bytes = await file.arrayBuffer();
+  const srcDoc = await PDFDocument.load(bytes);
+  const total = srcDoc.getPageCount();
+
+  if (fim > total) {
+    throw new Error(`Página final ${fim} excede o total (${total}) do PDF`);
+  }
+
+  const newDoc = await PDFDocument.create();
+  const indices = Array.from({ length: fim - inicio + 1 }, (_, idx) => inicio - 1 + idx);
+  const copied = await newDoc.copyPages(srcDoc, indices);
+  copied.forEach((page) => newDoc.addPage(page));
+
+  const pdfBytes = await newDoc.save();
+  return new Blob([pdfBytes], { type: 'application/pdf' });
+}
