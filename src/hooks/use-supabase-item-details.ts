@@ -313,6 +313,53 @@ export function useSupabaseItemAliases(itemId: string | undefined) {
 // LOTE DOCUMENTOS (Supabase)
 // ====================================================
 
+/** Upload de documento para um lote (reutilizável fora do hook) */
+export async function uploadDocumentoLote(
+  loteId: string,
+  file: File,
+  tipo_documento = 'COA'
+): Promise<void> {
+  if (!loteId) throw new Error('Lote não informado');
+  const companyId = await getUserCompanyId();
+  if (!companyId) throw new Error('Empresa não identificada');
+
+  const ext = file.name.split('.').pop() || 'bin';
+  const storageKey = `${companyId}/lotes/${loteId}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('erp-files')
+    .upload(storageKey, file, { contentType: file.type, upsert: false });
+
+  if (uploadError) throw uploadError;
+
+  const { data: arquivo, error: arquivoError } = await supabase
+    .from('arquivos')
+    .insert({
+      nome_original: file.name,
+      mime_type: file.type,
+      tamanho: file.size,
+      storage_key: storageKey,
+      sensivel: tipo_documento === 'COA',
+      company_id: companyId,
+    } as any)
+    .select('id')
+    .single();
+
+  if (arquivoError || !arquivo) throw arquivoError || new Error('Arquivo não gravado');
+
+  const { error: docError } = await supabase
+    .from('lote_documentos')
+    .insert({
+      lote_id: loteId,
+      tipo_documento,
+      arquivo_id: arquivo.id,
+      status_validacao: 'PENDENTE',
+      versao: 1,
+    } as any);
+
+  if (docError) throw docError;
+}
+
 export function useSupabaseLoteDocumentos(loteId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -334,44 +381,7 @@ export function useSupabaseLoteDocumentos(loteId: string | undefined) {
   const createMutation = useMutation({
     mutationFn: async ({ file, tipo_documento = 'COA' }: { file: File; tipo_documento?: string }) => {
       if (!loteId) throw new Error('Lote não informado');
-      const companyId = await getUserCompanyId();
-      if (!companyId) throw new Error('Empresa não identificada');
-
-      const ext = file.name.split('.').pop() || 'bin';
-      const storageKey = `${companyId}/lotes/${loteId}/${crypto.randomUUID()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('erp-files')
-        .upload(storageKey, file, { contentType: file.type, upsert: false });
-
-      if (uploadError) throw uploadError;
-
-      const { data: arquivo, error: arquivoError } = await supabase
-        .from('arquivos')
-        .insert({
-          nome_original: file.name,
-          mime_type: file.type,
-          tamanho: file.size,
-          storage_key: storageKey,
-          sensivel: tipo_documento === 'COA',
-          company_id: companyId,
-        } as any)
-        .select('id')
-        .single();
-
-      if (arquivoError || !arquivo) throw arquivoError || new Error('Arquivo não gravado');
-
-      const { error: docError } = await supabase
-        .from('lote_documentos')
-        .insert({
-          lote_id: loteId,
-          tipo_documento,
-          arquivo_id: arquivo.id,
-          status_validacao: 'PENDENTE',
-          versao: 1,
-        } as any);
-
-      if (docError) throw docError;
+      await uploadDocumentoLote(loteId, file, tipo_documento);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lote-documentos', loteId] });

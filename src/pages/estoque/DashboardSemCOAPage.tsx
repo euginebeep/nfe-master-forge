@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ImportarCoaNotaSeletor } from "@/components/nfe/ImportarCoaNotaDialog";
 import {
   TriangleAlert,
   ShieldOff,
@@ -55,6 +56,7 @@ const CORES_GRAFICO = ["#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#10b981", "#
 
 export default function DashboardSemCOAPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: registros = [], isLoading } = useQuery({
     queryKey: ["lote-liberacoes-sem-coa-dashboard"],
@@ -65,6 +67,19 @@ export default function DashboardSemCOAPage() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as any[];
+    },
+  });
+
+  const { data: notasRecentes = [] } = useQuery({
+    queryKey: ["notas-entrada-import-coa"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notas_entrada")
+        .select("id, numero")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data || []) as { id: string; numero: string }[];
     },
   });
 
@@ -138,20 +153,29 @@ export default function DashboardSemCOAPage() {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Cabeçalho */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <ShieldOff className="h-5 w-5 text-amber-500" />
-            Dashboard — Liberações sem COA
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Análise de todas as liberações de lote realizadas sem COA validado.
-            Base legal: RDC 275/2002 Art. 3 · RDC 243/2018 Art. 12
-          </p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <ShieldOff className="h-5 w-5 text-amber-500" />
+              Dashboard — Liberações sem COA
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Análise de todas as liberações de lote realizadas sem COA validado.
+              Base legal: RDC 275/2002 Art. 3 · RDC 243/2018 Art. 12
+            </p>
+          </div>
         </div>
+        <ImportarCoaNotaSeletor
+          notas={notasRecentes}
+          onDone={() => {
+            queryClient.invalidateQueries({ queryKey: ["lote-liberacoes-sem-coa-dashboard"] });
+            queryClient.invalidateQueries({ queryKey: ["estoque-lotes"] });
+          }}
+        />
       </div>
 
       {totalRegistros === 0 ? (
