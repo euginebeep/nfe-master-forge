@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, FileCheck, Filter, Search } from "lucide-react";
+import { AlertTriangle, FileCheck, Filter, Pencil, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
@@ -41,7 +41,9 @@ type LoteCoaRow = {
   id: string;
   numero_lote: string;
   status: string;
+  data_fab: string | null;
   data_val: string | null;
+  observacoes_qc: string | null;
   quantidade_original: number;
   unidade_original: string;
   item: { descricao_interna: string | null; sku_interno: string | null; tipo_item: string } | null;
@@ -90,6 +92,53 @@ function podeLiberarComRessalva(lote: LoteCoaRow): boolean {
   return coaStatus === "SEM_COA" || coaStatus === "PENDENTE";
 }
 
+type FormEditarLote = {
+  numero_lote: string;
+  data_fab: string;
+  data_val: string;
+};
+
+function isoParaInputDate(val: string | null | undefined): string {
+  if (!val) return "";
+  return val.slice(0, 10);
+}
+
+function valorAuditavel(val: string | null | undefined, isDate = false): string {
+  if (!val) return "(vazio)";
+  return isDate ? formatDate(val) : val;
+}
+
+function montarLinhaAuditoriaCorrecao(
+  usuarioNome: string,
+  antigo: { numero_lote: string; data_fab: string | null; data_val: string | null },
+  novo: FormEditarLote
+): string {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const partes: string[] = [];
+
+  const numNovo = novo.numero_lote.trim();
+  if (antigo.numero_lote.trim() !== numNovo) {
+    partes.push(`numero_lote: ${antigo.numero_lote} -> ${numNovo}`);
+  }
+
+  const fabAntigo = isoParaInputDate(antigo.data_fab);
+  if (fabAntigo !== novo.data_fab) {
+    partes.push(
+      `data_fab: ${valorAuditavel(antigo.data_fab, true)} -> ${novo.data_fab ? formatDate(novo.data_fab) : "(vazio)"}`
+    );
+  }
+
+  const valAntigo = isoParaInputDate(antigo.data_val);
+  if (valAntigo !== novo.data_val) {
+    partes.push(
+      `validade: ${valorAuditavel(antigo.data_val, true)} -> ${novo.data_val ? formatDate(novo.data_val) : "(vazio)"}`
+    );
+  }
+
+  if (!partes.length) return "";
+  return `[correção RT ${hoje} por ${usuarioNome}] ${partes.join("; ")}`;
+}
+
 export default function CoaQualidadePage() {
   const { data: companyId } = useUserCompanyId();
   const queryClient = useQueryClient();
@@ -99,6 +148,11 @@ export default function CoaQualidadePage() {
   const [loteParaLiberar, setLoteParaLiberar] = useState<LoteCoaRow | null>(null);
   const [justificativa, setJustificativa] = useState("");
   const [dialogLiberarOpen, setDialogLiberarOpen] = useState(false);
+  const [loteParaEditar, setLoteParaEditar] = useState<LoteCoaRow | null>(null);
+  const [dialogEditarOpen, setDialogEditarOpen] = useState(false);
+  const [formEditar, setFormEditar] = useState<FormEditarLote>({ numero_lote: "", data_fab: "", data_val: "" });
+  const [confirmarEdicao, setConfirmarEdicao] = useState(false);
+  const [nomeAuditor, setNomeAuditor] = useState("RT");
 
   const { data: lotes = [], isLoading } = useQuery({
     queryKey: ["coa-qualidade-lotes", companyId],
@@ -110,7 +164,9 @@ export default function CoaQualidadePage() {
           id,
           numero_lote,
           status,
+          data_fab,
           data_val,
+          observacoes_qc,
           quantidade_original,
           unidade_original,
           item:itens(descricao_interna, sku_interno, tipo_item),
@@ -259,6 +315,66 @@ export default function CoaQualidadePage() {
     onError: (err) => toast.error(erroMsg(err)),
   });
 
+  const salvarEdicaoLote = useMutation({
+    mutationFn: async ({ lote, form }: { lote: LoteCoaRow; form: FormEditarLote }) => {
+      const numeroNovo = form.numero_lote.trim();
+      if (!numeroNovo) throw new Error("Número do lote é obrigatório");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const usuarioNome =
+        (profile as { full_name?: string })?.full_name || user.email || "RT";
+
+      const linhaAuditoria = montarLinhaAuditoriaCorrecao(
+        usuarioNome,
+        {
+          numero_lote: lote.numero_lote,
+          data_fab: lote.data_fab,
+          data_val: lote.data_val,
+        },
+        form
+      );
+
+      if (!linhaAuditoria) throw new Error("Nenhum campo foi alterado");
+
+      const observacoesAtuais = lote.observacoes_qc?.trim() || "";
+      const observacoes_qc = observacoesAtuais
+        ? `${observacoesAtuais}\n${linhaAuditoria}`
+        : linhaAuditoria;
+
+      const payload: Record<string, string | null> = {
+        numero_lote: numeroNovo,
+        data_fab: form.data_fab || null,
+        data_val: form.data_val || null,
+        observacoes_qc,
+      };
+
+      const { error } = await supabase
+        .from("estoque_lotes")
+        .update(payload as any)
+        .eq("id", lote.id)
+        .eq("company_id", companyId!);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coa-qualidade-lotes"] });
+      queryClient.invalidateQueries({ queryKey: ["estoque-lotes"] });
+      toast.success("Dados do lote atualizados");
+      fecharDialogEditar();
+    },
+    onError: (err) => toast.error(erroMsg(err)),
+  });
+
   const handleValidar = (lote: LoteCoaRow) => {
     const doc = getCoaDoc(lote);
     if (!doc || doc.status_validacao === "VALIDADO") return;
@@ -289,6 +405,88 @@ export default function CoaQualidadePage() {
       return;
     }
     liberarComRessalva.mutate({ lote: loteParaLiberar, justificativaTexto: justificativa });
+  };
+
+  const abrirDialogEditar = (lote: LoteCoaRow) => {
+    setLoteParaEditar(lote);
+    setFormEditar({
+      numero_lote: lote.numero_lote,
+      data_fab: isoParaInputDate(lote.data_fab),
+      data_val: isoParaInputDate(lote.data_val),
+    });
+    setConfirmarEdicao(false);
+    setDialogEditarOpen(true);
+  };
+
+  const fecharDialogEditar = () => {
+    setDialogEditarOpen(false);
+    setLoteParaEditar(null);
+    setConfirmarEdicao(false);
+    setFormEditar({ numero_lote: "", data_fab: "", data_val: "" });
+  };
+
+  const linhaAuditoriaPreview = useMemo(() => {
+    if (!loteParaEditar) return "";
+    return montarLinhaAuditoriaCorrecao(
+      nomeAuditor,
+      {
+        numero_lote: loteParaEditar.numero_lote,
+        data_fab: loteParaEditar.data_fab,
+        data_val: loteParaEditar.data_val,
+      },
+      formEditar
+    );
+  }, [loteParaEditar, formEditar, nomeAuditor]);
+
+  const numeroLoteMudou =
+    loteParaEditar != null &&
+    loteParaEditar.numero_lote.trim() !== formEditar.numero_lote.trim();
+
+  const temCoaAnexado = loteParaEditar ? !!getCoaDoc(loteParaEditar) : false;
+
+  const solicitarSalvarEdicao = async () => {
+    if (!loteParaEditar) return;
+    if (!formEditar.numero_lote.trim()) {
+      toast.error("Número do lote é obrigatório");
+      return;
+    }
+
+    const previewAlteracoes = montarLinhaAuditoriaCorrecao(
+      nomeAuditor,
+      {
+        numero_lote: loteParaEditar.numero_lote,
+        data_fab: loteParaEditar.data_fab,
+        data_val: loteParaEditar.data_val,
+      },
+      formEditar
+    );
+    if (!previewAlteracoes) {
+      toast.error("Nenhum campo foi alterado");
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("id", user.id)
+          .single();
+        setNomeAuditor(
+          (profile as { full_name?: string })?.full_name || user.email || "RT"
+        );
+      }
+    } catch {
+      /* mantém nomeAuditor atual */
+    }
+
+    setConfirmarEdicao(true);
+  };
+
+  const confirmarSalvarEdicao = () => {
+    if (!loteParaEditar) return;
+    salvarEdicaoLote.mutate({ lote: loteParaEditar, form: formEditar });
   };
 
   const handleRefresh = () => {
@@ -397,6 +595,19 @@ export default function CoaQualidadePage() {
 
           return (
             <div className="flex gap-1 flex-wrap">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                title="Corrigir número do lote, fabricação ou validade"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  abrirDialogEditar(item);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1" />
+                Editar lote
+              </Button>
               {doc?.arquivo?.storage_key && (
                 <VerPdfButton
                   storageKey={doc.arquivo.storage_key}
@@ -437,7 +648,7 @@ export default function CoaQualidadePage() {
         },
       },
     ],
-    [validandoId, lotesComRessalva, liberarComRessalva.isPending]
+    [validandoId, lotesComRessalva, liberarComRessalva.isPending, salvarEdicaoLote.isPending]
   );
 
   const coaStatusLoteLiberar = loteParaLiberar ? getCoaStatus(loteParaLiberar) : null;
@@ -597,6 +808,150 @@ export default function CoaQualidadePage() {
             >
               {liberarComRessalva.isPending ? "Liberando..." : "Confirmar liberação"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogEditarOpen}
+        onOpenChange={(open) => {
+          if (!open) fecharDialogEditar();
+          else setDialogEditarOpen(true);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Editar lote
+            </DialogTitle>
+            <DialogDescription>
+              Correção de dados de rastreabilidade pela RT. Alterações sensíveis serão registradas
+              em <code className="text-xs">observacoes_qc</code> do lote.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loteParaEditar && !confirmarEdicao && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-xs">
+                <p className="font-semibold">{loteParaEditar.item?.descricao_interna || "—"}</p>
+                <p className="text-muted-foreground">
+                  NF-e {loteParaEditar.nota_entrada_item?.nota_entrada?.numero || "—"}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-numero-lote">
+                  Número do lote
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+                <Input
+                  id="edit-numero-lote"
+                  value={formEditar.numero_lote}
+                  onChange={(e) =>
+                    setFormEditar((f) => ({ ...f, numero_lote: e.target.value }))
+                  }
+                  className="font-mono"
+                  placeholder="Ex.: número da embalagem física"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-data-fab">Data de fabricação</Label>
+                  <Input
+                    id="edit-data-fab"
+                    type="date"
+                    value={formEditar.data_fab}
+                    onChange={(e) =>
+                      setFormEditar((f) => ({ ...f, data_fab: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-data-val">Validade</Label>
+                  <Input
+                    id="edit-data-val"
+                    type="date"
+                    value={formEditar.data_val}
+                    onChange={(e) =>
+                      setFormEditar((f) => ({ ...f, data_val: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {temCoaAnexado && numeroLoteMudou && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <AlertDescription className="text-xs text-blue-900">
+                    Este lote já possui COA anexado. O documento permanece vinculado pelo
+                    identificador interno do lote (<code>lote_id</code>), não pelo número exibido.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          {loteParaEditar && confirmarEdicao && (
+            <div className="space-y-4 py-2">
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-xs text-amber-900 space-y-2">
+                  <p className="font-semibold">Confirmar correção de rastreabilidade</p>
+                  <p>
+                    Esta alteração será registrada permanentemente nas observações de QC do lote.
+                    Revise os dados antes de confirmar.
+                  </p>
+                </AlertDescription>
+              </Alert>
+              <div className="rounded border p-3 bg-muted/20 text-xs font-mono whitespace-pre-wrap break-words">
+                {linhaAuditoriaPreview}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            {!confirmarEdicao ? (
+              <>
+                <Button variant="outline" onClick={fecharDialogEditar}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={solicitarSalvarEdicao}
+                  disabled={
+                    !formEditar.numero_lote.trim() ||
+                    !montarLinhaAuditoriaCorrecao(
+                      nomeAuditor,
+                      {
+                        numero_lote: loteParaEditar.numero_lote,
+                        data_fab: loteParaEditar.data_fab,
+                        data_val: loteParaEditar.data_val,
+                      },
+                      formEditar
+                    )
+                  }
+                >
+                  Salvar
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmarEdicao(false)}
+                  disabled={salvarEdicaoLote.isPending}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  className="bg-amber-600 hover:bg-amber-700"
+                  onClick={confirmarSalvarEdicao}
+                  disabled={salvarEdicaoLote.isPending}
+                >
+                  {salvarEdicaoLote.isPending ? "Salvando..." : "Confirmar correção"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
