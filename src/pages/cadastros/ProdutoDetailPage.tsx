@@ -1814,7 +1814,10 @@ function LoteDocumentosDialog({
                     </div>
                   </div>
                   <div className="flex gap-1 items-center">
-                    <VerPdfButton storageKey={doc.arquivo?.storage_key} />
+                    <VerPdfButton
+                      storageKey={doc.arquivo?.storage_key}
+                      title={doc.arquivo?.nome_original || doc.tipo_documento}
+                    />
                     {doc.status_validacao === "PENDENTE" && (
                       <>
                         <Button 

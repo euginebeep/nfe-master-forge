@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ExternalLink, Loader2 } from 'lucide-react';
+import { Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { abrirArquivoEmNovaAba } from '@/hooks/use-files';
+import { createSignedFileUrl } from '@/hooks/use-files';
+import { PdfViewerDialog } from '@/components/shared/PdfViewerDialog';
 import { toast } from 'sonner';
 
 function erroMsg(err: unknown): string {
@@ -11,13 +12,16 @@ function erroMsg(err: unknown): string {
 
 interface VerPdfButtonProps {
   storageKey?: string | null;
+  title?: string;
   size?: 'sm' | 'default' | 'icon';
   className?: string;
 }
 
-/** Abre PDF/arquivo do bucket privado erp-files via signed URL */
-export function VerPdfButton({ storageKey, size = 'sm', className }: VerPdfButtonProps) {
+/** Abre PDF do bucket privado erp-files no visualizador interno */
+export function VerPdfButton({ storageKey, title, size = 'sm', className }: VerPdfButtonProps) {
   const [abrindo, setAbrindo] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
 
   const handleAbrir = async () => {
     if (!storageKey?.trim()) {
@@ -26,7 +30,9 @@ export function VerPdfButton({ storageKey, size = 'sm', className }: VerPdfButto
     }
     setAbrindo(true);
     try {
-      await abrirArquivoEmNovaAba(storageKey);
+      const url = await createSignedFileUrl(storageKey);
+      setSignedUrl(url);
+      setViewerOpen(true);
     } catch (err) {
       toast.error(erroMsg(err));
     } finally {
@@ -34,24 +40,38 @@ export function VerPdfButton({ storageKey, size = 'sm', className }: VerPdfButto
     }
   };
 
+  const handleViewerOpenChange = (open: boolean) => {
+    setViewerOpen(open);
+    if (!open) setSignedUrl(null);
+  };
+
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size={size}
-      className={className}
-      disabled={!storageKey?.trim() || abrindo}
-      onClick={(e) => {
-        e.stopPropagation();
-        handleAbrir();
-      }}
-    >
-      {abrindo ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-      ) : (
-        <ExternalLink className="h-3.5 w-3.5 mr-1" />
-      )}
-      Ver PDF
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size={size}
+        className={className}
+        disabled={!storageKey?.trim() || abrindo}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleAbrir();
+        }}
+      >
+        {abrindo ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+        ) : (
+          <Eye className="h-3.5 w-3.5 mr-1" />
+        )}
+        Ver PDF
+      </Button>
+
+      <PdfViewerDialog
+        open={viewerOpen}
+        onOpenChange={handleViewerOpenChange}
+        signedUrl={signedUrl}
+        title={title || 'Documento PDF'}
+      />
+    </>
   );
 }

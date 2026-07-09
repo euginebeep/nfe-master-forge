@@ -393,7 +393,10 @@ export default function CoaQualidadePage() {
           return (
             <div className="flex gap-1 flex-wrap">
               {doc?.arquivo?.storage_key && (
-                <VerPdfButton storageKey={doc.arquivo.storage_key} />
+                <VerPdfButton
+                  storageKey={doc.arquivo.storage_key}
+                  title={doc.arquivo.nome_original || `COA — ${item.numero_lote}`}
+                />
               )}
               {status === "PENDENTE" && doc && (
                 <Button
