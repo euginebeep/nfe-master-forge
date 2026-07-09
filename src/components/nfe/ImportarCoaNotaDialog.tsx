@@ -25,8 +25,10 @@ import {
   montarPreviewImportacaoCoa,
   lotesComCoaExistente,
   buscarCoasDosLotes,
+  labelCampoCasamento,
   type PreviewImportacaoCoa,
   type CasamentoCertificado,
+  type CasamentoRevisar,
 } from '@/lib/coa-import';
 import { uploadDocumentoLote } from '@/hooks/use-supabase-item-details';
 import { VerPdfButton } from '@/components/shared/VerPdfButton';
@@ -84,7 +86,7 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
 
       const certificados = parseCertificados(paginas);
       if (!certificados.length) {
-        toast.error('Nenhum certificado encontrado no PDF. Verifique se contém campos "Insumo:" e "Lote do Fabricante:".');
+        toast.error('Nenhum certificado encontrado no PDF. Verifique se contém campos "Insumo:" e lote (Fabricante ou Interno).');
         setEtapa('selecionar');
         return;
       }
@@ -185,6 +187,7 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
 
   const totalCasados = preview?.casamentos.length ?? 0;
   const totalLotesCasados = preview?.casamentos.reduce((s, c) => s + c.lotes.length, 0) ?? 0;
+  const totalRevisar = preview?.revisarManualmente.length ?? 0;
 
   return (
     <>
@@ -218,7 +221,7 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
 
       {etapa === 'preview' && preview && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="rounded-lg border p-3">
               <p className="text-2xl font-bold">{preview.certificados.length}</p>
               <p className="text-xs text-muted-foreground">Certificados</p>
@@ -226,6 +229,10 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
             <div className="rounded-lg border p-3 bg-green-50/50">
               <p className="text-2xl font-bold text-green-700">{totalCasados}</p>
               <p className="text-xs text-muted-foreground">Casaram ({totalLotesCasados} lote(s))</p>
+            </div>
+            <div className="rounded-lg border p-3 bg-orange-50/50">
+              <p className="text-2xl font-bold text-orange-700">{totalRevisar}</p>
+              <p className="text-xs text-muted-foreground">Revisar manualmente</p>
             </div>
             <div className="rounded-lg border p-3 bg-amber-50/50">
               <p className="text-2xl font-bold text-amber-700">{preview.semCorrespondencia.length}</p>
@@ -246,6 +253,21 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
             </div>
           )}
 
+          {preview.revisarManualmente.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-orange-700 mb-2">
+                Revisar manualmente (casamento ambíguo — não será anexado automaticamente)
+              </p>
+              <ScrollArea className="h-32 rounded border border-orange-200 bg-orange-50/30">
+                <div className="p-2 space-y-2">
+                  {preview.revisarManualmente.map((rev, idx) => (
+                    <RevisarManualLinha key={idx} item={rev} />
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+
           {preview.semCorrespondencia.length > 0 && (
             <div>
               <p className="text-sm font-medium text-amber-700 mb-2">Sem correspondência de lote</p>
@@ -254,8 +276,17 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
                   {preview.semCorrespondencia.map((c, idx) => (
                     <li key={idx} className="text-amber-800">
                       <strong>{c.insumo || '(sem insumo)'}</strong>
-                      {' — lote fabricante: '}
-                      <code>{c.loteFabricante || '(vazio)'}</code>
+                      {' — '}
+                      {c.loteFabricante ? (
+                        <>fabricante: <code>{c.loteFabricante}</code></>
+                      ) : null}
+                      {c.loteFabricante && c.loteInterno ? ' · ' : null}
+                      {c.loteInterno ? (
+                        <>interno: <code>{c.loteInterno}</code></>
+                      ) : null}
+                      {!c.loteFabricante && !c.loteInterno ? (
+                        <span className="text-muted-foreground">(sem lote no certificado)</span>
+                      ) : null}
                       {' — págs '}{c.paginaInicio}–{c.paginaFim}
                     </li>
                   ))}
@@ -421,18 +452,57 @@ export function ImportarCoaNotaDialog({
 }
 
 function CasamentoLinha({ casamento }: { casamento: CasamentoCertificado }) {
-  const { certificado: c, lotes } = casamento;
+  const { certificado: c, lotes, camposCasados } = casamento;
+  const campoLabel = labelCampoCasamento(camposCasados);
   return (
     <div className="text-xs border-b last:border-0 pb-2">
       <p className="font-medium">{c.insumo || '(sem insumo)'}</p>
       <p className="text-muted-foreground">
-        Lote fabricante: <code>{c.loteFabricante}</code> · págs {c.paginaInicio}–{c.paginaFim}
+        {c.loteFabricante ? (
+          <>Fabricante: <code>{c.loteFabricante}</code></>
+        ) : null}
+        {c.loteFabricante && c.loteInterno ? ' · ' : null}
+        {c.loteInterno ? (
+          <>Interno: <code>{c.loteInterno}</code></>
+        ) : null}
+        {' · págs '}{c.paginaInicio}–{c.paginaFim}
       </p>
+      {campoLabel && (
+        <p className="text-green-700 text-[10px] mt-0.5">
+          Casou por: <strong>{campoLabel}</strong>
+        </p>
+      )}
       <div className="flex flex-wrap gap-1 mt-1">
         {lotes.map((l) => (
           <Badge key={l.id} variant="secondary" className="text-[10px]">
             {l.numero_lote}
             {l.nota_numero ? ` (NF ${l.nota_numero})` : ''}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RevisarManualLinha({ item }: { item: CasamentoRevisar }) {
+  const { certificado: c, lotes, motivo } = item;
+  return (
+    <div className="text-xs border-b last:border-0 border-orange-100 pb-2">
+      <p className="font-medium text-orange-900">{c.insumo || '(sem insumo)'}</p>
+      <p className="text-orange-800">
+        {c.loteFabricante ? (
+          <>Fabricante: <code>{c.loteFabricante}</code></>
+        ) : null}
+        {c.loteFabricante && c.loteInterno ? ' · ' : null}
+        {c.loteInterno ? (
+          <>Interno: <code>{c.loteInterno}</code></>
+        ) : null}
+      </p>
+      <p className="text-orange-700 mt-0.5">{motivo}</p>
+      <div className="flex flex-wrap gap-1 mt-1">
+        {lotes.map((l) => (
+          <Badge key={l.id} variant="outline" className="text-[10px] border-orange-300">
+            {l.numero_lote}
           </Badge>
         ))}
       </div>
