@@ -1,4 +1,4 @@
-import { Eye, Undo2, FileText } from 'lucide-react';
+import { Eye, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnexarXmlButton } from '@/components/nfe/AnexarXmlButton';
 import { DeleteNotaDialog } from '@/components/nfe/DeleteNotaDialog';
@@ -11,7 +11,6 @@ interface NotaEntradaAcoesCellProps {
   onView: (nota: NotaEntrada) => void;
   onProcessar: (nota: NotaEntrada) => void;
   onReverter: (nota: NotaEntrada) => void;
-  onImportarCoa: (nota: NotaEntrada) => void;
   onRefresh: () => void;
 }
 
@@ -23,7 +22,6 @@ export function NotaEntradaAcoesCell({
   onView,
   onProcessar,
   onReverter,
-  onImportarCoa,
   onRefresh,
 }: NotaEntradaAcoesCellProps) {
   return (
@@ -63,15 +61,6 @@ export function NotaEntradaAcoesCell({
           <AnexarXmlButton notaId={item.id} chaveNfe={item.chave_nfe} onDone={onRefresh} />
         </div>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        title="Importar COA da nota (PDF compilado)"
-        className="text-blue-600 hover:text-blue-700"
-        onClick={(e) => { e.stopPropagation(); onImportarCoa(item); }}
-      >
-        <FileText className="h-4 w-4" />
-      </Button>
       <div onClick={(e) => e.stopPropagation()}>
         <DeleteNotaDialog
           notaId={item.id}
