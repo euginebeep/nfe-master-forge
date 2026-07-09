@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   FileText,
+  FileInput,
   FileOutput,
   DollarSign,
   ClipboardList,
@@ -103,9 +104,9 @@ const menuGroups: MenuGroup[] = [
   modulo: "entidades",
   items: [
   { title: "Entidades", url: "/cadastros/entidades", icon: Building2, tooltip: "Cadastro completo de fornecedores, clientes e parceiros", modulo: "entidades" },
-  { title: "Fornecedores", url: "/cadastros/fornecedores", icon: Truck, tooltip: "Gestão de fornecedores e condições comerciais", modulo: "entidades" },
+  { title: "Fornecedores", url: "/cadastros/fornecedores", icon: Factory, tooltip: "Gestão de fornecedores e condições comerciais", modulo: "entidades" },
   { title: "Clientes", url: "/cadastros/clientes", icon: Users, tooltip: "Cadastro e histórico de clientes da empresa", modulo: "entidades" },
-  { title: "Transportadoras", url: "/cadastros/transportadoras", icon: ShoppingCart, tooltip: "Cadastro de transportadoras e meios de envio", modulo: "entidades" },
+  { title: "Transportadoras", url: "/cadastros/transportadoras", icon: Truck, tooltip: "Cadastro de transportadoras e meios de envio", modulo: "entidades" },
   { title: "Produtos/Insumos", url: "/cadastros/produtos", icon: Package, tooltip: "Cadastro de matérias-primas, insumos e produtos acabados", modulo: "itens" },
   ]
 
@@ -114,10 +115,16 @@ const menuGroups: MenuGroup[] = [
   label: "Suprimentos",
   modulo: "compras",
   items: [
-  { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileText, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
+  { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileInput, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
   { title: "Fator de Conversão", url: "/compras/fator-conversao", icon: BarChart3, tooltip: "Histórico de conversões de unidades por fornecedor com sugestões automáticas", modulo: "compras" },
-  { title: "Requisições de Compra", url: "/compras/requisicoes", icon: ShoppingCart, tooltip: "Central de compras: cotação, aprovação, pedido e recebimento por requisição", modulo: "compras" },
+  { title: "Requisições de Compra", url: "/compras/requisicoes", icon: ShoppingCart, tooltip: "Central de compras: cotação, aprovação, pedido e recebimento por requisição", modulo: "compras" }]
+
+},
+{
+  label: "Estoque",
+  modulo: "estoque",
+  items: [
   { title: "Lotes", url: "/estoque/lotes", icon: Boxes, tooltip: "Consulta e gestão de lotes de matérias-primas e produtos", modulo: "estoque" },
   { title: "Lotes Reservados", url: "/estoque/lotes-reservados", icon: Tag, tooltip: "Reserva de números oficiais de lote (SKU-AAMM-NNNN-D) com trava anti-clonagem", modulo: "estoque" },
   { title: "Movimentações", url: "/estoque/movimentacoes", icon: ClipboardList, tooltip: "Histórico de entradas, saídas e ajustes de estoque", modulo: "estoque" }]
