@@ -111,6 +111,23 @@ describe('parseCertificados', () => {
     });
   });
 
+  it('extrai lotes LEPUGE na mesma linha (interno AUTO + fabricante numérico)', () => {
+    const paginaLepuge = `Insumo: PSYLLIUM HUSK   Código: 537000.001000
+   Lote Interno: AUTO035329      Lote do Fabricante: 00023701001
+   Nota Fiscal: 000775239`;
+
+    const resultado = parseCertificados([paginaLepuge]);
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0]).toMatchObject({
+      loteInterno: 'AUTO035329',
+      loteFabricante: '00023701001',
+      nota: '775239',
+    });
+    // Garante que interno não engoliu o rótulo do fabricante
+    expect(resultado[0].loteInterno).not.toContain('Lote');
+    expect(resultado[0].loteInterno).not.toContain('Fabricante');
+  });
+
   it('extrai lote interno LEPUGE/psyllium quando presente sem fabricante', () => {
     const pagina = `Insumo: PSYLLIUM HUSK   Código: 123
    Lote Interno: LP-2024-001   Lote do Fabricante: FAB-9988

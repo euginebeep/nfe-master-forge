@@ -10,6 +10,7 @@ export interface CertificadoCoa {
 const RE_INSUMO_COM_CODIGO = /Insumo:\s*(.+?)\s*C[óo]digo:/i;
 const RE_INSUMO_LINHA = /Insumo:\s*([^\n]+)/i;
 const RE_LOTE_FABRICANTE = /Lote do Fabricante:\s*(\S+)/i;
+/** \S+ para no espaço — na mesma linha que "Lote do Fabricante:" não engole o rótulo seguinte */
 const RE_LOTE_INTERNO = /Lote Interno:\s*(\S+)/i;
 const RE_NOTA = /Nota Fiscal:\s*0*(\d+)/i;
 const RE_TEM_INSUMO = /Insumo:/i;
