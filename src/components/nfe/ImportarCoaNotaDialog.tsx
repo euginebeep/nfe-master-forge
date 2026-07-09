@@ -329,7 +329,7 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
                           <span className="text-muted-foreground ml-1">(arquivo indisponível)</span>
                         )}
                       </span>
-                      <VerPdfButton storageKey={l.storageKey} />
+                      <VerPdfButton storageKey={l.storageKey} title={`COA — ${l.numeroLote}`} />
                     </li>
                   ))}
                 </ul>
