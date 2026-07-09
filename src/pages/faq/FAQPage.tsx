@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { LucideIcon } from "lucide-react";
 import { 
   Search, Bot, ThumbsUp, ThumbsDown, Send, Loader2, BookOpen, 
   ChevronRight, Sparkles, Rocket, Building2, Users, FileText, 
@@ -33,7 +36,109 @@ interface FAQSection {
   items: { q: string; a: string }[];
 }
 
-const faqSections: FAQSection[] = [
+type ManualSecaoRow = {
+  id: string;
+  ordem: number;
+  titulo: string;
+  subtitulo: string | null;
+  icon: string | null;
+  badge: string | null;
+};
+
+type ManualPerguntaRow = {
+  id: string;
+  secao_id: string | null;
+  ordem: number;
+  pergunta: string;
+  resposta: string;
+};
+
+function erroMsg(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as { message?: string; code?: string };
+    return e.message || e.code || "Erro desconhecido";
+  }
+  return "Erro desconhecido";
+}
+
+const MANUAL_ICON_MAP: Record<string, LucideIcon> = {
+  Rocket,
+  Building2,
+  Users,
+  FileText,
+  Package,
+  Boxes,
+  Factory,
+  FlaskConical,
+  ShoppingCart,
+  DollarSign,
+  BarChart3,
+  Shield,
+  Settings,
+  Smartphone,
+  HelpCircle,
+  FileInput,
+  FileCheck,
+  ArrowRightLeft,
+  BookOpen,
+  MessageSquare,
+  Bot,
+};
+
+function renderManualIcon(iconName: string | null | undefined): React.ReactNode {
+  const Icon = MANUAL_ICON_MAP[(iconName || "").trim()] ?? HelpCircle;
+  return <Icon className="h-5 w-5" />;
+}
+
+function buildFaqSectionsFromDb(
+  secoes: ManualSecaoRow[],
+  perguntas: ManualPerguntaRow[]
+): FAQSection[] {
+  const perguntasPorSecao = new Map<string, ManualPerguntaRow[]>();
+  for (const pergunta of perguntas) {
+    if (!pergunta.secao_id) continue;
+    const lista = perguntasPorSecao.get(pergunta.secao_id) ?? [];
+    lista.push(pergunta);
+    perguntasPorSecao.set(pergunta.secao_id, lista);
+  }
+
+  return secoes.map((secao) => ({
+    id: secao.id,
+    icon: renderManualIcon(secao.icon),
+    title: secao.titulo,
+    badge: secao.badge ?? undefined,
+    items: (perguntasPorSecao.get(secao.id) ?? [])
+      .sort((a, b) => a.ordem - b.ordem)
+      .map((p) => ({ q: p.pergunta, a: p.resposta })),
+  }));
+}
+
+async function fetchManualFaq(): Promise<FAQSection[] | null> {
+  const [secoesRes, perguntasRes] = await Promise.all([
+    supabase
+      .from("manual_secoes")
+      .select("id, ordem, titulo, subtitulo, icon, badge")
+      .eq("ativo", true)
+      .order("ordem", { ascending: true }),
+    supabase
+      .from("manual_perguntas")
+      .select("id, secao_id, ordem, pergunta, resposta")
+      .eq("ativo", true)
+      .order("ordem", { ascending: true }),
+  ]);
+
+  if (secoesRes.error) throw secoesRes.error;
+  if (perguntasRes.error) throw perguntasRes.error;
+
+  const secoes = (secoesRes.data ?? []) as ManualSecaoRow[];
+  if (secoes.length === 0) return null;
+
+  const perguntas = (perguntasRes.data ?? []) as ManualPerguntaRow[];
+  return buildFaqSectionsFromDb(secoes, perguntas);
+}
+
+// FALLBACK temporário: usado apenas se a query ao banco falhar ou retornar vazio.
+const faqSectionsFallback: FAQSection[] = [
   {
     id: "primeiros-passos",
     icon: <Rocket className="h-5 w-5" />,
@@ -169,9 +274,46 @@ export default function FAQPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
+  const {
+    data: manualDb,
+    isLoading: isLoadingManual,
+    isError: isManualError,
+    error: manualError,
+  } = useQuery({
+    queryKey: ["manual-faq"],
+    queryFn: fetchManualFaq,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const sectionsExibidas = useMemo(() => {
+    if (manualDb && manualDb.length > 0) return manualDb;
+    return faqSectionsFallback;
+  }, [manualDb]);
+
+  const filteredSections = useMemo(
+    () =>
+      sectionsExibidas
+        .map((section) => ({
+          ...section,
+          items: section.items.filter(
+            (item) =>
+              item.q.toLowerCase().includes(busca.toLowerCase()) ||
+              item.a.toLowerCase().includes(busca.toLowerCase())
+          ),
+        }))
+        .filter((section) => section.items.length > 0),
+    [sectionsExibidas, busca]
+  );
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens]);
+
+  useEffect(() => {
+    if (isManualError && manualError) {
+      toast.error(erroMsg(manualError));
+    }
+  }, [isManualError, manualError]);
 
   const enviarParaIA = async (perguntaInput?: string) => {
     const pergunta = perguntaInput || inputChat.trim();
@@ -207,14 +349,6 @@ export default function FAQPage() {
       console.error('Erro ao registrar feedback', e);
     }
   };
-
-  const filteredSections = faqSections.map(section => ({
-    ...section,
-    items: section.items.filter(item => 
-      item.q.toLowerCase().includes(busca.toLowerCase()) || 
-      item.a.toLowerCase().includes(busca.toLowerCase())
-    )
-  })).filter(section => section.items.length > 0);
 
   const buscaAtiva = busca.trim().length >= 2;
 
@@ -259,23 +393,29 @@ export default function FAQPage() {
           <aside className="hidden lg:block space-y-2">
             <h3 className="font-semibold px-3 py-2 text-sm text-muted-foreground uppercase tracking-wider">Seções</h3>
             <ScrollArea className="h-[calc(100vh-320px)]">
-              {faqSections.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    setSecaoAtiva(s.id);
-                    document.getElementById(`secao-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors mb-0.5 flex items-center gap-2 ${
-                    secaoAtiva === s.id 
-                      ? 'bg-blue-600/10 text-blue-600 border-l-2 border-blue-600 font-medium' 
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  {s.icon}
-                  <span className="truncate">{s.title.replace(/^\d+\.\s/, '')}</span>
-                </button>
-              ))}
+              {isLoadingManual ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-full mb-1.5" />
+                ))
+              ) : (
+                sectionsExibidas.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      setSecaoAtiva(s.id);
+                      document.getElementById(`secao-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors mb-0.5 flex items-center gap-2 ${
+                      secaoAtiva === s.id
+                        ? 'bg-blue-600/10 text-blue-600 border-l-2 border-blue-600 font-medium'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    {s.icon}
+                    <span className="truncate">{s.title.replace(/^\d+\.\s/, '')}</span>
+                  </button>
+                ))
+              )}
             </ScrollArea>
           </aside>
         )}
@@ -284,6 +424,26 @@ export default function FAQPage() {
         <div className={abaAtiva === 'manual' ? "lg:col-span-3" : "lg:col-span-4"}>
           {abaAtiva === 'manual' ? (
             <ScrollArea className="h-[calc(100vh-280px)] pr-4">
+              {isLoadingManual ? (
+                <div className="space-y-6">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-3">
+                      <Skeleton className="h-8 w-1/2" />
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : sectionsExibidas.length === 0 ? (
+                <Card className="p-8 text-center border-dashed">
+                  <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="font-medium">Manual ainda não disponível</p>
+                  <p className="text-sm text-muted-foreground">
+                    Não encontramos seções do manual no momento. Tente novamente mais tarde ou use a aba Pergunte à IA.
+                  </p>
+                </Card>
+              ) : (
+                <>
               {buscaAtiva && filteredSections.length === 0 && (
                 <Card className="p-8 text-center border-dashed">
                   <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -295,7 +455,7 @@ export default function FAQPage() {
                 </Card>
               )}
 
-              {filteredSections.map((section) => (
+              {!isLoadingManual && filteredSections.map((section) => (
                 <div key={section.id} id={`secao-${section.id}`} className="mb-6">
                   <div className="flex items-center gap-3 mb-4 sticky top-0 bg-background/95 py-2 z-10">
                     <div className="p-2 rounded-lg bg-blue-600/10 text-blue-600">
@@ -350,6 +510,8 @@ export default function FAQPage() {
                   </Accordion>
                 </div>
               ))}
+                </>
+              )}
             </ScrollArea>
           ) : (
             /* ABA IA — CHAT COMPLETO */
