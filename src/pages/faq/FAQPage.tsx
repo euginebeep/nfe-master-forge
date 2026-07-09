@@ -15,7 +15,7 @@ import {
   Search, Bot, ThumbsUp, ThumbsDown, Send, Loader2, BookOpen, 
   ChevronRight, Sparkles, Rocket, Building2, Users, FileText, 
   Package, Boxes, Factory, FlaskConical, ShoppingCart, DollarSign, 
-  BarChart3, Shield, Settings, Smartphone, HelpCircle, FileInput, 
+  BarChart3, Shield, Settings, Smartphone, HelpCircle, FileInput, FileCheck,
   ArrowRightLeft, Copy, Check, MessageSquare, Trash2
 } from "lucide-react";
 
@@ -58,8 +58,8 @@ const faqSections: FAQSection[] = [
     icon: <Boxes className="h-5 w-5" />,
     title: "3. Estoque e Lotes (FEFO)",
     items: [
-      { q: "Como o sistema gerencia lotes?", a: "O BrainX ERP utiliza a metodologia FEFO (First Expired, First Out). Ao realizar uma venda ou ordem de produção, o sistema sugere automaticamente o lote com vencimento mais próximo para garantir a rotatividade e evitar perdas." },
-      { q: "Como fazer uma entrada de estoque manual?", a: "Vá em 'Cadastros' → 'Produtos/Insumos', selecione o item e clique em 'Movimentações' ou use o módulo de 'Compras' para gerar entradas via XML." }
+      { q: "Como o sistema gerencia lotes?", a: "O BrainX ERP utiliza a metodologia FEFO (First Expired, First Out). Consulte lotes em Estoque → Lotes (e reservas em Estoque → Lotes Reservados). Ao realizar uma venda ou ordem de produção, o sistema sugere automaticamente o lote com vencimento mais próximo para garantir a rotatividade e evitar perdas." },
+      { q: "Como fazer uma entrada de estoque manual?", a: "Vá em Cadastros → Produtos/Insumos, selecione o item e use Estoque → Movimentações, ou gere entradas via XML em Suprimentos → Importar NF-e." }
     ]
   },
   {
@@ -106,16 +106,30 @@ const faqSections: FAQSection[] = [
     title: "8. Quarentena de Lotes",
     items: [
       { q: "O que é quarentena de lotes?", a: "Quarentena é um status temporário para lotes recém-recebidos que aguardam liberação do RT (Responsável Técnico) antes de serem usados em produção. O sistema marca como QUARENTENA até aprovação." },
-      { q: "Como liberar um lote da quarentena?", a: "Vá em Estoque → Lotes, selecione o lote em QUARENTENA e clique 'Liberar'. Apenas RTs (com permissão) podem fazer isso. O lote passa para DISPONÍVEL." },
+      { q: "Como liberar um lote da quarentena?", a: "A liberação é feita pela RT em Qualidade → Controle de COA: validando o COA do lote, ou usando 'Liberar com ressalva' quando o fornecedor não fornece laudo. Apenas usuários com acesso ao módulo Qualidade podem liberar. Após a liberação, o lote passa para DISPONÍVEL." },
       { q: "O que acontece se usar um lote em quarentena?", a: "O sistema bloqueia — aparece um alerta âmbar na tela de pesagem: '⚠️ Quarentena - Liberar RT'. Você não consegue finalizar a pesagem até liberar o lote." }
+    ]
+  },
+  {
+    id: "controle-coa",
+    icon: <FileCheck className="h-5 w-5" />,
+    title: "9. Controle de COA (Qualidade / RT)",
+    items: [
+      { q: "O que é o Controle de COA?", a: "É a área em Qualidade → Controle de COA onde a RT gerencia os certificados de análise (COA) dos lotes de matéria-prima recebidos. A tela mostra produto, nº da nota, lote, quantidade, validade e status do COA — sem dados financeiros." },
+      { q: "Quais os status de COA de um lote?", a: "• Sem COA — nenhum laudo anexado ao lote.\n• Pendente — COA anexado, aguardando validação pela RT.\n• Validado — COA aprovado pela RT." },
+      { q: "Como importar o COA?", a: "Na tela Controle de COA, clique no botão \"Importar COA da nota\", selecione a nota fiscal e envie o PDF COMPILADO da nota inteira. O sistema fatia o documento e distribui cada certificado no lote correto, casando pelo número de lote." },
+      { q: "Como ver o laudo em PDF?", a: "Clique no botão \"Ver PDF\" na linha do lote. O laudo abre dentro do ERP, com opção de imprimir." },
+      { q: "Como validar o COA?", a: "Em lotes com status Pendente, clique no botão \"Validar\". O sistema registra quem validou e quando." },
+      { q: "O fornecedor não forneceu COA. E agora?", a: "Use o botão \"Liberar com ressalva\": exige justificativa (mínimo de 30 caracteres), libera o lote e registra a justificativa na rastreabilidade. Disponível apenas para lotes em quarentena sem COA validado." },
+      { q: "Como corrigir o número de um lote?", a: "Clique no botão \"Editar lote\", ajuste o número do lote e/ou datas de fabricação e validade, e confirme. A correção fica registrada no histórico (observações do lote)." },
     ]
   },
   {
     id: "nfe-import",
     icon: <FileInput className="h-5 w-5" />,
-    title: "9. Importação de NF-e",
+    title: "10. Importação de NF-e",
     items: [
-      { q: "Como importar uma NF-e de entrada?", a: "Vá em Compras → Notas de Entrada → Importar NF-e. Selecione o arquivo XML. O sistema lê automaticamente: itens, quantidades, preços, fornecedor, lote, validade e cria a entrada de estoque." },
+      { q: "Como importar uma NF-e de entrada?", a: "Vá em Suprimentos → Importar NF-e (ou Notas de Entrada). Selecione o arquivo XML. O sistema lê automaticamente: itens, quantidades, preços, fornecedor, lote, validade e cria a entrada de estoque." },
       { q: "O que acontece se reimportar a mesma NF-e?", a: "O sistema detecta a chave_nfe duplicada e bloqueia. Aparece mensagem: 'Esta NF-e já foi importada'. Você não consegue duplicar entradas." },
       { q: "Como o sistema trata lotes e validade da NF-e?", a: "Se a NF-e contém <rastro> (lote, fab, validade), o sistema cria automaticamente um lote em QUARENTENA com essas informações. Caso contrário, cria um lote genérico." }
     ]
@@ -123,17 +137,17 @@ const faqSections: FAQSection[] = [
   {
     id: "requisicoes-compra",
     icon: <ShoppingCart className="h-5 w-5" />,
-    title: "10. Requisições de Compra",
+    title: "11. Requisições de Compra",
     items: [
-      { q: "Como é gerada uma requisição de compra?", a: "Quando você cria uma OP e há insumos sem estoque, o sistema gera automaticamente uma requisição de compra com status ABERTA. Você pode visualizar em Compras → Requisições." },
-      { q: "Posso editar uma requisição após criada?", a: "Sim. Em Compras → Requisições, clique na requisição e edite quantidade, fornecedor ou observações. Clique Salvar. Apenas requisições em ABERTA podem ser editadas." },
+      { q: "Como é gerada uma requisição de compra?", a: "Quando você cria uma OP e há insumos sem estoque, o sistema gera automaticamente uma requisição de compra com status ABERTA. Você pode visualizar em Suprimentos → Requisições de Compra." },
+      { q: "Posso editar uma requisição após criada?", a: "Sim. Em Suprimentos → Requisições de Compra, clique na requisição e edite quantidade, fornecedor ou observações. Clique Salvar. Apenas requisições em ABERTA podem ser editadas." },
       { q: "Como converter requisição em pedido de compra?", a: "Selecione a requisição e clique 'Converter em Pedido'. O sistema cria um pedido com os mesmos itens e muda o status da requisição para CONVERTIDA." }
     ]
   },
   {
     id: "impressao-op",
     icon: <FileText className="h-5 w-5" />,
-    title: "11. Impressão da OP",
+    title: "12. Impressão da OP",
     items: [
       { q: "Como imprimir uma OP?", a: "Na tela da OP, clique no botão 'Imprimir' (ou ícone de impressora). O sistema abre um template profissional com 7 páginas: Capa, Separação, Pesagem, Mistura, Encapsulamento, Embalagem e Checklist. Pressione Ctrl+P para imprimir." },
       { q: "O que aparece no rodapé de cada página?", a: "Rodapé padrão: Nome da empresa · RT · Lote · Data de fabricação · 'Gerado por www.brainx.erp' · Número da página (ex: Pág 3/7)." },
