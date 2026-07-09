@@ -444,18 +444,26 @@ function CasamentoLinha({ casamento }: { casamento: CasamentoCertificado }) {
 export function ImportarCoaNotaSeletor({
   notas,
   onDone,
+  emptyMessage = 'Nenhuma nota disponível para importação',
 }: {
-  notas: { id: string; numero: string }[];
+  notas: { id: string; numero: string; lotesSemCoa?: number }[];
   onDone?: () => void;
+  emptyMessage?: string;
 }) {
   const [notaSelecionada, setNotaSelecionada] = useState<{ id: string; numero: string } | null>(null);
   const [open, setOpen] = useState(false);
 
-  if (!notas.length) return null;
-
   const fechar = () => {
     setOpen(false);
     setNotaSelecionada(null);
+  };
+
+  const labelNota = (n: { id: string; numero: string; lotesSemCoa?: number }) => {
+    if (n.lotesSemCoa != null && n.lotesSemCoa > 0) {
+      const sufixo = n.lotesSemCoa === 1 ? 'lote sem COA' : 'lotes sem COA';
+      return `NF-e ${n.numero} — ${n.lotesSemCoa} ${sufixo}`;
+    }
+    return `NF-e ${n.numero}`;
   };
 
   return (
@@ -478,20 +486,24 @@ export function ImportarCoaNotaSeletor({
 
         {!notaSelecionada ? (
           <>
-            <ScrollArea className="h-64">
-              <div className="space-y-1">
-                {notas.map((n) => (
-                  <Button
-                    key={n.id}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => setNotaSelecionada(n)}
-                  >
-                    NF-e {n.numero}
-                  </Button>
-                ))}
-              </div>
-            </ScrollArea>
+            {notas.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">{emptyMessage}</p>
+            ) : (
+              <ScrollArea className="h-64">
+                <div className="space-y-1">
+                  {notas.map((n) => (
+                    <Button
+                      key={n.id}
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => setNotaSelecionada(n)}
+                    >
+                      {labelNota(n)}
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
             <DialogFooter>
               <Button variant="outline" onClick={fechar}>Cancelar</Button>
             </DialogFooter>
