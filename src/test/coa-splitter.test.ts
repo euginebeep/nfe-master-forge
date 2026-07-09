@@ -104,9 +104,23 @@ describe('parseCertificados', () => {
     expect(resultado[0]).toMatchObject({
       insumo: 'CURCUMA LONGA 95%',
       loteFabricante: '20240802',
+      loteInterno: 'AUTO035097',
       nota: '322721',
       paginaInicio: 1,
       paginaFim: 1,
+    });
+  });
+
+  it('extrai lote interno LEPUGE/psyllium quando presente sem fabricante', () => {
+    const pagina = `Insumo: PSYLLIUM HUSK   Código: 123
+   Lote Interno: LP-2024-001   Lote do Fabricante: FAB-9988
+   Nota Fiscal: 000775239`;
+
+    const resultado = parseCertificados([pagina]);
+    expect(resultado[0]).toMatchObject({
+      loteInterno: 'LP-2024-001',
+      loteFabricante: 'FAB-9988',
+      nota: '775239',
     });
   });
 });

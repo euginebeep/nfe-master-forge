@@ -8,14 +8,24 @@ export interface LoteParaCoa {
   item_descricao: string | null;
 }
 
+export type CampoLoteCasamento = 'FABRICANTE' | 'INTERNO';
+
 export interface CasamentoCertificado {
   certificado: CertificadoCoa;
   lotes: LoteParaCoa[];
+  camposCasados: CampoLoteCasamento[];
+}
+
+export interface CasamentoRevisar {
+  certificado: CertificadoCoa;
+  lotes: LoteParaCoa[];
+  motivo: string;
 }
 
 export interface PreviewImportacaoCoa {
   certificados: CertificadoCoa[];
   casamentos: CasamentoCertificado[];
+  revisarManualmente: CasamentoRevisar[];
   semCorrespondencia: CertificadoCoa[];
   lotesNota: LoteParaCoa[];
   lotesNotaSemCertificado: LoteParaCoa[];
@@ -29,6 +39,92 @@ type LoteRow = {
     nota_entrada: { numero: string | null } | null;
   } | null;
 };
+
+export function normalizarNumeroLote(valor?: string | null): string {
+  return valor?.trim().toUpperCase() ?? '';
+}
+
+/** Identificadores de lote presentes no certificado (fabricante e/ou interno) */
+export function identificadoresLoteCertificado(
+  cert: CertificadoCoa
+): { campo: CampoLoteCasamento; valor: string }[] {
+  const ids: { campo: CampoLoteCasamento; valor: string }[] = [];
+
+  const fabricante = normalizarNumeroLote(cert.loteFabricante);
+  if (fabricante) ids.push({ campo: 'FABRICANTE', valor: fabricante });
+
+  const interno = normalizarNumeroLote(cert.loteInterno);
+  if (interno && !ids.some((i) => i.valor === interno)) {
+    ids.push({ campo: 'INTERNO', valor: interno });
+  }
+
+  return ids;
+}
+
+export type ResultadoCasamento =
+  | { tipo: 'unico'; lotes: LoteParaCoa[]; camposCasados: CampoLoteCasamento[] }
+  | { tipo: 'ambiguo'; lotes: LoteParaCoa[]; motivo: string }
+  | { tipo: 'nenhum' };
+
+/** Casa certificado contra mapa numero_lote → lotes (normalizado trim+UPPER) */
+export function casarCertificadoComLotes(
+  cert: CertificadoCoa,
+  lotesPorNumero: Map<string, LoteParaCoa[]>
+): ResultadoCasamento {
+  const identificadores = identificadoresLoteCertificado(cert);
+  if (!identificadores.length) return { tipo: 'nenhum' };
+
+  const matchesPorCampo: { campo: CampoLoteCasamento; lotes: LoteParaCoa[] }[] = [];
+
+  for (const { campo, valor } of identificadores) {
+    const lotes = lotesPorNumero.get(valor) || [];
+    if (lotes.length) matchesPorCampo.push({ campo, lotes });
+  }
+
+  if (!matchesPorCampo.length) return { tipo: 'nenhum' };
+
+  const lotesUnicos = new Map<string, LoteParaCoa>();
+  const camposCasados = new Set<CampoLoteCasamento>();
+
+  for (const { campo, lotes } of matchesPorCampo) {
+    for (const lote of lotes) {
+      lotesUnicos.set(lote.id, lote);
+      camposCasados.add(campo);
+    }
+  }
+
+  const lista = [...lotesUnicos.values()];
+  if (!lista.length) return { tipo: 'nenhum' };
+
+  if (lista.length > 1) {
+    const nums = lista.map((l) => l.numero_lote).join(', ');
+    return {
+      tipo: 'ambiguo',
+      lotes: lista,
+      motivo: `Casou com ${lista.length} lotes distintos no estoque (${nums}). Revise manualmente.`,
+    };
+  }
+
+  const lote = lista[0];
+  const numLote = normalizarNumeroLote(lote.numero_lote);
+  const camposDoLote: CampoLoteCasamento[] = [];
+
+  if (normalizarNumeroLote(cert.loteFabricante) === numLote) camposDoLote.push('FABRICANTE');
+  if (normalizarNumeroLote(cert.loteInterno) === numLote) camposDoLote.push('INTERNO');
+
+  return {
+    tipo: 'unico',
+    lotes: [lote],
+    camposCasados: camposDoLote.length ? camposDoLote : [...camposCasados],
+  };
+}
+
+export function labelCampoCasamento(campos: CampoLoteCasamento[]): string {
+  if (!campos.length) return '';
+  if (campos.includes('FABRICANTE') && campos.includes('INTERNO')) return 'Fabricante e Interno';
+  if (campos.includes('FABRICANTE')) return 'Fabricante';
+  return 'Interno';
+}
 
 function mapLoteRow(row: LoteRow): LoteParaCoa {
   return {
@@ -96,49 +192,72 @@ export async function lotesComCoaExistente(loteIds: string[]): Promise<Set<strin
   return new Set((data || []).map((d) => d.lote_id));
 }
 
+function numerosLoteCertificado(cert: CertificadoCoa): string[] {
+  return [cert.loteFabricante, cert.loteInterno]
+    .map((n) => n?.trim())
+    .filter(Boolean) as string[];
+}
+
 /** Monta preview de casamento certificado ↔ lote(s) */
 export async function montarPreviewImportacaoCoa(
   notaEntradaId: string,
   certificados: CertificadoCoa[]
 ): Promise<PreviewImportacaoCoa> {
   const lotesNota = await buscarLotesDaNota(notaEntradaId);
-  const numerosFabricante = certificados.map((c) => c.loteFabricante).filter(Boolean);
-  const lotesGlobais = await buscarLotesPorNumeros(numerosFabricante);
+
+  const numerosBusca = [
+    ...new Set(certificados.flatMap((c) => numerosLoteCertificado(c))),
+  ];
+  const lotesGlobais = await buscarLotesPorNumeros(numerosBusca);
 
   const lotesPorNumero = new Map<string, LoteParaCoa[]>();
   for (const lote of lotesGlobais) {
-    const key = lote.numero_lote.trim().toUpperCase();
+    const key = normalizarNumeroLote(lote.numero_lote);
     const lista = lotesPorNumero.get(key) || [];
     lista.push(lote);
     lotesPorNumero.set(key, lista);
   }
 
   const casamentos: CasamentoCertificado[] = [];
+  const revisarManualmente: CasamentoRevisar[] = [];
   const semCorrespondencia: CertificadoCoa[] = [];
+  const numerosComCertificado = new Set<string>();
 
   for (const cert of certificados) {
-    if (!cert.loteFabricante?.trim()) {
+    const resultado = casarCertificadoComLotes(cert, lotesPorNumero);
+
+    if (resultado.tipo === 'nenhum') {
       semCorrespondencia.push(cert);
       continue;
     }
-    const lotes = lotesPorNumero.get(cert.loteFabricante.trim().toUpperCase()) || [];
-    if (!lotes.length) {
-      semCorrespondencia.push(cert);
+
+    for (const lote of resultado.lotes) {
+      numerosComCertificado.add(normalizarNumeroLote(lote.numero_lote));
+    }
+
+    if (resultado.tipo === 'ambiguo') {
+      revisarManualmente.push({
+        certificado: cert,
+        lotes: resultado.lotes,
+        motivo: resultado.motivo,
+      });
     } else {
-      casamentos.push({ certificado: cert, lotes });
+      casamentos.push({
+        certificado: cert,
+        lotes: resultado.lotes,
+        camposCasados: resultado.camposCasados,
+      });
     }
   }
 
-  const numerosComCertificado = new Set(
-    casamentos.map((c) => c.certificado.loteFabricante.trim().toUpperCase())
-  );
   const lotesNotaSemCertificado = lotesNota.filter(
-    (l) => !numerosComCertificado.has(l.numero_lote.trim().toUpperCase())
+    (l) => !numerosComCertificado.has(normalizarNumeroLote(l.numero_lote))
   );
 
   return {
     certificados,
     casamentos,
+    revisarManualmente,
     semCorrespondencia,
     lotesNota,
     lotesNotaSemCertificado,
