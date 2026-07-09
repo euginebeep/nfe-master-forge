@@ -46,7 +46,7 @@ type LoteCoaRow = {
   unidade_original: string;
   item: { descricao_interna: string | null; sku_interno: string | null; tipo_item: string } | null;
   nota_entrada_item: {
-    nota_entrada: { numero: string | null } | null;
+    nota_entrada: { id: string; numero: string | null } | null;
   } | null;
   lote_documentos: {
     id: string;
@@ -115,7 +115,7 @@ export default function CoaQualidadePage() {
           unidade_original,
           item:itens(descricao_interna, sku_interno, tipo_item),
           nota_entrada_item:notas_entrada_itens!estoque_lotes_nota_entrada_item_id_fkey(
-            nota_entrada:notas_entrada!notas_entrada_itens_nota_entrada_id_fkey(numero)
+            nota_entrada:notas_entrada!notas_entrada_itens_nota_entrada_id_fkey(id, numero)
           ),
           lote_documentos(
             id,
@@ -154,21 +154,26 @@ export default function CoaQualidadePage() {
     [liberacoesSemCoa]
   );
 
-  const { data: notasRecentes = [] } = useQuery({
-    queryKey: ["notas-entrada-import-coa", companyId],
-    enabled: !!companyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notas_entrada")
-        .select("id, numero")
-        .eq("company_id", companyId!)
-        .order("created_at", { ascending: false })
-        .limit(30);
+  /** Notas com pelo menos 1 lote MP sem documento COA — derivado da mesma lista da tabela */
+  const notasComLotesSemCoa = useMemo(() => {
+    const porNota = new Map<string, { id: string; numero: string; lotesSemCoa: number }>();
 
-      if (error) throw error;
-      return (data || []) as { id: string; numero: string }[];
-    },
-  });
+    for (const lote of lotes) {
+      if (getCoaStatus(lote) !== "SEM_COA") continue;
+
+      const nota = lote.nota_entrada_item?.nota_entrada;
+      if (!nota?.id || !nota.numero) continue;
+
+      const atual = porNota.get(nota.id);
+      if (atual) {
+        atual.lotesSemCoa += 1;
+      } else {
+        porNota.set(nota.id, { id: nota.id, numero: nota.numero, lotesSemCoa: 1 });
+      }
+    }
+
+    return Array.from(porNota.values()).sort((a, b) => b.lotesSemCoa - a.lotesSemCoa);
+  }, [lotes]);
 
   const validarCoa = useMutation({
     mutationFn: async (docId: string) => {
@@ -444,7 +449,11 @@ export default function CoaQualidadePage() {
         description="Importar, visualizar e validar certificados de análise dos lotes de matéria-prima recebidos"
         icon={FileCheck}
         actions={
-          <ImportarCoaNotaSeletor notas={notasRecentes} onDone={handleRefresh} />
+          <ImportarCoaNotaSeletor
+            notas={notasComLotesSemCoa}
+            onDone={handleRefresh}
+            emptyMessage="Todas as notas já têm COA"
+          />
         }
       />
 
