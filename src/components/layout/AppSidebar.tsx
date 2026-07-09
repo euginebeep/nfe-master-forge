@@ -38,7 +38,8 @@ import {
   ClipboardCheck,
   ScrollText,
   Tag,
-  BookOpen } from
+  BookOpen,
+  FileCheck } from
 "lucide-react";
 import {
   Sidebar,
@@ -138,6 +139,7 @@ const menuGroups: MenuGroup[] = [
   modulo: "qualidade",
   items: [
   { title: "Quarentena", url: "/estoque/quarentena", icon: ShieldAlert, tooltip: "Lotes em quarentena aguardando liberação", modulo: "qualidade", danger: true },
+  { title: "Controle de COA", url: "/qualidade/coa", icon: FileCheck, tooltip: "Importar, visualizar e validar COA/laudos dos lotes recebidos", modulo: "qualidade" },
   { title: "Desvios / CAPA", url: "/qualidade/desvios", icon: ShieldAlert, badge: "QC", tooltip: "Registro e tratamento de desvios e ações corretivas (CAPA)", modulo: "qualidade" },
   { title: "POPs", url: "/qualidade/pops", icon: ClipboardCheck, badge: "RDC 275", tooltip: "Gestão de Procedimentos Operacionais Padrão", modulo: "qualidade" },
   { title: "Análises", url: "/qualidade/analises", icon: FlaskConical, tooltip: "Análises laboratoriais e resultados de controle de qualidade", modulo: "qualidade" },

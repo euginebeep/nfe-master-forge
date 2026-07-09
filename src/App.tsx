@@ -84,6 +84,7 @@ const DesvioDetailPage = lazy(() => import("./pages/qualidade/DesvioDetailPage")
 const AnalisesPage = lazy(() => import("./pages/qualidade/AnalisesPage"));
 const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 const POPsPage = lazy(() => import("./pages/qualidade/POPsPage"));
+const CoaQualidadePage = lazy(() => import("./pages/qualidade/CoaQualidadePage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
 const MonitoramentoAmbientalPage = lazy(() => import("./pages/ambiental/MonitoramentoAmbientalPage"));
 const AmbientalConfigPage = lazy(() => import("./pages/ambiental/AmbientalConfigPage"));
@@ -251,6 +252,7 @@ const App = () => (
                 <Route path="/qualidade/analises" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><AnalisesPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/calibracoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><CalibracoesPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/pops" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><POPsPage /></ModuleGuard></ErrorBoundary></Suspense>} />
+                <Route path="/qualidade/coa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><CoaQualidadePage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 {/* Regulatório */}
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><ConsultaAnvisaPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/regulatorio/biblioteca-rt" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><BibliotecaRTPage /></ModuleGuard></ErrorBoundary></Suspense>} />
