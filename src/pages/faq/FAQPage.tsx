@@ -108,18 +108,33 @@ async function healthCheckManualIa(): Promise<boolean> {
 function BrainXMascotIcon({
   size = 18,
   className = "",
+  framed = false,
 }: {
   size?: number;
   className?: string;
+  framed?: boolean;
 }) {
-  return (
+  const image = (
     <img
       src={BRAINX_MASCOT_SRC}
       alt=""
       aria-hidden
-      className={`rounded-full object-cover shrink-0 ${className}`}
-      style={{ width: size, height: size }}
+      className={`rounded-full object-cover ${framed ? "h-full w-full" : `shrink-0 ${className}`}`}
+      style={framed ? undefined : { width: size, height: size }}
     />
+  );
+
+  if (!framed) return image;
+
+  const frameSize = size + 8;
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full bg-white shadow-md ring-2 ring-white shrink-0 overflow-hidden ${className}`}
+      style={{ width: frameSize, height: frameSize, padding: 2 }}
+      aria-hidden
+    >
+      {image}
+    </span>
   );
 }
 
@@ -514,7 +529,7 @@ export default function FAQPage() {
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
           <Button 
             variant={abaAtiva === 'manual' ? 'default' : 'ghost'} 
-            className="flex-1 gap-2 h-9" 
+            className="flex-1 gap-2 h-10" 
             onClick={() => setAbaAtiva('manual')}
             title="Conteúdo oficial do sistema — funciona sem IA"
           >
@@ -522,12 +537,12 @@ export default function FAQPage() {
           </Button>
           <Button 
             variant={abaAtiva === 'ia' ? 'default' : 'ghost'} 
-            className="flex-1 gap-2 h-9" 
+            className="flex-1 gap-2.5 h-10" 
             onClick={() => setAbaAtiva('ia')}
           >
-            <BrainXMascotIcon size={24} className="ring-1 ring-white/30" />
-            Pergunte à IA
-            <Badge className="ml-1 px-1.5 h-4 bg-blue-600 border-0 text-[10px] text-white">IA</Badge>
+            <BrainXMascotIcon size={30} framed />
+            <span>Pergunte à IA</span>
+            <Badge className="ml-0.5 px-1.5 h-4 bg-blue-600 border-0 text-[10px] text-white">IA</Badge>
           </Button>
         </div>
         <p className="text-xs text-muted-foreground px-1">
@@ -596,7 +611,7 @@ export default function FAQPage() {
                 <>
               {buscaAtiva && filteredSections.length === 0 && (
                 <Card className="p-8 text-center border-dashed">
-                  <BrainXMascotIcon size={48} className="mx-auto mb-4 ring-2 ring-muted" />
+                  <BrainXMascotIcon size={48} framed className="mx-auto mb-4 shadow-lg" />
                   <p className="font-medium">Não encontrei no manual</p>
                   <p className="text-sm text-muted-foreground mb-4">A IA pode responder sua dúvida com base no contexto completo do sistema.</p>
                   <Button variant="default" onClick={() => enviarParaIA(busca)} className="gap-2">
