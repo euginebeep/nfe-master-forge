@@ -5,6 +5,11 @@ import {
   Filter,
   Package,
   RefreshCcw,
+  ShieldAlert,
+  Flame,
+  Timer,
+  CalendarClock,
+  Clock3,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,28 +148,43 @@ export function ExpiringLotsCard() {
   const getCategoryColor = (categoria: string) => {
     switch (categoria) {
       case "CRITICO":
-        return "bg-destructive text-destructive-foreground";
+        return "bg-red-600 text-white shadow-sm shadow-red-500/30";
       case "URGENTE":
-        return "bg-warning text-warning-foreground";
+        return "bg-amber-500 text-white shadow-sm shadow-amber-500/25";
       case "ATENCAO":
-        return "bg-accent text-accent-foreground";
+        return "bg-slate-500 text-white shadow-sm";
       default:
-        return "bg-muted";
+        return "bg-muted text-muted-foreground";
     }
   };
 
-  const getCategoryBorderColor = (categoria: string) => {
+  const getCategoryStyles = (categoria: string) => {
     switch (categoria) {
       case "CRITICO":
-        return "border-l-destructive";
+        return {
+          border: "border-l-red-500",
+          bg: "bg-red-50/80 dark:bg-red-950/25",
+          ring: "ring-red-500/10",
+          dot: "bg-red-500",
+        };
       case "URGENTE":
-        return "border-l-warning";
-      case "ATENCAO":
-        return "border-l-accent";
+        return {
+          border: "border-l-amber-500",
+          bg: "bg-amber-50/70 dark:bg-amber-950/20",
+          ring: "ring-amber-500/10",
+          dot: "bg-amber-500",
+        };
       default:
-        return "border-l-muted";
+        return {
+          border: "border-l-slate-400",
+          bg: "bg-slate-50/70 dark:bg-slate-900/30",
+          ring: "ring-slate-400/10",
+          dot: "bg-slate-400",
+        };
     }
   };
+
+  const severityLevel = stats.critico > 0 ? "critico" : stats.urgente > 0 ? "urgente" : "atencao";
 
   const handleRefresh = async () => {
     setRefreshTick((v) => v + 1);
@@ -205,136 +225,219 @@ export function ExpiringLotsCard() {
 
   if (stats.total === 0) {
     return (
-      <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between text-lg text-primary">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Package className="h-5 w-5" />
+      <Card className="h-full border-emerald-200/60 bg-gradient-to-br from-emerald-50/50 to-background dark:from-emerald-950/20 dark:to-background">
+        <CardHeader className="pb-2 pt-3 px-4">
+          <CardTitle className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25">
+                <Package className="h-5 w-5 text-white" />
               </div>
-              Validades OK
+              <div>
+                <span className="font-bold text-emerald-700 dark:text-emerald-300">Validades OK</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Nenhum lote crítico nos próximos 90 dias</p>
+              </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isFetching}>
-              <RefreshCcw className={"h-4 w-4 " + (isFetching ? "animate-spin" : "")} />
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-7 w-7">
+              <RefreshCcw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Nenhum lote próximo do vencimento nos próximos 90 dias.
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Se no Publicado não aparece nada, verifique o Roadmap → Diagnóstico (falta de dados no ambiente de produção é a causa mais comum).
-          </p>
-        </CardContent>
       </Card>
     );
   }
 
   return (
     <>
-      <Card
-        className={cn(
-          "border-2 w-full h-auto shadow-xl transition-all duration-300 flex flex-col",
-          stats.critico > 0
-            ? "border-destructive/70 bg-gradient-to-br from-destructive/15 via-background to-background ring-2 ring-destructive/10"
-            : stats.urgente > 0
-              ? "border-warning/70 bg-gradient-to-br from-warning/15 via-background to-background ring-2 ring-warning/10"
-              : "border-accent/70 bg-gradient-to-br from-accent/15 via-background to-background"
-        )}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="h-full"
       >
-        <CardHeader className="pb-2 pt-4 px-5">
-          <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <motion.div
-                className={cn(
-                  "p-2 rounded-lg shadow-sm",
-                  stats.critico > 0 ? "bg-destructive text-destructive-foreground" : "bg-warning text-warning-foreground"
-                )}
-                animate={{ scale: stats.critico > 0 ? [1, 1.1, 1] : 1 }}
-                transition={{ repeat: stats.critico > 0 ? Infinity : 0, duration: 2 }}
-              >
-                <AlertTriangle className="h-4 w-4" />
-              </motion.div>
-              <div>
-                <span className={cn("text-base sm:text-lg font-black tracking-tighter block leading-none uppercase", stats.critico > 0 ? "text-destructive" : "text-warning")}>
-                  Lotes a Vencer
-                </span>
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block">Risco de Validade</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 ml-auto">
-              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-6 w-6">
-                <RefreshCcw className={"h-3 w-3 " + (isFetching ? "animate-spin" : "")} />
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-6 text-[9px] font-bold px-1.5 rounded-md">
-                Ver Todo
-                <ChevronRight className="h-3 w-3 ml-0.5" />
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 px-5 pb-4 flex-1">
-          {/* Stats Summary - More compact */}
-          <div className="grid grid-cols-3 gap-2">
-            <div
-              className={cn(
-                "p-2 rounded-lg text-center shadow-sm border transition-transform hover:scale-105",
-                stats.critico > 0 ? "bg-destructive/15 border-destructive/20" : "bg-muted/30 border-transparent"
-              )}
-            >
-              <p className={cn("text-lg sm:text-xl font-black leading-tight", stats.critico > 0 ? "text-destructive" : "text-muted-foreground")}>{stats.critico}</p>
-              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">≤30 dias</p>
-            </div>
-            <div
-              className={cn(
-                "p-2 rounded-lg text-center shadow-sm border transition-transform hover:scale-105",
-                stats.urgente > 0 ? "bg-warning/15 border-warning/20" : "bg-muted/30 border-transparent"
-              )}
-            >
-              <p className={cn("text-lg sm:text-xl font-black leading-tight", stats.urgente > 0 ? "text-warning" : "text-muted-foreground")}>{stats.urgente}</p>
-              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">31-60 dias</p>
-            </div>
-            <div
-              className={cn(
-                "p-2 rounded-lg text-center shadow-sm border transition-transform hover:scale-105",
-                stats.atencao > 0 ? "bg-accent/15 border-accent/20" : "bg-muted/30 border-transparent"
-              )}
-            >
-              <p className={cn("text-lg sm:text-xl font-black leading-tight", stats.atencao > 0 ? "text-accent-foreground" : "text-muted-foreground")}>{stats.atencao}</p>
-              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">61-90 dias</p>
-            </div>
-          </div>
+        <Card
+          className={cn(
+            "h-full overflow-hidden flex flex-col shadow-sm transition-all duration-300",
+            severityLevel === "critico"
+              ? "border-red-300/70 dark:border-red-800/50"
+              : severityLevel === "urgente"
+                ? "border-amber-300/70 dark:border-amber-800/50"
+                : "border-slate-200 dark:border-slate-800",
+          )}
+        >
+          <CardHeader
+            className={cn(
+              "pb-2 pt-3 px-4 shrink-0 border-b",
+              severityLevel === "critico"
+                ? "bg-gradient-to-r from-red-50 via-rose-50/80 to-background dark:from-red-950/40 dark:via-rose-950/20 dark:to-background border-red-100/80 dark:border-red-900/40"
+                : severityLevel === "urgente"
+                  ? "bg-gradient-to-r from-amber-50 via-orange-50/60 to-background dark:from-amber-950/30 dark:via-orange-950/15 dark:to-background border-amber-100/80 dark:border-amber-900/40"
+                  : "bg-gradient-to-r from-slate-50 to-background dark:from-slate-900/40 dark:to-background border-border/60",
+            )}
+          >
+            <CardTitle className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative shrink-0">
+                  <div
+                    className={cn(
+                      "absolute inset-0 rounded-2xl blur-md",
+                      severityLevel === "critico"
+                        ? "bg-red-500/35 animate-pulse"
+                        : severityLevel === "urgente"
+                          ? "bg-amber-500/25"
+                          : "bg-slate-400/15",
+                    )}
+                  />
+                  <motion.div
+                    className={cn(
+                      "relative flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg ring-2 ring-white/70 dark:ring-slate-900/60",
+                      severityLevel === "critico"
+                        ? "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/35"
+                        : severityLevel === "urgente"
+                          ? "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-500/30"
+                          : "bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/20",
+                    )}
+                    animate={
+                      severityLevel === "critico"
+                        ? { scale: [1, 1.06, 1], opacity: [1, 0.85, 1] }
+                        : { scale: 1 }
+                    }
+                    transition={{ duration: 1.4, repeat: severityLevel === "critico" ? Infinity : 0, ease: "easeInOut" }}
+                  >
+                    <ShieldAlert className="h-5 w-5 text-white drop-shadow-sm" />
+                  </motion.div>
+                </div>
 
-          {/* Top 3 Critical Items */}
-          <div className="space-y-2">
-            <AnimatePresence>
-              {expiringLots.slice(0, 3).map((lot, index) => (
-                <motion.div
-                  key={lot.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`p-3 rounded-xl border-l-4 bg-card shadow-sm cursor-pointer hover:shadow-md hover:bg-muted/20 transition-all ${getCategoryBorderColor(lot.categoria)}`}
-                  onClick={() => navigate(`/cadastros/itens/${lot.item_id}`)}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold truncate text-[11px] sm:text-xs text-foreground uppercase tracking-tight">{lot.item_descricao}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[8px] font-semibold text-muted-foreground bg-muted px-1 py-0.2 rounded">Lote: {lot.numero_lote}</span>
-                      </div>
-                    </div>
-                    <Badge className={cn("px-1.5 py-0.2 text-[8px] font-bold whitespace-nowrap rounded-full", getCategoryColor(lot.categoria))}>
-                      {lot.dias_para_vencer} d
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={cn(
+                        "text-sm font-bold leading-tight",
+                        severityLevel === "critico"
+                          ? "text-red-700 dark:text-red-300"
+                          : severityLevel === "urgente"
+                            ? "text-amber-700 dark:text-amber-300"
+                            : "text-foreground",
+                      )}
+                    >
+                      Lotes a Vencer
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[9px] px-1.5 py-0 h-4 font-bold",
+                        severityLevel === "critico"
+                          ? "border-red-300 text-red-700 bg-red-50 dark:border-red-800 dark:text-red-300 dark:bg-red-950/40"
+                          : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {stats.total} ativo{stats.total !== 1 ? "s" : ""}
                     </Badge>
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        </CardContent>
-      </Card>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <Clock3 className="h-3 w-3 shrink-0" />
+                    Risco de validade · próximos 90 dias
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-7 w-7">
+                  <RefreshCcw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-7 text-[10px] font-semibold px-2">
+                  Ver todos
+                  <ChevronRight className="h-3 w-3 ml-0.5" />
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-3 px-4 pb-4 pt-3 flex-1">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: "critico", count: stats.critico, label: "≤30 dias", icon: Flame, activeClass: "border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900/50", text: "text-red-600 dark:text-red-400", iconBg: "bg-red-100 dark:bg-red-900/50 text-red-600" },
+                { key: "urgente", count: stats.urgente, label: "31-60 dias", icon: Timer, activeClass: "border-amber-200 bg-amber-50 dark:bg-amber-950/25 dark:border-amber-900/50", text: "text-amber-600 dark:text-amber-400", iconBg: "bg-amber-100 dark:bg-amber-900/50 text-amber-600" },
+                { key: "atencao", count: stats.atencao, label: "61-90 dias", icon: CalendarClock, activeClass: "border-slate-200 bg-slate-50 dark:bg-slate-900/40 dark:border-slate-800", text: "text-slate-600 dark:text-slate-300", iconBg: "bg-slate-100 dark:bg-slate-800 text-slate-600" },
+              ].map((stat) => {
+                const Icon = stat.icon;
+                const active = stat.count > 0;
+                return (
+                  <div
+                    key={stat.key}
+                    className={cn(
+                      "rounded-xl border p-2 transition-all",
+                      active ? stat.activeClass : "border-transparent bg-muted/20",
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className={cn("flex h-6 w-6 items-center justify-center rounded-lg", active ? stat.iconBg : "bg-muted text-muted-foreground")}>
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      {active && stat.key === "critico" && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                      )}
+                    </div>
+                    <p className={cn("text-lg font-black leading-none tabular-nums", active ? stat.text : "text-muted-foreground")}>
+                      {stat.count}
+                    </p>
+                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide mt-0.5">
+                      {stat.label}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="space-y-1.5">
+              <AnimatePresence>
+                {expiringLots.slice(0, 3).map((lot, index) => {
+                  const styles = getCategoryStyles(lot.categoria);
+                  return (
+                    <motion.div
+                      key={lot.id}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.08 }}
+                      className={cn(
+                        "group flex items-center gap-2.5 p-2.5 rounded-xl border-l-[3px] cursor-pointer transition-all hover:shadow-md ring-1",
+                        styles.border,
+                        styles.bg,
+                        styles.ring,
+                      )}
+                      onClick={() => navigate(`/cadastros/itens/${lot.item_id}`)}
+                    >
+                      <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/80 dark:bg-slate-900/60 shadow-sm border border-border/40")}>
+                        <Package className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[11px] leading-tight line-clamp-2 break-words text-foreground">
+                          {lot.item_descricao}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className="text-[9px] font-medium text-muted-foreground bg-background/70 dark:bg-slate-950/40 px-1.5 py-0.5 rounded border border-border/50">
+                            Lote {lot.numero_lote}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground">
+                            Val. {format(parseISO(lot.data_val), "dd/MM/yy", { locale: ptBR })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end shrink-0 gap-0.5">
+                        <Badge className={cn("px-1.5 py-0 text-[9px] font-bold rounded-full tabular-nums", getCategoryColor(lot.categoria))}>
+                          {lot.dias_para_vencer}d
+                        </Badge>
+                        <span className={cn("h-1.5 w-1.5 rounded-full", styles.dot)} />
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Full List Dialog */}
       <Dialog open={showFullList} onOpenChange={setShowFullList}>
