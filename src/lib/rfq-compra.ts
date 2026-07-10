@@ -15,6 +15,21 @@ export interface BlocoRfqFornecedor {
 
 const SEM_FORNECEDOR_KEY = '__sem_fornecedor__';
 
+export interface ItemCestaCompra {
+  item_id: string;
+  item_nome: string;
+  tipo_item: string | null;
+  unidade: string | null;
+  total_falta: number;
+  embalagem_compra_qtd?: number | null;
+  embalagem_compra_unidade?: string | null;
+}
+
+export interface FornecedorEscolhidoRfq {
+  id: string;
+  nome: string;
+}
+
 type FornRow = {
   item_id: string;
   fornecedor_id: string;
@@ -168,4 +183,37 @@ export async function montarBlocosRfqPorFornecedor(
   }
 
   return comFornecedor;
+}
+
+/** Cesta consolidada: mesmo texto de itens para cada fornecedor escolhido (comparar preços). */
+export function montarRfqParaFornecedores(
+  itensCesta: ItemCestaCompra[],
+  fornecedoresEscolhidos: FornecedorEscolhidoRfq[],
+): BlocoRfqFornecedor[] {
+  const linhas = itensCesta.map((item) => {
+    const emb = resolverEmbalagemCotacao(
+      {
+        quantidade_faltante: item.total_falta,
+        unidade: item.unidade,
+        tipo_item: item.tipo_item,
+      },
+      {
+        qtd_por_pacote: item.embalagem_compra_qtd ?? null,
+        unidade_compra_padrao: item.embalagem_compra_unidade ?? item.unidade,
+      },
+    );
+    return {
+      nome: item.item_nome,
+      qtd: emb.texto,
+      categoria: grupoCategoria(item.tipo_item),
+    };
+  });
+
+  const grupos = montarGrupos(linhas);
+
+  return fornecedoresEscolhidos.map((fornecedor) => ({
+    fornecedorId: fornecedor.id,
+    fornecedorNome: fornecedor.nome,
+    grupos,
+  }));
 }
