@@ -1,22 +1,17 @@
-import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { calcularCustoRealCotacao, ItemCotacaoGrade } from '@/components/compras/ItemCotacaoGrade';
+import { MapaFecharPedidosTab } from '@/components/compras/MapaFecharPedidosTab';
 import { useMapaConsolidado } from '@/hooks/use-mapa-consolidado';
 import { useItensEmRfq } from '@/hooks/use-itens-em-rfq';
-import { useAprovarCompra } from '@/hooks/use-pedidos-compra';
 import { formatCurrency } from '@/lib/formatters';
 import { Progress } from '@/components/ui/progress';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import type { RequisicaoCompraItem } from '@/hooks/use-requisicoes-compra';
 import { cn } from '@/lib/utils';
 
@@ -69,8 +64,7 @@ function OpsBadges({ ops, nOps }: { ops: string[]; nOps: number }) {
 }
 
 export default function MapaCotacaoPage() {
-  const navigate = useNavigate();
-  const aprovarCompra = useAprovarCompra();
+  const [abaAtiva, setAbaAtiva] = useState('comparar');
   const {
     itensMapa,
     isLoading,
@@ -85,14 +79,12 @@ export default function MapaCotacaoPage() {
   const resumo = useMemo(() => {
     let decididos = 0;
     let totalEstimado = 0;
-    const fornecedoresDecididos = new Set<string>();
 
     for (const entrada of itensMapa) {
       const escolhida = entrada.cotacoes.find((c) => c.escolhido);
       if (!escolhida) continue;
 
       decididos += 1;
-      fornecedoresDecididos.add(escolhida.fornecedor_id);
 
       const itemShape = itemShapeFromNecessidade(entrada.necessidade);
       const custo = calcularCustoRealCotacao(itemShape, escolhida);
@@ -106,19 +98,9 @@ export default function MapaCotacaoPage() {
       total,
       decididos,
       totalEstimado,
-      nPedidos: fornecedoresDecididos.size,
       progressoPct,
     };
   }, [itensMapa]);
-
-  const handleAprovarCompra = async () => {
-    try {
-      await aprovarCompra.mutateAsync();
-      navigate('/compras/pedidos');
-    } catch {
-      // toast exibido pelo onError da mutation
-    }
-  };
 
   if (isError) {
     const e = error as { message?: string; code?: string };
@@ -133,11 +115,11 @@ export default function MapaCotacaoPage() {
   }
 
   return (
-    <div className="space-y-6 pb-28">
+    <div className={cn('space-y-6', abaAtiva === 'comparar' && 'pb-28')}>
       <PageHeader
         icon={ClipboardList}
         title="Mapa de cotação"
-        description="Compare preços por item consolidado e escolha o fornecedor de cada necessidade"
+        description="Compare preços por item e feche pedidos por fornecedor"
       />
 
       {isLoading ? (
@@ -152,122 +134,121 @@ export default function MapaCotacaoPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {itensMapa.map((entrada) => {
-            const { necessidade, fornecedores, cotacoes, historicoItem } = entrada;
-            const semFornecedor = (necessidade.n_fornecedores_cadastrados ?? 0) === 0;
+        <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
+          <TabsList>
+            <TabsTrigger value="comparar">Comparar</TabsTrigger>
+            <TabsTrigger value="fechar">
+              Fechar pedidos
+              {resumo.decididos > 0 && (
+                <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
+                  {resumo.decididos}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-            if (semFornecedor) {
-              return (
-                <Card key={necessidade.item_id}>
-                  <CardContent className="py-6 px-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm">{necessidade.item_nome}</p>
-                      <div className="mt-1">
-                        <OpsBadges ops={necessidade.ops || []} nOps={necessidade.n_ops} />
+          <TabsContent value="comparar" className="space-y-4 mt-4">
+            {itensMapa.map((entrada) => {
+              const { necessidade, fornecedores, cotacoes, historicoItem } = entrada;
+              const semFornecedor = (necessidade.n_fornecedores_cadastrados ?? 0) === 0;
+
+              if (semFornecedor) {
+                return (
+                  <Card key={necessidade.item_id}>
+                    <CardContent className="py-6 px-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">{necessidade.item_nome}</p>
+                        <div className="mt-1">
+                          <OpsBadges ops={necessidade.ops || []} nOps={necessidade.n_ops} />
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-amber-50 text-amber-900 border-amber-300"
+                        >
+                          PENDENTE — sem fornecedor
+                        </Badge>
+                        <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
+                          <Link to="/cadastros/produtos">Cadastrar fornecedor</Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              return (
+                <ItemCotacaoGrade
+                  key={necessidade.item_id}
+                  gradeId={necessidade.item_id}
+                  item={itemShapeFromNecessidade(necessidade)}
+                  fornecedores={fornecedores}
+                  cotacoes={cotacoes}
+                  historicoItem={historicoItem}
+                  isLoadingInteligencia={isLoadingInteligencia}
+                  onSalvar={(fornecedorId, fields) =>
+                    salvarCotacao.mutateAsync({
+                      itemId: necessidade.item_id,
+                      fornecedorId,
+                      fields,
+                    })
+                  }
+                  onEscolher={(fornecedorId) =>
+                    escolherFornecedor.mutateAsync({
+                      itemId: necessidade.item_id,
+                      fornecedorId,
+                    })
+                  }
+                  isSaving={salvarCotacao.isPending}
+                  isChoosing={escolherFornecedor.isPending}
+                  headerExtra={
+                    necessidade.n_ops > 1 ? (
+                      <OpsBadges ops={necessidade.ops || []} nOps={necessidade.n_ops} />
+                    ) : undefined
+                  }
+                  statusExtra={
+                    itensEmRfq?.has(necessidade.item_id) ? (
                       <Badge
                         variant="outline"
-                        className="text-xs bg-amber-50 text-amber-900 border-amber-300"
+                        className="text-[10px] bg-sky-50 text-sky-800 border-sky-200"
                       >
-                        PENDENTE — sem fornecedor
+                        RFQ enviada
                       </Badge>
-                      <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
-                        <Link to="/cadastros/produtos">Cadastrar fornecedor</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                    ) : undefined
+                  }
+                />
               );
-            }
+            })}
+          </TabsContent>
 
-            return (
-              <ItemCotacaoGrade
-                key={necessidade.item_id}
-                gradeId={necessidade.item_id}
-                item={itemShapeFromNecessidade(necessidade)}
-                fornecedores={fornecedores}
-                cotacoes={cotacoes}
-                historicoItem={historicoItem}
-                isLoadingInteligencia={isLoadingInteligencia}
-                onSalvar={(fornecedorId, fields) =>
-                  salvarCotacao.mutateAsync({
-                    itemId: necessidade.item_id,
-                    fornecedorId,
-                    fields,
-                  })
-                }
-                onEscolher={(fornecedorId) =>
-                  escolherFornecedor.mutateAsync({
-                    itemId: necessidade.item_id,
-                    fornecedorId,
-                  })
-                }
-                isSaving={salvarCotacao.isPending}
-                isChoosing={escolherFornecedor.isPending}
-                headerExtra={
-                  necessidade.n_ops > 1 ? (
-                    <OpsBadges ops={necessidade.ops || []} nOps={necessidade.n_ops} />
-                  ) : undefined
-                }
-                statusExtra={
-                  itensEmRfq?.has(necessidade.item_id) ? (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] bg-sky-50 text-sky-800 border-sky-200"
-                    >
-                      RFQ enviada
-                    </Badge>
-                  ) : undefined
-                }
-              />
-            );
-          })}
-        </div>
+          <TabsContent value="fechar" className="mt-4">
+            <MapaFecharPedidosTab itensMapa={itensMapa} />
+          </TabsContent>
+        </Tabs>
       )}
 
-      <Card className="fixed bottom-0 left-0 right-0 z-20 rounded-none border-x-0 border-b-0 shadow-lg md:left-[var(--sidebar-width,0px)]">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3 px-4">
-          <div className="min-w-[200px] flex-1 max-w-md space-y-2">
-            <div className="text-sm text-muted-foreground space-y-0.5">
-              <p>
-                {resumo.decididos} de {resumo.total} itens decididos
-              </p>
-              <p className="font-medium text-foreground">
-                Total da compra estimado: {formatCurrency(resumo.totalEstimado)}
-              </p>
+      {abaAtiva === 'comparar' && itensMapa.length > 0 && (
+        <Card className="fixed bottom-0 left-0 right-0 z-20 rounded-none border-x-0 border-b-0 shadow-lg md:left-[var(--sidebar-width,0px)]">
+          <CardContent className="py-3 px-4">
+            <div className="min-w-[200px] max-w-md space-y-2">
+              <div className="text-sm text-muted-foreground space-y-0.5">
+                <p>
+                  {resumo.decididos} de {resumo.total} itens decididos
+                </p>
+                <p className="font-medium text-foreground">
+                  Total da compra estimado: {formatCurrency(resumo.totalEstimado)}
+                </p>
+              </div>
+              <Progress
+                value={resumo.progressoPct}
+                className="h-2"
+                indicatorClassName="bg-green-600"
+              />
             </div>
-            <Progress
-              value={resumo.progressoPct}
-              className="h-2"
-              indicatorClassName="bg-green-600"
-            />
-          </div>
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    onClick={handleAprovarCompra}
-                    disabled={resumo.decididos === 0 || aprovarCompra.isPending}
-                  >
-                    {aprovarCompra.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Aprovar compra
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {resumo.decididos > 0 && (
-                <TooltipContent side="top" className="max-w-xs">
-                  Vai gerar {resumo.nPedidos} pedido{resumo.nPedidos !== 1 ? 's' : ''} · Total{' '}
-                  {formatCurrency(resumo.totalEstimado)}
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
