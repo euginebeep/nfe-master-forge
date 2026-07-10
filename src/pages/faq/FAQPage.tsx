@@ -12,7 +12,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { LucideIcon } from "lucide-react";
 import { 
   Search, Bot, ThumbsUp, ThumbsDown, Send, Loader2, BookOpen, 
@@ -126,18 +125,17 @@ function BrainXMascotIcon({
 
 function BrainXMascotAvatar({
   className = "",
-  sizeClass = "w-10 h-10",
+  sizeClass = "w-14 h-14",
 }: {
   className?: string;
   sizeClass?: string;
 }) {
   return (
-    <Avatar className={`${sizeClass} border-2 border-white/20 bg-white shrink-0 ${className}`}>
-      <AvatarImage src={BRAINX_MASCOT_SRC} className="object-cover" alt="BrainX Assistente" />
-      <AvatarFallback className="bg-white/20 text-white">
-        <Bot className="h-6 w-6" />
-      </AvatarFallback>
-    </Avatar>
+    <img
+      src={BRAINX_MASCOT_SRC}
+      alt="BrainX Assistente"
+      className={`rounded-full object-cover shrink-0 border-2 border-white/40 bg-white shadow-sm ${sizeClass} ${className}`}
+    />
   );
 }
 
@@ -527,7 +525,7 @@ export default function FAQPage() {
             className="flex-1 gap-2 h-9" 
             onClick={() => setAbaAtiva('ia')}
           >
-            <BrainXMascotIcon size={18} className="ring-1 ring-white/30" />
+            <BrainXMascotIcon size={24} className="ring-1 ring-white/30" />
             Pergunte à IA
             <Badge className="ml-1 px-1.5 h-4 bg-blue-600 border-0 text-[10px] text-white">IA</Badge>
           </Button>
@@ -668,18 +666,18 @@ export default function FAQPage() {
           ) : (
             /* ABA IA — CHAT COMPLETO */
             <Card className="flex flex-col h-[calc(100vh-280px)] shadow-lg overflow-hidden border-blue-100">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <BrainXMascotAvatar />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <BrainXMascotAvatar sizeClass="w-16 h-16" className="border-white shadow-md" />
                   <div>
-                    <h3 className="text-white font-bold text-sm">BrainX Assistente</h3>
-                    <div className="flex items-center gap-1.5">
+                    <h3 className="text-white font-bold text-base">BrainX Assistente</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
                       <span
-                        className={`w-2 h-2 rounded-full ${statusAssistente.dot} ${
+                        className={`w-2.5 h-2.5 rounded-full ${statusAssistente.dot} ${
                           statusAssistente.pulse ? "animate-pulse" : ""
                         }`}
                       />
-                      <span className="text-[10px] text-blue-100">{statusAssistente.label}</span>
+                      <span className="text-xs text-white/90">{statusAssistente.label}</span>
                     </div>
                   </div>
                 </div>
@@ -695,8 +693,8 @@ export default function FAQPage() {
                 )}
               </div>
 
-              <ScrollArea className="flex-1 p-4 bg-slate-50/50">
-                <div className="space-y-6">
+              <ScrollArea className="flex-1 p-4 bg-slate-100">
+                <div className="space-y-5">
                   {assistenteStatus === "offline" && (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex gap-3 items-start">
                       <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
@@ -710,21 +708,24 @@ export default function FAQPage() {
                     </div>
                   )}
                   {mensagens.map((msg, i) => (
-                    <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div key={i} className={`flex gap-3 items-end ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                       {msg.role === 'user' ? (
-                        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
+                        <div className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
                           <Users className="h-5 w-5 text-white" />
                         </div>
                       ) : (
-                        <BrainXMascotAvatar sizeClass="w-9 h-9" className="border border-blue-100 shadow-sm" />
+                        <BrainXMascotAvatar
+                          sizeClass="w-12 h-12"
+                          className="border-blue-200 shadow-sm mb-1"
+                        />
                       )}
                       <div className="flex flex-col max-w-[85%] gap-1">
-                        <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                        <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                           msg.role === 'user' 
                             ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                            : 'bg-white text-foreground rounded-tl-none border border-blue-50'
+                            : 'bg-white text-slate-900 rounded-tl-none border border-slate-200'
                         }`}>
-                          {msg.content}
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
                           {msg.fallbackManual && (
                             <Button
                               size="sm"
@@ -756,8 +757,8 @@ export default function FAQPage() {
                     </div>
                   ))}
                   {enviando && (
-                    <div className="flex gap-3">
-                      <BrainXMascotAvatar sizeClass="w-9 h-9" className="border border-blue-100 shadow-sm" />
+                    <div className="flex gap-3 items-end">
+                      <BrainXMascotAvatar sizeClass="w-12 h-12" className="border-blue-200 shadow-sm mb-1" />
                       <div className="bg-white border border-blue-50 rounded-2xl rounded-tl-none px-4 py-3 flex gap-1 items-center shadow-sm">
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
