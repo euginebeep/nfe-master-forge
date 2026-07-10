@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { centralToast } from "@/components/ui/central-toast";
 import { useParams, useNavigate } from "react-router-dom";
-import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search, Info, TrendingUp, ArrowLeftRight, AlertTriangle } from "lucide-react";
+import { Package, ArrowLeft, Save, Plus, Trash2, Star, Upload, Check, X, FileText, ExternalLink, Search, Info, TrendingUp, ArrowLeftRight, AlertTriangle, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { EstoqueResumoCard } from "@/components/estoque/EstoqueResumoCard";
 import { motion } from "framer-motion";
@@ -25,6 +25,7 @@ import {
   useSupabaseEstoqueLotes,
   useSupabaseLoteDocumentos,
   type SupabaseEstoqueLote,
+  type SupabaseItemFornecedor,
 } from "@/hooks/use-supabase-item-details";
 import { useHybridEntidades } from "@/hooks/use-hybrid-data";
 import { useHybridItem, useUpdateHybridItem, type HybridItem } from "@/hooks/use-hybrid-data";
@@ -93,13 +94,14 @@ export function ProdutoDetailPage() {
   const navigate = useNavigate();
   const { data: item, isLoading, refetch } = useHybridItem(id);
   const updateMutation = useUpdateHybridItem();
-  const { fornecedores, create: createFornecedor, remove: removeFornecedor } = useSupabaseItemFornecedores(id);
+  const { fornecedores, create: createFornecedor, update: updateFornecedor, remove: removeFornecedor } = useSupabaseItemFornecedores(id);
   const { aliases, create: createAlias, remove: removeAlias } = useSupabaseItemAliases(id);
   const { lotes, update: updateLote, remove: removeLote, refresh: refreshLotes } = useSupabaseEstoqueLotes(id);
   const { data: entidadesFornecedores = [] } = useHybridEntidades({ papel: "FORNECEDOR" });
 
   const [formData, setFormData] = useState<Partial<HybridItem>>({});
   const [showFornecedorForm, setShowFornecedorForm] = useState(false);
+  const [fornecedorEdit, setFornecedorEdit] = useState<SupabaseItemFornecedor | null>(null);
   const [showAliasForm, setShowAliasForm] = useState(false);
   const [showLoteForm, setShowLoteForm] = useState(false);
   const [selectedLote, setSelectedLote] = useState<any>(null);
@@ -851,7 +853,7 @@ export function ProdutoDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Fornecedores do Item</CardTitle>
-                <Button size="sm" onClick={() => setShowFornecedorForm(true)}>
+                <Button size="sm" onClick={() => { setFornecedorEdit(null); setShowFornecedorForm(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Vincular Fornecedor
                 </Button>
@@ -906,13 +908,24 @@ export function ProdutoDetailPage() {
                             )}
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => removeFornecedor(f.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setFornecedorEdit(f)}
+                            title="Editar vínculo"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => removeFornecedor(f.id)}
+                            title="Remover vínculo"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1319,13 +1332,25 @@ export function ProdutoDetailPage() {
 
       {/* Fornecedor Form Dialog */}
       <FornecedorFormDialog
-        open={showFornecedorForm}
-        onOpenChange={setShowFornecedorForm}
+        open={showFornecedorForm || !!fornecedorEdit}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowFornecedorForm(false);
+            setFornecedorEdit(null);
+          }
+        }}
         itemId={id!}
         fornecedores={entidadesFornecedores as any}
+        initial={fornecedorEdit}
         onSave={(data: any) => {
-          createFornecedor(data);
+          if (fornecedorEdit) {
+            const { item_id: _itemId, fornecedor_id: _fornecedorId, ...updateData } = data;
+            updateFornecedor(fornecedorEdit.id, updateData);
+          } else {
+            createFornecedor(data);
+          }
           setShowFornecedorForm(false);
+          setFornecedorEdit(null);
         }}
       />
 
@@ -1367,20 +1392,8 @@ export function ProdutoDetailPage() {
 }
 
 // Fornecedor Form Dialog
-function FornecedorFormDialog({ 
-  open, 
-  onOpenChange, 
-  itemId,
-  fornecedores,
-  onSave 
-}: { 
-  open: boolean; 
-  onOpenChange: (open: boolean) => void; 
-  itemId: string;
-  fornecedores: { id: string; razao_social: string }[];
-  onSave: (data: Record<string, unknown>) => void;
-}) {
-  const [formData, setFormData] = useState({
+function emptyFornecedorFormData() {
+  return {
     fornecedor_id: "",
     codigo_fornecedor: "",
     descricao_fornecedor: "",
@@ -1389,13 +1402,72 @@ function FornecedorFormDialog({
     fornecedor_preferencial: false,
     preco_referencia: 0,
     qtd_por_pacote: "",
-  });
+    moq: "",
+    lead_time_dias: "",
+  };
+}
+
+function fornecedorToFormData(initial: SupabaseItemFornecedor) {
+  return {
+    fornecedor_id: initial.fornecedor_id || "",
+    codigo_fornecedor: initial.codigo_fornecedor || "",
+    descricao_fornecedor: initial.descricao_fornecedor || "",
+    unidade_compra_padrao: (initial.unidade_compra_padrao || "kg") as "kg" | "g" | "un",
+    fator_para_unidade_interna: initial.fator_para_unidade_interna ?? 1000,
+    fornecedor_preferencial: !!initial.fornecedor_preferencial,
+    preco_referencia: initial.preco_referencia ?? 0,
+    qtd_por_pacote: initial.qtd_por_pacote != null ? String(initial.qtd_por_pacote) : "",
+    moq: initial.moq != null ? String(initial.moq) : "",
+    lead_time_dias: initial.lead_time_dias != null ? String(initial.lead_time_dias) : "",
+  };
+}
+
+function FornecedorFormDialog({ 
+  open, 
+  onOpenChange, 
+  itemId,
+  fornecedores,
+  initial,
+  onSave 
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  itemId: string;
+  fornecedores: { id: string; razao_social: string }[];
+  initial?: SupabaseItemFornecedor | null;
+  onSave: (data: Record<string, unknown>) => void;
+}) {
+  const isEdit = !!initial;
+  const [formData, setFormData] = useState(emptyFornecedorFormData);
+
+  useEffect(() => {
+    if (!open) return;
+    setFormData(initial ? fornecedorToFormData(initial) : emptyFornecedorFormData());
+  }, [open, initial]);
+
+  const parseOptionalNumber = (raw: string): number | null => {
+    const trimmed = String(raw).trim();
+    if (trimmed === '') return null;
+    const n = parseFloat(trimmed);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const handleSave = () => {
+    const { qtd_por_pacote: qtdRaw, moq: moqRaw, lead_time_dias: leadRaw, ...rest } = formData;
+    onSave({
+      ...rest,
+      item_id: itemId,
+      qtd_por_pacote: parseOptionalNumber(qtdRaw),
+      moq: parseOptionalNumber(moqRaw),
+      lead_time_dias: parseOptionalNumber(leadRaw),
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Vincular Fornecedor</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar fornecedor" : "Vincular Fornecedor"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -1403,6 +1475,7 @@ function FornecedorFormDialog({
             <Select 
               value={formData.fornecedor_id} 
               onValueChange={(v) => setFormData({ ...formData, fornecedor_id: v })}
+              disabled={isEdit}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um fornecedor" />
@@ -1495,18 +1568,9 @@ function FornecedorFormDialog({
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={() => {
-              const { qtd_por_pacote: qtdRaw, ...rest } = formData;
-              const trimmed = String(qtdRaw).trim();
-              const qtd_por_pacote = trimmed === ''
-                ? null
-                : (Number.isFinite(parseFloat(trimmed)) ? parseFloat(trimmed) : null);
-              onSave({
-                ...rest,
-                item_id: itemId,
-                qtd_por_pacote,
-              });
-            }}>Salvar</Button>
+            <Button onClick={handleSave}>
+              {isEdit ? "Salvar alterações" : "Salvar"}
+            </Button>
           </div>
         </div>
       </DialogContent>
