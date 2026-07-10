@@ -14,6 +14,41 @@ interface NewsItem {
   imageUrl?: string;
 }
 
+/** RSS 1.0 / RDF (formato usado pelo portal gov.br/ANVISA) */
+function parseRdfRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
+  const items: NewsItem[] = [];
+  const itemRegex = /<item\s[^>]*>([\s\S]*?)<\/item>/g;
+  let match;
+
+  const skipTypes = new Set(['Folder', 'Collection', 'File', 'collective.polls.poll']);
+
+  while ((match = itemRegex.exec(xml)) !== null && items.length < maxItems) {
+    const itemXml = match[1];
+    const title = itemXml.match(/<title>(.*?)<\/title>/)?.[1] || '';
+    const link = itemXml.match(/<link>(.*?)<\/link>/)?.[1] || '';
+    const pubDate = itemXml.match(/<dc:date>(.*?)<\/dc:date>/)?.[1] || '';
+    const contentType = itemXml.match(/<dc:type>(.*?)<\/dc:type>/)?.[1] || '';
+    const description = itemXml.match(/<description>(.*?)<\/description>/)?.[1] || '';
+
+    if (skipTypes.has(contentType.trim())) continue;
+
+    const cleanTitle = title.replace(/<[^>]+>/g, '').replace(/&apos;/g, "'").trim();
+    if (!cleanTitle || cleanTitle.length < 12) continue;
+
+    const cleanDesc = description.replace(/<[^>]+>/g, '').trim().substring(0, 150);
+
+    items.push({
+      title: cleanTitle,
+      link: link.trim(),
+      source,
+      pubDate,
+      description: cleanDesc || undefined,
+    });
+  }
+
+  return items;
+}
+
 function parseRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
   const items: NewsItem[] = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -60,8 +95,9 @@ function parseRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
 }
 
 const RSS_SOURCES = [
-  { url: "https://www.cnnbrasil.com.br/feed/", name: "CNN Brasil" },
-  { url: "https://jovempan.com.br/feed", name: "Jovem Pan" },
+  { url: "https://www.cnnbrasil.com.br/feed/", name: "CNN Brasil", parser: "rss2" as const },
+  { url: "https://jovempan.com.br/feed", name: "Jovem Pan", parser: "rss2" as const },
+  { url: "https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa/RSS", name: "ANVISA", parser: "rdf" as const },
 ];
 
 serve(async (req) => {
@@ -100,7 +136,9 @@ serve(async (req) => {
           const xml = new TextDecoder(isLatin ? 'iso-8859-1' : 'utf-8').decode(buffer)
             .replace(/&apos;/g, "'");
           
-          return parseRSSItems(xml, source.name, 4);
+          return source.parser === "rdf"
+            ? parseRdfRSSItems(xml, source.name, 4)
+            : parseRSSItems(xml, source.name, 4);
         } catch (e) {
           console.error(`Error fetching ${source.name}:`, e);
           return [];
@@ -123,7 +161,7 @@ serve(async (req) => {
       }
     });
 
-    const news = allNews.slice(0, 10);
+    const news = allNews.slice(0, 12);
 
     return new Response(JSON.stringify({ news, fetchedAt: new Date().toISOString() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

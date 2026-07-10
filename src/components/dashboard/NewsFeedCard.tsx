@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink, RefreshCw, TrendingUp } from 'lucide-react';
+import { Newspaper, ExternalLink, RefreshCw, TrendingUp, Scale } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -42,11 +42,13 @@ function formatTimeAgo(dateStr: string): string {
 function getSourceStyle(source: string) {
   switch (source) {
     case 'CNN Brasil':
-      return { dot: 'bg-destructive', badge: 'border-destructive/20 text-destructive bg-destructive/5', short: 'CNN' };
+      return { dot: 'bg-destructive', badge: 'border-destructive/20 text-destructive bg-destructive/5', short: 'CNN', icon: null };
     case 'Jovem Pan':
-      return { dot: 'bg-emerald-500', badge: 'border-emerald-500/20 text-emerald-700 bg-emerald-500/5 dark:text-emerald-400', short: 'JP' };
+      return { dot: 'bg-emerald-500', badge: 'border-emerald-500/20 text-emerald-700 bg-emerald-500/5 dark:text-emerald-400', short: 'JP', icon: null };
+    case 'ANVISA':
+      return { dot: 'bg-teal-500', badge: 'border-teal-500/25 text-teal-700 bg-teal-500/10 dark:text-teal-300', short: 'ANVISA', icon: Scale };
     default:
-      return { dot: 'bg-muted-foreground', badge: 'border-border text-muted-foreground bg-muted', short: '?' };
+      return { dot: 'bg-muted-foreground', badge: 'border-border text-muted-foreground bg-muted', short: '?', icon: null };
   }
 }
 
@@ -103,20 +105,23 @@ export function NewsFeedCard() {
                 </div>
               ) : (
                 <div className="flex items-center gap-0.5">
-                  {news.slice(0, 8).map((item, idx) => {
+                  {news.slice(0, 10).map((item, idx) => {
                     const style = getSourceStyle(item.source);
                     return (
-                      <>
+                      <span key={`${item.source}-${item.link}-${idx}`} className="contents">
                         {idx > 0 && (
                           <span className="text-muted-foreground/20 text-[10px] flex-shrink-0 mx-1">•</span>
                         )}
                         <button
-                          key={idx}
                           onClick={() => setSelectedNews(item)}
                           className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors group flex-shrink-0 text-left"
                         >
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold border ${style.badge}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${style.dot} animate-pulse`} />
+                            {style.icon ? (
+                              <style.icon className="h-2.5 w-2.5" />
+                            ) : (
+                              <span className={`w-1.5 h-1.5 rounded-full ${style.dot} animate-pulse`} />
+                            )}
                             {style.short}
                           </span>
                           <span className="text-[13px] leading-snug text-foreground/85 group-hover:text-primary font-medium transition-colors max-w-[280px] truncate">
@@ -128,7 +133,7 @@ export function NewsFeedCard() {
                             </span>
                           )}
                         </button>
-                      </>
+                      </span>
                     );
                   })}
                 </div>
