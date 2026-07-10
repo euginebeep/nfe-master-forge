@@ -117,6 +117,7 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Comprar", url: "/compras/comprar", icon: ShoppingCart, tooltip: "Necessidades consolidadas: monta a cesta e gera cotação", modulo: "compras" },
   { title: "Mapa de cotação", url: "/compras/mapa", icon: ClipboardList, tooltip: "Compare preços e escolha fornecedor por item consolidado", modulo: "compras" },
+  { title: "Pedidos de Compra", url: "/compras/pedidos", icon: Package, tooltip: "Pedidos de compra gerados após aprovação do mapa", modulo: "compras" },
   { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileInput, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
   { title: "Fator de Conversão", url: "/compras/fator-conversao", icon: BarChart3, tooltip: "Histórico de conversões de unidades por fornecedor com sugestões automáticas", modulo: "compras" },

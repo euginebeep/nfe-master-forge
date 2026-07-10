@@ -1,18 +1,13 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { ItemCotacaoGrade } from '@/components/compras/ItemCotacaoGrade';
 import { useMapaConsolidado } from '@/hooks/use-mapa-consolidado';
+import { useAprovarCompra } from '@/hooks/use-pedidos-compra';
 import { calcularQuantidadeCotacao } from '@/lib/cotacao-embalagem';
 import { formatCurrency } from '@/lib/formatters';
 import type { RequisicaoCompraItem } from '@/hooks/use-requisicoes-compra';
@@ -67,6 +62,8 @@ function OpsBadges({ ops, nOps }: { ops: string[]; nOps: number }) {
 }
 
 export default function MapaCotacaoPage() {
+  const navigate = useNavigate();
+  const aprovarCompra = useAprovarCompra();
   const {
     itensMapa,
     isLoading,
@@ -103,6 +100,15 @@ export default function MapaCotacaoPage() {
       totalEstimado,
     };
   }, [itensMapa]);
+
+  const handleAprovarCompra = async () => {
+    try {
+      await aprovarCompra.mutateAsync();
+      navigate('/compras/pedidos');
+    } catch {
+      // toast exibido pelo onError da mutation
+    }
+  };
 
   if (isError) {
     const e = error as { message?: string; code?: string };
@@ -209,16 +215,13 @@ export default function MapaCotacaoPage() {
               Total da compra estimado: {formatCurrency(resumo.totalEstimado)}
             </p>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button disabled>Aprovar compra</Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Em breve</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            onClick={handleAprovarCompra}
+            disabled={resumo.decididos === 0 || aprovarCompra.isPending}
+          >
+            {aprovarCompra.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Aprovar compra
+          </Button>
         </CardContent>
       </Card>
     </div>
