@@ -44,6 +44,12 @@ export interface AprovarCompraResult {
   n: number;
 }
 
+export interface AprovarCompraFornecedorResult {
+  pedido_id: string;
+  itens: unknown;
+  frete: number;
+}
+
 const PEDIDOS_QUERY_KEY = ['pedidos-compra'] as const;
 
 function asNullableString(value: unknown): string | null {
@@ -129,11 +135,48 @@ function parseAprovarCompraResult(data: unknown): AprovarCompraResult {
   return { pedidos_criados, n };
 }
 
+function parseAprovarCompraFornecedorResult(data: unknown): AprovarCompraFornecedorResult {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Resposta inválida ao gerar pedido');
+  }
+  const obj = data as RawRow;
+  const pedido_id = asNullableString(obj.pedido_id);
+  if (!pedido_id) {
+    throw new Error('Pedido não retornado pelo servidor');
+  }
+  return {
+    pedido_id,
+    itens: obj.itens,
+    frete: asNumber(obj.frete),
+  };
+}
+
 function invalidatePedidosQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['compras-necessidades-consolidadas'] });
   queryClient.invalidateQueries({ queryKey: ['mapa-consolidado'] });
   queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
   queryClient.invalidateQueries({ queryKey: [...PEDIDOS_QUERY_KEY] });
+}
+
+export function useAprovarCompraFornecedor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (fornecedorId: string): Promise<AprovarCompraFornecedorResult> => {
+      const { data, error } = await supabase.rpc('aprovar_compra_fornecedor', {
+        p_fornecedor_id: fornecedorId,
+      });
+      if (error) throw error;
+      return parseAprovarCompraFornecedorResult(data);
+    },
+    onSuccess: () => {
+      invalidatePedidosQueries(queryClient);
+      toast.success('Pedido gerado');
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao gerar pedido');
+    },
+  });
 }
 
 export function useAprovarCompra() {
