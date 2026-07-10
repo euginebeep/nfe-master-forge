@@ -356,4 +356,50 @@ export function usePedirCotacao() {
   });
 }
 
+const STATUS_PERMITE_EXCLUIR_ITEM: StatusRequisicao[] = [STATUS_REQ.ABERTA, STATUS_REQ.EM_RFQ];
+
+export async function excluirItemRequisicaoComBpf(itemLinhaId: string): Promise<string> {
+  const { data: linha, error: fetchErr } = await supabase
+    .from('requisicoes_compra_itens')
+    .select('id, requisicao_id, requisicoes_compra(status)')
+    .eq('id', itemLinhaId)
+    .maybeSingle();
+
+  if (fetchErr) throw fetchErr;
+  if (!linha?.id) throw new Error('Linha da requisição não encontrada');
+
+  const statusRaw = (linha.requisicoes_compra as { status?: string } | null)?.status;
+  const status = statusRaw ? normalizarStatus(statusRaw) : null;
+
+  if (!status || !STATUS_PERMITE_EXCLUIR_ITEM.includes(status)) {
+    throw new Error(
+      'Só é possível excluir itens de requisições em aberto ou em cotação (RFQ). Requisições em mapa ou posteriores estão bloqueadas.',
+    );
+  }
+
+  const { error } = await supabase
+    .from('requisicoes_compra_itens')
+    .delete()
+    .eq('id', itemLinhaId);
+
+  if (error) throw error;
+  return linha.requisicao_id as string;
+}
+
+export function useExcluirItemRequisicao() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: excluirItemRequisicaoComBpf,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+      queryClient.invalidateQueries({ queryKey: ['compras-necessidades-consolidadas'] });
+      toast.success('Item removido da requisição');
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao excluir item');
+    },
+  });
+}
+
 export { calcularValorTotal, podeTransicionar, STATUS_REQ, normalizarStatus };
