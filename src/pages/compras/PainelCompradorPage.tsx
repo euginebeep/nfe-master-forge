@@ -33,6 +33,7 @@ import {
 import { useHybridEntidades } from '@/hooks/use-hybrid-data';
 import { useAuth } from '@/hooks/use-auth';
 import { useExcluirItemRequisicao, excluirItemRequisicaoComBpf } from '@/hooks/use-requisicoes-compra';
+import { useItensEmRfq } from '@/hooks/use-itens-em-rfq';
 import { grupoCategoria, ORDEM_CATEGORIAS_RFQ } from '@/lib/cotacao-embalagem';
 import { formatarQtdExibicao } from '@/lib/conferencia-materiais';
 import { formatCurrency } from '@/lib/formatters';
@@ -125,11 +126,12 @@ function CelulaMedia({ item }: { item: CompraNecessidadeConsolidada }) {
 interface LinhaItemProps {
   item: CompraNecessidadeConsolidada;
   selecionado: boolean;
+  emRfq: boolean;
   onToggle: (checked: boolean) => void;
   onExcluir: () => void;
 }
 
-function LinhaItem({ item, selecionado, onToggle, onExcluir }: LinhaItemProps) {
+function LinhaItem({ item, selecionado, emRfq, onToggle, onExcluir }: LinhaItemProps) {
   return (
     <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] gap-3 items-center py-2.5 px-4 border-b border-border/60 last:border-b-0 hover:bg-muted/30">
       <Checkbox
@@ -139,9 +141,19 @@ function LinhaItem({ item, selecionado, onToggle, onExcluir }: LinhaItemProps) {
       />
 
       <div className="min-w-0 col-span-2 md:col-span-1">
-        <p className="text-sm font-medium line-clamp-2" title={item.item_nome}>
-          {item.item_nome}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium line-clamp-2" title={item.item_nome}>
+            {item.item_nome}
+          </p>
+          {emRfq && (
+            <Badge
+              variant="outline"
+              className="text-[10px] shrink-0 bg-sky-50 text-sky-800 border-sky-200"
+            >
+              RFQ enviada
+            </Badge>
+          )}
+        </div>
         <div className="flex flex-wrap gap-1 mt-1">
           {(item.ops || []).slice(0, 5).map((op) => (
             <Badge
@@ -231,6 +243,7 @@ export default function PainelCompradorPage() {
   });
   const excluirItem = useExcluirItemRequisicao();
   const queryClient = useQueryClient();
+  const { data: itensEmRfq } = useItensEmRfq();
 
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [composerAberto, setComposerAberto] = useState(false);
@@ -453,6 +466,7 @@ export default function PainelCompradorPage() {
                       key={item.item_id}
                       item={item}
                       selecionado={selecionados.has(item.item_id)}
+                      emRfq={itensEmRfq?.has(item.item_id) ?? false}
                       onToggle={(checked) => toggleItem(item.item_id, checked)}
                       onExcluir={() => setItemExcluir(item)}
                     />

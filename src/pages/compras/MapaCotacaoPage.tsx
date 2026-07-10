@@ -5,11 +5,18 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ItemCotacaoGrade } from '@/components/compras/ItemCotacaoGrade';
+import { calcularCustoRealCotacao, ItemCotacaoGrade } from '@/components/compras/ItemCotacaoGrade';
 import { useMapaConsolidado } from '@/hooks/use-mapa-consolidado';
+import { useItensEmRfq } from '@/hooks/use-itens-em-rfq';
 import { useAprovarCompra } from '@/hooks/use-pedidos-compra';
-import { calcularQuantidadeCotacao } from '@/lib/cotacao-embalagem';
 import { formatCurrency } from '@/lib/formatters';
+import { Progress } from '@/components/ui/progress';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { RequisicaoCompraItem } from '@/hooks/use-requisicoes-compra';
 import { cn } from '@/lib/utils';
 
@@ -73,31 +80,34 @@ export default function MapaCotacaoPage() {
     salvarCotacao,
     escolherFornecedor,
   } = useMapaConsolidado();
+  const { data: itensEmRfq } = useItensEmRfq();
 
   const resumo = useMemo(() => {
     let decididos = 0;
     let totalEstimado = 0;
+    const fornecedoresDecididos = new Set<string>();
 
     for (const entrada of itensMapa) {
       const escolhida = entrada.cotacoes.find((c) => c.escolhido);
       if (!escolhida) continue;
 
       decididos += 1;
-      if (escolhida.preco_unitario == null) continue;
+      fornecedoresDecididos.add(escolhida.fornecedor_id);
 
-      const qtd = calcularQuantidadeCotacao(
-        entrada.necessidade.total_falta,
-        entrada.necessidade.unidade,
-        escolhida.unidade_compra,
-        escolhida.qtd_por_pacote,
-      );
-      totalEstimado += escolhida.preco_unitario * qtd.quantidade;
+      const itemShape = itemShapeFromNecessidade(entrada.necessidade);
+      const custo = calcularCustoRealCotacao(itemShape, escolhida);
+      if (custo != null) totalEstimado += custo;
     }
 
+    const total = itensMapa.length;
+    const progressoPct = total > 0 ? Math.round((decididos / total) * 100) : 0;
+
     return {
-      total: itensMapa.length,
+      total,
       decididos,
       totalEstimado,
+      nPedidos: fornecedoresDecididos.size,
+      progressoPct,
     };
   }, [itensMapa]);
 
@@ -158,8 +168,11 @@ export default function MapaCotacaoPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="destructive" className="text-xs">
-                        sem fornecedor — cadastrar
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-amber-50 text-amber-900 border-amber-300"
+                      >
+                        PENDENTE — sem fornecedor
                       </Badge>
                       <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
                         <Link to="/cadastros/produtos">Cadastrar fornecedor</Link>
@@ -199,6 +212,16 @@ export default function MapaCotacaoPage() {
                     <OpsBadges ops={necessidade.ops || []} nOps={necessidade.n_ops} />
                   ) : undefined
                 }
+                statusExtra={
+                  itensEmRfq?.has(necessidade.item_id) ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] bg-sky-50 text-sky-800 border-sky-200"
+                    >
+                      RFQ enviada
+                    </Badge>
+                  ) : undefined
+                }
               />
             );
           })}
@@ -207,21 +230,42 @@ export default function MapaCotacaoPage() {
 
       <Card className="fixed bottom-0 left-0 right-0 z-20 rounded-none border-x-0 border-b-0 shadow-lg md:left-[var(--sidebar-width,0px)]">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3 px-4">
-          <div className="text-sm text-muted-foreground space-y-0.5">
-            <p>
-              {resumo.decididos} de {resumo.total} itens decididos
-            </p>
-            <p className="font-medium text-foreground">
-              Total da compra estimado: {formatCurrency(resumo.totalEstimado)}
-            </p>
+          <div className="min-w-[200px] flex-1 max-w-md space-y-2">
+            <div className="text-sm text-muted-foreground space-y-0.5">
+              <p>
+                {resumo.decididos} de {resumo.total} itens decididos
+              </p>
+              <p className="font-medium text-foreground">
+                Total da compra estimado: {formatCurrency(resumo.totalEstimado)}
+              </p>
+            </div>
+            <Progress
+              value={resumo.progressoPct}
+              className="h-2"
+              indicatorClassName="bg-green-600"
+            />
           </div>
-          <Button
-            onClick={handleAprovarCompra}
-            disabled={resumo.decididos === 0 || aprovarCompra.isPending}
-          >
-            {aprovarCompra.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Aprovar compra
-          </Button>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    onClick={handleAprovarCompra}
+                    disabled={resumo.decididos === 0 || aprovarCompra.isPending}
+                  >
+                    {aprovarCompra.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Aprovar compra
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {resumo.decididos > 0 && (
+                <TooltipContent side="top" className="max-w-xs">
+                  Vai gerar {resumo.nPedidos} pedido{resumo.nPedidos !== 1 ? 's' : ''} · Total{' '}
+                  {formatCurrency(resumo.totalEstimado)}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </CardContent>
       </Card>
     </div>
