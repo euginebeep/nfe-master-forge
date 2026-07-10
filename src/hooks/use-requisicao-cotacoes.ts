@@ -95,16 +95,16 @@ function inteligenciaQueryKey(requisicaoId: string, itemIds: string[]) {
   return ['requisicao-cotacoes-inteligencia', requisicaoId, itemIds] as const;
 }
 
-function historicoFornecedorKey(itemId: string, fornecedorId: string) {
+export function historicoFornecedorKey(itemId: string, fornecedorId: string) {
   return `${itemId}:${fornecedorId}`;
 }
 
-interface InteligenciaCompraData {
+export interface InteligenciaCompraData {
   fornHistMap: Map<string, FornecedorHistorico>;
   itemHistMap: Map<string, ItemHistoricoGeral>;
 }
 
-async function fetchInteligenciaCompra(
+export async function fetchInteligenciaCompra(
   itemIds: string[],
   companyId: string,
 ): Promise<InteligenciaCompraData> {
