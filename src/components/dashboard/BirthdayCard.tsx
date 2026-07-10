@@ -130,7 +130,7 @@ export function BirthdayCard() {
           {destaque && (
             <div
               className={cn(
-                'flex items-center gap-3 p-2.5 rounded-xl border',
+                'flex items-center gap-2 p-2 rounded-xl border',
                 destaque.diasAte === 0
                   ? 'bg-pink-100/90 dark:bg-pink-900/35 border-pink-300/70 dark:border-pink-700'
                   : 'bg-white/60 dark:bg-pink-950/20 border-pink-200/50 dark:border-pink-800/40',
@@ -139,7 +139,7 @@ export function BirthdayCard() {
               <div className="relative shrink-0">
                 <Avatar
                   className={cn(
-                    'h-12 w-12 ring-2 ring-offset-1 ring-offset-background',
+                    'h-10 w-10 ring-2 ring-offset-1 ring-offset-background',
                     destaque.diasAte === 0 ? 'ring-pink-400' : 'ring-pink-200 dark:ring-pink-700',
                   )}
                 >
@@ -155,14 +155,16 @@ export function BirthdayCard() {
                 )}
               </div>
 
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate">{destaque.nome_completo}</p>
+              <div className="flex-1 min-w-0 pr-1">
+                <p className="font-semibold text-[11px] leading-tight line-clamp-2 break-words">
+                  {destaque.nome_completo}
+                </p>
                 {destaque.cargo && (
-                  <p className="text-[11px] text-muted-foreground truncate">{destaque.cargo}</p>
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">{destaque.cargo}</p>
                 )}
               </div>
 
-              <div className="text-right shrink-0">
+              <div className="text-right shrink-0 w-[38px]">
                 {destaque.diasAte === 0 ? (
                   <div className="flex flex-col items-center gap-0.5">
                     <p className="text-[10px] font-bold text-pink-600 dark:text-pink-300">Hoje!</p>
@@ -170,7 +172,7 @@ export function BirthdayCard() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-xs font-bold text-pink-600 dark:text-pink-300">em {destaque.diasAte}d</p>
+                    <p className="text-[10px] font-bold text-pink-600 dark:text-pink-300 leading-none">em {destaque.diasAte}d</p>
                     <p className="text-[10px] text-muted-foreground">
                       {format(
                         new Date(
@@ -202,7 +204,7 @@ export function BirthdayCard() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{a.nome_completo}</p>
+                <p className="text-[10px] font-medium leading-tight line-clamp-2 break-words">{a.nome_completo}</p>
                 {a.cargo && <p className="text-[10px] text-muted-foreground truncate">{a.cargo}</p>}
               </div>
               <p className="text-[10px] font-semibold text-muted-foreground shrink-0">
