@@ -5,7 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 const TOP_CONTEXT_ITEMS = 8
 
 const STOPWORDS = new Set([
@@ -23,6 +24,23 @@ type ManualPerguntaRow = {
 }
 
 type ChatMessage = { role: string; content: string }
+
+function logErroCompleto(error: unknown, contexto = ''): void {
+  const props =
+    error && typeof error === 'object'
+      ? Object.getOwnPropertyNames(error)
+      : []
+  const prefix = contexto ? `manual-ia ERRO (${contexto}):` : 'manual-ia ERRO:'
+  console.error(prefix, JSON.stringify(error, props))
+}
+
+function logGeminiHttpError(resp: Response, body: string): void {
+  console.error('manual-ia Gemini status:', resp.status, 'body:', body)
+}
+
+function geminiUrlForLog(): string {
+  return `${GEMINI_BASE}?key=***`
+}
 
 function tokenize(text: string): string[] {
   return text
@@ -123,7 +141,7 @@ async function fetchManualPerguntas(
     .order('ordem', { ascending: true })
 
   if (error) {
-    console.error('[manual-ia] erro ao buscar manual_perguntas:', error)
+    logErroCompleto(error, 'buscar manual_perguntas')
     throw error
   }
 
@@ -140,27 +158,38 @@ async function callGemini(
     parts: [{ text: message.content }],
   }))
 
-  const res = await fetch(`${GEMINI_BASE}?key=${geminiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: geminiContents,
-      generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
-    }),
-  })
+  const geminiUrl = `${GEMINI_BASE}?key=${geminiKey}`
+  console.log('[manual-ia] Gemini modelo:', GEMINI_MODEL)
+  console.log('[manual-ia] Gemini URL:', geminiUrlForLog())
+
+  let res: Response
+  try {
+    res = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: geminiContents,
+        generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
+      }),
+    })
+  } catch (err) {
+    logErroCompleto(err, 'Gemini fetch')
+    throw err
+  }
 
   const raw = await res.text()
   let data: Record<string, unknown>
   try {
     data = JSON.parse(raw)
-  } catch {
-    console.error('[manual-ia] Gemini resposta não-JSON:', res.status, raw)
+  } catch (err) {
+    logGeminiHttpError(res, raw)
+    logErroCompleto(err, 'Gemini JSON parse')
     throw new Error(`Gemini retornou resposta inválida (HTTP ${res.status})`)
   }
 
   if (!res.ok) {
-    console.error('[manual-ia] Gemini HTTP error:', res.status, data)
+    logGeminiHttpError(res, raw)
     const message =
       (data?.error as { message?: string } | undefined)?.message ||
       `HTTP ${res.status}`
@@ -168,7 +197,7 @@ async function callGemini(
   }
 
   if (data.error) {
-    console.error('[manual-ia] Gemini API error:', data.error)
+    logGeminiHttpError(res, raw)
     const message =
       (data.error as { message?: string }).message || JSON.stringify(data.error)
     throw new Error(`Gemini: ${message}`)
@@ -179,7 +208,7 @@ async function callGemini(
       ?.content?.parts?.[0]?.text || ''
 
   if (!text.trim()) {
-    console.error('[manual-ia] Gemini resposta vazia:', data)
+    logGeminiHttpError(res, raw)
     throw new Error('Gemini retornou resposta vazia')
   }
 
@@ -214,13 +243,14 @@ async function callAnthropic(
   let data: Record<string, unknown>
   try {
     data = JSON.parse(raw)
-  } catch {
-    console.error('[manual-ia] Claude resposta não-JSON:', res.status, raw)
+  } catch (err) {
+    console.error('manual-ia Claude status:', res.status, 'body:', raw)
+    logErroCompleto(err, 'Claude JSON parse')
     throw new Error(`Claude retornou resposta inválida (HTTP ${res.status})`)
   }
 
   if (!res.ok) {
-    console.error('[manual-ia] Claude HTTP error:', res.status, data)
+    console.error('manual-ia Claude status:', res.status, 'body:', raw)
     const message =
       (data?.error as { message?: string } | undefined)?.message ||
       `HTTP ${res.status}`
@@ -231,7 +261,7 @@ async function callAnthropic(
     (data?.content as Array<{ text?: string }> | undefined)?.[0]?.text || ''
 
   if (!text.trim()) {
-    console.error('[manual-ia] Claude resposta vazia:', data)
+    console.error('manual-ia Claude status:', res.status, 'body:', raw)
     throw new Error('Claude retornou resposta vazia')
   }
 
@@ -249,11 +279,17 @@ Deno.serve(async (req) => {
   const geminiKey = Deno.env.get('GEMINI_API_KEY')
   const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
 
+  console.log(
+    '[manual-ia] secrets:',
+    `GEMINI_API_KEY=${geminiKey ? 'presente' : 'ausente'}`,
+    `ANTHROPIC_API_KEY=${anthropicKey ? 'presente' : 'ausente'}`
+  )
+
   let body: Record<string, unknown>
   try {
     body = await req.json()
   } catch (err) {
-    console.error('[manual-ia] JSON inválido:', err)
+    logErroCompleto(err, 'JSON inválido')
     return new Response(JSON.stringify({ error: 'Corpo da requisição inválido' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -294,7 +330,7 @@ Deno.serve(async (req) => {
         companyId = profile?.company_id || null
       }
     } catch (err) {
-      console.warn('[manual-ia] não foi possível identificar usuário:', err)
+      logErroCompleto(err, 'identificar usuário')
     }
   }
 
@@ -302,8 +338,8 @@ Deno.serve(async (req) => {
   try {
     manualPerguntas = await fetchManualPerguntas(supabaseAdmin)
   } catch (err) {
+    logErroCompleto(err, 'carregar manual do banco')
     const message = err instanceof Error ? err.message : String(err)
-    console.error('[manual-ia] falha ao carregar manual do banco:', err)
     return new Response(
       JSON.stringify({
         resposta:
@@ -337,6 +373,7 @@ Deno.serve(async (req) => {
   let resposta = ''
   let tokensUsados = 0
   const erros: string[] = []
+  const errosOriginais: unknown[] = []
 
   if (geminiKey) {
     try {
@@ -344,13 +381,16 @@ Deno.serve(async (req) => {
       resposta = result.text
       tokensUsados = result.tokens
     } catch (err) {
+      logErroCompleto(err, 'Gemini')
+      errosOriginais.push(err)
       const message = err instanceof Error ? err.message : String(err)
       erros.push(message)
-      console.error('[manual-ia] Gemini falhou:', err)
     }
   } else {
-    erros.push('GEMINI_API_KEY não configurada')
-    console.error('[manual-ia] GEMINI_API_KEY ausente')
+    const err = new Error('GEMINI_API_KEY não configurada')
+    logErroCompleto(err, 'GEMINI_API_KEY ausente')
+    errosOriginais.push(err)
+    erros.push(err.message)
   }
 
   if (!resposta && anthropicKey) {
@@ -359,14 +399,19 @@ Deno.serve(async (req) => {
       resposta = result.text
       tokensUsados = result.tokens
     } catch (err) {
+      logErroCompleto(err, 'Claude')
+      errosOriginais.push(err)
       const message = err instanceof Error ? err.message : String(err)
       erros.push(message)
-      console.error('[manual-ia] Claude falhou:', err)
     }
   }
 
   if (!resposta) {
+    for (const err of errosOriginais) {
+      logErroCompleto(err, 'falha final antes de responder ao usuário')
+    }
     const detalhe = erros.length ? erros.join(' | ') : 'serviço de IA indisponível'
+    console.error('[manual-ia] resposta de erro ao usuário:', detalhe)
     resposta =
       `Não consegui processar sua pergunta no momento (${detalhe}). Tente novamente, consulte Manual & FAQ ou abra um ticket de suporte.`
   }
@@ -383,7 +428,7 @@ Deno.serve(async (req) => {
         duracao_ms: Date.now() - startMs,
       })
     } catch (err) {
-      console.error('[manual-ia] erro ao salvar histórico:', err)
+      logErroCompleto(err, 'salvar histórico')
     }
   }
 
