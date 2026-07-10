@@ -9,7 +9,6 @@ import {
   Flame,
   Timer,
   CalendarClock,
-  Clock3,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +53,19 @@ type RawLote = {
     unidade_interna: string | null;
   } | null;
 };
+
+/** Título legível sem gritar em CAPS — cabe melhor no card estreito */
+function formatarNomeProduto(nome: string): string {
+  const t = nome.trim();
+  if (t === t.toUpperCase() && t.length > 4) {
+    return t
+      .toLowerCase()
+      .split(/\s+/)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(' ');
+  }
+  return t;
+}
 
 /**
  * Card de alerta de lotes próximos do vencimento
@@ -225,16 +237,16 @@ export function ExpiringLotsCard() {
 
   if (stats.total === 0) {
     return (
-      <Card className="h-full border-emerald-200/60 bg-gradient-to-br from-emerald-50/50 to-background dark:from-emerald-950/20 dark:to-background">
-        <CardHeader className="pb-2 pt-3 px-4">
-          <CardTitle className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25">
-                <Package className="h-5 w-5 text-white" />
+      <Card className="h-full overflow-hidden flex flex-col shadow-sm">
+        <CardHeader className="pb-2 pt-3 px-4 min-h-[52px] bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/30 dark:to-teal-950/20">
+          <CardTitle className="text-sm font-semibold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                <Package className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <span className="font-bold text-emerald-700 dark:text-emerald-300">Validades OK</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Nenhum lote crítico nos próximos 90 dias</p>
+                <span className="block leading-tight">Validades OK</span>
+                <p className="text-[10px] font-normal text-muted-foreground mt-0.5">Nenhum lote crítico em 90 dias</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-7 w-7">
@@ -254,183 +266,161 @@ export function ExpiringLotsCard() {
         transition={{ delay: 0.15 }}
         className="h-full"
       >
-        <Card
-          className={cn(
-            "h-full overflow-hidden flex flex-col shadow-sm transition-all duration-300",
-            severityLevel === "critico"
-              ? "border-red-300/70 dark:border-red-800/50"
-              : severityLevel === "urgente"
-                ? "border-amber-300/70 dark:border-amber-800/50"
-                : "border-slate-200 dark:border-slate-800",
-          )}
-        >
+        <Card className="h-full overflow-hidden flex flex-col shadow-sm">
           <CardHeader
             className={cn(
-              "pb-2 pt-3 px-4 shrink-0 border-b",
+              "pb-2 pt-3 px-4 shrink-0 min-h-[52px] border-b border-border/40",
               severityLevel === "critico"
-                ? "bg-gradient-to-r from-red-50 via-rose-50/80 to-background dark:from-red-950/40 dark:via-rose-950/20 dark:to-background border-red-100/80 dark:border-red-900/40"
+                ? "bg-gradient-to-r from-red-50 to-rose-50/40 dark:from-red-950/35 dark:to-rose-950/15"
                 : severityLevel === "urgente"
-                  ? "bg-gradient-to-r from-amber-50 via-orange-50/60 to-background dark:from-amber-950/30 dark:via-orange-950/15 dark:to-background border-amber-100/80 dark:border-amber-900/40"
-                  : "bg-gradient-to-r from-slate-50 to-background dark:from-slate-900/40 dark:to-background border-border/60",
+                  ? "bg-gradient-to-r from-amber-50 to-orange-50/40 dark:from-amber-950/30 dark:to-orange-950/15"
+                  : "bg-gradient-to-r from-slate-50 to-slate-100/40 dark:from-slate-900/40 dark:to-slate-800/20",
             )}
           >
-            <CardTitle className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative shrink-0">
+            <div className="flex items-start justify-between gap-2">
+              <CardTitle className="text-sm font-semibold flex items-start gap-2 min-w-0">
+                <div className="relative shrink-0 mt-0.5">
+                  {severityLevel === "critico" && (
+                    <span className="absolute inset-0 rounded-lg bg-red-500/30 blur-sm animate-pulse" />
+                  )}
                   <div
                     className={cn(
-                      "absolute inset-0 rounded-2xl blur-md",
+                      "relative p-1.5 rounded-lg",
                       severityLevel === "critico"
-                        ? "bg-red-500/35 animate-pulse"
+                        ? "bg-red-500/15"
                         : severityLevel === "urgente"
-                          ? "bg-amber-500/25"
-                          : "bg-slate-400/15",
+                          ? "bg-amber-500/15"
+                          : "bg-slate-500/10",
                     )}
-                  />
-                  <motion.div
-                    className={cn(
-                      "relative flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg ring-2 ring-white/70 dark:ring-slate-900/60",
-                      severityLevel === "critico"
-                        ? "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/35"
-                        : severityLevel === "urgente"
-                          ? "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-500/30"
-                          : "bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/20",
-                    )}
-                    animate={
-                      severityLevel === "critico"
-                        ? { scale: [1, 1.06, 1], opacity: [1, 0.85, 1] }
-                        : { scale: 1 }
-                    }
-                    transition={{ duration: 1.4, repeat: severityLevel === "critico" ? Infinity : 0, ease: "easeInOut" }}
                   >
-                    <ShieldAlert className="h-5 w-5 text-white drop-shadow-sm" />
-                  </motion.div>
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
+                    <ShieldAlert
                       className={cn(
-                        "text-sm font-bold leading-tight",
+                        "h-4 w-4",
                         severityLevel === "critico"
-                          ? "text-red-700 dark:text-red-300"
+                          ? "text-red-600 dark:text-red-400"
                           : severityLevel === "urgente"
-                            ? "text-amber-700 dark:text-amber-300"
-                            : "text-foreground",
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-slate-600 dark:text-slate-400",
                       )}
-                    >
-                      Lotes a Vencer
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-[9px] px-1.5 py-0 h-4 font-bold",
-                        severityLevel === "critico"
-                          ? "border-red-300 text-red-700 bg-red-50 dark:border-red-800 dark:text-red-300 dark:bg-red-950/40"
-                          : "border-border text-muted-foreground",
-                      )}
-                    >
-                      {stats.total} ativo{stats.total !== 1 ? "s" : ""}
-                    </Badge>
+                    />
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                    <Clock3 className="h-3 w-3 shrink-0" />
-                    Risco de validade · próximos 90 dias
+                </div>
+                <div className="min-w-0">
+                  <span className="block leading-tight">Lotes a Vencer</span>
+                  <p className="text-[10px] font-normal text-muted-foreground mt-0.5 leading-snug">
+                    {stats.total} lote{stats.total !== 1 ? 's' : ''} · validade em 90 dias
                   </p>
                 </div>
-              </div>
+              </CardTitle>
 
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-0.5 shrink-0">
                 <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching} className="h-7 w-7">
                   <RefreshCcw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowFullList(true)} className="h-7 text-[10px] font-semibold px-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFullList(true)}
+                  className="h-7 text-[11px] font-medium px-2 text-primary hover:text-primary"
+                >
                   Ver todos
-                  <ChevronRight className="h-3 w-3 ml-0.5" />
+                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                 </Button>
               </div>
-            </CardTitle>
+            </div>
           </CardHeader>
 
-          <CardContent className="space-y-3 px-4 pb-4 pt-3 flex-1">
-            <div className="grid grid-cols-3 gap-2">
+          <CardContent className="p-4 pt-3 space-y-2.5 flex-1">
+            <div className="grid grid-cols-3 gap-1.5">
               {[
-                { key: "critico", count: stats.critico, label: "≤30 dias", icon: Flame, activeClass: "border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900/50", text: "text-red-600 dark:text-red-400", iconBg: "bg-red-100 dark:bg-red-900/50 text-red-600" },
-                { key: "urgente", count: stats.urgente, label: "31-60 dias", icon: Timer, activeClass: "border-amber-200 bg-amber-50 dark:bg-amber-950/25 dark:border-amber-900/50", text: "text-amber-600 dark:text-amber-400", iconBg: "bg-amber-100 dark:bg-amber-900/50 text-amber-600" },
-                { key: "atencao", count: stats.atencao, label: "61-90 dias", icon: CalendarClock, activeClass: "border-slate-200 bg-slate-50 dark:bg-slate-900/40 dark:border-slate-800", text: "text-slate-600 dark:text-slate-300", iconBg: "bg-slate-100 dark:bg-slate-800 text-slate-600" },
+                { count: stats.critico, label: '≤30d', sub: 'Crítico', icon: Flame, tone: 'red' as const },
+                { count: stats.urgente, label: '31-60d', sub: 'Urgente', icon: Timer, tone: 'amber' as const },
+                { count: stats.atencao, label: '61-90d', sub: 'Atenção', icon: CalendarClock, tone: 'slate' as const },
               ].map((stat) => {
                 const Icon = stat.icon;
                 const active = stat.count > 0;
+                const toneMap = {
+                  red: {
+                    box: 'bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/40',
+                    num: 'text-red-600 dark:text-red-400',
+                    icon: 'bg-red-100 dark:bg-red-900/40 text-red-600',
+                  },
+                  amber: {
+                    box: 'bg-amber-50 dark:bg-amber-950/25 border-amber-100 dark:border-amber-900/40',
+                    num: 'text-amber-600 dark:text-amber-400',
+                    icon: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600',
+                  },
+                  slate: {
+                    box: 'bg-slate-50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800',
+                    num: 'text-slate-700 dark:text-slate-300',
+                    icon: 'bg-slate-100 dark:bg-slate-800 text-slate-600',
+                  },
+                }[stat.tone];
+
                 return (
                   <div
-                    key={stat.key}
+                    key={stat.sub}
                     className={cn(
-                      "rounded-xl border p-2 transition-all",
-                      active ? stat.activeClass : "border-transparent bg-muted/20",
+                      'rounded-xl border p-2 text-center',
+                      active ? toneMap.box : 'bg-muted/20 border-transparent',
                     )}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className={cn("flex h-6 w-6 items-center justify-center rounded-lg", active ? stat.iconBg : "bg-muted text-muted-foreground")}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      {active && stat.key === "critico" && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                      )}
+                    <div className={cn('mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-md', active ? toneMap.icon : 'bg-muted text-muted-foreground')}>
+                      <Icon className="h-3.5 w-3.5" />
                     </div>
-                    <p className={cn("text-lg font-black leading-none tabular-nums", active ? stat.text : "text-muted-foreground")}>
+                    <p className={cn('text-base font-black leading-none tabular-nums', active ? toneMap.num : 'text-muted-foreground')}>
                       {stat.count}
                     </p>
-                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide mt-0.5">
-                      {stat.label}
-                    </p>
+                    <p className="text-[10px] font-bold text-muted-foreground leading-tight mt-1">{stat.label}</p>
                   </div>
                 );
               })}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <AnimatePresence>
                 {expiringLots.slice(0, 3).map((lot, index) => {
                   const styles = getCategoryStyles(lot.categoria);
+                  const nome = formatarNomeProduto(lot.item_descricao);
                   return (
-                    <motion.div
+                    <motion.button
                       key={lot.id}
-                      initial={{ opacity: 0, x: -12 }}
+                      type="button"
+                      initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.08 }}
+                      transition={{ delay: index * 0.06 }}
                       className={cn(
-                        "group flex items-center gap-2.5 p-2.5 rounded-xl border-l-[3px] cursor-pointer transition-all hover:shadow-md ring-1",
+                        'w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl border-l-[3px] transition-all hover:shadow-sm',
                         styles.border,
                         styles.bg,
-                        styles.ring,
                       )}
                       onClick={() => navigate(`/cadastros/itens/${lot.item_id}`)}
                     >
-                      <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/80 dark:bg-slate-900/60 shadow-sm border border-border/40")}>
-                        <Package className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-border/50">
+                        <Package className="h-4 w-4 text-muted-foreground" />
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[11px] leading-tight line-clamp-2 break-words text-foreground">
-                          {lot.item_descricao}
+                        <p
+                          className="text-xs font-semibold text-foreground leading-snug"
+                          title={lot.item_descricao}
+                        >
+                          {nome}
                         </p>
-                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          <span className="text-[9px] font-medium text-muted-foreground bg-background/70 dark:bg-slate-950/40 px-1.5 py-0.5 rounded border border-border/50">
-                            Lote {lot.numero_lote}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground">
-                            Val. {format(parseISO(lot.data_val), "dd/MM/yy", { locale: ptBR })}
-                          </span>
-                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight truncate">
+                          Lote {lot.numero_lote} · {format(parseISO(lot.data_val), 'dd/MM/yy', { locale: ptBR })}
+                        </p>
                       </div>
 
-                      <div className="flex flex-col items-end shrink-0 gap-0.5">
-                        <Badge className={cn("px-1.5 py-0 text-[9px] font-bold rounded-full tabular-nums", getCategoryColor(lot.categoria))}>
-                          {lot.dias_para_vencer}d
-                        </Badge>
-                        <span className={cn("h-1.5 w-1.5 rounded-full", styles.dot)} />
-                      </div>
-                    </motion.div>
+                      <Badge
+                        className={cn(
+                          'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md tabular-nums whitespace-nowrap',
+                          getCategoryColor(lot.categoria),
+                        )}
+                      >
+                        {lot.dias_para_vencer} dias
+                      </Badge>
+                    </motion.button>
                   );
                 })}
               </AnimatePresence>
