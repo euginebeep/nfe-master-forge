@@ -118,8 +118,7 @@ const menuGroups: MenuGroup[] = [
   { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileInput, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
   { title: "Fator de Conversão", url: "/compras/fator-conversao", icon: BarChart3, tooltip: "Histórico de conversões de unidades por fornecedor com sugestões automáticas", modulo: "compras" },
-  { title: "Comprar", url: "/compras/comprar", icon: ShoppingCart, tooltip: "Necessidades consolidadas: monta a cesta e gera cotação", modulo: "compras" },
-  { title: "Requisições de Compra", url: "/compras/requisicoes", icon: ShoppingCart, tooltip: "Central de compras: cotação, aprovação, pedido e recebimento por requisição", modulo: "compras" }]
+  { title: "Comprar", url: "/compras/comprar", icon: ShoppingCart, tooltip: "Necessidades consolidadas: monta a cesta e gera cotação", modulo: "compras" }]
 
 },
 {

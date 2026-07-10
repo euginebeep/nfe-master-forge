@@ -21,7 +21,6 @@ import {
   type UpsertCotacaoInput,
 } from '@/hooks/use-requisicao-cotacoes';
 import { labelStatus, formatarQtdItem } from '@/lib/requisicoes-compra';
-import { formatarQtdExibicao } from '@/lib/conferencia-materiais';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { RequisicaoCompraItem } from '@/hooks/use-requisicoes-compra';
@@ -230,16 +229,6 @@ function ItemCotacaoGrade({
                 </span>
               )}
             </p>
-            {item.quantidade_comprar != null && item.fornecedor_id && (
-              <p className="text-sm mt-1">
-                Escolhido: {formatarQtdExibicao(item.quantidade_comprar, item.unidade)}
-                {item.preco_cotado != null && (
-                  <span className="ml-2 text-muted-foreground">
-                    · {formatCurrency(item.preco_cotado)}
-                  </span>
-                )}
-              </p>
-            )}
           </div>
           {fornPreferencial(fornecedores) && (
             <Badge variant="outline" className="text-xs">

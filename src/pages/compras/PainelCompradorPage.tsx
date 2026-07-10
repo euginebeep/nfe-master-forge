@@ -2,7 +2,6 @@ import { Fragment, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { Loader2, ShoppingCart } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,14 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { ListaPuraCompraPanel } from '@/components/compras/ListaPuraCompraPanel';
 import {
   useComprasConsolidadas,
@@ -30,7 +21,7 @@ import {
 import { useHybridEntidades } from '@/hooks/use-hybrid-data';
 import { STATUS_REQ } from '@/hooks/use-requisicoes-compra';
 import { grupoCategoria, ORDEM_CATEGORIAS_RFQ } from '@/lib/cotacao-embalagem';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import { formatCurrency } from '@/lib/formatters';
 import {
   montarRfqParaFornecedores,
   type BlocoRfqFornecedor,
@@ -40,6 +31,7 @@ import { formatarQtdItem } from '@/lib/requisicoes-compra';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 function labelFornecedor(nome: string | null | undefined, fantasia?: string | null) {
   return (fantasia || nome || 'Fornecedor').trim();
@@ -72,38 +64,32 @@ async function marcarRequisicoesDaCestaEmRfq(itemIds: string[]): Promise<number>
   return (atualizadas || []).length;
 }
 
-function InteligenciaCompra({ item }: { item: CompraNecessidadeConsolidada }) {
-  const numCompras = item.num_compras ?? 0;
-  const temHistorico = numCompras > 0 || item.ultimo_preco != null;
-
-  if (!temHistorico) {
-    return <span className="text-xs text-muted-foreground">Sem histórico de compra</span>;
+function CelulaPrecos({ item }: { item: CompraNecessidadeConsolidada }) {
+  if (item.n_fornecedores_cadastrados === 0) {
+    return (
+      <Badge
+        variant="destructive"
+        className="text-[10px] whitespace-normal leading-tight font-normal"
+      >
+        sem fornecedor — escolher
+      </Badge>
+    );
   }
 
   return (
-    <div className="space-y-0.5 text-xs leading-snug">
-      {item.ultimo_preco != null && (
-        <p>
-          <span className="text-muted-foreground">Último: </span>
-          <span className="font-semibold">{formatCurrency(item.ultimo_preco)}</span>
-        </p>
-      )}
-      {item.preco_medio != null && numCompras > 0 && (
-        <p className="text-muted-foreground">
-          Média {formatCurrency(item.preco_medio)} · {numCompras} compra{numCompras !== 1 ? 's' : ''}
-        </p>
-      )}
-      {item.ultimo_fornecedor_nome && (
-        <p className="text-muted-foreground truncate max-w-[220px]" title={item.ultimo_fornecedor_nome}>
-          {item.ultimo_fornecedor_nome}
-        </p>
-      )}
-      {item.ultima_compra_data && (
-        <p className="text-[10px] text-muted-foreground">
-          {formatDate(item.ultima_compra_data)}
-        </p>
-      )}
-    </div>
+    <span className="text-xs tabular-nums">
+      {item.ultimo_preco != null ? formatCurrency(item.ultimo_preco) : '—'}
+    </span>
+  );
+}
+
+function CelulaMedia({ item }: { item: CompraNecessidadeConsolidada }) {
+  if (item.n_fornecedores_cadastrados === 0) return null;
+
+  return (
+    <span className="text-xs text-muted-foreground tabular-nums">
+      {item.preco_medio != null ? formatCurrency(item.preco_medio) : '—'}
+    </span>
   );
 }
 
@@ -261,142 +247,154 @@ export default function PainelCompradorPage() {
     const e = error as { message?: string; code?: string };
     return (
       <div className="space-y-4">
-        <PageHeader title="Painel do Comprador" description="Necessidades consolidadas entre OPs" />
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            {e?.message || e?.code || 'Erro ao carregar necessidades consolidadas'}
-          </CardContent>
-        </Card>
+        <PageHeader
+          title="Comprar"
+          description="Necessidades consolidadas — marque a cesta e gere a cotação"
+        />
+        <p className="text-sm text-muted-foreground text-center py-8">
+          {e?.message || e?.code || 'Erro ao carregar necessidades consolidadas'}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4 pb-20">
       <PageHeader
-        title="Painel do Comprador"
-        description="Necessidades de compra consolidadas por item — monte a cesta e gere cotação para vários fornecedores"
+        title="Comprar"
+        description="Necessidades consolidadas — marque a cesta e gere a cotação"
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {selecionados.size} item(ns) na cesta
-          {necessidades.length > 0 && ` · ${necessidades.length} com falta total`}
-        </p>
-        <Button
-          onClick={abrirDialogRfq}
-          disabled={selecionados.size === 0}
-          className="gap-2"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          Gerar RFQ
-        </Button>
-      </div>
-
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Carregando necessidades…
-            </div>
-          ) : porCategoria.length === 0 ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">
-              Nenhuma necessidade de compra aberta no momento.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10" />
-                    <TableHead>Item</TableHead>
-                    <TableHead>Falta total</TableHead>
-                    <TableHead>OPs</TableHead>
-                    <TableHead className="min-w-[200px]">Inteligência</TableHead>
-                    <TableHead className="w-20 text-center">Forn.</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {porCategoria.map((grupo) => (
-                    <Fragment key={grupo.categoria}>
-                      <TableRow className="bg-muted/40 hover:bg-muted/40">
-                        <TableCell>
-                          <Checkbox
-                            checked={
-                              categoriaParcial(grupo.itens)
-                                ? 'indeterminate'
-                                : categoriaTotalmenteSelecionada(grupo.itens)
-                            }
-                            onCheckedChange={(v) => toggleCategoria(grupo.itens, v === true)}
-                            aria-label={`Selecionar categoria ${grupo.categoria}`}
-                          />
-                        </TableCell>
-                        <TableCell colSpan={5} className="font-semibold text-sm">
-                          {grupo.categoria}
-                          <span className="text-muted-foreground font-normal ml-2 text-xs">
-                            ({grupo.itens.length} item{grupo.itens.length !== 1 ? 's' : ''})
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                      {grupo.itens.map((item) => (
-                        <TableRow key={item.item_id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selecionados.has(item.item_id)}
-                              onCheckedChange={(v) => toggleItem(item.item_id, v === true)}
-                              aria-label={`Selecionar ${item.item_nome}`}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium text-sm max-w-[240px]">
-                            <span className="line-clamp-2" title={item.item_nome}>
-                              {item.item_nome}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">
-                            {formatarQtdItem(item.total_falta, item.unidade)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1 max-w-[200px]">
-                              {(item.ops || []).slice(0, 4).map((op) => (
-                                <Badge key={op} variant="outline" className="text-[10px] font-mono">
-                                  {op}
-                                </Badge>
-                              ))}
-                              {item.ops.length > 4 && (
-                                <Badge variant="secondary" className="text-[10px]">
-                                  +{item.ops.length - 4}
-                                </Badge>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Carregando necessidades…
+        </div>
+      ) : porCategoria.length === 0 ? (
+        <div className="py-16 text-center text-sm text-muted-foreground">
+          Nenhuma necessidade de compra aberta no momento.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-[0.5px] border-border rounded-md">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-[0.5px] border-border bg-muted/30">
+                <th className="w-9 p-2" />
+                <th className="p-2 text-left font-medium text-xs">Item</th>
+                <th className="p-2 text-left font-medium text-xs">OPs</th>
+                <th className="p-2 text-left font-medium text-xs whitespace-nowrap">Precisa</th>
+                <th className="p-2 text-left font-medium text-xs whitespace-nowrap">Último preço</th>
+                <th className="p-2 text-left font-medium text-xs whitespace-nowrap">Média</th>
+                <th className="p-2 text-left font-medium text-xs">Fornecedor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {porCategoria.map((grupo) => (
+                <Fragment key={grupo.categoria}>
+                  <tr className="border-b border-[0.5px] border-border bg-muted/40">
+                    <td className="p-2 align-middle">
+                      <Checkbox
+                        checked={
+                          categoriaParcial(grupo.itens)
+                            ? 'indeterminate'
+                            : categoriaTotalmenteSelecionada(grupo.itens)
+                        }
+                        onCheckedChange={(v) => toggleCategoria(grupo.itens, v === true)}
+                        aria-label={`Selecionar categoria ${grupo.categoria}`}
+                      />
+                    </td>
+                    <td colSpan={6} className="p-2 font-semibold text-xs">
+                      {grupo.categoria}
+                      <span className="text-muted-foreground font-normal ml-2">
+                        ({grupo.itens.length} item{grupo.itens.length !== 1 ? 's' : ''})
+                      </span>
+                    </td>
+                  </tr>
+                  {grupo.itens.map((item) => (
+                    <tr
+                      key={item.item_id}
+                      className="border-b border-[0.5px] border-border hover:bg-muted/20"
+                    >
+                      <td className="p-2 align-middle">
+                        <Checkbox
+                          checked={selecionados.has(item.item_id)}
+                          onCheckedChange={(v) => toggleItem(item.item_id, v === true)}
+                          aria-label={`Selecionar ${item.item_nome}`}
+                        />
+                      </td>
+                      <td className="p-2 font-medium text-xs max-w-[220px]">
+                        <span className="line-clamp-2" title={item.item_nome}>
+                          {item.item_nome}
+                        </span>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex flex-wrap gap-1 max-w-[180px]">
+                          {(item.ops || []).slice(0, 4).map((op) => (
+                            <Badge
+                              key={op}
+                              variant={item.n_ops > 1 ? 'default' : 'outline'}
+                              className={cn(
+                                'text-[10px] font-mono px-1 py-0',
+                                item.n_ops > 1 && 'bg-amber-100 text-amber-900 border-amber-300',
                               )}
-                              {item.ops.length === 0 && (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <InteligenciaCompra item={item} />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {item.n_fornecedores_cadastrados === 0 ? (
-                              <Badge variant="destructive" className="text-[10px] whitespace-normal leading-tight">
-                                sem fornecedor — escolha manual
-                              </Badge>
-                            ) : (
-                              <span className="text-sm font-semibold tabular-nums">
-                                {item.n_fornecedores_cadastrados}
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </Fragment>
+                            >
+                              {op}
+                            </Badge>
+                          ))}
+                          {item.ops.length > 4 && (
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                              +{item.ops.length - 4}
+                            </Badge>
+                          )}
+                          {item.ops.length === 0 && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2 text-xs whitespace-nowrap tabular-nums">
+                        {formatarQtdItem(item.total_falta, item.unidade)}
+                      </td>
+                      {item.n_fornecedores_cadastrados === 0 ? (
+                        <td colSpan={2} className="p-2">
+                          <CelulaPrecos item={item} />
+                        </td>
+                      ) : (
+                        <>
+                          <td className="p-2">
+                            <CelulaPrecos item={item} />
+                          </td>
+                          <td className="p-2">
+                            <CelulaMedia item={item} />
+                          </td>
+                        </>
+                      )}
+                      <td className="p-2 text-xs text-muted-foreground max-w-[160px] truncate" title={item.ultimo_fornecedor_nome ?? undefined}>
+                        {item.ultimo_fornecedor_nome || '—'}
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-[0.5px] border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:left-[var(--sidebar-width,0px)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 max-w-full">
+          <p className="text-sm text-muted-foreground">
+            {selecionados.size} item{selecionados.size !== 1 ? 's' : ''} na cesta
+          </p>
+          <Button
+            onClick={abrirDialogRfq}
+            disabled={selecionados.size === 0}
+            className="gap-2"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Gerar cotação (RFQ)
+          </Button>
+        </div>
+      </div>
 
       <Dialog open={rfqAberto} onOpenChange={setRfqAberto}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
@@ -408,7 +406,7 @@ export default function PainelCompradorPage() {
           </DialogHeader>
 
           <div className="grid md:grid-cols-[240px_1fr] gap-4 min-h-0 flex-1 overflow-hidden">
-            <div className="border rounded-lg p-3 space-y-2">
+            <div className="border border-[0.5px] rounded-md p-3 space-y-2">
               <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
                 Fornecedores destino
               </p>
