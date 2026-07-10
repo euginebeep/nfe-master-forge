@@ -17,6 +17,7 @@ const STOPWORDS = new Set([
 
 type ManualPerguntaRow = {
   id: string
+  secao_id: string | null
   pergunta: string
   resposta: string
   tags: string[] | null
@@ -51,7 +52,11 @@ function tokenize(text: string): string[] {
     .filter((term) => term.length >= 2 && !STOPWORDS.has(term))
 }
 
-function scoreRelevance(userQuestion: string, item: ManualPerguntaRow): number {
+function scoreRelevance(
+  userQuestion: string,
+  item: ManualPerguntaRow,
+  secaoContexto?: string | null
+): number {
   const userTerms = tokenize(userQuestion)
   if (userTerms.length === 0) return 0
 
@@ -61,6 +66,10 @@ function scoreRelevance(userQuestion: string, item: ManualPerguntaRow): number {
   const moduloLower = (item.modulo ?? '').toLowerCase()
 
   let score = 0
+  if (secaoContexto && item.secao_id === secaoContexto) {
+    score += 50
+  }
+
   for (const term of userTerms) {
     const weight = term.length >= 5 ? 3 : 2
     if (perguntaLower.includes(term)) score += weight + 2
@@ -74,12 +83,13 @@ function scoreRelevance(userQuestion: string, item: ManualPerguntaRow): number {
 function pickRelevantPerguntas(
   perguntas: ManualPerguntaRow[],
   userQuestion: string,
-  topN = TOP_CONTEXT_ITEMS
+  topN = TOP_CONTEXT_ITEMS,
+  secaoContexto?: string | null
 ): ManualPerguntaRow[] {
   if (!perguntas.length) return []
 
   const scored = perguntas
-    .map((item) => ({ item, score: scoreRelevance(userQuestion, item) }))
+    .map((item) => ({ item, score: scoreRelevance(userQuestion, item, secaoContexto) }))
     .sort((a, b) => b.score - a.score)
 
   const withHits = scored.filter((entry) => entry.score > 0).map((entry) => entry.item)
@@ -116,14 +126,15 @@ function buildManualContext(items: ManualPerguntaRow[]): string {
 }
 
 function buildSystemPrompt(manualContext: string, secaoContexto?: string | null): string {
-  return `Você é o assistente do BrainX ERP. Responda a pergunta do usuário USANDO SOMENTE as informações do CONTEXTO abaixo, que é o manual oficial do sistema.
+  return `Você é o assistente do BrainX ERP. Responda USANDO SOMENTE as informações do CONTEXTO abaixo, que é o manual oficial do sistema.
 
 REGRAS OBRIGATÓRIAS:
 1. NÃO invente telas, botões, menus ou caminhos que não estejam no CONTEXTO.
-2. Use sempre os nomes exatos de telas e botões como aparecem no CONTEXTO.
+2. Use os nomes EXATOS de telas e botões como aparecem no CONTEXTO.
 3. Se a resposta não estiver no CONTEXTO, diga claramente que essa informação ainda não está no manual e sugira procurar em Manual & FAQ ou abrir um ticket de suporte.
-4. Responda em português do Brasil, com tom profissional e acessível. Máximo 3 parágrafos.
-5. Para passos sequenciais, use: 1) ... 2) ... 3)...
+4. Ignore qualquer conhecimento geral sobre ERPs ou suplementos que não esteja no CONTEXTO.
+5. Responda em português do Brasil, com tom profissional e acessível. Máximo 3 parágrafos.
+6. Para passos sequenciais, use: 1) ... 2) ... 3)...
 ${secaoContexto ? `\nO usuário estava na seção: "${secaoContexto}"` : ''}
 
 --- CONTEXTO DO MANUAL OFICIAL ---
@@ -136,7 +147,7 @@ async function fetchManualPerguntas(
 ): Promise<ManualPerguntaRow[]> {
   const { data, error } = await supabaseAdmin
     .from('manual_perguntas')
-    .select('id, pergunta, resposta, tags, modulo')
+    .select('id, secao_id, pergunta, resposta, tags, modulo')
     .eq('ativo', true)
     .order('ordem', { ascending: true })
 
@@ -170,7 +181,7 @@ async function callGemini(
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: geminiContents,
-        generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
+        generationConfig: { temperature: 0, maxOutputTokens: 2048 },
       }),
     })
   } catch (err) {
@@ -233,7 +244,7 @@ async function callAnthropic(
     body: JSON.stringify({
       model: 'claude-3-5-sonnet-20240620',
       max_tokens: 1000,
-      temperature: 0.3,
+      temperature: 0,
       system: systemPrompt,
       messages,
     }),
@@ -349,22 +360,32 @@ Deno.serve(async (req) => {
     )
   }
 
-  const relevantes = pickRelevantPerguntas(manualPerguntas, pergunta, TOP_CONTEXT_ITEMS)
+  const relevantes = pickRelevantPerguntas(
+    manualPerguntas,
+    pergunta,
+    TOP_CONTEXT_ITEMS,
+    secao_contexto
+  )
   const manualContext = buildManualContext(relevantes)
   const systemPrompt = buildSystemPrompt(manualContext, secao_contexto)
 
   console.log(
     `[manual-ia] contexto: ${relevantes.length}/${manualPerguntas.length} trechos | pergunta="${pergunta.slice(0, 80)}"`
   )
+  console.log(
+    '[manual-ia] trechos selecionados:',
+    relevantes.map((item) => item.pergunta.slice(0, 60)).join(' | ')
+  )
 
+  // Só repassa perguntas anteriores do usuário — respostas antigas da IA podem conter alucinações.
   const messages: ChatMessage[] = [
     ...historico_chat
-      .slice(-6)
+      .slice(-4)
       .filter(
         (item): item is ChatMessage =>
           !!item &&
           typeof item === 'object' &&
-          typeof (item as ChatMessage).role === 'string' &&
+          (item as ChatMessage).role === 'user' &&
           typeof (item as ChatMessage).content === 'string'
       ),
     { role: 'user', content: pergunta },
