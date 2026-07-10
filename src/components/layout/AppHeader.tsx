@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { FACTORY_ROLES } from "@/hooks/use-users";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { AssistenteTrigger } from "@/components/assistente/BrainXAssistente";
 import { AlertasLoteSemCOAPanel } from "@/components/estoque/AlertasLoteSemCOAPanel";
 import { useCompany } from "@/hooks/use-company";
 import { formatCNPJ } from "@/lib/cnpj-lookup";
@@ -95,6 +96,7 @@ export function AppHeader() {
         </Button>
 
         {isAuthenticated && <NotificationBell />}
+        {isAuthenticated && <AssistenteTrigger />}
         {isAuthenticated && <AlertasLoteSemCOAPanel />}
 
         {isAuthenticated && company && (

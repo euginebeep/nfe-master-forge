@@ -7,7 +7,7 @@ import { SubscriptionBlocker } from "@/components/subscription/SubscriptionBlock
 import { useAuthContext } from "@/contexts/AuthContext";
 import { CompanyRequiredGuard } from "@/components/auth/CompanyRequiredGuard";
 import { ChatGlobalProvider } from "@/components/chat/ChatGlobalProvider";
-import { BrainXERPAssistente } from "@/components/assistente/BrainXAssistente";
+import { AssistenteProvider } from "@/components/assistente/BrainXAssistente";
 import { OnboardingWalkthrough } from "@/components/onboarding/OnboardingWalkthrough";
 import { BannerContextual } from "@/components/ajuda/BannerContextual";
 import { CompanyPendingBanner } from "./CompanyPendingBanner";
@@ -31,6 +31,7 @@ export function MainLayout() {
   }
 
   return (
+    <AssistenteProvider>
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
         <AppSidebar />
@@ -54,9 +55,9 @@ export function MainLayout() {
           </motion.main>
         </div>
         <ChatGlobalProvider />
-        <BrainXERPAssistente />
         <OnboardingWalkthrough />
       </div>
     </SidebarProvider>
+    </AssistenteProvider>
   );
 }
