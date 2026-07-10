@@ -64,6 +64,7 @@ function erroMsg(err: unknown): string {
 
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
 const HEALTH_CHECK_PERGUNTA = "oi";
+const BRAINX_MASCOT_SRC = "/brainx-mascot.png";
 const MENSAGEM_FALLBACK_MANUAL =
   "No momento não consigo responder, mas você encontra tudo no Manual & FAQ ao lado — ele funciona sem a IA.";
 
@@ -105,6 +106,24 @@ async function healthCheckManualIa(): Promise<boolean> {
   }
 }
 
+function BrainXMascotIcon({
+  size = 18,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <img
+      src={BRAINX_MASCOT_SRC}
+      alt=""
+      aria-hidden
+      className={`rounded-full object-cover shrink-0 ${className}`}
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 function BrainXMascotAvatar({
   className = "",
   sizeClass = "w-10 h-10",
@@ -114,7 +133,7 @@ function BrainXMascotAvatar({
 }) {
   return (
     <Avatar className={`${sizeClass} border-2 border-white/20 bg-white shrink-0 ${className}`}>
-      <AvatarImage src="/brainx-mascot.png" className="object-cover" alt="BrainX Assistente" />
+      <AvatarImage src={BRAINX_MASCOT_SRC} className="object-cover" alt="BrainX Assistente" />
       <AvatarFallback className="bg-white/20 text-white">
         <Bot className="h-6 w-6" />
       </AvatarFallback>
@@ -508,7 +527,8 @@ export default function FAQPage() {
             className="flex-1 gap-2 h-9" 
             onClick={() => setAbaAtiva('ia')}
           >
-            <Bot className="h-4 w-4" /> Pergunte à IA
+            <BrainXMascotIcon size={18} className="ring-1 ring-white/30" />
+            Pergunte à IA
             <Badge className="ml-1 px-1.5 h-4 bg-blue-600 border-0 text-[10px] text-white">IA</Badge>
           </Button>
         </div>
@@ -578,7 +598,7 @@ export default function FAQPage() {
                 <>
               {buscaAtiva && filteredSections.length === 0 && (
                 <Card className="p-8 text-center border-dashed">
-                  <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <BrainXMascotIcon size={48} className="mx-auto mb-4 ring-2 ring-muted" />
                   <p className="font-medium">Não encontrei no manual</p>
                   <p className="text-sm text-muted-foreground mb-4">A IA pode responder sua dúvida com base no contexto completo do sistema.</p>
                   <Button variant="default" onClick={() => enviarParaIA(busca)} className="gap-2">
