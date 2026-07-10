@@ -19,13 +19,14 @@ import {
   ChevronRight, Sparkles, Rocket, Building2, Users, FileText, 
   Package, Boxes, Factory, FlaskConical, ShoppingCart, DollarSign, 
   BarChart3, Shield, Settings, Smartphone, HelpCircle, FileInput, FileCheck,
-  ArrowRightLeft, Copy, Check, MessageSquare, Trash2
+  ArrowRightLeft, Copy, Check, MessageSquare, Trash2, AlertCircle
 } from "lucide-react";
 
 interface MensagemChat {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  fallbackManual?: boolean;
 }
 
 interface FAQSection {
@@ -59,6 +60,66 @@ function erroMsg(err: unknown): string {
     return e.message || e.code || "Erro desconhecido";
   }
   return "Erro desconhecido";
+}
+
+const HEALTH_CHECK_TIMEOUT_MS = 5000;
+const HEALTH_CHECK_PERGUNTA = "oi";
+const MENSAGEM_FALLBACK_MANUAL =
+  "No momento não consigo responder, mas você encontra tudo no Manual & FAQ ao lado — ele funciona sem a IA.";
+
+type AssistenteStatus = "checking" | "online" | "offline";
+
+function isRespostaErroIA(texto: string): boolean {
+  const normalizado = texto.toLowerCase();
+  return (
+    normalizado.includes("não consegui processar") ||
+    normalizado.includes("nao consegui processar") ||
+    normalizado.includes("não consegui carregar o manual oficial") ||
+    normalizado.includes("erro ao conectar com a ia")
+  );
+}
+
+async function healthCheckManualIa(): Promise<boolean> {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("timeout")), HEALTH_CHECK_TIMEOUT_MS);
+  });
+
+  try {
+    const { data, error } = await Promise.race([
+      supabase.functions.invoke("manual-ia", {
+        body: {
+          pergunta: HEALTH_CHECK_PERGUNTA,
+          historico_chat: [],
+          secao_contexto: null,
+        },
+      }),
+      timeout,
+    ]);
+
+    if (error) return false;
+    const resposta = typeof data?.resposta === "string" ? data.resposta : "";
+    if (!resposta.trim()) return false;
+    return !isRespostaErroIA(resposta);
+  } catch {
+    return false;
+  }
+}
+
+function BrainXMascotAvatar({
+  className = "",
+  sizeClass = "w-10 h-10",
+}: {
+  className?: string;
+  sizeClass?: string;
+}) {
+  return (
+    <Avatar className={`${sizeClass} border-2 border-white/20 bg-white shrink-0 ${className}`}>
+      <AvatarImage src="/brainx-mascot.png" className="object-cover" alt="BrainX Assistente" />
+      <AvatarFallback className="bg-white/20 text-white">
+        <Bot className="h-6 w-6" />
+      </AvatarFallback>
+    </Avatar>
+  );
 }
 
 const MANUAL_ICON_MAP: Record<string, LucideIcon> = {
@@ -271,7 +332,9 @@ export default function FAQPage() {
   const [inputChat, setInputChat] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
+  const [assistenteStatus, setAssistenteStatus] = useState<AssistenteStatus>("checking");
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const healthCheckRef = useRef(0);
   const queryClient = useQueryClient();
 
   const {
@@ -315,6 +378,26 @@ export default function FAQPage() {
     }
   }, [isManualError, manualError]);
 
+  useEffect(() => {
+    if (abaAtiva !== "ia") return;
+
+    const checkId = ++healthCheckRef.current;
+    setAssistenteStatus("checking");
+
+    healthCheckManualIa()
+      .then((online) => {
+        if (healthCheckRef.current !== checkId) return;
+        setAssistenteStatus(online ? "online" : "offline");
+      })
+      .catch((err) => {
+        if (healthCheckRef.current !== checkId) return;
+        console.error("Health check manual-ia:", err);
+        setAssistenteStatus("offline");
+      });
+  }, [abaAtiva]);
+
+  const irParaManual = () => setAbaAtiva("manual");
+
   const enviarParaIA = async (perguntaInput?: string) => {
     const pergunta = perguntaInput || inputChat.trim();
     if (!pergunta || enviando) return;
@@ -326,13 +409,36 @@ export default function FAQPage() {
 
     try {
       const historico = mensagens.slice(-6).map(m => ({ role: m.role, content: m.content }));
-      const { data, error } = await supabase.functions.invoke('manual-ia', {
-        body: { pergunta, historico_chat: historico, secao_contexto: secaoAtiva }
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("timeout")), HEALTH_CHECK_TIMEOUT_MS);
       });
+      const { data, error } = await Promise.race([
+        supabase.functions.invoke('manual-ia', {
+          body: { pergunta, historico_chat: historico, secao_contexto: secaoAtiva }
+        }),
+        timeout,
+      ]);
       if (error) throw error;
-      setMensagens(prev => [...prev, { role: 'assistant', content: data.resposta, timestamp: new Date() }]);
+
+      const resposta = typeof data?.resposta === "string" ? data.resposta : "";
+      if (!resposta.trim() || isRespostaErroIA(resposta)) {
+        setAssistenteStatus("offline");
+        setMensagens(prev => [
+          ...prev,
+          { role: 'assistant', content: MENSAGEM_FALLBACK_MANUAL, timestamp: new Date(), fallbackManual: true },
+        ]);
+        return;
+      }
+
+      setAssistenteStatus("online");
+      setMensagens(prev => [...prev, { role: 'assistant', content: resposta, timestamp: new Date() }]);
     } catch (e) {
-      setMensagens(prev => [...prev, { role: 'assistant', content: 'Erro ao conectar com a IA. Tente novamente ou abra um ticket de suporte.', timestamp: new Date() }]);
+      setAssistenteStatus("offline");
+      toast.error(erroMsg(e));
+      setMensagens(prev => [
+        ...prev,
+        { role: 'assistant', content: MENSAGEM_FALLBACK_MANUAL, timestamp: new Date(), fallbackManual: true },
+      ]);
     } finally {
       setEnviando(false);
     }
@@ -352,11 +458,29 @@ export default function FAQPage() {
 
   const buscaAtiva = busca.trim().length >= 2;
 
+  const statusAssistente = {
+    checking: {
+      dot: "bg-slate-300",
+      pulse: false,
+      label: "Verificando disponibilidade...",
+    },
+    online: {
+      dot: "bg-green-400",
+      pulse: true,
+      label: "Me pergunte — estou online",
+    },
+    offline: {
+      dot: "bg-red-500",
+      pulse: false,
+      label: "Assistente fora do ar no momento",
+    },
+  }[assistenteStatus];
+
   return (
     <div className="space-y-6">
       <PageHeader 
         title="📖 Manual do ERP — BrainX IA" 
-        description="Manual interativo com busca semântica e assistente inteligente." 
+        description="Manual oficial do sistema (funciona sem IA) + assistente opcional para dúvidas." 
       />
 
       <div className="relative max-w-xl">
@@ -369,22 +493,30 @@ export default function FAQPage() {
         />
       </div>
 
-      <div className="flex gap-1 p-1 bg-muted rounded-lg max-w-md">
-        <Button 
-          variant={abaAtiva === 'manual' ? 'default' : 'ghost'} 
-          className="flex-1 gap-2 h-9" 
-          onClick={() => setAbaAtiva('manual')}
-        >
-          <BookOpen className="h-4 w-4" /> Manual & FAQ
-        </Button>
-        <Button 
-          variant={abaAtiva === 'ia' ? 'default' : 'ghost'} 
-          className="flex-1 gap-2 h-9" 
-          onClick={() => setAbaAtiva('ia')}
-        >
-          <Bot className="h-4 w-4" /> Pergunte à IA
-          <Badge className="ml-1 px-1.5 h-4 bg-blue-600 border-0 text-[10px] text-white">IA</Badge>
-        </Button>
+      <div className="flex flex-col gap-2 max-w-md">
+        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+          <Button 
+            variant={abaAtiva === 'manual' ? 'default' : 'ghost'} 
+            className="flex-1 gap-2 h-9" 
+            onClick={() => setAbaAtiva('manual')}
+            title="Conteúdo oficial do sistema — funciona sem IA"
+          >
+            <BookOpen className="h-4 w-4" /> Manual & FAQ
+          </Button>
+          <Button 
+            variant={abaAtiva === 'ia' ? 'default' : 'ghost'} 
+            className="flex-1 gap-2 h-9" 
+            onClick={() => setAbaAtiva('ia')}
+          >
+            <Bot className="h-4 w-4" /> Pergunte à IA
+            <Badge className="ml-1 px-1.5 h-4 bg-blue-600 border-0 text-[10px] text-white">IA</Badge>
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground px-1">
+          {abaAtiva === 'manual'
+            ? "Manual & FAQ lê o conteúdo oficial do sistema — não depende da IA."
+            : "A IA é opcional. Se estiver indisponível, use Manual & FAQ ao lado."}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -518,17 +650,16 @@ export default function FAQPage() {
             <Card className="flex flex-col h-[calc(100vh-280px)] shadow-lg overflow-hidden border-blue-100">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Avatar className="w-10 h-10 border-2 border-white/20 bg-white">
-                    <AvatarImage src="/brainx-mascot.png" className="object-cover" />
-                    <AvatarFallback className="bg-white/20 text-white">
-                      <Bot className="h-6 w-6" />
-                    </AvatarFallback>
-                  </Avatar>
+                  <BrainXMascotAvatar />
                   <div>
                     <h3 className="text-white font-bold text-sm">BrainX Assistente</h3>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                      <span className="text-[10px] text-blue-100">Online · Especialista em BrainX ERP</span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`w-2 h-2 rounded-full ${statusAssistente.dot} ${
+                          statusAssistente.pulse ? "animate-pulse" : ""
+                        }`}
+                      />
+                      <span className="text-[10px] text-blue-100">{statusAssistente.label}</span>
                     </div>
                   </div>
                 </div>
@@ -546,6 +677,18 @@ export default function FAQPage() {
 
               <ScrollArea className="flex-1 p-4 bg-slate-50/50">
                 <div className="space-y-6">
+                  {assistenteStatus === "offline" && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex gap-3 items-start">
+                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-2 text-xs text-amber-900">
+                        <p>{MENSAGEM_FALLBACK_MANUAL}</p>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={irParaManual}>
+                          <BookOpen className="h-3 w-3 mr-1" />
+                          Abrir Manual & FAQ
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   {mensagens.map((msg, i) => (
                     <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                       {msg.role === 'user' ? (
@@ -553,12 +696,7 @@ export default function FAQPage() {
                           <Users className="h-5 w-5 text-white" />
                         </div>
                       ) : (
-                        <Avatar className="w-9 h-9 border border-blue-100 shrink-0 shadow-sm bg-white">
-                          <AvatarImage src="/brainx-mascot.png" className="object-cover" />
-                          <AvatarFallback className="bg-blue-600 text-white">
-                            <Bot className="h-5 w-5" />
-                          </AvatarFallback>
-                        </Avatar>
+                        <BrainXMascotAvatar sizeClass="w-9 h-9" className="border border-blue-100 shadow-sm" />
                       )}
                       <div className="flex flex-col max-w-[85%] gap-1">
                         <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
@@ -567,6 +705,17 @@ export default function FAQPage() {
                             : 'bg-white text-foreground rounded-tl-none border border-blue-50'
                         }`}>
                           {msg.content}
+                          {msg.fallbackManual && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="mt-3 h-8 text-xs w-full"
+                              onClick={irParaManual}
+                            >
+                              <BookOpen className="h-3 w-3 mr-1" />
+                              Abrir Manual & FAQ
+                            </Button>
+                          )}
                         </div>
                         <div className={`text-[10px] text-muted-foreground ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
                           {msg.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -588,12 +737,7 @@ export default function FAQPage() {
                   ))}
                   {enviando && (
                     <div className="flex gap-3">
-                      <Avatar className="w-9 h-9 border border-blue-100 shrink-0 shadow-sm bg-white">
-                        <AvatarImage src="/brainx-mascot.png" className="object-cover" />
-                        <AvatarFallback className="bg-blue-600 text-white">
-                          <Bot className="h-5 w-5 animate-bounce" />
-                        </AvatarFallback>
-                      </Avatar>
+                      <BrainXMascotAvatar sizeClass="w-9 h-9" className="border border-blue-100 shadow-sm" />
                       <div className="bg-white border border-blue-50 rounded-2xl rounded-tl-none px-4 py-3 flex gap-1 items-center shadow-sm">
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
                         <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
@@ -631,7 +775,7 @@ export default function FAQPage() {
                   </Button>
                 </div>
                 <p className="text-[10px] text-center text-muted-foreground mt-2">
-                  A IA pode cometer erros. Verifique informações importantes no manual.
+                  A IA pode cometer erros. O Manual & FAQ funciona sem IA e traz o conteúdo oficial.
                 </p>
               </div>
             </Card>
