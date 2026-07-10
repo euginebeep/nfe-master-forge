@@ -465,7 +465,7 @@ export default function PainelCompradorPage() {
       )}
 
       <Card className="fixed bottom-0 left-0 right-0 z-20 rounded-none border-x-0 border-b-0 shadow-lg md:left-[var(--sidebar-width,0px)]">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3 px-4">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3 pl-4 pr-24 md:pr-28">
           <p className="text-sm text-muted-foreground">
             {selecionados.size} item{selecionados.size !== 1 ? 's' : ''} na cesta · arredonda por embalagem na cotação
           </p>
