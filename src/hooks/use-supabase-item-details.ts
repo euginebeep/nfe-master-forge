@@ -103,10 +103,48 @@ export function useSupabaseItemFornecedores(itemId: string | undefined) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: {
+        codigo_fornecedor?: string | null;
+        descricao_fornecedor?: string | null;
+        unidade_compra_padrao?: string | null;
+        fator_para_unidade_interna?: number | null;
+        fornecedor_preferencial?: boolean | null;
+        preco_referencia?: number | null;
+        qtd_por_pacote?: number | null;
+        lead_time_dias?: number | null;
+        moq?: number | null;
+      };
+    }) => {
+      const { error } = await supabase
+        .from('item_fornecedores')
+        .update(data)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['item-fornecedores', itemId] });
+      toast.success('Fornecedor atualizado');
+    },
+    onError: (err) => {
+      const e = err as { message?: string; code?: string };
+      toast.error(e.message || e.code || 'Erro ao atualizar fornecedor');
+    },
+  });
+
   return {
     fornecedores,
     isLoading,
     create: (data: Parameters<typeof createMutation.mutate>[0]) => createMutation.mutate(data),
+    update: (
+      id: string,
+      data: Parameters<typeof updateMutation.mutate>[0]['data'],
+    ) => updateMutation.mutate({ id, data }),
     remove: (id: string) => removeMutation.mutate(id),
   };
 }
