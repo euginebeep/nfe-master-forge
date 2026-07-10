@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { calcularCustoRealCotacao, ItemCotacaoGrade } from '@/components/compras/ItemCotacaoGrade';
+import { calcularResumoAlocacaoItem, ItemCotacaoGrade } from '@/components/compras/ItemCotacaoGrade';
 import { MapaFecharPedidosTab } from '@/components/compras/MapaFecharPedidosTab';
 import { useMapaConsolidado } from '@/hooks/use-mapa-consolidado';
 import { useItensEmRfq } from '@/hooks/use-itens-em-rfq';
@@ -72,31 +72,35 @@ export default function MapaCotacaoPage() {
     isError,
     error,
     salvarCotacao,
-    escolherFornecedor,
+    alocarFornecedor,
   } = useMapaConsolidado();
   const { data: itensEmRfq } = useItensEmRfq();
 
   const resumo = useMemo(() => {
-    let decididos = 0;
+    let suficientes = 0;
     let totalEstimado = 0;
 
     for (const entrada of itensMapa) {
-      const escolhida = entrada.cotacoes.find((c) => c.escolhido);
-      if (!escolhida) continue;
+      const { suficiente } = calcularResumoAlocacaoItem(
+        entrada.necessidade.total_falta,
+        entrada.necessidade.unidade,
+        entrada.cotacoes,
+      );
+      if (suficiente) suficientes += 1;
 
-      decididos += 1;
-
-      const itemShape = itemShapeFromNecessidade(entrada.necessidade);
-      const custo = calcularCustoRealCotacao(itemShape, escolhida);
-      if (custo != null) totalEstimado += custo;
+      for (const cot of entrada.cotacoes) {
+        const qtd = cot.qtd_alocada ?? 0;
+        if (qtd <= 0 || cot.preco_unitario == null) continue;
+        totalEstimado += qtd * cot.preco_unitario + (cot.frete ?? 0);
+      }
     }
 
     const total = itensMapa.length;
-    const progressoPct = total > 0 ? Math.round((decididos / total) * 100) : 0;
+    const progressoPct = total > 0 ? Math.round((suficientes / total) * 100) : 0;
 
     return {
       total,
-      decididos,
+      suficientes,
       totalEstimado,
       progressoPct,
     };
@@ -139,9 +143,9 @@ export default function MapaCotacaoPage() {
             <TabsTrigger value="comparar">Comparar</TabsTrigger>
             <TabsTrigger value="fechar">
               Fechar pedidos
-              {resumo.decididos > 0 && (
+              {resumo.suficientes > 0 && (
                 <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
-                  {resumo.decididos}
+                  {resumo.suficientes}
                 </Badge>
               )}
             </TabsTrigger>
@@ -194,14 +198,16 @@ export default function MapaCotacaoPage() {
                       fields,
                     })
                   }
-                  onEscolher={(fornecedorId) =>
-                    escolherFornecedor.mutateAsync({
+                  onAlocar={(fornecedorId, payload) =>
+                    alocarFornecedor.mutateAsync({
                       itemId: necessidade.item_id,
                       fornecedorId,
+                      qtdAlocada: payload.qtdAlocada,
+                      numPacotes: payload.numPacotes,
                     })
                   }
                   isSaving={salvarCotacao.isPending}
-                  isChoosing={escolherFornecedor.isPending}
+                  isAllocating={alocarFornecedor.isPending}
                   headerExtra={
                     necessidade.n_ops > 1 ? (
                       <OpsBadges ops={necessidade.ops || []} nOps={necessidade.n_ops} />
@@ -234,7 +240,7 @@ export default function MapaCotacaoPage() {
             <div className="min-w-[200px] max-w-md space-y-2">
               <div className="text-sm text-muted-foreground space-y-0.5">
                 <p>
-                  {resumo.decididos} de {resumo.total} itens decididos
+                  {resumo.suficientes} de {resumo.total} itens com alocação suficiente
                 </p>
                 <p className="font-medium text-foreground">
                   Total da compra estimado: {formatCurrency(resumo.totalEstimado)}

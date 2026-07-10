@@ -11,6 +11,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type {
   ItemFornecedorCotacao,
   ItemHistoricoGeral,
@@ -32,6 +38,8 @@ export type LinhaDraft = {
   frete: string;
   prazo_entrega: string;
   observacao: string;
+  num_pacotes: string;
+  qtd_alocada: string;
 };
 
 export function rowKey(gradeId: string, fornecedorId: string) {
@@ -97,16 +105,85 @@ export function buildDraft(
   forn: ItemFornecedorCotacao,
   cotacao?: RequisicaoCotacao,
 ): LinhaDraft {
+  const qtdPacote = cotacao?.qtd_por_pacote ?? forn.qtd_por_pacote;
+  const temPacote = qtdPacote != null && qtdPacote > 0;
+  let numPacotes = '';
+  let qtdAlocada = '';
+
+  if (cotacao?.num_pacotes_alocado != null) {
+    numPacotes = String(cotacao.num_pacotes_alocado);
+  } else if (temPacote && cotacao?.qtd_alocada != null && qtdPacote! > 0) {
+    numPacotes = String(Math.round(cotacao.qtd_alocada / qtdPacote!));
+  }
+
+  if (!temPacote && cotacao?.qtd_alocada != null) {
+    qtdAlocada = String(cotacao.qtd_alocada);
+  }
+
   return {
     unidade_compra: cotacao?.unidade_compra || forn.unidade_compra_padrao || 'kg',
-    qtd_por_pacote: cotacao?.qtd_por_pacote != null
-      ? String(cotacao.qtd_por_pacote)
-      : (forn.qtd_por_pacote != null ? String(forn.qtd_por_pacote) : ''),
+    qtd_por_pacote: qtdPacote != null ? String(qtdPacote) : '',
     preco_unitario: cotacao?.preco_unitario != null ? String(cotacao.preco_unitario) : '',
     frete: cotacao?.frete != null ? String(cotacao.frete) : '',
     prazo_entrega: cotacao?.prazo_entrega || '',
     observacao: cotacao?.observacao || '',
+    num_pacotes: numPacotes,
+    qtd_alocada: qtdAlocada,
   };
+}
+
+export function temPacoteNaLinha(draft: LinhaDraft, cotacao?: RequisicaoCotacao): boolean {
+  const qtdPacote = parseNum(draft.qtd_por_pacote) ?? cotacao?.qtd_por_pacote ?? null;
+  return qtdPacote != null && qtdPacote > 0;
+}
+
+export function qtdAlocadaEfetivaLinha(
+  draft: LinhaDraft,
+  cotacao?: RequisicaoCotacao,
+): number | null {
+  if (temPacoteNaLinha(draft, cotacao)) {
+    const numPacotes = parseNum(draft.num_pacotes) ?? cotacao?.num_pacotes_alocado ?? null;
+    const qtdPacote = parseNum(draft.qtd_por_pacote) ?? cotacao?.qtd_por_pacote ?? null;
+    if (numPacotes != null && qtdPacote != null) return numPacotes * qtdPacote;
+    return cotacao?.qtd_alocada ?? null;
+  }
+  return parseNum(draft.qtd_alocada) ?? cotacao?.qtd_alocada ?? null;
+}
+
+export function somarAlocacoesEmUnidadeItem(
+  cotacoes: RequisicaoCotacao[],
+  unidadeItem: string,
+): number {
+  const u = (unidadeItem || 'g').trim();
+  let totalG = 0;
+  for (const c of cotacoes) {
+    const qtd = c.qtd_alocada;
+    if (qtd == null || qtd <= 0) continue;
+    const unidadeCompra = (c.unidade_compra || u).trim();
+    totalG += paraGramas(qtd, unidadeCompra);
+  }
+  return deGramas(totalG, u);
+}
+
+export function calcularResumoAlocacaoItem(
+  necessidade: number,
+  unidadeItem: string | null,
+  cotacoes: RequisicaoCotacao[],
+): {
+  alocado: number;
+  necessario: number;
+  suficiente: boolean;
+  sobra: number | null;
+} {
+  const u = (unidadeItem || 'g').trim();
+  const necessario = Number(necessidade) || 0;
+  const alocado = somarAlocacoesEmUnidadeItem(cotacoes, u);
+  const necessarioG = paraGramas(necessario, u);
+  const alocadoG = paraGramas(alocado, u);
+  const diffG = alocadoG - necessarioG;
+  const suficiente = diffG >= -0.0001;
+  const sobra = diffG > 0.0001 ? deGramas(diffG, u) : null;
+  return { alocado, necessario, suficiente, sobra };
 }
 
 export function precoEfetivo(draft: LinhaDraft, cotacao?: RequisicaoCotacao): number | null {
@@ -121,6 +198,7 @@ export function calcularCustoReal(
   item: Pick<RequisicaoCompraItem, 'quantidade_faltante' | 'unidade'>,
   draft: LinhaDraft,
   cotacao?: RequisicaoCotacao,
+  qtdAlocadaOverride?: number | null,
 ): {
   custoReal: number | null;
   qtdArredondada: number;
@@ -139,8 +217,12 @@ export function calcularCustoReal(
     qtdPacote,
   );
 
+  const qtdCompra = qtdAlocadaOverride != null && qtdAlocadaOverride > 0
+    ? qtdAlocadaOverride
+    : calc.quantidade;
+
   let sobra: number | null = null;
-  if (calc.temPacote) {
+  if (calc.temPacote && (qtdAlocadaOverride == null || qtdAlocadaOverride <= 0)) {
     const faltaG = paraGramas(Number(item.quantidade_faltante) || 0, (item.unidade || 'g').trim());
     const necessidadeNaUnidadeCompra = deGramas(faltaG, calc.unidade);
     const diff = calc.quantidade - necessidadeNaUnidadeCompra;
@@ -150,7 +232,7 @@ export function calcularCustoReal(
   if (preco == null) {
     return {
       custoReal: null,
-      qtdArredondada: calc.quantidade,
+      qtdArredondada: qtdCompra,
       unidadeCompra: calc.unidade,
       sobra,
       temPacote: calc.temPacote,
@@ -158,8 +240,8 @@ export function calcularCustoReal(
   }
 
   return {
-    custoReal: calc.quantidade * preco + frete,
-    qtdArredondada: calc.quantidade,
+    custoReal: qtdCompra * preco + frete,
+    qtdArredondada: qtdCompra,
     unidadeCompra: calc.unidade,
     sobra,
     temPacote: calc.temPacote,
@@ -200,9 +282,13 @@ export interface ItemCotacaoGradeProps {
   isLoadingInteligencia: boolean;
   readOnly?: boolean;
   onSalvar?: (fornecedorId: string, fields: LinhaDraft) => Promise<unknown>;
-  onEscolher?: (fornecedorId: string, fields: LinhaDraft) => Promise<unknown>;
+  onAlocar?: (
+    fornecedorId: string,
+    payload: { qtdAlocada: number; numPacotes: number | null },
+    fields: LinhaDraft,
+  ) => Promise<unknown>;
   isSaving?: boolean;
-  isChoosing?: boolean;
+  isAllocating?: boolean;
   headerExtra?: React.ReactNode;
   statusExtra?: React.ReactNode;
 }
@@ -216,9 +302,9 @@ export function ItemCotacaoGrade({
   isLoadingInteligencia,
   readOnly = false,
   onSalvar,
-  onEscolher,
+  onAlocar,
   isSaving = false,
-  isChoosing = false,
+  isAllocating = false,
   headerExtra,
   statusExtra,
 }: ItemCotacaoGradeProps) {
@@ -260,15 +346,40 @@ export function ItemCotacaoGrade({
     await onSalvar(fornecedorId, draft);
   };
 
-  const handleEscolher = async (fornecedorId: string) => {
+  const handleAlocar = async (fornecedorId: string) => {
     const key = rowKey(gradeId, fornecedorId);
     const draft = drafts[key];
-    if (!draft || !onEscolher) return;
-    await onEscolher(fornecedorId, draft);
+    if (!draft || !onAlocar) return;
+
+    const cotacao = cotacaoPorFornecedor.get(fornecedorId);
+    const comPacote = temPacoteNaLinha(draft, cotacao);
+    let qtdAlocada = 0;
+    let numPacotes: number | null = null;
+
+    if (comPacote) {
+      const np = parseNum(draft.num_pacotes);
+      const qp = parseNum(draft.qtd_por_pacote) ?? cotacao?.qtd_por_pacote;
+      if (np == null || np < 0 || qp == null || qp <= 0) return;
+      numPacotes = np;
+      qtdAlocada = np * qp;
+    } else {
+      const qtd = parseNum(draft.qtd_alocada);
+      if (qtd == null || qtd < 0) return;
+      qtdAlocada = qtd;
+    }
+
+    await onAlocar(fornecedorId, { qtdAlocada, numPacotes }, draft);
   };
 
-  const escolhidoId = cotacoes.find(c => c.escolhido)?.fornecedor_id;
-  const itemDecidido = !!escolhidoId;
+  const resumoAlocacao = useMemo(
+    () => calcularResumoAlocacaoItem(
+      Number(item.quantidade_faltante) || 0,
+      item.unidade,
+      cotacoes,
+    ),
+    [item.quantidade_faltante, item.unidade, cotacoes],
+  );
+  const itemDecidido = resumoAlocacao.suficiente;
 
   const menorPreco = useMemo(() => {
     const precos = fornecedores
@@ -289,7 +400,8 @@ export function ItemCotacaoGrade({
         const cotacao = cotacaoPorFornecedor.get(forn.fornecedor_id);
         const draft = drafts[key] || buildDraft(forn, cotacao);
         if (precoEfetivo(draft, cotacao) == null) return null;
-        return calcularCustoReal(item, draft, cotacao).custoReal;
+        const qtdAloc = qtdAlocadaEfetivaLinha(draft, cotacao);
+        return calcularCustoReal(item, draft, cotacao, qtdAloc).custoReal;
       })
       .filter((c): c is number => c != null);
     if (custos.length < 2) return null;
@@ -321,6 +433,18 @@ export function ItemCotacaoGrade({
                 </span>
               )}
             </p>
+            <p className={cn(
+              'text-sm mt-1 font-medium',
+              resumoAlocacao.suficiente ? 'text-green-700' : 'text-amber-700',
+            )}>
+              Alocado: {formatarQtdItem(resumoAlocacao.alocado, item.unidade)} de{' '}
+              {formatarQtdItem(resumoAlocacao.necessario, item.unidade)} necessário
+              {resumoAlocacao.sobra != null && (
+                <span className="text-amber-700">
+                  {' · '}sobra {formatarQtdItem(resumoAlocacao.sobra, item.unidade)}
+                </span>
+              )}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {headerExtra}
@@ -348,6 +472,7 @@ export function ItemCotacaoGrade({
                   <TableHead>Preço unit.</TableHead>
                   <TableHead>Frete (R$)</TableHead>
                   <TableHead>Custo real</TableHead>
+                  <TableHead>Alocação</TableHead>
                   <TableHead>Prazo</TableHead>
                   {!readOnly && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
@@ -357,27 +482,34 @@ export function ItemCotacaoGrade({
                   const key = rowKey(gradeId, forn.fornecedor_id);
                   const cotacao = cotacaoPorFornecedor.get(forn.fornecedor_id);
                   const draft = drafts[key] || buildDraft(forn, cotacao);
-                  const isEscolhido = escolhidoId === forn.fornecedor_id;
+                  const comPacote = temPacoteNaLinha(draft, cotacao);
+                  const qtdAlocadaLinha = qtdAlocadaEfetivaLinha(draft, cotacao);
+                  const temAlocacao = (qtdAlocadaLinha ?? 0) > 0;
                   const precoAtual = precoEfetivo(draft, cotacao);
+                  const precoValido = precoAtual != null && precoAtual > 0;
                   const isMelhorOferta = menorPreco != null && precoAtual != null && precoAtual === menorPreco;
-                  const custo = calcularCustoReal(item, draft, cotacao);
+                  const custo = calcularCustoReal(item, draft, cotacao, qtdAlocadaLinha);
                   const isMelhorCusto = menorCustoReal != null
                     && custo.custoReal != null
                     && custo.custoReal === menorCustoReal;
-                  const linhaEsmaecida = itemDecidido && !isEscolhido;
+                  const qtdPacote = parseNum(draft.qtd_por_pacote) ?? cotacao?.qtd_por_pacote ?? null;
+                  const numPacotesDisplay = parseNum(draft.num_pacotes);
+                  const qtdPacotesCalculada = numPacotesDisplay != null && qtdPacote != null
+                    ? numPacotesDisplay * qtdPacote
+                    : null;
+                  const unidadeCompra = draft.unidade_compra || cotacao?.unidade_compra || 'kg';
 
                   return (
                     <TableRow
                       key={forn.id}
                       className={cn(
-                        linhaEsmaecida && 'opacity-45',
-                        isEscolhido && 'bg-green-50/80 border-l-4 border-l-green-500',
-                        !isEscolhido && isMelhorOferta && 'ring-1 ring-inset ring-emerald-300/80',
+                        temAlocacao && 'bg-green-50/80 border-l-4 border-l-green-500',
+                        !temAlocacao && isMelhorOferta && 'ring-1 ring-inset ring-emerald-300/80',
                       )}
                     >
                       <TableCell className="font-medium min-w-[180px]">
                         <div className="flex items-center gap-2">
-                          {isEscolhido && (
+                          {temAlocacao && (
                             <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
                           )}
                           <div className="min-w-0">
@@ -394,9 +526,9 @@ export function ItemCotacaoGrade({
                                   melhor oferta
                                 </Badge>
                               )}
-                              {isEscolhido && (
+                              {temAlocacao && qtdAlocadaLinha != null && (
                                 <Badge className="text-[10px] px-1.5 bg-green-600 hover:bg-green-600 text-white">
-                                  ✓ ESCOLHIDO
+                                  ✓ {formatarQtdItem(qtdAlocadaLinha, unidadeCompra)}
                                 </Badge>
                               )}
                             </div>
@@ -504,6 +636,48 @@ export function ItemCotacaoGrade({
                           )}
                         </div>
                       </TableCell>
+                      <TableCell className="min-w-[160px]">
+                        {readOnly ? (
+                          <span className="text-sm tabular-nums">
+                            {temAlocacao && qtdAlocadaLinha != null
+                              ? formatarQtdItem(qtdAlocadaLinha, unidadeCompra)
+                              : '—'}
+                          </span>
+                        ) : comPacote ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                className="h-8 w-16"
+                                value={draft.num_pacotes}
+                                onChange={e => updateDraft(forn.fornecedor_id, 'num_pacotes', e.target.value)}
+                                placeholder="0"
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">pacotes</span>
+                            </div>
+                            {qtdPacotesCalculada != null && (
+                              <p className="text-[10px] text-muted-foreground">
+                                = {formatarQtdItem(qtdPacotesCalculada, unidadeCompra)}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              step="any"
+                              className="h-8 w-24"
+                              value={draft.qtd_alocada}
+                              onChange={e => updateDraft(forn.fornecedor_id, 'qtd_alocada', e.target.value)}
+                              placeholder="0"
+                            />
+                            <p className="text-[10px] text-muted-foreground">{unidadeCompra}</p>
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Input
                           className="h-8 w-28"
@@ -520,7 +694,7 @@ export function ItemCotacaoGrade({
                             <Button
                               variant="outline"
                               size="sm"
-                              disabled={isSaving || isChoosing}
+                              disabled={isSaving || isAllocating}
                               onClick={() => handleSalvar(forn.fornecedor_id)}
                             >
                               {isSaving ? (
@@ -529,17 +703,30 @@ export function ItemCotacaoGrade({
                                 <Save className="h-3 w-3" />
                               )}
                             </Button>
-                            <Button
-                              size="sm"
-                              variant={isEscolhido ? 'secondary' : 'default'}
-                              disabled={isSaving || isChoosing}
-                              onClick={() => handleEscolher(forn.fornecedor_id)}
-                            >
-                              {isChoosing ? (
-                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                              ) : null}
-                              Escolher
-                            </Button>
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex">
+                                    <Button
+                                      size="sm"
+                                      variant={temAlocacao ? 'secondary' : 'default'}
+                                      disabled={isSaving || isAllocating || !precoValido}
+                                      onClick={() => handleAlocar(forn.fornecedor_id)}
+                                    >
+                                      {isAllocating ? (
+                                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                      ) : null}
+                                      Alocar
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                {!precoValido && (
+                                  <TooltipContent side="top">
+                                    Informe o preço antes de alocar
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                       )}

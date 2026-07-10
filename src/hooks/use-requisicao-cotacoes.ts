@@ -49,6 +49,8 @@ export interface RequisicaoCotacao {
   escolhido: boolean;
   observacao: string | null;
   frete: number | null;
+  qtd_alocada: number | null;
+  num_pacotes_alocado: number | null;
 }
 
 export interface ItemCotacaoDetalhe {
