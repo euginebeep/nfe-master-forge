@@ -17,6 +17,8 @@ import type {
   RequisicaoCotacao,
 } from '@/hooks/use-requisicao-cotacoes';
 import { formatarQtdItem } from '@/lib/requisicoes-compra';
+import { calcularQuantidadeCotacao } from '@/lib/cotacao-embalagem';
+import { deGramas, paraGramas } from '@/lib/conferencia-materiais';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { RequisicaoCompraItem } from '@/hooks/use-requisicoes-compra';
@@ -27,6 +29,7 @@ export type LinhaDraft = {
   unidade_compra: string;
   qtd_por_pacote: string;
   preco_unitario: string;
+  frete: string;
   prazo_entrega: string;
   observacao: string;
 };
@@ -100,6 +103,7 @@ export function buildDraft(
       ? String(cotacao.qtd_por_pacote)
       : (forn.qtd_por_pacote != null ? String(forn.qtd_por_pacote) : ''),
     preco_unitario: cotacao?.preco_unitario != null ? String(cotacao.preco_unitario) : '',
+    frete: cotacao?.frete != null ? String(cotacao.frete) : '',
     prazo_entrega: cotacao?.prazo_entrega || '',
     observacao: cotacao?.observacao || '',
   };
@@ -107,6 +111,80 @@ export function buildDraft(
 
 export function precoEfetivo(draft: LinhaDraft, cotacao?: RequisicaoCotacao): number | null {
   return parseNum(draft.preco_unitario) ?? cotacao?.preco_unitario ?? null;
+}
+
+export function freteEfetivo(draft: LinhaDraft, cotacao?: RequisicaoCotacao): number | null {
+  return parseNum(draft.frete) ?? cotacao?.frete ?? null;
+}
+
+export function calcularCustoReal(
+  item: Pick<RequisicaoCompraItem, 'quantidade_faltante' | 'unidade'>,
+  draft: LinhaDraft,
+  cotacao?: RequisicaoCotacao,
+): {
+  custoReal: number | null;
+  qtdArredondada: number;
+  unidadeCompra: string;
+  sobra: number | null;
+  temPacote: boolean;
+} {
+  const preco = precoEfetivo(draft, cotacao);
+  const frete = freteEfetivo(draft, cotacao) ?? 0;
+  const qtdPacote = parseNum(draft.qtd_por_pacote) ?? cotacao?.qtd_por_pacote ?? null;
+  const unidadeCompra = draft.unidade_compra || cotacao?.unidade_compra || item.unidade || 'kg';
+  const calc = calcularQuantidadeCotacao(
+    item.quantidade_faltante,
+    item.unidade,
+    unidadeCompra,
+    qtdPacote,
+  );
+
+  let sobra: number | null = null;
+  if (calc.temPacote) {
+    const faltaG = paraGramas(Number(item.quantidade_faltante) || 0, (item.unidade || 'g').trim());
+    const necessidadeNaUnidadeCompra = deGramas(faltaG, calc.unidade);
+    const diff = calc.quantidade - necessidadeNaUnidadeCompra;
+    sobra = diff > 0.0001 ? diff : null;
+  }
+
+  if (preco == null) {
+    return {
+      custoReal: null,
+      qtdArredondada: calc.quantidade,
+      unidadeCompra: calc.unidade,
+      sobra,
+      temPacote: calc.temPacote,
+    };
+  }
+
+  return {
+    custoReal: calc.quantidade * preco + frete,
+    qtdArredondada: calc.quantidade,
+    unidadeCompra: calc.unidade,
+    sobra,
+    temPacote: calc.temPacote,
+  };
+}
+
+export function calcularCustoRealCotacao(
+  item: Pick<RequisicaoCompraItem, 'quantidade_faltante' | 'unidade'>,
+  cotacao: RequisicaoCotacao,
+): number | null {
+  const draft = buildDraft(
+    {
+      id: '',
+      item_id: '',
+      fornecedor_id: cotacao.fornecedor_id,
+      unidade_compra_padrao: cotacao.unidade_compra,
+      fator_para_unidade_interna: null,
+      qtd_por_pacote: cotacao.qtd_por_pacote,
+      fornecedor_preferencial: null,
+      preco_referencia: null,
+      lead_time_dias: null,
+    },
+    cotacao,
+  );
+  return calcularCustoReal(item, draft, cotacao).custoReal;
 }
 
 function fornPreferencial(fornecedores: ItemFornecedorCotacao[]) {
@@ -126,6 +204,7 @@ export interface ItemCotacaoGradeProps {
   isSaving?: boolean;
   isChoosing?: boolean;
   headerExtra?: React.ReactNode;
+  statusExtra?: React.ReactNode;
 }
 
 export function ItemCotacaoGrade({
@@ -141,6 +220,7 @@ export function ItemCotacaoGrade({
   isSaving = false,
   isChoosing = false,
   headerExtra,
+  statusExtra,
 }: ItemCotacaoGradeProps) {
   const cotacaoPorFornecedor = useMemo(
     () => new Map(cotacoes.map(c => [c.fornecedor_id, c])),
@@ -188,6 +268,7 @@ export function ItemCotacaoGrade({
   };
 
   const escolhidoId = cotacoes.find(c => c.escolhido)?.fornecedor_id;
+  const itemDecidido = !!escolhidoId;
 
   const menorPreco = useMemo(() => {
     const precos = fornecedores
@@ -201,12 +282,34 @@ export function ItemCotacaoGrade({
     return Math.min(...precos);
   }, [fornecedores, drafts, gradeId, cotacaoPorFornecedor]);
 
+  const menorCustoReal = useMemo(() => {
+    const custos = fornecedores
+      .map((forn) => {
+        const key = rowKey(gradeId, forn.fornecedor_id);
+        const cotacao = cotacaoPorFornecedor.get(forn.fornecedor_id);
+        const draft = drafts[key] || buildDraft(forn, cotacao);
+        if (precoEfetivo(draft, cotacao) == null) return null;
+        return calcularCustoReal(item, draft, cotacao).custoReal;
+      })
+      .filter((c): c is number => c != null);
+    if (custos.length < 2) return null;
+    return Math.min(...custos);
+  }, [fornecedores, drafts, gradeId, cotacaoPorFornecedor, item]);
+
   return (
-    <Card>
+    <Card className={cn(itemDecidido && 'ring-2 ring-green-500/50 border-green-200')}>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <CardTitle className="text-base">{item.item_nome}</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="text-base">{item.item_nome}</CardTitle>
+              {itemDecidido && (
+                <Badge className="text-[10px] bg-green-600 hover:bg-green-600 text-white">
+                  DECIDIDO
+                </Badge>
+              )}
+              {statusExtra}
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
               Falta: {formatarQtdItem(item.quantidade_faltante, item.unidade)}
               {historicoItem?.preco_medio != null && (
@@ -243,6 +346,8 @@ export function ItemCotacaoGrade({
                   <TableHead>Unidade</TableHead>
                   <TableHead>Qtd/pacote</TableHead>
                   <TableHead>Preço unit.</TableHead>
+                  <TableHead>Frete (R$)</TableHead>
+                  <TableHead>Custo real</TableHead>
                   <TableHead>Prazo</TableHead>
                   {!readOnly && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
@@ -255,13 +360,19 @@ export function ItemCotacaoGrade({
                   const isEscolhido = escolhidoId === forn.fornecedor_id;
                   const precoAtual = precoEfetivo(draft, cotacao);
                   const isMelhorOferta = menorPreco != null && precoAtual != null && precoAtual === menorPreco;
+                  const custo = calcularCustoReal(item, draft, cotacao);
+                  const isMelhorCusto = menorCustoReal != null
+                    && custo.custoReal != null
+                    && custo.custoReal === menorCustoReal;
+                  const linhaEsmaecida = itemDecidido && !isEscolhido;
 
                   return (
                     <TableRow
                       key={forn.id}
                       className={cn(
-                        isEscolhido && 'bg-green-50/60',
-                        isMelhorOferta && 'ring-1 ring-inset ring-emerald-300/80',
+                        linhaEsmaecida && 'opacity-45',
+                        isEscolhido && 'bg-green-50/80 border-l-4 border-l-green-500',
+                        !isEscolhido && isMelhorOferta && 'ring-1 ring-inset ring-emerald-300/80',
                       )}
                     >
                       <TableCell className="font-medium min-w-[180px]">
@@ -281,6 +392,11 @@ export function ItemCotacaoGrade({
                                   className="text-[10px] px-1 bg-emerald-50 text-emerald-800 border-emerald-200"
                                 >
                                   melhor oferta
+                                </Badge>
+                              )}
+                              {isEscolhido && (
+                                <Badge className="text-[10px] px-1.5 bg-green-600 hover:bg-green-600 text-white">
+                                  ✓ ESCOLHIDO
                                 </Badge>
                               )}
                             </div>
@@ -345,6 +461,47 @@ export function ItemCotacaoGrade({
                             precoDigitado={parseNum(draft.preco_unitario)}
                             mediaGeral={historicoItem?.preco_medio}
                           />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          className="h-8 w-24"
+                          value={draft.frete}
+                          onChange={e => updateDraft(forn.fornecedor_id, 'frete', e.target.value)}
+                          placeholder="0"
+                          disabled={readOnly}
+                          readOnly={readOnly}
+                        />
+                      </TableCell>
+                      <TableCell className="min-w-[140px]">
+                        <div className="space-y-1">
+                          <p className={cn(
+                            'text-sm font-bold tabular-nums',
+                            isMelhorCusto && 'text-green-700',
+                          )}>
+                            {custo.custoReal != null ? formatCurrency(custo.custoReal) : '—'}
+                          </p>
+                          {custo.temPacote && custo.custoReal != null && (
+                            <p className="text-[10px] text-muted-foreground leading-tight">
+                              compra {formatarQtdItem(custo.qtdArredondada, custo.unidadeCompra)}
+                              {custo.sobra != null && (
+                                <span className="text-amber-700">
+                                  {' · '}sobra {formatarQtdItem(custo.sobra, custo.unidadeCompra)}
+                                </span>
+                              )}
+                            </p>
+                          )}
+                          {isMelhorCusto && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1 bg-green-50 text-green-800 border-green-300"
+                            >
+                              MELHOR CUSTO
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

@@ -32,6 +32,7 @@ import {
 } from '@/lib/rfq-compra';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { ITENS_EM_RFQ_QUERY_KEY } from '@/hooks/use-itens-em-rfq';
 import { toast } from 'sonner';
 
 export interface RfqDraftPersist {
@@ -220,6 +221,7 @@ export function RfqComposer({
       const qtd = await marcarRequisicoesDaCestaEmRfq(itensCesta.map((i) => i.item_id));
       await queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
       await queryClient.invalidateQueries({ queryKey: ['compras-necessidades-consolidadas'] });
+      await queryClient.invalidateQueries({ queryKey: [...ITENS_EM_RFQ_QUERY_KEY] });
       clearDraft({ itemIds: [], fornecedorIds: [] });
       toast.success(
         qtd > 0

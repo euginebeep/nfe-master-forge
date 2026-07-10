@@ -48,6 +48,7 @@ export interface RequisicaoCotacao {
   prazo_entrega: string | null;
   escolhido: boolean;
   observacao: string | null;
+  frete: number | null;
 }
 
 export interface ItemCotacaoDetalhe {

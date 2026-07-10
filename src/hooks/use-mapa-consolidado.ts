@@ -13,6 +13,7 @@ import {
 } from '@/hooks/use-requisicao-cotacoes';
 import type { LinhaDraft } from '@/components/compras/ItemCotacaoGrade';
 import { parseNum } from '@/components/compras/ItemCotacaoGrade';
+import { ITENS_EM_RFQ_QUERY_KEY } from '@/hooks/use-itens-em-rfq';
 
 export interface MapaItemConsolidado {
   necessidade: CompraNecessidadeConsolidada;
@@ -137,6 +138,7 @@ export function useMapaConsolidado() {
     queryClient.invalidateQueries({ queryKey: ['compras-necessidades-consolidadas'] });
     queryClient.invalidateQueries({ queryKey: [...MAPA_QUERY_KEY] });
     queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
+    queryClient.invalidateQueries({ queryKey: [...ITENS_EM_RFQ_QUERY_KEY] });
   };
 
   const salvarCotacao = useMutation({
@@ -158,6 +160,7 @@ export function useMapaConsolidado() {
         p_prazo: fields.prazo_entrega?.trim() || null,
         p_qtd_cotada: null,
         p_observacao: fields.observacao?.trim() || null,
+        p_frete: parseNum(fields.frete),
       });
       if (error) throw error;
       return data;
