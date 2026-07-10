@@ -93,12 +93,17 @@ export function BirthdayCard() {
             <div className="relative shrink-0">
               <div
                 className={cn(
-                  'absolute inset-0 rounded-2xl blur-md',
-                  hoje.length > 0 ? 'bg-pink-500/40 animate-pulse' : 'bg-pink-400/25',
+                  'absolute inset-0 rounded-2xl blur-md animate-pulse',
+                  hoje.length > 0 ? 'bg-pink-500/40' : 'bg-pink-400/25',
                 )}
               />
               <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 shadow-lg shadow-pink-500/35 ring-2 ring-white/60 dark:ring-pink-900/50">
-                <Cake className="h-5 w-5 text-white drop-shadow-sm" />
+                <motion.div
+                  animate={{ opacity: [1, 0.35, 1], scale: [1, 1.12, 1] }}
+                  transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  <Cake className="h-5 w-5 text-white drop-shadow-sm" />
+                </motion.div>
               </div>
               {hoje.length > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] shadow-md ring-2 ring-white dark:ring-pink-950">

@@ -139,11 +139,11 @@ const Index = () => {
               <ExpiringLotsCard />
             </div>
             <div className="md:col-span-2 lg:col-span-8 xl:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-stretch">
-              <div className="md:col-span-4 xl:col-span-3"><ExchangeRateCard /></div>
               <div className="md:col-span-4 xl:col-span-3 flex flex-col gap-4">
-                <MarketIndicesCard />
+                <ExchangeRateCard />
                 <BirthdayCard />
               </div>
+              <div className="md:col-span-4 xl:col-span-3"><MarketIndicesCard /></div>
               <div className="md:col-span-4 xl:col-span-6"><ConsultaANVISACard /></div>
             </div>
           </div>
