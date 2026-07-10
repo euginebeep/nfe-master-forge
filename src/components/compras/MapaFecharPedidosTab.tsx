@@ -9,7 +9,6 @@ import {
 import { nomeFornecedor } from '@/components/compras/ItemCotacaoGrade';
 import type { MapaItemConsolidado } from '@/hooks/use-mapa-consolidado';
 import { useAprovarCompraFornecedor } from '@/hooks/use-pedidos-compra';
-import { calcularQuantidadeCotacao } from '@/lib/cotacao-embalagem';
 import { formatCurrency } from '@/lib/formatters';
 import { formatarQtdItem } from '@/lib/requisicoes-compra';
 
@@ -38,45 +37,42 @@ export function agruparItensDecididosPorFornecedor(
   const map = new Map<string, GrupoFornecedorPedido>();
 
   for (const entrada of itensMapa) {
-    const escolhida = entrada.cotacoes.find((c) => c.escolhido);
-    if (!escolhida || escolhida.preco_unitario == null) continue;
+    for (const cot of entrada.cotacoes) {
+      const qtd = cot.qtd_alocada ?? 0;
+      if (qtd <= 0 || cot.preco_unitario == null) continue;
 
-    const calc = calcularQuantidadeCotacao(
-      entrada.necessidade.total_falta,
-      entrada.necessidade.unidade,
-      escolhida.unidade_compra,
-      escolhida.qtd_por_pacote,
-    );
-    const subtotal = calc.quantidade * escolhida.preco_unitario;
-    const freteLinha = escolhida.frete ?? 0;
+      const subtotal = qtd * cot.preco_unitario;
+      const freteLinha = cot.frete ?? 0;
+      const unidade = cot.unidade_compra || entrada.necessidade.unidade || 'kg';
 
-    const forn = entrada.fornecedores.find((f) => f.fornecedor_id === escolhida.fornecedor_id);
-    const fornecedorNome = forn ? nomeFornecedor(forn) : 'Fornecedor';
+      const forn = entrada.fornecedores.find((f) => f.fornecedor_id === cot.fornecedor_id);
+      const fornecedorNome = forn ? nomeFornecedor(forn) : 'Fornecedor';
 
-    let grupo = map.get(escolhida.fornecedor_id);
-    if (!grupo) {
-      grupo = {
-        fornecedorId: escolhida.fornecedor_id,
-        fornecedorNome,
-        linhas: [],
-        frete: 0,
-        totalItens: 0,
-        totalPedido: 0,
-      };
-      map.set(escolhida.fornecedor_id, grupo);
+      let grupo = map.get(cot.fornecedor_id);
+      if (!grupo) {
+        grupo = {
+          fornecedorId: cot.fornecedor_id,
+          fornecedorNome,
+          linhas: [],
+          frete: 0,
+          totalItens: 0,
+          totalPedido: 0,
+        };
+        map.set(cot.fornecedor_id, grupo);
+      }
+
+      grupo.linhas.push({
+        itemId: entrada.necessidade.item_id,
+        itemNome: entrada.necessidade.item_nome,
+        quantidade: qtd,
+        unidade,
+        precoUnitario: cot.preco_unitario,
+        subtotal,
+        freteLinha,
+      });
+      grupo.frete = Math.max(grupo.frete, freteLinha);
+      grupo.totalItens += subtotal;
     }
-
-    grupo.linhas.push({
-      itemId: entrada.necessidade.item_id,
-      itemNome: entrada.necessidade.item_nome,
-      quantidade: calc.quantidade,
-      unidade: calc.unidade,
-      precoUnitario: escolhida.preco_unitario,
-      subtotal,
-      freteLinha,
-    });
-    grupo.frete = Math.max(grupo.frete, freteLinha);
-    grupo.totalItens += subtotal;
   }
 
   for (const grupo of map.values()) {
@@ -119,7 +115,7 @@ export function MapaFecharPedidosTab({ itensMapa }: MapaFecharPedidosTabProps) {
       <Card>
         <CardContent className="py-16 text-center text-sm text-muted-foreground space-y-2">
           <Package className="h-10 w-10 mx-auto opacity-40" />
-          <p>Decida fornecedores na aba Comparar para fechar pedidos aqui.</p>
+          <p>Alocar fornecedores na aba Comparar para fechar pedidos aqui.</p>
         </CardContent>
       </Card>
     );

@@ -33,7 +33,9 @@ function deduplicarCotacoesPorFornecedor(linhas: RequisicaoCotacao[]): Requisica
       porFornecedor.set(cot.fornecedor_id, cot);
       continue;
     }
-    if (cot.escolhido && !existente.escolhido) {
+    const cotAloc = cot.qtd_alocada ?? 0;
+    const existAloc = existente.qtd_alocada ?? 0;
+    if (cotAloc > existAloc || (cot.escolhido && !existente.escolhido)) {
       porFornecedor.set(cot.fornecedor_id, cot);
     }
   }
@@ -198,6 +200,36 @@ export function useMapaConsolidado() {
     },
   });
 
+  const alocarFornecedor = useMutation({
+    mutationFn: async ({
+      itemId,
+      fornecedorId,
+      qtdAlocada,
+      numPacotes,
+    }: {
+      itemId: string;
+      fornecedorId: string;
+      qtdAlocada: number;
+      numPacotes: number | null;
+    }) => {
+      const { data, error } = await supabase.rpc('alocar_fornecedor_item', {
+        p_item_id: itemId,
+        p_fornecedor_id: fornecedorId,
+        p_qtd_alocada: qtdAlocada,
+        p_num_pacotes: numPacotes,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast.success('Alocação salva');
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao alocar fornecedor');
+    },
+  });
+
   return {
     necessidades: consolidadas.data || [],
     itensMapa: mapaQuery.data || [],
@@ -207,5 +239,6 @@ export function useMapaConsolidado() {
     error: consolidadas.error || mapaQuery.error,
     salvarCotacao,
     escolherFornecedor,
+    alocarFornecedor,
   };
 }
