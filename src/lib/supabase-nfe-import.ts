@@ -60,12 +60,52 @@ export async function checkNotaFiscalExistsSupabase(chaveAcesso: string): Promis
   return data ? { id: data.id, numero: data.numero || '' } : null;
 }
 
+type PapelEntidadeImport = 'FORNECEDOR' | 'CLIENTE' | 'TRANSPORTADORA';
+
+function formatSupabaseError(error: { message?: string; code?: string } | null): string {
+  return error?.message || error?.code || 'erro desconhecido';
+}
+
+/** Garante papel em entidade_papeis de forma idempotente (RLS exige company_id). */
+async function garantirPapelEntidade(
+  entidadeId: string,
+  papel: PapelEntidadeImport,
+  companyId: string,
+): Promise<void> {
+  const { data: papelExistente, error: selectError } = await supabase
+    .from('entidade_papeis')
+    .select('id')
+    .eq('entidade_id', entidadeId)
+    .eq('papel', papel)
+    .maybeSingle();
+
+  if (selectError) {
+    throw new Error(`Erro ao verificar papel ${papel}: ${formatSupabaseError(selectError)}`);
+  }
+
+  if (papelExistente) return;
+
+  const { error: insertError } = await supabase
+    .from('entidade_papeis')
+    .insert({
+      entidade_id: entidadeId,
+      papel,
+      company_id: companyId,
+    } as { entidade_id: string; papel: string; company_id: string });
+
+  if (insertError) {
+    // Concorrência ou duplicata: UNIQUE(entidade_id, papel)
+    if (insertError.code === '23505') return;
+    throw new Error(`Erro ao atribuir papel ${papel}: ${formatSupabaseError(insertError)}`);
+  }
+}
+
 // ============================================
 // BUSCAR OU CRIAR ENTIDADE NO SUPABASE
 // ============================================
 async function findOrCreateEntidadeSupabase(
   entidadeXML: EntidadeXML,
-  papel: 'FORNECEDOR' | 'CLIENTE' | 'TRANSPORTADORA',
+  papel: PapelEntidadeImport,
   companyId: string  // ← recebe company_id como parâmetro
 ): Promise<{ id: string; isNew: boolean }> {
   const docLimpo = entidadeXML.documento.replace(/\D/g, '');
@@ -79,21 +119,7 @@ async function findOrCreateEntidadeSupabase(
     .maybeSingle();
   
   if (existente) {
-    // Verificar se já tem o papel
-    const { data: papelExistente } = await supabase
-      .from('entidade_papeis')
-      .select('id')
-      .eq('entidade_id', existente.id)
-      .eq('papel', papel)
-      .maybeSingle();
-    
-    if (!papelExistente) {
-      await supabase.from('entidade_papeis').insert({
-        entidade_id: existente.id,
-        papel,
-      });
-    }
-    
+    await garantirPapelEntidade(existente.id, papel, companyId);
     return { id: existente.id, isNew: false };
   }
   
@@ -118,14 +144,10 @@ async function findOrCreateEntidadeSupabase(
     .single();
   
   if (error || !novaEntidade) {
-    throw new Error(`Erro ao criar entidade: ${error?.message}`);
+    throw new Error(`Erro ao criar entidade: ${formatSupabaseError(error)}`);
   }
   
-  // Criar papel
-  await supabase.from('entidade_papeis').insert({
-    entidade_id: novaEntidade.id,
-    papel,
-  });
+  await garantirPapelEntidade(novaEntidade.id, papel, companyId);
   
   // Criar endereço se existir
   if (entidadeXML.endereco) {
@@ -646,7 +668,7 @@ export async function importarNFeCompletaSupabase(
         }).select('id').single();
         
         if (linkError) {
-          console.error(`[NF-e Import] Erro ao vincular fornecedor ao item:`, linkError.message);
+          console.error(`[NF-e Import] Erro ao vincular fornecedor ao item:`, formatSupabaseError(linkError));
         }
         
         if (newLink) createdResources.push({ table: 'item_fornecedores', id: newLink.id });
@@ -776,7 +798,7 @@ export async function importarNFeCompletaSupabase(
         }).select('id').single();
         
         if (contaError) {
-          console.error('[NF-e Import] Erro ao criar conta a pagar:', contaError.message);
+          console.error('[NF-e Import] Erro ao criar conta a pagar:', formatSupabaseError(contaError));
         }
         if (conta) createdResources.push({ table: 'contas_pagar', id: conta.id });
         stats.contasPagarGeradas++;
@@ -841,10 +863,16 @@ export async function reverterImportacaoNFe(notaId: string): Promise<void> {
 export async function backfillFiscalDataFromXML(): Promise<{ updated: number; errors: number }> {
   const { parseNFeCompleto } = await import('@/lib/nfe-parser-completo');
   
+  const companyId = await getUserCompanyId();
+  if (!companyId) {
+    throw new Error('Empresa não configurada. Configure sua empresa antes de reprocessar NF-e.');
+  }
+
   // Buscar notas com XML
   const { data: notas } = await supabase
     .from('notas_entrada')
-    .select('id, xml_raw')
+    .select('id, xml_raw, fornecedor_id')
+    .eq('company_id', companyId)
     .not('xml_raw', 'is', null);
   
   if (!notas || notas.length === 0) return { updated: 0, errors: 0 };
@@ -856,6 +884,11 @@ export async function backfillFiscalDataFromXML(): Promise<{ updated: number; er
     try {
       const parsed = parseNFeCompleto(nota.xml_raw!);
       if (!parsed) continue;
+
+      // Defensivo: emitente da nota deve ter papel FORNECEDOR
+      if (nota.fornecedor_id) {
+        await garantirPapelEntidade(nota.fornecedor_id, 'FORNECEDOR', companyId);
+      }
       
       // Buscar itens vinculados a esta nota
       const { data: notaItens } = await supabase
@@ -896,7 +929,8 @@ export async function backfillFiscalDataFromXML(): Promise<{ updated: number; er
         }
       }
     } catch (err) {
-      console.error(`[Backfill] Erro ao processar nota ${nota.id}:`, err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Backfill] Erro ao processar nota ${nota.id}:`, msg);
       errors++;
     }
   }
