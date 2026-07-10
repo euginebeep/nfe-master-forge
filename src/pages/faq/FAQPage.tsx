@@ -105,6 +105,21 @@ async function healthCheckManualIa(): Promise<boolean> {
   }
 }
 
+function BrainXMascotTabIcon() {
+  return (
+    <span
+      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white p-[2px] shadow-lg ring-2 ring-white"
+      aria-hidden
+    >
+      <img
+        src={BRAINX_MASCOT_SRC}
+        alt=""
+        className="h-full w-full rounded-full object-cover object-center"
+      />
+    </span>
+  );
+}
+
 function BrainXMascotIcon({
   size = 18,
   className = "",
@@ -525,24 +540,23 @@ export default function FAQPage() {
         />
       </div>
 
-      <div className="flex flex-col gap-2 max-w-md">
-        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+      <div className="flex flex-col gap-2 max-w-lg">
+        <div className="flex gap-1.5 p-1.5 bg-muted rounded-lg">
           <Button 
             variant={abaAtiva === 'manual' ? 'default' : 'ghost'} 
-            className="flex-1 gap-2 h-10" 
+            className="flex-1 gap-2 h-12 text-sm" 
             onClick={() => setAbaAtiva('manual')}
             title="Conteúdo oficial do sistema — funciona sem IA"
           >
-            <BookOpen className="h-4 w-4" /> Manual & FAQ
+            <BookOpen className="h-5 w-5 shrink-0" /> Manual & FAQ
           </Button>
           <Button 
             variant={abaAtiva === 'ia' ? 'default' : 'ghost'} 
-            className="flex-1 gap-2.5 h-10" 
+            className="flex-1 gap-2 h-12 px-3 text-sm" 
             onClick={() => setAbaAtiva('ia')}
           >
-            <BrainXMascotIcon size={30} framed />
-            <span>Pergunte à IA</span>
-            <Badge className="ml-0.5 px-1.5 h-4 bg-blue-600 border-0 text-[10px] text-white">IA</Badge>
+            <BrainXMascotTabIcon />
+            <span className="truncate">Pergunte à IA</span>
           </Button>
         </div>
         <p className="text-xs text-muted-foreground px-1">
