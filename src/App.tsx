@@ -59,6 +59,7 @@ const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePa
 const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
 const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
 const FatorConversaoPage = lazy(() => import("./pages/compras/FatorConversaoPage"));
+const MapaCotacaoPage = lazy(() => import("./pages/compras/MapaCotacaoPage"));
 const PainelCompradorPage = lazy(() => import("./pages/compras/PainelCompradorPage"));
 const ContasPagarPage = lazy(() => import("./pages/financeiro/ContasPagarPage"));
 const ContasReceberPage = lazy(() => import("./pages/financeiro/ContasReceberPage"));
@@ -224,6 +225,7 @@ const App = () => (
                 <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NotasEntradaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/fator-conversao" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><FatorConversaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/comprar" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><PainelCompradorPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/mapa" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><MapaCotacaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/requisicoes" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><RequisicoesCompraPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/requisicoes/:id" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><RequisicaoDetalhePage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Financeiro — gerente+ */}
