@@ -23,6 +23,7 @@ export interface ItemCestaCompra {
   total_falta: number;
   embalagem_compra_qtd?: number | null;
   embalagem_compra_unidade?: string | null;
+  ultimo_fornecedor_id?: string | null;
 }
 
 export interface FornecedorEscolhidoRfq {

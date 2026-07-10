@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Copy, Download } from 'lucide-react';
+import { Copy, Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCompanyBranding } from '@/hooks/use-company-branding';
 import { gerarTextoListaPura } from '@/lib/conferencia-materiais';
@@ -28,10 +28,49 @@ interface ListaPuraCompraPanelProps {
   grupos?: GrupoListaCotacao[];
   tituloDocumento?: string;
   fornecedorNome?: string;
+  hidePreview?: boolean;
+  hideToolbar?: boolean;
+  extraActions?: React.ReactNode;
 }
 
 function flattenGrupos(grupos: GrupoListaCotacao[]): ItemListaCotacao[] {
-  return grupos.flatMap(g => g.itens);
+  return grupos.flatMap((g) => g.itens);
+}
+
+export function imprimirListaPura(element: HTMLElement | null) {
+  if (!element) {
+    toast.error('Documento não disponível para impressão');
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.setAttribute('data-lista-pura-print', 'true');
+  style.textContent = `@media print {
+    body > *:not([data-lista-pura-print-root]) { display: none !important; }
+    [data-lista-pura-print-root] {
+      display: block !important;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      z-index: 99999;
+      background: #fff;
+    }
+    [data-lista-pura-print-root] * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    @page { size: A4 portrait; margin: 12mm; }
+  }`;
+
+  const wrapper = document.createElement('div');
+  wrapper.setAttribute('data-lista-pura-print-root', 'true');
+  wrapper.innerHTML = element.innerHTML;
+
+  document.head.appendChild(style);
+  document.body.appendChild(wrapper);
+  window.print();
+  document.head.removeChild(style);
+  document.body.removeChild(wrapper);
 }
 
 function ConteudoLista({
@@ -57,9 +96,7 @@ function ConteudoLista({
 }) {
   return (
     <>
-      {logoUrl && (
-        <img src={logoUrl} alt="" className="h-10 mb-3 object-contain" />
-      )}
+      {logoUrl && <img src={logoUrl} alt="" className="h-10 mb-3 object-contain" />}
       <p className="font-bold text-base mb-1">{tituloExibicao}</p>
       <p className="mb-0.5">{razaoSocial}</p>
       {incluirFornecedor && fornecedorNome && (
@@ -69,7 +106,7 @@ function ConteudoLista({
       {endereco && <p className="text-gray-600 mb-3 text-xs">{endereco}</p>}
       <div className="border-t border-gray-300 my-2" />
       {grupos && grupos.length > 0 ? (
-        grupos.map(grupo => (
+        grupos.map((grupo) => (
           <div key={grupo.categoria} className="mb-3">
             <p className="font-semibold text-xs uppercase tracking-wide text-gray-700 mb-1">
               {grupo.categoria}
@@ -101,6 +138,9 @@ export function ListaPuraCompraPanel({
   grupos,
   tituloDocumento,
   fornecedorNome,
+  hidePreview = false,
+  hideToolbar = false,
+  extraActions,
 }: ListaPuraCompraPanelProps) {
   const listaExternaRef = useRef<HTMLDivElement>(null);
   const { data: branding } = useCompanyBranding();
@@ -111,7 +151,7 @@ export function ListaPuraCompraPanel({
 
   const linhas: ItemListaCotacao[] = grupos
     ? flattenGrupos(grupos)
-    : itens.map(i => ({
+    : itens.map((i) => ({
         nome: i.nome,
         qtd: formatarQtdItem(i.quantidade, i.unidade),
       }));
@@ -122,6 +162,7 @@ export function ListaPuraCompraPanel({
 
   const textoExterno = gerarTextoListaPura(numero, razaoSocial, endereco, linhas, {
     tituloDocumento,
+    fornecedorNome,
     grupos,
   });
 
@@ -152,6 +193,8 @@ export function ListaPuraCompraPanel({
       toast.error(e?.message || e?.code || 'Erro ao gerar imagem');
     }
   };
+
+  const handleImprimir = () => imprimirListaPura(listaExternaRef.current);
 
   if (linhas.length === 0) {
     return (
@@ -190,20 +233,44 @@ export function ListaPuraCompraPanel({
         <ConteudoLista {...conteudoProps} incluirFornecedor={false} />
       </div>
 
-      <pre className="bg-muted p-3 rounded text-xs overflow-x-auto whitespace-pre-wrap">
-        {textoExterno}
-      </pre>
+      {!hidePreview && (
+        <pre className="bg-muted p-3 rounded text-xs overflow-x-auto whitespace-pre-wrap">
+          {textoExterno}
+        </pre>
+      )}
 
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Button variant="outline" onClick={handleCopiarTexto} className="flex-1">
-          <Copy className="h-4 w-4 mr-2" />
-          Copiar texto (para fornecedor)
-        </Button>
-        <Button onClick={handleBaixarImagem} className="flex-1">
-          <Download className="h-4 w-4 mr-2" />
-          Baixar imagem (para fornecedor)
-        </Button>
-      </div>
+      {!hideToolbar && (
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+          <Button variant="outline" onClick={handleCopiarTexto} className="flex-1 min-w-[140px]">
+            <Copy className="h-4 w-4 mr-2" />
+            Copiar
+          </Button>
+          <Button variant="outline" onClick={handleBaixarImagem} className="flex-1 min-w-[140px]">
+            <Download className="h-4 w-4 mr-2" />
+            Baixar PNG
+          </Button>
+          <Button variant="outline" onClick={handleImprimir} className="flex-1 min-w-[140px]">
+            <Printer className="h-4 w-4 mr-2" />
+            Imprimir
+          </Button>
+          {extraActions}
+        </div>
+      )}
     </div>
   );
+}
+
+export function buildTextoListaPuraRfq(
+  numeroInterno: string,
+  razaoSocial: string,
+  endereco: string,
+  grupos: GrupoListaCotacao[],
+  fornecedorNome?: string,
+): string {
+  const linhas = flattenGrupos(grupos);
+  return gerarTextoListaPura(numeroInterno, razaoSocial, endereco, linhas, {
+    tituloDocumento: 'PEDIDO DE COTAÇÃO',
+    fornecedorNome,
+    grupos,
+  });
 }

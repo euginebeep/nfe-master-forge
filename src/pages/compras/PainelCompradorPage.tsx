@@ -1,110 +1,240 @@
-import { Fragment, useMemo, useState } from 'react';
-import { format } from 'date-fns';
-import { Loader2, ShoppingCart } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  Boxes,
+  Factory,
+  FlaskConical,
+  Loader2,
+  Package,
+  ShoppingCart,
+  Trash2,
+} from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { ListaPuraCompraPanel } from '@/components/compras/ListaPuraCompraPanel';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { RfqComposer } from '@/components/compras/RfqComposer';
 import {
   useComprasConsolidadas,
   type CompraNecessidadeConsolidada,
 } from '@/hooks/use-compras-consolidadas';
 import { useHybridEntidades } from '@/hooks/use-hybrid-data';
-import { STATUS_REQ } from '@/hooks/use-requisicoes-compra';
+import { useAuth } from '@/hooks/use-auth';
+import { useExcluirItemRequisicao, excluirItemRequisicaoComBpf } from '@/hooks/use-requisicoes-compra';
 import { grupoCategoria, ORDEM_CATEGORIAS_RFQ } from '@/lib/cotacao-embalagem';
+import { formatarQtdExibicao } from '@/lib/conferencia-materiais';
 import { formatCurrency } from '@/lib/formatters';
-import {
-  montarRfqParaFornecedores,
-  type BlocoRfqFornecedor,
-  type ItemCestaCompra,
-} from '@/lib/rfq-compra';
-import { formatarQtdItem } from '@/lib/requisicoes-compra';
+import type { ItemCestaCompra } from '@/lib/rfq-compra';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 
-function labelFornecedor(nome: string | null | undefined, fantasia?: string | null) {
-  return (fantasia || nome || 'Fornecedor').trim();
+const CATEGORIA_MP = 'ATIVOS / MATÉRIA-PRIMA';
+
+const ICONE_CATEGORIA: Record<string, React.ElementType> = {
+  'ATIVOS / MATÉRIA-PRIMA': FlaskConical,
+  EMBALAGENS: Package,
+  OUTROS: Boxes,
+};
+
+const COR_CATEGORIA: Record<string, string> = {
+  'ATIVOS / MATÉRIA-PRIMA': 'bg-emerald-500/10 text-emerald-700',
+  EMBALAGENS: 'bg-blue-500/10 text-blue-700',
+  OUTROS: 'bg-slate-500/10 text-slate-700',
+};
+
+function formatarPrecoExibicao(preco: number | null | undefined): string {
+  if (preco == null) return '—';
+  const n = Number(preco);
+  if (!Number.isFinite(n)) return '—';
+  if (n > 0 && n < 0.01) {
+    return `${formatCurrency(n * 1000)}/mil`;
+  }
+  return formatCurrency(n);
 }
 
-async function marcarRequisicoesDaCestaEmRfq(itemIds: string[]): Promise<number> {
-  if (itemIds.length === 0) return 0;
+function formatarPrecisa(totalFalta: number, unidade: string | null | undefined): string {
+  const u = (unidade || 'g').trim();
+  const v = Number(totalFalta) || 0;
+  try {
+    return formatarQtdExibicao(v, u);
+  } catch {
+    return `${v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${u}`;
+  }
+}
 
-  const { data: linhas, error: linhasErr } = await supabase
+function ehMateriaPrima(tipoItem: string | null | undefined): boolean {
+  return grupoCategoria(tipoItem) === CATEGORIA_MP;
+}
+
+async function buscarLinhasItemParaExclusao(itemId: string): Promise<string[]> {
+  const { data, error } = await supabase
     .from('requisicoes_compra_itens')
-    .select('requisicao_id')
-    .in('item_id', itemIds);
-
-  if (linhasErr) throw linhasErr;
-
-  const requisicaoIds = [
-    ...new Set((linhas || []).map((l) => l.requisicao_id).filter(Boolean)),
-  ] as string[];
-
-  if (requisicaoIds.length === 0) return 0;
-
-  const { data: atualizadas, error } = await supabase
-    .from('requisicoes_compra')
-    .update({ status: STATUS_REQ.EM_RFQ, updated_at: new Date().toISOString() })
-    .in('id', requisicaoIds)
-    .eq('status', STATUS_REQ.ABERTA)
-    .select('id');
+    .select('id, requisicoes_compra(status)')
+    .eq('item_id', itemId);
 
   if (error) throw error;
-  return (atualizadas || []).length;
+
+  const permitidos = ['ABERTA', 'EM_RFQ'];
+  return (data || [])
+    .filter((linha) => {
+      const status = (linha.requisicoes_compra as { status?: string } | null)?.status;
+      return status && permitidos.includes(status);
+    })
+    .map((linha) => linha.id)
+    .filter(Boolean) as string[];
 }
 
 function CelulaPrecos({ item }: { item: CompraNecessidadeConsolidada }) {
   if (item.n_fornecedores_cadastrados === 0) {
     return (
-      <Badge
-        variant="destructive"
-        className="text-[10px] whitespace-normal leading-tight font-normal"
-      >
+      <Badge variant="destructive" className="text-[10px] whitespace-normal leading-tight font-normal">
         sem fornecedor — escolher
       </Badge>
     );
   }
-
   return (
-    <span className="text-xs tabular-nums">
-      {item.ultimo_preco != null ? formatCurrency(item.ultimo_preco) : '—'}
+    <span className="text-sm tabular-nums font-medium">
+      {formatarPrecoExibicao(item.ultimo_preco)}
     </span>
   );
 }
 
 function CelulaMedia({ item }: { item: CompraNecessidadeConsolidada }) {
-  if (item.n_fornecedores_cadastrados === 0) return null;
-
+  if (item.n_fornecedores_cadastrados === 0) return <span className="text-muted-foreground">—</span>;
   return (
-    <span className="text-xs text-muted-foreground tabular-nums">
-      {item.preco_medio != null ? formatCurrency(item.preco_medio) : '—'}
+    <span className="text-sm text-muted-foreground tabular-nums">
+      {formatarPrecoExibicao(item.preco_medio)}
     </span>
   );
 }
 
+interface LinhaItemProps {
+  item: CompraNecessidadeConsolidada;
+  selecionado: boolean;
+  onToggle: (checked: boolean) => void;
+  onExcluir: () => void;
+}
+
+function LinhaItem({ item, selecionado, onToggle, onExcluir }: LinhaItemProps) {
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] gap-3 items-center py-2.5 px-4 border-b border-border/60 last:border-b-0 hover:bg-muted/30">
+      <Checkbox
+        checked={selecionado}
+        onCheckedChange={(v) => onToggle(v === true)}
+        aria-label={`Selecionar ${item.item_nome}`}
+      />
+
+      <div className="min-w-0 col-span-2 md:col-span-1">
+        <p className="text-sm font-medium line-clamp-2" title={item.item_nome}>
+          {item.item_nome}
+        </p>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {(item.ops || []).slice(0, 5).map((op) => (
+            <Badge
+              key={op}
+              variant={item.n_ops > 1 ? 'default' : 'outline'}
+              className={cn(
+                'text-[10px] font-mono px-1.5 py-0',
+                item.n_ops > 1 && 'bg-amber-100 text-amber-900 border-amber-300',
+              )}
+            >
+              {op}
+            </Badge>
+          ))}
+          {item.ops.length > 5 && (
+            <Badge variant="secondary" className="text-[10px] px-1 py-0">
+              +{item.ops.length - 5}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden md:block text-sm tabular-nums whitespace-nowrap">
+        {formatarPrecisa(item.total_falta, item.unidade)}
+      </div>
+
+      <div className="hidden md:block">
+        {item.n_fornecedores_cadastrados === 0 ? (
+          <CelulaPrecos item={item} />
+        ) : (
+          <CelulaPrecos item={item} />
+        )}
+      </div>
+
+      <div className="hidden md:block">
+        <CelulaMedia item={item} />
+      </div>
+
+      <div
+        className="hidden md:block text-sm text-muted-foreground truncate"
+        title={item.ultimo_fornecedor_nome ?? undefined}
+      >
+        {item.ultimo_fornecedor_nome || '—'}
+      </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+        onClick={onExcluir}
+        aria-label={`Excluir ${item.item_nome}`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+
+      <div className="col-span-3 md:hidden text-xs text-muted-foreground space-y-1">
+        <p>
+          <span className="font-medium text-foreground">Precisa: </span>
+          {formatarPrecisa(item.total_falta, item.unidade)}
+        </p>
+        {item.n_fornecedores_cadastrados === 0 ? (
+          <CelulaPrecos item={item} />
+        ) : (
+          <p>
+            <span className="font-medium text-foreground">Último: </span>
+            {formatarPrecoExibicao(item.ultimo_preco)}
+            {item.preco_medio != null && (
+              <span className="ml-2">
+                · média {formatarPrecoExibicao(item.preco_medio)}
+              </span>
+            )}
+            {item.ultimo_fornecedor_nome && (
+              <span className="ml-2">· {item.ultimo_fornecedor_nome}</span>
+            )}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PainelCompradorPage() {
-  const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  const companyId = profile?.company_id ?? 'pending';
   const { data: necessidades = [], isLoading, error } = useComprasConsolidadas();
   const { data: fornecedores = [], isLoading: loadingFornecedores } = useHybridEntidades({
     papel: 'FORNECEDOR',
   });
+  const excluirItem = useExcluirItemRequisicao();
+  const queryClient = useQueryClient();
 
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-  const [rfqAberto, setRfqAberto] = useState(false);
-  const [fornecedoresEscolhidos, setFornecedoresEscolhidos] = useState<Set<string>>(new Set());
-  const [blocosRfq, setBlocosRfq] = useState<BlocoRfqFornecedor[]>([]);
-  const [confirmando, setConfirmando] = useState(false);
+  const [composerAberto, setComposerAberto] = useState(false);
+  const [itemExcluir, setItemExcluir] = useState<CompraNecessidadeConsolidada | null>(null);
 
   const porCategoria = useMemo(() => {
     const map = new Map<string, CompraNecessidadeConsolidada[]>();
@@ -122,14 +252,40 @@ export default function PainelCompradorPage() {
       }));
   }, [necessidades]);
 
-  const itensCesta = useMemo(
-    () => necessidades.filter((n) => selecionados.has(n.item_id)),
-    [necessidades, selecionados],
-  );
+  const resumo = useMemo(() => {
+    const opsSet = new Set<string>();
+    let semFornecedor = 0;
+    let materiaPrima = 0;
 
-  const numeroRfq = useMemo(
-    () => `RFQ-${format(new Date(), 'yyyyMMdd-HHmm')}`,
-    [rfqAberto],
+    for (const item of necessidades) {
+      if (item.n_fornecedores_cadastrados === 0) semFornecedor += 1;
+      if (ehMateriaPrima(item.tipo_item)) materiaPrima += 1;
+      for (const op of item.ops || []) opsSet.add(op);
+    }
+
+    return {
+      total: necessidades.length,
+      materiaPrima,
+      semFornecedor,
+      ops: opsSet.size,
+    };
+  }, [necessidades]);
+
+  const itensCesta: ItemCestaCompra[] = useMemo(
+    () =>
+      necessidades
+        .filter((n) => selecionados.has(n.item_id))
+        .map((item) => ({
+          item_id: item.item_id,
+          item_nome: item.item_nome,
+          tipo_item: item.tipo_item,
+          unidade: item.unidade,
+          total_falta: item.total_falta,
+          embalagem_compra_qtd: item.embalagem_compra_qtd,
+          embalagem_compra_unidade: item.embalagem_compra_unidade,
+          ultimo_fornecedor_id: item.ultimo_fornecedor_id,
+        })),
+    [necessidades, selecionados],
   );
 
   const toggleItem = (itemId: string, checked: boolean) => {
@@ -158,96 +314,59 @@ export default function PainelCompradorPage() {
   const categoriaParcial = (itens: CompraNecessidadeConsolidada[]) =>
     itens.some((i) => selecionados.has(i.item_id)) && !categoriaTotalmenteSelecionada(itens);
 
-  const abrirDialogRfq = () => {
-    const sugeridos = new Set<string>();
-    for (const item of itensCesta) {
-      if (item.ultimo_fornecedor_id) sugeridos.add(item.ultimo_fornecedor_id);
-    }
-
-    const escolhidos = fornecedores
-      .filter((f) => sugeridos.has(f.id))
-      .map((f) => ({
-        id: f.id,
-        nome: labelFornecedor(f.razao_social, f.nome_fantasia),
-      }));
-
-    const cesta: ItemCestaCompra[] = itensCesta.map((item) => ({
-      item_id: item.item_id,
-      item_nome: item.item_nome,
-      tipo_item: item.tipo_item,
-      unidade: item.unidade,
-      total_falta: item.total_falta,
-      embalagem_compra_qtd: item.embalagem_compra_qtd,
-      embalagem_compra_unidade: item.embalagem_compra_unidade,
-    }));
-
-    setFornecedoresEscolhidos(sugeridos);
-    setBlocosRfq(montarRfqParaFornecedores(cesta, escolhidos));
-    setRfqAberto(true);
-  };
-
-  const atualizarBlocosPreview = (ids: Set<string>) => {
-    const escolhidos = fornecedores
-      .filter((f) => ids.has(f.id))
-      .map((f) => ({
-        id: f.id,
-        nome: labelFornecedor(f.razao_social, f.nome_fantasia),
-      }));
-
-    const cesta: ItemCestaCompra[] = itensCesta.map((item) => ({
-      item_id: item.item_id,
-      item_nome: item.item_nome,
-      tipo_item: item.tipo_item,
-      unidade: item.unidade,
-      total_falta: item.total_falta,
-      embalagem_compra_qtd: item.embalagem_compra_qtd,
-      embalagem_compra_unidade: item.embalagem_compra_unidade,
-    }));
-
-    setBlocosRfq(montarRfqParaFornecedores(cesta, escolhidos));
-  };
-
-  const toggleFornecedor = (id: string, checked: boolean) => {
-    setFornecedoresEscolhidos((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      atualizarBlocosPreview(next);
-      return next;
-    });
-  };
-
-  const handleConfirmarRfq = async () => {
-    if (fornecedoresEscolhidos.size === 0) {
-      toast.error('Selecione ao menos um fornecedor');
-      return;
-    }
-
-    setConfirmando(true);
+  const confirmarExclusao = async () => {
+    if (!itemExcluir) return;
     try {
-      const qtd = await marcarRequisicoesDaCestaEmRfq(itensCesta.map((i) => i.item_id));
+      const linhaIds = await buscarLinhasItemParaExclusao(itemExcluir.item_id);
+      if (linhaIds.length === 0) {
+        toast.error('Nenhuma linha elegível para exclusão (requisição pode estar bloqueada)');
+        setItemExcluir(null);
+        return;
+      }
+      for (const id of linhaIds) {
+        await excluirItemRequisicaoComBpf(id);
+      }
       await queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
       await queryClient.invalidateQueries({ queryKey: ['compras-necessidades-consolidadas'] });
       toast.success(
-        qtd > 0
-          ? `RFQ gerada — ${qtd} requisição(ões) em cotação`
-          : 'RFQ gerada — listas prontas para envio',
+        linhaIds.length > 1
+          ? `${linhaIds.length} linhas removidas da requisição`
+          : 'Item removido da requisição',
       );
-      setRfqAberto(false);
-      setSelecionados(new Set());
+      setSelecionados((prev) => {
+        const next = new Set(prev);
+        next.delete(itemExcluir.item_id);
+        return next;
+      });
+      setItemExcluir(null);
     } catch (err: unknown) {
       const e = err as { message?: string; code?: string };
-      toast.error(e?.message || e?.code || 'Erro ao confirmar RFQ');
-    } finally {
-      setConfirmando(false);
+      toast.error(e?.message || e?.code || 'Erro ao excluir item');
     }
   };
+
+  if (composerAberto) {
+    return (
+      <RfqComposer
+        itensCesta={itensCesta}
+        fornecedores={fornecedores}
+        loadingFornecedores={loadingFornecedores}
+        persistKey={`rfq-comprar:${companyId}`}
+        onVoltar={() => setComposerAberto(false)}
+        onConfirmado={() => {
+          setComposerAberto(false);
+          setSelecionados(new Set());
+        }}
+      />
+    );
+  }
 
   if (error) {
     const e = error as { message?: string; code?: string };
     return (
       <div className="space-y-4">
         <PageHeader
+          icon={ShoppingCart}
           title="Comprar"
           description="Necessidades consolidadas — marque a cesta e gere a cotação"
         />
@@ -259,11 +378,24 @@ export default function PainelCompradorPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-20">
+    <div className="space-y-6 pb-28">
       <PageHeader
+        icon={ShoppingCart}
         title="Comprar"
         description="Necessidades consolidadas — marque a cesta e gere a cotação"
       />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="A comprar" value={resumo.total} icon={ShoppingCart} />
+        <StatCard label="Matéria-prima" value={resumo.materiaPrima} icon={FlaskConical} />
+        <StatCard
+          label="Sem fornecedor"
+          value={resumo.semFornecedor}
+          icon={AlertTriangle}
+          variant={resumo.semFornecedor > 0 ? 'warning' : 'default'}
+        />
+        <StatCard label="OPs envolvidas" value={resumo.ops} icon={Factory} />
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
@@ -271,214 +403,109 @@ export default function PainelCompradorPage() {
           Carregando necessidades…
         </div>
       ) : porCategoria.length === 0 ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          Nenhuma necessidade de compra aberta no momento.
-        </div>
+        <Card>
+          <CardContent className="py-16 text-center text-sm text-muted-foreground">
+            Nenhuma necessidade de compra aberta no momento.
+          </CardContent>
+        </Card>
       ) : (
-        <div className="overflow-x-auto border border-[0.5px] border-border rounded-md">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-[0.5px] border-border bg-muted/30">
-                <th className="w-9 p-2" />
-                <th className="p-2 text-left font-medium text-xs">Item</th>
-                <th className="p-2 text-left font-medium text-xs">OPs</th>
-                <th className="p-2 text-left font-medium text-xs whitespace-nowrap">Precisa</th>
-                <th className="p-2 text-left font-medium text-xs whitespace-nowrap">Último preço</th>
-                <th className="p-2 text-left font-medium text-xs whitespace-nowrap">Média</th>
-                <th className="p-2 text-left font-medium text-xs">Fornecedor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {porCategoria.map((grupo) => (
-                <Fragment key={grupo.categoria}>
-                  <tr className="border-b border-[0.5px] border-border bg-muted/40">
-                    <td className="p-2 align-middle">
-                      <Checkbox
-                        checked={
-                          categoriaParcial(grupo.itens)
-                            ? 'indeterminate'
-                            : categoriaTotalmenteSelecionada(grupo.itens)
-                        }
-                        onCheckedChange={(v) => toggleCategoria(grupo.itens, v === true)}
-                        aria-label={`Selecionar categoria ${grupo.categoria}`}
-                      />
-                    </td>
-                    <td colSpan={6} className="p-2 font-semibold text-xs">
-                      {grupo.categoria}
-                      <span className="text-muted-foreground font-normal ml-2">
-                        ({grupo.itens.length} item{grupo.itens.length !== 1 ? 's' : ''})
-                      </span>
-                    </td>
-                  </tr>
+        <div className="space-y-4">
+          {porCategoria.map((grupo) => {
+            const Icone = ICONE_CATEGORIA[grupo.categoria] || Boxes;
+            const corIcone = COR_CATEGORIA[grupo.categoria] || COR_CATEGORIA.OUTROS;
+
+            return (
+              <Card key={grupo.categoria}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={
+                        categoriaParcial(grupo.itens)
+                          ? 'indeterminate'
+                          : categoriaTotalmenteSelecionada(grupo.itens)
+                      }
+                      onCheckedChange={(v) => toggleCategoria(grupo.itens, v === true)}
+                      aria-label={`Selecionar categoria ${grupo.categoria}`}
+                    />
+                    <div className={cn('p-2 rounded-lg', corIcone)}>
+                      <Icone className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base">{grupo.categoria}</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {grupo.itens.length} item{grupo.itens.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="hidden md:grid md:grid-cols-[auto_minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] gap-3 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border/60 bg-muted/20">
+                    <span className="w-4" />
+                    <span>Item</span>
+                    <span>Precisa</span>
+                    <span>Último preço</span>
+                    <span>Média</span>
+                    <span>Fornecedor</span>
+                    <span className="w-8" />
+                  </div>
                   {grupo.itens.map((item) => (
-                    <tr
+                    <LinhaItem
                       key={item.item_id}
-                      className="border-b border-[0.5px] border-border hover:bg-muted/20"
-                    >
-                      <td className="p-2 align-middle">
-                        <Checkbox
-                          checked={selecionados.has(item.item_id)}
-                          onCheckedChange={(v) => toggleItem(item.item_id, v === true)}
-                          aria-label={`Selecionar ${item.item_nome}`}
-                        />
-                      </td>
-                      <td className="p-2 font-medium text-xs max-w-[220px]">
-                        <span className="line-clamp-2" title={item.item_nome}>
-                          {item.item_nome}
-                        </span>
-                      </td>
-                      <td className="p-2">
-                        <div className="flex flex-wrap gap-1 max-w-[180px]">
-                          {(item.ops || []).slice(0, 4).map((op) => (
-                            <Badge
-                              key={op}
-                              variant={item.n_ops > 1 ? 'default' : 'outline'}
-                              className={cn(
-                                'text-[10px] font-mono px-1 py-0',
-                                item.n_ops > 1 && 'bg-amber-100 text-amber-900 border-amber-300',
-                              )}
-                            >
-                              {op}
-                            </Badge>
-                          ))}
-                          {item.ops.length > 4 && (
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                              +{item.ops.length - 4}
-                            </Badge>
-                          )}
-                          {item.ops.length === 0 && (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-2 text-xs whitespace-nowrap tabular-nums">
-                        {formatarQtdItem(item.total_falta, item.unidade)}
-                      </td>
-                      {item.n_fornecedores_cadastrados === 0 ? (
-                        <td colSpan={2} className="p-2">
-                          <CelulaPrecos item={item} />
-                        </td>
-                      ) : (
-                        <>
-                          <td className="p-2">
-                            <CelulaPrecos item={item} />
-                          </td>
-                          <td className="p-2">
-                            <CelulaMedia item={item} />
-                          </td>
-                        </>
-                      )}
-                      <td className="p-2 text-xs text-muted-foreground max-w-[160px] truncate" title={item.ultimo_fornecedor_nome ?? undefined}>
-                        {item.ultimo_fornecedor_nome || '—'}
-                      </td>
-                    </tr>
+                      item={item}
+                      selecionado={selecionados.has(item.item_id)}
+                      onToggle={(checked) => toggleItem(item.item_id, checked)}
+                      onExcluir={() => setItemExcluir(item)}
+                    />
                   ))}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-[0.5px] border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:left-[var(--sidebar-width,0px)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 max-w-full">
+      <Card className="fixed bottom-0 left-0 right-0 z-20 rounded-none border-x-0 border-b-0 shadow-lg md:left-[var(--sidebar-width,0px)]">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3 px-4">
           <p className="text-sm text-muted-foreground">
-            {selecionados.size} item{selecionados.size !== 1 ? 's' : ''} na cesta
+            {selecionados.size} item{selecionados.size !== 1 ? 's' : ''} na cesta · arredonda por embalagem na cotação
           </p>
           <Button
-            onClick={abrirDialogRfq}
+            onClick={() => setComposerAberto(true)}
             disabled={selecionados.size === 0}
             className="gap-2"
           >
             <ShoppingCart className="h-4 w-4" />
             Gerar cotação (RFQ)
           </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <Dialog open={rfqAberto} onOpenChange={setRfqAberto}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Gerar pedido de cotação (RFQ)</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              {itensCesta.length} item(ns) na cesta · documento {numeroRfq}
-            </p>
-          </DialogHeader>
-
-          <div className="grid md:grid-cols-[240px_1fr] gap-4 min-h-0 flex-1 overflow-hidden">
-            <div className="border border-[0.5px] rounded-md p-3 space-y-2">
-              <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
-                Fornecedores destino
-              </p>
-              {loadingFornecedores ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando…
-                </div>
-              ) : fornecedores.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum fornecedor cadastrado.</p>
-              ) : (
-                <ScrollArea className="h-[min(320px,40vh)] pr-2">
-                  <div className="space-y-2">
-                    {fornecedores.map((f) => (
-                      <label
-                        key={f.id}
-                        className="flex items-start gap-2 text-sm cursor-pointer rounded-md p-1.5 hover:bg-muted/60"
-                      >
-                        <Checkbox
-                          className="mt-0.5"
-                          checked={fornecedoresEscolhidos.has(f.id)}
-                          onCheckedChange={(v) => toggleFornecedor(f.id, v === true)}
-                        />
-                        <span className="leading-snug">
-                          {labelFornecedor(f.razao_social, f.nome_fantasia)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-              <p className="text-[10px] text-muted-foreground">
-                Sugestão: último fornecedor de cada item pré-marcado quando disponível.
-              </p>
-            </div>
-
-            <ScrollArea className="h-[min(480px,55vh)] pr-2">
-              {fornecedoresEscolhidos.size === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  Selecione os fornecedores para visualizar as listas puras.
-                </p>
-              ) : (
-                <div className="space-y-6">
-                  {blocosRfq.map((bloco, idx) => (
-                    <div key={bloco.fornecedorId ?? `bloco-${idx}`} className="space-y-2">
-                      <ListaPuraCompraPanel
-                        numeroInterno={numeroRfq}
-                        grupos={bloco.grupos}
-                        tituloDocumento="PEDIDO DE COTAÇÃO"
-                        fornecedorNome={bloco.fornecedorNome}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRfqAberto(false)} disabled={confirmando}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleConfirmarRfq}
-              disabled={confirmando || fornecedoresEscolhidos.size === 0}
+      <AlertDialog open={!!itemExcluir} onOpenChange={(open) => !open && setItemExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir item da requisição?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {itemExcluir
+                ? `Remover "${itemExcluir.item_nome}" das requisições em aberto ou em cotação. Itens em mapa ou posteriores não podem ser excluídos.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluirItem.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmarExclusao();
+              }}
+              disabled={excluirItem.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {confirmando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirmar e marcar requisições em RFQ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {excluirItem.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
