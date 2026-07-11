@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Cake, PartyPopper, Gift } from 'lucide-react';
+import { Cake } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ interface Aniversariante {
   diasAte: number;
 }
 
-export function BirthdayCard() {
+export function BirthdayCard({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [aniversariantes, setAniversariantes] = useState<Aniversariante[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -73,117 +73,128 @@ export function BirthdayCard() {
   const getInitials = (name: string) =>
     name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
-  if (isLoading || aniversariantes.length === 0) return null;
+  if (isLoading) return null;
+  if (aniversariantes.length === 0 && !compact) return null;
 
   const hoje = aniversariantes.filter((a) => a.diasAte === 0);
   const proximos = aniversariantes.filter((a) => a.diasAte > 0);
   const destaque = hoje[0] || aniversariantes[0];
   const lista = hoje.length > 0 ? [...hoje, ...proximos] : proximos;
 
+  if (!destaque) {
+    return (
+      <Card className={cn("h-full border-pink-200/60 bg-gradient-to-br from-pink-50/80 to-purple-50/30", className)}>
+        <CardContent className="p-3 flex items-center justify-center h-full">
+          <p className="text-[10px] text-muted-foreground text-center">Nenhum aniversário nos próximos 30 dias</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.35 }}
-      className="h-full"
+      className={cn("h-full min-h-0", className)}
     >
-      <Card className="h-full overflow-hidden border-pink-200/60 bg-gradient-to-br from-pink-50/80 via-rose-50/40 to-purple-50/30 dark:from-pink-950/25 dark:via-rose-950/15 dark:to-purple-950/10 dark:border-pink-800/30 shadow-sm">
-        <CardHeader className="pb-2 pt-3 px-4">
-          <div className="flex items-center gap-3">
+      <Card className="h-full overflow-hidden border-pink-200/60 bg-gradient-to-br from-pink-50/80 via-rose-50/40 to-purple-50/30 dark:from-pink-950/25 dark:via-rose-950/15 dark:to-purple-950/10 dark:border-pink-800/30 shadow-sm flex flex-col">
+        <CardHeader className={cn("shrink-0", compact ? "pb-1 pt-2 px-2.5" : "pb-2 pt-3 px-4")}>
+          <div className="flex items-center gap-2">
             <div className="relative shrink-0">
               <div
                 className={cn(
-                  'absolute inset-0 rounded-2xl blur-md',
+                  'absolute inset-0 rounded-xl blur-md',
                   hoje.length > 0 ? 'bg-pink-500/40 animate-pulse' : 'bg-pink-400/25',
                 )}
               />
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 shadow-lg shadow-pink-500/35 ring-2 ring-white/60 dark:ring-pink-900/50">
-                <Cake className="h-5 w-5 text-white drop-shadow-sm" />
+              <div className={cn(
+                "relative flex items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 shadow-lg shadow-pink-500/35 ring-2 ring-white/60 dark:ring-pink-900/50",
+                compact ? "h-8 w-8" : "h-11 w-11",
+              )}>
+                <Cake className={cn("text-white drop-shadow-sm", compact ? "h-4 w-4" : "h-5 w-5")} />
               </div>
-              {hoje.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] shadow-md ring-2 ring-white dark:ring-pink-950">
-                  🎉
-                </span>
-              )}
             </div>
 
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-sm font-bold leading-tight">Aniversariantes</CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Próximos 30 dias</p>
+              <CardTitle className={cn("font-bold leading-tight", compact ? "text-xs" : "text-sm")}>
+                Aniversariantes
+              </CardTitle>
+              <p className="text-[9px] text-muted-foreground mt-0.5">Próximos 30 dias</p>
             </div>
 
             {hoje.length > 0 && (
-              <Badge className="bg-pink-500 text-white text-[9px] px-1.5 py-0.5 shrink-0 animate-pulse">
-                <PartyPopper className="h-3 w-3 mr-0.5" />
+              <Badge className="bg-pink-500 text-white text-[8px] px-1 py-0 shrink-0">
                 Hoje!
               </Badge>
             )}
           </div>
         </CardHeader>
 
-        <CardContent className="px-4 pb-3 space-y-2">
-          {destaque && (
-            <div
+        <CardContent className={cn("flex-1 min-h-0", compact ? "px-2.5 pb-2 space-y-1" : "px-4 pb-3 space-y-2")}>
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-xl border min-w-0',
+              compact ? 'p-1.5' : 'p-2.5 gap-3',
+              destaque.diasAte === 0
+                ? 'bg-pink-100/90 dark:bg-pink-900/35 border-pink-300/70 dark:border-pink-700'
+                : 'bg-white/60 dark:bg-pink-950/20 border-pink-200/50 dark:border-pink-800/40',
+            )}
+          >
+            <Avatar
               className={cn(
-                'flex items-center gap-3 p-2.5 rounded-xl border',
-                destaque.diasAte === 0
-                  ? 'bg-pink-100/90 dark:bg-pink-900/35 border-pink-300/70 dark:border-pink-700'
-                  : 'bg-white/60 dark:bg-pink-950/20 border-pink-200/50 dark:border-pink-800/40',
+                'ring-2 ring-offset-1 ring-offset-background shrink-0',
+                compact ? 'h-8 w-8' : 'h-12 w-12',
+                destaque.diasAte === 0 ? 'ring-pink-400' : 'ring-pink-200 dark:ring-pink-700',
               )}
             >
-              <div className="relative shrink-0">
-                <Avatar
-                  className={cn(
-                    'h-12 w-12 ring-2 ring-offset-1 ring-offset-background',
-                    destaque.diasAte === 0 ? 'ring-pink-400' : 'ring-pink-200 dark:ring-pink-700',
-                  )}
-                >
-                  {destaque.avatar_url ? (
-                    <AvatarImage src={destaque.avatar_url} alt={destaque.nome_completo} className="object-cover" />
-                  ) : null}
-                  <AvatarFallback className="bg-gradient-to-br from-pink-200 to-rose-300 text-pink-800 text-sm font-bold">
-                    {getInitials(destaque.nome_completo)}
-                  </AvatarFallback>
-                </Avatar>
-                {destaque.diasAte === 0 && (
-                  <span className="absolute -bottom-0.5 -right-0.5 text-sm leading-none">🎂</span>
-                )}
-              </div>
+              {destaque.avatar_url ? (
+                <AvatarImage src={destaque.avatar_url} alt={destaque.nome_completo} className="object-cover" />
+              ) : null}
+              <AvatarFallback className={cn(
+                "bg-gradient-to-br from-pink-200 to-rose-300 text-pink-800 font-bold",
+                compact ? "text-[9px]" : "text-sm",
+              )}>
+                {getInitials(destaque.nome_completo)}
+              </AvatarFallback>
+            </Avatar>
 
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate">{destaque.nome_completo}</p>
-                {destaque.cargo && (
-                  <p className="text-[11px] text-muted-foreground truncate">{destaque.cargo}</p>
-                )}
-              </div>
-
-              <div className="text-right shrink-0">
-                {destaque.diasAte === 0 ? (
-                  <div className="flex flex-col items-center gap-0.5">
-                    <p className="text-[10px] font-bold text-pink-600 dark:text-pink-300">Hoje!</p>
-                    <Gift className="h-4 w-4 text-pink-500" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-xs font-bold text-pink-600 dark:text-pink-300">em {destaque.diasAte}d</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {format(
-                        new Date(
-                          new Date().getFullYear(),
-                          parseISO(destaque.data_nascimento).getMonth(),
-                          parseISO(destaque.data_nascimento).getDate(),
-                        ),
-                        'dd/MM',
-                        { locale: ptBR },
-                      )}
-                    </p>
-                  </>
-                )}
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className={cn("font-semibold truncate", compact ? "text-[11px]" : "text-sm")}>
+                {destaque.nome_completo}
+              </p>
+              {destaque.cargo && (
+                <p className={cn("text-muted-foreground truncate", compact ? "text-[9px]" : "text-[11px]")}>
+                  {destaque.cargo}
+                </p>
+              )}
             </div>
-          )}
 
-          {lista.slice(1, 3).map((a, idx) => (
+            <div className="text-right shrink-0">
+              {destaque.diasAte === 0 ? (
+                <p className="text-[9px] font-bold text-pink-600 dark:text-pink-300">Hoje!</p>
+              ) : (
+                <>
+                  <p className={cn("font-bold text-pink-600 dark:text-pink-300", compact ? "text-[10px]" : "text-xs")}>
+                    em {destaque.diasAte}d
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">
+                    {format(
+                      new Date(
+                        new Date().getFullYear(),
+                        parseISO(destaque.data_nascimento).getMonth(),
+                        parseISO(destaque.data_nascimento).getDate(),
+                      ),
+                      'dd/MM',
+                      { locale: ptBR },
+                    )}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {!compact && lista.slice(1, 3).map((a) => (
             <div
               key={a.id}
               className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-pink-50/80 dark:hover:bg-pink-950/20 transition-colors"

@@ -5,7 +5,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useExchangeRates, formatCurrency, getVariationColor } from '@/hooks/use-exchange-rates';
 import { cn } from '@/lib/utils';
 
-export function ExchangeRateCard() {
+interface ExchangeRateCardProps {
+  compact?: boolean;
+  className?: string;
+}
+
+export function ExchangeRateCard({ compact = false, className }: ExchangeRateCardProps) {
   const { USD, EUR, isLoading, error, lastUpdate } = useExchangeRates();
 
   if (error) {
@@ -42,29 +47,39 @@ export function ExchangeRateCard() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="h-full"
+      className={cn("h-full min-h-0", className)}
     >
-      <Card className="h-auto overflow-hidden flex flex-col">
-        <CardHeader className="pb-2 bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/30 dark:to-teal-950/20 shrink-0 min-h-[52px]">
+      <Card className={cn("h-full overflow-hidden flex flex-col", compact && "shadow-sm")}>
+        <CardHeader className={cn(
+          "pb-2 bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/30 dark:to-teal-950/20 shrink-0",
+          compact ? "px-3 py-2 min-h-[40px]" : "min-h-[52px]",
+        )}>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10">
-                <Banknote className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <CardTitle className={cn("font-semibold flex items-center gap-2", compact ? "text-xs" : "text-sm")}>
+              <div className={cn("rounded-lg bg-emerald-500/10", compact ? "p-1" : "p-1.5")}>
+                <Banknote className={cn("text-emerald-600 dark:text-emerald-400", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
               </div>
               Cotações do Dia
             </CardTitle>
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-3 flex-1 flex flex-col justify-between">
-          <div className="space-y-2">
+        <CardContent className={cn(
+          "flex-1 flex flex-col justify-between min-h-0",
+          compact ? "p-2 pt-1.5" : "p-4 pt-3",
+        )}>
+          <div className={compact ? "space-y-1.5" : "space-y-2"}>
             {/* USD */}
             <div className={cn(
-              "flex items-center justify-between p-2 rounded-xl transition-all border border-transparent hover:border-emerald-500/20",
+              "flex items-center justify-between rounded-xl transition-all border border-transparent hover:border-emerald-500/20",
+              compact ? "p-1.5" : "p-2",
               USD ? getChangeBg(USD.pctChange) : 'bg-muted/30'
             )}>
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-emerald-500/10 overflow-hidden">
+              <div className={cn("flex items-center", compact ? "gap-2" : "gap-2.5")}>
+                <div className={cn(
+                  "flex items-center justify-center rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-emerald-500/10 overflow-hidden",
+                  compact ? "w-7 h-7" : "w-8 h-8",
+                )}>
                   <img src="https://flagcdn.com/us.svg" alt="USA" className="w-full h-full object-cover" />
                 </div>
                 <div>
@@ -72,7 +87,7 @@ export function ExchangeRateCard() {
                   {isLoading ? (
                     <Skeleton className="h-4 w-16" />
                   ) : (
-                    <p className="text-base font-black tracking-tighter leading-none">
+                    <p className={cn("font-black tracking-tighter leading-none", compact ? "text-sm" : "text-base")}>
                       R$ {USD ? formatCurrency(USD.bid, 2) : '--'}
                     </p>
                   )}
@@ -87,11 +102,15 @@ export function ExchangeRateCard() {
 
             {/* EUR */}
             <div className={cn(
-              "flex items-center justify-between p-2 rounded-xl transition-all border border-transparent hover:border-blue-500/20",
+              "flex items-center justify-between rounded-xl transition-all border border-transparent hover:border-blue-500/20",
+              compact ? "p-1.5" : "p-2",
               EUR ? getChangeBg(EUR.pctChange) : 'bg-muted/30'
             )}>
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10 overflow-hidden">
+              <div className={cn("flex items-center", compact ? "gap-2" : "gap-2.5")}>
+                <div className={cn(
+                  "flex items-center justify-center rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10 overflow-hidden",
+                  compact ? "w-7 h-7" : "w-8 h-8",
+                )}>
                   <img src="https://flagcdn.com/eu.svg" alt="EU" className="w-full h-full object-cover" />
                 </div>
                 <div>
@@ -99,7 +118,7 @@ export function ExchangeRateCard() {
                   {isLoading ? (
                     <Skeleton className="h-4 w-16" />
                   ) : (
-                    <p className="text-base font-black tracking-tighter leading-none">
+                    <p className={cn("font-black tracking-tighter leading-none", compact ? "text-sm" : "text-base")}>
                       R$ {EUR ? formatCurrency(EUR.bid, 2) : '--'}
                     </p>
                   )}
@@ -114,7 +133,7 @@ export function ExchangeRateCard() {
           </div>
 
           {lastUpdate && (
-            <div className="flex items-center justify-end gap-1 mt-2 opacity-50">
+            <div className={cn("flex items-center justify-end gap-1 opacity-50", compact ? "mt-1" : "mt-2")}>
               <RefreshCw className="h-2.5 w-2.5 animate-pulse" />
               <p className="text-[9px] font-bold uppercase tracking-widest">
                 {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
