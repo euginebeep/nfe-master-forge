@@ -1,17 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Loader2 } from 'lucide-react';
+import { ClipboardList, Loader2, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { calcularResumoAlocacaoItem, ItemCotacaoGrade } from '@/components/compras/ItemCotacaoGrade';
+import { calcularResumoAlocacaoItem, ItemCotacaoGrade, somarAlocacoesEmUnidadeItem } from '@/components/compras/ItemCotacaoGrade';
 import { MapaFecharPedidosTab } from '@/components/compras/MapaFecharPedidosTab';
 import { useMapaConsolidado } from '@/hooks/use-mapa-consolidado';
 import { useItensEmRfq } from '@/hooks/use-itens-em-rfq';
+import {
+  melhorCustoRanking,
+  payloadAlocacaoFromRanking,
+  useMapaRanking,
+} from '@/hooks/use-mapa-ranking';
 import { formatCurrency } from '@/lib/formatters';
 import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
 import type { RequisicaoCompraItem } from '@/hooks/use-requisicoes-compra';
 import { cn } from '@/lib/utils';
 
@@ -65,6 +71,8 @@ function OpsBadges({ ops, nOps }: { ops: string[]; nOps: number }) {
 
 export default function MapaCotacaoPage() {
   const [abaAtiva, setAbaAtiva] = useState('comparar');
+  const [sugerindoItemId, setSugerindoItemId] = useState<string | null>(null);
+  const [sugerindoTodos, setSugerindoTodos] = useState(false);
   const {
     itensMapa,
     isLoading,
@@ -75,6 +83,93 @@ export default function MapaCotacaoPage() {
     alocarFornecedor,
   } = useMapaConsolidado();
   const { data: itensEmRfq } = useItensEmRfq();
+
+  const itemIds = useMemo(() => itensMapa.map((e) => e.necessidade.item_id), [itensMapa]);
+  const {
+    data: rankingPorItem,
+    isLoading: isLoadingRanking,
+    isError: isRankingError,
+    error: rankingError,
+  } = useMapaRanking(itemIds);
+
+  useEffect(() => {
+    if (!isRankingError || !rankingError) return;
+    const e = rankingError as { message?: string; code?: string };
+    toast.error(e?.message || e?.code || 'Erro ao carregar ranking de cotação');
+  }, [isRankingError, rankingError]);
+
+  const sugerirMelhorCustoItem = useCallback(async (itemId: string) => {
+    const rows = rankingPorItem?.get(itemId);
+    const melhor = melhorCustoRanking(rows || []);
+    if (!melhor) {
+      toast.error('Nenhuma cotação ranqueada para sugerir');
+      return;
+    }
+
+    const { fornecedorId, qtdAlocada, numPacotes } = payloadAlocacaoFromRanking(melhor);
+    setSugerindoItemId(itemId);
+    try {
+      await alocarFornecedor.mutateAsync({
+        itemId,
+        fornecedorId,
+        qtdAlocada,
+        numPacotes,
+      });
+    } catch {
+      // toast exibido pelo onError da mutation
+    } finally {
+      setSugerindoItemId(null);
+    }
+  }, [alocarFornecedor, rankingPorItem]);
+
+  const sugerirMelhoresTodos = useCallback(async () => {
+    if (!rankingPorItem) return;
+
+    setSugerindoTodos(true);
+    let aplicados = 0;
+
+    try {
+      for (const entrada of itensMapa) {
+        const rows = rankingPorItem.get(entrada.necessidade.item_id);
+        if (!rows?.length) continue;
+
+        const nCotados = rows[0]?.n_cotados ?? 0;
+        if (nCotados < 1) continue;
+
+        const alocado = somarAlocacoesEmUnidadeItem(
+          entrada.cotacoes,
+          entrada.necessidade.unidade || 'g',
+        );
+        if (alocado > 0.0001) continue;
+
+        const melhor = melhorCustoRanking(rows);
+        if (!melhor) continue;
+
+        const { fornecedorId, qtdAlocada, numPacotes } = payloadAlocacaoFromRanking(melhor);
+        try {
+          await alocarFornecedor.mutateAsync({
+            itemId: entrada.necessidade.item_id,
+            fornecedorId,
+            qtdAlocada,
+            numPacotes,
+            silent: true,
+          });
+          aplicados += 1;
+        } catch (err: unknown) {
+          const e = err as { message?: string; code?: string };
+          toast.error(e?.message || e?.code || `Erro ao sugerir ${entrada.necessidade.item_nome}`);
+        }
+      }
+
+      if (aplicados > 0) {
+        toast.success(`${aplicados} item${aplicados !== 1 ? 's' : ''} pré-alocado${aplicados !== 1 ? 's' : ''} pela melhor cotação`);
+      } else {
+        toast.message('Nenhum item elegível para sugestão automática');
+      }
+    } finally {
+      setSugerindoTodos(false);
+    }
+  }, [alocarFornecedor, itensMapa, rankingPorItem]);
 
   const resumo = useMemo(() => {
     let suficientes = 0;
@@ -139,17 +234,34 @@ export default function MapaCotacaoPage() {
         </Card>
       ) : (
         <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
-          <TabsList>
-            <TabsTrigger value="comparar">Comparar</TabsTrigger>
-            <TabsTrigger value="fechar">
-              Fechar pedidos
-              {resumo.suficientes > 0 && (
-                <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
-                  {resumo.suficientes}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList>
+              <TabsTrigger value="comparar">Comparar</TabsTrigger>
+              <TabsTrigger value="fechar">
+                Fechar pedidos
+                {resumo.suficientes > 0 && (
+                  <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
+                    {resumo.suficientes}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            {abaAtiva === 'comparar' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={sugerindoTodos || alocarFornecedor.isPending || isLoadingRanking}
+                onClick={sugerirMelhoresTodos}
+              >
+                {(sugerindoTodos || isLoadingRanking) && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                {!sugerindoTodos && !isLoadingRanking && <Sparkles className="h-4 w-4" />}
+                Sugerir melhores de todos
+              </Button>
+            )}
+          </div>
 
           <TabsContent value="comparar" className="space-y-4 mt-4">
             {itensMapa.map((entrada) => {
@@ -208,6 +320,9 @@ export default function MapaCotacaoPage() {
                   }
                   isSaving={salvarCotacao.isPending}
                   isAllocating={alocarFornecedor.isPending}
+                  ranking={rankingPorItem?.get(necessidade.item_id)}
+                  onSugerirMelhorCusto={() => sugerirMelhorCustoItem(necessidade.item_id)}
+                  isSugerindo={sugerindoItemId === necessidade.item_id}
                   headerExtra={
                     necessidade.n_ops > 1 ? (
                       <OpsBadges ops={necessidade.ops || []} nOps={necessidade.n_ops} />

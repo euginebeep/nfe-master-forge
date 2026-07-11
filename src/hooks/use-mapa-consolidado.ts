@@ -14,6 +14,7 @@ import {
 import type { LinhaDraft } from '@/components/compras/ItemCotacaoGrade';
 import { parseNum } from '@/components/compras/ItemCotacaoGrade';
 import { ITENS_EM_RFQ_QUERY_KEY } from '@/hooks/use-itens-em-rfq';
+import { MAPA_RANKING_QUERY_KEY } from '@/hooks/use-mapa-ranking';
 
 export interface MapaItemConsolidado {
   necessidade: CompraNecessidadeConsolidada;
@@ -141,6 +142,7 @@ export function useMapaConsolidado() {
     queryClient.invalidateQueries({ queryKey: [...MAPA_QUERY_KEY] });
     queryClient.invalidateQueries({ queryKey: ['requisicoes-compra'] });
     queryClient.invalidateQueries({ queryKey: [...ITENS_EM_RFQ_QUERY_KEY] });
+    queryClient.invalidateQueries({ queryKey: [...MAPA_RANKING_QUERY_KEY] });
   };
 
   const salvarCotacao = useMutation({
@@ -211,6 +213,7 @@ export function useMapaConsolidado() {
       fornecedorId: string;
       qtdAlocada: number;
       numPacotes: number | null;
+      silent?: boolean;
     }) => {
       const { data, error } = await supabase.rpc('alocar_fornecedor_item', {
         p_item_id: itemId,
@@ -221,9 +224,11 @@ export function useMapaConsolidado() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       invalidateAll();
-      toast.success('Alocação salva');
+      if (!variables.silent) {
+        toast.success('Alocação salva');
+      }
     },
     onError: (err: { message?: string; code?: string }) => {
       toast.error(err?.message || err?.code || 'Erro ao alocar fornecedor');
