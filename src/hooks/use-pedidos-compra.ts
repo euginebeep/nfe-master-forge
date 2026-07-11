@@ -16,9 +16,13 @@ export interface PedidoCompra {
   fornecedor_id: string | null;
   fornecedor_nome: string;
   valor_total: number;
+  frete: number | null;
   status: string;
   emitido_em: string | null;
   created_at: string | null;
+  pedido_enviado_em: string | null;
+  observacao: string | null;
+  prazo_entrega: string | null;
 }
 
 export interface PedidoCompraItem {
@@ -98,9 +102,13 @@ function normalizarPedido(row: RawRow): PedidoCompra | null {
     fornecedor_id: fornecedorId,
     fornecedor_nome: nomeFornecedor(fornecedor),
     valor_total: asNumber(row.valor_total),
+    frete: asNullableNumber(row.frete),
     status: asNullableString(row.status) || 'EMITIDO',
     emitido_em: asNullableString(row.emitido_em) || asNullableString(row.created_at),
     created_at: asNullableString(row.created_at),
+    pedido_enviado_em: asNullableString(row.pedido_enviado_em),
+    observacao: asNullableString(row.observacao),
+    prazo_entrega: asNullableString(row.prazo_entrega),
   };
 }
 
@@ -209,9 +217,13 @@ export function usePedidosCompra() {
           numero_interno,
           fornecedor_id,
           valor_total,
+          frete,
           status,
           emitido_em,
           created_at,
+          pedido_enviado_em,
+          observacao,
+          prazo_entrega,
           fornecedor:entidades!pedidos_compra_fornecedor_id_fkey(id, razao_social, nome_fantasia)
         `)
         .order('emitido_em', { ascending: false, nullsFirst: false });
@@ -238,9 +250,13 @@ export function usePedidoCompra(id: string | undefined) {
           numero_interno,
           fornecedor_id,
           valor_total,
+          frete,
           status,
           emitido_em,
           created_at,
+          pedido_enviado_em,
+          observacao,
+          prazo_entrega,
           fornecedor:entidades!pedidos_compra_fornecedor_id_fkey(id, razao_social, nome_fantasia)
         `)
         .eq('id', id!)
@@ -266,5 +282,30 @@ export function usePedidoCompra(id: string | undefined) {
       return { pedido, itens };
     },
     staleTime: 30_000,
+  });
+}
+
+export function useMarcarPedidoEnviado() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (pedidoId: string) => {
+      const { data, error } = await supabase
+        .from('pedidos_compra' as 'itens')
+        .update({ pedido_enviado_em: new Date().toISOString() })
+        .eq('id', pedidoId)
+        .select('id')
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, pedidoId) => {
+      queryClient.invalidateQueries({ queryKey: [...PEDIDOS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [...PEDIDOS_QUERY_KEY, pedidoId] });
+    },
+    onError: (err: { message?: string; code?: string }) => {
+      toast.error(err?.message || err?.code || 'Erro ao registrar envio do pedido');
+    },
   });
 }
