@@ -1,29 +1,19 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import {
-  ArrowLeft,
-  Loader2,
-  Mail,
-  MessageCircle,
-  Save,
-} from 'lucide-react';
+import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   buildTextoListaPuraRfq,
   ListaPuraCompraPanel,
 } from '@/components/compras/ListaPuraCompraPanel';
+import { EnviarFornecedorMenu } from '@/components/compras/EnviarFornecedorMenu';
 import { useCompanyBranding } from '@/hooks/use-company-branding';
 import { useFormPersist } from '@/hooks/use-form-persist';
 import type { HybridEntidade } from '@/hooks/use-hybrid-data';
+import { contatoFornecedor } from '@/lib/fornecedor-contato-envio';
 import { STATUS_REQ } from '@/hooks/use-requisicoes-compra';
 import {
   montarRfqParaFornecedores,
@@ -53,28 +43,6 @@ function labelFornecedor(nome: string | null | undefined, fantasia?: string | nu
   return (fantasia || nome || 'Fornecedor').trim();
 }
 
-function contatoFornecedor(fornecedor: HybridEntidade | undefined) {
-  const contatos = fornecedor?.entidade_contatos || [];
-  const preferencial = contatos.find((c) => c?.preferencial) || contatos[0];
-  if (!preferencial) return { telefone: null as string | null, email: null as string | null };
-
-  const telefone =
-    (preferencial.whatsapp as string | undefined) ||
-    (preferencial.telefone as string | undefined) ||
-    null;
-  const email = (preferencial.email as string | undefined) || null;
-  return { telefone, email };
-}
-
-function normalizarTelefoneWa(telefone: string | null): string | null {
-  if (!telefone) return null;
-  const digits = telefone.replace(/\D/g, '');
-  if (!digits) return null;
-  if (digits.startsWith('55')) return digits;
-  if (digits.length >= 10) return `55${digits}`;
-  return digits;
-}
-
 async function marcarRequisicoesDaCestaEmRfq(itemIds: string[]): Promise<number> {
   if (itemIds.length === 0) return 0;
 
@@ -100,58 +68,6 @@ async function marcarRequisicoesDaCestaEmRfq(itemIds: string[]): Promise<number>
 
   if (error) throw error;
   return (atualizadas || []).length;
-}
-
-function EnviarFornecedorMenu({
-  fornecedor,
-  texto,
-}: {
-  fornecedor: HybridEntidade | undefined;
-  texto: string;
-}) {
-  const { telefone, email } = contatoFornecedor(fornecedor);
-  const waNum = normalizarTelefoneWa(telefone);
-  const assunto = encodeURIComponent('Pedido de cotação');
-  const corpo = encodeURIComponent(texto);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="flex-1 min-w-[140px]">
-          <MessageCircle className="h-4 w-4 mr-2" />
-          Enviar ao fornecedor
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          disabled={!waNum}
-          onClick={() => {
-            if (!waNum) {
-              toast.error('Fornecedor sem telefone/WhatsApp cadastrado');
-              return;
-            }
-            window.open(`https://wa.me/${waNum}?text=${corpo}`, '_blank', 'noopener,noreferrer');
-          }}
-        >
-          <MessageCircle className="h-4 w-4 mr-2" />
-          WhatsApp
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!email}
-          onClick={() => {
-            if (!email) {
-              toast.error('Fornecedor sem e-mail cadastrado');
-              return;
-            }
-            window.location.href = `mailto:${encodeURIComponent(email)}?subject=${assunto}&body=${corpo}`;
-          }}
-        >
-          <Mail className="h-4 w-4 mr-2" />
-          E-mail
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
 
 export function RfqComposer({
@@ -337,7 +253,11 @@ export function RfqComposer({
                       fornecedorNome={bloco.fornecedorNome}
                       hidePreview
                       extraActions={
-                        <EnviarFornecedorMenu fornecedor={fornecedor} texto={texto} />
+                        <EnviarFornecedorMenu
+                          contato={contatoFornecedor(fornecedor)}
+                          texto={texto}
+                          assuntoEmail="Pedido de cotação"
+                        />
                       }
                     />
                   </div>
