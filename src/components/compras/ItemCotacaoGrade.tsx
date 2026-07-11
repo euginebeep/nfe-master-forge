@@ -28,6 +28,7 @@ import { deGramas, paraGramas } from '@/lib/conferencia-materiais';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { RequisicaoCompraItem } from '@/hooks/use-requisicoes-compra';
+import { melhorCustoRanking, type MapaCotacaoRankingRow } from '@/hooks/use-mapa-ranking';
 
 export const UNIDADES_COMPRA = ['g', 'kg', 'mg', 'un'] as const;
 
@@ -289,6 +290,9 @@ export interface ItemCotacaoGradeProps {
   ) => Promise<unknown>;
   isSaving?: boolean;
   isAllocating?: boolean;
+  ranking?: MapaCotacaoRankingRow[];
+  onSugerirMelhorCusto?: () => Promise<void>;
+  isSugerindo?: boolean;
   headerExtra?: React.ReactNode;
   statusExtra?: React.ReactNode;
 }
@@ -305,6 +309,9 @@ export function ItemCotacaoGrade({
   onAlocar,
   isSaving = false,
   isAllocating = false,
+  ranking,
+  onSugerirMelhorCusto,
+  isSugerindo = false,
   headerExtra,
   statusExtra,
 }: ItemCotacaoGradeProps) {
@@ -381,7 +388,17 @@ export function ItemCotacaoGrade({
   );
   const itemDecidido = resumoAlocacao.suficiente;
 
+  const rankingPorFornecedor = useMemo(
+    () => new Map((ranking || []).map((r) => [r.fornecedor_id, r])),
+    [ranking],
+  );
+  const melhorCustoRow = useMemo(() => melhorCustoRanking(ranking || []), [ranking]);
+  const melhorPrecoFornecedorId = ranking?.find((r) => r.rank_preco === 1)?.fornecedor_id ?? null;
+  const nCotadosRanking = ranking?.[0]?.n_cotados ?? 0;
+  const usaRanking = (ranking?.length ?? 0) > 0;
+
   const menorPreco = useMemo(() => {
+    if (usaRanking) return null;
     const precos = fornecedores
       .map(forn => {
         const key = rowKey(gradeId, forn.fornecedor_id);
@@ -391,9 +408,10 @@ export function ItemCotacaoGrade({
       .filter((p): p is number => p != null);
     if (precos.length < 2) return null;
     return Math.min(...precos);
-  }, [fornecedores, drafts, gradeId, cotacaoPorFornecedor]);
+  }, [fornecedores, drafts, gradeId, cotacaoPorFornecedor, usaRanking]);
 
   const menorCustoReal = useMemo(() => {
+    if (usaRanking) return null;
     const custos = fornecedores
       .map((forn) => {
         const key = rowKey(gradeId, forn.fornecedor_id);
@@ -406,7 +424,7 @@ export function ItemCotacaoGrade({
       .filter((c): c is number => c != null);
     if (custos.length < 2) return null;
     return Math.min(...custos);
-  }, [fornecedores, drafts, gradeId, cotacaoPorFornecedor, item]);
+  }, [fornecedores, drafts, gradeId, cotacaoPorFornecedor, item, usaRanking]);
 
   return (
     <Card className={cn(itemDecidido && 'ring-2 ring-green-500/50 border-green-200')}>
@@ -448,6 +466,18 @@ export function ItemCotacaoGrade({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {headerExtra}
+            {!readOnly && melhorCustoRow && onSugerirMelhorCusto && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                disabled={isSugerindo || isAllocating || isSaving}
+                onClick={() => onSugerirMelhorCusto()}
+              >
+                {isSugerindo && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                Sugerir melhor (custo)
+              </Button>
+            )}
             {fornPreferencial(fornecedores) && (
               <Badge variant="outline" className="text-xs">
                 Preferencial: {nomeFornecedor(fornPreferencial(fornecedores)!)}
@@ -487,11 +517,28 @@ export function ItemCotacaoGrade({
                   const temAlocacao = (qtdAlocadaLinha ?? 0) > 0;
                   const precoAtual = precoEfetivo(draft, cotacao);
                   const precoValido = precoAtual != null && precoAtual > 0;
-                  const isMelhorOferta = menorPreco != null && precoAtual != null && precoAtual === menorPreco;
+                  const rankRow = rankingPorFornecedor.get(forn.fornecedor_id);
+                  const isMelhorOferta = !usaRanking
+                    && menorPreco != null
+                    && precoAtual != null
+                    && precoAtual === menorPreco;
                   const custo = calcularCustoReal(item, draft, cotacao, qtdAlocadaLinha);
-                  const isMelhorCusto = menorCustoReal != null
+                  const isMelhorCustoCliente = !usaRanking
+                    && menorCustoReal != null
                     && custo.custoReal != null
                     && custo.custoReal === menorCustoReal;
+                  const isMelhorCustoRank = rankRow?.rank_custo === 1;
+                  const isSegundoCustoRank = rankRow?.rank_custo === 2;
+                  const isMenorPrecoRank = rankRow?.rank_preco === 1
+                    && melhorPrecoFornecedorId !== melhorCustoRow?.fornecedor_id;
+                  const isMaisRapidoRank = rankRow?.rank_prazo === 1
+                    && rankRow.prazo_dias != null;
+                  const diffSegundoCusto = isSegundoCustoRank
+                    && nCotadosRanking > 1
+                    && melhorCustoRow?.custo_total != null
+                    && rankRow?.custo_total != null
+                    ? rankRow.custo_total - melhorCustoRow.custo_total
+                    : null;
                   const qtdPacote = parseNum(draft.qtd_por_pacote) ?? cotacao?.qtd_por_pacote ?? null;
                   const numPacotesDisplay = parseNum(draft.num_pacotes);
                   const qtdPacotesCalculada = numPacotesDisplay != null && qtdPacote != null
@@ -524,6 +571,38 @@ export function ItemCotacaoGrade({
                                   className="text-[10px] px-1 bg-emerald-50 text-emerald-800 border-emerald-200"
                                 >
                                   melhor oferta
+                                </Badge>
+                              )}
+                              {isMelhorCustoRank && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1 bg-green-50 text-green-800 border-green-300"
+                                >
+                                  MELHOR CUSTO
+                                </Badge>
+                              )}
+                              {diffSegundoCusto != null && diffSegundoCusto > 0 && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1 font-normal text-muted-foreground"
+                                >
+                                  {formatCurrency(diffSegundoCusto)} a mais
+                                </Badge>
+                              )}
+                              {isMenorPrecoRank && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1 font-normal text-muted-foreground"
+                                >
+                                  menor preço
+                                </Badge>
+                              )}
+                              {isMaisRapidoRank && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1 font-normal text-muted-foreground"
+                                >
+                                  mais rápido
                                 </Badge>
                               )}
                               {temAlocacao && qtdAlocadaLinha != null && (
@@ -610,29 +689,50 @@ export function ItemCotacaoGrade({
                       </TableCell>
                       <TableCell className="min-w-[140px]">
                         <div className="space-y-1">
-                          <p className={cn(
-                            'text-sm font-bold tabular-nums',
-                            isMelhorCusto && 'text-green-700',
-                          )}>
-                            {custo.custoReal != null ? formatCurrency(custo.custoReal) : '—'}
-                          </p>
-                          {custo.temPacote && custo.custoReal != null && (
-                            <p className="text-[10px] text-muted-foreground leading-tight">
-                              compra {formatarQtdItem(custo.qtdArredondada, custo.unidadeCompra)}
-                              {custo.sobra != null && (
-                                <span className="text-amber-700">
-                                  {' · '}sobra {formatarQtdItem(custo.sobra, custo.unidadeCompra)}
-                                </span>
+                          {rankRow?.custo_total != null ? (
+                            <>
+                              <p className={cn(
+                                'text-sm font-bold tabular-nums',
+                                isMelhorCustoRank && 'text-green-700',
+                              )}>
+                                {formatarQtdItem(rankRow.qtd_compra, rankRow.unidade_compra || unidadeCompra)}
+                                {' → '}
+                                {formatCurrency(rankRow.custo_total)}
+                              </p>
+                              {rankRow.custo_itens != null && (rankRow.frete ?? 0) > 0 && (
+                                <p className="text-[10px] text-muted-foreground leading-tight">
+                                  itens {formatCurrency(rankRow.custo_itens)}
+                                  {' · '}frete {formatCurrency(rankRow.frete ?? 0)}
+                                </p>
                               )}
-                            </p>
-                          )}
-                          {isMelhorCusto && (
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] px-1 bg-green-50 text-green-800 border-green-300"
-                            >
-                              MELHOR CUSTO
-                            </Badge>
+                            </>
+                          ) : (
+                            <>
+                              <p className={cn(
+                                'text-sm font-bold tabular-nums',
+                                isMelhorCustoCliente && 'text-green-700',
+                              )}>
+                                {custo.custoReal != null ? formatCurrency(custo.custoReal) : '—'}
+                              </p>
+                              {custo.temPacote && custo.custoReal != null && (
+                                <p className="text-[10px] text-muted-foreground leading-tight">
+                                  compra {formatarQtdItem(custo.qtdArredondada, custo.unidadeCompra)}
+                                  {custo.sobra != null && (
+                                    <span className="text-amber-700">
+                                      {' · '}sobra {formatarQtdItem(custo.sobra, custo.unidadeCompra)}
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                              {isMelhorCustoCliente && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1 bg-green-50 text-green-800 border-green-300"
+                                >
+                                  MELHOR CUSTO
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </div>
                       </TableCell>
