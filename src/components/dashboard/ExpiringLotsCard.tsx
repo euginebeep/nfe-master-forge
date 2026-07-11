@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   Box,
   Calendar,
   ChevronRight,
+  Clock,
   Filter,
-  Flame,
   FlaskConical,
-  Hourglass,
   Leaf,
+  MapPin,
   RefreshCcw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,62 +66,88 @@ type CategoriaLote = ExpiringLot["categoria"];
 const CATEGORIA_META: Record<
   CategoriaLote,
   {
-    label: string;
     prioridade: string;
-    Icon: typeof Box;
-    summaryIcon: typeof AlertTriangle;
-    summaryLabel: string;
-    card: string;
+    LotIcon: typeof Box;
+    SummaryIcon: typeof MapPin;
+    summaryBg: string;
+    summaryBorder: string;
+    summaryIconBg: string;
+    summaryIconColor: string;
+    summaryCount: string;
     iconBox: string;
-    badge: string;
-    progress: string;
+    iconColor: string;
+    badgeBg: string;
+    badgeNumber: string;
+    badgeSub: string;
     prioridadeText: string;
-    daysBadge: string;
+    progress: string;
+    progressTrack: string;
   }
 > = {
   CRITICO: {
-    label: "Até 30 dias",
     prioridade: "CRÍTICO",
-    Icon: Box,
-    summaryIcon: Flame,
-    summaryLabel: "Até 30 dias",
-    card: "bg-red-50/60 border-red-100 hover:border-red-200",
-    iconBox: "bg-red-100 text-red-600",
-    badge: "bg-red-50 text-red-700 border border-red-200",
-    progress: "bg-red-500",
+    LotIcon: Box,
+    SummaryIcon: MapPin,
+    summaryBg: "bg-red-50",
+    summaryBorder: "border-red-100",
+    summaryIconBg: "bg-red-100",
+    summaryIconColor: "text-red-600",
+    summaryCount: "text-red-600",
+    iconBox: "bg-red-50",
+    iconColor: "text-red-500",
+    badgeBg: "bg-red-50",
+    badgeNumber: "text-red-600",
+    badgeSub: "text-red-500",
     prioridadeText: "text-red-600",
-    daysBadge: "text-red-600",
+    progress: "bg-red-500",
+    progressTrack: "bg-red-100",
   },
   URGENTE: {
-    label: "31–60 dias",
     prioridade: "ALTA",
-    Icon: FlaskConical,
-    summaryIcon: Hourglass,
-    summaryLabel: "31–60 dias",
-    card: "bg-orange-50/60 border-orange-100 hover:border-orange-200",
-    iconBox: "bg-orange-100 text-orange-600",
-    badge: "bg-orange-50 text-orange-700 border border-orange-200",
-    progress: "bg-orange-500",
+    LotIcon: FlaskConical,
+    SummaryIcon: FlaskConical,
+    summaryBg: "bg-orange-50",
+    summaryBorder: "border-orange-100",
+    summaryIconBg: "bg-orange-100",
+    summaryIconColor: "text-orange-600",
+    summaryCount: "text-orange-600",
+    iconBox: "bg-orange-50",
+    iconColor: "text-orange-500",
+    badgeBg: "bg-orange-50",
+    badgeNumber: "text-orange-600",
+    badgeSub: "text-orange-500",
     prioridadeText: "text-orange-600",
-    daysBadge: "text-orange-600",
+    progress: "bg-orange-500",
+    progressTrack: "bg-orange-100",
   },
   ATENCAO: {
-    label: "61–90 dias",
     prioridade: "MÉDIA",
-    Icon: Leaf,
-    summaryIcon: Calendar,
-    summaryLabel: "61–90 dias",
-    card: "bg-amber-50/60 border-amber-100 hover:border-amber-200",
-    iconBox: "bg-amber-100 text-amber-700",
-    badge: "bg-amber-50 text-amber-800 border border-amber-200",
-    progress: "bg-amber-500",
+    LotIcon: Leaf,
+    SummaryIcon: Clock,
+    summaryBg: "bg-amber-50",
+    summaryBorder: "border-amber-100",
+    summaryIconBg: "bg-amber-100",
+    summaryIconColor: "text-amber-600",
+    summaryCount: "text-amber-600",
+    iconBox: "bg-amber-50",
+    iconColor: "text-amber-600",
+    badgeBg: "bg-amber-50",
+    badgeNumber: "text-amber-700",
+    badgeSub: "text-amber-600",
     prioridadeText: "text-amber-700",
-    daysBadge: "text-amber-700",
+    progress: "bg-amber-500",
+    progressTrack: "bg-amber-100",
   },
 };
 
-function calcUrgenciaPct(dias: number): number {
-  return Math.min(95, Math.max(25, Math.round(100 - dias * 0.78)));
+function calcUrgenciaPct(dias: number, categoria: CategoriaLote): number {
+  if (categoria === "CRITICO") {
+    return Math.min(95, Math.max(40, Math.round(100 - (dias / 30) * 25)));
+  }
+  if (categoria === "URGENTE") {
+    return Math.min(90, Math.max(30, Math.round(((60 - dias) / 30) * 55)));
+  }
+  return Math.min(80, Math.max(20, Math.round(((90 - dias) / 30) * 50)));
 }
 
 function formatQuantidade(qtd: number, unidade: string): string {
@@ -207,7 +234,7 @@ export function ExpiringLotsCard() {
         status: lote.status,
         local: localLote(lote),
         pct_estoque: pctEstoque,
-        urgencia_pct: calcUrgenciaPct(diasParaVencer),
+        urgencia_pct: calcUrgenciaPct(diasParaVencer, categoria),
         categoria,
       });
     }
@@ -236,22 +263,22 @@ export function ExpiringLotsCard() {
   };
 
   const summaryItems = [
-    { key: "CRITICO" as const, count: stats.critico },
-    { key: "URGENTE" as const, count: stats.urgente },
-    { key: "ATENCAO" as const, count: stats.atencao },
+    { key: "CRITICO" as const, count: stats.critico, label: "Até 30 dias" },
+    { key: "URGENTE" as const, count: stats.urgente, label: "31–60 dias" },
+    { key: "ATENCAO" as const, count: stats.atencao, label: "61–90 dias" },
   ];
 
   if (isLoading) {
     return (
-      <Card className="border border-border/60 shadow-sm">
+      <Card className="border border-border/50 shadow-sm rounded-2xl">
         <CardContent className="p-6">
           <div className="animate-pulse space-y-4">
             <div className="h-5 bg-muted rounded w-1/3" />
             <div className="h-4 bg-muted rounded w-2/3" />
             <div className="grid grid-cols-3 gap-3">
-              <div className="h-16 bg-muted rounded-xl" />
-              <div className="h-16 bg-muted rounded-xl" />
-              <div className="h-16 bg-muted rounded-xl" />
+              <div className="h-20 bg-muted rounded-xl" />
+              <div className="h-20 bg-muted rounded-xl" />
+              <div className="h-20 bg-muted rounded-xl" />
             </div>
           </div>
         </CardContent>
@@ -261,10 +288,10 @@ export function ExpiringLotsCard() {
 
   if (error) {
     return (
-      <Card className="border border-destructive/30 shadow-sm">
+      <Card className="border border-destructive/30 shadow-sm rounded-2xl">
         <CardContent className="p-6 space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-destructive">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-red-600">
               Lotes críticos para ação
             </h3>
             <Button variant="outline" size="sm" onClick={handleRefresh}>
@@ -280,153 +307,155 @@ export function ExpiringLotsCard() {
 
   return (
     <>
-      <Card className="border border-border/60 shadow-sm overflow-hidden">
+      <Card className="border border-border/50 shadow-sm rounded-2xl overflow-hidden bg-white">
         <CardContent className="p-5 sm:p-6 space-y-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2 min-w-0">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold uppercase tracking-wide text-red-600">
-                    Lotes críticos para ação
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-3xl leading-relaxed">
-                    Matérias-primas com vencimento próximo que exigem avaliação do responsável
-                    técnico para definição de tratativa.
-                  </p>
-                </div>
+          {/* Cabeçalho: título à esquerda, resumo à direita */}
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600 fill-red-600/20" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold uppercase tracking-wide text-red-600 leading-tight">
+                  Lotes críticos para ação
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed max-w-xl">
+                  Lotes próximos do vencimento que precisam de ação imediata para evitar perdas.
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={isFetching}
-                className="h-8 w-8"
-                aria-label="Atualizar lotes"
-              >
-                <RefreshCcw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-              </Button>
-              <button
-                type="button"
-                onClick={() => (stats.total > 0 ? setShowFullList(true) : navigate("/estoque/lotes"))}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-              >
-                Ver todos os lotes a vencer →
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs font-medium text-muted-foreground">
-              Resumo por faixa de vencimento
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {summaryItems.map(({ key, count }) => {
-                const meta = CATEGORIA_META[key];
-                const SummaryIcon = meta.summaryIcon;
-                return (
-                  <div
-                    key={key}
-                    className={cn(
-                      "rounded-xl border px-4 py-3 flex items-center gap-3",
-                      meta.card,
-                    )}
-                  >
-                    <div className={cn("p-2 rounded-lg", meta.iconBox)}>
-                      <SummaryIcon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className={cn("text-2xl font-bold leading-none", meta.prioridadeText)}>
+            <div className="shrink-0 xl:min-w-[340px]">
+              <p className="text-xs text-muted-foreground mb-2 text-right">
+                Resumo por faixa de vencimento
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {summaryItems.map(({ key, count, label }) => {
+                  const meta = CATEGORIA_META[key];
+                  const SummaryIcon = meta.SummaryIcon;
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        "rounded-xl border px-3 py-2.5 flex flex-col items-center text-center gap-1",
+                        meta.summaryBg,
+                        meta.summaryBorder,
+                      )}
+                    >
+                      <div className={cn("p-1.5 rounded-lg", meta.summaryIconBg)}>
+                        <SummaryIcon className={cn("h-4 w-4", meta.summaryIconColor)} />
+                      </div>
+                      <p className={cn("text-2xl font-bold leading-none", meta.summaryCount)}>
                         {count}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">{meta.summaryLabel}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{label}</p>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
 
+          {/* Link centralizado */}
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => (stats.total > 0 ? setShowFullList(true) : navigate("/estoque/lotes"))}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              Ver todos os lotes a vencer
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isFetching}
+              className="h-7 w-7 text-muted-foreground"
+              aria-label="Atualizar lotes"
+            >
+              <RefreshCcw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+            </Button>
+          </div>
+
+          {/* Cards de lote */}
           {stats.total === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+            <div className="rounded-xl border border-dashed border-border bg-muted/10 px-4 py-10 text-center">
               <p className="text-sm text-muted-foreground">
                 Nenhum lote com vencimento nos próximos 90 dias.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {expiringLots.slice(0, 6).map((lot) => {
                 const meta = CATEGORIA_META[lot.categoria];
-                const LotIcon = meta.Icon;
+                const LotIcon = meta.LotIcon;
 
                 return (
                   <button
                     key={lot.id}
                     type="button"
                     onClick={() => navigate(`/estoque/lotes/${lot.id}`)}
-                    className={cn(
-                      "rounded-xl border p-4 text-left transition-all hover:shadow-md",
-                      meta.card,
-                    )}
+                    className="rounded-2xl border border-border/60 bg-white p-4 text-left shadow-sm hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className={cn("p-2.5 rounded-xl shrink-0", meta.iconBox)}>
-                          <LotIcon className="h-5 w-5" />
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={cn(
+                          "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl",
+                          meta.iconBox,
+                        )}
+                      >
+                        <LotIcon className={cn("h-7 w-7", meta.iconColor)} strokeWidth={1.75} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-foreground leading-snug truncate">
+                              {lot.item_descricao}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              Lote {lot.numero_lote}
+                            </p>
+                          </div>
+
+                          <div
+                            className={cn(
+                              "shrink-0 rounded-xl px-2.5 py-1.5 text-center min-w-[72px]",
+                              meta.badgeBg,
+                            )}
+                          >
+                            <p className={cn("text-lg font-bold leading-none", meta.badgeNumber)}>
+                              {lot.dias_para_vencer}
+                            </p>
+                            <p className={cn("text-[10px] font-medium leading-tight mt-0.5", meta.badgeSub)}>
+                              dias
+                            </p>
+                            <p className="text-[9px] text-muted-foreground leading-tight">
+                              para vencer
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm text-foreground truncate">
-                            {lot.item_descricao}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            Lote {lot.numero_lote}
-                          </p>
+
+                        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                          <Calendar className="h-3.5 w-3.5 shrink-0" />
+                          <span>
+                            Validade:{" "}
+                            {format(parseISO(lot.data_val), "dd/MM/yyyy", { locale: ptBR })}
+                          </span>
                         </div>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={cn("text-[11px] font-medium shrink-0", meta.badge)}
-                      >
-                        {lot.dias_para_vencer} dias para vencer
-                      </Badge>
                     </div>
 
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className={cn("font-bold uppercase tracking-wide", meta.prioridadeText)}>
-                          {meta.prioridade}
-                        </span>
-                        <span className="text-muted-foreground">{lot.urgencia_pct}%</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-white/80 overflow-hidden">
+                    <div className="mt-4 pt-3 border-t border-border/40">
+                      <p className={cn("text-xs font-bold uppercase tracking-wide", meta.prioridadeText)}>
+                        {meta.prioridade}
+                      </p>
+                      <div className={cn("mt-2 h-1 rounded-full overflow-hidden", meta.progressTrack)}>
                         <div
-                          className={cn("h-2 rounded-full transition-all", meta.progress)}
+                          className={cn("h-full rounded-full transition-all", meta.progress)}
                           style={{ width: `${lot.urgencia_pct}%` }}
                         />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <p className="text-muted-foreground">Validade</p>
-                        <p className="font-medium mt-0.5">
-                          {format(parseISO(lot.data_val), "dd/MM/yyyy", { locale: ptBR })}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Estoque</p>
-                        <p className="font-medium mt-0.5">
-                          {lot.pct_estoque}% ({formatQuantidade(lot.quantidade_interna, lot.unidade_interna)})
-                        </p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-muted-foreground">Local</p>
-                        <p className="font-medium mt-0.5 truncate" title={lot.local}>
-                          {lot.local}
-                        </p>
                       </div>
                     </div>
                   </button>
@@ -500,7 +529,7 @@ export function ExpiringLotsCard() {
                   key: "dias_para_vencer",
                   header: "Dias",
                   render: (row) => (
-                    <Badge variant="outline" className={CATEGORIA_META[row.categoria].badge}>
+                    <Badge variant="outline" className={cn("border-0", CATEGORIA_META[row.categoria].badgeBg, CATEGORIA_META[row.categoria].badgeNumber)}>
                       {row.dias_para_vencer} dias
                     </Badge>
                   ),
