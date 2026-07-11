@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -160,6 +160,45 @@ function localLote(lote: RawLote): string {
   if (lote.status === "QUARENTENA") return "Quarentena";
   if (lote.status === "BLOQUEADO") return "Bloqueado";
   return "Depósito principal";
+}
+
+function AutoFitName({ text, className }: { text: string; className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const textEl = textRef.current;
+    if (!container || !textEl) return;
+
+    const fit = () => {
+      const max = 14;
+      const min = 8;
+      let size = max;
+      textEl.style.fontSize = `${size}px`;
+      while (size > min && textEl.scrollWidth > container.clientWidth) {
+        size -= 0.5;
+        textEl.style.fontSize = `${size}px`;
+      }
+    };
+
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [text]);
+
+  return (
+    <div ref={containerRef} className="w-full min-w-0">
+      <span
+        ref={textRef}
+        className={cn("font-bold uppercase whitespace-nowrap block leading-none text-sm", className)}
+        title={text}
+      >
+        {text}
+      </span>
+    </div>
+  );
 }
 
 export function ExpiringLotsCard() {
@@ -396,9 +435,9 @@ export function ExpiringLotsCard() {
                     key={lot.id}
                     type="button"
                     onClick={() => navigate(`/estoque/lotes/${lot.id}`)}
-                    className="rounded-xl border border-border/60 bg-white p-2.5 text-left shadow-sm hover:shadow-md transition-shadow min-w-0 overflow-hidden"
+                    className="rounded-xl border border-border/60 bg-white p-2.5 text-left shadow-sm hover:shadow-md transition-shadow min-w-0"
                   >
-                    <div className="flex items-start gap-2 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
                       <div
                         className={cn(
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
@@ -408,39 +447,32 @@ export function ExpiringLotsCard() {
                         <LotIcon className={cn("h-5 w-5", meta.iconColor)} strokeWidth={1.75} />
                       </div>
 
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="flex items-start justify-between gap-1.5 min-w-0">
-                          <div className="min-w-0 flex-1 overflow-hidden">
-                            <p className="font-bold text-sm uppercase text-foreground leading-none truncate whitespace-nowrap">
-                              {lot.item_descricao}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1 truncate whitespace-nowrap">
-                              Lote {lot.numero_lote}
-                            </p>
-                          </div>
-
-                          <div
-                            className={cn(
-                              "shrink-0 rounded-lg px-2 py-1 text-center min-w-[52px] max-w-[56px]",
-                              meta.badgeBg,
-                            )}
-                          >
-                            <p className={cn("text-base font-bold leading-none", meta.badgeNumber)}>
-                              {lot.dias_para_vencer}
-                            </p>
-                            <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 whitespace-nowrap">
-                              dias p/ vencer
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground min-w-0">
-                          <Calendar className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate whitespace-nowrap">
-                            Validade: {format(parseISO(lot.data_val), "dd/MM/yy", { locale: ptBR })}
-                          </span>
-                        </div>
+                      <div
+                        className={cn(
+                          "shrink-0 rounded-lg px-2 py-1 text-center min-w-[52px]",
+                          meta.badgeBg,
+                        )}
+                      >
+                        <p className={cn("text-base font-bold leading-none", meta.badgeNumber)}>
+                          {lot.dias_para_vencer}
+                        </p>
+                        <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 whitespace-nowrap">
+                          dias p/ vencer
+                        </p>
                       </div>
+                    </div>
+
+                    <AutoFitName text={lot.item_descricao} className="text-foreground mt-2" />
+
+                    <p className="text-xs text-muted-foreground mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                      Lote {lot.numero_lote}
+                    </p>
+
+                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      <span className="whitespace-nowrap">
+                        Validade: {format(parseISO(lot.data_val), "dd/MM/yy", { locale: ptBR })}
+                      </span>
                     </div>
 
                     <div className="mt-2 pt-2 border-t border-border/40">
