@@ -288,8 +288,8 @@ export function ExpiringLotsCard() {
 
   if (error) {
     return (
-      <Card className="border border-destructive/30 shadow-sm rounded-2xl">
-        <CardContent className="p-6 space-y-3">
+      <Card className="border border-destructive/30 shadow-sm rounded-xl">
+        <CardContent className="p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-bold uppercase tracking-wide text-red-600">
               Lotes críticos para ação
