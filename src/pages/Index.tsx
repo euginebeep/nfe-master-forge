@@ -135,7 +135,9 @@ const Index = () => {
           </div>
 
           <div className="space-y-4 lg:space-y-6">
-            <ExpiringLotsCard />
+            <div className="w-full lg:w-1/2">
+              <ExpiringLotsCard />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-stretch">
               <div className="md:col-span-4 xl:col-span-3 flex flex-col gap-4">
