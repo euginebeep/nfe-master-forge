@@ -134,20 +134,16 @@ const Index = () => {
             <DashboardKPIsGrid />
           </div>
 
-          <div className="space-y-4 lg:space-y-6">
-            <ExpiringLotsCard />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 items-stretch">
+            <div className="min-w-0 flex flex-col">
+              <ExpiringLotsCard />
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-stretch">
-              <div className="md:col-span-4 xl:col-span-3 flex flex-col gap-4">
-                <ExchangeRateCard />
-                <BirthdayCard />
-              </div>
-              <div className="md:col-span-4 xl:col-span-3">
-                <MarketIndicesCard />
-              </div>
-              <div className="md:col-span-4 xl:col-span-6">
-                <ConsultaANVISACard />
-              </div>
+            <div className="grid grid-cols-2 grid-rows-2 gap-2 min-w-0 min-h-0 h-full">
+              <ExchangeRateCard compact className="min-h-0" />
+              <MarketIndicesCard compact className="min-h-0" />
+              <BirthdayCard compact className="min-h-0" />
+              <ConsultaANVISACard compact className="min-h-0" />
             </div>
           </div>
 

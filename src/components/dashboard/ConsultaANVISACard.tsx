@@ -22,6 +22,7 @@ import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 import { getConversaoUI, formatUI } from '@/components/regulatorio/DoseTable';
 import type { AnvisaConstituinte } from '@/types/anvisa';
+import { cn } from '@/lib/utils';
 
 const LINKS_UTEIS = [
   { titulo: 'IN 28/2018 - Alegações de Propriedade', url: 'https://www.in.gov.br/materia/-/asset_publisher/Kujrw0TZC2Mb/content/id/34380639' },
@@ -87,7 +88,7 @@ function MiniDoseTable({ constituinte }: { constituinte: AnvisaConstituinte }) {
   );
 }
 
-export function ConsultaANVISACard() {
+export function ConsultaANVISACard({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
   const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
@@ -129,32 +130,38 @@ export function ConsultaANVISACard() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="h-full"
+        className={cn("h-full min-h-0", className)}
       >
-        <Card className="h-auto flex flex-col">
-          <CardHeader className="pb-1 pt-4 px-5 shrink-0">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-tight text-primary">
-              <Scale className="h-4 w-4" />
+        <Card className="h-full flex flex-col overflow-hidden shadow-sm">
+          <CardHeader className={cn("shrink-0", compact ? "pb-0 pt-2 px-2.5" : "pb-1 pt-4 px-5")}>
+            <CardTitle className={cn(
+              "font-bold flex items-center gap-1.5 uppercase tracking-tight text-primary",
+              compact ? "text-[10px]" : "text-sm",
+            )}>
+              <Scale className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
               Consulta ANVISA
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 flex-1 flex flex-col px-5 pb-4">
-            <p className="text-[11px] leading-tight text-muted-foreground">
+          <CardContent className={cn(
+            "flex-1 flex flex-col min-h-0",
+            compact ? "space-y-1.5 px-2.5 pb-2" : "space-y-2 px-5 pb-4",
+          )}>
+            <p className={cn("leading-tight text-muted-foreground", compact ? "text-[9px] line-clamp-2" : "text-[11px]")}>
               Consulte substâncias, doses máximas e alegações permitidas
             </p>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1">
               <Input
                 placeholder="Ex: Vitamina D3"
                 value={termo}
                 onChange={(e) => buscar(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="h-7 text-[10px] rounded-md"
+                className={cn("rounded-md", compact ? "h-6 text-[9px] px-2" : "h-7 text-[10px]")}
               />
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={handleSearch}
                 disabled={isLoading || termo.trim().length < 2}
-                className="h-7 w-8 p-0 shrink-0"
+                className={cn("p-0 shrink-0", compact ? "h-6 w-7" : "h-7 w-8")}
               >
                 {isLoading ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -163,26 +170,32 @@ export function ConsultaANVISACard() {
                 )}
               </Button>
             </div>
-            
-            <div className="flex flex-wrap gap-1 pt-1 mt-auto">
+
+            <div className={cn("flex flex-wrap gap-0.5 mt-auto", compact ? "pt-0" : "pt-1")}>
               {['Vitamina D', 'Melatonina'].map((item) => (
                 <Button
                   key={item}
                   variant="ghost"
                   size="sm"
-                  className="h-5 text-[10px] px-1.5 opacity-70 hover:opacity-100"
+                  className={cn(
+                    "opacity-70 hover:opacity-100",
+                    compact ? "h-4 text-[8px] px-1" : "h-5 text-[10px] px-1.5",
+                  )}
                   onClick={() => handleQuickSearch(item)}
                 >
                   {item}
                 </Button>
               ))}
             </div>
-            
+
             <a
               href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[9px] font-bold text-primary hover:underline pt-0.5 opacity-80"
+              className={cn(
+                "flex items-center gap-1 font-bold text-primary hover:underline opacity-80",
+                compact ? "text-[8px] pt-0" : "text-[9px] pt-0.5",
+              )}
             >
               <ExternalLink className="h-2.5 w-2.5" />
               Legislação ANVISA

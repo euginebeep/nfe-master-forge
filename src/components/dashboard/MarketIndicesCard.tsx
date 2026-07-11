@@ -99,7 +99,7 @@ function getCryptoIcon(symbol: string, className: string) {
   }
 }
 
-export function MarketIndicesCard() {
+export function MarketIndicesCard({ compact = false, className }: { compact?: boolean; className?: string }) {
   const { data: marketData, isLoading, error } = useMarketData();
 
   const ibovespa = marketData?.ibovespa || null;
@@ -152,36 +152,45 @@ export function MarketIndicesCard() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
-      className="h-full"
+      className={cn("h-full min-h-0", className)}
     >
-      <Card className="h-auto overflow-hidden flex flex-col">
-        <CardHeader className="pb-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 shrink-0 min-h-[52px]">
+      <Card className={cn("h-full overflow-hidden flex flex-col", compact && "shadow-sm")}>
+        <CardHeader className={cn(
+          "pb-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 shrink-0",
+          compact ? "px-3 py-2 min-h-[40px]" : "min-h-[52px]",
+        )}>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <Landmark className="h-4 w-4 text-primary" />
+            <CardTitle className={cn("font-semibold flex items-center gap-2", compact ? "text-xs" : "text-sm")}>
+              <div className={cn("rounded-lg bg-primary/10", compact ? "p-1" : "p-1.5")}>
+                <Landmark className={cn("text-primary", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
               </div>
               Índices de Mercado
             </CardTitle>
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-3 space-y-3 flex-1 flex flex-col justify-between">
-          {/* Ibovespa - Better tabulated row */}
+        <CardContent className={cn(
+          "flex-1 flex flex-col justify-between min-h-0",
+          compact ? "p-2 pt-1.5 space-y-1.5" : "p-4 pt-3 space-y-3",
+        )}>
           <div className={cn(
-            "flex items-center justify-between p-2 rounded-xl transition-all border border-transparent",
+            "flex items-center justify-between rounded-xl transition-all border border-transparent",
+            compact ? "p-1.5" : "p-2",
             getChangeBg(ibovespa?.change || 0)
           )}>
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10">
-                <Landmark className="h-4 w-4 text-blue-600" />
+            <div className={cn("flex items-center", compact ? "gap-2" : "gap-2.5")}>
+              <div className={cn(
+                "flex items-center justify-center rounded-lg bg-white dark:bg-slate-900 shadow-sm border border-blue-500/10",
+                compact ? "w-7 h-7" : "w-8 h-8",
+              )}>
+                <Landmark className={cn("text-blue-600", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
               </div>
               <div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-0.5">IBOVESPA</p>
                 {isLoading ? (
                   <Skeleton className="h-4 w-16" />
                 ) : (
-                  <p className="text-base font-black tracking-tighter leading-none">
+                  <p className={cn("font-black tracking-tighter leading-none", compact ? "text-sm" : "text-base")}>
                     {ibovespa ? formatPrice(ibovespa.price, 'BRL') : '--'}
                   </p>
                 )}
@@ -194,14 +203,13 @@ export function MarketIndicesCard() {
             )}
           </div>
 
-          {/* Cryptos - Table style layout */}
-          <div className="bg-muted/30 rounded-xl p-2 border border-border/5">
-            <div className="grid grid-cols-3 gap-0 border-b border-border/10 pb-1.5 mb-1.5">
+          <div className={cn("bg-muted/30 rounded-xl border border-border/5", compact ? "p-1.5" : "p-2")}>
+            <div className="grid grid-cols-3 gap-0 border-b border-border/10 pb-1 mb-1">
               <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Ativo</p>
               <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Preço (USD)</p>
               <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Var. 24h</p>
             </div>
-            <div className="space-y-1.5">
+            <div className={compact ? "space-y-1" : "space-y-1.5"}>
               {cryptos?.map((crypto) => (
                 <div key={crypto.symbol} className="grid grid-cols-3 items-center gap-0">
                   <div className="flex items-center gap-1.5 justify-start pl-1">
