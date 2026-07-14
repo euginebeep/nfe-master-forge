@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -7,12 +6,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useResponsaveisTecnicosValidos } from "@/hooks/use-responsaveis-tecnicos";
-import { 
-  validarCompatibilidadeRT, 
-  type TipoConselho,
-  CONSELHOS 
+import {
+  validarCompatibilidadeRT,
+  CONSELHOS,
 } from "@/types/responsavel-tecnico";
 import { AlertTriangle, UserCheck, ShieldAlert } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
@@ -25,30 +24,28 @@ interface RTSelectorOPProps {
   disabled?: boolean;
 }
 
-export function RTSelectorOP({ 
-  tipoProduto, 
-  value, 
-  onChange, 
-  disabled 
+export function RTSelectorOP({
+  tipoProduto,
+  value,
+  onChange,
+  disabled,
 }: RTSelectorOPProps) {
   const { data: rtsValidos, isLoading } = useResponsaveisTecnicosValidos();
-  
-  // Filtrar RTs compatíveis com o tipo de produto
-  const rtsCompativeis = (rtsValidos || []).filter(rt => 
-    validarCompatibilidadeRT(rt.tipo_conselho, tipoProduto)
-  );
 
-  const rtSelecionado = rtsCompativeis.find(rt => rt.id === value);
+  const rtsDisponiveis = rtsValidos || [];
+  const rtSelecionado = rtsDisponiveis.find(rt => rt.id === value);
+  const rtSelecionadoIncompativel = rtSelecionado
+    ? !validarCompatibilidadeRT(rtSelecionado.tipo_conselho, tipoProduto)
+    : false;
 
-  // Mensagem de compatibilidade
   const getMensagemCompatibilidade = () => {
     switch (tipoProduto) {
       case 'CAPSULA':
-        return 'Produto encapsulado requer CRF ou CRQ';
+        return 'Conselho usual para encapsulado: CRF ou CRQ';
       case 'CRITICO':
-        return 'Fórmula crítica requer CRQ ou CRF';
+        return 'Conselho usual para fórmula crítica: CRQ ou CRF';
       default:
-        return 'CRN, CRQ ou CRF são aceitos';
+        return 'Conselhos usualmente aceitos: CRN, CRQ ou CRF';
     }
   };
 
@@ -56,20 +53,20 @@ export function RTSelectorOP({
     return <div className="h-10 bg-muted animate-pulse rounded-md" />;
   }
 
-  if (rtsCompativeis.length === 0) {
+  if (rtsDisponiveis.length === 0) {
     return (
       <Alert variant="destructive">
         <ShieldAlert className="h-4 w-4" />
         <AlertTitle>Produção Bloqueada</AlertTitle>
         <AlertDescription>
           <p className="mb-2">
-            Não há responsável técnico válido e compatível para este tipo de produto.
+            Não há responsável técnico ativo com registro válido disponível.
           </p>
           <p className="text-sm">
             {getMensagemCompatibilidade()}
           </p>
           <p className="text-xs mt-2 text-muted-foreground">
-            Cadastre um RT com conselho válido em Cadastros → Responsáveis Técnicos
+            Cadastre um RT ativo com registro em dia em Cadastros → Responsáveis Técnicos
           </p>
         </AlertDescription>
       </Alert>
@@ -82,18 +79,19 @@ export function RTSelectorOP({
         <UserCheck className="w-4 h-4" />
         <span>{getMensagemCompatibilidade()}</span>
       </div>
-      
+
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder="Selecione o Responsável Técnico *" />
         </SelectTrigger>
         <SelectContent>
-          {rtsCompativeis.map((rt) => {
+          {rtsDisponiveis.map((rt) => {
+            const compativel = validarCompatibilidadeRT(rt.tipo_conselho, tipoProduto);
             const diasRestantes = differenceInDays(
-              new Date(rt.validade_registro), 
+              new Date(rt.validade_registro),
               new Date()
             );
-            
+
             return (
               <SelectItem key={rt.id} value={rt.id}>
                 <div className="flex items-center gap-3">
@@ -103,6 +101,14 @@ export function RTSelectorOP({
                       <StatusBadge variant="info" className="text-[10px]">
                         {rt.tipo_conselho} {rt.numero_registro}/{rt.uf_conselho}
                       </StatusBadge>
+                      {!compativel && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-amber-700 border-amber-300 bg-amber-50"
+                        >
+                          confirmar competência
+                        </Badge>
+                      )}
                       {diasRestantes <= 30 && (
                         <span className="text-warning flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
@@ -117,6 +123,16 @@ export function RTSelectorOP({
           })}
         </SelectContent>
       </Select>
+
+      {rtSelecionadoIncompativel && rtSelecionado && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-sm text-amber-800">
+            {rtSelecionado.tipo_conselho} não é o conselho usual para este tipo de produto. Confirme a competência do
+            profissional junto ao conselho antes de designar.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {rtSelecionado && (
         <div className="bg-muted/50 rounded-lg p-3 text-sm">
