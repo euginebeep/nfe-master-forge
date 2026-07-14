@@ -1,10 +1,11 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Copy, Download, Loader2, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -14,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EnviarFornecedorMenu } from '@/components/compras/EnviarFornecedorMenu';
+import { PedidoRecebimentoSection } from '@/components/compras/PedidoRecebimentoSection';
 import { imprimirListaPura } from '@/components/compras/ListaPuraCompraPanel';
 import { usePedidoCompra, useMarcarPedidoEnviado } from '@/hooks/use-pedidos-compra';
 import { useCompanyBranding } from '@/hooks/use-company-branding';
@@ -46,6 +48,7 @@ export default function PedidoCompraDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
+  const [abaAtiva, setAbaAtiva] = useState('pedido');
   const { data, isLoading, isError, error } = usePedidoCompra(id);
   const { data: branding } = useCompanyBranding();
   const { data: fornecedor } = useHybridEntidade(data?.pedido.fornecedor_id ?? undefined);
@@ -186,6 +189,17 @@ export default function PedidoCompraDetailPage() {
         />
       </div>
 
+      <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="no-print">
+        <TabsList>
+          <TabsTrigger value="pedido">Pedido</TabsTrigger>
+          <TabsTrigger value="recebimento">Recebimento</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="recebimento" className="mt-4">
+          <PedidoRecebimentoSection pedidoId={pedido.id} pedidoStatus={pedido.status} />
+        </TabsContent>
+
+        <TabsContent value="pedido" className="mt-4">
       <Card>
         <CardContent className="p-6 space-y-6">
           <div ref={printRef} className="space-y-6 bg-white text-foreground">
@@ -281,6 +295,8 @@ export default function PedidoCompraDetailPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
