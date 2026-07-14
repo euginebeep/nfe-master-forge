@@ -20,6 +20,11 @@ export interface NotaEntrada {
   // Campos enriquecidos
   qtd_itens?: number;
   qtd_itens_vinculados?: number;
+  // 3-way match (Fase 5)
+  pedido_id?: string | null;
+  nota_avulsa?: boolean;
+  motivo_sem_pedido?: string | null;
+  pedido_numero?: string | null;
   // Financeiro
   vencimento?: string | null;
   status_financeiro?: 'PAGO' | 'PENDENTE' | 'VENCIDO' | 'SEM_DUPLICATA';
@@ -48,7 +53,11 @@ export function useNotasEntrada() {
       // 1. Buscar notas com join de entidades (fornecedor)
       const { data: notas, error } = await supabase
         .from('notas_entrada')
-        .select(`*, entidades:fornecedor_id (razao_social, nome_fantasia, documento)`)
+        .select(`
+          *,
+          entidades:fornecedor_id (razao_social, nome_fantasia, documento),
+          pedido:pedido_id (id, numero_interno)
+        `)
         .order('dh_emissao', { ascending: false });
 
       if (error) throw error;
@@ -116,6 +125,7 @@ export function useNotasEntrada() {
 
       return notas.map((nota: any) => {
         const ent = nota.entidades;
+        const ped = nota.pedido;
         const itens = itensMap[nota.id] ?? { total: 0, vinculados: 0 };
         const fin = financeiroMap[nota.id] ?? null;
         return {
@@ -136,6 +146,10 @@ export function useNotasEntrada() {
           created_at: nota.created_at,
           qtd_itens: itens.total,
           qtd_itens_vinculados: itens.vinculados,
+          pedido_id: nota.pedido_id ?? ped?.id ?? null,
+          nota_avulsa: !!nota.nota_avulsa,
+          motivo_sem_pedido: nota.motivo_sem_pedido ?? null,
+          pedido_numero: ped?.numero_interno ?? null,
           vencimento: fin?.vencimento ?? null,
           status_financeiro: fin?.status_financeiro ?? 'SEM_DUPLICATA',
           valor_pago: fin?.valor_pago ?? null,

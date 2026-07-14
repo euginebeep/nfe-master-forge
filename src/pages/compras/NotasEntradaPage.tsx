@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback } from "react";
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FileText, Calendar, Building2, DollarSign,
   Package, CheckCircle2, AlertTriangle, Clock, XCircle,
-  TrendingUp, Filter, ChevronDown
+  TrendingUp, Filter, ChevronDown, Link2
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +26,13 @@ import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { VincularNotaPedidoDialog } from "@/components/compras/VincularNotaPedidoDialog";
 
 // ── Status badges ──────────────────────────────────────────────
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "muted"> = {
@@ -106,6 +113,8 @@ export default function NotasEntradaPage() {
   const [search, setSearch] = useState("");
   const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
   const [statusFinFiltro, setStatusFinFiltro] = useState<StatusFinFiltro>("todos");
+  const [notaVinculo, setNotaVinculo] = useState<NotaEntrada | null>(null);
+  const [dialogVinculoOpen, setDialogVinculoOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const handleViewNota = useCallback((nota: NotaEntrada) => {
@@ -118,7 +127,15 @@ export default function NotasEntradaPage() {
   const handleRefreshNotas = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
     queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
+    queryClient.invalidateQueries({ queryKey: ['recebimento-divergencias'] });
+    queryClient.invalidateQueries({ queryKey: ['pedidos-compra'] });
   }, [queryClient]);
+
+  const abrirDialogVinculo = useCallback((nota: NotaEntrada, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setNotaVinculo(nota);
+    setDialogVinculoOpen(true);
+  }, []);
 
   const handleReverter = useCallback(async (nota: NotaEntrada) => {
     if (!confirm(`Tem certeza que deseja REVERTER a importação da NF-e ${nota.numero}?\n\nIsso apagará todos os lotes, itens da nota e contas a pagar gerados por esta importação.`)) return;
@@ -129,8 +146,9 @@ export default function NotasEntradaPage() {
       queryClient.invalidateQueries({ queryKey: ['notas-entrada'] });
       queryClient.invalidateQueries({ queryKey: ['estoque-lotes'] });
       queryClient.invalidateQueries({ queryKey: ['itens'] });
-    } catch {
-      toast.error('Erro ao reverter importação');
+    } catch (err) {
+      const e = err as { message?: string; code?: string };
+      toast.error(e?.message || e?.code || 'Erro ao reverter importação');
     } finally {
       setReverting(null);
     }
@@ -234,6 +252,67 @@ export default function NotasEntradaPage() {
       ),
     },
     {
+      key: "pedido",
+      header: "Pedido",
+      className: "min-w-[130px]",
+      render: (item: NotaEntrada) => {
+        if (item.pedido_id) {
+          return (
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <Link to={`/compras/pedidos/${item.pedido_id}`}>
+                <Badge variant="default" className="text-xs hover:opacity-90">
+                  {item.pedido_numero || 'PC'}
+                </Badge>
+              </Link>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                title="Gerenciar vínculo"
+                onClick={(e) => abrirDialogVinculo(item, e)}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
+        }
+        if (item.nota_avulsa) {
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="text-xs cursor-default">
+                    Avulsa
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  {item.motivo_sem_pedido || 'Nota sem pedido de compra'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+        return (
+          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+              sem pedido
+            </Badge>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={(e) => abrirDialogVinculo(item, e)}
+            >
+              <Link2 className="h-3 w-3 mr-1" />
+              Vincular
+            </Button>
+          </div>
+        );
+      },
+    },
+    {
       key: "qtd_itens",
       header: "Itens",
       className: "min-w-[100px]",
@@ -333,7 +412,7 @@ export default function NotasEntradaPage() {
         />
       ),
     },
-  ], [processando, reverting, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas]);
+  ], [processando, reverting, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas, abrirDialogVinculo]);
 
   const periodoLabel: Record<PeriodoFiltro, string> = {
     todos: "Todos os períodos",
@@ -488,6 +567,15 @@ export default function NotasEntradaPage() {
       )}
 
       <NFeVisualizacaoDialog open={showNFeDialog} onOpenChange={setShowNFeDialog} chaveNfe={selectedChaveNfe} />
+
+      <VincularNotaPedidoDialog
+        nota={notaVinculo}
+        open={dialogVinculoOpen}
+        onOpenChange={(open) => {
+          setDialogVinculoOpen(open);
+          if (!open) setNotaVinculo(null);
+        }}
+      />
     </div>
   );
 }
