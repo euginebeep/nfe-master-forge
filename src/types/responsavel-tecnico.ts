@@ -112,7 +112,9 @@ export interface AuditTrailEvento {
   created_at: string;
 }
 
-// Validação de compatibilidade RT x Tipo de Produto
+// Orientação de compatibilidade RT x Tipo de Produto.
+// ORIENTAÇÃO apenas — não é impedimento legal. A designação de RT é ato da empresa
+// junto ao conselho profissional; o sistema sugere o conselho usual, o humano decide.
 export function validarCompatibilidadeRT(
   tipoConselho: TipoConselho,
   tipoProduto: 'CAPSULA' | 'LIQUIDO' | 'PO' | 'CRITICO'
