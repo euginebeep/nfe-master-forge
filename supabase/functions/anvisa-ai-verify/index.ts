@@ -29,7 +29,8 @@ function buildGeminiRequest(
 
   const generationConfig: any = {
     temperature: 0.1,
-    maxOutputTokens: 65536,
+    // gemini-2.5-flash não aceita 65536 de output — causa 400/500 na API (BX-R22).
+    maxOutputTokens: 8192,
   }
   // Para IMAGEM, NÃO forçar responseMimeType JSON (geração estruturada com visão é frágil
   // e trava/trunca). Deixamos o modelo responder texto e o parser robusto trata.
@@ -68,13 +69,78 @@ async function callGemini(
 
   if (!res.ok) {
     const errText = await res.text()
+    console.error('gemini_api_error_body:', res.status, errText)
     throw new Error(`gemini_api_error: ${res.status} ${errText}`)
   }
 
   const data = await res.json()
   const text = extractGeminiText(data)
-  if (!text) throw new Error('gemini_api_error: resposta vazia ou sem candidatos')
+  if (!text) {
+    console.error('gemini_api_error_body: empty_response', JSON.stringify({
+      finishReason: data?.candidates?.[0]?.finishReason ?? null,
+      blockReason: data?.promptFeedback?.blockReason ?? null,
+    }))
+    throw new Error('gemini_api_error: 502 resposta vazia ou sem candidatos')
+  }
   return text
+}
+
+/**
+ * Limites oficiais da base (anvisa_constituintes).
+ * Nunca usar números hardcoded no prompt — divergem da produção (ex.: zinco 25 vs 29,59).
+ * Se a busca falhar, retorna '' → o prompt manda VERIFICAR/PENDENTE_RT.
+ */
+async function fetchLimitesOficiais(supabaseUrl: string, serviceKey: string): Promise<string> {
+  try {
+    const qs =
+      'select=nome_tecnico,limite_max_num,limite_unidade' +
+      '&limite_max_num=not.is.null' +
+      '&ativo=eq.true' +
+      '&order=nome_tecnico' +
+      '&limit=1000'
+    const res = await fetch(`${supabaseUrl}/rest/v1/anvisa_constituintes?${qs}`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+    })
+    if (!res.ok) {
+      console.error('fetchLimitesOficiais failed:', res.status, await res.text())
+      return ''
+    }
+    const rows = await res.json()
+    if (!Array.isArray(rows) || rows.length === 0) {
+      // Fallback sem filtro ativo (algumas linhas podem ter ativo null)
+      const res2 = await fetch(
+        `${supabaseUrl}/rest/v1/anvisa_constituintes?select=nome_tecnico,limite_max_num,limite_unidade&limite_max_num=not.is.null&order=nome_tecnico&limit=1000`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+      )
+      if (!res2.ok) return ''
+      const rows2 = await res2.json()
+      if (!Array.isArray(rows2) || rows2.length === 0) return ''
+      console.log('fetchLimitesOficiais: fallback sem ativo=', rows2.length)
+      return rows2
+        .map((r: any) => `- ${r.nome_tecnico}: MAXIMO ${r.limite_max_num} ${r.limite_unidade || ''}/dia`.trim())
+        .join('\n')
+    }
+    console.log('fetchLimitesOficiais: carregados', rows.length)
+    return rows
+      .map((r: any) => `- ${r.nome_tecnico}: MAXIMO ${r.limite_max_num} ${r.limite_unidade || ''}/dia`.trim())
+      .join('\n')
+  } catch (e) {
+    console.error('fetchLimitesOficiais exception:', e instanceof Error ? e.message : e)
+    return ''
+  }
+}
+
+function blocoLimitesPrompt(limitesTexto: string): string {
+  if (!limitesTexto) {
+    return `LIMITES OFICIAIS ANVISA:
+INDISPONÍVEIS no momento (falha ao ler anvisa_constituintes).
+NÃO invente limites do conhecimento próprio.
+Para qualquer avaliação de dose → status_geral = "VERIFICAR" e alerte PENDENTE_RT.
+Silêncio da base ≠ permissão.`
+  }
+  return `LIMITES OFICIAIS ANVISA (fonte: tabela anvisa_constituintes — vigentes):
+Use SOMENTE os limites fornecidos abaixo. Não use limites de conhecimento próprio.
+${limitesTexto}`
 }
 
 // JSZip via npm (Deno-friendly) para extrair conteúdo real de arquivos .zip e .docx
@@ -565,13 +631,23 @@ Deno.serve(async (req) => {
       }
     }
     if (!geminiKey && (action === 'analyze_file' || action === 'analyze_formula')) {
+      console.error('[anvisa-ai-verify] GEMINI_API_KEY ausente (secret e erp_system_config)')
       return new Response(
         JSON.stringify({
           erro: 'gemini_api_key_nao_configurada',
+          codigo: 'BX-R14',
           mensagem: 'O módulo BrainX ANVISA não está ativo. Configure a chave de integração no painel Admin Master → Integrações de IA.'
         }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+    if (geminiKey && (action === 'analyze_file' || action === 'analyze_formula')) {
+      console.log('[anvisa-ai-verify] GEMINI_API_KEY presente', {
+        source: Deno.env.get('GEMINI_API_KEY') ? 'secret' : 'erp_system_config',
+        keyPrefix: `${geminiKey.slice(0, 6)}…`,
+        keyLen: geminiKey.length,
+        model: GEMINI_MODEL,
+      })
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -585,23 +661,22 @@ Deno.serve(async (req) => {
         console.warn('Sync Power BI failed during analyze_formula:', e);
       }
 
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+      const limitesOficiais = (supabaseUrl && serviceKey)
+        ? await fetchLimitesOficiais(supabaseUrl, serviceKey)
+        : ''
+
       const systemPrompt = `Você é um especialista regulatório em suplementos alimentares brasileiros. Analise a fórmula fornecida com base na IN 28/2018 e suas atualizações vigentes.
 
 CONTEXTO ATUAL ANVISA (Power BI Sync):
 ${powerBiData || 'Dados de sincronização indisponíveis no momento.'}
 
-LIMITES CRÍTICOS (HARD RULES):
-- Vitamina D3: MÁXIMO 2.000 UI (50 mcg/dia)
-- Zinco: MÁXIMO 25 mg/dia
-- Boro: MÁXIMO 6 mg/dia
-- Niacina B3: MÁXIMO 35 mg NE/dia
-- Ácido Fólico B9: MÁXIMO 400 mcg DFE/dia
-- Cromo: MÁXIMO 200 mcg/dia
-- Melatonina: MÁXIMO 0,21 mg/dia (Exclusivo ≥19 anos)
+${blocoLimitesPrompt(limitesOficiais)}
 
 Retorne JSON com:
 {
-  "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
+  "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO|VERIFICAR",
   "alertas": [{"tipo": "err|warn|ok|info", "titulo": "", "corpo": ""}],
   "analise_ia": "texto explicativo citando as normas consultadas",
   "alegacoes_permitidas": ["..."],
@@ -676,6 +751,12 @@ Retorne JSON com:
         }
       }
 
+      const supabaseUrlFile = Deno.env.get('SUPABASE_URL') || ''
+      const serviceKeyFile = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+      const limitesOficiaisFile = (supabaseUrlFile && serviceKeyFile)
+        ? await fetchLimitesOficiais(supabaseUrlFile, serviceKeyFile)
+        : ''
+
       const systemPrompt = `Você é um especialista regulatório em suplementos alimentares brasileiros. Sua tarefa é analisar TODOS os produtos contidos no arquivo enviado e retornar um JSON completo com a análise regulatória de CADA produto individualmente.
 
 INSTRUÇÕES CRÍTICAS:
@@ -684,26 +765,12 @@ INSTRUÇÕES CRÍTICAS:
 3. SEMPRE preencher o campo "nome" de cada ativo com o nome completo do ingrediente
 4. SEMPRE preencher o campo "key" com a chave ANVISA correspondente (lista abaixo)
 5. Retornar APENAS JSON válido — sem texto antes ou depois
+6. Para avaliação de dose, use SOMENTE os LIMITES OFICIAIS listados abaixo (tabela anvisa_constituintes). Nunca use limites de memória/conhecimento próprio.
 
 MAPEAMENTO DE CHAVES ANVISA (campo "key" de cada ativo):
 vitamina_d3 | vitamina_a | vitamina_c | vitamina_e | vitamina_b1 | vitamina_b2 | vitamina_b3 | vitamina_b5 | vitamina_b6 | vitamina_b7 | vitamina_b9 | vitamina_b12 | vitamina_k2 | zinco | ferro | magnesio | calcio | selenio | iodo | manganes | cobre | cromo | boro | fosforo | coenzima_q10 | cafeina | melatonina | luteina | zeaxantina | astaxantina | l_arginina | taurina | creatina | l_triptofano | l_tirosina | beta_alanina | leucina | isoleucina | valina | l_cistina | msm | acido_hialuronico | colageno_tipo2 | colageno_hidrolisado | omega3_epa_dha | espirulina | psyllium | curcuma | ext_laranja_moro | cha_verde | gengibre | feno_grego | propolis | berberina | queratina | silicio_organico | l_citrulina
 
-LIMITES MÁXIMOS OBRIGATÓRIOS — IN 28/2018 Anexo IV:
-- vitamina_d3: MÁXIMO 50 mcg = 2.000 UI/dia (NÃO 4.000 UI — erro crítico comum)
-- zinco: MÁXIMO 25 mg/dia
-- boro: MÁXIMO 6 mg/dia
-- vitamina_b3: MÁXIMO 35 mg NE/dia
-- vitamina_b9: MÁXIMO 400 mcg DFE/dia
-- cromo: MÁXIMO 200 mcg/dia
-- cafeina: MÁXIMO 210 mg/dose
-- melatonina: MÁXIMO 0,21 mg/dia — exclusivo ≥19 anos
-- l_arginina: MÁXIMO 3.000 mg/dia
-- taurina: MÁXIMO 3.000 mg/dia
-- creatina: MÁXIMO 3.000 mg/dia
-- luteina: MÁXIMO 30 mg/dia
-- cobre: MÁXIMO 0,9 mg/dia
-- acido_hialuronico: MÍNIMO 50 mg obrigatório
-- colageno_tipo2: MÍNIMO 40 mg UC-II não hidrolisado
+${blocoLimitesPrompt(limitesOficiaisFile)}
 
 CONSTITUINTES NÃO AUTORIZADOS (Anexo I IN 28 — STATUS = BLOQUEADO):
 - berberina, queratina, l_citrulina
@@ -724,7 +791,7 @@ ESTRUTURA DO JSON DE RETORNO:
       "nome": "",
       "cliente": "",
       "categoria": "",
-      "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO",
+      "status_geral": "APROVADO|APROVADO COM RESSALVAS|BLOQUEADO|VERIFICAR",
       "ativos": [
         { "nome": "", "dose": number, "unit": "mg|mcg|UI|g", "key": "" }
       ],
@@ -856,7 +923,28 @@ Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" 
     console.error('anvisa-ai-verify error:', msg)
     origemLog = 'erro'
     logSearch()
-    return new Response(JSON.stringify({ erro: msg }), {
+
+    if (msg.includes('gemini_api_error')) {
+      const match = msg.match(/gemini_api_error:\s*(\d+)\s*([\s\S]*)/)
+      const geminiStatus = match ? Number(match[1]) : null
+      const detail = (match?.[2] || msg).trim().slice(0, 1500)
+      return new Response(
+        JSON.stringify({
+          erro: 'gemini_api_error',
+          codigo: 'BX-R31',
+          gemini_status: geminiStatus,
+          mensagem:
+            'Falha na análise por IA — verifique a chave/quota do Gemini. ' +
+            (detail || msg),
+        }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    return new Response(JSON.stringify({ erro: msg, codigo: 'BX-R22' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
