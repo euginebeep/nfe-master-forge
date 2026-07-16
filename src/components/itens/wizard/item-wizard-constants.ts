@@ -3,6 +3,7 @@ import {
 } from "lucide-react";
 import type { UnidadeFornecedor, UnidadeInternaLocal, TipoItemLocal } from "@/hooks/use-local-itens";
 import { LABEL_MCG_POR_GRAMA } from "@/lib/unidades-dose";
+import { UNIDADES, UNIDADES_FORNECEDOR as UNIDADES_FORNECEDOR_CANON } from "@/lib/unidades";
 
 export const TIPOS_ITEM: { value: TipoItemLocal; label: string; description: string }[] = [
   { value: "MP", label: "Matéria Prima", description: "Insumos para produção" },
@@ -33,29 +34,19 @@ export const ARMAZENAMENTOS = [
   { value: "OUTRO", label: "Outro" },
 ];
 
-export const UNIDADES_FORNECEDOR: { value: UnidadeFornecedor; label: string; grupo: string }[] = [
-  { value: "kg", label: "Quilograma (kg)", grupo: "Massa" },
-  { value: "g", label: "Grama (g)", grupo: "Massa" },
-  { value: "mg", label: "Miligrama (mg)", grupo: "Massa" },
-  { value: "l", label: "Litro (L)", grupo: "Volume" },
-  { value: "ml", label: "Mililitro (mL)", grupo: "Volume" },
-  { value: "un", label: "Unidade (un)", grupo: "Contável" },
-  { value: "milheiro", label: "Milheiro (1000 un)", grupo: "Contável" },
-  { value: "caixa", label: "Caixa", grupo: "Contável" },
-  { value: "fardo", label: "Fardo", grupo: "Contável" },
-  { value: "pacote", label: "Pacote", grupo: "Contável" },
-];
+export const UNIDADES_FORNECEDOR: { value: UnidadeFornecedor; label: string; grupo: string }[] =
+  UNIDADES_FORNECEDOR_CANON.map((u) => ({
+    value: u.value as UnidadeFornecedor,
+    label: u.label,
+    grupo: u.grupo,
+  }));
 
-export const UNIDADES_INTERNAS: { value: UnidadeInternaLocal; label: string; description: string }[] = [
-  { value: "g", label: "Gramas (g)", description: "Para matérias-primas pesáveis" },
-  { value: "mg", label: "Miligramas (mg)", description: "Para micro-dosagens" },
-  { value: "mcg", label: "Microgramas (mcg / µg)", description: "B12, biotina, ácido fólico, A/D/E/K" },
-  { value: "UI", label: "Unidade Internacional (UI)", description: "Vitaminas A, D, E, K — converter via conversoes_unidades" },
-  { value: "kg", label: "Quilogramas (kg)", description: "Para grandes volumes" },
-  { value: "un", label: "Unidades (un)", description: "Para itens discretos" },
-  { value: "ml", label: "Mililitros (ml)", description: "Para líquidos" },
-  { value: "l", label: "Litros (l)", description: "Para grandes volumes líquidos" },
-];
+export const UNIDADES_INTERNAS: { value: UnidadeInternaLocal; label: string; description: string }[] =
+  UNIDADES.map((u) => ({
+    value: u.value as UnidadeInternaLocal,
+    label: u.label,
+    description: u.grupo,
+  }));
 
 export const TIPOS_POTENCIA = [
   { value: "NENHUMA", label: "Nenhuma (excipiente)" },

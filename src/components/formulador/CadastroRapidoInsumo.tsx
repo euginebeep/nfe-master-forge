@@ -32,7 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateItem } from "@/hooks/use-itens";
 import type { HybridItem } from "@/hooks/use-hybrid-data";
 import {
-  UNIDADES_INSUMO,
+  UNIDADES,
   converterDeclaracaoInsumo,
   formatarMemorialConversao,
   type ConversaoRastreavel,
@@ -316,8 +316,8 @@ export function CadastroRapidoInsumo({
               <Select value={unidadeInterna} onValueChange={setUnidadeInterna}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {UNIDADES_INSUMO.map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  {UNIDADES.map((u) => (
+                    <SelectItem key={u.value} value={u.value}>{u.value}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -327,8 +327,8 @@ export function CadastroRapidoInsumo({
               <Select value={unidadePesagem} onValueChange={setUnidadePesagem}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {UNIDADES_INSUMO.map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  {UNIDADES.map((u) => (
+                    <SelectItem key={u.value} value={u.value}>{u.value}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -338,8 +338,8 @@ export function CadastroRapidoInsumo({
               <Select value={unidadeDeclaracao} onValueChange={setUnidadeDeclaracao}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {UNIDADES_INSUMO.map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  {UNIDADES.map((u) => (
+                    <SelectItem key={u.value} value={u.value}>{u.value}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -30,7 +30,7 @@ export type TipoItemLocal =
 
 // Unidades de compra/fornecedor (IMUTÁVEL após cadastro)
 export type UnidadeFornecedor = 
-  | 'kg' | 'g' | 'mg' 
+  | 'kg' | 'g' | 'mg' | 'mcg' | 'UI'
   | 'un' | 'milheiro' | 'caixa' | 'fardo' | 'pacote'
   | 'l' | 'ml'
   | 'UI_g' | 'mcg_g'; // Concentração

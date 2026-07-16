@@ -23,6 +23,7 @@ import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/Fisc
 import { ItemVinculoSelector } from "@/components/nfe/ItemVinculoSelector";
 import type { LocalItem } from "@/hooks/use-local-itens";
 import { preprocessarUnidadeComercial } from "@/lib/unidades-dose";
+import { UNIDADES, UNIDADES_FORNECEDOR_EXTRA } from "@/lib/unidades";
 import { useAuth } from "@/hooks/use-auth";
 import { useFormPersist } from "@/hooks/use-form-persist";
 
@@ -38,14 +39,12 @@ const CLASSIFICACOES_NOTA: { value: ClassificacaoNota; label: string; descriptio
   { value: "OUTRO", label: "Outro", description: "Classificação manual" },
 ];
 
+/** Lista canônica + milheiro (comum em NF-e de cápsulas/embalagens) */
 const UNIDADES_INTERNAS = [
-  { value: "un", label: "Unidade (un)", descricao: "Peças, cápsulas, embalagens" },
-  { value: "g", label: "Gramas (g)", descricao: "Matérias-primas pesáveis" },
-  { value: "mg", label: "Miligramas (mg)", descricao: "Micronutrientes" },
-  { value: "kg", label: "Quilogramas (kg)", descricao: "Grandes volumes" },
-  { value: "ml", label: "Mililitros (ml)", descricao: "Líquidos pequenos" },
-  { value: "l", label: "Litros (l)", descricao: "Líquidos grandes" },
-  { value: "milheiro", label: "Milheiro", descricao: "Mil unidades" },
+  ...UNIDADES.map((u) => ({ value: u.value, label: u.label, descricao: u.grupo })),
+  ...UNIDADES_FORNECEDOR_EXTRA
+    .filter((u) => u.value === "milheiro")
+    .map((u) => ({ value: u.value, label: u.label, descricao: u.grupo })),
 ];
 
 type ImportStep = 'upload' | 'preview' | 'processing' | 'complete';
