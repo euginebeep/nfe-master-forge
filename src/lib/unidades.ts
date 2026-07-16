@@ -139,8 +139,50 @@ export async function carregarConversoesAtivas(): Promise<ConversaoUnidadeRow[]>
 }
 
 /**
+ * Fator UI→mg a partir da potência do lote do premix (UI/g).
+ * 1 g = P UI → 1 UI = 1000/P mg de premix.
+ * Nunca usa o fator da vitamina pura.
+ */
+export function fatorUiMgDePotenciaLote(potenciaUiPorGrama: number): number | null {
+  if (!Number.isFinite(potenciaUiPorGrama) || potenciaUiPorGrama <= 0) return null;
+  return 1000 / potenciaUiPorGrama;
+}
+
+export async function fatorUiMgDoLotePremix(loteId: string): Promise<{
+  ok: boolean;
+  fator?: number;
+  potencia_ui_g?: number;
+  mensagem: string;
+  motivo?: string;
+}> {
+  const { data, error } = await supabase.rpc("fator_ui_mg_do_lote" as never, {
+    p_lote_id: loteId,
+  } as never);
+  if (error) {
+    return { ok: false, mensagem: error.message, motivo: "RPC_ERRO" };
+  }
+  const j = (data ?? {}) as Record<string, unknown>;
+  if (!j.ok) {
+    return {
+      ok: false,
+      mensagem: String(j.mensagem ?? "Premix sem potência de lote"),
+      motivo: String(j.motivo ?? "PREMIX_SEM_POTENCIA_LOTE"),
+    };
+  }
+  return {
+    ok: true,
+    fator: Number(j.fator_ui_para_mg),
+    potencia_ui_g: Number(j.potencia_ui_g),
+    mensagem: String(j.mensagem ?? ""),
+  };
+}
+
+/**
  * Converte valor digitado na unidade escolhida → destino (padrão: mcg se UI→mcg disponível, senão mg).
  * mcg ↔ mg usa fator 1000 (não precisa de tabela).
+ *
+ * Premix (ehPremix): UI→mg SÓ com potência do lote. Sem lote/potência → bloqueia
+ * (nunca assume fator da D3 pura em conversoes_unidades).
  */
 export async function converterDeclaracaoInsumo(params: {
   nomeInsumo: string;
@@ -148,6 +190,10 @@ export async function converterDeclaracaoInsumo(params: {
   unidadeOrigem: string;
   /** Destino preferido; se omitido, UI→mcg (se houver fator) senão UI→mg; mcg↔mg conforme destino implícito */
   unidadeDestino?: string;
+  /** Item é premix/diluição — não usar fator da substância pura */
+  ehPremix?: boolean;
+  /** Lote do premix (obrigatório se ehPremix + UI) */
+  loteId?: string | null;
 }): Promise<ConversaoRastreavel> {
   const { nomeInsumo, valor } = params;
   const origem = canonicalizarUnidadeDose(params.unidadeOrigem);
@@ -229,7 +275,53 @@ export async function converterDeclaracaoInsumo(params: {
     };
   }
 
-  // UI → precisa da tabela
+  // Premix: fator vem do lote (COA), nunca de conversoes_unidades da pura
+  if (params.ehPremix) {
+    if (!params.loteId) {
+      return {
+        status: "indisponivel",
+        valorOrigem: valor,
+        unidadeOrigem: "UI",
+        valorDestino: null,
+        unidadeDestino: null,
+        fator: null,
+        fonte_tecnica: null,
+        substanciaMatch: nomeInsumo,
+        mensagem:
+          "Premix sem lote informado: não é possível converter UI→mg. Informe a potência (UI/g) do lote do COA — não usar fator da vitamina pura.",
+      };
+    }
+    const loteFat = await fatorUiMgDoLotePremix(params.loteId);
+    if (!loteFat.ok || loteFat.fator == null) {
+      return {
+        status: "indisponivel",
+        valorOrigem: valor,
+        unidadeOrigem: "UI",
+        valorDestino: null,
+        unidadeDestino: null,
+        fator: null,
+        fonte_tecnica: null,
+        substanciaMatch: nomeInsumo,
+        mensagem:
+          loteFat.mensagem ||
+          "Premix sem potência de lote. Bloqueado — não assumir fator da D3 pura.",
+      };
+    }
+    const mg = valor * loteFat.fator;
+    return {
+      status: "ok",
+      valorOrigem: valor,
+      unidadeOrigem: "UI",
+      valorDestino: mg,
+      unidadeDestino: "mg",
+      fator: loteFat.fator,
+      fonte_tecnica: `lote premix ${loteFat.potencia_ui_g} UI/g`,
+      substanciaMatch: nomeInsumo,
+      mensagem: `${valor} UI → ${mg} mg (fator ${loteFat.fator} mg/UI; potência lote ${loteFat.potencia_ui_g} UI/g).`,
+    };
+  }
+
+  // UI → precisa da tabela (substância pura / não-premix)
   let rows: ConversaoUnidadeRow[];
   try {
     rows = await carregarConversoesAtivas();

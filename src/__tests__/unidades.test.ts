@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   UNIDADES,
   encontrarConversaoConservadora,
+  fatorUiMgDePotenciaLote,
   type ConversaoUnidadeRow,
 } from "@/lib/unidades";
 
@@ -56,6 +57,19 @@ describe("conversão UI → mcg (matemática)", () => {
   it("2000 UI D3 = 50 mcg", () => {
     const fator = 0.025;
     expect(2000 * fator).toBe(50);
+  });
+});
+
+describe("fatorUiMgDePotenciaLote (premix)", () => {
+  it("100.000 UI/g → 0,01 mg/UI (não usa fator da D3 pura 0,000025)", () => {
+    const fator = fatorUiMgDePotenciaLote(100_000);
+    expect(fator).toBeCloseTo(0.01, 10);
+    expect(fator).not.toBeCloseTo(0.000025, 10);
+  });
+
+  it("sem potência → null (bloqueia)", () => {
+    expect(fatorUiMgDePotenciaLote(0)).toBeNull();
+    expect(fatorUiMgDePotenciaLote(-1)).toBeNull();
   });
 });
 

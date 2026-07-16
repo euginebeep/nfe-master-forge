@@ -83,6 +83,7 @@ import {
 } from "@/lib/ativo-ultra-critico";
 import { toast } from "sonner";
 import { useFormPersist } from "@/hooks/use-form-persist";
+import { GRUPOS_POPULACIONAIS } from "@/lib/grupos-populacionais";
 
 type FormulaEditDraft = {
   itensLocal: FormulaItem[];
@@ -413,6 +414,57 @@ export default function EditarFormulaPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Coluna principal - Lista de ativos */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Grupo populacional — limite Anvisa por faixa (IN 28 Anexo IV) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Grupo populacional-alvo</CardTitle>
+              <CardDescription>
+                O motor regulatório compara a dose com o limite desta faixa — não com o teto de adulto.
+                Sem grupo → parecer fica PENDENTE_RT.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Grupo</Label>
+                <Select
+                  value={formula.grupo_populacional_alvo || ""}
+                  disabled={isReadOnly}
+                  onValueChange={async (v) => {
+                    const ok = await atualizarFormula(id!, { grupo_populacional_alvo: v });
+                    if (ok) await refresh();
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o grupo…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GRUPOS_POPULACIONAIS.map((g) => (
+                      <SelectItem key={g.value} value={g.value}>
+                        {g.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Doses por dia</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  disabled={isReadOnly}
+                  defaultValue={formula.doses_por_dia ?? ""}
+                  onBlur={async (e) => {
+                    const val = e.target.value === "" ? null : Number(e.target.value);
+                    if (val === formula.doses_por_dia) return;
+                    const ok = await atualizarFormula(id!, { doses_por_dia: val });
+                    if (ok) await refresh();
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Form para adicionar ativo */}
           {!isReadOnly && (
             <Card>
