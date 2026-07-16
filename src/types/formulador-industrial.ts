@@ -23,6 +23,7 @@ export interface ConversaoUnidade {
   id: string;
   substancia: string;
   fator_ui_para_mg: number;
+  conversao_ui_mcg?: number | null;
   fonte_tecnica?: string;
   ativo: boolean;
   created_at?: string;

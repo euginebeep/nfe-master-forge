@@ -1,0 +1,312 @@
+/**
+ * Unidades de insumo + conversão UI/mcg/mg via tabela conversoes_unidades.
+ *
+ * REGRA: nunca hardcodar fatores no front. Fatores vêm do banco (ativo=true).
+ * Na dúvida (0 ou >1 match) → não converte; pede confirmação da RT.
+ */
+
+import { supabase } from "@/integrations/supabase/client";
+import { canonicalizarUnidadeDose } from "@/lib/unidades-dose";
+
+/** Lista canônica dos dropdowns de cadastro de insumo */
+export const UNIDADES_INSUMO = ["g", "mg", "mcg", "UI", "kg", "un", "ml", "l"] as const;
+export type UnidadeInsumo = (typeof UNIDADES_INSUMO)[number];
+
+export interface ConversaoUnidadeRow {
+  id: string;
+  substancia: string;
+  fator_ui_para_mg: number;
+  conversao_ui_mcg: number | null;
+  fonte_tecnica: string | null;
+  ativo: boolean;
+}
+
+export type ConversaoStatus = "ok" | "ambiguo" | "indisponivel" | "nao_aplicavel";
+
+/** Resultado rastreável — deve aparecer no memorial/laudo */
+export interface ConversaoRastreavel {
+  status: ConversaoStatus;
+  valorOrigem: number;
+  unidadeOrigem: string;
+  valorDestino: number | null;
+  unidadeDestino: string | null;
+  fator: number | null;
+  fonte_tecnica: string | null;
+  substanciaMatch: string | null;
+  mensagem: string;
+}
+
+function normalizarTexto(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+function extrairIdVitamina(nome: string): string | null {
+  const s = normalizarTexto(nome);
+  const m = s.match(/(?:vitamina|vit)?([a-z]\d+)/);
+  if (m?.[1]) return m[1];
+  const after = s.replace(/^vitamina/, "").replace(/^vit/, "");
+  if (after.length === 1 && /[a-ek]/.test(after)) return after;
+  return null;
+}
+
+/**
+ * Match conservador: exact → containment único → id de vitamina único.
+ * 0 ou >1 candidatas → null (não chutar).
+ */
+export function encontrarConversaoConservadora(
+  nomeInsumo: string,
+  rows: ConversaoUnidadeRow[],
+): { status: "ok" | "ambiguo" | "indisponivel"; row?: ConversaoUnidadeRow } {
+  if (!nomeInsumo.trim() || rows.length === 0) {
+    return { status: "indisponivel" };
+  }
+
+  const alvo = normalizarTexto(nomeInsumo);
+  const idAlvo = extrairIdVitamina(nomeInsumo);
+
+  const exact = rows.filter((r) => normalizarTexto(r.substancia) === alvo);
+  if (exact.length === 1) return { status: "ok", row: exact[0] };
+  if (exact.length > 1) return { status: "ambiguo" };
+
+  const contains = rows.filter((r) => {
+    const cn = normalizarTexto(r.substancia);
+    return cn.includes(alvo) || alvo.includes(cn);
+  });
+
+  if (contains.length === 1) return { status: "ok", row: contains[0] };
+
+  if (contains.length > 1 && idAlvo) {
+    const byId = contains.filter((r) => extrairIdVitamina(r.substancia) === idAlvo);
+    if (byId.length === 1) return { status: "ok", row: byId[0] };
+    if (byId.length > 1) return { status: "ambiguo" };
+  }
+
+  if (contains.length > 1) return { status: "ambiguo" };
+
+  if (idAlvo) {
+    const byIdOnly = rows.filter((r) => extrairIdVitamina(r.substancia) === idAlvo);
+    if (byIdOnly.length === 1) return { status: "ok", row: byIdOnly[0] };
+    if (byIdOnly.length > 1) return { status: "ambiguo" };
+  }
+
+  return { status: "indisponivel" };
+}
+
+export async function carregarConversoesAtivas(): Promise<ConversaoUnidadeRow[]> {
+  const { data, error } = await supabase
+    .from("conversoes_unidades")
+    .select("id, substancia, fator_ui_para_mg, conversao_ui_mcg, fonte_tecnica, ativo")
+    .eq("ativo", true)
+    .order("substancia");
+
+  if (error) throw error;
+  return (data || []) as ConversaoUnidadeRow[];
+}
+
+/**
+ * Converte valor digitado na unidade escolhida → destino (padrão: mcg se UI→mcg disponível, senão mg).
+ * mcg ↔ mg usa fator 1000 (não precisa de tabela).
+ */
+export async function converterDeclaracaoInsumo(params: {
+  nomeInsumo: string;
+  valor: number;
+  unidadeOrigem: string;
+  /** Destino preferido; se omitido, UI→mcg (se houver fator) senão UI→mg; mcg↔mg conforme destino implícito */
+  unidadeDestino?: string;
+}): Promise<ConversaoRastreavel> {
+  const { nomeInsumo, valor } = params;
+  const origem = canonicalizarUnidadeDose(params.unidadeOrigem);
+  const origemUi = params.unidadeOrigem.trim().toUpperCase() === "UI" ? "UI" : origem;
+
+  if (!Number.isFinite(valor) || valor <= 0) {
+    return {
+      status: "nao_aplicavel",
+      valorOrigem: valor,
+      unidadeOrigem: origemUi,
+      valorDestino: null,
+      unidadeDestino: null,
+      fator: null,
+      fonte_tecnica: null,
+      substanciaMatch: null,
+      mensagem: "Informe um valor numérico positivo para converter.",
+    };
+  }
+
+  // mcg ↔ mg (fator fixo 1000)
+  const destinoPref = params.unidadeDestino
+    ? canonicalizarUnidadeDose(params.unidadeDestino)
+    : null;
+
+  if (origemUi === "mcg" && (destinoPref === "mg" || destinoPref === null)) {
+    if (destinoPref === null) {
+      return {
+        status: "ok",
+        valorOrigem: valor,
+        unidadeOrigem: "mcg",
+        valorDestino: valor,
+        unidadeDestino: "mcg",
+        fator: 1,
+        fonte_tecnica: "identidade (mcg)",
+        substanciaMatch: null,
+        mensagem: `${valor} mcg — sem conversão necessária.`,
+      };
+    }
+    const mg = valor / 1000;
+    return {
+      status: "ok",
+      valorOrigem: valor,
+      unidadeOrigem: "mcg",
+      valorDestino: mg,
+      unidadeDestino: "mg",
+      fator: 0.001,
+      fonte_tecnica: "1 mg = 1000 mcg",
+      substanciaMatch: null,
+      mensagem: `${valor} mcg → ${mg} mg (fator 1/1000).`,
+    };
+  }
+
+  if (origemUi === "mg" && destinoPref === "mcg") {
+    const mcg = valor * 1000;
+    return {
+      status: "ok",
+      valorOrigem: valor,
+      unidadeOrigem: "mg",
+      valorDestino: mcg,
+      unidadeDestino: "mcg",
+      fator: 1000,
+      fonte_tecnica: "1 mg = 1000 mcg",
+      substanciaMatch: null,
+      mensagem: `${valor} mg → ${mcg} mcg (fator 1000).`,
+    };
+  }
+
+  if (origemUi !== "UI") {
+    return {
+      status: "nao_aplicavel",
+      valorOrigem: valor,
+      unidadeOrigem: origemUi,
+      valorDestino: valor,
+      unidadeDestino: origemUi,
+      fator: 1,
+      fonte_tecnica: null,
+      substanciaMatch: null,
+      mensagem: `Unidade ${origemUi}: sem conversão UI necessária.`,
+    };
+  }
+
+  // UI → precisa da tabela
+  let rows: ConversaoUnidadeRow[];
+  try {
+    rows = await carregarConversoesAtivas();
+  } catch (e) {
+    return {
+      status: "indisponivel",
+      valorOrigem: valor,
+      unidadeOrigem: "UI",
+      valorDestino: null,
+      unidadeDestino: null,
+      fator: null,
+      fonte_tecnica: null,
+      substanciaMatch: null,
+      mensagem:
+        "Conversão indisponível (falha ao ler conversoes_unidades). Confirmar com RT.",
+    };
+  }
+
+  const match = encontrarConversaoConservadora(nomeInsumo, rows);
+  if (match.status === "ambiguo") {
+    return {
+      status: "ambiguo",
+      valorOrigem: valor,
+      unidadeOrigem: "UI",
+      valorDestino: null,
+      unidadeDestino: null,
+      fator: null,
+      fonte_tecnica: null,
+      substanciaMatch: null,
+      mensagem:
+        "Mais de uma substância candidata em conversoes_unidades. Confirme com a RT — conversão automática bloqueada.",
+    };
+  }
+  if (match.status === "indisponivel" || !match.row) {
+    return {
+      status: "indisponivel",
+      valorOrigem: valor,
+      unidadeOrigem: "UI",
+      valorDestino: null,
+      unidadeDestino: null,
+      fator: null,
+      fonte_tecnica: null,
+      substanciaMatch: null,
+      mensagem:
+        "Conversão indisponível: não há fator UI para este insumo em conversoes_unidades. Confirmar com RT.",
+    };
+  }
+
+  const row = match.row;
+  const querMcg =
+    !destinoPref || destinoPref === "mcg" || destinoPref === "µg";
+
+  if (querMcg && row.conversao_ui_mcg != null && row.conversao_ui_mcg > 0) {
+    const mcg = valor * row.conversao_ui_mcg;
+    return {
+      status: "ok",
+      valorOrigem: valor,
+      unidadeOrigem: "UI",
+      valorDestino: mcg,
+      unidadeDestino: "mcg",
+      fator: row.conversao_ui_mcg,
+      fonte_tecnica: row.fonte_tecnica,
+      substanciaMatch: row.substancia,
+      mensagem: `${valor} UI → ${mcg} mcg (fator ${row.conversao_ui_mcg} mcg/UI; ${row.substancia}${row.fonte_tecnica ? `; ${row.fonte_tecnica}` : ""}).`,
+    };
+  }
+
+  if (row.fator_ui_para_mg != null && row.fator_ui_para_mg > 0) {
+    const mg = valor * row.fator_ui_para_mg;
+    return {
+      status: "ok",
+      valorOrigem: valor,
+      unidadeOrigem: "UI",
+      valorDestino: mg,
+      unidadeDestino: "mg",
+      fator: row.fator_ui_para_mg,
+      fonte_tecnica: row.fonte_tecnica,
+      substanciaMatch: row.substancia,
+      mensagem: `${valor} UI → ${mg} mg (fator ${row.fator_ui_para_mg} mg/UI; ${row.substancia}${row.fonte_tecnica ? `; ${row.fonte_tecnica}` : ""}).`,
+    };
+  }
+
+  return {
+    status: "indisponivel",
+    valorOrigem: valor,
+    unidadeOrigem: "UI",
+    valorDestino: null,
+    unidadeDestino: null,
+    fator: null,
+    fonte_tecnica: row.fonte_tecnica,
+    substanciaMatch: row.substancia,
+    mensagem:
+      "Conversão indisponível: linha encontrada sem fator válido. Confirmar com RT.",
+  };
+}
+
+/** Formata o memorial curto para toast / observações */
+export function formatarMemorialConversao(c: ConversaoRastreavel): string {
+  if (c.status !== "ok" || c.valorDestino == null || !c.unidadeDestino) {
+    return c.mensagem;
+  }
+  return [
+    `${c.valorOrigem} ${c.unidadeOrigem} → ${c.valorDestino} ${c.unidadeDestino}`,
+    c.fator != null ? `fator=${c.fator}` : null,
+    c.fonte_tecnica ? `fonte=${c.fonte_tecnica}` : null,
+    c.substanciaMatch ? `match=${c.substanciaMatch}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
