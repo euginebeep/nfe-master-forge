@@ -12,6 +12,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 
+export interface ItemSemVinculo {
+  id: string;
+  descricao_interna: string;
+}
+
 export interface VinculoPendente {
   id: string;
   item_id: string;
@@ -81,36 +86,69 @@ interface DecisaoInput {
   observacaoRT?: string | null;
 }
 
+async function resolverAutoriaRT(userId: string | undefined) {
+  const { data: perfil } = await supabase
+    .from("profiles")
+    .select("company_id, nome_completo")
+    .eq("id", userId ?? "")
+    .maybeSingle();
+
+  const { data: rt } = await supabase
+    .from("responsaveis_tecnicos")
+    .select("nome_completo, tipo_conselho, numero_registro, uf_conselho")
+    .eq("company_id", perfil?.company_id ?? "")
+    .eq("status", "ATIVO")
+    .order("validade_registro", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const autor = rt
+    ? `${rt.nome_completo} — ${rt.tipo_conselho}-${rt.uf_conselho} ${rt.numero_registro}`
+    : (perfil?.nome_completo ?? "usuario");
+  const registro = rt
+    ? `${rt.tipo_conselho}-${rt.uf_conselho} ${rt.numero_registro}`
+    : "";
+
+  return { companyId: perfil?.company_id as string | undefined, autor, registro };
+}
+
+/** MP ativos sem vínculo confirmado (fila de sugestão por âncora). */
+export function useItensSemVinculoConfirmado() {
+  return useQuery({
+    queryKey: ["anvisa", "itens-sem-vinculo-confirmado"],
+    queryFn: async (): Promise<ItemSemVinculo[]> => {
+      const { data: itens, error } = await supabase
+        .from("itens")
+        .select("id, descricao_interna")
+        .eq("tipo_item", "MP")
+        .eq("ativo", true)
+        .order("descricao_interna");
+      if (error) throw error;
+
+      const { data: confirmados, error: vErr } = await supabase
+        .from("item_anvisa_vinculo")
+        .select("item_id")
+        .eq("status", "confirmado");
+      if (vErr) throw vErr;
+
+      const ok = new Set((confirmados ?? []).map((r: { item_id: string }) => r.item_id));
+      return (itens ?? [])
+        .filter((i: ItemSemVinculo) => !ok.has(i.id))
+        .map((i: ItemSemVinculo) => ({
+          id: i.id,
+          descricao_interna: i.descricao_interna,
+        }));
+    },
+  });
+}
+
 export function useDecidirVinculo() {
   const qc = useQueryClient();
   const { user } = useAuthContext();
 
   return useMutation({
     mutationFn: async (input: DecisaoInput) => {
-      // 1. company_id do usuário (profiles) — necessário p/ RLS do insert
-      const { data: perfil } = await supabase
-        .from("profiles")
-        .select("company_id, nome_completo")
-        .eq("id", user?.id ?? "")
-        .maybeSingle();
-
-      // 2. Autoria do RT vem de responsaveis_tecnicos (RT ATIVO do company).
-      //    Pode haver mais de 1 ATIVO — pega o de validade mais longa.
-      const { data: rt } = await supabase
-        .from("responsaveis_tecnicos")
-        .select("nome_completo, tipo_conselho, numero_registro, uf_conselho")
-        .eq("company_id", perfil?.company_id ?? "")
-        .eq("status", "ATIVO")
-        .order("validade_registro", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const autor = rt
-        ? `${rt.nome_completo} — ${rt.tipo_conselho}-${rt.uf_conselho} ${rt.numero_registro}`
-        : (perfil?.nome_completo ?? user?.email ?? "usuario");
-      const registro = rt
-        ? `${rt.tipo_conselho}-${rt.uf_conselho} ${rt.numero_registro}`
-        : "";
+      const { companyId, autor, registro } = await resolverAutoriaRT(user?.id);
 
       const patch: Record<string, unknown> = { status: input.acao };
       if (input.observacaoRT) patch.observacao = input.observacaoRT;
@@ -128,9 +166,8 @@ export function useDecidirVinculo() {
         .eq("id", input.vinculoId);
       if (upErr) throw upErr;
 
-      // 3. Trilha append-only. company_id OBRIGATÓRIO (RLS).
       const { error: cfErr } = await supabase.from("anvisa_conferencias_rt").insert({
-        company_id: perfil?.company_id,
+        company_id: companyId,
         rt_nome: autor,
         rt_registro: registro,
         rt_user_id: user?.id ?? null,
@@ -139,6 +176,113 @@ export function useDecidirVinculo() {
       });
       if (cfErr) throw cfErr;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["anvisa", "vinculos-pendentes"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["anvisa", "vinculos-pendentes"] });
+      qc.invalidateQueries({ queryKey: ["anvisa", "itens-sem-vinculo-confirmado"] });
+    },
   });
+}
+
+interface ConfirmarSugestaoInput {
+  itemId: string;
+  constituinteId: string;
+  /** Se já existe vínculo pendente, atualiza em vez de inserir. */
+  vinculoIdExistente?: string | null;
+  observacaoRT?: string | null;
+}
+
+/** Confirma sugestão da âncora: cria/atualiza vínculo como confirmado. Nunca auto-confirma sozinho. */
+export function useConfirmarSugestaoVinculo() {
+  const qc = useQueryClient();
+  const { user } = useAuthContext();
+
+  return useMutation({
+    mutationFn: async (input: ConfirmarSugestaoInput) => {
+      const { companyId, autor, registro } = await resolverAutoriaRT(user?.id);
+      if (!companyId) throw new Error("company_id não encontrado no perfil");
+
+      const agora = new Date().toISOString();
+
+      if (input.vinculoIdExistente) {
+        const { error: upErr } = await supabase
+          .from("item_anvisa_vinculo")
+          .update({
+            constituinte_id: input.constituinteId,
+            status: "confirmado",
+            confirmado_por: autor,
+            confirmado_em: agora,
+            observacao: input.observacaoRT ?? "Confirmado a partir da sugestão por âncora",
+          })
+          .eq("id", input.vinculoIdExistente);
+        if (upErr) throw upErr;
+      } else {
+        // Evita duplicar pendente do mesmo item
+        const { data: existente } = await supabase
+          .from("item_anvisa_vinculo")
+          .select("id")
+          .eq("item_id", input.itemId)
+          .in("status", ["pendente", "confirmado"])
+          .limit(1)
+          .maybeSingle();
+
+        if (existente?.id) {
+          const { error: upErr } = await supabase
+            .from("item_anvisa_vinculo")
+            .update({
+              constituinte_id: input.constituinteId,
+              status: "confirmado",
+              confirmado_por: autor,
+              confirmado_em: agora,
+              observacao: input.observacaoRT ?? "Confirmado a partir da sugestão por âncora",
+            })
+            .eq("id", existente.id);
+          if (upErr) throw upErr;
+        } else {
+          const { error: insErr } = await supabase.from("item_anvisa_vinculo").insert({
+            company_id: companyId,
+            item_id: input.itemId,
+            constituinte_id: input.constituinteId,
+            status: "confirmado",
+            confirmado_por: autor,
+            confirmado_em: agora,
+            observacao: input.observacaoRT ?? "Confirmado a partir da sugestão por âncora",
+          });
+          if (insErr) throw insErr;
+        }
+      }
+
+      const { error: cfErr } = await supabase.from("anvisa_conferencias_rt").insert({
+        company_id: companyId,
+        rt_nome: autor,
+        rt_registro: registro,
+        rt_user_id: user?.id ?? null,
+        acao: "confirmou",
+        observacao: input.observacaoRT ?? "Sugestão por âncora confirmada",
+      });
+      if (cfErr) throw cfErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["anvisa", "vinculos-pendentes"] });
+      qc.invalidateQueries({ queryKey: ["anvisa", "itens-sem-vinculo-confirmado"] });
+      qc.invalidateQueries({ queryKey: ["anvisa", "sugerir-constituintes"] });
+    },
+  });
+}
+
+export async function buscarConstituintesManual(termo: string, limit = 12) {
+  if (!termo || termo.trim().length < 2) return [];
+  const t = termo.trim();
+  const { data, error } = await supabase
+    .from("anvisa_constituintes")
+    .select("id, nome_tecnico, limite_max_num, limite_unidade")
+    .eq("ativo", true)
+    .or(`nome_tecnico.ilike.%${t}%,nome_generico.ilike.%${t}%,nome_rotulo.ilike.%${t}%`)
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as Array<{
+    id: string;
+    nome_tecnico: string;
+    limite_max_num: number | null;
+    limite_unidade: string | null;
+  }>;
 }
