@@ -102,6 +102,7 @@ const TermosUsoPage = lazy(() => import("./pages/legal/TermosUsoPage"));
 const PoliticaPrivacidadePage = lazy(() => import("./pages/legal/PoliticaPrivacidadePage"));
 const EquipamentosPage = lazy(() => import("./pages/settings/EquipamentosPage"));
 const AnvisaCheckerPage = lazy(() => import("./pages/regulatorio/AnvisaCheckerPage"));
+const HomologacaoRTPage = lazy(() => import("./pages/regulatorio/HomologacaoRTPage"));
 const BibliotecaRTPage = lazy(() => import("./pages/regulatorio/BibliotecaRTPage"));
 const CertificadoStatusPage = lazy(() => import("./pages/settings/CertificadoStatusPage"));
 const AuditoriaFiscalPage = lazy(() => import("./pages/vendas/AuditoriaFiscalPage"));
@@ -246,6 +247,7 @@ const App = () => (
                 <Route path="/vendas/orcamentos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="vendas" moduloLabel="Vendas"><OrcamentosPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/pedidos" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="vendas" moduloLabel="Vendas"><PedidosVendaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/regulatorio/anvisa-checker" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><AnvisaCheckerPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/regulatorio/homologacao-rt" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><HomologacaoRTPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/marketplace" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="vendas" moduloLabel="Vendas"><MarketplacePage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/notas-saida" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="fiscal" moduloLabel="Fiscal"><NotasSaidaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/emissor-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="fiscal" moduloLabel="Fiscal"><EmissorNFePage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
