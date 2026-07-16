@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { UNIDADES, UNIDADES_FORNECEDOR } from "@/lib/unidades";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -312,12 +313,9 @@ export function ProdutoDetailPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="g">Gramas (g)</SelectItem>
-                        <SelectItem value="mg">Miligramas (mg)</SelectItem>
-                        <SelectItem value="kg">Quilogramas (kg)</SelectItem>
-                        <SelectItem value="un">Unidades (un)</SelectItem>
-                        <SelectItem value="ml">Mililitros (ml)</SelectItem>
-                        <SelectItem value="l">Litros (l)</SelectItem>
+                        {UNIDADES.map((u) => (
+                          <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -399,12 +397,9 @@ export function ProdutoDetailPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="g">Gramas (g)</SelectItem>
-                          <SelectItem value="mg">Miligramas (mg)</SelectItem>
-                          <SelectItem value="kg">Quilogramas (kg)</SelectItem>
-                          <SelectItem value="un">Unidades (un)</SelectItem>
-                          <SelectItem value="ml">Mililitros (ml)</SelectItem>
-                          <SelectItem value="l">Litros (l)</SelectItem>
+                          {UNIDADES.map((u) => (
+                            <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">Controle interno</p>
@@ -1505,9 +1500,9 @@ function FornecedorFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="kg">Quilogramas (kg)</SelectItem>
-                  <SelectItem value="g">Gramas (g)</SelectItem>
-                  <SelectItem value="un">Unidades (un)</SelectItem>
+                  {UNIDADES_FORNECEDOR.map((u) => (
+                    <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1750,9 +1745,9 @@ function LoteFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="kg">kg</SelectItem>
-                  <SelectItem value="g">g</SelectItem>
-                  <SelectItem value="un">un</SelectItem>
+                  {UNIDADES.map((u) => (
+                    <SelectItem key={u.value} value={u.value}>{u.value}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

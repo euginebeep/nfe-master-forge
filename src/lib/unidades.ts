@@ -8,9 +8,39 @@
 import { supabase } from "@/integrations/supabase/client";
 import { canonicalizarUnidadeDose } from "@/lib/unidades-dose";
 
-/** Lista canônica dos dropdowns de cadastro de insumo */
-export const UNIDADES_INSUMO = ["g", "mg", "mcg", "UI", "kg", "un", "ml", "l"] as const;
-export type UnidadeInsumo = (typeof UNIDADES_INSUMO)[number];
+/**
+ * Fonte ÚNICA de unidades de insumo/estoque.
+ * Todas as telas devem importar daqui — não copiar listas locais.
+ */
+export const UNIDADES = [
+  { value: "g", label: "Gramas (g)", grupo: "Massa" },
+  { value: "mg", label: "Miligramas (mg)", grupo: "Massa" },
+  { value: "mcg", label: "Microgramas (mcg)", grupo: "Massa" },
+  { value: "UI", label: "Unidades Internacionais (UI)", grupo: "Atividade" },
+  { value: "kg", label: "Quilogramas (kg)", grupo: "Massa" },
+  { value: "un", label: "Unidades (un)", grupo: "Contagem" },
+  { value: "ml", label: "Mililitros (ml)", grupo: "Volume" },
+  { value: "l", label: "Litros (l)", grupo: "Volume" },
+] as const;
+
+export type UnidadeValue = (typeof UNIDADES)[number]["value"];
+
+/** @deprecated use UNIDADES — mantido para imports que mapeiam só o value */
+export const UNIDADES_INSUMO = UNIDADES.map((u) => u.value);
+export type UnidadeInsumo = UnidadeValue;
+
+/** Unidades de compra do fornecedor = canônicas + contáveis de embalagem */
+export const UNIDADES_FORNECEDOR_EXTRA = [
+  { value: "milheiro", label: "Milheiro (1000 un)", grupo: "Contagem" },
+  { value: "caixa", label: "Caixa", grupo: "Contagem" },
+  { value: "fardo", label: "Fardo", grupo: "Contagem" },
+  { value: "pacote", label: "Pacote", grupo: "Contagem" },
+] as const;
+
+export const UNIDADES_FORNECEDOR = [
+  ...UNIDADES,
+  ...UNIDADES_FORNECEDOR_EXTRA,
+] as const;
 
 export interface ConversaoUnidadeRow {
   id: string;

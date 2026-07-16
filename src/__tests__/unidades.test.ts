@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  UNIDADES,
   encontrarConversaoConservadora,
   type ConversaoUnidadeRow,
 } from "@/lib/unidades";
@@ -55,5 +56,13 @@ describe("conversão UI → mcg (matemática)", () => {
   it("2000 UI D3 = 50 mcg", () => {
     const fator = 0.025;
     expect(2000 * fator).toBe(50);
+  });
+});
+
+describe("UNIDADES canônica", () => {
+  it("inclui mcg e UI e é a fonte única", () => {
+    const values = UNIDADES.map((u) => u.value);
+    expect(values).toEqual(["g", "mg", "mcg", "UI", "kg", "un", "ml", "l"]);
+    expect(UNIDADES.every((u) => u.label && u.grupo)).toBe(true);
   });
 });
