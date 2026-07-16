@@ -114,7 +114,7 @@ async function registrarFonteInacessivel(
 ): Promise<void> {
   const resumo = `🚨 ALERTA ALTA — Fonte inacessível: ${motivo}`;
 
-  await supabase.from("legislacao_monitoramento").insert({
+  const { data: mon } = await supabase.from("legislacao_monitoramento").insert({
     fonte_monitorada: fonte.id,
     url: fonte.url,
     hash_anterior: null,
@@ -122,7 +122,7 @@ async function registrarFonteInacessivel(
     mudanca_detectada: true,
     resumo_mudanca: resumo,
     status_revisao: "PENDENTE",
-  });
+  }).select("id").single();
 
   await supabase.from("anvisa_alertas_normativos").insert({
     tipo: "ATUALIZACAO",
@@ -131,9 +131,70 @@ async function registrarFonteInacessivel(
     norma: fonte.id,
     fonte_url: fonte.url,
     critico: true,
+    status_revisao: "PENDENTE",
+    monitoramento_id: mon?.id ?? null,
   });
 
   console.error(`[monitor-anvisa-diario] FONTE INACESSÍVEL ${fonte.id}: ${motivo}`);
+}
+
+/**
+ * Quando a IN 28 muda, sinaliza constituintes JÁ homologados para re-homologação.
+ * NÃO desmarca homologado sozinho — só levanta a bandeira para a RT.
+ */
+async function sinalizarRehomologacaoIn28(
+  supabase: SupabaseClient,
+  resumo: string | null,
+): Promise<string[]> {
+  const { data: homologados } = await supabase
+    .from("anvisa_constituintes")
+    .select("id, nome_tecnico")
+    .eq("homologado", true)
+    .eq("ativo", true);
+
+  const nomes = (homologados ?? []).map((c) => c.nome_tecnico as string);
+  if (!homologados?.length) return [];
+
+  const motivo =
+    `Possível alteração na IN 28/2018 detectada pelo monitor. ` +
+    `Reconfirmar limites/alegações. ${resumo ? `Resumo: ${resumo.slice(0, 200)}` : ""}`;
+
+  await supabase
+    .from("anvisa_constituintes")
+    .update({
+      requer_rehomologacao: true,
+      requer_rehomologacao_motivo: motivo.slice(0, 500),
+      requer_rehomologacao_em: new Date().toISOString(),
+    })
+    .eq("homologado", true)
+    .eq("ativo", true);
+
+  return nomes;
+}
+
+async function registrarAlertaMudanca(
+  supabase: SupabaseClient,
+  fonte: FonteMonitorada,
+  resumo: string | null,
+  monitoramentoId: string | null,
+  constituintesAfetados: string[],
+): Promise<void> {
+  const isIn28 = fonte.id === "ANVISALEGIS_IN28";
+  await supabase.from("anvisa_alertas_normativos").insert({
+    tipo: isIn28 ? "ALTERACAO_LIMITE" : "ATUALIZACAO",
+    titulo: `Mudança detectada: ${fonte.id}`,
+    descricao:
+      (resumo || `Alteração de conteúdo em ${fonte.descricao}. Revisar antes de qualquer ação na base.`) +
+      (constituintesAfetados.length
+        ? `\n\nConstituintes homologados que podem precisar de re-homologação (${constituintesAfetados.length}): ${constituintesAfetados.slice(0, 30).join("; ")}${constituintesAfetados.length > 30 ? "…" : ""}`
+        : "\n\nNenhum constituinte homologado no momento — apenas revisar a fonte."),
+    norma: isIn28 ? "IN 28/2018" : fonte.id,
+    constituintes_afetados: constituintesAfetados.length ? constituintesAfetados : null,
+    fonte_url: fonte.url,
+    critico: isIn28 || fonte.id === "DOU_SECAO1",
+    status_revisao: "PENDENTE",
+    monitoramento_id: monitoramentoId,
+  });
 }
 
 serve(async (req) => {
@@ -227,7 +288,7 @@ serve(async (req) => {
           }
         }
 
-        await supabase.from("legislacao_monitoramento").insert({
+        const { data: monRow } = await supabase.from("legislacao_monitoramento").insert({
           fonte_monitorada: fonte.id,
           url: fonte.url,
           hash_anterior: hashAnterior,
@@ -235,7 +296,22 @@ serve(async (req) => {
           mudanca_detectada: mudancaDetectada,
           resumo_mudanca: resumoMudanca,
           status_revisao: "PENDENTE",
-        });
+        }).select("id").single();
+
+        // Grita pra RT: alerta normativo (só quando há mudança real — não no baseline)
+        if (mudancaDetectada) {
+          let afetados: string[] = [];
+          if (fonte.id === "ANVISALEGIS_IN28") {
+            afetados = await sinalizarRehomologacaoIn28(supabase, resumoMudanca);
+          }
+          await registrarAlertaMudanca(
+            supabase,
+            fonte,
+            resumoMudanca,
+            monRow?.id ?? null,
+            afetados,
+          );
+        }
 
         resultados.push({
           fonte: fonte.id,

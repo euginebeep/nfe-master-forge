@@ -27,6 +27,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import {
+  useAlertasNormativosPendentes,
+  useMarcarAlertaRevisado,
+  useConstituintesRequeremRehomologacao,
+  invocarMonitorAnvisaDiario,
+} from "@/hooks/useAlertasNormativos";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -216,6 +222,26 @@ export default function BibliotecaRTPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const pendentes = monitoramento.filter(m => m.status_revisao === "PENDENTE" && m.mudanca_detectada);
+  const { data: alertasPendentes = [], refetch: refetchAlertas } = useAlertasNormativosPendentes();
+  const { data: rehomo = [] } = useConstituintesRequeremRehomologacao();
+  const marcarAlerta = useMarcarAlertaRevisado();
+  const [rodandoMonitor, setRodandoMonitor] = useState(false);
+
+  const handleRodarMonitor = async () => {
+    setRodandoMonitor(true);
+    try {
+      const data = await invocarMonitorAnvisaDiario();
+      toast.success(
+        `Monitor executado — ${data?.total_mudancas ?? 0} alerta(s), ${data?.total_fontes_inacessiveis ?? 0} fonte(s) inacessível(is)`,
+      );
+      await Promise.all([refetchMonitoramento(), refetchAlertas()]);
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      toast.error(`Falha ao rodar monitor: ${err.message ?? "erro"}`);
+    } finally {
+      setRodandoMonitor(false);
+    }
+  };
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -226,6 +252,11 @@ export default function BibliotecaRTPage() {
             <BookOpen className="w-6 h-6 text-green-700" />
             <h1 className="text-2xl font-bold text-gray-900">Biblioteca do RT</h1>
             <Badge variant="outline" className="text-xs border-green-300 text-green-700">Copilot Regulatório</Badge>
+            {alertasPendentes.length > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                {alertasPendentes.length} alerta{alertasPendentes.length > 1 ? "s" : ""} normativo{alertasPendentes.length > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-gray-500">
             Base de conhecimento travada em fonte oficial ANVISA — RDC 243/2018 · RDC 275/2002 · IN 28/2018
@@ -545,20 +576,141 @@ export default function BibliotecaRTPage() {
             <div>
               <h3 className="font-semibold text-sm">Radar de Atualizações ANVISA</h3>
               <p className="text-xs text-gray-500 mt-0.5">
-                Monitoramento diário das fontes oficiais. Mudanças detectadas aguardam revisão humana antes de entrar na base.
+                Cron diário 06h (pg_cron). O monitor só detecta e alerta — nunca publica nem homologa sozinho.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => refetchMonitoramento()}>
-              <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Atualizar
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={rodandoMonitor}
+                onClick={handleRodarMonitor}
+              >
+                {rodandoMonitor ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Radar className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Rodar monitor agora
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  refetchMonitoramento();
+                  refetchAlertas();
+                }}
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Atualizar
+              </Button>
+            </div>
           </div>
+
+          {(alertasPendentes.length > 0 || rehomo.length > 0) && (
+            <Alert className={alertasPendentes.some((a) => a.critico) ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"}>
+              <AlertTriangle className={`h-4 w-4 ${alertasPendentes.some((a) => a.critico) ? "text-red-600" : "text-amber-600"}`} />
+              <AlertDescription className={`text-sm ${alertasPendentes.some((a) => a.critico) ? "text-red-800" : "text-amber-800"}`}>
+                <strong>
+                  {alertasPendentes.length} alerta{alertasPendentes.length !== 1 ? "s" : ""} normativo{alertasPendentes.length !== 1 ? "s" : ""}
+                </strong>{" "}
+                pendente{alertasPendentes.length !== 1 ? "s" : ""} de revisão da RT
+                {rehomo.length > 0 && (
+                  <> · <strong>{rehomo.length}</strong> constituinte{rehomo.length > 1 ? "s" : ""} exige{rehomo.length === 1 ? "" : "m"} re-homologação</>
+                )}
+                . O sistema propõe; a RT decide.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Alertas normativos (anvisa_alertas_normativos) */}
+          {alertasPendentes.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-600" />
+                Alertas normativos pendentes
+              </h4>
+              {alertasPendentes.map((a) => (
+                <Card
+                  key={a.id}
+                  className={a.critico ? "border-l-4 border-l-red-500" : "border-l-4 border-l-amber-500"}
+                >
+                  <CardContent className="pt-3 pb-3 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">{a.titulo}</span>
+                          {a.critico && (
+                            <Badge variant="destructive" className="text-[10px]">Crítico</Badge>
+                          )}
+                          {a.norma && (
+                            <Badge variant="outline" className="text-[10px]">{a.norma}</Badge>
+                          )}
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(a.created_at).toLocaleString("pt-BR")}
+                          </span>
+                        </div>
+                        {a.descricao && (
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">{a.descricao}</p>
+                        )}
+                        {a.constituintes_afetados && a.constituintes_afetados.length > 0 && (
+                          <p className="text-[11px] text-amber-800">
+                            Possível impacto em {a.constituintes_afetados.length} constituinte(s) homologado(s) — reconfirmar limites.
+                          </p>
+                        )}
+                        {a.fonte_url && (
+                          <a
+                            href={a.fonte_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            Abrir fonte oficial <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={marcarAlerta.isPending}
+                          onClick={() =>
+                            marcarAlerta.mutate(
+                              { id: a.id, status: "APROVADO" },
+                              { onSuccess: () => toast.success("Alerta marcado como ciente") },
+                            )
+                          }
+                        >
+                          <Check className="w-3 h-3 mr-1" /> Ciente
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          disabled={marcarAlerta.isPending}
+                          onClick={() =>
+                            marcarAlerta.mutate(
+                              { id: a.id, status: "DESCARTADO" },
+                              { onSuccess: () => toast.message("Alerta descartado") },
+                            )
+                          }
+                        >
+                          Descartar
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {pendentes.length > 0 && (
             <Alert className="border-amber-300 bg-amber-50">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800 text-sm">
-                <strong>{pendentes.length} mudança{pendentes.length > 1 ? "s" : ""} detectada{pendentes.length > 1 ? "s" : ""}</strong> aguardando revisão.
-                Revise e aprove ou descarte antes que sejam adicionadas à base.
+                <strong>{pendentes.length} mudança{pendentes.length > 1 ? "s" : ""} no radar</strong> (hash) aguardando revisão.
+                Aprovar/descartar não altera a base sozinho — só registra a ciência da RT.
               </AlertDescription>
             </Alert>
           )}
