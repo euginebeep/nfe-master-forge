@@ -8,12 +8,14 @@
 // Nunca confirma sozinho. Em dúvida → lista ranqueada ou busca manual.
 
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ExternalLink,
   ShieldCheck,
@@ -36,6 +38,10 @@ import {
   confiancaDaLista,
   type SugestaoConstituinte,
 } from "@/hooks/useSugerirConstituintes";
+import {
+  useAlertasNormativosPendentes,
+  useConstituintesRequeremRehomologacao,
+} from "@/hooks/useAlertasNormativos";
 
 function nivelDeAtencao(v: VinculoPendente): "ok" | "atencao" | "critico" {
   const obs = (v.observacao ?? "").toUpperCase();
@@ -312,6 +318,8 @@ function SugestoesNoVinculoPendente({ v }: { v: VinculoPendente }) {
 export default function HomologacaoRTPage() {
   const { data: vinculos, isLoading } = useVinculosPendentes();
   const { data: semVinculo, isLoading: loadingSem } = useItensSemVinculoConfirmado();
+  const { data: alertasNormativos = [] } = useAlertasNormativosPendentes();
+  const { data: rehomo = [] } = useConstituintesRequeremRehomologacao();
   const decidir = useDecidirVinculo();
   const [obsPorId, setObsPorId] = useState<Record<string, string>>({});
   const [teorPorId, setTeorPorId] = useState<Record<string, Partial<VinculoPendente>>>({});
@@ -375,6 +383,35 @@ export default function HomologacaoRTPage() {
         title="Conferência do Responsável Técnico"
         description="Confira cada vínculo insumo → constituinte ANVISA. O sistema sugere pelo elemento âncora (magnésio, zinco, D3…); você confirma. Nada entra em fórmula até a confirmação."
       />
+
+      {(alertasNormativos.length > 0 || rehomo.length > 0) && (
+        <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertDescription className="text-sm text-amber-900 dark:text-amber-100 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span>
+              {alertasNormativos.length > 0 && (
+                <>
+                  <strong>{alertasNormativos.length}</strong> alerta
+                  {alertasNormativos.length > 1 ? "s" : ""} normativo
+                  {alertasNormativos.length > 1 ? "s" : ""} pendente
+                  {alertasNormativos.length > 1 ? "s" : ""}
+                </>
+              )}
+              {alertasNormativos.length > 0 && rehomo.length > 0 && " · "}
+              {rehomo.length > 0 && (
+                <>
+                  <strong>{rehomo.length}</strong> constituinte
+                  {rehomo.length > 1 ? "s" : ""} exige
+                  {rehomo.length === 1 ? "" : "m"} re-homologação (norma pode ter mudado)
+                </>
+              )}
+            </span>
+            <Button asChild size="sm" variant="outline" className="h-7">
+              <Link to="/regulatorio/biblioteca-rt">Ver no Radar da Biblioteca RT</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {total > 0 && (
         <div className="flex flex-wrap gap-3">
