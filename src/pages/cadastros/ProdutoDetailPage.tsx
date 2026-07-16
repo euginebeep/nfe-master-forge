@@ -836,6 +836,24 @@ export function ProdutoDetailPage() {
                     />
                     <label htmlFor="exige_premix" className="text-sm">Exige Premix</label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="eh_premix"
+                      checked={!!(formData as { eh_premix?: boolean }).eh_premix}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, eh_premix: !!checked } as typeof formData)
+                      }
+                    />
+                    <label htmlFor="eh_premix" className="text-sm">
+                      Este item É um premix (diluição)
+                    </label>
+                  </div>
+                  {(formData as { eh_premix?: boolean }).eh_premix && (
+                    <p className="text-xs text-muted-foreground col-span-full">
+                      Conversão UI→mg usa a potência (UI/g) do lote do COA — nunca o fator da vitamina pura.
+                      Sem potência no lote, o cálculo é bloqueado.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1274,10 +1292,53 @@ export function ProdutoDetailPage() {
                                   <strong className="text-foreground">
                                     {Number((l as any).potencia_valor).toLocaleString('pt-BR')} {(l as any).potencia_unidade || 'UI/g'}
                                   </strong>
+                                  {(l as any).tipo_potencia === 'UI_POR_GRAMA' && (
+                                    <>
+                                      {' '}→ fator{' '}
+                                      <strong className="text-foreground">
+                                        {(1000 / Number((l as any).potencia_valor)).toExponential(4)} mg/UI
+                                      </strong>
+                                    </>
+                                  )}
                                 </p>
                               </div>
                             )}
                           </div>
+                          {(formData as { eh_premix?: boolean }).eh_premix &&
+                            (l as any).tipo_potencia === 'UI_POR_GRAMA' &&
+                            (l as any).potencia_valor && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {(l as any).potencia_validada_rt ? (
+                                <StatusBadge variant="success">
+                                  Potência validada RT
+                                  {(l as any).potencia_validada_por
+                                    ? ` — ${(l as any).potencia_validada_por}`
+                                    : ""}
+                                </StatusBadge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    updateLote(l.id, {
+                                      potencia_validada_rt: true,
+                                      potencia_validada_em: new Date().toISOString(),
+                                      potencia_validada_por: "RT",
+                                    } as any);
+                                    toast.success(`Potência do lote ${l.numero_lote} validada pela RT`);
+                                  }}
+                                >
+                                  Validar potência (RT)
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          {(formData as { eh_premix?: boolean }).eh_premix &&
+                            (!(l as any).potencia_valor || (l as any).tipo_potencia !== 'UI_POR_GRAMA') && (
+                            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                              Premix sem potência UI/g neste lote — conversão UI→mg bloqueada até informar o COA.
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
