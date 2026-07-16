@@ -74,6 +74,8 @@ const UNIDADES_FORNECEDOR: { value: UnidadeFornecedor; label: string; grupo: str
 const UNIDADES_INTERNAS: { value: UnidadeInternaLocal; label: string; description: string }[] = [
   { value: "g", label: "Gramas (g)", description: "Para matérias-primas pesáveis" },
   { value: "mg", label: "Miligramas (mg)", description: "Para micro-dosagens" },
+  { value: "mcg", label: "Microgramas (mcg / µg)", description: "B12, biotina, ácido fólico, A/D/E/K" },
+  { value: "UI", label: "Unidade Internacional (UI)", description: "Vitaminas A, D, E, K — converter via conversoes_unidades" },
   { value: "kg", label: "Quilogramas (kg)", description: "Para grandes volumes" },
   { value: "un", label: "Unidades (un)", description: "Para itens discretos" },
   { value: "ml", label: "Mililitros (ml)", description: "Para líquidos" },

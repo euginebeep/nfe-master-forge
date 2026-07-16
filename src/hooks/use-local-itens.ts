@@ -35,8 +35,8 @@ export type UnidadeFornecedor =
   | 'l' | 'ml'
   | 'UI_g' | 'mcg_g'; // Concentração
 
-// Unidades internas de controle (padronizadas)
-export type UnidadeInternaLocal = 'g' | 'mg' | 'kg' | 'un' | 'ml' | 'l';
+// Unidades internas de controle (padronizadas) — mcg/UI para vitaminas (IN 28)
+export type UnidadeInternaLocal = 'g' | 'mg' | 'mcg' | 'UI' | 'kg' | 'un' | 'ml' | 'l';
 
 export interface LocalItem {
   id: string;
