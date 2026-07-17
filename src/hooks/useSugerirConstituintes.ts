@@ -1,6 +1,6 @@
-// Match inteligente insumo → constituinte (elemento âncora).
-// Por NOME: fonte única anvisa_consultar (grupo + dose opcionais).
-// Por ITEM_ID: mantém sugerir_constituintes (âncora de cadastro).
+// Match inteligente insumo → constituinte.
+// Fonte única: anvisa_consultar (por nome; item_id resolve descricao_interna primeiro).
+// RPCs antigas (sugerir_constituintes / fuzzy / popular) ficam no banco só por retrocompat.
 
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,18 +27,16 @@ export interface SugestaoConstituinte {
 export async function sugerirConstituintes(
   itemId: string,
 ): Promise<SugestaoConstituinte[]> {
-  const { data, error } = await supabase.rpc(
-    "sugerir_constituintes" as never,
-    { p_item_id: itemId } as never,
-  );
+  // Resolve nome do item e consulta a fonte única (não usa mais sugerir_constituintes SQL).
+  const { data: item, error } = await supabase
+    .from("itens")
+    .select("id, descricao_interna")
+    .eq("id", itemId)
+    .maybeSingle();
   if (error) throw error;
-  return ((data as SugestaoConstituinte[] | null) ?? []).map((r) => ({
-    constituinte_id: r.constituinte_id,
-    nome_tecnico: r.nome_tecnico,
-    ancora: r.ancora,
-    score: Number(r.score),
-    confianca: (r.confianca as ConfiancaSugestao) ?? "media",
-  }));
+  const nome = item?.descricao_interna?.trim();
+  if (!nome) return [];
+  return sugerirConstituintesPorNome(nome);
 }
 
 /** Fonte única por nome (+ grupo/dose quando houver). */

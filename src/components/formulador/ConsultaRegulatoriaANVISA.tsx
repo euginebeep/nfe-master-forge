@@ -1,13 +1,19 @@
 // ============================================================
-// CONSULTA REGULATÓRIA ANVISA
-// Botão e Dialog para consultar legislação de ativos
-// IN, RDC, Alegações permitidas, Dose máxima
+// CONSULTA REGULATÓRIA ANVISA (popup do Formulador)
+// Fonte única: rpc anvisa_consultar — nunca fuzzy/popular/hardcode.
 // ============================================================
 
 import { useState } from "react";
-import { 
-  ExternalLink, FileText, Scale, AlertTriangle, 
-  CheckCircle, XCircle, Search, Loader2, BookOpen
+import {
+  ExternalLink,
+  FileText,
+  Scale,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Search,
+  Loader2,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,127 +30,105 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  estiloStatusAnvisaConsulta,
+  rpcAnvisaConsultar,
+  type AnvisaConsultaResult,
+} from "@/lib/anvisa-consultar";
 
 interface DadosRegulatorios {
   substancia: string;
-  status: 'LIBERADO' | 'RESTRITO' | 'PROIBIDO' | 'NAO_ENCONTRADO';
+  statusLabel: string;
+  statusClass: string;
+  consultaStatus: string;
   instrucaoNormativa: string | null;
   doseMaxima: {
     valor: number | null;
     unidade: string;
     referencia: string;
   } | null;
-  alegacoes: {
-    texto: string;
-    permitido: boolean;
-    fonte: string;
-  }[];
+  alegacoes: { texto: string; permitido: boolean; fonte: string }[];
   advertencias: string[];
-  populacaoAlvo: string[];
   observacoes: string | null;
+  mensagem: string | null;
+  nomeTecnico: string | null;
   linksUteis: { titulo: string; url: string }[];
 }
 
-// Base de dados local de referência ANVISA
-// Em produção, isso viria de uma API ou banco de dados atualizado
-const DADOS_REGULATORIOS_BASE: Record<string, Partial<DadosRegulatorios>> = {
-  'vitamina d': {
-    status: 'LIBERADO',
-    instrucaoNormativa: 'IN nº 28/2018',
-    doseMaxima: { valor: 50, unidade: 'mcg', referencia: 'RDC nº 239/2018' },
-    alegacoes: [
-      { texto: 'A vitamina D auxilia na formação de ossos e dentes', permitido: true, fonte: 'IN 28/2018' },
-      { texto: 'A vitamina D auxilia na absorção de cálcio e fósforo', permitido: true, fonte: 'IN 28/2018' },
-      { texto: 'A vitamina D auxilia no funcionamento do sistema imune', permitido: true, fonte: 'IN 28/2018' },
-      { texto: 'A vitamina D auxilia no funcionamento muscular', permitido: true, fonte: 'IN 28/2018' },
-    ],
-    advertencias: [],
-    populacaoAlvo: ['Adultos', 'Gestantes', 'Lactantes', 'Idosos'],
+function parseLimiteAdultoMg(consulta: AnvisaConsultaResult): number | null {
+  if (consulta.limite_maximo_mg != null && Number.isFinite(consulta.limite_maximo_mg)) {
+    return Number(consulta.limite_maximo_mg);
+  }
+  const texto =
+    consulta.limite_texto ||
+    (consulta.limites?.["19_mais"] as { texto?: string } | undefined)?.texto ||
+    "";
+  const m = String(texto).match(/M[áa]ximo:\s*([0-9\.\,]+)/i);
+  if (!m) return null;
+  // BR: "5.000" = 5000; "9,94" = 9.94
+  const raw = m[1];
+  if (raw.includes(",") && raw.includes(".")) {
+    return parseFloat(raw.replace(/\./g, "").replace(",", "."));
+  }
+  if (raw.includes(",")) return parseFloat(raw.replace(",", "."));
+  if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return parseFloat(raw.replace(/\./g, ""));
+  return parseFloat(raw);
+}
+
+function mapConsultaToDados(
+  nomeAtivo: string,
+  quantidadeMg: number,
+  consulta: AnvisaConsultaResult,
+  consultaComDose?: AnvisaConsultaResult | null,
+): DadosRegulatorios {
+  const estilo = estiloStatusAnvisaConsulta(consulta.status);
+  const alegRaw = Array.isArray(consulta.alegacoes) ? consulta.alegacoes : [];
+  const advRaw = Array.isArray(consulta.advertencias) ? consulta.advertencias : [];
+
+  const limiteAdulto = parseLimiteAdultoMg(consultaComDose || consulta);
+  const statusEfetivo = consultaComDose?.status || consulta.status;
+  const estiloEfetivo = estiloStatusAnvisaConsulta(statusEfetivo);
+
+  return {
+    substancia: nomeAtivo,
+    statusLabel: estiloEfetivo.label,
+    statusClass: estiloEfetivo.className,
+    consultaStatus: statusEfetivo,
+    instrucaoNormativa: consulta.norma_inclusao || "IN 28/2018",
+    doseMaxima:
+      limiteAdulto != null
+        ? {
+            valor: limiteAdulto,
+            unidade: "mg",
+            referencia: consulta.norma_inclusao || "IN 28/2018",
+          }
+        : null,
+    alegacoes: alegRaw.map((a) => ({
+      texto: String(a),
+      permitido: true,
+      fonte: consulta.norma_inclusao || "IN 28/2018",
+    })),
+    advertencias: advRaw.map((a) => String(a)),
+    observacoes: consulta.mensagem || estilo.label,
+    mensagem: consultaComDose?.mensagem || consulta.mensagem || null,
+    nomeTecnico: consulta.nome_tecnico || null,
     linksUteis: [
-      { titulo: 'IN nº 28/2018 - Alegações', url: 'https://www.gov.br/anvisa/pt-br' },
-      { titulo: 'RDC nº 239/2018 - Limites', url: 'https://www.gov.br/anvisa/pt-br' },
+      {
+        titulo: "Portal ANVISA - Suplementos",
+        url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares",
+      },
+      {
+        titulo: "Sistema de Consulta Pública",
+        url: "https://consultas.anvisa.gov.br/",
+      },
     ],
-  },
-  'vitamina c': {
-    status: 'LIBERADO',
-    instrucaoNormativa: 'IN nº 28/2018',
-    doseMaxima: { valor: 1000, unidade: 'mg', referencia: 'RDC nº 239/2018' },
-    alegacoes: [
-      { texto: 'A vitamina C é um antioxidante', permitido: true, fonte: 'IN 28/2018' },
-      { texto: 'A vitamina C auxilia na absorção de ferro', permitido: true, fonte: 'IN 28/2018' },
-      { texto: 'A vitamina C auxilia no funcionamento do sistema imune', permitido: true, fonte: 'IN 28/2018' },
-    ],
-    advertencias: [],
-    populacaoAlvo: ['Adultos', 'Gestantes', 'Lactantes'],
-    linksUteis: [
-      { titulo: 'IN nº 28/2018', url: 'https://www.gov.br/anvisa/pt-br' },
-    ],
-  },
-  'melatonina': {
-    status: 'RESTRITO',
-    instrucaoNormativa: 'RDC nº 833/2023',
-    doseMaxima: { valor: 0.21, unidade: 'mg', referencia: 'RDC nº 833/2023' },
-    alegacoes: [
-      { texto: 'A melatonina auxilia no sono', permitido: true, fonte: 'RDC 833/2023' },
-    ],
-    advertencias: [
-      'Não recomendado para gestantes, lactantes e crianças',
-      'Consumir antes de dormir',
-      'Não exceder a dose diária recomendada',
-    ],
-    populacaoAlvo: ['Adultos acima de 19 anos'],
-    observacoes: 'Limite de 0,21 mg por dose. Doses acima são consideradas medicamento.',
-    linksUteis: [
-      { titulo: 'RDC nº 833/2023', url: 'https://www.gov.br/anvisa/pt-br' },
-    ],
-  },
-  'cálcio': {
-    status: 'LIBERADO',
-    instrucaoNormativa: 'IN nº 28/2018',
-    doseMaxima: { valor: 1500, unidade: 'mg', referencia: 'RDC nº 239/2018' },
-    alegacoes: [
-      { texto: 'O cálcio auxilia na formação e manutenção de ossos e dentes', permitido: true, fonte: 'IN 28/2018' },
-      { texto: 'O cálcio auxilia na coagulação do sangue', permitido: true, fonte: 'IN 28/2018' },
-    ],
-    advertencias: [],
-    populacaoAlvo: ['Adultos', 'Gestantes', 'Lactantes', 'Idosos'],
-    linksUteis: [
-      { titulo: 'IN nº 28/2018', url: 'https://www.gov.br/anvisa/pt-br' },
-    ],
-  },
-  'colágeno': {
-    status: 'LIBERADO',
-    instrucaoNormativa: 'RDC nº 243/2018',
-    doseMaxima: null,
-    alegacoes: [
-      { texto: 'O colágeno auxilia na manutenção da pele', permitido: false, fonte: 'Não aprovado ANVISA' },
-    ],
-    advertencias: ['Alegações de saúde não autorizadas para colágeno puro'],
-    populacaoAlvo: ['Adultos'],
-    observacoes: 'Não possui alegações de saúde aprovadas pela ANVISA. Classificado como alimento.',
-    linksUteis: [
-      { titulo: 'RDC nº 243/2018', url: 'https://www.gov.br/anvisa/pt-br' },
-    ],
-  },
-  'ômega 3': {
-    status: 'LIBERADO',
-    instrucaoNormativa: 'IN nº 28/2018',
-    doseMaxima: { valor: 3000, unidade: 'mg', referencia: 'EFSA' },
-    alegacoes: [
-      { texto: 'O ômega 3 (EPA e DHA) auxilia na manutenção de níveis saudáveis de triglicerídeos', permitido: true, fonte: 'IN 28/2018' },
-    ],
-    advertencias: [],
-    populacaoAlvo: ['Adultos'],
-    linksUteis: [
-      { titulo: 'IN nº 28/2018', url: 'https://www.gov.br/anvisa/pt-br' },
-    ],
-  },
-};
+  };
+}
 
 interface ConsultaRegulatoriaANVISAProps {
   nomeAtivo: string;
@@ -152,91 +136,74 @@ interface ConsultaRegulatoriaANVISAProps {
   trigger?: React.ReactNode;
 }
 
-export function ConsultaRegulatoriaANVISA({ 
-  nomeAtivo, 
+export function ConsultaRegulatoriaANVISA({
+  nomeAtivo,
   quantidadeMg,
-  trigger 
+  trigger,
 }: ConsultaRegulatoriaANVISAProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dados, setDados] = useState<DadosRegulatorios | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
-  // Buscar dados regulatórios
   const buscarDados = async () => {
     setLoading(true);
-    
-    // Simular delay de API
-    await new Promise(r => setTimeout(r, 500));
-    
-    // Buscar na base local (case insensitive, partial match)
-    const nomeNormalizado = nomeAtivo.toLowerCase();
-    let dadosEncontrados: Partial<DadosRegulatorios> | null = null;
-    
-    for (const [chave, valor] of Object.entries(DADOS_REGULATORIOS_BASE)) {
-      if (nomeNormalizado.includes(chave) || chave.includes(nomeNormalizado)) {
-        dadosEncontrados = valor;
-        break;
+    setErro(null);
+    try {
+      // Fonte única — primeiro acha o constituinte
+      const consulta = await rpcAnvisaConsultar({ termo: nomeAtivo });
+
+      // Se achou e há dose, valida contra grupo adulto (19_mais)
+      let consultaDose: AnvisaConsultaResult | null = null;
+      if (
+        consulta.ok &&
+        consulta.status !== "nao_encontrado" &&
+        consulta.status !== "termo_vazio" &&
+        quantidadeMg > 0
+      ) {
+        consultaDose = await rpcAnvisaConsultar({
+          termo: nomeAtivo,
+          grupo: "19_mais",
+          doseMg: quantidadeMg,
+        });
       }
-    }
-    
-    if (dadosEncontrados) {
-      setDados({
-        substancia: nomeAtivo,
-        status: dadosEncontrados.status || 'NAO_ENCONTRADO',
-        instrucaoNormativa: dadosEncontrados.instrucaoNormativa || null,
-        doseMaxima: dadosEncontrados.doseMaxima || null,
-        alegacoes: dadosEncontrados.alegacoes || [],
-        advertencias: dadosEncontrados.advertencias || [],
-        populacaoAlvo: dadosEncontrados.populacaoAlvo || [],
-        observacoes: dadosEncontrados.observacoes || null,
-        linksUteis: dadosEncontrados.linksUteis || [],
-      });
-    } else {
-      setDados({
-        substancia: nomeAtivo,
-        status: 'NAO_ENCONTRADO',
-        instrucaoNormativa: null,
-        doseMaxima: null,
-        alegacoes: [],
-        advertencias: [],
-        populacaoAlvo: [],
-        observacoes: 'Substância não encontrada na base de dados local. Consulte a ANVISA diretamente.',
-        linksUteis: [
-          { titulo: 'Portal ANVISA - Suplementos', url: 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares' },
-          { titulo: 'Sistema de Consulta Pública', url: 'https://consultas.anvisa.gov.br/' },
-        ],
-      });
-    }
-    
-    setLoading(false);
-  };
 
-  // Verificar se dose atual excede máximo
-  const doseExcedida = dados?.doseMaxima && quantidadeMg > dados.doseMaxima.valor!;
-
-  const getStatusColor = (status: DadosRegulatorios['status']) => {
-    switch (status) {
-      case 'LIBERADO': return 'bg-success/10 text-success border-success/30';
-      case 'RESTRITO': return 'bg-warning/10 text-warning border-warning/30';
-      case 'PROIBIDO': return 'bg-destructive/10 text-destructive border-destructive/30';
-      default: return 'bg-muted text-muted-foreground';
+      setDados(mapConsultaToDados(nomeAtivo, quantidadeMg, consulta, consultaDose));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao consultar ANVISA");
+      setDados(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusIcon = (status: DadosRegulatorios['status']) => {
-    switch (status) {
-      case 'LIBERADO': return <CheckCircle className="h-4 w-4" />;
-      case 'RESTRITO': return <AlertTriangle className="h-4 w-4" />;
-      case 'PROIBIDO': return <XCircle className="h-4 w-4" />;
-      default: return <Search className="h-4 w-4" />;
-    }
-  };
+  const doseExcedida =
+    dados?.consultaStatus === "acima_limite" ||
+    Boolean(
+      dados?.doseMaxima?.valor != null &&
+        quantidadeMg > (dados.doseMaxima.valor as number),
+    );
+
+  const statusIcon =
+    dados?.consultaStatus === "proibido" ||
+    dados?.consultaStatus === "acima_limite" ||
+    dados?.consultaStatus === "nao_autorizado_grupo" ? (
+      <XCircle className="h-4 w-4" />
+    ) : dados?.consultaStatus === "encontrado" ||
+      dados?.consultaStatus === "conforme" ? (
+      <CheckCircle className="h-4 w-4" />
+    ) : (
+      <Search className="h-4 w-4" />
+    );
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
-      setOpen(o);
-      if (o && !dados) buscarDados();
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) buscarDados();
+      }}
+    >
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm" className="h-7 text-xs">
@@ -252,7 +219,8 @@ export function ConsultaRegulatoriaANVISA({
             Consulta Regulatória ANVISA
           </DialogTitle>
           <DialogDescription>
-            Panorama regulatório para: <strong>{nomeAtivo}</strong>
+            Fonte única <code className="text-xs">anvisa_consultar</code> para:{" "}
+            <strong>{nomeAtivo}</strong>
           </DialogDescription>
         </DialogHeader>
 
@@ -260,15 +228,25 @@ export function ConsultaRegulatoriaANVISA({
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : erro ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Erro na consulta</AlertTitle>
+            <AlertDescription>{erro}</AlertDescription>
+          </Alert>
         ) : dados ? (
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-4">
-              {/* Status principal */}
-              <div className="flex items-center gap-3">
-                <Badge className={`px-3 py-1 ${getStatusColor(dados.status)}`}>
-                  {getStatusIcon(dados.status)}
-                  <span className="ml-1">{dados.status.replace('_', ' ')}</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge className={`px-3 py-1 ${dados.statusClass}`}>
+                  {statusIcon}
+                  <span className="ml-1">{dados.statusLabel}</span>
                 </Badge>
+                {dados.nomeTecnico && dados.nomeTecnico !== nomeAtivo && (
+                  <span className="text-sm text-muted-foreground">
+                    Match: <strong>{dados.nomeTecnico}</strong>
+                  </span>
+                )}
                 {dados.instrucaoNormativa && (
                   <span className="text-sm text-muted-foreground">
                     Ref: {dados.instrucaoNormativa}
@@ -276,34 +254,61 @@ export function ConsultaRegulatoriaANVISA({
                 )}
               </div>
 
-              {/* Alerta de dose excedida */}
+              {dados.mensagem && (
+                <p className="text-sm text-muted-foreground">{dados.mensagem}</p>
+              )}
+
               {doseExcedida && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Dose acima do limite!</AlertTitle>
                   <AlertDescription>
-                    Dose atual: {quantidadeMg} mg | Limite: {dados.doseMaxima?.valor} {dados.doseMaxima?.unidade}
+                    Dose atual: {quantidadeMg} mg
+                    {dados.doseMaxima?.valor != null && (
+                      <>
+                        {" "}
+                        | Limite: {dados.doseMaxima.valor} {dados.doseMaxima.unidade}
+                      </>
+                    )}
                     <br />
-                    <span className="text-xs">Referência: {dados.doseMaxima?.referencia}</span>
+                    <span className="text-xs">
+                      Referência: {dados.doseMaxima?.referencia || "IN 28/2018"}
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {dados.consultaStatus === "nao_encontrado" && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Consulte ANVISA / PENDENTE_RT</AlertTitle>
+                  <AlertDescription className="text-sm">
+                    {dados.mensagem ||
+                      "Não consta na base de constituintes ANVISA (IN 28/2018)."}
                   </AlertDescription>
                 </Alert>
               )}
 
               <Tabs defaultValue="resumo" className="w-full">
                 <TabsList className="w-full">
-                  <TabsTrigger value="resumo" className="flex-1">Resumo</TabsTrigger>
-                  <TabsTrigger value="alegacoes" className="flex-1">Alegações</TabsTrigger>
-                  <TabsTrigger value="links" className="flex-1">Legislação</TabsTrigger>
+                  <TabsTrigger value="resumo" className="flex-1">
+                    Resumo
+                  </TabsTrigger>
+                  <TabsTrigger value="alegacoes" className="flex-1">
+                    Alegações
+                  </TabsTrigger>
+                  <TabsTrigger value="links" className="flex-1">
+                    Legislação
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="resumo" className="space-y-4 mt-4">
-                  {/* Dose Máxima */}
                   {dados.doseMaxima && (
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center gap-2">
                           <Scale className="h-4 w-4" />
-                          Dose Máxima Permitida
+                          Dose Máxima Permitida (adulto)
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -311,8 +316,10 @@ export function ConsultaRegulatoriaANVISA({
                           {dados.doseMaxima.valor} {dados.doseMaxima.unidade}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Sua dose: {quantidadeMg.toFixed(2)} mg 
-                          {!doseExcedida && <span className="text-success ml-2">✓ Dentro do limite</span>}
+                          Sua dose: {quantidadeMg.toFixed(2)} mg
+                          {!doseExcedida && dados.consultaStatus !== "nao_encontrado" && (
+                            <span className="text-success ml-2">✓ Dentro do limite</span>
+                          )}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Fonte: {dados.doseMaxima.referencia}
@@ -321,7 +328,6 @@ export function ConsultaRegulatoriaANVISA({
                     </Card>
                   )}
 
-                  {/* Advertências */}
                   {dados.advertencias.length > 0 && (
                     <Card className="border-warning/30">
                       <CardHeader className="pb-2">
@@ -343,21 +349,6 @@ export function ConsultaRegulatoriaANVISA({
                     </Card>
                   )}
 
-                  {/* População alvo */}
-                  {dados.populacaoAlvo.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-sm font-medium">População Alvo:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {dados.populacaoAlvo.map((pop, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {pop}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Observações */}
                   {dados.observacoes && (
                     <Alert>
                       <FileText className="h-4 w-4" />
@@ -371,11 +362,18 @@ export function ConsultaRegulatoriaANVISA({
                 <TabsContent value="alegacoes" className="space-y-3 mt-4">
                   {dados.alegacoes.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
-                      Nenhuma alegação de saúde registrada na base local.
+                      Nenhuma alegação retornada pela fonte única.
                     </p>
                   ) : (
                     dados.alegacoes.map((alegacao, i) => (
-                      <Card key={i} className={alegacao.permitido ? 'border-success/30' : 'border-destructive/30'}>
+                      <Card
+                        key={i}
+                        className={
+                          alegacao.permitido
+                            ? "border-success/30"
+                            : "border-destructive/30"
+                        }
+                      >
                         <CardContent className="py-3">
                           <div className="flex items-start gap-2">
                             {alegacao.permitido ? (
@@ -384,9 +382,11 @@ export function ConsultaRegulatoriaANVISA({
                               <XCircle className="h-4 w-4 text-destructive mt-0.5" />
                             )}
                             <div>
-                              <p className="text-sm">{alegacao.texto}</p>
+                              <p className="text-sm whitespace-pre-line">
+                                {alegacao.texto}
+                              </p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {alegacao.permitido ? 'Permitida' : 'Não Permitida'} | {alegacao.fonte}
+                                {alegacao.fonte}
                               </p>
                             </div>
                           </div>
@@ -412,30 +412,18 @@ export function ConsultaRegulatoriaANVISA({
                       <span className="text-sm font-medium">{link.titulo}</span>
                     </a>
                   ))}
-                  
+
                   <Separator className="my-4" />
-                  
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium">Consultas Adicionais:</p>
-                    <a
-                      href={`https://consultas.anvisa.gov.br/#/alimentos/q/?substancia=${encodeURIComponent(nomeAtivo)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted transition-colors"
-                    >
-                      <Search className="h-4 w-4 text-primary" />
-                      <span className="text-sm">Buscar "{nomeAtivo}" no Sistema ANVISA</span>
-                    </a>
-                    <a
-                      href="https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted transition-colors"
-                    >
-                      <BookOpen className="h-4 w-4 text-primary" />
-                      <span className="text-sm">Portal ANVISA - Suplementos Alimentares</span>
-                    </a>
-                  </div>
+
+                  <a
+                    href={`https://consultas.anvisa.gov.br/#/alimentos/q/?substancia=${encodeURIComponent(nomeAtivo)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted transition-colors"
+                  >
+                    <Search className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Buscar "{nomeAtivo}" no Sistema ANVISA</span>
+                  </a>
                 </TabsContent>
               </Tabs>
             </div>
@@ -444,7 +432,8 @@ export function ConsultaRegulatoriaANVISA({
 
         <div className="text-xs text-muted-foreground mt-4 pt-4 border-t">
           <p>
-            ⚠️ Dados de referência local. Para decisões regulatórias, sempre consulte a legislação oficial atualizada.
+            Fonte única BrainX: <code>anvisa_consultar</code>. Para decisões
+            regulatórias, confirme sempre na legislação oficial atualizada.
           </p>
         </div>
       </DialogContent>

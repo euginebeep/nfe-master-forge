@@ -288,20 +288,25 @@ export function useConfirmarSugestaoVinculo() {
   });
 }
 
-export async function buscarConstituintesManual(termo: string, limit = 12) {
+export async function buscarConstituintesManual(termo: string, _limit = 12) {
   if (!termo || termo.trim().length < 2) return [];
-  const t = termo.trim();
-  const { data, error } = await supabase
-    .from("anvisa_constituintes")
-    .select("id, nome_tecnico, limite_max_num, limite_unidade")
-    .eq("ativo", true)
-    .or(`nome_tecnico.ilike.%${t}%,nome_generico.ilike.%${t}%,nome_rotulo.ilike.%${t}%`)
-    .limit(limit);
-  if (error) throw error;
-  return (data ?? []) as Array<{
-    id: string;
-    nome_tecnico: string;
-    limite_max_num: number | null;
-    limite_unidade: string | null;
-  }>;
+  const consulta = await rpcAnvisaConsultar({ termo: termo.trim() });
+  if (
+    !consulta.ok ||
+    !consulta.constituinte_id ||
+    consulta.status === "nao_encontrado" ||
+    consulta.status === "termo_vazio"
+  ) {
+    return [];
+  }
+  return [
+    {
+      id: consulta.constituinte_id,
+      nome_tecnico: consulta.nome_tecnico || termo.trim(),
+      limite_max_num: consulta.limite_maximo_mg ?? null,
+      limite_unidade: consulta.limite_maximo_mg != null ? "mg" : null,
+      consulta_status: consulta.status,
+      consulta_mensagem: consulta.mensagem ?? null,
+    },
+  ];
 }
