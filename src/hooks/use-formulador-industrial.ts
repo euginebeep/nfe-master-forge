@@ -13,7 +13,6 @@ import {
   OrdemProducaoGerada,
   FormulaVersao,
   StatusFormula,
-  gerarCodigoFormula,
   gerarOPBase,
 } from '@/types/formulador-industrial';
 import { toast } from 'sonner';
@@ -215,16 +214,15 @@ export function useFormulaCRUD() {
   // Criar fórmula
   const criar = useCallback(async (data: Omit<Formula, 'id' | 'codigo_formula' | 'versao' | 'criado_em' | 'updated_at'>) => {
     try {
-      // Gerar código único
-      const { count } = await supabase
-        .from('formulas')
-        .select('*', { count: 'exact', head: true });
-      
-      const codigo = gerarCodigoFormula((count || 0) + 1);
-      
-      // Obter usuário logado
+      // Código gerado no banco (MAX+1 por empresa/ano + laço anti-colisão)
+      const { data: codigo, error: codigoErr } = await supabase.rpc('proximo_codigo_formula');
+      if (codigoErr) throw codigoErr;
+      if (!codigo || typeof codigo !== 'string') {
+        throw new Error('Não foi possível gerar o código da fórmula');
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       const { data: formula, error } = await supabase
         .from('formulas')
         .insert({
