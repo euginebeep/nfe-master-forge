@@ -39,4 +39,7 @@ export interface AnvisaConstituinte {
   ativo: boolean;
   created_at: string;
   updated_at: string;
+  /** Colunas densificadas em produção (limites IN 28) — opcionais no tipo legado. */
+  limite_max_num?: number | null;
+  limite_unidade?: string | null;
 }

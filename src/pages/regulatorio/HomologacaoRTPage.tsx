@@ -25,6 +25,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PremixPoliticaPainel } from "@/components/regulatorio/PremixPoliticaPainel";
 import {
   useVinculosPendentes,
   useDecidirVinculo,
@@ -483,6 +484,15 @@ export default function HomologacaoRTPage() {
                     )}
                   </div>
                 </div>
+
+                <PremixPoliticaPainel
+                  constituinteId={v.constituinte_id}
+                  nome={v.constituinte_nome}
+                  categoria={v.constituinte_categoria}
+                  limite_unidade={v.limite_unidade}
+                  limite_max_num={v.limite_max_num}
+                  editavel
+                />
 
                 <div className="grid grid-cols-3 gap-3">
                   {(["teor_min_pct", "teor_nominal_pct", "teor_max_pct"] as const).map((campo, i) => (
