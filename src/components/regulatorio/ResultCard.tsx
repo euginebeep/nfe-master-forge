@@ -98,14 +98,19 @@ export function ResultCard({
 
         {/* Always show doses summary and alegações */}
         <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
-          <PremixPoliticaPainel
-            constituinteId={constituinte.id}
-            nome={constituinte.nome_tecnico}
-            categoria={constituinte.categoria}
-            limite_unidade={constituinte.limite_unidade}
-            limite_max_num={constituinte.limite_max_num}
-            editavel={false}
-          />
+          {(() => {
+            const lim = limiteProxyDoConstituinte(constituinte);
+            return (
+              <PremixPoliticaPainel
+                constituinteId={constituinte.id}
+                nome={constituinte.nome_tecnico}
+                categoria={constituinte.categoria}
+                limite_unidade={lim.limite_unidade}
+                limite_max_num={lim.limite_max_num}
+                editavel={false}
+              />
+            );
+          })()}
           <DoseTable constituinte={constituinte} />
           {constituinte.alegacoes && constituinte.alegacoes.length > 0 && (
             <div>
