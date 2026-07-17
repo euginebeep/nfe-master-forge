@@ -178,6 +178,48 @@ export async function fatorUiMgDoLotePremix(loteId: string): Promise<{
 }
 
 /**
+ * Massa de pré-mix (mg) para uma dose em UI — RPC massa_premix_para_dose.
+ * Bloqueia se potência do lote não foi validada pela RT (padrão).
+ */
+export async function massaPremixParaDose(params: {
+  lotePremixId: string;
+  doseUi: number;
+  exigirValidacaoRt?: boolean;
+}): Promise<{
+  ok: boolean;
+  massa_premix_mg?: number;
+  potencia_ui_g?: number;
+  potencia_validada_rt?: boolean;
+  mensagem: string;
+  motivo?: string;
+}> {
+  const { data, error } = await (supabase as any).rpc("massa_premix_para_dose", {
+    p_lote_premix_id: params.lotePremixId,
+    p_dose_ui: params.doseUi,
+    p_exigir_validacao_rt: params.exigirValidacaoRt ?? true,
+  });
+  if (error) {
+    return { ok: false, mensagem: error.message, motivo: "RPC_ERRO" };
+  }
+  const j = (data ?? {}) as Record<string, unknown>;
+  if (!j.ok) {
+    return {
+      ok: false,
+      mensagem: String(j.mensagem ?? "Não foi possível calcular a massa do pré-mix"),
+      motivo: String(j.motivo ?? "ERRO"),
+      potencia_ui_g: j.potencia_ui_g != null ? Number(j.potencia_ui_g) : undefined,
+    };
+  }
+  return {
+    ok: true,
+    massa_premix_mg: Number(j.massa_premix_mg),
+    potencia_ui_g: Number(j.potencia_ui_g),
+    potencia_validada_rt: Boolean(j.potencia_validada_rt),
+    mensagem: String(j.mensagem ?? ""),
+  };
+}
+
+/**
  * Converte valor digitado na unidade escolhida → destino (padrão: mcg se UI→mcg disponível, senão mg).
  * mcg ↔ mg usa fator 1000 (não precisa de tabela).
  *
@@ -291,8 +333,12 @@ export async function converterDeclaracaoInsumo(params: {
           "Premix sem lote informado: não é possível converter UI→mg. Informe a potência (UI/g) do lote do COA — não usar fator da vitamina pura.",
       };
     }
-    const loteFat = await fatorUiMgDoLotePremix(params.loteId);
-    if (!loteFat.ok || loteFat.fator == null) {
+    const calc = await massaPremixParaDose({
+      lotePremixId: params.loteId,
+      doseUi: valor,
+      exigirValidacaoRt: true,
+    });
+    if (!calc.ok || calc.massa_premix_mg == null) {
       return {
         status: "indisponivel",
         valorOrigem: valor,
@@ -303,21 +349,22 @@ export async function converterDeclaracaoInsumo(params: {
         fonte_tecnica: null,
         substanciaMatch: nomeInsumo,
         mensagem:
-          loteFat.mensagem ||
-          "Premix sem potência de lote. Bloqueado — não assumir fator da D3 pura.",
+          calc.mensagem ||
+          "Premix sem potência de lote validada pela RT. Bloqueado — não assumir fator da D3 pura.",
       };
     }
-    const mg = valor * loteFat.fator;
+    const mg = calc.massa_premix_mg;
+    const fator = valor > 0 ? mg / valor : null;
     return {
       status: "ok",
       valorOrigem: valor,
       unidadeOrigem: "UI",
       valorDestino: mg,
       unidadeDestino: "mg",
-      fator: loteFat.fator,
-      fonte_tecnica: `lote premix ${loteFat.potencia_ui_g} UI/g`,
+      fator,
+      fonte_tecnica: calc.mensagem,
       substanciaMatch: nomeInsumo,
-      mensagem: `${valor} UI → ${mg} mg (fator ${loteFat.fator} mg/UI; potência lote ${loteFat.potencia_ui_g} UI/g).`,
+      mensagem: calc.mensagem,
     };
   }
 
