@@ -76,6 +76,7 @@ export function useSalvarPremixPolitica() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["premix-politica", vars.constituinteId] });
+      qc.invalidateQueries({ queryKey: ["premix", "candidatos"] });
     },
   });
 }

@@ -165,6 +165,7 @@ const menuGroups: MenuGroup[] = [
   { title: "Consulta ANVISA", url: "/regulatorio/anvisa", icon: Shield, tooltip: "Consulta à base de dados ANVISA — constituintes e limites da IN 28/2018", modulo: "producao" },
   { title: "ANVISA Checker", url: "/regulatorio/anvisa-checker", icon: FlaskConical, tooltip: "Checador de fórmulas e verificação regulatória ANVISA", modulo: "producao" },
   { title: "Conferência do RT", url: "/regulatorio/homologacao-rt", icon: ShieldCheck, tooltip: "Fila de conferência do RT — vínculos insumo→constituinte e teores do COA", modulo: "producao" },
+  { title: "Candidatos a pré-mix", url: "/regulatorio/premix-candidatos", icon: FlaskConical, tooltip: "Micro-doses ANVISA com sugestão de proporção/veículo — RT confirma ou ajusta", modulo: "producao" },
   { title: "Biblioteca do RT", url: "/regulatorio/biblioteca-rt", icon: BookOpen, badge: "IA", tooltip: "Copilot Regulatório — base de conhecimento ANVISA travada em fonte oficial (RDC 243/2018, RDC 275/2002, IN 28/2018)", modulo: "producao" },
   { title: "Resp. Técnicos", url: "/cadastros/responsaveis-tecnicos", icon: UserCheck, tooltip: "Gestão de responsáveis técnicos habilitados para produção", modulo: "producao" },
   { title: "Monitoramento Ambiental", url: "/ambiental/monitoramento", icon: Thermometer, badge: "ANVISA", tooltip: "Monitoramento de temperatura e umidade em tempo real", modulo: "producao" },
