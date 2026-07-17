@@ -8478,20 +8478,7 @@ export type Database = {
       gerar_codigo_pedido: { Args: never; Returns: string }
       gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }
       calcular_capsula_industrial: { Args: { p_formula_id: string }; Returns: Json }
-      densidade_item_resolvida: {
-        Args: { p_item_id: string; p_lote_id?: string; p_dens_fallback?: number }
-        Returns: Json
-      }
-      densidade_blend_estimada: {
-        Args: {
-          p_formula_id: string
-          p_dens_veiculo?: number
-          p_dens_sio2?: number
-          p_dens_estearato?: number
-          p_dens_talco?: number
-        }
-        Returns: Json
-      }
+
       proximo_codigo_formula: { Args: { p_company_id?: string }; Returns: string }
       gerar_hash_qr_code_op: {
         Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }
