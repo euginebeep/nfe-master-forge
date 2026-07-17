@@ -8478,6 +8478,7 @@ export type Database = {
       gerar_codigo_pedido: { Args: never; Returns: string }
       gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }
       calcular_capsula_industrial: { Args: { p_formula_id: string }; Returns: Json }
+
       proximo_codigo_formula: { Args: { p_company_id?: string }; Returns: string }
       gerar_hash_qr_code_op: {
         Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }

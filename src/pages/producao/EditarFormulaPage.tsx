@@ -38,6 +38,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogTrigger, DialogDescription,
 } from "@/components/ui/dialog";
+import { fmtMassaAtivos } from "@/lib/fmt-massa-ativos";
+import {
+  rpcCalcularCapsulaIndustrial,
+  rpcDensidadeBlendEstimada,
+} from "@/lib/capsula-industrial-rpc";
 import {
   Tooltip,
   TooltipContent,
@@ -329,7 +334,7 @@ export default function EditarFormulaPage() {
 
   // Aprovar fórmula
   const handleAprovar = async () => {
-    if (!formula) return;
+    if (!formula || !id) return;
 
     const validacao = validarFormula(formula, itensLocal, conversoes);
     if (!validacao.valido) {
@@ -343,15 +348,34 @@ export default function EditarFormulaPage() {
 
     setAprovando(true);
     try {
-      // FASE 2: Persistir campos de cápsulas por dose
-      // FASE 3: Persistir overrides de preço e custo de complementos
+      // Fonte única oficial (banco) — não usar só o preview do client
+      const oficial = await rpcCalcularCapsulaIndustrial(id);
+      if (!oficial.ok) {
+        toast.error(oficial.motivo || "Falha ao calcular cápsula industrial");
+        return;
+      }
+      if (oficial.densidade_e_default) {
+        toast.error(
+          oficial.alerta_densidade ||
+            "Meça e confirme a densidade real do blend antes de aprovar (ainda está no default 0,65).",
+        );
+        return;
+      }
+      if ((oficial.n_capsulas_por_dose ?? 0) > 6) {
+        toast.error(
+          `Esta dose exigiria ${oficial.n_capsulas_por_dose} cápsulas (máximo 6).`,
+        );
+        return;
+      }
+
       const formulaComCapsulasPorDose = {
         ...formula,
-        n_capsulas_por_dose: capsulasPorDose?.n_capsulas,
-        peso_por_capsula_mg: capsulasPorDose?.peso_por_capsula_mg,
-        massa_ativos_dose_mg: capsulasPorDose?.massa_ativos_mg,
-      }
-      
+        n_capsulas_por_dose: oficial.n_capsulas_por_dose,
+        peso_por_capsula_mg: oficial.por_capsula?.peso_total_mg,
+        massa_ativos_dose_mg: oficial.dose_ativos_total_mg,
+        densidade_aparente_kg_l: oficial.densidade_kg_l ?? formula.densidade_aparente_kg_l,
+      };
+
       const resultado = await aprovar(formulaComCapsulasPorDose, itensLocal);
       if (resultado) {
         clearDraft({ itensLocal: [], novoItem: initialNovoItem });
@@ -682,12 +706,30 @@ export default function EditarFormulaPage() {
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{item.nome_insumo}</div>
+                          {item.produto_materia_prima_id && (() => {
+                            const dens = (itensHybrid.find((h) => h.id === item.produto_materia_prima_id) as
+                              | { densidade_aparente?: number | null }
+                              | undefined)?.densidade_aparente;
+                            const ok = dens != null && Number(dens) > 0;
+                            return (
+                              <Badge
+                                variant="outline"
+                                className={`mt-0.5 text-[10px] ${
+                                  ok
+                                    ? "border-emerald-400 text-emerald-700"
+                                    : "border-amber-400 text-amber-700"
+                                }`}
+                              >
+                                {ok ? "COA/cadastro (automático)" : "sem COA — RT informa"}
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {item.quantidade_informada} {formatarUnidadeInformada(item.unidade_informada)}
                         </TableCell>
                         <TableCell className="text-right font-mono font-medium">
-                          {item.quantidade_convertida_mg.toFixed(4)} mg
+                          {fmtMassaAtivos(item.quantidade_convertida_mg)} mg
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-1 flex-wrap">
@@ -949,7 +991,9 @@ export default function EditarFormulaPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="rounded border p-3 text-sm">
-                  <div className="font-medium mb-2">Dose: {capsulasPorDose.massa_ativos_mg} mg de ativos</div>
+                  <div className="font-medium mb-2">
+                    Dose: {fmtMassaAtivos(capsulasPorDose.massa_ativos_mg)} mg de ativos
+                  </div>
                   <div className="text-base font-bold">
                     → <strong>{capsulasPorDose.n_capsulas} cápsula(s)</strong> de ~{capsulasPorDose.peso_por_capsula_mg} mg cada
                   </div>
@@ -1015,24 +1059,61 @@ export default function EditarFormulaPage() {
                     <Label htmlFor="densidade_aparente_kg_l">
                       Densidade Aparente (kg/L)
                       <span className="ml-1 text-xs text-muted-foreground">— método picnômetro ou Scott</span>
+                      {(formula as any).densidade_aparente_kg_l == null ||
+                      Number((formula as any).densidade_aparente_kg_l) === 0.65 ? (
+                        <Badge variant="outline" className="ml-2 text-[10px] border-amber-400 text-amber-700">
+                          Default 0,65 — medir blend
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="ml-2 text-[10px] border-emerald-400 text-emerald-700">
+                          Informada
+                        </Badge>
+                      )}
                     </Label>
-                    <Input
-                      id="densidade_aparente_kg_l"
-                      type="number"
-                      step="0.01"
-                      min="0.20"
-                      max="1.50"
-                      value={(formula as any).densidade_aparente_kg_l || 0.65}
-                      onChange={async (e) => {
-                        const val = parseFloat(e.target.value) || 0.65;
-                        await atualizarFormula(formula.id, { densidade_aparente_kg_l: val });
-                        refresh();
-                      }}
-                      disabled={isReadOnly}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="densidade_aparente_kg_l"
+                        type="number"
+                        step="0.01"
+                        min="0.20"
+                        max="1.50"
+                        value={(formula as any).densidade_aparente_kg_l || 0.65}
+                        onChange={async (e) => {
+                          const val = parseFloat(e.target.value) || 0.65;
+                          await atualizarFormula(formula.id, { densidade_aparente_kg_l: val });
+                          refresh();
+                        }}
+                        disabled={isReadOnly}
+                      />
+                      {!isReadOnly && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 whitespace-nowrap"
+                          onClick={async () => {
+                            const est = await rpcDensidadeBlendEstimada(formula.id);
+                            if (!est.ok || est.densidade_estimada_kg_l == null) {
+                              toast.error(est.motivo || "Não foi possível estimar a densidade");
+                              return;
+                            }
+                            await atualizarFormula(formula.id, {
+                              densidade_aparente_kg_l: est.densidade_estimada_kg_l,
+                            });
+                            refresh();
+                            toast.message(
+                              `Estimativa ${est.densidade_estimada_kg_l} kg/L — confirme medindo o blend (RT).`,
+                              { description: est.observacao },
+                            );
+                          }}
+                        >
+                          Estimar pelo COA
+                        </Button>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Típico suplementos: 0,45–0,80 kg/L. Pós densos (creatina): ~0,90. Pós leves (colágeno): ~0,40.
-                      Default conservador: 0,65 kg/L.
+                      Default conservador: 0,65 kg/L. A estimativa por COA não substitui a medição do blend.
                     </p>
                   </div>
                 </div>

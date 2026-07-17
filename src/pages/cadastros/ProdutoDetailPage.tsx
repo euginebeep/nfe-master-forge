@@ -771,6 +771,40 @@ export function ProdutoDetailPage() {
                   </div>
                 </div>
 
+                <div className="rounded-lg border-2 border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20 p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Label htmlFor="densidade_aparente" className="text-base font-semibold">
+                      Densidade aparente (kg/L)
+                    </Label>
+                    {formData.densidade_aparente != null && Number(formData.densidade_aparente) > 0 ? (
+                      <StatusBadge variant="success">COA/cadastro</StatusBadge>
+                    ) : (
+                      <StatusBadge variant="warning">Sem COA — RT informa</StatusBadge>
+                    )}
+                  </div>
+                  <Input
+                    id="densidade_aparente"
+                    type="number"
+                    step="0.01"
+                    min="0.1"
+                    max="2"
+                    value={formData.densidade_aparente ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({
+                        ...formData,
+                        densidade_aparente: val === "" ? null : parseFloat(val),
+                      });
+                    }}
+                    placeholder="Ex: 0,55 (preenchido pelo COA quando disponível)"
+                    className="max-w-xs font-mono text-base"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Fonte do blend industrial e da estimativa por composição. Importação de COA
+                    preenche automaticamente quando encontra densidade aparente.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Unidade Declaracao</Label>
