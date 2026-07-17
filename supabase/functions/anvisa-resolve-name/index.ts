@@ -12,8 +12,8 @@ Dado um termo de busca, retorne APENAS os nomes técnicos/científicos que são 
 
 REGRA CRÍTICA: NÃO inclua substâncias diferentes, mesmo que sejam da mesma categoria ou tenham uso similar.
 - "melatonina" → APENAS ["Melatonina"] (NÃO inclua L-Teanina, GABA, ou outros calmantes)
-- "d3" / "colecalciferol" / "vitamina d3" → APENAS Colecalciferol, Vitamina D3, Vitamina D (NUNCA Ergocalciferol, Vitamina D2 ou D2)
-- "d2" / "ergocalciferol" / "vitamina d2" → APENAS Ergocalciferol, Vitamina D2 (NUNCA Colecalciferol, Vitamina D3 ou D3)
+- "d3" / "colecalciferol" / "vitamina d3" → APENAS Colecalciferol, Vitamina D3 (NUNCA Ergocalciferol/D2, Calcidiol, Calcitriol, metabólitos de D, nem "Vitamina D" genérico)
+- "d2" / "ergocalciferol" / "vitamina d2" → APENAS Ergocalciferol, Vitamina D2 (NUNCA Colecalciferol/D3, Calcidiol, Calcitriol)
 - "vitamina d" genérico → pode incluir Colecalciferol e Ergocalciferol como formas distintas, mas NUNCA misture sinônimos de D3 com sinônimos de D2 no mesmo balde sem distinção
 - "k1" / "filoquinona" → APENAS Filoquinona, Vitamina K1 (NUNCA Menaquinona/K2)
 - "k2" / "menaquinona" → APENAS Menaquinona, Vitamina K2 (NUNCA Filoquinona/K1)
@@ -42,8 +42,10 @@ function normForma(s: string): string {
 
 type Forma = 'd3' | 'd2' | 'k1' | 'k2' | 'b12' | 'b6' | 'b1' | 'b2' | 'b3' | 'b5' | 'b7' | 'b9' | null
 
-const RE_D3 = /(colecalciferol|calcitriol|vitamina\s*d3|\bd3\b)/
-const RE_D2 = /(ergocalciferol|vitamina\s*d2|\bd2\b)/
+const RE_COLECALCIFEROL = /(colecalciferol|vitamina\s*d3|\bd3\b)/
+const RE_ERGOCALCIFEROL = /(ergocalciferol|vitamina\s*d2|\bd2\b)/
+const RE_CALCIDIOL = /(calcidiol|25[\s-]?hidroxi|25\(oh\)|hidroxicolecalciferol)/
+const RE_CALCITRIOL = /(calcitriol|1[\s,]?25[\s-]?di.*hidroxi)/
 const RE_K1 = /(filoquinona|vitamina\s*k1|\bk1\b)/
 const RE_K2 = /(menaquinona|vitamina\s*k2|\bk2\b)/
 const RE_B: Record<string, RegExp> = {
@@ -60,8 +62,10 @@ const RE_B: Record<string, RegExp> = {
 function detectarForma(termo: string): Forma {
   const n = normForma(termo)
   if (!n) return null
-  if (RE_D3.test(n)) return 'd3'
-  if (RE_D2.test(n)) return 'd2'
+  if (RE_CALCIDIOL.test(n)) return 'calcidiol' as Forma
+  if (RE_CALCITRIOL.test(n)) return 'calcitriol' as Forma
+  if (RE_COLECALCIFEROL.test(n)) return 'd3'
+  if (RE_ERGOCALCIFEROL.test(n)) return 'd2'
   if (RE_K1.test(n)) return 'k1'
   if (RE_K2.test(n)) return 'k2'
   for (const b of ['b12', 'b9', 'b7', 'b6', 'b5', 'b3', 'b2', 'b1']) {
@@ -75,8 +79,15 @@ function detectarForma(termo: string): Forma {
 function termoConflitaForma(forma: Forma, termo: string): boolean {
   if (!forma) return false
   const n = normForma(termo)
-  if (forma === 'd3') return RE_D2.test(n)
-  if (forma === 'd2') return RE_D3.test(n)
+  if (forma === 'd3') {
+    return RE_ERGOCALCIFEROL.test(n)
+      || RE_CALCIDIOL.test(n)
+      || RE_CALCITRIOL.test(n)
+      || (/vitamina\s*d\b/.test(n) && !RE_COLECALCIFEROL.test(n))
+  }
+  if (forma === 'd2') {
+    return RE_COLECALCIFEROL.test(n) || RE_CALCIDIOL.test(n) || RE_CALCITRIOL.test(n)
+  }
   if (forma === 'k1') return RE_K2.test(n)
   if (forma === 'k2') return RE_K1.test(n)
   if (forma.startsWith('b')) {

@@ -7,6 +7,7 @@ import {
   filtrarResultadosPorForma,
   filtrarTermosExpandidosPorForma,
   labelFormaResultado,
+  passaCorteScoreFormaEspecifica,
   prioridadeFormaGenerica,
 } from '@/lib/anvisa-forma-busca';
 
@@ -202,7 +203,10 @@ async function buscarConstituintes(termo: string, exaustivo = false, limit?: num
     }
     return (b._match?.score || 0) - (a._match?.score || 0);
   });
-  return enriched;
+
+  return enriched.filter((item) =>
+    passaCorteScoreFormaEspecifica(termo, item._match?.score),
+  );
 }
 
 const PAGE_SIZE_NORMAL = 20;
