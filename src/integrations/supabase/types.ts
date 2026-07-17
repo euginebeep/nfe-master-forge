@@ -11042,6 +11042,14 @@ export type Database = {
         Args: { p_op_id: string }
         Returns: undefined
       }
+      anvisa_consultar: {
+        Args: {
+          p_termo: string
+          p_grupo?: string | null
+          p_dose_mg?: number | null
+        }
+        Returns: Json
+      }
       buscar_constituinte_fuzzy: {
         Args: { termo_busca: string }
         Returns: {

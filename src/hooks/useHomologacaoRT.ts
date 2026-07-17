@@ -11,6 +11,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { rpcAnvisaConsultar } from "@/lib/anvisa-consultar";
 
 export interface ItemSemVinculo {
   id: string;
@@ -35,6 +36,9 @@ export interface VinculoPendente {
   fonte_url: string | null;
   status: string;
   observacao: string | null;
+  /** Status da fonte única anvisa_consultar para o nome do constituinte. */
+  consulta_status?: string | null;
+  consulta_mensagem?: string | null;
 }
 
 export function useVinculosPendentes() {
@@ -55,7 +59,7 @@ export function useVinculosPendentes() {
         .eq("status", "pendente")
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({
+      const mapped = (data ?? []).map((r: any) => ({
         id: r.id,
         item_id: r.item_id,
         item_nome: r.itens?.descricao_interna ?? "(item removido)",
@@ -75,6 +79,19 @@ export function useVinculosPendentes() {
         status: r.status,
         observacao: r.observacao,
       }));
+
+      // Confirma cada nome pela fonte única (mesmo status em qualquer tela)
+      return Promise.all(
+        mapped.map(async (v) => {
+          if (!v.constituinte_nome || v.constituinte_nome.startsWith("(")) return v;
+          const c = await rpcAnvisaConsultar({ termo: v.constituinte_nome });
+          return {
+            ...v,
+            consulta_status: c.status,
+            consulta_mensagem: c.mensagem ?? null,
+          };
+        }),
+      );
     },
   });
 }
