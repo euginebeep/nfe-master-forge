@@ -33,7 +33,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   estiloStatusAnvisaConsulta,
@@ -121,10 +120,6 @@ function mapConsultaToDados(
       {
         titulo: "Portal ANVISA - Suplementos",
         url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares",
-      },
-      {
-        titulo: "Sistema de Consulta Pública",
-        url: "https://consultas.anvisa.gov.br/",
       },
     ],
   };
@@ -396,33 +391,15 @@ export function ConsultaRegulatoriaANVISA({
                   )}
                 </TabsContent>
 
-                <TabsContent value="links" className="space-y-3 mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Links úteis para consulta da legislação completa:
-                  </p>
-                  {dados.linksUteis.map((link, i) => (
-                    <a
-                      key={i}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted transition-colors"
-                    >
-                      <ExternalLink className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">{link.titulo}</span>
-                    </a>
-                  ))}
-
-                  <Separator className="my-4" />
-
+                <TabsContent value="links" className="mt-4">
                   <a
-                    href={`https://consultas.anvisa.gov.br/#/alimentos/q/?substancia=${encodeURIComponent(nomeAtivo)}`}
+                    href={dados.linksUteis[0]?.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted transition-colors"
+                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
                   >
-                    <Search className="h-4 w-4 text-primary" />
-                    <span className="text-sm">Buscar "{nomeAtivo}" no Sistema ANVISA</span>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    Portal ANVISA - Suplementos
                   </a>
                 </TabsContent>
               </Tabs>
