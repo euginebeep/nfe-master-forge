@@ -2,6 +2,13 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { AnvisaConstituinte } from '@/types/anvisa';
+import {
+  detectarFormaPedida,
+  filtrarResultadosPorForma,
+  filtrarTermosExpandidosPorForma,
+  labelFormaResultado,
+  prioridadeFormaGenerica,
+} from '@/lib/anvisa-forma-busca';
 
 export type AnvisaMatchInfo = {
   score: number;
@@ -11,6 +18,7 @@ export type AnvisaMatchInfo = {
 
 export type AnvisaSearchResult = AnvisaConstituinte & {
   _match?: AnvisaMatchInfo;
+  _formaLabel?: string;
 };
 
 // In-memory cache for synonym resolution (TTL 30 min) — avoids re-calling the
@@ -41,8 +49,9 @@ async function resolverNomesCientificos(termo: string): Promise<string[]> {
     });
 
     if (error || !data?.termos?.length) return [termo];
-    synonymCache.set(key, { termos: data.termos, ts: Date.now() });
-    return data.termos;
+    const termos = filtrarTermosExpandidosPorForma(termo, data.termos as string[]);
+    synonymCache.set(key, { termos, ts: Date.now() });
+    return termos;
   } catch {
     return [termo];
   }
@@ -84,25 +93,8 @@ async function buscarPorTermo(termo: string, exaustivo = false, limit?: number):
     .limit(cap);
 
   const all = [...(fullText || []), ...(ilike || []), ...(arraySearch || [])] as unknown as AnvisaConstituinte[];
-  
-  // Post-filter: if a term looks like "vitamina X", only keep results matching that specific vitamin
-  // (skipped in exaustivo mode — user explicitly wants everything related)
-  const vitaminMatch = !exaustivo && termo.trim().toLowerCase().match(/^vitamina\s+([a-z]\d*)\s*$/i);
-  if (vitaminMatch) {
-    const vitLetter = vitaminMatch[1].toLowerCase();
-    const filtered = all.filter((item) => {
-      const names = [item.nome_tecnico, item.nome_generico || '', item.nome_rotulo || '', ...(item.nome_popular || []), ...(item.sinonimos || [])];
-      return names.some((n) => {
-        const lower = n.toLowerCase();
-        // Match "vitamina E" but not "vitamina E..." or other vitamins
-        return lower.includes(`vitamina ${vitLetter}`) && 
-          !new RegExp(`vitamina ${vitLetter}[a-z0-9]`, 'i').test(lower);
-      });
-    });
-    if (filtered.length > 0) return filtered;
-  }
-  
-  return all;
+
+  return filtrarResultadosPorForma(termo, all);
 }
 
 async function buscarFuzzy(termo: string, exaustivo = false, limit?: number): Promise<AnvisaConstituinte[]> {
@@ -122,10 +114,12 @@ async function buscarFuzzy(termo: string, exaustivo = false, limit?: number): Pr
 
   // Filter low-relevance fuzzy results (broader threshold in exaustivo mode)
   const threshold = exaustivo ? 0.12 : 0.25;
-  return ((data || []) as any[]).filter((d) => {
+  const fuzzy = ((data || []) as any[]).filter((d) => {
     if (d.similaridade !== undefined) return d.similaridade > threshold;
     return true;
   }) as unknown as AnvisaConstituinte[];
+
+  return filtrarResultadosPorForma(termo, fuzzy);
 }
 
 function computeMatch(item: AnvisaConstituinte, termo: string, sinonimos: string[]): AnvisaMatchInfo {
@@ -189,12 +183,25 @@ async function buscarConstituintes(termo: string, exaustivo = false, limit?: num
     mapa.set(item.id, item);
   });
 
+  const deduped = filtrarResultadosPorForma(termo, Array.from(mapa.values()));
+  const formaGenerica = detectarFormaPedida(termo);
+
   // Step 4: Compute match info and sort by score desc
-  const enriched: AnvisaSearchResult[] = Array.from(mapa.values()).map((item) => ({
+  const enriched: AnvisaSearchResult[] = deduped.map((item) => ({
     ...item,
     _match: computeMatch(item, termo, termosExpandidos),
+    _formaLabel:
+      formaGenerica === 'generico_vitamina_d' || formaGenerica === 'generico_vitamina_k'
+        ? labelFormaResultado(item)
+        : undefined,
   }));
-  enriched.sort((a, b) => (b._match?.score || 0) - (a._match?.score || 0));
+  enriched.sort((a, b) => {
+    if (formaGenerica === 'generico_vitamina_d' || formaGenerica === 'generico_vitamina_k') {
+      const prio = prioridadeFormaGenerica(a) - prioridadeFormaGenerica(b);
+      if (prio !== 0) return prio;
+    }
+    return (b._match?.score || 0) - (a._match?.score || 0);
+  });
   return enriched;
 }
 
