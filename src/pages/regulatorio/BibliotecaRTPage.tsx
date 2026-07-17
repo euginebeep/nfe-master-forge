@@ -223,6 +223,7 @@ export default function BibliotecaRTPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const pendentes = monitoramento.filter(m => m.status_revisao === "PENDENTE" && m.mudanca_detectada);
+  const verificacoesOk = monitoramento.filter(m => !m.mudanca_detectada);
   const { data: alertasPendentes = [], refetch: refetchAlertas } = useAlertasNormativosPendentes();
   const { data: rehomo = [] } = useConstituintesRequeremRehomologacao();
   const marcarAlerta = useMarcarAlertaRevisado();
@@ -718,36 +719,31 @@ export default function BibliotecaRTPage() {
             </Alert>
           )}
 
+          {/* Mudanças reais a revisar */}
           <div className="space-y-3">
-            {monitoramento.length === 0 ? (
+            <h4 className="text-sm font-medium text-gray-700">
+              Mudanças a revisar
+              {pendentes.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-amber-700">({pendentes.length})</span>
+              )}
+            </h4>
+            {pendentes.length === 0 ? (
               <Card>
-                <CardContent className="py-8 text-center text-sm text-gray-400">
-                  Nenhum registro de monitoramento ainda. O robô executa diariamente às 06h.
+                <CardContent className="py-6 text-center text-sm text-gray-400">
+                  Nenhuma mudança detectada aguardando revisão.
                 </CardContent>
               </Card>
             ) : (
-              monitoramento.map(item => (
-                <Card key={item.id} className={
-                  item.mudanca_detectada && item.status_revisao === "PENDENTE"
-                    ? "border-amber-300 bg-amber-50/30"
-                    : ""
-                }>
+              pendentes.map(item => (
+                <Card key={item.id} className="border-amber-300 bg-amber-50/30">
                   <CardContent className="pt-3 pb-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
-                          {item.mudanca_detectada ? (
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                          ) : (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                          )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                           <span className="text-xs font-semibold text-gray-700">{item.fonte_monitorada}</span>
-                          <Badge variant="outline" className={`text-[10px] ${
-                            item.status_revisao === "PENDENTE" ? "border-amber-300 text-amber-700" :
-                            item.status_revisao === "APROVADO" ? "border-green-300 text-green-700" :
-                            "border-gray-300 text-gray-500"
-                          }`}>
-                            {item.status_revisao}
+                          <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700">
+                            MUDANÇA · PENDENTE
                           </Badge>
                           <span className="text-[10px] text-gray-400">
                             {new Date(item.created_at).toLocaleDateString("pt-BR")}
@@ -761,33 +757,69 @@ export default function BibliotecaRTPage() {
                           {item.url.slice(0, 60)}... <ExternalLink className="w-2.5 h-2.5" />
                         </a>
                       </div>
-
-                      {item.status_revisao === "PENDENTE" && item.mudanca_detectada && (
-                        <div className="flex gap-1.5 flex-shrink-0">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs border-green-300 text-green-700 hover:bg-green-50"
-                            onClick={() => atualizarRadar.mutate({ id: item.id, status: "APROVADO" })}
-                          >
-                            <Check className="w-3 h-3 mr-1" /> Aprovar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
-                            onClick={() => atualizarRadar.mutate({ id: item.id, status: "DESCARTADO" })}
-                          >
-                            <X className="w-3 h-3 mr-1" /> Descartar
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                          onClick={() => atualizarRadar.mutate({ id: item.id, status: "APROVADO" })}
+                        >
+                          <Check className="w-3 h-3 mr-1" /> Aprovar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                          onClick={() => atualizarRadar.mutate({ id: item.id, status: "DESCARTADO" })}
+                        >
+                          <X className="w-3 h-3 mr-1" /> Descartar
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               ))
             )}
           </div>
+
+          {/* Verificações sem mudança — não são alertas */}
+          {verificacoesOk.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground">
+                Últimas verificações (sem mudança)
+                <span className="ml-2 text-xs font-normal">({verificacoesOk.length})</span>
+              </h4>
+              <p className="text-[11px] text-muted-foreground">
+                O monitor rodou e não detectou alteração de conteúdo — não exige ação da RT.
+              </p>
+              <div className="space-y-2">
+                {verificacoesOk.slice(0, 10).map(item => (
+                  <Card key={item.id} className="border-border/60 bg-muted/20">
+                    <CardContent className="py-2.5 px-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-600">{item.fonte_monitorada}</span>
+                        <Badge variant="secondary" className="text-[10px]">
+                          SEM MUDANÇA
+                        </Badge>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(item.created_at).toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {monitoramento.length === 0 && alertasPendentes.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-gray-400">
+                Nenhum registro de monitoramento ainda. O robô executa diariamente às 06h.
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
