@@ -1,11 +1,13 @@
 /**
  * Alertas normativos ANVISA (monitor diário).
  * Só leitura + marcar revisado — nunca publica base sozinho.
+ * Validação de nomes: fonte única anvisa_consultar.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { rpcAnvisaConsultar } from "@/lib/anvisa-consultar";
 
 export interface AlertaNormativo {
   id: string;
@@ -21,11 +23,15 @@ export interface AlertaNormativo {
   created_at: string;
 }
 
+/** Confere um nome citado no alerta contra a fonte única. */
+export async function validarNomeNoAlerta(nome: string) {
+  return rpcAnvisaConsultar({ termo: nome });
+}
+
 export function useAlertasNormativosPendentes() {
   return useQuery({
     queryKey: ["anvisa", "alertas-normativos-pendentes"],
     queryFn: async (): Promise<AlertaNormativo[]> => {
-      // status_revisao adicionada na migration ligar-monitor — cast até regenerar types
       const { data, error } = await supabase
         .from("anvisa_alertas_normativos")
         .select("*")
@@ -34,7 +40,6 @@ export function useAlertasNormativosPendentes() {
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) {
-        // Fallback pré-migration: alertas não lidos
         const fb = await supabase
           .from("anvisa_alertas_normativos")
           .select("*")
@@ -83,6 +88,8 @@ export function useConstituintesRequeremRehomologacao() {
         nome_tecnico: string;
         requer_rehomologacao_motivo: string | null;
         requer_rehomologacao_em: string | null;
+        consulta_status?: string;
+        consulta_mensagem?: string;
       }>
     > => {
       const { data, error } = await supabase
@@ -92,18 +99,29 @@ export function useConstituintesRequeremRehomologacao() {
         .order("nome_tecnico")
         .limit(100);
       if (error) {
-        // Coluna ainda não aplicada — silencioso
         if (error.message?.includes("requer_rehomologacao") || error.code === "42703") {
           return [];
         }
         throw error;
       }
-      return (data ?? []) as Array<{
+      const rows = (data ?? []) as Array<{
         id: string;
         nome_tecnico: string;
         requer_rehomologacao_motivo: string | null;
         requer_rehomologacao_em: string | null;
       }>;
+
+      const enriched = await Promise.all(
+        rows.slice(0, 30).map(async (r) => {
+          const c = await rpcAnvisaConsultar({ termo: r.nome_tecnico });
+          return {
+            ...r,
+            consulta_status: c.status,
+            consulta_mensagem: c.mensagem,
+          };
+        }),
+      );
+      return [...enriched, ...rows.slice(30)];
     },
   });
 }
@@ -134,7 +152,6 @@ export function useMarcarAlertaRevisado() {
   });
 }
 
-/** Dispara o monitor manualmente (teste / forçar corrida). */
 export async function invocarMonitorAnvisaDiario() {
   const { data, error } = await supabase.functions.invoke("monitor-anvisa-diario", {
     body: { trigger: "manual" },

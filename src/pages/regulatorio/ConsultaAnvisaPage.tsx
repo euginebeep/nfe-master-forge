@@ -14,6 +14,7 @@ import {
   estiloStatusNaoAutorizado,
   useIngredienteNaoAutorizado,
 } from '@/hooks/useIngredienteNaoAutorizado';
+import { estiloStatusAnvisaConsulta } from '@/lib/anvisa-consultar';
 import { ResultCard } from '@/components/regulatorio/ResultCard';
 import { SyncStatusBanner } from '@/components/regulatorio/SyncStatusBanner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,6 +32,7 @@ export default function ConsultaAnvisaPage() {
   const {
     termo, resultados, resultadosTotal, podeCarregarMais, carregarMais,
     isLoading, buscar, limpar, exaustivo, setExaustivo,
+    consultaStatus, consultaMensagem,
   } = useAnvisaSearch();
   const { ultimoSync, sincronizar, sincronizando } = useAnvisaSync();
   const { history, registrar, remover, limparHistorico } = useAnvisaSearchHistory();
@@ -61,12 +63,13 @@ export default function ConsultaAnvisaPage() {
   const [aiAviso, setAiAviso] = useState<string | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
 
+  const temFonteUnica = !isLoading && (resultados?.length ?? 0) > 0;
   const semResultadoAutorizado =
-    !isLoading && termo.trim().length >= 2 && (!resultados || resultados.length === 0);
+    !isLoading && termo.trim().length >= 2 && !temFonteUnica && consultaStatus === 'nao_encontrado';
 
   const { data: naoAutorizado, isLoading: carregandoNaoAutorizado } = useIngredienteNaoAutorizado(
     termo,
-    semResultadoAutorizado,
+    Boolean(semResultadoAutorizado),
   );
 
   // Persist every effective search in the history
@@ -82,13 +85,14 @@ export default function ConsultaAnvisaPage() {
     buscar(t);
   };
 
-  // Consulta oficial ANVISA/Power BI como fonte primária da página.
+  // Power BI/IA só como complemento quando a fonte única não achou.
   useEffect(() => {
     let cancelled = false;
     setAiResults([]);
     setAiAviso(null);
     if (isLoading) return;
     if (termo.length < 2) return;
+    if (temFonteUnica) return;
 
     setAiLoading(true);
     supabase.functions
@@ -114,7 +118,7 @@ export default function ConsultaAnvisaPage() {
     return () => {
       cancelled = true;
     };
-  }, [termo, isLoading]);
+  }, [termo, isLoading, temFonteUnica]);
 
   const handleSync = () => {
     sincronizar(undefined, {
@@ -180,6 +184,10 @@ export default function ConsultaAnvisaPage() {
 
   const estiloNaoAutorizado = naoAutorizado
     ? estiloStatusNaoAutorizado(naoAutorizado.status)
+    : null;
+
+  const estiloFonteUnica = consultaStatus
+    ? estiloStatusAnvisaConsulta(consultaStatus)
     : null;
 
   return (
@@ -363,7 +371,7 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && aiResults.length > 0 && !(naoAutorizado && semResultadoAutorizado) && (
+      {!isLoading && !aiLoading && termo.length >= 2 && aiResults.length > 0 && !temFonteUnica && !(naoAutorizado && semResultadoAutorizado) && (
         <div className="space-y-3" id="anvisa-print-area">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -590,24 +598,23 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {!isLoading && !aiLoading && !carregandoNaoAutorizado && !naoAutorizado && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && !aiAviso && (
-        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 shadow-lg">
+      {!isLoading && !carregandoNaoAutorizado && !naoAutorizado && termo.length >= 2 && !temFonteUnica && aiResults.length === 0 && !aiAviso && (
+        <Card className="border-muted-foreground/30 bg-muted/40 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
               <div className="rounded-full bg-background/60 p-3">
-                <AlertTriangle className="w-8 h-8 text-amber-600 shrink-0" />
+                <AlertTriangle className="w-8 h-8 text-muted-foreground shrink-0" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-amber-700 text-lg flex items-center gap-2">
-                  <Shield className="w-5 h-5" /> SEM CORRESPONDÊNCIA OFICIAL ENCONTRADA
+                <h3 className="font-bold text-muted-foreground text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5" /> CONSULTE ANVISA / PENDENTE_RT
                 </h3>
                 <p className="text-sm mt-2 text-muted-foreground">
-                  <strong>"{termo}"</strong> não retornou correspondência na base local nem na consulta oficial ANVISA/Power BI.
-                  Isso não deve ser tratado automaticamente como “proibido”; revise a grafia, sinônimos ou o nome técnico.
-                </p>
-                <p className="text-sm mt-3 text-amber-800 dark:text-amber-300">
-                  Ingredientes vegetais só podem ser usados se expressamente autorizados na IN 28.
-                  Se este ingrediente não consta, ele pode não ser permitido em suplemento — consulte a RT.
+                  {consultaMensagem || (
+                    <>
+                      <strong>"{termo}"</strong> não retornou correspondência na fonte única ANVISA (IN 28/2018).
+                    </>
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground mt-3">
                   Verifique a grafia ou consulte diretamente a{' '}
@@ -619,49 +626,30 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {!aiLoading && aiResults.length === 0 && resultados && resultados.length > 0 && (
+      {temFonteUnica && (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-sm text-muted-foreground">
-              Exibindo <strong>{resultados.length}</strong> de <strong>{resultadosTotal}</strong> resultado(s) para "{termo}"
-              {exaustivo && <span className="ml-1 text-primary">· busca exaustiva</span>}
+              Fonte única <code className="text-xs">anvisa_consultar</code>
+              {consultaStatus && estiloFonteUnica && (
+                <Badge variant="outline" className={`ml-2 ${estiloFonteUnica.className}`}>
+                  {estiloFonteUnica.label}
+                </Badge>
+              )}
+              {consultaMensagem && (
+                <span className="ml-2 text-xs">· {consultaMensagem}</span>
+              )}
             </p>
           </div>
-          {/* Show prohibited substances first */}
           <TooltipProvider delayDuration={150}>
             {resultados
               .slice()
               .sort((a, b) => (b.is_proibido ? 1 : 0) - (a.is_proibido ? 1 : 0))
-              .map((c) => {
-                const m = c._match;
-                return (
+              .map((c) => (
                   <div key={c.id} className="space-y-1">
-                    {exaustivo && m && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 bg-primary/5 hover:bg-primary/10 transition-colors cursor-help"
-                            >
-                              <Sparkles className="w-3 h-3 text-primary" />
-                              <span className="font-semibold">Match {m.score}%</span>
-                              <span className="text-muted-foreground">· {m.fields.length} campo(s)</span>
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs text-xs">
-                            <p className="font-semibold mb-1">Explicação do match</p>
-                            <p><span className="text-muted-foreground">Campos:</span> {m.fields.join(', ') || '—'}</p>
-                            <p className="mt-1"><span className="text-muted-foreground">Sinônimos usados:</span> {m.synonyms.length ? m.synonyms.join(', ') : 'apenas o termo digitado'}</p>
-                            <p className="mt-1 text-muted-foreground">Score 0–100 baseado em correspondência exata vs. parcial em cada campo.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    )}
                     <ResultCard constituinte={c} />
                   </div>
-                );
-              })}
+              ))}
           </TooltipProvider>
           {podeCarregarMais && (
             <div className="flex justify-center pt-2">

@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 import { DoseTable } from '@/components/regulatorio/DoseTable';
+import { estiloStatusAnvisaConsulta } from '@/lib/anvisa-consultar';
 import { cn } from '@/lib/utils';
 
 const LINKS_UTEIS = [
@@ -30,8 +31,17 @@ const LINKS_UTEIS = [
 
 export function ConsultaANVISACard({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const { termo, resultados, isLoading, buscar, limpar } = useAnvisaSearch();
+  const {
+    termo,
+    resultados,
+    isLoading,
+    buscar,
+    limpar,
+    consultaStatus,
+    consultaMensagem,
+  } = useAnvisaSearch();
   const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
+  const estilo = estiloStatusAnvisaConsulta(consultaStatus ?? undefined);
 
   const handleVerificarANVISA = (nomeTecnico: string) => {
     sincronizarSubstancia(nomeTecnico, {
@@ -172,18 +182,22 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
               {searchDone && !hasResults && (
                 <>
                   <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="px-3 py-1 border-amber-500/40 bg-amber-500/10 text-amber-700">
+                    <Badge variant="outline" className={`px-3 py-1 ${estilo.className}`}>
                       <AlertTriangle className="h-4 w-4 mr-1" />
-                      SEM CORRESPONDÊNCIA
+                      {estilo.label}
                     </Badge>
                   </div>
-                  <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                      Nenhuma correspondência na base local
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      Consulte ANVISA / PENDENTE_RT
                     </p>
                     <p className="text-xs mt-1 text-muted-foreground">
-                      <strong>"{termo}"</strong> não retornou constituinte autorizado na busca local.
-                      Isso não significa automaticamente “proibido” — revise grafia/sinônimos ou abra a Consulta ANVISA completa.
+                      {consultaMensagem || (
+                        <>
+                          <strong>"{termo}"</strong> não retornou na fonte única{" "}
+                          <code>anvisa_consultar</code>.
+                        </>
+                      )}
                     </p>
                   </div>
                 </>
@@ -191,31 +205,34 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
 
               {searchDone && hasResults && (
                 <>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className={estilo.className}>
+                      {estilo.tom === "verde" ? (
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                      ) : estilo.tom === "vermelho" ? (
+                        <XCircle className="h-3 w-3 mr-1" />
+                      ) : (
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                      )}
+                      {estilo.label}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">fonte única</span>
+                  </div>
+                  {consultaMensagem && (
+                    <p className="text-xs text-muted-foreground">{consultaMensagem}</p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     {resultados.length} resultado(s) encontrado(s)
                   </p>
                   {resultados
                     .sort((a, b) => (b.is_proibido ? 1 : 0) - (a.is_proibido ? 1 : 0))
                     .slice(0, 5).map((c) => (
-                    <div key={c.id} className={`p-3 rounded-lg border space-y-2 ${c.is_proibido ? 'border-destructive/50 bg-destructive/5' : ''}`}>
+                    <div key={c.id} className={`p-3 rounded-lg border space-y-2 ${estilo.tom === "vermelho" || c.is_proibido ? 'border-destructive/50 bg-destructive/5' : ''}`}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          {c.is_proibido ? (
-                            <Badge variant="destructive">
-                              <XCircle className="h-3 w-3 mr-1" />
-                              PROIBIDO
-                            </Badge>
-                          ) : !c.ativo ? (
-                            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              INATIVO
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-green-600">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              AUTORIZADO
-                            </Badge>
-                          )}
+                          <Badge variant="outline" className={estilo.className}>
+                            {estilo.label}
+                          </Badge>
                           {c.categoria && (
                             <span className="text-xs text-muted-foreground">{c.categoria}</span>
                           )}
