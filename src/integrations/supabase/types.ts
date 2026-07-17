@@ -11543,6 +11543,19 @@ export type Database = {
         Returns: Json
       }
       stop_ghost_session: { Args: never; Returns: Json }
+      rt_confirmar_vinculo: {
+        Args: {
+          p_item_id: string
+          p_constituinte_id: string
+          p_confirmado_por: string
+          p_company_id: string
+          p_teor_nominal_pct?: number | null
+          p_teor_min_pct?: number | null
+          p_teor_max_pct?: number | null
+          p_observacao?: string | null
+        }
+        Returns: Json
+      }
       sugerir_constituintes: {
         Args: { p_item_id: string }
         Returns: {
