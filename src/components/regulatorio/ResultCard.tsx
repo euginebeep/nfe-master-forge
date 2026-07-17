@@ -9,7 +9,11 @@ import type { AnvisaConstituinte } from '@/types/anvisa';
 import { DoseTable } from './DoseTable';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 
-export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte }) {
+export function ResultCard({
+  constituinte,
+}: {
+  constituinte: AnvisaConstituinte & { _formaLabel?: string };
+}) {
   const [expanded, setExpanded] = useState(false);
   const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
 
@@ -44,6 +48,11 @@ export function ResultCard({ constituinte }: { constituinte: AnvisaConstituinte 
               )}
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {constituinte._formaLabel && (
+                <Badge variant="secondary" className="font-medium">
+                  {constituinte._formaLabel}
+                </Badge>
+              )}
               <Badge variant="outline">{constituinte.categoria}</Badge>
               {constituinte.subcategoria && <Badge variant="secondary">{constituinte.subcategoria}</Badge>}
               {constituinte.is_proibido ? (
