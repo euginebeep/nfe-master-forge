@@ -23,6 +23,7 @@ export interface VinculoPendente {
   item_nome: string;
   constituinte_id: string;
   constituinte_nome: string;
+  constituinte_categoria: string | null;
   ensaio_coa: string | null;
   base_calculo: string | null;
   teor_min_pct: number | null;
@@ -47,7 +48,7 @@ export function useVinculosPendentes() {
           teor_min_pct, teor_nominal_pct, teor_max_pct, status, observacao,
           itens ( descricao_interna ),
           anvisa_constituintes (
-            nome_tecnico, limite_max_num, limite_unidade,
+            nome_tecnico, categoria, limite_max_num, limite_unidade,
             norma_ultima_alteracao, norma_inclusao, fonte_url
           )
         `)
@@ -60,6 +61,7 @@ export function useVinculosPendentes() {
         item_nome: r.itens?.descricao_interna ?? "(item removido)",
         constituinte_id: r.constituinte_id,
         constituinte_nome: r.anvisa_constituintes?.nome_tecnico ?? "(constituinte removido)",
+        constituinte_categoria: r.anvisa_constituintes?.categoria ?? null,
         ensaio_coa: r.ensaio_coa,
         base_calculo: r.base_calculo,
         teor_min_pct: r.teor_min_pct,

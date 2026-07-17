@@ -7,7 +7,27 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import type { AnvisaConstituinte } from '@/types/anvisa';
 import { DoseTable } from './DoseTable';
+import { PremixPoliticaPainel } from './PremixPoliticaPainel';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
+
+function limiteProxyDoConstituinte(c: AnvisaConstituinte): {
+  limite_max_num: number | null;
+  limite_unidade: string | null;
+} {
+  if (c.limite_max_num != null || c.limite_unidade) {
+    return {
+      limite_max_num: c.limite_max_num ?? null,
+      limite_unidade: c.limite_unidade ?? null,
+    };
+  }
+  const adult = c.limites_19_mais as { max?: number | string; unidade?: string } | null;
+  const max = adult?.max;
+  const num = typeof max === "number" ? max : typeof max === "string" && max !== "NE" && max !== "NA" ? Number(max) : null;
+  return {
+    limite_max_num: num != null && Number.isFinite(num) ? num : null,
+    limite_unidade: adult?.unidade ?? null,
+  };
+}
 
 export function ResultCard({
   constituinte,
@@ -77,7 +97,20 @@ export function ResultCard({
         </div>
 
         {/* Always show doses summary and alegações */}
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+          {(() => {
+            const lim = limiteProxyDoConstituinte(constituinte);
+            return (
+              <PremixPoliticaPainel
+                constituinteId={constituinte.id}
+                nome={constituinte.nome_tecnico}
+                categoria={constituinte.categoria}
+                limite_unidade={lim.limite_unidade}
+                limite_max_num={lim.limite_max_num}
+                editavel={false}
+              />
+            );
+          })()}
           <DoseTable constituinte={constituinte} />
           {constituinte.alegacoes && constituinte.alegacoes.length > 0 && (
             <div>
