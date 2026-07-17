@@ -4,13 +4,13 @@ import { LogoDemoERP } from "./LogoDemoERP";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,6 +19,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AssistenteTrigger } from "@/components/assistente/BrainXAssistente";
 import { AlertasLoteSemCOAPanel } from "@/components/estoque/AlertasLoteSemCOAPanel";
 import { useCompany } from "@/hooks/use-company";
+import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { formatCNPJ } from "@/lib/cnpj-lookup";
 import { cn } from "@/lib/utils";
 
@@ -30,27 +31,41 @@ function maskCNPJ(cnpj?: string | null) {
 
 export function AppHeader() {
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('brainx-theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const saved = localStorage.getItem("brainx-theme");
+    if (saved) return saved === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
   const { profile, role, isAuthenticated, signOut } = useAuth();
   const { data: company } = useCompany();
+  const { data: branding } = useCompanyBranding();
 
   useEffect(() => {
     const root = window.document.documentElement;
     if (isDark) {
       root.classList.add("dark");
-      localStorage.setItem('brainx-theme', 'dark');
+      localStorage.setItem("brainx-theme", "dark");
     } else {
       root.classList.remove("dark");
-      localStorage.setItem('brainx-theme', 'light');
+      localStorage.setItem("brainx-theme", "light");
     }
   }, [isDark]);
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
   };
+
+  const companyName =
+    branding?.nome_fantasia ||
+    branding?.razao_social ||
+    company?.nome_fantasia ||
+    company?.razao_social;
+  const companyCnpj = branding?.cnpj || company?.cnpj;
+  const companyLogo = branding?.logo_url;
 
   return (
     <header className="h-12 sm:h-14 border-b bg-card flex items-center justify-between px-2 sm:px-4 shrink-0 gap-1 sm:gap-2">
@@ -58,15 +73,12 @@ export function AppHeader() {
         <SidebarTrigger className="h-8 sm:h-9 w-8 sm:w-9" aria-label="Abrir/fechar menu lateral">
           <Menu className="h-4 sm:h-5 w-4 sm:w-5" />
         </SidebarTrigger>
-        <Link to="/dashboard" className="flex items-center gap-1 sm:gap-2 md:hidden" aria-label="BrainX ERP Home">
-          <LogoDemoERP
-            className="w-7 sm:w-9 h-7 sm:h-9"
-          />
+        <Link to="/dashboard" className="flex items-center gap-1 sm:gap-2" aria-label="BrainX ERP Home">
+          <LogoDemoERP className="w-7 sm:w-9 h-7 sm:h-9" />
         </Link>
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
-        {/* Mobile search button */}
         <Button
           variant="ghost"
           size="icon"
@@ -101,22 +113,27 @@ export function AppHeader() {
 
         {isAuthenticated && company && (
           <div
-            className="hidden lg:flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md border bg-muted/50 max-w-[200px] lg:max-w-[260px]"
-            title={`${company.razao_social} — CNPJ ${formatCNPJ(company.cnpj || '')}`}
+            className="hidden lg:flex items-center gap-2 px-2 sm:px-2.5 py-1 rounded-md border bg-muted/50 max-w-[220px] lg:max-w-[280px]"
+            title={`${company.razao_social} — CNPJ ${formatCNPJ(company.cnpj || "")}`}
           >
-            <Building2 className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-primary shrink-0" />
+            {companyLogo ? (
+              <img
+                src={companyLogo}
+                alt=""
+                className="h-7 w-7 sm:h-8 sm:w-8 rounded-md object-contain bg-background border border-border/60 shrink-0"
+              />
+            ) : (
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <Building2 className="h-3.5 w-3.5 text-primary" />
+              </div>
+            )}
             <div className="flex flex-col leading-tight min-w-0">
               <span className="text-[10px] sm:text-[11px] font-semibold truncate">
-                {company.nome_fantasia || company.razao_social}
+                {companyName}
               </span>
-              <div className="flex items-center gap-0.5 sm:gap-1">
-                <span className="text-[9px] sm:text-[10px] text-muted-foreground font-mono">
-                  {maskCNPJ(company.cnpj)}
-                </span>
-                <span className="text-[8px] sm:text-[9px] px-0.5 sm:px-1 rounded bg-primary/10 text-primary font-bold uppercase tracking-tighter">
-                  Matriz
-                </span>
-              </div>
+              <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate">
+                Matriz · {maskCNPJ(companyCnpj)}
+              </span>
             </div>
           </div>
         )}
@@ -139,22 +156,28 @@ export function AppHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2">
-                <Avatar className="h-7 sm:h-8 w-7 sm:w-8">
+                <Avatar className="h-9 sm:h-10 w-9 sm:w-10 border-2 border-primary/30 shadow-sm">
                   {profile.avatar_url ? (
                     <AvatarImage src={profile.avatar_url} alt={profile.nome_completo} />
                   ) : (
-                    <AvatarFallback className="bg-primary text-primary-foreground text-[10px] sm:text-xs">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm font-semibold">
                       {getInitials(profile.nome_completo)}
                     </AvatarFallback>
                   )}
                 </Avatar>
                 <div className="text-left hidden sm:block">
-                  <p className={cn(
-                    "text-xs sm:text-sm font-bold leading-none",
-                    profile.sexo === 'FEMININO' ? "text-pink-600 dark:text-pink-400" : "text-blue-600 dark:text-blue-400"
-                  )}>{profile.nome_completo}</p>
+                  <p
+                    className={cn(
+                      "text-xs sm:text-sm font-bold leading-none",
+                      profile.sexo === "FEMININO"
+                        ? "text-pink-600 dark:text-pink-400"
+                        : "text-blue-600 dark:text-blue-400",
+                    )}
+                  >
+                    {profile.nome_completo}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {role ? FACTORY_ROLES[role]?.label : 'Usuário'}
+                    {role ? FACTORY_ROLES[role]?.label : "Usuário"}
                   </p>
                 </div>
               </Button>
@@ -162,11 +185,17 @@ export function AppHeader() {
             <DropdownMenuContent align="end" className="w-48 sm:w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className={cn(
-                    "text-sm font-bold",
-                    profile.sexo === 'FEMININO' ? "text-pink-600 dark:text-pink-400" : "text-blue-600 dark:text-blue-400"
-                  )}>{profile.nome_completo}</p>
-                  <p className="text-xs text-muted-foreground">{profile.cargo || 'Sem cargo'}</p>
+                  <p
+                    className={cn(
+                      "text-sm font-bold",
+                      profile.sexo === "FEMININO"
+                        ? "text-pink-600 dark:text-pink-400"
+                        : "text-blue-600 dark:text-blue-400",
+                    )}
+                  >
+                    {profile.nome_completo}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{profile.cargo || "Sem cargo"}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

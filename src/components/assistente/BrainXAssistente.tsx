@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 
 const CONTEXTO_ROTAS: Record<string, string> = {
@@ -119,21 +120,30 @@ export function AssistenteTrigger() {
   const { open, setOpen } = useAssistente();
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setOpen(!open)}
-      title="Assistente BrainX"
-      aria-label="Assistente BrainX"
-      className="h-8 sm:h-9 w-8 sm:w-9 shrink-0"
-    >
-      <Avatar className="w-8 h-8 border border-border/60 bg-white">
-        <AvatarImage src="/brainx-mascot.png" alt="" className="object-cover" />
-        <AvatarFallback className="bg-primary/10 text-primary">
-          <Bot className="w-4 h-4" />
-        </AvatarFallback>
-      </Avatar>
-    </Button>
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(!open)}
+            aria-label="Assistente BrainX"
+            className="h-10 sm:h-11 w-10 sm:w-11 shrink-0"
+          >
+            <Avatar className="w-9 h-9 sm:w-10 sm:h-10 border-2 border-primary/30 shadow-sm bg-white">
+              <AvatarImage src="/brainx-mascot.png" alt="" className="object-cover" />
+              <AvatarFallback className="bg-primary/10 text-primary">
+                <Bot className="w-4 h-4" />
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-snug">
+          Assistente BrainX — Tire dúvidas sobre a tela em que você está, o sistema e as regras
+          do ERP. Clique para conversar.
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
