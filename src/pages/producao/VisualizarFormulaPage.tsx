@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { fmtMassaAtivos } from "@/lib/fmt-massa-ativos";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -144,7 +145,15 @@ export default function VisualizarFormulaPage() {
             {capsulasPorDose.n_capsulas} cápsula(s) por dose · ~{capsulasPorDose.peso_por_capsula_mg.toFixed(0)} mg cada
           </p>
           <p className="text-xs text-muted-foreground">
-            Cápsula {formula.tipo_capsula || '0'} · densidade {formula.densidade_aparente_kg_l || 0.65} kg/L · dose {capsulasPorDose.massa_ativos_mg.toFixed(0)} mg de ativos
+            Cápsula {formula.tipo_capsula || '0'} · densidade {formula.densidade_aparente_kg_l || 0.65} kg/L · dose {fmtMassaAtivos(capsulasPorDose.massa_ativos_mg)} mg de ativos
+            {(formula.densidade_aparente_kg_l == null || Number(formula.densidade_aparente_kg_l) === 0.65) && (
+              <Badge variant="outline" className="ml-2 text-[10px] border-amber-400 text-amber-700">
+                Densidade default
+              </Badge>
+            )}
+            {formula.grupo_populacional_alvo && (
+              <span className="ml-2">· grupo {formula.grupo_populacional_alvo}</span>
+            )}
           </p>
         </CardContent>
       </Card>

@@ -29,6 +29,8 @@ export interface HybridItem {
   unidade_pesagem?: string | null;
   fator_conversao?: number | null;
   exige_premix?: boolean | null;
+  /** Densidade aparente (kg/L) — preenchida por COA ou RT */
+  densidade_aparente?: number | null;
   ativo: boolean;
   created_at?: string;
   updated_at?: string;

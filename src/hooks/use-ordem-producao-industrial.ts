@@ -26,6 +26,7 @@ import {
   DENSIDADE_PADRAO_KG_L,
   type TamanhoCapsula,
 } from '@/lib/formulador-industrial-rules';
+import { rpcCalcularCapsulaIndustrial } from '@/lib/capsula-industrial-rpc';
 import { toast } from 'sonner';
 
 // ============================================================
@@ -206,17 +207,35 @@ export function useCreateOrdemProducaoIndustrial() {
       const acrescimo = 5;
       const quantidadeComAcrescimo = Math.ceil(quantidade_unidades * (1 + acrescimo / 100));
 
-      // Calcular cápsula industrial
+      // Fonte única oficial (RPC) — fallback local só se a RPC falhar
       const totalAtivos = formula.itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
       const veiculoCodigo = (formula.excipiente_padrao || 'AMIDO') as 'AMIDO' | 'CELULOSE' | 'PRE_BLEND';
-      // Usar dose em N cápsulas (não peso de 1 cápsula)
-      const capsulasPorDose = calcularCapsulasPorDose(
-        totalAtivos,
-        formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
-        (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
-      );
-      const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
-      const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoCodigo, massaTotalDose);
+      const oficial = await rpcCalcularCapsulaIndustrial(formula.id);
+      let pesoCapsulaMg: number;
+      let nCapsulas: number;
+      let calculos: ReturnType<typeof calcularCapsulaIndustrial>;
+
+      if (oficial.ok && oficial.por_capsula && oficial.n_capsulas_por_dose) {
+        nCapsulas = oficial.n_capsulas_por_dose;
+        pesoCapsulaMg = oficial.por_capsula.peso_total_mg;
+        const massaTotalDose = oficial.peso_total_dose_mg ?? nCapsulas * pesoCapsulaMg;
+        calculos = calcularCapsulaIndustrial(totalAtivos, veiculoCodigo, massaTotalDose);
+      } else {
+        const capsulasPorDose = calcularCapsulasPorDose(
+          totalAtivos,
+          formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
+          (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
+        );
+        nCapsulas = formula.n_capsulas_por_dose || capsulasPorDose.n_capsulas;
+        pesoCapsulaMg =
+          formula.peso_por_capsula_mg ||
+          formula.peso_enchimento_mg ||
+          formula.peso_capsula_alvo_mg ||
+          capsulasPorDose.peso_por_capsula_mg ||
+          CAPSULA_PESO_ALVO_MG;
+        const massaTotalDose = nCapsulas * pesoCapsulaMg;
+        calculos = calcularCapsulaIndustrial(totalAtivos, veiculoCodigo, massaTotalDose);
+      }
 
       // Gerar código e lote
       const codigo = await generateOPCode();
@@ -235,7 +254,7 @@ export function useCreateOrdemProducaoIndustrial() {
           formula_versao: formula.versao,
           produto_nome: formula.nome_formula,
           tipo_apresentacao: formula.tipo_apresentacao,
-          peso_capsula_mg: formula.peso_enchimento_mg || formula.peso_capsula_alvo_mg || CAPSULA_PESO_ALVO_MG,
+          peso_capsula_mg: pesoCapsulaMg,
           total_capsulas: quantidade_unidades,
           total_capsulas_com_acrescimo: quantidadeComAcrescimo,
           capsulas_por_frasco: quantidade_unidades,    // ajuste conforme seu modelo

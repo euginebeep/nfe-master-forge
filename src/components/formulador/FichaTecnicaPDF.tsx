@@ -43,6 +43,8 @@ import {
   type TamanhoCapsula,
 } from "@/lib/formulador-industrial-rules";
 import { formatarUnidadeInformada } from "@/lib/unidades-dose";
+import { fmtMassaAtivos } from "@/lib/fmt-massa-ativos";
+import { CAPSULA_CONST } from "@/lib/capsula-industrial-rpc";
 
 interface FichaTecnicaPDFProps {
   formula: Formula;
@@ -91,13 +93,24 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
   const versaoFicha = formula.versao || 1;
   
   const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
-  const capsulasPorDose = calcularCapsulasPorDose(
+  // Preferir valores oficiais gravados na aprovação (fonte única RPC)
+  const nCapsulasOficial = formula.n_capsulas_por_dose;
+  const previewCapsulas = calcularCapsulasPorDose(
     totalAtivos,
     formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
     (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
   );
+  const capsulasPorDose = {
+    ...previewCapsulas,
+    n_capsulas: nCapsulasOficial || previewCapsulas.n_capsulas,
+    massa_ativos_mg: formula.massa_ativos_dose_mg || previewCapsulas.massa_ativos_mg,
+    peso_por_capsula_mg: formula.peso_por_capsula_mg || previewCapsulas.peso_por_capsula_mg,
+  };
   const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
   const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, massaTotalDose);
+  const densidadeDefault =
+    formula.densidade_aparente_kg_l == null ||
+    Number(formula.densidade_aparente_kg_l) === CAPSULA_CONST.DENSIDADE_DEFAULT_KG_L;
 
   const handlePrint = () => {
     window.print();
@@ -178,6 +191,23 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                     <span className="text-muted-foreground">Veículo:</span>
                     <p className="font-medium">{formula.excipiente_padrao}</p>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground">Grupo populacional:</span>
+                    <p className="font-medium">
+                      {(formula as { grupo_populacional_alvo?: string }).grupo_populacional_alvo || "— (obrigatório)"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Densidade:</span>
+                    <p className="font-medium flex items-center gap-1">
+                      {formula.densidade_aparente_kg_l || CAPSULA_CONST.DENSIDADE_DEFAULT_KG_L} kg/L
+                      {densidadeDefault && (
+                        <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">
+                          Default — confirmar RT
+                        </Badge>
+                      )}
+                    </p>
+                  </div>
                 </>
               )}
               {formula.tipo_apresentacao === 'LIQUIDO' && (
@@ -235,12 +265,20 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                 {itens.map((item, idx) => (
                   <TableRow key={item.id} className={item.ativo_critico ? "bg-red-50 dark:bg-red-950/20" : ""}>
                     <TableCell className="font-mono text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{item.nome_insumo}</TableCell>
+                    <TableCell className="font-medium">
+                      {item.nome_insumo}
+                      {item.exige_premix && (
+                        <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                          como pré-mix: massa diluída ≈ {fmtMassaAtivos(item.quantidade_convertida_mg)} mg de ativo
+                          × fator de diluição (RPC constituintes_candidatos_premix); valor exato na OP pela potência do lote.
+                        </p>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-mono">
                       {item.quantidade_informada} {formatarUnidadeInformada(item.unidade_informada)}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
-                      {item.quantidade_convertida_mg.toFixed(4)}
+                      {fmtMassaAtivos(item.quantidade_convertida_mg)}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center gap-1">
@@ -283,7 +321,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
               <div className="mt-4 p-3 bg-muted/30 rounded-lg text-sm">
                 <div className="flex justify-between">
                   <span>Total de Ativos:</span>
-                  <span className="font-mono font-medium">{totalAtivos.toFixed(2)} mg</span>
+                  <span className="font-mono font-medium">{fmtMassaAtivos(totalAtivos)} mg</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Excipientes Tecnológicos (8%):</span>
@@ -336,7 +374,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                     <TableRow>
                       <TableHead>Nutriente</TableHead>
                       <TableHead className="text-right">Qtd./Porção</TableHead>
-                      <TableHead className="text-right">%VD*</TableHead>
+                      <TableHead className="text-right">%VDR*</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -354,7 +392,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                   </TableBody>
                 </Table>
                 <div className="bg-muted/50 p-2 border-t text-xs text-muted-foreground">
-                  *Percentual de valores diários fornecidos pela porção.
+                  *%VDR — percentual dos Valores de Referência Diários fornecidos pela porção.
                 </div>
               </div>
             </div>
@@ -386,7 +424,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
                       <span className="w-1.5 h-1.5 rounded-full bg-destructive"></span>
                       <span className="font-medium">{item.nome_insumo}</span>
                       <span className="text-muted-foreground">
-                        ({item.quantidade_convertida_mg.toFixed(4)} mg)
+                        ({fmtMassaAtivos(item.quantidade_convertida_mg)} mg)
                       </span>
                       {item.exige_premix && (
                         <Badge variant="outline" className="text-xs">Pré-mix</Badge>
@@ -398,25 +436,27 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
             </div>
           )}
 
-          {/* Rodapé com Empresa + BrainX + Aprovador */}
+          {/* Rodapé com Empresa + BrainX + RT + Aprovador */}
           <div className="border-t pt-4 mt-6 text-xs text-muted-foreground space-y-2">
-            {/* Linha 1: Empresa */}
             <div className="font-semibold text-gray-800">
               {company?.razao_social || 'Empresa'} · CNPJ: {company?.cnpj || 'N/A'}
             </div>
-            
-            {/* Linha 2: BrainX + Data de geração */}
             <div>
               Documento gerado por BrainX ERP · {dataGeracao}
             </div>
-            
-            {/* Linha 3: Elaborado por e Aprovado/Liberado por */}
             <div>
-              Elaborado por: <span className="font-medium">{criadoPor}</span> · 
+              RT: <span className="font-medium">{aprovadoPor !== '—' ? aprovadoPor : 'a definir'}</span>
+              {(company as any)?.rt_conselho || (company as any)?.conselho_profissional
+                ? ` · ${(company as any).rt_conselho || (company as any).conselho_profissional}`
+                : ''}
+              {(company as any)?.rt_registro || (company as any)?.registro_profissional
+                ? ` nº ${(company as any).rt_registro || (company as any).registro_profissional}`
+                : ''}
+            </div>
+            <div>
+              Elaborado por: <span className="font-medium">{criadoPor}</span> ·
               Aprovado/Liberado por: <span className="font-medium">{aprovadoPor}</span> em {aprovadoEm}
             </div>
-            
-            {/* Linha 4: Código e versão da fórmula */}
             <div>
               Ficha {codigoFicha} · Versão {versaoFicha}
             </div>
