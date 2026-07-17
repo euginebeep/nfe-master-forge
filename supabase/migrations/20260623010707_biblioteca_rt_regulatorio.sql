@@ -151,11 +151,32 @@ INSERT INTO public.legislacao_fontes (tipo, numero, ano, titulo, categoria, url_
 ON CONFLICT DO NOTHING;
 
 -- ─── SEED: TRILHAS DE ESTUDO ─────────────────────────────────────────────────
+-- Conteúdo factual alinhado às fontes oficiais (sessão 17/07).
+-- Correção idempotente também em 20260717130000_trilhas_estudo_conteudo_oficial.sql
 INSERT INTO public.trilhas_estudo (titulo, categoria, nivel, conteudo_md, ordem) VALUES
 (
   'Os 8 POPs obrigatórios para suplementos (RDC 275/2002)',
   'POPS', 'INICIANTE',
-  E'# Os 8 POPs obrigatórios — RDC 275/2002\n\nA RDC 275/2002 exige que toda fábrica de alimentos (incluindo suplementos) mantenha **Procedimentos Operacionais Padronizados (POPs)** escritos, implementados e registrados para as seguintes operações:\n\n| # | POP | O que deve conter |\n|---|---|---|\n| 1 | Higienização de instalações, equipamentos e utensílios | Frequência, produtos, concentrações, responsável |\n| 2 | Controle de pragas e vetores | Empresa terceirizada, frequência, mapa de iscas |\n| 3 | Higienização do reservatório de água | Frequência mínima semestral, laudo de potabilidade |\n| 4 | Higiene e saúde dos manipuladores | Exames periódicos, EPI, treinamento |\n| 5 | Manejo de resíduos | Coleta, armazenamento, destinação |\n| 6 | Manutenção preventiva e calibração de equipamentos | Cronograma, registros de calibração |\n| 7 | Controle de qualidade do produto final | Especificações, amostragem, liberação |\n| 8 | Rastreabilidade e recolhimento de produtos | Lote, validade, procedimento de recall |\n\n> **Atenção:** Cada POP deve ter: objetivo, campo de aplicação, responsável, materiais, procedimento passo a passo, monitoramento, ações corretivas e registros.\n\n**Referência:** RDC 275/2002, Anexo II.',
+  E'# Os 8 POPs obrigatórios — RDC 275/2002
+
+A RDC 275/2002 (item 4.1.1) exige que toda fábrica de alimentos (incluindo suplementos) mantenha **Procedimentos Operacionais Padronizados (POPs)** escritos, implementados e registrados para estas oito operações:
+
+| # | POP (letra da norma) | O que deve conter |
+|---|---|---|
+| 1 | a) Higienização das instalações, equipamentos, móveis e utensílios | Natureza da superfície, método, princípio ativo e concentração, tempo de contato, temperatura (item 4.2.1) |
+| 2 | b) Controle da potabilidade da água | Pontos de coleta, frequência, análises, metodologia, responsáveis (item 4.2.2) |
+| 3 | c) Higiene e saúde dos manipuladores | Lavagem/anti-sepsia das mãos, exames, capacitação, registros nominais (item 4.2.3) |
+| 4 | d) Manejo dos resíduos | Frequência, responsável, higienização dos coletores (item 4.2.4) |
+| 5 | e) Manutenção preventiva e calibração de equipamentos | Periodicidade, responsáveis, calibração dos instrumentos de medição (item 4.2.5) |
+| 6 | f) Controle integrado de vetores e pragas urbanas | Medidas preventivas/corretivas, comprovante de empresa especializada (item 4.2.6) |
+| 7 | g) Seleção das matérias-primas, ingredientes e embalagens | Critérios de recebimento, quarentena, destino dos reprovados (item 4.2.7) |
+| 8 | h) Programa de recolhimento de alimentos | Situações de adoção, procedimento de recall, segregação, destino (item 4.2.8) |
+
+> **Atenção:** Cada POP deve ser aprovado, datado e assinado pelo responsável técnico e pelo responsável legal (item 4.1.2), com frequência e responsáveis especificados (item 4.1.3), e os registros mantidos por período superior à vida de prateleira do produto (item 5.2).
+
+> ⚠️ "Controle de qualidade do produto final" NÃO é um dos 8 POPs da RDC 275 — é uma exigência geral de BPF. Os 8 POPs são exatamente as letras a) a h) do item 4.1.1.
+
+**Referência:** RDC 275/2002, Anexo I, item 4.1.1 (e requisitos específicos no item 4.2).',
   1
 ),
 (
@@ -173,13 +194,68 @@ INSERT INTO public.trilhas_estudo (titulo, categoria, nivel, conteudo_md, ordem)
 (
   'Rotulagem e Alegações — o que pode e o que é proibido',
   'ROTULAGEM', 'INICIANTE',
-  E'# Rotulagem e Alegações de Suplementos\n\n## 3 avisos obrigatórios (RDC 243/2018, Art. 10)\n\nTodo suplemento alimentar deve trazer **obrigatoriamente** no rótulo:\n\n1. "Este produto não é um medicamento."\n2. "O consumo deste produto não substitui uma alimentação variada e equilibrada e um estilo de vida saudável."\n3. "Consulte um médico ou nutricionista antes de consumir este produto."\n\n## Alegações funcionais permitidas\n\n- Apenas as constantes no **Anexo da IN 28/2018** (consolidada com atualizações).\n- Proibido: alegações terapêuticas, de cura ou de tratamento de doenças.\n- Proibido: alegações não previstas na IN 28/2018, mesmo que "verdadeiras".\n\n## Rotulagem nutricional\n\n- Seguir RDC 429/2020 + IN 75/2020.\n- Declarar constituintes ativos com quantidade por porção.\n\n**Referências:** RDC 243/2018, IN 28/2018, RDC 429/2020, IN 75/2020.',
+  E'# Rotulagem e Alegações de Suplementos
+
+## 3 avisos obrigatórios (RDC 243/2018, Art. 14)
+
+Todo suplemento alimentar deve trazer **obrigatoriamente** no rótulo, em destaque e negrito, as três advertências:
+
+1. **"Este produto não é um medicamento"**
+2. **"Não exceder a recomendação diária de consumo indicada na embalagem"**
+3. **"Mantenha fora do alcance de crianças"**
+
+> ⚠️ São exatamente estas três frases, no texto literal da norma. Não confundir com avisos de outras categorias de alimento (a frase "não substitui uma alimentação variada" é de alimentos, não é aviso obrigatório de suplemento).
+
+## Designação do produto (Art. 12 e 13)
+
+- Designar como **"Suplemento Alimentar"** + a forma farmacêutica (ex.: "Suplemento Alimentar em cápsulas").
+- A designação deve estar próxima à marca, em caixa alta, negrito, cor contrastante, e no mínimo 1/3 do tamanho da maior fonte da marca.
+
+## Alegações funcionais permitidas (Art. 16)
+
+- Apenas as constantes no **Anexo V da IN 28/2018**.
+- Não são permitidas variações textuais das alegações autorizadas (salvo reunião em única frase).
+- Proibido: alegações terapêuticas, de cura, ou não previstas na IN 28/2018 (Art. 17).
+
+## Rotulagem nutricional (Art. 15)
+
+- Seguir a RDC 429/2020 + IN 75/2020 (regra geral de alimentos).
+- Porção = recomendação diária do fabricante por grupo populacional.
+- %VDR declarado por grupo, com base na IDR da RDC 269/2005.
+
+**Referências:** RDC 243/2018 (Art. 12-17), IN 28/2018 (Anexo V), RDC 429/2020, IN 75/2020.',
   4
 ),
 (
   'Limites de dose — como ler os Anexos III e IV da IN 28/2018',
   'LIMITES_DOSE', 'INTERMEDIARIO',
-  E'# Limites de Dose na IN 28/2018\n\n## Estrutura da IN 28/2018\n\n- **Anexo I:** Vitaminas permitidas\n- **Anexo II:** Minerais permitidos\n- **Anexo III:** Outros constituintes (plantas, aminoácidos, etc.) — com limite máximo por dia\n- **Anexo IV:** Constituintes com alegação funcional aprovada\n\n## Como ler\n\nCada linha dos Anexos traz:\n- Nome do constituinte\n- Quantidade mínima por dia (quando aplicável)\n- Quantidade máxima por dia\n- Unidade (mg, µg, UFC, etc.)\n- Alegação funcional aprovada (se houver)\n\n## Atenção às atualizações\n\nA IN 28/2018 é **constantemente atualizada** por Instruções Normativas posteriores (IN 373/2025, IN 418/2025, IN 431/2026, IN 438/2026). Sempre consultar a versão consolidada no ANVISALegis.\n\n> **Regra prática:** se o constituinte não está em nenhum Anexo da IN 28/2018, ele **não pode ser usado** em suplemento alimentar no Brasil.\n\n**Referências:** IN 28/2018 (consolidada), RDC 243/2018 Art. 5º.',
+  E'# Limites de Dose na IN 28/2018
+
+## Estrutura dos Anexos da IN 28/2018
+
+- **Anexo I:** Lista de constituintes autorizados (nutrientes, substâncias bioativas, enzimas) e suas fontes.
+- **Anexo II:** Lista de enzimas e probióticos autorizados.
+- **Anexo III:** Limites **MÍNIMOS** por dia, por grupo populacional.
+- **Anexo IV:** Limites **MÁXIMOS** por dia, por grupo populacional (não podem ser ultrapassados).
+- **Anexo V:** Alegações funcionais autorizadas (a frase exata permitida no rótulo).
+
+> Regra dos limites (RDC 243/2018, Art. 9º): os limites mínimo e máximo devem ser atendidos **na recomendação diária de consumo**, para cada grupo populacional indicado pelo fabricante.
+
+## Como ler uma linha dos Anexos III/IV
+
+Cada linha traz: nome do constituinte, quantidade mínima (Anexo III) ou máxima (Anexo IV) por dia, unidade (mg, µg, UI, UFC), e o grupo populacional (ex.: adultos, gestantes, crianças por faixa etária).
+
+## NE (Não Estabelecido)
+
+Quando o limite aparece como **"NE"** (Art. 7º da IN 28), cabe ao fabricante definir a quantidade adequada, com justificativa técnica. NE não significa "sem limite" — significa que a norma não fixou um número e a responsabilidade é do fabricante/RT.
+
+## Atenção às atualizações
+
+A IN 28/2018 é **constantemente atualizada** por Instruções Normativas posteriores (ex.: IN 373/2025, IN 418/2025, IN 431/2026, IN 438/2026). Sempre consultar a versão consolidada no ANVISALegis, e usar o ANVISA Checker do BrainX (que já traz os limites por grupo).
+
+> **Regra prática:** se o constituinte não está em nenhum Anexo da IN 28/2018 (nem em RE posterior), ele **não pode ser usado** em suplemento alimentar no Brasil.
+
+**Referências:** IN 28/2018 (consolidada), RDC 243/2018 (Art. 4º, 7º, 9º).',
   5
 ),
 (

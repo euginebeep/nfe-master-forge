@@ -8,22 +8,23 @@
  * NÃO aplicável: RDC 658/2022 (BPF de medicamentos)
  */
 
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import {
   BookOpen, Search, GraduationCap, FileCheck, Radar,
-  ExternalLink, AlertTriangle, CheckCircle2, Clock, ShieldAlert, Shield,
-  ChevronRight, Loader2, Send, FileText, RefreshCw, Check, X
+  ExternalLink, AlertTriangle, CheckCircle2, ShieldAlert, Shield,
+  ChevronRight, Loader2, Send, RefreshCw, Check, X, ClipboardList, Scale, Factory,
+  FlaskConical, Tag, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -84,43 +85,77 @@ interface RespostaRAG {
   }>;
 }
 
-// ─── Mapa de categorias ──────────────────────────────────────────────────────
+// ─── Mapa de categorias (tokens do tema) ─────────────────────────────────────
 
 const CATEGORIA_LABELS: Record<string, { label: string; color: string }> = {
-  NUCLEO_SUPLEMENTO:                  { label: "Núcleo Suplemento", color: "bg-green-100 text-green-800 border-green-200" },
-  ATUALIZACAO_IN28:                   { label: "Atualização IN 28", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  ROTULAGEM:                          { label: "Rotulagem", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  BPF_GERAL:                          { label: "BPF Geral", color: "bg-orange-100 text-orange-800 border-orange-200" },
-  APOIO_PERGUNTAS_RESPOSTAS:          { label: "P&R Oficial", color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
-  REFERENCIA_MEDICAMENTO_NAO_APLICAVEL: { label: "⚠️ Medicamento (não aplicável)", color: "bg-red-100 text-red-800 border-red-200" },
+  NUCLEO_SUPLEMENTO: {
+    label: "Núcleo Suplemento",
+    color: "bg-primary/10 text-primary border-primary/20",
+  },
+  ATUALIZACAO_IN28: {
+    label: "Atualização IN 28",
+    color: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20",
+  },
+  ROTULAGEM: {
+    label: "Rotulagem",
+    color: "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20",
+  },
+  BPF_GERAL: {
+    label: "BPF Geral",
+    color: "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20",
+  },
+  APOIO_PERGUNTAS_RESPOSTAS: {
+    label: "P&R Oficial",
+    color: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20",
+  },
+  REFERENCIA_MEDICAMENTO_NAO_APLICAVEL: {
+    label: "Medicamento (não aplicável)",
+    color: "bg-destructive/10 text-destructive border-destructive/20",
+  },
 };
 
-const TRILHA_ICONS: Record<string, string> = {
-  POPS: "📋", TABELA_NUTRICIONAL: "🥗", BPF: "🏭", ROTULAGEM: "🏷️",
-  ALEGACOES: "✅", LIMITES_DOSE: "⚖️", ESTABILIDADE: "🧪", FISCALIZACAO: "🔍",
+const TRILHA_ICONS: Record<string, LucideIcon> = {
+  POPS: ClipboardList,
+  TABELA_NUTRICIONAL: BookOpen,
+  BPF: Factory,
+  ROTULAGEM: Tag,
+  ALEGACOES: CheckCircle2,
+  LIMITES_DOSE: Scale,
+  ESTABILIDADE: FlaskConical,
+  FISCALIZACAO: Search,
 };
+
+const SUGESTOES_PERGUNTA = [
+  "Quais são os 3 avisos obrigatórios no rótulo?",
+  "Posso usar GABA em suplemento?",
+  "Qual a diferença entre RDC 275/2002 e RDC 658/2022?",
+  "Quais POPs são obrigatórios?",
+  "Limite de cafeína por dose?",
+];
+
+function labelFonte(f: { tipo?: string; numero: string; ano: number; titulo?: string }) {
+  if (f.tipo && f.tipo !== "OUTRO") return `${f.tipo} ${f.numero}/${f.ano}`;
+  return f.titulo?.slice(0, 40) || `${f.numero}/${f.ano}`;
+}
 
 // ─── Componente principal ────────────────────────────────────────────────────
 
 export default function BibliotecaRTPage() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
+  const [aba, setAba] = useState("copilot");
 
-  // ── Estado da aba "Pergunte à Legislação" ──────────────────────────────────
   const [pergunta, setPergunta] = useState("");
   const [respostaRAG, setRespostaRAG] = useState<RespostaRAG | null>(null);
   const [buscando, setBuscando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Estado da aba "Trilhas de Estudo" ─────────────────────────────────────
   const [trilhaSelecionada, setTrilhaSelecionada] = useState<TrilhaEstudo | null>(null);
 
-  // ── Estado da aba "Revisor de POP" ────────────────────────────────────────
   const [textoPOP, setTextoPOP] = useState("");
   const [revisandoPOP, setRevisandoPOP] = useState(false);
   const [resultadoRevisao, setResultadoRevisao] = useState<RespostaRAG | null>(null);
-
-  // ── Queries ────────────────────────────────────────────────────────────────
+  const [rodandoMonitor, setRodandoMonitor] = useState(false);
 
   const { data: fontes = [] } = useQuery<LegislacaoFonte[]>({
     queryKey: ["legislacao-fontes"],
@@ -160,12 +195,19 @@ export default function BibliotecaRTPage() {
     },
   });
 
-  // ── Mutation: aprovar/descartar item do radar ──────────────────────────────
+  const { data: alertasPendentes = [], refetch: refetchAlertas } = useAlertasNormativosPendentes();
+  const { data: rehomo = [] } = useConstituintesRequeremRehomologacao();
+  const marcarAlerta = useMarcarAlertaRevisado();
+
   const atualizarRadar = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "APROVADO" | "DESCARTADO" }) => {
       const { error } = await supabase
         .from("legislacao_monitoramento")
-        .update({ status_revisao: status, revisado_por: user?.id, revisado_em: new Date().toISOString() })
+        .update({
+          status_revisao: status,
+          revisado_por: user?.id,
+          revisado_em: new Date().toISOString(),
+        })
         .eq("id", id);
       if (error) throw error;
     },
@@ -175,7 +217,12 @@ export default function BibliotecaRTPage() {
     },
   });
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  const pendentes = monitoramento.filter(
+    (m) => m.status_revisao === "PENDENTE" && m.mudanca_detectada,
+  );
+  const verificacoesOk = monitoramento.filter((m) => !m.mudanca_detectada);
+  const totalPendencias = alertasPendentes.length + pendentes.length;
+  const fontesAtivas = fontes.filter((f) => f.aprovado_por);
 
   const handlePergunta = async () => {
     if (!pergunta.trim()) return;
@@ -191,7 +238,7 @@ export default function BibliotecaRTPage() {
       });
       if (error) throw error;
       setRespostaRAG(data as RespostaRAG);
-    } catch (err) {
+    } catch {
       toast.error("Erro ao consultar a base. Tente novamente.");
     } finally {
       setBuscando(false);
@@ -203,7 +250,8 @@ export default function BibliotecaRTPage() {
     setRevisandoPOP(true);
     setResultadoRevisao(null);
     try {
-      const perguntaRevisao = `Revise o seguinte texto de POP e identifique afirmações que podem não ter base nas normas ANVISA para suplementos alimentares (RDC 243/2018, RDC 275/2002, IN 28/2018). Para cada afirmação suspeita, indique se há ou não sustentação na base:\n\n${textoPOP}`;
+      const perguntaRevisao =
+        `Revise o seguinte texto de POP e identifique afirmações que podem não ter base nas normas ANVISA para suplementos alimentares (RDC 243/2018, RDC 275/2002, IN 28/2018). Para cada afirmação suspeita, indique se há ou não sustentação na base:\n\n${textoPOP}`;
       const { data, error } = await supabase.functions.invoke("legislacao-rag-search", {
         body: {
           pergunta: perguntaRevisao,
@@ -213,21 +261,12 @@ export default function BibliotecaRTPage() {
       });
       if (error) throw error;
       setResultadoRevisao(data as RespostaRAG);
-    } catch (err) {
+    } catch {
       toast.error("Erro ao revisar o POP. Tente novamente.");
     } finally {
       setRevisandoPOP(false);
     }
   };
-
-  // ── Render ─────────────────────────────────────────────────────────────────
-
-  const pendentes = monitoramento.filter(m => m.status_revisao === "PENDENTE" && m.mudanca_detectada);
-  const verificacoesOk = monitoramento.filter(m => !m.mudanca_detectada);
-  const { data: alertasPendentes = [], refetch: refetchAlertas } = useAlertasNormativosPendentes();
-  const { data: rehomo = [] } = useConstituintesRequeremRehomologacao();
-  const marcarAlerta = useMarcarAlertaRevisado();
-  const [rodandoMonitor, setRodandoMonitor] = useState(false);
 
   const handleRodarMonitor = async () => {
     setRodandoMonitor(true);
@@ -246,58 +285,63 @@ export default function BibliotecaRTPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <BookOpen className="w-6 h-6 text-green-700" />
-            <h1 className="text-2xl font-bold text-gray-900">Biblioteca do RT</h1>
-            <Badge variant="outline" className="text-xs border-green-300 text-green-700">Copilot Regulatório</Badge>
-            {alertasPendentes.length > 0 && (
+    <div className="container mx-auto py-6 space-y-6 animate-in fade-in duration-500">
+      <PageHeader
+        icon={BookOpen}
+        title="Biblioteca do RT"
+        description="Base de conhecimento travada em fonte oficial ANVISA — RDC 243/2018 · RDC 275/2002 · IN 28/2018"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-xs">
+              Copilot Regulatório
+            </Badge>
+            {totalPendencias === 0 ? (
+              <Badge
+                variant="outline"
+                className="text-xs border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
+              >
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Base em dia
+              </Badge>
+            ) : (
               <Badge variant="destructive" className="text-xs">
-                {alertasPendentes.length} alerta{alertasPendentes.length > 1 ? "s" : ""} normativo{alertasPendentes.length > 1 ? "s" : ""}
+                {totalPendencias} pendência{totalPendencias > 1 ? "s" : ""}
               </Badge>
             )}
           </div>
-          <p className="text-sm text-gray-500">
-            Base de conhecimento travada em fonte oficial ANVISA — RDC 243/2018 · RDC 275/2002 · IN 28/2018
-          </p>
-        </div>
-        {pendentes.length > 0 && (
-          <Badge className="bg-amber-500 text-white animate-pulse">
-            {pendentes.length} atualização{pendentes.length > 1 ? "ões" : ""} pendente{pendentes.length > 1 ? "s" : ""}
-          </Badge>
-        )}
-      </div>
+        }
+      />
 
-      {/* Aviso sobre RDC 658/2022 */}
-      <Alert className="border-amber-300 bg-amber-50">
+      <Alert className="border-amber-500/40 bg-amber-500/5">
         <ShieldAlert className="h-4 w-4 text-amber-600" />
-        <AlertDescription className="text-amber-800 text-xs">
-          <strong>Atenção:</strong> A RDC 658/2022 é BPF de <strong>medicamentos</strong> e <strong>não se aplica</strong> a suplementos alimentares.
-          Para suplementos, as normas aplicáveis são: <strong>RDC 243/2018</strong> (requisitos sanitários) e <strong>RDC 275/2002</strong> (BPF alimentos).
+        <AlertDescription className="text-xs text-foreground">
+          <strong>Atenção:</strong> A RDC 658/2022 é BPF de <strong>medicamentos</strong> e{" "}
+          <strong>não se aplica</strong> a suplementos alimentares. Para suplementos, use{" "}
+          <strong>RDC 243/2018</strong> (requisitos sanitários) e <strong>RDC 275/2002</strong> (BPF
+          alimentos).
         </AlertDescription>
       </Alert>
 
-      {/* Abas */}
-      <Tabs defaultValue="copilot" className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full">
-          <TabsTrigger value="copilot" className="flex items-center gap-1.5 text-xs">
-            <Search className="w-3.5 h-3.5" /> Pergunte à Legislação
+      <Tabs value={aba} onValueChange={setAba} className="w-full space-y-4">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+          <TabsTrigger value="copilot" className="flex items-center gap-1.5 text-xs sm:text-sm py-2">
+            <Search className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Pergunte à Legislação</span>
           </TabsTrigger>
-          <TabsTrigger value="trilhas" className="flex items-center gap-1.5 text-xs">
-            <GraduationCap className="w-3.5 h-3.5" /> Trilhas de Estudo
+          <TabsTrigger value="trilhas" className="flex items-center gap-1.5 text-xs sm:text-sm py-2">
+            <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Trilhas de Estudo</span>
           </TabsTrigger>
-          <TabsTrigger value="revisor" className="flex items-center gap-1.5 text-xs">
-            <FileCheck className="w-3.5 h-3.5" /> Revisor de POP
+          <TabsTrigger value="revisor" className="flex items-center gap-1.5 text-xs sm:text-sm py-2">
+            <FileCheck className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Revisor de POP</span>
           </TabsTrigger>
-          <TabsTrigger value="radar" className="flex items-center gap-1.5 text-xs">
-            <Radar className="w-3.5 h-3.5" />
-            Radar de Atualizações
-            {pendentes.length > 0 && (
-              <span className="ml-1 bg-amber-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                {pendentes.length}
+          <TabsTrigger value="radar" className="flex items-center gap-1.5 text-xs sm:text-sm py-2">
+            <Radar className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Radar</span>
+            {totalPendencias > 0 && (
+              <span className="ml-1 bg-amber-500 text-white text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+                {totalPendencias}
               </span>
             )}
           </TabsTrigger>
@@ -306,40 +350,37 @@ export default function BibliotecaRTPage() {
         {/* ── ABA 1: Pergunte à Legislação ─────────────────────────────────── */}
         <TabsContent value="copilot" className="space-y-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Consulta à Base de Legislação</CardTitle>
-              <CardDescription className="text-xs">
-                Faça perguntas em linguagem natural. A resposta vem apenas de trechos carregados na base — nunca de conhecimento geral do modelo.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="pt-6 space-y-3">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Consulta à Base de Legislação</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Faça perguntas em linguagem natural. A resposta vem apenas de trechos carregados na
+                  base — nunca de conhecimento geral do modelo.
+                </p>
+              </div>
               <div className="flex gap-2">
                 <Input
                   ref={inputRef}
                   placeholder="Ex: Qual é o limite de vitamina D por dia para suplementos?"
                   value={pergunta}
-                  onChange={e => setPergunta(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handlePergunta()}
+                  onChange={(e) => setPergunta(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handlePergunta()}
                   className="text-sm"
                 />
                 <Button onClick={handlePergunta} disabled={buscando || !pergunta.trim()} size="sm">
                   {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </Button>
               </div>
-
-              {/* Sugestões de perguntas */}
               <div className="flex flex-wrap gap-1.5">
-                {[
-                  "Quais são os 3 avisos obrigatórios no rótulo?",
-                  "Posso usar GABA em suplemento?",
-                  "Qual a diferença entre RDC 275/2002 e RDC 658/2022?",
-                  "Quais POPs são obrigatórios?",
-                  "Limite de cafeína por dose?",
-                ].map(s => (
+                {SUGESTOES_PERGUNTA.map((s) => (
                   <button
                     key={s}
-                    onClick={() => { setPergunta(s); setTimeout(handlePergunta, 100); }}
-                    className="text-xs px-2 py-1 rounded-full border border-gray-200 hover:border-green-400 hover:bg-green-50 transition-colors text-gray-600"
+                    type="button"
+                    onClick={() => {
+                      setPergunta(s);
+                      setTimeout(handlePergunta, 100);
+                    }}
+                    className="text-xs px-2 py-1 rounded-md border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors text-muted-foreground"
                   >
                     {s}
                   </button>
@@ -348,40 +389,44 @@ export default function BibliotecaRTPage() {
             </CardContent>
           </Card>
 
-          {/* Resposta */}
           {buscando && (
-            <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
               <Loader2 className="w-4 h-4 animate-spin" />
               Consultando a base de legislação...
             </div>
           )}
 
           {respostaRAG && (
-            <Card className={respostaRAG.encontrou_resposta ? "border-green-200" : "border-amber-200"}>
+            <Card
+              className={
+                respostaRAG.encontrou_resposta
+                  ? "border-emerald-500/30"
+                  : "border-amber-500/40"
+              }
+            >
               <CardContent className="pt-4 space-y-4">
-                {/* Indicador de fonte */}
                 <div className="flex items-center gap-2">
                   {respostaRAG.encontrou_resposta ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                   )}
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     {respostaRAG.encontrou_resposta
                       ? `Resposta baseada em ${respostaRAG.fontes.length} trecho(s) da base`
                       : "Informação não encontrada na base"}
                   </span>
                 </div>
 
-                {/* Texto da resposta */}
-                <div className="prose prose-sm max-w-none text-gray-800">
+                <div className="prose prose-sm max-w-none text-foreground">
                   <ReactMarkdown>{respostaRAG.resposta}</ReactMarkdown>
                 </div>
 
-                {/* Fontes citadas */}
                 {respostaRAG.fontes.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fontes citadas</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Fontes citadas
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {respostaRAG.fontes.map((f, idx) => (
                         <a
@@ -389,23 +434,26 @@ export default function BibliotecaRTPage() {
                           href={f.url_oficial}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border font-medium hover:opacity-80 transition-opacity ${
-                            CATEGORIA_LABELS[f.categoria]?.color || "bg-gray-100 text-gray-700 border-gray-200"
+                          className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border font-medium hover:opacity-80 transition-opacity ${
+                            CATEGORIA_LABELS[f.categoria]?.color ||
+                            "bg-muted text-foreground border-border"
                           }`}
                         >
-                          {(f.tipo && f.tipo !== "OUTRO")
-                            ? `${f.tipo} ${f.numero}/${f.ano}`
-                            : (f.titulo?.slice(0, 40) || `${f.numero}/${f.ano}`)}
+                          {labelFonte(f)}
                           {f.referencia && ` — ${f.referencia}`}
                           <ExternalLink className="w-2.5 h-2.5" />
                         </a>
                       ))}
                     </div>
-                    {respostaRAG.fontes.some(f => f.categoria === "REFERENCIA_MEDICAMENTO_NAO_APLICAVEL") && (
-                      <Alert className="border-red-200 bg-red-50 mt-2">
-                        <AlertTriangle className="h-3 w-3 text-red-600" />
-                        <AlertDescription className="text-red-700 text-xs">
-                          Uma das fontes citadas (RDC 658/2022) é norma de <strong>medicamentos</strong> e <strong>não se aplica</strong> a suplementos alimentares.
+                    {respostaRAG.fontes.some(
+                      (f) => f.categoria === "REFERENCIA_MEDICAMENTO_NAO_APLICAVEL",
+                    ) && (
+                      <Alert className="border-destructive/30 bg-destructive/5 mt-2">
+                        <AlertTriangle className="h-3 w-3 text-destructive" />
+                        <AlertDescription className="text-destructive text-xs">
+                          Uma das fontes citadas (RDC 658/2022) é norma de{" "}
+                          <strong>medicamentos</strong> e <strong>não se aplica</strong> a
+                          suplementos alimentares.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -415,41 +463,50 @@ export default function BibliotecaRTPage() {
             </Card>
           )}
 
-          {/* Base de normas — somente leitura para o tenant */}
           <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm text-gray-600">Base de Normas Ativas</CardTitle>
-                <span className="text-[10px] text-gray-400 flex items-center gap-1">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-medium text-foreground">Base de Normas Ativas</h3>
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Shield className="w-3 h-3" /> Gerenciada pelo administrador do sistema
                 </span>
               </div>
-            </CardHeader>
-            <CardContent>
               <div className="space-y-1">
-                {fontes.filter(f => f.aprovado_por).map(f => (
-                  <div key={f.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                {fontesAtivas.map((f) => (
+                  <div
+                    key={f.id}
+                    className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0"
+                  >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${
-                        CATEGORIA_LABELS[f.categoria]?.color || "bg-gray-100 text-gray-700 border-gray-200"
-                      }`}>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${
+                          CATEGORIA_LABELS[f.categoria]?.color ||
+                          "bg-muted text-foreground border-border"
+                        }`}
+                      >
                         {f.tipo !== "OUTRO" ? `${f.tipo} ${f.numero}/${f.ano}` : "DOC"}
                       </span>
-                      <span className="text-xs text-gray-700 truncate">{f.titulo}</span>
+                      <span className="text-xs text-foreground truncate">{f.titulo}</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      <span className="text-[10px] text-green-600 flex items-center gap-0.5">
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
                         <CheckCircle2 className="w-3 h-3" /> Ativa
                       </span>
-                      <a href={f.url_oficial} target="_blank" rel="noopener noreferrer"
-                        className="text-gray-400 hover:text-green-600 transition-colors">
+                      <a
+                        href={f.url_oficial}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                      >
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   </div>
                 ))}
-                {fontes.filter(f => f.aprovado_por).length === 0 && (
-                  <p className="text-xs text-gray-400 text-center py-4">Nenhuma norma ativa ainda. O administrador do sistema está carregando a base.</p>
+                {fontesAtivas.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    Nenhuma norma ativa ainda. O administrador do sistema está carregando a base.
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -460,12 +517,21 @@ export default function BibliotecaRTPage() {
         <TabsContent value="trilhas" className="space-y-4">
           {trilhaSelecionada ? (
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{TRILHA_ICONS[trilhaSelecionada.categoria] || "📖"}</span>
-                    <div>
-                      <CardTitle className="text-base">{trilhaSelecionada.titulo}</CardTitle>
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    {(() => {
+                      const Icon = TRILHA_ICONS[trilhaSelecionada.categoria] || BookOpen;
+                      return (
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4 text-primary" />
+                        </div>
+                      );
+                    })()}
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-foreground">
+                        {trilhaSelecionada.titulo}
+                      </h3>
                       <Badge variant="outline" className="text-xs mt-1">
                         {trilhaSelecionada.nivel}
                       </Badge>
@@ -475,38 +541,59 @@ export default function BibliotecaRTPage() {
                     ← Voltar
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="prose prose-sm max-w-none text-gray-800">
+                <div className="prose prose-sm max-w-none text-foreground">
                   <ReactMarkdown>{trilhaSelecionada.conteudo_md}</ReactMarkdown>
+                </div>
+                <div className="pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Dúvida pontual? Consulte a base oficial pela aba Pergunte à Legislação.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setAba("copilot")}
+                  >
+                    <Search className="w-3 h-3 mr-1" />
+                    Pergunte à Legislação
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {trilhas.map(t => (
-                <Card
-                  key={t.id}
-                  className="cursor-pointer hover:border-green-400 hover:shadow-sm transition-all"
-                  onClick={() => setTrilhaSelecionada(t)}
-                >
-                  <CardContent className="pt-4">
-                    <div className="flex items-start gap-3">
-                      <span className="text-3xl">{TRILHA_ICONS[t.categoria] || "📖"}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 leading-tight">{t.titulo}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <Badge variant="outline" className="text-[10px]">{t.nivel}</Badge>
-                          <Badge variant="outline" className="text-[10px] text-green-700 border-green-200">
-                            {t.categoria.replace(/_/g, " ")}
-                          </Badge>
+              {trilhas.map((t) => {
+                const Icon = TRILHA_ICONS[t.categoria] || BookOpen;
+                return (
+                  <Card
+                    key={t.id}
+                    className="cursor-pointer hover:border-primary/40 transition-colors"
+                    onClick={() => setTrilhaSelecionada(t)}
+                  >
+                    <CardContent className="pt-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4 text-primary" />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-foreground leading-tight">
+                            {t.titulo}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <Badge variant="outline" className="text-[10px]">
+                              {t.nivel}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] text-primary border-primary/20">
+                              {t.categoria.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -514,17 +601,18 @@ export default function BibliotecaRTPage() {
         {/* ── ABA 3: Revisor de POP ─────────────────────────────────────────── */}
         <TabsContent value="revisor" className="space-y-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Revisor de POP</CardTitle>
-              <CardDescription className="text-xs">
-                Cole o texto de um POP. O sistema verifica cada afirmação contra a base de legislação e sinaliza trechos sem sustentação em norma oficial.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="pt-6 space-y-3">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Revisor de POP</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Cole o texto de um POP. O sistema verifica cada afirmação contra a base de
+                  legislação e sinaliza trechos sem sustentação em norma oficial.
+                </p>
+              </div>
               <Textarea
                 placeholder="Cole aqui o texto do POP para revisão..."
                 value={textoPOP}
-                onChange={e => setTextoPOP(e.target.value)}
+                onChange={(e) => setTextoPOP(e.target.value)}
                 rows={10}
                 className="text-sm font-mono"
               />
@@ -534,36 +622,52 @@ export default function BibliotecaRTPage() {
                 className="w-full"
               >
                 {revisandoPOP ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Revisando contra a base...</>
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" /> Revisando contra a base...
+                  </>
                 ) : (
-                  <><FileCheck className="w-4 h-4 mr-2" /> Revisar POP</>
+                  <>
+                    <FileCheck className="w-4 h-4 mr-2" /> Revisar POP
+                  </>
                 )}
               </Button>
             </CardContent>
           </Card>
 
           {resultadoRevisao && (
-            <Card className={resultadoRevisao.encontrou_resposta ? "border-blue-200" : "border-amber-200"}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <FileCheck className="w-4 h-4 text-blue-600" />
+            <Card
+              className={
+                resultadoRevisao.encontrou_resposta
+                  ? "border-primary/30"
+                  : "border-amber-500/40"
+              }
+            >
+              <CardContent className="pt-4 space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                  <FileCheck className="w-4 h-4 text-primary" />
                   Resultado da Revisão
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="prose prose-sm max-w-none text-gray-800">
+                </h3>
+                <div className="prose prose-sm max-w-none text-foreground">
                   <ReactMarkdown>{resultadoRevisao.resposta}</ReactMarkdown>
                 </div>
                 {resultadoRevisao.fontes.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Normas verificadas</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Normas verificadas
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {resultadoRevisao.fontes.map((f, idx) => (
-                        <a key={idx} href={f.url_oficial} target="_blank" rel="noopener noreferrer"
-                          className={`text-xs px-2 py-0.5 rounded-full border font-medium hover:opacity-80 ${
-                            CATEGORIA_LABELS[f.categoria]?.color || "bg-gray-100 text-gray-700 border-gray-200"
-                          }`}>
-                          {f.tipo !== "OUTRO" ? `${f.tipo} ${f.numero}/${f.ano}` : "DOC"} — {f.referencia}
+                        <a
+                          key={idx}
+                          href={f.url_oficial}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`text-xs px-2 py-0.5 rounded-md border font-medium hover:opacity-80 ${
+                            CATEGORIA_LABELS[f.categoria]?.color ||
+                            "bg-muted text-foreground border-border"
+                          }`}
+                        >
+                          {labelFonte(f)} — {f.referencia}
                         </a>
                       ))}
                     </div>
@@ -576,11 +680,12 @@ export default function BibliotecaRTPage() {
 
         {/* ── ABA 4: Radar de Atualizações ─────────────────────────────────── */}
         <TabsContent value="radar" className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="font-semibold text-sm">Radar de Atualizações ANVISA</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Cron diário 06h (pg_cron). O monitor só detecta e alerta — nunca publica nem homologa sozinho.
+              <h3 className="font-semibold text-sm text-foreground">Radar de Atualizações ANVISA</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Cron diário 06h (pg_cron). O monitor só detecta e alerta — nunca publica nem homologa
+                sozinho.
               </p>
             </div>
             <div className="flex gap-2">
@@ -611,54 +716,80 @@ export default function BibliotecaRTPage() {
           </div>
 
           {(alertasPendentes.length > 0 || rehomo.length > 0) && (
-            <Alert className={alertasPendentes.some((a) => a.critico) ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"}>
-              <AlertTriangle className={`h-4 w-4 ${alertasPendentes.some((a) => a.critico) ? "text-red-600" : "text-amber-600"}`} />
-              <AlertDescription className={`text-sm ${alertasPendentes.some((a) => a.critico) ? "text-red-800" : "text-amber-800"}`}>
+            <Alert
+              className={
+                alertasPendentes.some((a) => a.critico)
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-amber-500/40 bg-amber-500/5"
+              }
+            >
+              <AlertTriangle
+                className={`h-4 w-4 ${
+                  alertasPendentes.some((a) => a.critico) ? "text-destructive" : "text-amber-600"
+                }`}
+              />
+              <AlertDescription className="text-sm text-foreground">
                 <strong>
-                  {alertasPendentes.length} alerta{alertasPendentes.length !== 1 ? "s" : ""} normativo{alertasPendentes.length !== 1 ? "s" : ""}
+                  {alertasPendentes.length} alerta
+                  {alertasPendentes.length !== 1 ? "s" : ""} normativo
+                  {alertasPendentes.length !== 1 ? "s" : ""}
                 </strong>{" "}
                 pendente{alertasPendentes.length !== 1 ? "s" : ""} de revisão da RT
                 {rehomo.length > 0 && (
-                  <> · <strong>{rehomo.length}</strong> constituinte{rehomo.length > 1 ? "s" : ""} exige{rehomo.length === 1 ? "" : "m"} re-homologação</>
+                  <>
+                    {" "}
+                    · <strong>{rehomo.length}</strong> constituinte
+                    {rehomo.length > 1 ? "s" : ""} exige
+                    {rehomo.length === 1 ? "" : "m"} re-homologação
+                  </>
                 )}
                 . O sistema propõe; a RT decide.
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Alertas normativos (anvisa_alertas_normativos) */}
+          {/* Grupo 1: Alertas normativos */}
           {alertasPendentes.length > 0 && (
             <div className="space-y-3">
-              <h4 className="text-sm font-medium flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-red-600" />
+              <h4 className="text-sm font-medium flex items-center gap-2 text-foreground">
+                <ShieldAlert className="w-4 h-4 text-destructive" />
                 Alertas normativos pendentes
               </h4>
               {alertasPendentes.map((a) => (
                 <Card
                   key={a.id}
-                  className={a.critico ? "border-l-4 border-l-red-500" : "border-l-4 border-l-amber-500"}
+                  className={
+                    a.critico ? "border-l-4 border-l-destructive" : "border-l-4 border-l-amber-500"
+                  }
                 >
                   <CardContent className="pt-3 pb-3 space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold">{a.titulo}</span>
+                          <span className="text-sm font-semibold text-foreground">{a.titulo}</span>
                           {a.critico && (
-                            <Badge variant="destructive" className="text-[10px]">Crítico</Badge>
+                            <Badge variant="destructive" className="text-[10px]">
+                              Crítico
+                            </Badge>
                           )}
                           {a.norma && (
-                            <Badge variant="outline" className="text-[10px]">{a.norma}</Badge>
+                            <Badge variant="outline" className="text-[10px]">
+                              {a.norma}
+                            </Badge>
                           )}
                           <span className="text-[10px] text-muted-foreground">
                             {new Date(a.created_at).toLocaleString("pt-BR")}
                           </span>
                         </div>
                         {a.descricao && (
-                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">{a.descricao}</p>
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                            {a.descricao}
+                          </p>
                         )}
                         {a.constituintes_afetados && a.constituintes_afetados.length > 0 && (
-                          <p className="text-[11px] text-amber-800">
-                            Possível impacto em {a.constituintes_afetados.length} constituinte(s) homologado(s) — reconfirmar limites.
+                          <p className="text-[11px] text-amber-800 dark:text-amber-200">
+                            Possível impacto em {a.constituintes_afetados.length} constituinte(s)
+                            homologado(s) — reconfirmar limites.
                           </p>
                         )}
                         {a.fonte_url && (
@@ -709,113 +840,143 @@ export default function BibliotecaRTPage() {
             </div>
           )}
 
-          {pendentes.length > 0 && (
-            <Alert className="border-amber-300 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800 text-sm">
-                <strong>{pendentes.length} mudança{pendentes.length > 1 ? "s" : ""} no radar</strong> (hash) aguardando revisão.
-                Aprovar/descartar não altera a base sozinho — só registra a ciência da RT.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Mudanças reais a revisar */}
+          {/* Grupo 2: Mudanças a revisar */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-gray-700">
+            <h4 className="text-sm font-medium text-foreground">
               Mudanças a revisar
               {pendentes.length > 0 && (
-                <span className="ml-2 text-xs font-normal text-amber-700">({pendentes.length})</span>
+                <span className="ml-2 text-xs font-normal text-amber-700 dark:text-amber-300">
+                  ({pendentes.length})
+                </span>
               )}
             </h4>
-            {pendentes.length === 0 ? (
+
+            {pendentes.length === 0 && alertasPendentes.length === 0 ? (
+              <Card className="border-emerald-500/30 bg-emerald-500/5">
+                <CardContent className="py-6 text-center text-sm text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Nada pendente — nenhuma mudança ou alerta aguardando a RT.
+                </CardContent>
+              </Card>
+            ) : pendentes.length === 0 ? (
               <Card>
-                <CardContent className="py-6 text-center text-sm text-gray-400">
-                  Nenhuma mudança detectada aguardando revisão.
+                <CardContent className="py-4 text-center text-sm text-muted-foreground">
+                  Nenhuma mudança de hash aguardando revisão.
                 </CardContent>
               </Card>
             ) : (
-              pendentes.map(item => (
-                <Card key={item.id} className="border-amber-300 bg-amber-50/30">
-                  <CardContent className="pt-3 pb-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                          <span className="text-xs font-semibold text-gray-700">{item.fonte_monitorada}</span>
-                          <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700">
-                            MUDANÇA · PENDENTE
-                          </Badge>
-                          <span className="text-[10px] text-gray-400">
-                            {new Date(item.created_at).toLocaleDateString("pt-BR")}
-                          </span>
+              <>
+                <Alert className="border-amber-500/40 bg-amber-500/5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-foreground text-sm">
+                    <strong>
+                      {pendentes.length} mudança{pendentes.length > 1 ? "s" : ""} no radar
+                    </strong>{" "}
+                    (hash) aguardando revisão. Aprovar/descartar não altera a base sozinho — só
+                    registra a ciência da RT.
+                  </AlertDescription>
+                </Alert>
+                {pendentes.map((item) => (
+                  <Card key={item.id} className="border-amber-500/40 bg-amber-500/5">
+                    <CardContent className="pt-3 pb-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span className="text-xs font-semibold text-foreground">
+                              {item.fonte_monitorada}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-300"
+                            >
+                              MUDANÇA · PENDENTE
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(item.created_at).toLocaleDateString("pt-BR")}
+                            </span>
+                          </div>
+                          {item.resumo_mudanca && (
+                            <p className="text-xs text-muted-foreground pl-5">{item.resumo_mudanca}</p>
+                          )}
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline pl-5 inline-flex items-center gap-1"
+                          >
+                            {item.url.slice(0, 60)}... <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
                         </div>
-                        {item.resumo_mudanca && (
-                          <p className="text-xs text-gray-600 pl-5">{item.resumo_mudanca}</p>
-                        )}
-                        <a href={item.url} target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] text-blue-500 hover:underline pl-5 flex items-center gap-1">
-                          {item.url.slice(0, 60)}... <ExternalLink className="w-2.5 h-2.5" />
-                        </a>
-                      </div>
-                      <div className="flex gap-1.5 flex-shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs border-green-300 text-green-700 hover:bg-green-50"
-                          onClick={() => atualizarRadar.mutate({ id: item.id, status: "APROVADO" })}
-                        >
-                          <Check className="w-3 h-3 mr-1" /> Aprovar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
-                          onClick={() => atualizarRadar.mutate({ id: item.id, status: "DESCARTADO" })}
-                        >
-                          <X className="w-3 h-3 mr-1" /> Descartar
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-
-          {/* Verificações sem mudança — não são alertas */}
-          {verificacoesOk.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">
-                Últimas verificações (sem mudança)
-                <span className="ml-2 text-xs font-normal">({verificacoesOk.length})</span>
-              </h4>
-              <p className="text-[11px] text-muted-foreground">
-                O monitor rodou e não detectou alteração de conteúdo — não exige ação da RT.
-              </p>
-              <div className="space-y-2">
-                {verificacoesOk.slice(0, 10).map(item => (
-                  <Card key={item.id} className="border-border/60 bg-muted/20">
-                    <CardContent className="py-2.5 px-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-600">{item.fonte_monitorada}</span>
-                        <Badge variant="secondary" className="text-[10px]">
-                          SEM MUDANÇA
-                        </Badge>
-                        <span className="text-[10px] text-gray-400">
-                          {new Date(item.created_at).toLocaleDateString("pt-BR")}
-                        </span>
+                        <div className="flex gap-1.5 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() =>
+                              atualizarRadar.mutate({ id: item.id, status: "APROVADO" })
+                            }
+                          >
+                            <Check className="w-3 h-3 mr-1" /> Aprovar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                            onClick={() =>
+                              atualizarRadar.mutate({ id: item.id, status: "DESCARTADO" })
+                            }
+                          >
+                            <X className="w-3 h-3 mr-1" /> Descartar
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+              </>
+            )}
+          </div>
+
+          {/* Grupo 3: Últimas verificações sem mudança (recolhido) */}
+          {verificacoesOk.length > 0 && (
+            <details className="group rounded-lg border border-border bg-muted/20">
+              <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-2 text-sm text-muted-foreground hover:text-foreground">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  Últimas verificações sem mudança
+                  <span className="text-xs">({verificacoesOk.length})</span>
+                </span>
+                <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" />
+              </summary>
+              <div className="px-4 pb-3 space-y-2">
+                <p className="text-[11px] text-muted-foreground">
+                  O monitor rodou e não detectou alteração de conteúdo — não exige ação da RT.
+                </p>
+                {verificacoesOk.slice(0, 10).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 flex-wrap py-1.5 border-t border-border/50"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="text-xs font-medium text-foreground">
+                      {item.fonte_monitorada}
+                    </span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      SEM MUDANÇA
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(item.created_at).toLocaleDateString("pt-BR")}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
+            </details>
           )}
 
           {monitoramento.length === 0 && alertasPendentes.length === 0 && (
             <Card>
-              <CardContent className="py-8 text-center text-sm text-gray-400">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
                 Nenhum registro de monitoramento ainda. O robô executa diariamente às 06h.
               </CardContent>
             </Card>
