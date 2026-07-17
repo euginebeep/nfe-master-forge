@@ -4,11 +4,12 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+const logStep = (step: string, details?: unknown) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
@@ -25,15 +26,17 @@ type SubscriptionPayload = {
   error?: string;
 };
 
-const createResponse = (payload: SubscriptionPayload, status = 200) =>
+/** Sempre HTTP 200 — o dashboard não deve "gritar" com 500. */
+const createResponse = (payload: SubscriptionPayload) =>
   new Response(JSON.stringify(payload), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
-    status,
+    status: 200,
   });
 
 const createUnsubscribedPayload = (
   isInTrial: boolean,
   trialDaysRemaining: number,
+  extra?: Partial<SubscriptionPayload>,
 ): SubscriptionPayload => ({
   subscribed: false,
   is_in_trial: isInTrial,
@@ -41,6 +44,7 @@ const createUnsubscribedPayload = (
   product_id: null,
   plan_name: null,
   subscription_end: null,
+  ...extra,
 });
 
 const isAuthError = (message: string) => {
@@ -68,14 +72,14 @@ serve(async (req) => {
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
+    { auth: { persistSession: false } },
   );
+
+  let trialDaysRemaining = 0;
+  let isInTrial = false;
 
   try {
     logStep("Function started");
-
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -88,11 +92,8 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) {
       const message = `Authentication error: ${userError.message}`;
-      if (isAuthError(userError.message)) {
-        logStep("AUTH_INVALID", { message });
-        return createAuthInvalidResponse(message);
-      }
-      throw new Error(message);
+      logStep("AUTH_INVALID", { message });
+      return createAuthInvalidResponse(message);
     }
 
     const user = userData.user;
@@ -106,67 +107,74 @@ serve(async (req) => {
 
     const createdAt = new Date(user.created_at);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    const trialDaysRemaining = Math.max(0, TRIAL_DAYS - diffDays);
-    const isInTrial = trialDaysRemaining > 0;
+    const diffDays = Math.floor(
+      (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    trialDaysRemaining = Math.max(0, TRIAL_DAYS - diffDays);
+    isInTrial = trialDaysRemaining > 0;
     logStep("Trial check", { diffDays, trialDaysRemaining, isInTrial });
 
-    // ── BYPASS 1: saas_super_devs (donos do SaaS) nunca são bloqueados ──
+    // ── BYPASS 1: saas_super_devs ──
     const { data: superDevRow } = await supabaseClient
-      .from('saas_super_devs')
-      .select('id')
-      .eq('user_id', user.id)
+      .from("saas_super_devs")
+      .select("id")
+      .eq("user_id", user.id)
       .maybeSingle();
     if (superDevRow) {
-      logStep("saas_super_dev bypass — acesso irrestrito", { userId: user.id });
+      logStep("saas_super_dev bypass", { userId: user.id });
       return createResponse({
         subscribed: true,
         is_in_trial: false,
         trial_days_remaining: 0,
         product_id: null,
-        plan_name: 'Super Dev',
+        plan_name: "Super Dev",
         subscription_end: null,
       });
     }
 
-    // ── BYPASS 2: saas_owner no user_roles também tem acesso irrestrito ──
+    // ── BYPASS 2: saas_owner ──
     const { data: ownerRole } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'saas_owner')
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "saas_owner")
       .maybeSingle();
     if (ownerRole) {
-      logStep("saas_owner bypass — acesso irrestrito", { userId: user.id });
+      logStep("saas_owner bypass", { userId: user.id });
       return createResponse({
         subscribed: true,
         is_in_trial: false,
         trial_days_remaining: 0,
         product_id: null,
-        plan_name: 'SaaS Owner',
+        plan_name: "SaaS Owner",
         subscription_end: null,
       });
     }
 
-    // Check if admin granted manual access override
+    // Override admin: acesso_liberado_ate
     const { data: profileData } = await supabaseClient
-      .from('profiles')
-      .select('company_id')
-      .eq('id', user.id)
+      .from("profiles")
+      .select("company_id")
+      .eq("id", user.id)
       .single();
 
     if (profileData?.company_id) {
       const { data: companyData } = await supabaseClient
-        .from('company')
-        .select('acesso_liberado_ate')
-        .eq('id', profileData.company_id)
+        .from("company")
+        .select("acesso_liberado_ate")
+        .eq("id", profileData.company_id)
         .single();
 
       if (companyData?.acesso_liberado_ate) {
         const liberadoAte = new Date(companyData.acesso_liberado_ate);
         if (liberadoAte > now) {
-          const daysRemaining = Math.ceil((liberadoAte.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          logStep("Admin override active", { acesso_liberado_ate: companyData.acesso_liberado_ate, daysRemaining });
+          const daysRemaining = Math.ceil(
+            (liberadoAte.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          );
+          logStep("Admin override active", {
+            acesso_liberado_ate: companyData.acesso_liberado_ate,
+            daysRemaining,
+          });
           return createResponse({
             subscribed: true,
             is_in_trial: false,
@@ -179,59 +187,73 @@ serve(async (req) => {
       }
     }
 
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-
-    if (customers.data.length === 0) {
-      logStep("No Stripe customer found");
+    // Stripe é OPCIONAL — sem chave ou erro → trial/não-assinado (200)
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      logStep("STRIPE_SECRET_KEY ausente — degradando para unsubscribed");
       return createResponse(createUnsubscribedPayload(isInTrial, trialDaysRemaining));
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    try {
+      const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
+      if (customers.data.length === 0) {
+        logStep("No Stripe customer found");
+        return createResponse(createUnsubscribedPayload(isInTrial, trialDaysRemaining));
+      }
 
-    let activeSub = subscriptions.data[0] || null;
-    if (!activeSub) {
-      const trialingSubs = await stripe.subscriptions.list({
+      const customerId = customers.data[0].id;
+      logStep("Found Stripe customer", { customerId });
+
+      const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
-        status: "trialing",
+        status: "active",
         limit: 1,
       });
-      activeSub = trialingSubs.data[0] || null;
+
+      let activeSub = subscriptions.data[0] || null;
+      if (!activeSub) {
+        const trialingSubs = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "trialing",
+          limit: 1,
+        });
+        activeSub = trialingSubs.data[0] || null;
+      }
+
+      if (!activeSub) {
+        logStep("No active subscription");
+        return createResponse(createUnsubscribedPayload(isInTrial, trialDaysRemaining));
+      }
+
+      const productId = activeSub.items.data[0].price.product as string;
+      const subscriptionEnd = new Date(activeSub.current_period_end * 1000).toISOString();
+
+      const planMap: Record<string, string> = {
+        prod_U2vuAu7msHlX8l: "Mensal",
+        prod_U2xEoU9GApSWsN: "Semestral",
+        prod_U2xYcHyM6q5PhG: "Anual",
+      };
+      const planName = planMap[productId] || "Desconhecido";
+
+      logStep("Active subscription found", { productId, planName, subscriptionEnd });
+
+      return createResponse({
+        subscribed: true,
+        is_in_trial: false,
+        trial_days_remaining: 0,
+        product_id: productId,
+        plan_name: planName,
+        subscription_end: subscriptionEnd,
+      });
+    } catch (stripeErr) {
+      const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
+      logStep("Stripe indisponível — degradando para unsubscribed", { message: msg });
+      return createResponse(
+        createUnsubscribedPayload(isInTrial, trialDaysRemaining, { error: msg }),
+      );
     }
-
-    if (!activeSub) {
-      logStep("No active subscription");
-      return createResponse(createUnsubscribedPayload(isInTrial, trialDaysRemaining));
-    }
-
-    const productId = activeSub.items.data[0].price.product as string;
-    const subscriptionEnd = new Date(activeSub.current_period_end * 1000).toISOString();
-
-    const planMap: Record<string, string> = {
-      "prod_U2vuAu7msHlX8l": "Mensal",
-      "prod_U2xEoU9GApSWsN": "Semestral",
-      "prod_U2xYcHyM6q5PhG": "Anual",
-    };
-    const planName = planMap[productId] || "Desconhecido";
-
-    logStep("Active subscription found", { productId, planName, subscriptionEnd });
-
-    return createResponse({
-      subscribed: true,
-      is_in_trial: false,
-      trial_days_remaining: 0,
-      product_id: productId,
-      plan_name: planName,
-      subscription_end: subscriptionEnd,
-    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -240,10 +262,10 @@ serve(async (req) => {
       return createAuthInvalidResponse(errorMessage);
     }
 
-    logStep("ERROR", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    // Nunca 500 — dashboard não deve entrar em loop
+    logStep("ERROR degradado para unsubscribed 200", { message: errorMessage });
+    return createResponse(
+      createUnsubscribedPayload(isInTrial, trialDaysRemaining, { error: errorMessage }),
+    );
   }
 });
