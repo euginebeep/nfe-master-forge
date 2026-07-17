@@ -10,7 +10,10 @@ import { toast } from 'sonner';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { useAnvisaSearchHistory } from '@/hooks/use-anvisa-search-history';
-import { DoseTable } from '@/components/regulatorio/DoseTable';
+import {
+  estiloStatusNaoAutorizado,
+  useIngredienteNaoAutorizado,
+} from '@/hooks/useIngredienteNaoAutorizado';
 import { ResultCard } from '@/components/regulatorio/ResultCard';
 import { SyncStatusBanner } from '@/components/regulatorio/SyncStatusBanner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -57,6 +60,14 @@ export default function ConsultaAnvisaPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAviso, setAiAviso] = useState<string | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+
+  const semResultadoAutorizado =
+    !isLoading && termo.trim().length >= 2 && (!resultados || resultados.length === 0);
+
+  const { data: naoAutorizado, isLoading: carregandoNaoAutorizado } = useIngredienteNaoAutorizado(
+    termo,
+    semResultadoAutorizado,
+  );
 
   // Persist every effective search in the history
   useEffect(() => {
@@ -166,6 +177,10 @@ export default function ConsultaAnvisaPage() {
       setGerandoPdf(false);
     }
   };
+
+  const estiloNaoAutorizado = naoAutorizado
+    ? estiloStatusNaoAutorizado(naoAutorizado.status)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -348,7 +363,7 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && aiResults.length > 0 && (
+      {!isLoading && !aiLoading && termo.length >= 2 && aiResults.length > 0 && !(naoAutorizado && semResultadoAutorizado) && (
         <div className="space-y-3" id="anvisa-print-area">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -527,7 +542,55 @@ export default function ConsultaAnvisaPage() {
         </div>
       )}
 
-      {!isLoading && !aiLoading && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && !aiAviso && (
+      {!isLoading && !aiLoading && !carregandoNaoAutorizado && naoAutorizado && estiloNaoAutorizado && semResultadoAutorizado && (
+        <Card className={`shadow-lg ${estiloNaoAutorizado.border} ${estiloNaoAutorizado.bg}`}>
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="rounded-full bg-background/60 p-3">
+                <AlertTriangle className={`w-8 h-8 shrink-0 ${estiloNaoAutorizado.title}`} />
+              </div>
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className={`font-bold text-lg flex items-center gap-2 ${estiloNaoAutorizado.title}`}>
+                    <Shield className="w-5 h-5" />
+                    {naoAutorizado.nome} — NÃO AUTORIZADO / {estiloNaoAutorizado.badge}
+                  </h3>
+                  <Badge variant="outline">{estiloNaoAutorizado.badge}</Badge>
+                  {!naoAutorizado.confirmado_rt && (
+                    <Badge variant="secondary" className="text-xs">
+                      Aguardando validação da RT
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm whitespace-pre-line">{naoAutorizado.explicacao}</p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  {naoAutorizado.base_legal && (
+                    <p><span className="font-semibold">Base legal:</span> {naoAutorizado.base_legal}</p>
+                  )}
+                  {naoAutorizado.fonte_url && (
+                    <a
+                      href={naoAutorizado.fonte_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 underline text-primary"
+                    >
+                      Fonte ANVISA <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+                {!naoAutorizado.confirmado_rt && (
+                  <p className="text-xs text-muted-foreground italic">
+                    Informação orientativa — a RT deve validar antes de qualquer decisão regulatória.
+                    O sistema não afirma proibição categórica sem status PROIBIDO_RE com fonte.
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && !aiLoading && !carregandoNaoAutorizado && !naoAutorizado && termo.length >= 2 && resultados && resultados.length === 0 && aiResults.length === 0 && !aiAviso && (
         <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
@@ -541,6 +604,10 @@ export default function ConsultaAnvisaPage() {
                 <p className="text-sm mt-2 text-muted-foreground">
                   <strong>"{termo}"</strong> não retornou correspondência na base local nem na consulta oficial ANVISA/Power BI.
                   Isso não deve ser tratado automaticamente como “proibido”; revise a grafia, sinônimos ou o nome técnico.
+                </p>
+                <p className="text-sm mt-3 text-amber-800 dark:text-amber-300">
+                  Ingredientes vegetais só podem ser usados se expressamente autorizados na IN 28.
+                  Se este ingrediente não consta, ele pode não ser permitido em suplemento — consulte a RT.
                 </p>
                 <p className="text-xs text-muted-foreground mt-3">
                   Verifique a grafia ou consulte diretamente a{' '}

@@ -163,6 +163,46 @@ export function temHitSinonimoOuPopular(item: AnvisaConstituinte, termo: string)
   return valores.some((v) => contemToken(v, termoN));
 }
 
+/** Nomes principais usados para julgar relevância (sem categoria/fonte). */
+function nomesPrincipais(item: AnvisaConstituinte): string[] {
+  return [
+    item.nome_tecnico,
+    item.nome_generico || '',
+    item.nome_rotulo || '',
+    ...(item.nome_popular || []),
+    ...(item.sinonimos || []),
+  ]
+    .map(norm)
+    .filter(Boolean);
+}
+
+/**
+ * Descarta falso positivo por substring (ex.: "maca" ⊂ "macadamia").
+ * Exige token inteiro no termo digitado (ou em cada palavra ≥3 chars).
+ */
+export function resultadoRelevante(item: AnvisaConstituinte, termo: string): boolean {
+  const termoN = norm(termo);
+  if (!termoN || termoN.length < 2) return false;
+
+  if (temHitSinonimoOuPopular(item, termo)) return true;
+
+  const nomes = nomesPrincipais(item);
+  if (nomes.some((n) => n === termoN || contemToken(n, termoN))) return true;
+
+  const tokens = termoN.split(/\s+/).filter((t) => t.length >= 3);
+  if (tokens.length >= 2) {
+    // "maca peruana" → exige TODOS os tokens como palavra inteira
+    return tokens.every((tok) => nomes.some((n) => contemToken(n, tok)));
+  }
+
+  if (tokens.length === 1) {
+    return nomes.some((n) => contemToken(n, tokens[0]));
+  }
+
+  // Códigos curtos (b12, d3, k2): só sinônimo/token — sem includes solto
+  return nomes.some((n) => contemToken(n, termoN));
+}
+
 export function computeMatch(
   item: AnvisaConstituinte,
   termo: string,
@@ -207,8 +247,13 @@ export function computeMatch(
           score += 5;
           matchedFields.add(c.field);
           if (t !== termoN) matchedSynonyms.add(t);
-        } else if (contemToken(v, t) || v.includes(t)) {
+        } else if (contemToken(v, t)) {
           score += 2;
+          matchedFields.add(c.field);
+          if (t !== termoN) matchedSynonyms.add(t);
+        } else if (t.length >= 4 && v.includes(t)) {
+          // Substring só para termos ≥4 chars (evita "maca"⊂"macadamia")
+          score += 1;
           matchedFields.add(c.field);
           if (t !== termoN) matchedSynonyms.add(t);
         }
@@ -273,7 +318,8 @@ async function buscarConstituintes(termo: string, exaustivo = false, limit?: num
   });
 
   return enriched.filter((item) =>
-    passaCorteScoreFormaEspecifica(termo, item._match?.score),
+    passaCorteScoreFormaEspecifica(termo, item._match?.score)
+    && resultadoRelevante(item, termo),
   );
 }
 
