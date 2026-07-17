@@ -175,13 +175,20 @@ export function BibliotecaNormasAdminPanel() {
     }
     setProcessando(fonte.id);
     try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user?.id) {
+        toast.error("Sessão inválida. Faça login novamente para aprovar a norma.");
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("legislacao-ingest", {
         body: {
           fonte_id: fonte.id,
-          aprovado_por: "saas-admin",
+          aprovado_por: user.id, // uuid do admin logado (coluna é uuid)
         },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(String(data.error));
       toast.success(`✅ ${data.chunks_gerados} trechos processados para ${data.fonte}. Disponível para todos os tenants.`);
       queryClient.invalidateQueries({ queryKey: ["saas-legislacao-fontes"] });
       queryClient.invalidateQueries({ queryKey: ["saas-chunk-counts"] });

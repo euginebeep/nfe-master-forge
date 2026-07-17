@@ -17,6 +17,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
 /** Divide o texto em chunks por artigo/parágrafo/anexo */
 function dividirEmChunks(texto: string, fonteId: string): Array<{ referencia: string; texto: string }> {
   const chunks: Array<{ referencia: string; texto: string }> = [];
@@ -90,9 +97,25 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const openaiKey    = Deno.env.get("OPENAI_API_KEY")!;
+    const anonKey      = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const supabase = createClient(supabaseUrl, serviceKey);
     const openai   = new OpenAI({ apiKey: openaiKey });
+
+    // Resolver aprovado_por: só uuid válido (nunca string literal tipo "saas-admin")
+    let aprovadorId: string | null = isUuid(aprovado_por) ? aprovado_por : null;
+    if (!aprovadorId) {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: { user: callingUser } } = await userClient.auth.getUser();
+        if (callingUser?.id && isUuid(callingUser.id)) {
+          aprovadorId = callingUser.id;
+        }
+      }
+    }
 
     // ── 1. Buscar a fonte e verificar aprovação ──────────────────────────────
     const { data: fonte, error: fonteErr } = await supabase
@@ -107,9 +130,9 @@ serve(async (req) => {
       });
     }
 
-    if (!fonte.aprovado_por && !aprovado_por) {
+    if (!fonte.aprovado_por && !aprovadorId) {
       return new Response(JSON.stringify({
-        error: "Esta norma ainda não foi aprovada por um humano. Preencha aprovado_por antes de processar."
+        error: "Esta norma ainda não foi aprovada por um humano. Informe aprovado_por (uuid do usuário) antes de processar."
       }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -124,11 +147,20 @@ serve(async (req) => {
     }
 
     // ── 2. Marcar aprovação se fornecida agora ───────────────────────────────
-    if (aprovado_por && !fonte.aprovado_por) {
-      await supabase.from("legislacao_fontes").update({
-        aprovado_por,
+    if (aprovadorId && !fonte.aprovado_por) {
+      const { error: aprovErr } = await supabase.from("legislacao_fontes").update({
+        aprovado_por: aprovadorId,
         aprovado_em: new Date().toISOString(),
       }).eq("id", fonte_id);
+
+      if (aprovErr) {
+        console.error("[legislacao-ingest] falha ao gravar aprovado_por:", aprovErr.message);
+        return new Response(JSON.stringify({
+          error: `Falha ao gravar aprovação: ${aprovErr.message}`,
+        }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
     }
 
     // ── 3. Remover chunks antigos desta fonte ────────────────────────────────
