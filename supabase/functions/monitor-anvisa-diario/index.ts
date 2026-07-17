@@ -1,14 +1,17 @@
 /**
  * Edge Function: monitor-anvisa-diario
  *
- * Cron diário (06h) — monitora 3 fontes ANVISA e detecta mudanças.
+ * Cron diário (06h) — monitora 6 fontes ANVISA e detecta mudanças.
  * REGRA ABSOLUTA: só detecta e alerta — NUNCA publica automaticamente.
  * Toda mudança fica com status_revisao = 'PENDENTE' até aprovação humana.
  *
  * Fontes monitoradas:
  * 1. ANVISALegis — IN 28/2018 consolidada
  * 2. Notícias ANVISA (filtro: suplemento)
- * 3. DOU Seção 1 (filtro: suplemento alimentar, RDC, ANVISA)
+ * 3. DOU Seção 1 (filtro: suplemento alimentar)
+ * 4. Painel de Constituintes Autorizados (RE antes da IN 28)
+ * 5. Ingredientes/REs ANVISA
+ * 6. DOU — Resoluções-RE (proibição/apreensão)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -54,7 +57,38 @@ const FONTES_MONITORADAS: FonteMonitorada[] = [
     marcador: "imprensa nacional",
     filtro: "suplemento alimentar",
   },
+  // ── Fontes novas (autorização antecipada + fiscalização) ─────────────────
+  {
+    id: "PAINEL_CONSTITUINTES",
+    url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/paineis-de-consulta-de-alimentos",
+    descricao: "Painel de Constituintes Autorizados — inclui constituintes deferidos por RE antes da IN 28 ser atualizada",
+    marcador: "constituintes autorizados",
+    filtro: "suplemento",
+  },
+  {
+    id: "INGREDIENTES_ANVISA",
+    url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/ingredientes",
+    descricao: "Página de Ingredientes/REs — novos constituintes por resolução específica",
+    marcador: "ingredientes",
+    filtro: "suplemento",
+  },
+  {
+    id: "DOU_RESOLUCOES_RE",
+    url: "https://www.in.gov.br/consulta/-/buscar/dou?q=suplemento+alimentar+resolucao+RE&s=do1",
+    descricao: "DOU — Resoluções-RE de proibição/apreensão de suplementos (fiscalização)",
+    marcador: "resolucao",
+    filtro: "suplemento",
+  },
 ];
+
+/** Fontes cuja mudança deve gerar alerta critico=true (urgente para a RT) */
+const FONTES_ALERTA_CRITICO = new Set([
+  "ANVISALEGIS_IN28",
+  "DOU_SECAO1",
+  "DOU_RESOLUCOES_RE",
+  "PAINEL_CONSTITUINTES",
+  "INGREDIENTES_ANVISA",
+]);
 
 /** Calcula hash SHA-256 simples de uma string */
 async function sha256(texto: string): Promise<string> {
@@ -191,7 +225,7 @@ async function registrarAlertaMudanca(
     norma: isIn28 ? "IN 28/2018" : fonte.id,
     constituintes_afetados: constituintesAfetados.length ? constituintesAfetados : null,
     fonte_url: fonte.url,
-    critico: isIn28 || fonte.id === "DOU_SECAO1",
+    critico: FONTES_ALERTA_CRITICO.has(fonte.id),
     status_revisao: "PENDENTE",
     monitoramento_id: monitoramentoId,
   });
