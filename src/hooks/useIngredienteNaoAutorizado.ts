@@ -9,6 +9,7 @@ export type StatusIngredienteNaoAutorizado =
 
 export interface IngredienteNaoAutorizado {
   nome: string;
+  nome_cientifico?: string | null;
   status: StatusIngredienteNaoAutorizado;
   explicacao: string;
   base_legal: string | null;
