@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, BookOpen, ExternalLink, Scale, 
-  CheckCircle, AlertTriangle, XCircle, Loader2, Sparkles, RefreshCw, Pill
+  CheckCircle, AlertTriangle, XCircle, Loader2, Sparkles, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
-import { getConversaoUI, formatUI } from '@/components/regulatorio/DoseTable';
-import type { AnvisaConstituinte } from '@/types/anvisa';
+import { DoseTable } from '@/components/regulatorio/DoseTable';
 import { cn } from '@/lib/utils';
 
 const LINKS_UTEIS = [
@@ -29,64 +27,6 @@ const LINKS_UTEIS = [
   { titulo: 'RDC 243/2018 - Suplementos Alimentares', url: 'https://www.in.gov.br/materia/-/asset_publisher/Kujrw0TZC2Mb/content/id/34379969/do1-2018-07-27-resolucao-da-diretoria-colegiada-rdc-n-243-de-26-de-julho-de-2018-34379917' },
   { titulo: 'Biblioteca ANVISA - Suplementos', url: 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares' },
 ];
-
-function MiniDoseTable({ constituinte }: { constituinte: AnvisaConstituinte }) {
-  const grupos = [
-    { label: '0–6 meses', data: constituinte.limites_0_6_meses },
-    { label: '7–11 meses', data: constituinte.limites_7_11_meses },
-    { label: '1–3 anos', data: constituinte.limites_1_3_anos },
-    { label: '4–8 anos', data: constituinte.limites_4_8_anos },
-    { label: '9–18 anos', data: constituinte.limites_9_18_anos },
-    { label: '≥19 anos', data: constituinte.limites_19_mais },
-    { label: 'Gestantes', data: constituinte.limites_gestantes },
-    { label: 'Lactantes', data: constituinte.limites_lactantes },
-  ].filter(g => g.data);
-
-  if (grupos.length === 0) return null;
-
-  const conversao = getConversaoUI(constituinte.nome_tecnico, constituinte.nome_generico);
-  const mostrarUI = conversao && grupos.some(g => 
-    g.data?.unidade?.toLowerCase() === conversao.unidadeOrigem
-  );
-
-  return (
-    <div className="mt-2">
-      <p className="text-xs font-medium mb-1 flex items-center gap-1">
-        <Pill className="w-3 h-3" /> Doses diárias autorizadas:
-      </p>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-xs py-1 h-auto">Faixa etária</TableHead>
-            <TableHead className="text-xs py-1 h-auto">Mín.</TableHead>
-            <TableHead className="text-xs py-1 h-auto">Máx.</TableHead>
-            <TableHead className="text-xs py-1 h-auto">Un.</TableHead>
-            {mostrarUI && <TableHead className="text-xs py-1 h-auto">Equiv. UI</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {grupos.map(g => {
-            const minUI = conversao ? formatUI(g.data?.min as number, conversao.fator, conversao.unidadeOrigem, g.data?.unidade || '') : null;
-            const maxUI = conversao ? formatUI(g.data?.max as number, conversao.fator, conversao.unidadeOrigem, g.data?.unidade || '') : null;
-            return (
-              <TableRow key={g.label}>
-                <TableCell className="text-xs py-1 font-medium">{g.label}</TableCell>
-                <TableCell className="text-xs py-1">{g.data?.min ?? '—'}</TableCell>
-                <TableCell className="text-xs py-1">{g.data?.max ?? '—'}</TableCell>
-                <TableCell className="text-xs py-1">{g.data?.unidade ?? '—'}</TableCell>
-                {mostrarUI && (
-                  <TableCell className="text-xs py-1 text-muted-foreground">
-                    {minUI && maxUI ? `${minUI}–${maxUI}` : minUI || maxUI || '—'}
-                  </TableCell>
-                )}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
 
 export function ConsultaANVISACard({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -299,7 +239,7 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
                       )}
 
                       {/* Doses por faixa etária */}
-                      <MiniDoseTable constituinte={c} />
+                      <DoseTable constituinte={c} compact />
 
                       {/* Alegações */}
                       {!c.is_proibido && c.alegacoes && c.alegacoes.length > 0 && (

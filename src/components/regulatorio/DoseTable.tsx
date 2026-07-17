@@ -1,4 +1,9 @@
+import { Loader2, Pill } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  montarGruposLimites,
+  useAnvisaLimitesGrupos,
+} from '@/hooks/useAnvisaLimitesGrupos';
 import type { AnvisaConstituinte } from '@/types/anvisa';
 
 // Conversões conhecidas: 1 mcg = X UI (ou 1 mg = X UI)
@@ -30,49 +35,78 @@ function formatUI(valor: number | string, fator: number, unidadeOrigem: string, 
   return `${ui} UI`;
 }
 
-export function DoseTable({ constituinte }: { constituinte: AnvisaConstituinte }) {
-  const grupos = [
-    { label: '0–6 meses', data: constituinte.limites_0_6_meses },
-    { label: '7–11 meses', data: constituinte.limites_7_11_meses },
-    { label: '1–3 anos', data: constituinte.limites_1_3_anos },
-    { label: '4–8 anos', data: constituinte.limites_4_8_anos },
-    { label: '9–18 anos', data: constituinte.limites_9_18_anos },
-    { label: '≥19 anos', data: constituinte.limites_19_mais },
-    { label: 'Gestantes', data: constituinte.limites_gestantes },
-    { label: 'Lactantes', data: constituinte.limites_lactantes },
-  ].filter(g => g.data);
+function formatLimite(valor: number | null): string {
+  return valor != null ? String(valor) : '—';
+}
 
-  if (grupos.length === 0) return <p className="text-sm text-muted-foreground">Limites não estabelecidos</p>;
+export function DoseTable({
+  constituinte,
+  compact = false,
+}: {
+  constituinte: AnvisaConstituinte;
+  compact?: boolean;
+}) {
+  const { data: limitesRpc, isLoading, isError } = useAnvisaLimitesGrupos(constituinte.id);
+  const grupos = montarGruposLimites(constituinte, limitesRpc);
+
+  if (grupos.length === 0) {
+    if (compact) return null;
+    return (
+      <p className="text-sm text-muted-foreground">
+        Limites não estabelecidos
+      </p>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className={`flex items-center gap-2 text-muted-foreground ${compact ? 'text-xs' : 'text-sm'}`}>
+        <Loader2 className={`animate-spin ${compact ? 'w-3 h-3' : 'w-4 h-4'}`} />
+        Carregando limites…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className={`text-destructive ${compact ? 'text-xs' : 'text-sm'}`}>
+        Não foi possível carregar os limites parseados.
+      </p>
+    );
+  }
 
   const conversao = getConversaoUI(constituinte.nome_tecnico, constituinte.nome_generico);
-  const mostrarUI = conversao && grupos.some(g => 
-    g.data?.unidade?.toLowerCase() === conversao.unidadeOrigem
+  const mostrarUI = conversao && grupos.some(g =>
+    g.unidade?.toLowerCase() === conversao.unidadeOrigem
   );
 
-  return (
+  const headClass = compact ? 'text-xs py-1 h-auto' : undefined;
+  const cellClass = compact ? 'text-xs py-1' : undefined;
+
+  const table = (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Grupo</TableHead>
-          <TableHead>Mínimo</TableHead>
-          <TableHead>Máximo</TableHead>
-          <TableHead>Unidade</TableHead>
-          {mostrarUI && <TableHead>Equiv. UI</TableHead>}
+          <TableHead className={headClass}>{compact ? 'Faixa etária' : 'Grupo'}</TableHead>
+          <TableHead className={headClass}>{compact ? 'Mín.' : 'Mínimo'}</TableHead>
+          <TableHead className={headClass}>{compact ? 'Máx.' : 'Máximo'}</TableHead>
+          <TableHead className={headClass}>{compact ? 'Un.' : 'Unidade'}</TableHead>
+          {mostrarUI && <TableHead className={headClass}>Equiv. UI</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
         {grupos.map(g => {
-          const minUI = conversao ? formatUI(g.data?.min as number, conversao.fator, conversao.unidadeOrigem, g.data?.unidade || '') : null;
-          const maxUI = conversao ? formatUI(g.data?.max as number, conversao.fator, conversao.unidadeOrigem, g.data?.unidade || '') : null;
+          const minUI = conversao ? formatUI(g.min as number, conversao.fator, conversao.unidadeOrigem, g.unidade || '') : null;
+          const maxUI = conversao ? formatUI(g.max as number, conversao.fator, conversao.unidadeOrigem, g.unidade || '') : null;
           return (
             <TableRow key={g.label}>
-              <TableCell className="font-medium">{g.label}</TableCell>
-              <TableCell>{g.data?.min ?? '—'}</TableCell>
-              <TableCell>{g.data?.max ?? '—'}</TableCell>
-              <TableCell>{g.data?.unidade ?? '—'}</TableCell>
+              <TableCell className={`font-medium ${cellClass ?? ''}`}>{g.label}</TableCell>
+              <TableCell className={cellClass}>{formatLimite(g.min)}</TableCell>
+              <TableCell className={cellClass}>{formatLimite(g.max)}</TableCell>
+              <TableCell className={cellClass}>{g.unidade ?? '—'}</TableCell>
               {mostrarUI && (
-                <TableCell className="text-muted-foreground">
-                  {minUI && maxUI ? `${minUI} – ${maxUI}` : minUI || maxUI || '—'}
+                <TableCell className={`text-muted-foreground ${cellClass ?? ''}`}>
+                  {minUI && maxUI ? `${minUI}${compact ? '–' : ' – '}${maxUI}` : minUI || maxUI || '—'}
                 </TableCell>
               )}
             </TableRow>
@@ -81,6 +115,19 @@ export function DoseTable({ constituinte }: { constituinte: AnvisaConstituinte }
       </TableBody>
     </Table>
   );
+
+  if (compact) {
+    return (
+      <div className="mt-2">
+        <p className="text-xs font-medium mb-1 flex items-center gap-1">
+          <Pill className="w-3 h-3" /> Doses diárias autorizadas:
+        </p>
+        {table}
+      </div>
+    );
+  }
+
+  return table;
 }
 
 // Exportar para reutilizar no ConsultaANVISACard
