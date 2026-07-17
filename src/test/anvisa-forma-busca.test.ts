@@ -4,6 +4,7 @@ import {
   detectarFormaPedida,
   filtrarResultadosPorForma,
   filtrarTermosExpandidosPorForma,
+  passaCorteScoreFormaEspecifica,
   resultadoCompativelComForma,
 } from '@/lib/anvisa-forma-busca';
 
@@ -80,8 +81,31 @@ describe('anvisa-forma-busca', () => {
     expect(filtrarResultadosPorForma('k2', [k2, k1]).map((x) => x.id)).toEqual(['k2']);
   });
 
-  it('filtra termos expandidos cruzados', () => {
-    const termos = ['Colecalciferol', 'Ergocalciferol', 'Vitamina D3'];
+  it('d3 não traz calcidiol (metabólito)', () => {
+    const d3 = mockConstituinte({ id: 'd3', nome_tecnico: 'Colecalciferol' });
+    const calcidiol = mockConstituinte({
+      id: 'calc',
+      nome_tecnico: 'Calcidiol obtido de Saccharomyces cerevisiae',
+    });
+
+    expect(resultadoCompativelComForma('d3', calcidiol)).toBe(false);
+    expect(filtrarResultadosPorForma('d3', [d3, calcidiol]).map((x) => x.id)).toEqual(['d3']);
+  });
+
+  it('corte por score em forma específica', () => {
+    expect(passaCorteScoreFormaEspecifica('d3', 35)).toBe(false);
+    expect(passaCorteScoreFormaEspecifica('d3', 50)).toBe(true);
+    expect(passaCorteScoreFormaEspecifica('vitamina d', 35)).toBe(true);
+  });
+
+  it('filtra termos expandidos com metabólitos', () => {
+    const termos = [
+      'Colecalciferol',
+      'Ergocalciferol',
+      'Vitamina D3',
+      'Calcidiol',
+      'Vitamina D',
+    ];
     expect(filtrarTermosExpandidosPorForma('d3', termos)).toEqual([
       'Colecalciferol',
       'Vitamina D3',

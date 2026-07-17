@@ -4,6 +4,8 @@ import type { AnvisaConstituinte } from '@/types/anvisa';
 export type FormaDiscriminada =
   | 'd3'
   | 'd2'
+  | 'calcidiol'
+  | 'calcitriol'
   | 'k1'
   | 'k2'
   | 'b1'
@@ -17,6 +19,14 @@ export type FormaDiscriminada =
   | 'generico_vitamina_d'
   | 'generico_vitamina_k';
 
+export type FormaEspecifica = Exclude<
+  FormaDiscriminada,
+  'generico_vitamina_d' | 'generico_vitamina_k'
+>;
+
+/** Match fraco (<50%) não aparece quando o termo pede forma específica. */
+export const SCORE_MINIMO_FORMA_ESPECIFICA = 50;
+
 export function normFormaBusca(s: string | null | undefined): string {
   return (s || '')
     .toString()
@@ -27,12 +37,30 @@ export function normFormaBusca(s: string | null | undefined): string {
     .trim();
 }
 
-const RE_D3 = /(colecalciferol|calcitriol|vitamina\s*d3|\bd3\b)/;
-const RE_D2 = /(ergocalciferol|vitamina\s*d2|\bd2\b)/;
+/** Apenas Colecalciferol / Vitamina D3 — NÃO inclui metabólitos. */
+const RE_COLECALCIFEROL = /(colecalciferol|vitamina\s*d3|\bd3\b)/;
+const RE_ERGOCALCIFEROL = /(ergocalciferol|vitamina\s*d2|\bd2\b)/;
+const RE_CALCIDIOL = /(calcidiol|25[\s-]?hidroxi|25\(oh\)|hidroxicolecalciferol)/;
+const RE_CALCITRIOL = /(calcitriol|1[\s,]?25[\s-]?di.*hidroxi)/;
 const RE_K1 = /(filoquinona|vitamina\s*k1|\bk1\b)/;
 const RE_K2 = /(menaquinona|vitamina\s*k2|\bk2\b)/;
 
-const RE_B: Record<Exclude<FormaDiscriminada, 'd3' | 'd2' | 'k1' | 'k2' | 'generico_vitamina_d' | 'generico_vitamina_k'>, RegExp> = {
+/** Outras formas/metabólitos de D — incompatíveis com busca por d3/colecalciferol. */
+const RE_OUTRAS_FORMAS_D = new RegExp(
+  [
+    RE_ERGOCALCIFEROL.source,
+    RE_CALCIDIOL.source,
+    RE_CALCITRIOL.source,
+  ].join('|'),
+);
+
+const RE_B: Record<
+  Exclude<
+    FormaDiscriminada,
+    'd3' | 'd2' | 'calcidiol' | 'calcitriol' | 'k1' | 'k2' | 'generico_vitamina_d' | 'generico_vitamina_k'
+  >,
+  RegExp
+> = {
   b12: /(cobalamina|cianocobalamina|metilcobalamina|vitamina\s*b12|\bb12\b)/,
   b6: /(piridox|vitamina\s*b6|\bb6\b)/,
   b1: /(tiamina|vitamina\s*b1|\bb1\b)/,
@@ -45,14 +73,22 @@ const RE_B: Record<Exclude<FormaDiscriminada, 'd3' | 'd2' | 'k1' | 'k2' | 'gener
 
 const B_FORMAS = ['b12', 'b9', 'b7', 'b6', 'b5', 'b3', 'b2', 'b1'] as const;
 
+export function isFormaEspecifica(forma: FormaDiscriminada | null): forma is FormaEspecifica {
+  return forma != null && forma !== 'generico_vitamina_d' && forma !== 'generico_vitamina_k';
+}
+
 /** Detecta a forma pedida no termo de busca (null = sem discriminação). */
 export function detectarFormaPedida(termo: string): FormaDiscriminada | null {
   const n = normFormaBusca(termo);
   if (!n) return null;
 
-  if (RE_D3.test(n)) return 'd3';
-  if (RE_D2.test(n)) return 'd2';
-  if (/vitamina\s*d\b/.test(n) && !RE_D2.test(n) && !RE_D3.test(n)) return 'generico_vitamina_d';
+  if (RE_CALCIDIOL.test(n)) return 'calcidiol';
+  if (RE_CALCITRIOL.test(n)) return 'calcitriol';
+  if (RE_COLECALCIFEROL.test(n)) return 'd3';
+  if (RE_ERGOCALCIFEROL.test(n)) return 'd2';
+  if (/vitamina\s*d\b/.test(n) && !RE_ERGOCALCIFEROL.test(n) && !RE_COLECALCIFEROL.test(n)) {
+    return 'generico_vitamina_d';
+  }
 
   if (RE_K1.test(n)) return 'k1';
   if (RE_K2.test(n)) return 'k2';
@@ -97,21 +133,16 @@ export function textoResultadoConstituinte(item: AnvisaConstituinte): string {
 
 export function extrairFormasResultado(texto: string): Set<FormaDiscriminada> {
   const formas = new Set<FormaDiscriminada>();
-  if (RE_D3.test(texto)) formas.add('d3');
-  if (RE_D2.test(texto)) formas.add('d2');
+  if (RE_CALCIDIOL.test(texto)) formas.add('calcidiol');
+  if (RE_CALCITRIOL.test(texto)) formas.add('calcitriol');
+  if (RE_COLECALCIFEROL.test(texto)) formas.add('d3');
+  if (RE_ERGOCALCIFEROL.test(texto)) formas.add('d2');
   if (RE_K1.test(texto)) formas.add('k1');
   if (RE_K2.test(texto)) formas.add('k2');
   for (const b of B_FORMAS) {
     if (RE_B[b].test(texto)) formas.add(b);
   }
   return formas;
-}
-
-function conflitaFormaD(forma: 'd3' | 'd2', texto: string, formas: Set<FormaDiscriminada>): boolean {
-  if (forma === 'd3') {
-    return formas.has('d2') || RE_D2.test(texto);
-  }
-  return formas.has('d3') || RE_D3.test(texto);
 }
 
 function conflitaFormaK(forma: 'k1' | 'k2', texto: string, formas: Set<FormaDiscriminada>): boolean {
@@ -129,6 +160,25 @@ function conflitaFormaB(forma: (typeof B_FORMAS)[number], texto: string, formas:
   return false;
 }
 
+function compativelFormaD(formaPedida: 'd3' | 'd2' | 'calcidiol' | 'calcitriol', texto: string): boolean {
+  switch (formaPedida) {
+    case 'd3':
+      if (RE_OUTRAS_FORMAS_D.test(texto)) return false;
+      return RE_COLECALCIFEROL.test(texto);
+    case 'd2':
+      if (RE_COLECALCIFEROL.test(texto) || RE_CALCIDIOL.test(texto) || RE_CALCITRIOL.test(texto)) {
+        return false;
+      }
+      return RE_ERGOCALCIFEROL.test(texto);
+    case 'calcidiol':
+      return RE_CALCIDIOL.test(texto) && !RE_COLECALCIFEROL.test(texto) && !RE_ERGOCALCIFEROL.test(texto);
+    case 'calcitriol':
+      return RE_CALCITRIOL.test(texto) && !RE_COLECALCIFEROL.test(texto) && !RE_ERGOCALCIFEROL.test(texto);
+    default:
+      return false;
+  }
+}
+
 /** Resultado é compatível com a forma pedida? */
 export function resultadoCompativelComForma(
   formaPedida: FormaDiscriminada,
@@ -141,11 +191,8 @@ export function resultadoCompativelComForma(
   const texto = textoResultadoConstituinte(item);
   const formas = extrairFormasResultado(texto);
 
-  if (formaPedida === 'd3' || formaPedida === 'd2') {
-    if (conflitaFormaD(formaPedida, texto, formas)) return false;
-    return formaPedida === 'd3'
-      ? RE_D3.test(texto) || /vitamina\s*d\b/.test(texto)
-      : RE_D2.test(texto);
+  if (formaPedida === 'd3' || formaPedida === 'd2' || formaPedida === 'calcidiol' || formaPedida === 'calcitriol') {
+    return compativelFormaD(formaPedida, texto) && !conflitaOutrasFormasD(formaPedida, formas);
   }
 
   if (formaPedida === 'k1' || formaPedida === 'k2') {
@@ -162,6 +209,17 @@ export function resultadoCompativelComForma(
   return true;
 }
 
+function conflitaOutrasFormasD(
+  formaPedida: 'd3' | 'd2' | 'calcidiol' | 'calcitriol',
+  formas: Set<FormaDiscriminada>,
+): boolean {
+  const outras: FormaDiscriminada[] = ['d3', 'd2', 'calcidiol', 'calcitriol'];
+  for (const f of outras) {
+    if (f !== formaPedida && formas.has(f)) return true;
+  }
+  return false;
+}
+
 export function filtrarResultadosPorForma<T extends AnvisaConstituinte>(
   termo: string,
   items: T[],
@@ -174,28 +232,60 @@ export function filtrarResultadosPorForma<T extends AnvisaConstituinte>(
   return items.filter((item) => resultadoCompativelComForma(forma, item));
 }
 
-/** Filtra sinônimos expandidos que cruzam formas incompatíveis. */
+function termoExpandidoCompativel(forma: FormaEspecifica, termo: string): boolean {
+  const n = normFormaBusca(termo);
+  const formaTermo = detectarFormaPedida(termo);
+
+  if (formaTermo && isFormaEspecifica(formaTermo) && formaTermo !== forma) {
+    return false;
+  }
+
+  if (forma === 'd3') {
+    if (RE_OUTRAS_FORMAS_D.test(n)) return false;
+    if (/vitamina\s*d\b/.test(n) && !RE_COLECALCIFEROL.test(n)) return false;
+    return true;
+  }
+
+  if (forma === 'd2') {
+    if (RE_COLECALCIFEROL.test(n) || RE_CALCIDIOL.test(n) || RE_CALCITRIOL.test(n)) return false;
+    return true;
+  }
+
+  if (forma === 'k1' && RE_K2.test(n)) return false;
+  if (forma === 'k2' && RE_K1.test(n)) return false;
+
+  if (forma in RE_B) {
+    for (const b of B_FORMAS) {
+      if (b !== forma && RE_B[b].test(n)) return false;
+    }
+  }
+
+  return true;
+}
+
+/** Filtra sinônimos expandidos que cruzam formas incompatíveis ou metabólitos. */
 export function filtrarTermosExpandidosPorForma(termo: string, termos: string[]): string[] {
   const forma = detectarFormaPedida(termo);
   if (!forma || forma === 'generico_vitamina_d' || forma === 'generico_vitamina_k') {
     return termos;
   }
 
-  const kept = termos.filter((t) => {
-    const formaTermo = detectarFormaPedida(t);
-    if (!formaTermo || formaTermo === 'generico_vitamina_d' || formaTermo === 'generico_vitamina_k') {
-      return true;
-    }
-    return formaTermo === forma;
-  });
-
+  const kept = termos.filter((t) => termoExpandidoCompativel(forma, t));
   return kept.length > 0 ? kept : [termo];
+}
+
+export function passaCorteScoreFormaEspecifica(termo: string, score: number | undefined): boolean {
+  const forma = detectarFormaPedida(termo);
+  if (!isFormaEspecifica(forma)) return true;
+  return (score ?? 0) >= SCORE_MINIMO_FORMA_ESPECIFICA;
 }
 
 /** Rótulo de forma para buscas genéricas (ex.: vitamina d → D3 vs D2). */
 export function labelFormaResultado(item: AnvisaConstituinte): string | undefined {
   const formas = extrairFormasResultado(textoResultadoConstituinte(item));
   if (formas.has('d3')) return 'Vitamina D3 (Colecalciferol)';
+  if (formas.has('calcidiol')) return 'Calcidiol (25-hidroxi-D3)';
+  if (formas.has('calcitriol')) return 'Calcitriol';
   if (formas.has('d2')) return 'Vitamina D2 (Ergocalciferol)';
   if (formas.has('k1')) return 'Vitamina K1 (Filoquinona)';
   if (formas.has('k2')) return 'Vitamina K2 (Menaquinona)';
@@ -205,8 +295,10 @@ export function labelFormaResultado(item: AnvisaConstituinte): string | undefine
 export function prioridadeFormaGenerica(item: AnvisaConstituinte): number {
   const formas = extrairFormasResultado(textoResultadoConstituinte(item));
   if (formas.has('d3')) return 0;
-  if (formas.has('d2')) return 1;
+  if (formas.has('calcidiol')) return 1;
+  if (formas.has('calcitriol')) return 2;
+  if (formas.has('d2')) return 3;
   if (formas.has('k1')) return 0;
   if (formas.has('k2')) return 1;
-  return 2;
+  return 4;
 }
