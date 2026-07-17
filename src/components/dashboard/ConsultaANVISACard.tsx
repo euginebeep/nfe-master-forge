@@ -172,15 +172,18 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
               {searchDone && !hasResults && (
                 <>
                   <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="px-3 py-1 border-destructive/30 bg-destructive/10 text-destructive">
-                      <XCircle className="h-4 w-4 mr-1" />
-                      NÃO AUTORIZADO
+                    <Badge variant="outline" className="px-3 py-1 border-amber-500/40 bg-amber-500/10 text-amber-700">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      SEM CORRESPONDÊNCIA
                     </Badge>
                   </div>
-                  <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20">
-                    <p className="text-sm font-semibold text-destructive">⚠ Substância não autorizada</p>
-                    <p className="text-xs mt-1 text-destructive/80">
-                      <strong>"{termo}"</strong> NÃO consta na lista de constituintes autorizados pela ANVISA conforme IN 28/2018.
+                  <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                      Nenhuma correspondência na base local
+                    </p>
+                    <p className="text-xs mt-1 text-muted-foreground">
+                      <strong>"{termo}"</strong> não retornou constituinte autorizado na busca local.
+                      Isso não significa automaticamente “proibido” — revise grafia/sinônimos ou abra a Consulta ANVISA completa.
                     </p>
                   </div>
                 </>

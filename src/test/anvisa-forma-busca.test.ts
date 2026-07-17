@@ -111,4 +111,25 @@ describe('anvisa-forma-busca', () => {
       'Vitamina D3',
     ]);
   });
+
+  it('B12 não é descartado por falso conflito com B1 (vitamina b1 ⊂ vitamina b12)', () => {
+    const b12 = mockConstituinte({
+      id: 'b12',
+      nome_tecnico: 'Cianocobalamina',
+      sinonimos: ['B12', 'vitamina B12', 'cobalamina'],
+      fonte_de: 'Fonte de vitamina B12',
+      subcategoria: 'Vitamina B12',
+    });
+    const b1 = mockConstituinte({
+      id: 'b1',
+      nome_tecnico: 'Cloridrato de tiamina',
+      sinonimos: ['B1', 'vitamina B1', 'tiamina'],
+    });
+
+    expect(detectarFormaPedida('B12')).toBe('b12');
+    expect(resultadoCompativelComForma('b12', b12)).toBe(true);
+    expect(resultadoCompativelComForma('b12', b1)).toBe(false);
+    expect(filtrarResultadosPorForma('B12', [b12, b1]).map((x) => x.id)).toEqual(['b12']);
+    expect(filtrarResultadosPorForma('b1', [b12, b1]).map((x) => x.id)).toEqual(['b1']);
+  });
 });

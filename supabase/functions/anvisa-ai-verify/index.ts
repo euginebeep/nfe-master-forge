@@ -900,6 +900,84 @@ Retorne APENAS o JSON conforme a estrutura do sistema. O campo "total_produtos" 
       })
     }
 
+    // Fallback: base local anvisa_constituintes (Power BI às vezes não devolve o lote completo).
+    // Ex.: B12/cianocobalamina consta no banco syncado mas pode falhar no match Power BI.
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      if (supabaseUrl && serviceKey) {
+        const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/buscar_constituinte_por_nome_popular`, {
+          method: 'POST',
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ termo_busca: String(termo) }),
+        })
+        if (rpcRes.ok) {
+          const rows = await rpcRes.json()
+          if (Array.isArray(rows) && rows.length > 0) {
+            const resultados = rows.slice(0, 20).map((row: Record<string, unknown>) => {
+              const nome = String(row.nome_tecnico || termo)
+              const faixas = [
+                { grupo: '0 a 6 meses', valor: row.limites_0_6_meses ? JSON.stringify(row.limites_0_6_meses) : null },
+                { grupo: '7 a 11 meses', valor: row.limites_7_11_meses ? JSON.stringify(row.limites_7_11_meses) : null },
+                { grupo: '1 a 3 anos', valor: row.limites_1_3_anos ? JSON.stringify(row.limites_1_3_anos) : null },
+                { grupo: '4 a 8 anos', valor: row.limites_4_8_anos ? JSON.stringify(row.limites_4_8_anos) : null },
+                { grupo: '9 a 18 anos', valor: row.limites_9_18_anos ? JSON.stringify(row.limites_9_18_anos) : null },
+                { grupo: 'Maiores 19 anos', valor: row.limites_19_mais ? JSON.stringify(row.limites_19_mais) : null },
+                { grupo: 'Gestantes', valor: row.limites_gestantes ? JSON.stringify(row.limites_gestantes) : null },
+                { grupo: 'Lactantes', valor: row.limites_lactantes ? JSON.stringify(row.limites_lactantes) : null },
+              ].map((f) => {
+                const v = f.valor
+                if (!v) return { ...f, valor: null }
+                try {
+                  const parsed = JSON.parse(v)
+                  return { grupo: f.grupo, valor: typeof parsed === 'object' && parsed?.texto ? String(parsed.texto) : v }
+                } catch {
+                  return { grupo: f.grupo, valor: v }
+                }
+              })
+              return {
+                autorizado: !row.is_proibido,
+                status: row.is_proibido ? 'PROIBIDO' : 'AUTORIZADO',
+                nome_tecnico: nome,
+                nome_popular: Array.isArray(row.nome_popular) ? row.nome_popular[0] : (row.fonte_de || termo),
+                variacoes_grafia: expandSearchTerms(String(termo)),
+                categoria: row.categoria || 'Constituinte autorizado',
+                anexo: row.anexo_origem || 'IN 28/2018',
+                fonte_legal: 'Base local BrainX (sync IN 28/2018) — fallback quando Power BI não retornou match',
+                justificativa: `Encontrado na base local de constituintes autorizados como “${nome}”.`,
+                alegacoes: Array.isArray(row.alegacoes) ? row.alegacoes : [],
+                advertencias: Array.isArray(row.advertencias) ? row.advertencias : [],
+                funcao: row.fonte_de || null,
+                cas: row.cas_number || null,
+                especificacoes: null,
+                link_especificacoes: null,
+                limites_idade: faixas,
+                observacoes: row.restricoes_uso || null,
+                outras_informacoes: null,
+                nutriente: Array.isArray(row.sinonimos) ? row.sinonimos.join(', ') : null,
+              }
+            })
+            origemLog = 'db_local_fallback'
+            encontrouLog = true
+            totalLog = resultados.length
+            logSearch()
+            return new Response(
+              JSON.stringify({ termo, resultados, resultado: resultados[0], origem: 'db_local_fallback' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+            )
+          }
+        } else {
+          console.warn('db_local_fallback rpc failed:', rpcRes.status, await rpcRes.text())
+        }
+      }
+    } catch (e) {
+      console.warn('db_local_fallback error:', e instanceof Error ? e.message : e)
+    }
+
     // Nada encontrado na base oficial — NÃO usamos IA para inferir status
     // (a IA já demonstrou alucinar: ex. "maca peruana" → "maçã" → "Concentrado de maçã").
     // Reportamos honestamente que não consta na lista oficial consultada.
