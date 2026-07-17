@@ -110,37 +110,12 @@ GRANT EXECUTE ON FUNCTION public.buscar_ingrediente_nao_autorizado(text)
 COMMENT ON FUNCTION public.buscar_ingrediente_nao_autorizado(text) IS
   'Busca ingredientes não autorizados por palavra inteira no nome / igualdade em sinônimo ou nome científico.';
 
--- Seed maca peruana (já em produção — ON CONFLICT no nome normalizado)
-INSERT INTO public.anvisa_ingredientes_nao_autorizados (
-  nome,
-  nome_cientifico,
-  sinonimos,
-  status,
-  explicacao,
-  base_legal,
-  fonte_url,
-  confirmado_rt,
-  ativo
-)
-VALUES (
-  'maca peruana',
-  'Lepidium meyenii',
-  ARRAY['maca peruana', 'ginseng peruano', 'lepidium meyenii'],
-  'SOB_FISCALIZACAO',
-  'A maca peruana (Lepidium meyenii) NÃO consta na lista de constituintes autorizados da IN 28/2018 para suplementos alimentares em cápsulas. Ingredientes vegetais só podem ser usados em suplementos se expressamente autorizados pela ANVISA. A ANVISA fiscaliza e já proibiu marcas de maca peruana (2025) por irregularidade. NÃO usar em fórmula de suplemento sem autorização específica. Consulte a RT antes de qualquer uso.',
-  'RDC 243/2018 (listas positivas); ausente da IN 28/2018',
-  'https://www.colorandinafoods.com.br/blog/maca-peruana-em-capsulas-e-permitida-no-brasil-entendimento-oficial-da-anvisa/',
-  false,
-  true
-)
-ON CONFLICT DO NOTHING;
-
--- Upsert por nome se o unique index impedir o DO NOTHING genérico
+-- Seed maca peruana (já em produção — só insere se ausente)
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.anvisa_ingredientes_nao_autorizados
-    WHERE lower(unaccent(nome)) = lower(unaccent('maca peruana'))
+    WHERE lower(nome) = lower('maca peruana')
   ) THEN
     INSERT INTO public.anvisa_ingredientes_nao_autorizados (
       nome, nome_cientifico, sinonimos, status, explicacao, base_legal, fonte_url, confirmado_rt

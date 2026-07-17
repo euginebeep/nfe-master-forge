@@ -45,9 +45,11 @@ serve(async (req) => {
     const queryEmbedding = embeddingResp.data[0].embedding;
 
     // ── 2. Buscar os 5 chunks mais similares (cosine similarity) ────────────
+    // Threshold 0.35: perguntas curtas em linguagem natural raramente passam de 0.70
+    // contra texto jurídico (deploy prod v6).
     const { data: chunks, error: chunkErr } = await supabase.rpc("match_legislacao_chunks", {
       query_embedding: queryEmbedding,
-      match_threshold: 0.70,
+      match_threshold: 0.35,
       match_count: 5,
     });
 
@@ -56,7 +58,16 @@ serve(async (req) => {
     // ── 3. Montar contexto e prompt ─────────────────────────────────────────
     let encontrouResposta = false;
     let resposta = "";
-    let fontesUsadas: Array<{ fonte_id: string; referencia: string; titulo: string; numero: string; ano: number; url_oficial: string; categoria: string }> = [];
+    let fontesUsadas: Array<{
+      fonte_id: string;
+      referencia: string;
+      titulo: string;
+      tipo: string;
+      numero: string;
+      ano: number;
+      url_oficial: string;
+      categoria: string;
+    }> = [];
 
     if (!chunks || chunks.length === 0) {
       // Nenhum chunk relevante encontrado — resposta de "não sei"
@@ -92,6 +103,7 @@ serve(async (req) => {
           fonte_id: c.fonte_id,
           referencia: c.referencia,
           titulo: fonte?.titulo || "",
+          tipo: fonte?.tipo || "",
           numero: fonte?.numero || "",
           ano: fonte?.ano || 0,
           url_oficial: fonte?.url_oficial || "",

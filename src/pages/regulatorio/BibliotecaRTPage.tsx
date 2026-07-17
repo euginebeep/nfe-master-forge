@@ -76,6 +76,7 @@ interface RespostaRAG {
     fonte_id: string;
     referencia: string;
     titulo: string;
+    tipo?: string;
     numero: string;
     ano: number;
     url_oficial: string;
@@ -391,7 +392,9 @@ export default function BibliotecaRTPage() {
                             CATEGORIA_LABELS[f.categoria]?.color || "bg-gray-100 text-gray-700 border-gray-200"
                           }`}
                         >
-                          {f.tipo !== "OUTRO" ? `${f.tipo} ${f.numero}/${f.ano}` : f.titulo.slice(0, 40)}
+                          {(f.tipo && f.tipo !== "OUTRO")
+                            ? `${f.tipo} ${f.numero}/${f.ano}`
+                            : (f.titulo?.slice(0, 40) || `${f.numero}/${f.ano}`)}
                           {f.referencia && ` — ${f.referencia}`}
                           <ExternalLink className="w-2.5 h-2.5" />
                         </a>

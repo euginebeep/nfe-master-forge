@@ -24,62 +24,99 @@ function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
-/** Divide o texto em chunks por artigo/parágrafo/anexo */
-function dividirEmChunks(texto: string, fonteId: string): Array<{ referencia: string; texto: string }> {
+const MAX_CHUNK_CHARS = 1500;
+
+/** Divide o texto em chunks por artigo / item numérico / anexo / parágrafo */
+function dividirEmChunks(texto: string, _fonteId: string): Array<{ referencia: string; texto: string }> {
   const chunks: Array<{ referencia: string; texto: string }> = [];
-
-  // Padrões de divisão: Art., §, Anexo, Capítulo, Seção
-  const padroes = [
-    /^(Art\.\s*\d+[°º]?[\w\-]*\.?.*?)(?=\nArt\.\s*\d+|$)/gms,
-    /^(Anexo\s+[IVXLCDM]+.*?)(?=\nAnexo\s+[IVXLCDM]+|$)/gims,
-    /^(Cap[íi]tulo\s+[IVXLCDM\d]+.*?)(?=\nCap[íi]tulo\s+[IVXLCDM\d]+|$)/gims,
-  ];
-
   let processado = false;
 
-  // Tentar dividir por artigos primeiro
+  const pushChunk = (referencia: string, corpo: string) => {
+    const t = corpo.trim();
+    if (t.length <= 30) return;
+    if (t.length <= MAX_CHUNK_CHARS) {
+      chunks.push({ referencia, texto: t });
+      return;
+    }
+    // Teto ~1500 chars — blocos longos demais prejudicam o RAG
+    const partes = t.match(new RegExp(`.{1,${MAX_CHUNK_CHARS}}(?:\\s|$)`, "gs")) || [t];
+    partes.forEach((p, i) => {
+      const pt = p.trim();
+      if (pt.length > 30) {
+        chunks.push({
+          referencia: partes.length > 1 ? `${referencia} (${i + 1}/${partes.length})` : referencia,
+          texto: pt,
+        });
+      }
+    });
+  };
+
+  // 1) Artigos "Art. N"
   const artigos = texto.match(/Art\.\s*\d+[°º]?[\w\-]*\.?[^\n]*(?:\n(?!Art\.\s*\d)[^\n]*)*/g);
   if (artigos && artigos.length > 0) {
     processado = true;
     artigos.forEach((artigo, idx) => {
-      const linhas = artigo.split("\n");
-      const primeiraLinha = linhas[0].trim();
+      const primeiraLinha = artigo.split("\n")[0].trim();
       const numArtigo = primeiraLinha.match(/Art\.\s*(\d+[°º]?[\w\-]*)/)?.[0] || `Art. ${idx + 1}`;
-      if (artigo.trim().length > 20) {
-        chunks.push({ referencia: numArtigo, texto: artigo.trim() });
-      }
+      pushChunk(numArtigo, artigo);
     });
   }
 
-  // Tentar dividir por Anexos
+  // 2) Itens numéricos estilo RDC 275 (4.1.1, 4.2.1) — se poucos/nenhum Art.
+  if (!processado || chunks.length < 3) {
+    const linhas = texto.split(/\n/);
+    const itemStarts: number[] = [];
+    linhas.forEach((linha, i) => {
+      if (/^\s*\d+(\.\d+)+\s*[\).\-–—:]?\s+\S/.test(linha) || /^\s*\d+(\.\d+)+\s*$/.test(linha.trim())) {
+        itemStarts.push(i);
+      }
+    });
+    if (itemStarts.length >= 3) {
+      processado = true;
+      const itemChunks: Array<{ referencia: string; texto: string }> = [];
+      for (let i = 0; i < itemStarts.length; i++) {
+        const start = itemStarts[i];
+        const end = i + 1 < itemStarts.length ? itemStarts[i + 1] : linhas.length;
+        const bloco = linhas.slice(start, end).join("\n").trim();
+        const ref = bloco.match(/^\s*(\d+(?:\.\d+)+)/)?.[1] || `Item ${i + 1}`;
+        if (bloco.length > 30) itemChunks.push({ referencia: ref, texto: bloco });
+      }
+      if (itemChunks.length > chunks.length) {
+        chunks.length = 0;
+        itemChunks.forEach((c) => pushChunk(c.referencia, c.texto));
+      }
+    }
+  }
+
+  // 3) Anexos
   const anexos = texto.match(/Anexo\s+[IVXLCDM]+[^\n]*(?:\n(?!Anexo\s+[IVXLCDM])[^\n]*)*/gi);
   if (anexos && anexos.length > 0) {
     processado = true;
     anexos.forEach((anexo) => {
       const primeiraLinha = anexo.split("\n")[0].trim();
-      if (anexo.trim().length > 20) {
-        chunks.push({ referencia: primeiraLinha.slice(0, 80), texto: anexo.trim() });
-      }
+      pushChunk(primeiraLinha.slice(0, 80), anexo);
     });
   }
 
-  // Fallback: dividir por parágrafos de ~800 chars se nenhum padrão funcionou
+  // 4) Seções a) b) c) — só se ainda pouco fatiado
+  if (chunks.length < 3) {
+    const letras = texto.match(/^[ \t]*[a-z]\)[ \t]+[\s\S]*?(?=^[ \t]*[a-z]\)[ \t]+|$)/gim);
+    if (letras && letras.length >= 3) {
+      processado = true;
+      letras.forEach((bloco, idx) => {
+        const ref = bloco.match(/^[ \t]*([a-z]\))/)?.[1] || `alínea ${idx + 1}`;
+        pushChunk(ref, bloco);
+      });
+    }
+  }
+
+  // 5) Fallback: parágrafos
   if (!processado || chunks.length === 0) {
-    const paragrafos = texto.split(/\n{2,}/).filter(p => p.trim().length > 50);
-    paragrafos.forEach((p, idx) => {
-      // Dividir parágrafos muito longos em sub-chunks de ~800 chars
-      if (p.length > 1000) {
-        const subChunks = p.match(/.{1,800}(?:\s|$)/gs) || [p];
-        subChunks.forEach((sc, si) => {
-          chunks.push({ referencia: `Parágrafo ${idx + 1}.${si + 1}`, texto: sc.trim() });
-        });
-      } else {
-        chunks.push({ referencia: `Parágrafo ${idx + 1}`, texto: p.trim() });
-      }
-    });
+    const paragrafos = texto.split(/\n{2,}/).filter((p) => p.trim().length > 50);
+    paragrafos.forEach((p, idx) => pushChunk(`Parágrafo ${idx + 1}`, p));
   }
 
-  return chunks.filter(c => c.texto.length > 30);
+  return chunks.filter((c) => c.texto.length > 30);
 }
 
 serve(async (req) => {
