@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -137,6 +162,7 @@ export type Database = {
           id: string
           sync_interval_seconds: number | null
           token_expires_at: string | null
+          ultima_sync: string | null
           updated_at: string | null
         }
         Insert: {
@@ -151,6 +177,7 @@ export type Database = {
           id?: string
           sync_interval_seconds?: number | null
           token_expires_at?: string | null
+          ultima_sync?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -165,6 +192,7 @@ export type Database = {
           id?: string
           sync_interval_seconds?: number | null
           token_expires_at?: string | null
+          ultima_sync?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -184,13 +212,16 @@ export type Database = {
           created_at: string | null
           device_id: string
           device_name: string | null
+          ewelink_online: boolean | null
           hum_max: number
           hum_min: number
           id: string
           responsible: string | null
-          room_name: string
+          room_name: string | null
+          sala: string | null
           temp_max: number
           temp_min: number
+          updated_at: string | null
         }
         Insert: {
           ativo?: boolean | null
@@ -198,13 +229,16 @@ export type Database = {
           created_at?: string | null
           device_id: string
           device_name?: string | null
+          ewelink_online?: boolean | null
           hum_max?: number
           hum_min?: number
           id?: string
           responsible?: string | null
-          room_name: string
+          room_name?: string | null
+          sala?: string | null
           temp_max?: number
           temp_min?: number
+          updated_at?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -212,13 +246,16 @@ export type Database = {
           created_at?: string | null
           device_id?: string
           device_name?: string | null
+          ewelink_online?: boolean | null
           hum_max?: number
           hum_min?: number
           id?: string
           responsible?: string | null
-          room_name?: string
+          room_name?: string | null
+          sala?: string | null
           temp_max?: number
           temp_min?: number
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -408,6 +445,13 @@ export type Database = {
             foreignKeyName: "anvisa_alegacoes_detalhadas_constituinte_id_fkey"
             columns: ["constituinte_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_alegacoes_detalhadas_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
@@ -429,7 +473,11 @@ export type Database = {
           fonte_url: string | null
           id: string
           lido: boolean | null
+          monitoramento_id: string | null
           norma: string | null
+          revisado_em: string | null
+          revisado_por: string | null
+          status_revisao: string | null
           tipo: string
           titulo: string
         }
@@ -441,7 +489,11 @@ export type Database = {
           fonte_url?: string | null
           id?: string
           lido?: boolean | null
+          monitoramento_id?: string | null
           norma?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status_revisao?: string | null
           tipo?: string
           titulo: string
         }
@@ -453,28 +505,190 @@ export type Database = {
           fonte_url?: string | null
           id?: string
           lido?: boolean | null
+          monitoramento_id?: string | null
           norma?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status_revisao?: string | null
           tipo?: string
           titulo?: string
         }
         Relationships: []
       }
+      anvisa_associacoes_proibidas: {
+        Row: {
+          ativo: boolean
+          constituinte_a_id: string | null
+          constituinte_a_nome: string
+          constituinte_b_id: string | null
+          constituinte_b_nome: string
+          criado_em: string
+          id: string
+          norma: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          constituinte_a_id?: string | null
+          constituinte_a_nome: string
+          constituinte_b_id?: string | null
+          constituinte_b_nome: string
+          criado_em?: string
+          id?: string
+          norma?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          constituinte_a_id?: string | null
+          constituinte_a_nome?: string
+          constituinte_b_id?: string | null
+          constituinte_b_nome?: string
+          criado_em?: string
+          id?: string
+          norma?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anvisa_associacoes_proibidas_constituinte_a_id_fkey"
+            columns: ["constituinte_a_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_associacoes_proibidas_constituinte_a_id_fkey"
+            columns: ["constituinte_a_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_associacoes_proibidas_constituinte_a_id_fkey"
+            columns: ["constituinte_a_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_associacoes_proibidas_constituinte_b_id_fkey"
+            columns: ["constituinte_b_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_associacoes_proibidas_constituinte_b_id_fkey"
+            columns: ["constituinte_b_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_associacoes_proibidas_constituinte_b_id_fkey"
+            columns: ["constituinte_b_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anvisa_conferencias_rt: {
+        Row: {
+          acao: string
+          company_id: string
+          conferido_em: string
+          constituinte_id: string | null
+          id: string
+          link_fonte: string | null
+          norma_referencia: string | null
+          observacao: string | null
+          rt_nome: string
+          rt_registro: string
+          rt_user_id: string | null
+          trecho_oficial: string | null
+          valor_anterior: Json | null
+          valor_confirmado: Json | null
+        }
+        Insert: {
+          acao: string
+          company_id: string
+          conferido_em?: string
+          constituinte_id?: string | null
+          id?: string
+          link_fonte?: string | null
+          norma_referencia?: string | null
+          observacao?: string | null
+          rt_nome: string
+          rt_registro: string
+          rt_user_id?: string | null
+          trecho_oficial?: string | null
+          valor_anterior?: Json | null
+          valor_confirmado?: Json | null
+        }
+        Update: {
+          acao?: string
+          company_id?: string
+          conferido_em?: string
+          constituinte_id?: string | null
+          id?: string
+          link_fonte?: string | null
+          norma_referencia?: string | null
+          observacao?: string | null
+          rt_nome?: string
+          rt_registro?: string
+          rt_user_id?: string | null
+          trecho_oficial?: string | null
+          valor_anterior?: Json | null
+          valor_confirmado?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anvisa_conferencias_rt_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_conferencias_rt_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_conferencias_rt_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anvisa_constituintes: {
         Row: {
           advertencias: string[] | null
           alegacoes: string[] | null
+          alerta_critico: string | null
           anexo_origem: string
           ativo: boolean | null
           cas_number: string | null
           categoria: string
+          chave_norm: string | null
           created_at: string | null
           data_inclusao: string | null
           fonte_de: string | null
           fonte_url: string | null
           grupos_nao_autorizados: string[] | null
           grupos_permitidos: string[] | null
+          homologado: boolean
+          homologado_em: string | null
+          homologado_por: string | null
           id: string
           is_proibido: boolean | null
+          limite_max_num: number | null
+          limite_min_num: number | null
+          limite_parse_status: string | null
+          limite_unidade: string | null
           limites_0_6_meses: Json | null
           limites_1_3_anos: Json | null
           limites_19_mais: Json | null
@@ -490,10 +704,16 @@ export type Database = {
           nome_tecnico: string
           norma_inclusao: string
           norma_ultima_alteracao: string | null
+          origem_proveniencia: string | null
+          prazo_adequacao: string | null
           referencias_especificacao: string[] | null
+          requer_rehomologacao: boolean
+          requer_rehomologacao_em: string | null
+          requer_rehomologacao_motivo: string | null
           restricoes_uso: string | null
           rotulagem_complementar: string[] | null
           search_vector: unknown
+          sincronizado_em: string | null
           sinonimos: string[] | null
           status_normativo: string | null
           subcategoria: string | null
@@ -505,18 +725,27 @@ export type Database = {
         Insert: {
           advertencias?: string[] | null
           alegacoes?: string[] | null
+          alerta_critico?: string | null
           anexo_origem?: string
           ativo?: boolean | null
           cas_number?: string | null
           categoria: string
+          chave_norm?: string | null
           created_at?: string | null
           data_inclusao?: string | null
           fonte_de?: string | null
           fonte_url?: string | null
           grupos_nao_autorizados?: string[] | null
           grupos_permitidos?: string[] | null
+          homologado?: boolean
+          homologado_em?: string | null
+          homologado_por?: string | null
           id?: string
           is_proibido?: boolean | null
+          limite_max_num?: number | null
+          limite_min_num?: number | null
+          limite_parse_status?: string | null
+          limite_unidade?: string | null
           limites_0_6_meses?: Json | null
           limites_1_3_anos?: Json | null
           limites_19_mais?: Json | null
@@ -532,10 +761,16 @@ export type Database = {
           nome_tecnico: string
           norma_inclusao?: string
           norma_ultima_alteracao?: string | null
+          origem_proveniencia?: string | null
+          prazo_adequacao?: string | null
           referencias_especificacao?: string[] | null
+          requer_rehomologacao?: boolean
+          requer_rehomologacao_em?: string | null
+          requer_rehomologacao_motivo?: string | null
           restricoes_uso?: string | null
           rotulagem_complementar?: string[] | null
           search_vector?: unknown
+          sincronizado_em?: string | null
           sinonimos?: string[] | null
           status_normativo?: string | null
           subcategoria?: string | null
@@ -547,18 +782,27 @@ export type Database = {
         Update: {
           advertencias?: string[] | null
           alegacoes?: string[] | null
+          alerta_critico?: string | null
           anexo_origem?: string
           ativo?: boolean | null
           cas_number?: string | null
           categoria?: string
+          chave_norm?: string | null
           created_at?: string | null
           data_inclusao?: string | null
           fonte_de?: string | null
           fonte_url?: string | null
           grupos_nao_autorizados?: string[] | null
           grupos_permitidos?: string[] | null
+          homologado?: boolean
+          homologado_em?: string | null
+          homologado_por?: string | null
           id?: string
           is_proibido?: boolean | null
+          limite_max_num?: number | null
+          limite_min_num?: number | null
+          limite_parse_status?: string | null
+          limite_unidade?: string | null
           limites_0_6_meses?: Json | null
           limites_1_3_anos?: Json | null
           limites_19_mais?: Json | null
@@ -574,10 +818,16 @@ export type Database = {
           nome_tecnico?: string
           norma_inclusao?: string
           norma_ultima_alteracao?: string | null
+          origem_proveniencia?: string | null
+          prazo_adequacao?: string | null
           referencias_especificacao?: string[] | null
+          requer_rehomologacao?: boolean
+          requer_rehomologacao_em?: string | null
+          requer_rehomologacao_motivo?: string | null
           restricoes_uso?: string | null
           rotulagem_complementar?: string[] | null
           search_vector?: unknown
+          sincronizado_em?: string | null
           sinonimos?: string[] | null
           status_normativo?: string | null
           subcategoria?: string | null
@@ -592,6 +842,61 @@ export type Database = {
             columns: ["sync_id"]
             isOneToOne: false
             referencedRelation: "anvisa_sync_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anvisa_constituintes_historico: {
+        Row: {
+          alterado_por: string | null
+          constituinte_id: string
+          criado_em: string
+          id: string
+          motivo: string | null
+          snapshot: Json
+          vigencia_fim: string
+          vigencia_inicio: string
+        }
+        Insert: {
+          alterado_por?: string | null
+          constituinte_id: string
+          criado_em?: string
+          id?: string
+          motivo?: string | null
+          snapshot: Json
+          vigencia_fim?: string
+          vigencia_inicio: string
+        }
+        Update: {
+          alterado_por?: string | null
+          constituinte_id?: string
+          criado_em?: string
+          id?: string
+          motivo?: string | null
+          snapshot?: Json
+          vigencia_fim?: string
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anvisa_constituintes_historico_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_constituintes_historico_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_constituintes_historico_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
         ]
@@ -626,6 +931,13 @@ export type Database = {
             foreignKeyName: "anvisa_consultas_log_constituinte_encontrado_id_fkey"
             columns: ["constituinte_encontrado_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anvisa_consultas_log_constituinte_encontrado_id_fkey"
+            columns: ["constituinte_encontrado_id"]
+            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
@@ -638,39 +950,180 @@ export type Database = {
           },
         ]
       }
+      anvisa_ingredientes_nao_autorizados: {
+        Row: {
+          ativo: boolean
+          base_legal: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          confirmado_rt: boolean
+          created_at: string
+          explicacao: string
+          fonte_url: string | null
+          fonte_verificada_em: string | null
+          id: string
+          nome: string
+          nome_cientifico: string | null
+          sinonimos: string[] | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          base_legal?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          confirmado_rt?: boolean
+          created_at?: string
+          explicacao: string
+          fonte_url?: string | null
+          fonte_verificada_em?: string | null
+          id?: string
+          nome: string
+          nome_cientifico?: string | null
+          sinonimos?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          base_legal?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          confirmado_rt?: boolean
+          created_at?: string
+          explicacao?: string
+          fonte_url?: string | null
+          fonte_verificada_em?: string | null
+          id?: string
+          nome?: string
+          nome_cientifico?: string | null
+          sinonimos?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       anvisa_laudos: {
         Row: {
           cliente: string | null
+          cliente_logo_url: string | null
+          cliente_nome_exibicao: string | null
           company_id: string
           criado_em: string | null
           criado_por: string | null
           id: string
+          logo_empresa_url: string | null
+          logo_rt_url: string | null
           payload_entrada: Json | null
           produto: string
           resultado_ia: Json | null
+          rt_crf: string | null
+          rt_estado: string | null
+          rt_nome: string | null
+          rt_snapshot_at: string | null
           status_geral: string | null
         }
         Insert: {
           cliente?: string | null
+          cliente_logo_url?: string | null
+          cliente_nome_exibicao?: string | null
           company_id: string
           criado_em?: string | null
           criado_por?: string | null
           id?: string
+          logo_empresa_url?: string | null
+          logo_rt_url?: string | null
           payload_entrada?: Json | null
           produto: string
           resultado_ia?: Json | null
+          rt_crf?: string | null
+          rt_estado?: string | null
+          rt_nome?: string | null
+          rt_snapshot_at?: string | null
           status_geral?: string | null
         }
         Update: {
           cliente?: string | null
+          cliente_logo_url?: string | null
+          cliente_nome_exibicao?: string | null
           company_id?: string
           criado_em?: string | null
           criado_por?: string | null
           id?: string
+          logo_empresa_url?: string | null
+          logo_rt_url?: string | null
           payload_entrada?: Json | null
           produto?: string
           resultado_ia?: Json | null
+          rt_crf?: string | null
+          rt_estado?: string | null
+          rt_nome?: string | null
+          rt_snapshot_at?: string | null
           status_geral?: string | null
+        }
+        Relationships: []
+      }
+      anvisa_limites: {
+        Row: {
+          ativo: boolean
+          autorizado: boolean
+          categoria: string
+          chave: string
+          created_at: string
+          dose_max: number | null
+          dose_min: number | null
+          faixa: string
+          homologado: boolean
+          homologado_em: string | null
+          homologado_por: string | null
+          id: string
+          nome: string
+          norma: string | null
+          observacao: string | null
+          tem_grupos_restritos: boolean
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          autorizado?: boolean
+          categoria?: string
+          chave: string
+          created_at?: string
+          dose_max?: number | null
+          dose_min?: number | null
+          faixa?: string
+          homologado?: boolean
+          homologado_em?: string | null
+          homologado_por?: string | null
+          id?: string
+          nome: string
+          norma?: string | null
+          observacao?: string | null
+          tem_grupos_restritos?: boolean
+          unidade: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          autorizado?: boolean
+          categoria?: string
+          chave?: string
+          created_at?: string
+          dose_max?: number | null
+          dose_min?: number | null
+          faixa?: string
+          homologado?: boolean
+          homologado_em?: string | null
+          homologado_por?: string | null
+          id?: string
+          nome?: string
+          norma?: string | null
+          observacao?: string | null
+          tem_grupos_restritos?: boolean
+          unidade?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -785,6 +1238,63 @@ export type Database = {
           status?: string
           tipo?: string
           versao_legislacao?: string | null
+        }
+        Relationships: []
+      }
+      anvisa_vdr: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          chave: string
+          created_at: string
+          faixa: string
+          homologado: boolean
+          homologado_em: string | null
+          homologado_por: string | null
+          id: string
+          norma: string
+          nutriente: string
+          observacao: string | null
+          updated_at: string
+          valor_hardcode_anterior: number | null
+          vd_unidade: string
+          vd_valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: string
+          chave: string
+          created_at?: string
+          faixa?: string
+          homologado?: boolean
+          homologado_em?: string | null
+          homologado_por?: string | null
+          id?: string
+          norma?: string
+          nutriente: string
+          observacao?: string | null
+          updated_at?: string
+          valor_hardcode_anterior?: number | null
+          vd_unidade: string
+          vd_valor: number
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          chave?: string
+          created_at?: string
+          faixa?: string
+          homologado?: boolean
+          homologado_em?: string | null
+          homologado_por?: string | null
+          id?: string
+          norma?: string
+          nutriente?: string
+          observacao?: string | null
+          updated_at?: string
+          valor_hardcode_anterior?: number | null
+          vd_unidade?: string
+          vd_valor?: number
         }
         Relationships: []
       }
@@ -916,6 +1426,56 @@ export type Database = {
           usuario_nome?: string | null
         }
         Relationships: []
+      }
+      auditoria_exclusoes: {
+        Row: {
+          company_id: string
+          criado_em: string | null
+          dados_excluidos: Json | null
+          documento_id: string | null
+          documento_numero: string | null
+          documento_serie: string | null
+          id: string
+          ip_address: unknown
+          motivo: string | null
+          tipo_documento: string
+          usuario_id: string | null
+        }
+        Insert: {
+          company_id: string
+          criado_em?: string | null
+          dados_excluidos?: Json | null
+          documento_id?: string | null
+          documento_numero?: string | null
+          documento_serie?: string | null
+          id?: string
+          ip_address?: unknown
+          motivo?: string | null
+          tipo_documento: string
+          usuario_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          criado_em?: string | null
+          dados_excluidos?: Json | null
+          documento_id?: string | null
+          documento_numero?: string | null
+          documento_serie?: string | null
+          id?: string
+          ip_address?: unknown
+          motivo?: string | null
+          tipo_documento?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_exclusoes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       avaliacoes_fornecedor: {
         Row: {
@@ -1241,6 +1801,13 @@ export type Database = {
             foreignKeyName: "catalogo_precos_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "catalogo_precos_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -1294,9 +1861,40 @@ export type Database = {
           },
         ]
       }
+      coa_densidade_processados: {
+        Row: {
+          company_id: string | null
+          densidade_encontrada: boolean
+          id: string
+          item_id: string
+          laudo_id: string | null
+          nota_entrada_id: string | null
+          processado_em: string
+        }
+        Insert: {
+          company_id?: string | null
+          densidade_encontrada?: boolean
+          id?: string
+          item_id: string
+          laudo_id?: string | null
+          nota_entrada_id?: string | null
+          processado_em?: string
+        }
+        Update: {
+          company_id?: string | null
+          densidade_encontrada?: boolean
+          id?: string
+          item_id?: string
+          laudo_id?: string | null
+          nota_entrada_id?: string | null
+          processado_em?: string
+        }
+        Relationships: []
+      }
       company: {
         Row: {
           acesso_liberado_ate: string | null
+          afe_anvisa: string | null
           certificado_a1_file_id: string | null
           certificado_senha_encrypted: string | null
           cnae: string | null
@@ -1317,10 +1915,14 @@ export type Database = {
           endereco_nro: string | null
           endereco_pais: string | null
           endereco_uf: string | null
+          exigir_segregacao_recebimento: boolean
+          focus_nfe_empresa_id: string | null
+          focus_nfe_status: string | null
           id: string
           ie: string | null
           im: string | null
           is_demo: boolean
+          licenca_sanitaria: string | null
           logo_file_id: string | null
           nfe_ambiente: string | null
           nfe_numero_inicial: number | null
@@ -1345,6 +1947,7 @@ export type Database = {
         }
         Insert: {
           acesso_liberado_ate?: string | null
+          afe_anvisa?: string | null
           certificado_a1_file_id?: string | null
           certificado_senha_encrypted?: string | null
           cnae?: string | null
@@ -1365,10 +1968,14 @@ export type Database = {
           endereco_nro?: string | null
           endereco_pais?: string | null
           endereco_uf?: string | null
+          exigir_segregacao_recebimento?: boolean
+          focus_nfe_empresa_id?: string | null
+          focus_nfe_status?: string | null
           id?: string
           ie?: string | null
           im?: string | null
           is_demo?: boolean
+          licenca_sanitaria?: string | null
           logo_file_id?: string | null
           nfe_ambiente?: string | null
           nfe_numero_inicial?: number | null
@@ -1393,6 +2000,7 @@ export type Database = {
         }
         Update: {
           acesso_liberado_ate?: string | null
+          afe_anvisa?: string | null
           certificado_a1_file_id?: string | null
           certificado_senha_encrypted?: string | null
           cnae?: string | null
@@ -1413,10 +2021,14 @@ export type Database = {
           endereco_nro?: string | null
           endereco_pais?: string | null
           endereco_uf?: string | null
+          exigir_segregacao_recebimento?: boolean
+          focus_nfe_empresa_id?: string | null
+          focus_nfe_status?: string | null
           id?: string
           ie?: string | null
           im?: string | null
           is_demo?: boolean
+          licenca_sanitaria?: string | null
           logo_file_id?: string | null
           nfe_ambiente?: string | null
           nfe_numero_inicial?: number | null
@@ -1515,6 +2127,7 @@ export type Database = {
       }
       config_custos_producao: {
         Row: {
+          capsula_padrao_id: string | null
           company_id: string | null
           custo_capsula_vazia: number
           custo_frasco_padrao: number
@@ -1524,11 +2137,16 @@ export type Database = {
           custo_overhead_hora: number
           custo_rotulo_padrao: number
           id: string
+          lacre_padrao_id: string | null
           percentual_overhead: number
           percentual_perda_padrao: number
+          pote_padrao_id: string | null
+          rotulo_padrao_id: string | null
+          tampa_padrao_id: string | null
           updated_at: string
         }
         Insert: {
+          capsula_padrao_id?: string | null
           company_id?: string | null
           custo_capsula_vazia?: number
           custo_frasco_padrao?: number
@@ -1538,11 +2156,16 @@ export type Database = {
           custo_overhead_hora?: number
           custo_rotulo_padrao?: number
           id?: string
+          lacre_padrao_id?: string | null
           percentual_overhead?: number
           percentual_perda_padrao?: number
+          pote_padrao_id?: string | null
+          rotulo_padrao_id?: string | null
+          tampa_padrao_id?: string | null
           updated_at?: string
         }
         Update: {
+          capsula_padrao_id?: string | null
           company_id?: string | null
           custo_capsula_vazia?: number
           custo_frasco_padrao?: number
@@ -1552,11 +2175,86 @@ export type Database = {
           custo_overhead_hora?: number
           custo_rotulo_padrao?: number
           id?: string
+          lacre_padrao_id?: string | null
           percentual_overhead?: number
           percentual_perda_padrao?: number
+          pote_padrao_id?: string | null
+          rotulo_padrao_id?: string | null
+          tampa_padrao_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "config_custos_producao_capsula_padrao_id_fkey"
+            columns: ["capsula_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_capsula_padrao_id_fkey"
+            columns: ["capsula_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_lacre_padrao_id_fkey"
+            columns: ["lacre_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_lacre_padrao_id_fkey"
+            columns: ["lacre_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_pote_padrao_id_fkey"
+            columns: ["pote_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_pote_padrao_id_fkey"
+            columns: ["pote_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_rotulo_padrao_id_fkey"
+            columns: ["rotulo_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_rotulo_padrao_id_fkey"
+            columns: ["rotulo_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_tampa_padrao_id_fkey"
+            columns: ["tampa_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "config_custos_producao_tampa_padrao_id_fkey"
+            columns: ["tampa_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contas_pagar: {
         Row: {
@@ -2541,6 +3239,48 @@ export type Database = {
           },
         ]
       }
+      entidades_auditoria: {
+        Row: {
+          acao: string
+          campo_alterado: string | null
+          company_id: string
+          detalhes: Json | null
+          entidade_id: string
+          id: string
+          timestamp: string
+          usuario_id: string | null
+          usuario_nome: string | null
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          acao?: string
+          campo_alterado?: string | null
+          company_id?: string
+          detalhes?: Json | null
+          entidade_id: string
+          id?: string
+          timestamp?: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          acao?: string
+          campo_alterado?: string | null
+          company_id?: string
+          detalhes?: Json | null
+          entidade_id?: string
+          id?: string
+          timestamp?: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: []
+      }
       equipamentos: {
         Row: {
           ativo: boolean | null
@@ -2612,6 +3352,39 @@ export type Database = {
           },
         ]
       }
+      erp_system_config: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          chave: string
+          descricao: string | null
+          id: string
+          updated_at: string | null
+          updated_by: string | null
+          valor: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string
+          chave: string
+          descricao?: string | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          valor?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          chave?: string
+          descricao?: string | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          valor?: string | null
+        }
+        Relationships: []
+      }
       estoque_lotes: {
         Row: {
           codigo_agregacao: string | null
@@ -2629,6 +3402,9 @@ export type Database = {
           observacoes_qc: string | null
           potencia_observacoes: string | null
           potencia_unidade: string | null
+          potencia_validada_em: string | null
+          potencia_validada_por: string | null
+          potencia_validada_rt: boolean
           potencia_valor: number | null
           quantidade_interna: number
           quantidade_original: number
@@ -2653,6 +3429,9 @@ export type Database = {
           observacoes_qc?: string | null
           potencia_observacoes?: string | null
           potencia_unidade?: string | null
+          potencia_validada_em?: string | null
+          potencia_validada_por?: string | null
+          potencia_validada_rt?: boolean
           potencia_valor?: number | null
           quantidade_interna: number
           quantidade_original: number
@@ -2677,6 +3456,9 @@ export type Database = {
           observacoes_qc?: string | null
           potencia_observacoes?: string | null
           potencia_unidade?: string | null
+          potencia_validada_em?: string | null
+          potencia_validada_por?: string | null
+          potencia_validada_rt?: boolean
           potencia_valor?: number | null
           quantidade_interna?: number
           quantidade_original?: number
@@ -2699,6 +3481,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_lotes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "estoque_lotes_item_id_fkey"
@@ -2775,6 +3564,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentacoes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "estoque_movimentacoes_item_id_fkey"
@@ -2916,6 +3712,13 @@ export type Database = {
             foreignKeyName: "formula_itens_produto_materia_prima_id_fkey"
             columns: ["produto_materia_prima_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "formula_itens_produto_materia_prima_id_fkey"
+            columns: ["produto_materia_prima_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -2967,8 +3770,10 @@ export type Database = {
           company_id: string
           criado_em: string | null
           criado_por: string | null
+          custo_complementos_dose: number | null
           densidade_aparente_kg_l: number | null
           densidade_media: number | null
+          doses_por_dia: number
           doses_por_frasco: number | null
           doses_por_pote: number | null
           excipiente_padrao:
@@ -2976,12 +3781,16 @@ export type Database = {
             | null
           gotas_por_dose: number | null
           gotas_por_ml: number | null
+          grupo_populacional_alvo: string | null
           id: string
+          massa_ativos_dose_mg: number | null
+          n_capsulas_por_dose: number | null
           nome_formula: string
           observacoes_tecnicas: string | null
           peso_capsula_alvo_mg: number | null
           peso_capsula_nominal_mg: number | null
           peso_enchimento_mg: number | null
+          peso_por_capsula_mg: number | null
           peso_por_dose_g: number | null
           peso_total_pote_g: number | null
           produto_acabado_id: string | null
@@ -3002,8 +3811,10 @@ export type Database = {
           company_id?: string
           criado_em?: string | null
           criado_por?: string | null
+          custo_complementos_dose?: number | null
           densidade_aparente_kg_l?: number | null
           densidade_media?: number | null
+          doses_por_dia?: number
           doses_por_frasco?: number | null
           doses_por_pote?: number | null
           excipiente_padrao?:
@@ -3011,12 +3822,16 @@ export type Database = {
             | null
           gotas_por_dose?: number | null
           gotas_por_ml?: number | null
+          grupo_populacional_alvo?: string | null
           id?: string
+          massa_ativos_dose_mg?: number | null
+          n_capsulas_por_dose?: number | null
           nome_formula: string
           observacoes_tecnicas?: string | null
           peso_capsula_alvo_mg?: number | null
           peso_capsula_nominal_mg?: number | null
           peso_enchimento_mg?: number | null
+          peso_por_capsula_mg?: number | null
           peso_por_dose_g?: number | null
           peso_total_pote_g?: number | null
           produto_acabado_id?: string | null
@@ -3037,8 +3852,10 @@ export type Database = {
           company_id?: string
           criado_em?: string | null
           criado_por?: string | null
+          custo_complementos_dose?: number | null
           densidade_aparente_kg_l?: number | null
           densidade_media?: number | null
+          doses_por_dia?: number
           doses_por_frasco?: number | null
           doses_por_pote?: number | null
           excipiente_padrao?:
@@ -3046,12 +3863,16 @@ export type Database = {
             | null
           gotas_por_dose?: number | null
           gotas_por_ml?: number | null
+          grupo_populacional_alvo?: string | null
           id?: string
+          massa_ativos_dose_mg?: number | null
+          n_capsulas_por_dose?: number | null
           nome_formula?: string
           observacoes_tecnicas?: string | null
           peso_capsula_alvo_mg?: number | null
           peso_capsula_nominal_mg?: number | null
           peso_enchimento_mg?: number | null
+          peso_por_capsula_mg?: number | null
           peso_por_dose_g?: number | null
           peso_total_pote_g?: number | null
           produto_acabado_id?: string | null
@@ -3072,6 +3893,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formulas_produto_acabado_id_fkey"
+            columns: ["produto_acabado_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "formulas_produto_acabado_id_fkey"
@@ -3119,6 +3947,109 @@ export type Database = {
             foreignKeyName: "item_alias_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "item_alias_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_anvisa_vinculo: {
+        Row: {
+          base_calculo: string | null
+          company_id: string
+          confirmado_em: string | null
+          confirmado_por: string | null
+          constituinte_id: string
+          criado_em: string
+          ensaio_coa: string | null
+          id: string
+          item_id: string
+          observacao: string | null
+          overage_pct: number
+          status: string
+          teor_max_pct: number | null
+          teor_min_pct: number | null
+          teor_nominal_pct: number | null
+          teor_unidade: string | null
+          teor_valor: number | null
+        }
+        Insert: {
+          base_calculo?: string | null
+          company_id: string
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          constituinte_id: string
+          criado_em?: string
+          ensaio_coa?: string | null
+          id?: string
+          item_id: string
+          observacao?: string | null
+          overage_pct?: number
+          status?: string
+          teor_max_pct?: number | null
+          teor_min_pct?: number | null
+          teor_nominal_pct?: number | null
+          teor_unidade?: string | null
+          teor_valor?: number | null
+        }
+        Update: {
+          base_calculo?: string | null
+          company_id?: string
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          constituinte_id?: string
+          criado_em?: string
+          ensaio_coa?: string | null
+          id?: string
+          item_id?: string
+          observacao?: string | null
+          overage_pct?: number
+          status?: string
+          teor_max_pct?: number | null
+          teor_min_pct?: number | null
+          teor_nominal_pct?: number | null
+          teor_unidade?: string | null
+          teor_valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_anvisa_vinculo_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_anvisa_vinculo_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_anvisa_vinculo_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_anvisa_vinculo_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "item_anvisa_vinculo_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -3137,6 +4068,7 @@ export type Database = {
           lead_time_dias: number | null
           moq: number | null
           preco_referencia: number | null
+          qtd_por_pacote: number | null
           unidade_compra_padrao: string | null
         }
         Insert: {
@@ -3151,6 +4083,7 @@ export type Database = {
           lead_time_dias?: number | null
           moq?: number | null
           preco_referencia?: number | null
+          qtd_por_pacote?: number | null
           unidade_compra_padrao?: string | null
         }
         Update: {
@@ -3165,6 +4098,7 @@ export type Database = {
           lead_time_dias?: number | null
           moq?: number | null
           preco_referencia?: number | null
+          qtd_por_pacote?: number | null
           unidade_compra_padrao?: string | null
         }
         Relationships: [
@@ -3174,6 +4108,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_fornecedores_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "item_fornecedores_item_id_fkey"
@@ -3219,6 +4160,9 @@ export type Database = {
           descricao_comercial: string | null
           descricao_interna: string
           ean: string | null
+          eh_premix: boolean
+          embalagem_compra_qtd: number | null
+          embalagem_compra_unidade: string | null
           exige_premix: boolean | null
           fator_conversao: number | null
           higroscopico: boolean | null
@@ -3279,6 +4223,9 @@ export type Database = {
           descricao_comercial?: string | null
           descricao_interna: string
           ean?: string | null
+          eh_premix?: boolean
+          embalagem_compra_qtd?: number | null
+          embalagem_compra_unidade?: string | null
           exige_premix?: boolean | null
           fator_conversao?: number | null
           higroscopico?: boolean | null
@@ -3339,6 +4286,9 @@ export type Database = {
           descricao_comercial?: string | null
           descricao_interna?: string
           ean?: string | null
+          eh_premix?: boolean
+          embalagem_compra_qtd?: number | null
+          embalagem_compra_unidade?: string | null
           exige_premix?: boolean | null
           fator_conversao?: number | null
           higroscopico?: boolean | null
@@ -3438,6 +4388,223 @@ export type Database = {
         }
         Relationships: []
       }
+      laudos_notas: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          data_laudo: string | null
+          id: string
+          item_id: string | null
+          nome_arquivo: string
+          nota_entrada_id: string
+          observacoes: string | null
+          resultado_laudo: string | null
+          tipo_laudo: string | null
+          updated_at: string | null
+          url_laudo: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          data_laudo?: string | null
+          id?: string
+          item_id?: string | null
+          nome_arquivo: string
+          nota_entrada_id: string
+          observacoes?: string | null
+          resultado_laudo?: string | null
+          tipo_laudo?: string | null
+          updated_at?: string | null
+          url_laudo: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          data_laudo?: string | null
+          id?: string
+          item_id?: string | null
+          nome_arquivo?: string
+          nota_entrada_id?: string
+          observacoes?: string | null
+          resultado_laudo?: string | null
+          tipo_laudo?: string | null
+          updated_at?: string | null
+          url_laudo?: string
+        }
+        Relationships: []
+      }
+      legislacao_chunks: {
+        Row: {
+          created_at: string
+          embedding: string | null
+          fonte_id: string
+          id: string
+          referencia: string
+          texto: string
+        }
+        Insert: {
+          created_at?: string
+          embedding?: string | null
+          fonte_id: string
+          id?: string
+          referencia: string
+          texto: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: string | null
+          fonte_id?: string
+          id?: string
+          referencia?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislacao_chunks_fonte_id_fkey"
+            columns: ["fonte_id"]
+            isOneToOne: false
+            referencedRelation: "legislacao_fontes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legislacao_fontes: {
+        Row: {
+          ano: number
+          aprovado_em: string | null
+          aprovado_por: string | null
+          categoria: string
+          created_at: string
+          data_publicacao: string | null
+          data_ultima_verificacao: string | null
+          hash_conteudo: string | null
+          id: string
+          numero: string
+          status: string
+          texto_completo: string | null
+          tipo: string
+          titulo: string
+          url_oficial: string
+        }
+        Insert: {
+          ano: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          categoria: string
+          created_at?: string
+          data_publicacao?: string | null
+          data_ultima_verificacao?: string | null
+          hash_conteudo?: string | null
+          id?: string
+          numero: string
+          status?: string
+          texto_completo?: string | null
+          tipo: string
+          titulo: string
+          url_oficial: string
+        }
+        Update: {
+          ano?: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          categoria?: string
+          created_at?: string
+          data_publicacao?: string | null
+          data_ultima_verificacao?: string | null
+          hash_conteudo?: string | null
+          id?: string
+          numero?: string
+          status?: string
+          texto_completo?: string | null
+          tipo?: string
+          titulo?: string
+          url_oficial?: string
+        }
+        Relationships: []
+      }
+      legislacao_monitoramento: {
+        Row: {
+          created_at: string
+          fonte_monitorada: string
+          hash_anterior: string | null
+          hash_novo: string | null
+          id: string
+          mudanca_detectada: boolean | null
+          resumo_mudanca: string | null
+          revisado_em: string | null
+          revisado_por: string | null
+          status_revisao: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          fonte_monitorada: string
+          hash_anterior?: string | null
+          hash_novo?: string | null
+          id?: string
+          mudanca_detectada?: boolean | null
+          resumo_mudanca?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status_revisao?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          fonte_monitorada?: string
+          hash_anterior?: string | null
+          hash_novo?: string | null
+          id?: string
+          mudanca_detectada?: boolean | null
+          resumo_mudanca?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status_revisao?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
+      legislacao_perguntas: {
+        Row: {
+          chunks_usados: string[] | null
+          company_id: string
+          created_at: string
+          encontrou_resposta: boolean | null
+          id: string
+          pergunta: string
+          resposta: string | null
+          usuario_id: string
+        }
+        Insert: {
+          chunks_usados?: string[] | null
+          company_id: string
+          created_at?: string
+          encontrou_resposta?: boolean | null
+          id?: string
+          pergunta: string
+          resposta?: string | null
+          usuario_id: string
+        }
+        Update: {
+          chunks_usados?: string[] | null
+          company_id?: string
+          created_at?: string
+          encontrou_resposta?: boolean | null
+          id?: string
+          pergunta?: string
+          resposta?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislacao_perguntas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_validacoes_anvisa: {
         Row: {
           acao_sistema: string | null
@@ -3497,6 +4664,8 @@ export type Database = {
           observacoes: string | null
           status_validacao: string | null
           tipo_documento: string
+          validado_em: string | null
+          validado_por: string | null
           versao: number | null
         }
         Insert: {
@@ -3509,6 +4678,8 @@ export type Database = {
           observacoes?: string | null
           status_validacao?: string | null
           tipo_documento?: string
+          validado_em?: string | null
+          validado_por?: string | null
           versao?: number | null
         }
         Update: {
@@ -3521,6 +4692,8 @@ export type Database = {
           observacoes?: string | null
           status_validacao?: string | null
           tipo_documento?: string
+          validado_em?: string | null
+          validado_por?: string | null
           versao?: number | null
         }
         Relationships: [
@@ -3533,6 +4706,75 @@ export type Database = {
           },
           {
             foreignKeyName: "lote_documentos_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lote_liberacoes_sem_coa: {
+        Row: {
+          coa_presente: boolean
+          company_id: string
+          created_at: string
+          hash_sha256: string | null
+          id: string
+          insumo_nome: string | null
+          ip_address: string | null
+          justificativa: string
+          lote_id: string
+          numero_lote: string | null
+          status_anterior: string
+          user_agent: string | null
+          usuario_email: string | null
+          usuario_id: string | null
+          usuario_nome: string
+        }
+        Insert: {
+          coa_presente?: boolean
+          company_id: string
+          created_at?: string
+          hash_sha256?: string | null
+          id?: string
+          insumo_nome?: string | null
+          ip_address?: string | null
+          justificativa: string
+          lote_id: string
+          numero_lote?: string | null
+          status_anterior?: string
+          user_agent?: string | null
+          usuario_email?: string | null
+          usuario_id?: string | null
+          usuario_nome: string
+        }
+        Update: {
+          coa_presente?: boolean
+          company_id?: string
+          created_at?: string
+          hash_sha256?: string | null
+          id?: string
+          insumo_nome?: string | null
+          ip_address?: string | null
+          justificativa?: string
+          lote_id?: string
+          numero_lote?: string | null
+          status_anterior?: string
+          user_agent?: string | null
+          usuario_email?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lote_liberacoes_sem_coa_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lote_liberacoes_sem_coa_lote_id_fkey"
             columns: ["lote_id"]
             isOneToOne: false
             referencedRelation: "estoque_lotes"
@@ -3581,6 +4823,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lote_materias_primas_insumo_id_fkey"
+            columns: ["insumo_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "lote_materias_primas_insumo_id_fkey"
@@ -3713,6 +4962,13 @@ export type Database = {
             foreignKeyName: "lotes_produto_acabado_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "lotes_produto_acabado_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -3816,6 +5072,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_reservados_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "lotes_reservados_item_id_fkey"
@@ -4198,11 +5461,16 @@ export type Database = {
           fornecedor_id: string | null
           id: string
           modelo: string | null
+          motivo_sem_pedido: string | null
+          nota_avulsa: boolean
           numero: string | null
+          pedido_id: string | null
           serie: string | null
           status: string
           total_nota: number | null
           total_produtos: number | null
+          vinculada_em: string | null
+          vinculada_por: string | null
           xml_raw: string | null
         }
         Insert: {
@@ -4213,11 +5481,16 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           modelo?: string | null
+          motivo_sem_pedido?: string | null
+          nota_avulsa?: boolean
           numero?: string | null
+          pedido_id?: string | null
           serie?: string | null
           status?: string
           total_nota?: number | null
           total_produtos?: number | null
+          vinculada_em?: string | null
+          vinculada_por?: string | null
           xml_raw?: string | null
         }
         Update: {
@@ -4228,11 +5501,16 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           modelo?: string | null
+          motivo_sem_pedido?: string | null
+          nota_avulsa?: boolean
           numero?: string | null
+          pedido_id?: string | null
           serie?: string | null
           status?: string
           total_nota?: number | null
           total_produtos?: number | null
+          vinculada_em?: string | null
+          vinculada_por?: string | null
           xml_raw?: string | null
         }
         Relationships: [
@@ -4257,6 +5535,20 @@ export type Database = {
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notas_entrada_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_divergencias"
+            referencedColumns: ["pedido_id"]
+          },
         ]
       }
       notas_entrada_itens: {
@@ -4271,6 +5563,7 @@ export type Database = {
           item_id: string | null
           ncm: string | null
           nota_entrada_id: string
+          pedido_item_id: string | null
           qcom: number | null
           ucom: string | null
           vprod: number | null
@@ -4287,6 +5580,7 @@ export type Database = {
           item_id?: string | null
           ncm?: string | null
           nota_entrada_id: string
+          pedido_item_id?: string | null
           qcom?: number | null
           ucom?: string | null
           vprod?: number | null
@@ -4303,6 +5597,7 @@ export type Database = {
           item_id?: string | null
           ncm?: string | null
           nota_entrada_id?: string
+          pedido_item_id?: string | null
           qcom?: number | null
           ucom?: string | null
           vprod?: number | null
@@ -4320,6 +5615,13 @@ export type Database = {
             foreignKeyName: "notas_entrada_itens_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -4329,6 +5631,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "notas_entrada"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_divergencias"
+            referencedColumns: ["pedido_item_id"]
           },
         ]
       }
@@ -4344,6 +5660,7 @@ export type Database = {
           data_cancelamento: string | null
           data_emissao: string | null
           finalidade: string | null
+          focus_nfe_id: string | null
           forma_pagamento: string | null
           id: string
           informacoes_adicionais: string | null
@@ -4353,7 +5670,6 @@ export type Database = {
           motivo_cancelamento: string | null
           natureza_operacao: string | null
           numero: number | null
-          focus_nfe_id: string | null
           nuvem_fiscal_id: string | null
           nuvem_fiscal_status: string | null
           pedido_venda_id: string | null
@@ -4391,6 +5707,7 @@ export type Database = {
           data_cancelamento?: string | null
           data_emissao?: string | null
           finalidade?: string | null
+          focus_nfe_id?: string | null
           forma_pagamento?: string | null
           id?: string
           informacoes_adicionais?: string | null
@@ -4400,7 +5717,6 @@ export type Database = {
           motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
-          focus_nfe_id?: string | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
@@ -4438,6 +5754,7 @@ export type Database = {
           data_cancelamento?: string | null
           data_emissao?: string | null
           finalidade?: string | null
+          focus_nfe_id?: string | null
           forma_pagamento?: string | null
           id?: string
           informacoes_adicionais?: string | null
@@ -4447,7 +5764,6 @@ export type Database = {
           motivo_cancelamento?: string | null
           natureza_operacao?: string | null
           numero?: number | null
-          focus_nfe_id?: string | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
@@ -4599,6 +5915,13 @@ export type Database = {
           valor_unitario?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "notas_saida_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
           {
             foreignKeyName: "notas_saida_itens_item_id_fkey"
             columns: ["item_id"]
@@ -4756,6 +6079,13 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "op_assinaturas_rt_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "op_assinaturas_rt_responsavel_tecnico_id_fkey"
             columns: ["responsavel_tecnico_id"]
@@ -5017,12 +6347,20 @@ export type Database = {
           status?: string | null
           tipo_embalagem?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "op_embalagens_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       op_excipientes_config: {
         Row: {
-          ativo: boolean
           adicionar_por_ultimo: boolean
+          ativo: boolean
           categoria: string
           company_id: string
           created_at: string
@@ -5035,8 +6373,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          ativo?: boolean
           adicionar_por_ultimo?: boolean
+          ativo?: boolean
           categoria: string
           company_id: string
           created_at?: string
@@ -5049,8 +6387,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          ativo?: boolean
           adicionar_por_ultimo?: boolean
+          ativo?: boolean
           categoria?: string
           company_id?: string
           created_at?: string
@@ -5064,11 +6402,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "op_excipientes_config_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: "op_excipientes_config_item_id_fkey"
+            columns: ["item_id"]
             isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "op_excipientes_config_item_id_fkey"
@@ -5113,7 +6451,15 @@ export type Database = {
           operador_id?: string | null
           operador_nome?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "op_historico_etapas_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       op_materias_primas: {
         Row: {
@@ -5229,6 +6575,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_materias_primas_insumo_id_fkey"
+            columns: ["insumo_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "op_materias_primas_insumo_id_fkey"
@@ -5529,6 +6882,13 @@ export type Database = {
             foreignKeyName: "orcamento_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -5728,6 +7088,7 @@ export type Database = {
           capsula_item_id: string | null
           capsula_item_nome: string | null
           capsulas_por_frasco: number
+          cliente_cnpj: string | null
           cliente_id: string | null
           cliente_nome: string | null
           codigo: string
@@ -5777,6 +7138,7 @@ export type Database = {
           qr_code_token: string | null
           quantidade_frascos: number
           quantidade_silica_sache: string | null
+          registro_anvisa_produto: string | null
           rendimento_percentual: number | null
           responsavel_producao_id: string | null
           responsavel_producao_nome: string | null
@@ -5819,6 +7181,7 @@ export type Database = {
           capsula_item_id?: string | null
           capsula_item_nome?: string | null
           capsulas_por_frasco: number
+          cliente_cnpj?: string | null
           cliente_id?: string | null
           cliente_nome?: string | null
           codigo: string
@@ -5868,6 +7231,7 @@ export type Database = {
           qr_code_token?: string | null
           quantidade_frascos: number
           quantidade_silica_sache?: string | null
+          registro_anvisa_produto?: string | null
           rendimento_percentual?: number | null
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
@@ -5910,6 +7274,7 @@ export type Database = {
           capsula_item_id?: string | null
           capsula_item_nome?: string | null
           capsulas_por_frasco?: number
+          cliente_cnpj?: string | null
           cliente_id?: string | null
           cliente_nome?: string | null
           codigo?: string
@@ -5959,6 +7324,7 @@ export type Database = {
           qr_code_token?: string | null
           quantidade_frascos?: number
           quantidade_silica_sache?: string | null
+          registro_anvisa_produto?: string | null
           rendimento_percentual?: number | null
           responsavel_producao_id?: string | null
           responsavel_producao_nome?: string | null
@@ -6000,6 +7366,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "op_assinaturas_rt"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_capsula_item_id_fkey"
+            columns: ["capsula_item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_capsula_item_id_fkey"
@@ -6047,8 +7420,22 @@ export type Database = {
             foreignKeyName: "ordens_producao_industrial_pote_item_id_fkey"
             columns: ["pote_item_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_pote_item_id_fkey"
+            columns: ["pote_item_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_produto_id_fkey"
@@ -6075,8 +7462,22 @@ export type Database = {
             foreignKeyName: "ordens_producao_industrial_silica_item_id_fkey"
             columns: ["silica_item_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_silica_item_id_fkey"
+            columns: ["silica_item_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_industrial_tampa_item_id_fkey"
+            columns: ["tampa_item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_tampa_item_id_fkey"
@@ -6211,6 +7612,13 @@ export type Database = {
             foreignKeyName: "pedido_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "pedido_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -6277,6 +7685,13 @@ export type Database = {
             foreignKeyName: "pedido_vendedor_itens_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "pedido_vendedor_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -6293,6 +7708,158 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pedidos_vendedor"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos_compra: {
+        Row: {
+          company_id: string
+          condicao_pagamento: string | null
+          created_at: string
+          emitido_em: string
+          emitido_por: string | null
+          fornecedor_id: string
+          frete: number | null
+          id: string
+          numero_interno: string | null
+          observacao: string | null
+          pedido_enviado_em: string | null
+          prazo_entrega: string | null
+          status: string
+          updated_at: string
+          valor_total: number | null
+        }
+        Insert: {
+          company_id: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          emitido_em?: string
+          emitido_por?: string | null
+          fornecedor_id: string
+          frete?: number | null
+          id?: string
+          numero_interno?: string | null
+          observacao?: string | null
+          pedido_enviado_em?: string | null
+          prazo_entrega?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Update: {
+          company_id?: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          emitido_em?: string
+          emitido_por?: string | null
+          fornecedor_id?: string
+          frete?: number | null
+          id?: string
+          numero_interno?: string | null
+          observacao?: string | null
+          pedido_enviado_em?: string | null
+          prazo_entrega?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_compra_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos_compra_itens: {
+        Row: {
+          created_at: string
+          frete_rateado: number | null
+          id: string
+          item_id: string | null
+          item_nome: string | null
+          num_pacotes: number | null
+          pedido_id: string
+          preco_unitario: number | null
+          qtd_por_pacote: number | null
+          quantidade: number | null
+          quantidade_necessaria: number | null
+          quantidade_recebida: number | null
+          requisicao_item_ids: string[] | null
+          subtotal: number | null
+          unidade: string | null
+        }
+        Insert: {
+          created_at?: string
+          frete_rateado?: number | null
+          id?: string
+          item_id?: string | null
+          item_nome?: string | null
+          num_pacotes?: number | null
+          pedido_id: string
+          preco_unitario?: number | null
+          qtd_por_pacote?: number | null
+          quantidade?: number | null
+          quantidade_necessaria?: number | null
+          quantidade_recebida?: number | null
+          requisicao_item_ids?: string[] | null
+          subtotal?: number | null
+          unidade?: string | null
+        }
+        Update: {
+          created_at?: string
+          frete_rateado?: number | null
+          id?: string
+          item_id?: string | null
+          item_nome?: string | null
+          num_pacotes?: number | null
+          pedido_id?: string
+          preco_unitario?: number | null
+          qtd_por_pacote?: number | null
+          quantidade?: number | null
+          quantidade_necessaria?: number | null
+          quantidade_recebida?: number | null
+          requisicao_item_ids?: string[] | null
+          subtotal?: number | null
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_divergencias"
+            referencedColumns: ["pedido_id"]
           },
         ]
       }
@@ -6689,6 +8256,162 @@ export type Database = {
           },
         ]
       }
+      premix_definicao: {
+        Row: {
+          company_id: string
+          constituinte_anvisa_id: string | null
+          created_at: string
+          diluente_padrao: string | null
+          id: string
+          item_ativo_puro_id: string | null
+          item_premix_id: string
+          observacoes: string | null
+          unidade_potencia: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string
+          constituinte_anvisa_id?: string | null
+          created_at?: string
+          diluente_padrao?: string | null
+          id?: string
+          item_ativo_puro_id?: string | null
+          item_premix_id: string
+          observacoes?: string | null
+          unidade_potencia?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          constituinte_anvisa_id?: string | null
+          created_at?: string
+          diluente_padrao?: string | null
+          id?: string
+          item_ativo_puro_id?: string | null
+          item_premix_id?: string
+          observacoes?: string | null
+          unidade_potencia?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premix_definicao_constituinte_anvisa_id_fkey"
+            columns: ["constituinte_anvisa_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premix_definicao_constituinte_anvisa_id_fkey"
+            columns: ["constituinte_anvisa_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premix_definicao_constituinte_anvisa_id_fkey"
+            columns: ["constituinte_anvisa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premix_definicao_item_ativo_puro_id_fkey"
+            columns: ["item_ativo_puro_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "premix_definicao_item_ativo_puro_id_fkey"
+            columns: ["item_ativo_puro_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premix_definicao_item_premix_id_fkey"
+            columns: ["item_premix_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "premix_definicao_item_premix_id_fkey"
+            columns: ["item_premix_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      premix_politica_constituinte: {
+        Row: {
+          ajustado_em: string
+          ajustado_por: string | null
+          company_id: string
+          constituinte_id: string
+          exige_premix: boolean
+          fator_diluicao: number | null
+          id: string
+          observacoes: string | null
+          precisa_antioxidante: boolean
+          precisa_protecao_luz: boolean
+          solubilidade: string | null
+          veiculo: string | null
+        }
+        Insert: {
+          ajustado_em?: string
+          ajustado_por?: string | null
+          company_id?: string
+          constituinte_id: string
+          exige_premix?: boolean
+          fator_diluicao?: number | null
+          id?: string
+          observacoes?: string | null
+          precisa_antioxidante?: boolean
+          precisa_protecao_luz?: boolean
+          solubilidade?: string | null
+          veiculo?: string | null
+        }
+        Update: {
+          ajustado_em?: string
+          ajustado_por?: string | null
+          company_id?: string
+          constituinte_id?: string
+          exige_premix?: boolean
+          fator_diluicao?: number | null
+          id?: string
+          observacoes?: string | null
+          precisa_antioxidante?: boolean
+          precisa_protecao_luz?: boolean
+          solubilidade?: string | null
+          veiculo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premix_politica_constituinte_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_checker_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premix_politica_constituinte_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_constituintes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premix_politica_constituinte_constituinte_id_fkey"
+            columns: ["constituinte_id"]
+            isOneToOne: false
+            referencedRelation: "vw_anvisa_constituintes_completo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       previsoes_producao: {
         Row: {
           alerta: string | null
@@ -6743,6 +8466,13 @@ export type Database = {
             foreignKeyName: "previsoes_producao_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "previsoes_producao_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -6753,6 +8483,7 @@ export type Database = {
           avatar_url: string | null
           cargo: string | null
           company_id: string | null
+          conselho_registro: string | null
           created_at: string
           data_nascimento: string | null
           departamento: Database["public"]["Enums"]["app_departamento"] | null
@@ -6769,6 +8500,7 @@ export type Database = {
           avatar_url?: string | null
           cargo?: string | null
           company_id?: string | null
+          conselho_registro?: string | null
           created_at?: string
           data_nascimento?: string | null
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
@@ -6785,6 +8517,7 @@ export type Database = {
           avatar_url?: string | null
           cargo?: string | null
           company_id?: string | null
+          conselho_registro?: string | null
           created_at?: string
           data_nascimento?: string | null
           departamento?: Database["public"]["Enums"]["app_departamento"] | null
@@ -6815,9 +8548,12 @@ export type Database = {
           data_analise: string | null
           especificacao: string
           id: string
-          lote_id: string
+          item_id: string | null
+          laudo_id: string | null
+          lote_id: string | null
+          nota_entrada_id: string | null
           observacoes: string | null
-          parametro: string
+          parametro: string | null
           resultado: string | null
           status: string | null
           tipo_analise: string
@@ -6829,9 +8565,12 @@ export type Database = {
           data_analise?: string | null
           especificacao: string
           id?: string
-          lote_id: string
+          item_id?: string | null
+          laudo_id?: string | null
+          lote_id?: string | null
+          nota_entrada_id?: string | null
           observacoes?: string | null
-          parametro: string
+          parametro?: string | null
           resultado?: string | null
           status?: string | null
           tipo_analise?: string
@@ -6843,9 +8582,12 @@ export type Database = {
           data_analise?: string | null
           especificacao?: string
           id?: string
-          lote_id?: string
+          item_id?: string | null
+          laudo_id?: string | null
+          lote_id?: string | null
+          nota_entrada_id?: string | null
           observacoes?: string | null
-          parametro?: string
+          parametro?: string | null
           resultado?: string | null
           status?: string | null
           tipo_analise?: string
@@ -7219,6 +8961,13 @@ export type Database = {
             foreignKeyName: "rastreabilidade_lote_mp_item_mp_id_fkey"
             columns: ["item_mp_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "rastreabilidade_lote_mp_item_mp_id_fkey"
+            columns: ["item_mp_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -7235,6 +8984,77 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lotes_produto_acabado"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      recebimentos_conferencia: {
+        Row: {
+          avaria: boolean
+          company_id: string
+          conferido_em: string
+          conferido_por: string
+          created_at: string
+          id: string
+          nota_entrada_item_id: string | null
+          observacao: string | null
+          pedido_item_id: string
+          quantidade_conferida: number
+          unidade: string | null
+        }
+        Insert: {
+          avaria?: boolean
+          company_id: string
+          conferido_em?: string
+          conferido_por: string
+          created_at?: string
+          id?: string
+          nota_entrada_item_id?: string | null
+          observacao?: string | null
+          pedido_item_id: string
+          quantidade_conferida: number
+          unidade?: string | null
+        }
+        Update: {
+          avaria?: boolean
+          company_id?: string
+          conferido_em?: string
+          conferido_por?: string
+          created_at?: string
+          id?: string
+          nota_entrada_item_id?: string | null
+          observacao?: string | null
+          pedido_item_id?: string
+          quantidade_conferida?: number
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recebimentos_conferencia_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_conferencia_nota_entrada_item_id_fkey"
+            columns: ["nota_entrada_item_id"]
+            isOneToOne: false
+            referencedRelation: "notas_entrada_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_conferencia_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_conferencia_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_divergencias"
+            referencedColumns: ["pedido_item_id"]
           },
         ]
       }
@@ -7291,6 +9111,337 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      regulatory_snapshots: {
+        Row: {
+          company_id: string
+          criado_em: string
+          documento_id: string | null
+          documento_tipo: string
+          formula_id: string | null
+          hash_snapshot: string
+          id: string
+          normas: Json
+          parecer: Json
+          rt_responsavel: string | null
+          versao_formula: number | null
+        }
+        Insert: {
+          company_id: string
+          criado_em?: string
+          documento_id?: string | null
+          documento_tipo: string
+          formula_id?: string | null
+          hash_snapshot: string
+          id?: string
+          normas?: Json
+          parecer: Json
+          rt_responsavel?: string | null
+          versao_formula?: number | null
+        }
+        Update: {
+          company_id?: string
+          criado_em?: string
+          documento_id?: string | null
+          documento_tipo?: string
+          formula_id?: string | null
+          hash_snapshot?: string
+          id?: string
+          normas?: Json
+          parecer?: Json
+          rt_responsavel?: string | null
+          versao_formula?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regulatory_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regulatory_snapshots_formula_id_fkey"
+            columns: ["formula_id"]
+            isOneToOne: false
+            referencedRelation: "formulas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisicoes_compra: {
+        Row: {
+          aprovada_em: string | null
+          aprovada_por: string | null
+          aprovada_por_nome: string | null
+          company_id: string
+          condicao_pagamento: string | null
+          created_at: string
+          criado_por: string | null
+          fornecedor_id: string | null
+          id: string
+          nota_entrada_id: string | null
+          numero_interno: string | null
+          observacoes: string | null
+          op_id: string | null
+          origem: string
+          pedido_enviado_em: string | null
+          prazo_pagamento: string | null
+          recebida_em: string | null
+          status: string
+          updated_at: string
+          valor_total: number | null
+        }
+        Insert: {
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          aprovada_por_nome?: string | null
+          company_id?: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          criado_por?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          nota_entrada_id?: string | null
+          numero_interno?: string | null
+          observacoes?: string | null
+          op_id?: string | null
+          origem?: string
+          pedido_enviado_em?: string | null
+          prazo_pagamento?: string | null
+          recebida_em?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Update: {
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          aprovada_por_nome?: string | null
+          company_id?: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          criado_por?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          nota_entrada_id?: string | null
+          numero_interno?: string | null
+          observacoes?: string | null
+          op_id?: string | null
+          origem?: string
+          pedido_enviado_em?: string | null
+          prazo_pagamento?: string | null
+          recebida_em?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicoes_compra_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_nota_entrada_id_fkey"
+            columns: ["nota_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao_industrial"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisicoes_compra_cotacoes: {
+        Row: {
+          created_at: string
+          escolhido: boolean
+          fornecedor_id: string
+          frete: number | null
+          id: string
+          num_pacotes_alocado: number | null
+          observacao: string | null
+          pedido_item_id: string | null
+          prazo_entrega: string | null
+          preco_unitario: number | null
+          qtd_alocada: number | null
+          qtd_cotada: number | null
+          qtd_por_pacote: number | null
+          requisicao_item_id: string
+          unidade_compra: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          escolhido?: boolean
+          fornecedor_id: string
+          frete?: number | null
+          id?: string
+          num_pacotes_alocado?: number | null
+          observacao?: string | null
+          pedido_item_id?: string | null
+          prazo_entrega?: string | null
+          preco_unitario?: number | null
+          qtd_alocada?: number | null
+          qtd_cotada?: number | null
+          qtd_por_pacote?: number | null
+          requisicao_item_id: string
+          unidade_compra?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          escolhido?: boolean
+          fornecedor_id?: string
+          frete?: number | null
+          id?: string
+          num_pacotes_alocado?: number | null
+          observacao?: string | null
+          pedido_item_id?: string | null
+          prazo_entrega?: string | null
+          preco_unitario?: number | null
+          qtd_alocada?: number | null
+          qtd_cotada?: number | null
+          qtd_por_pacote?: number | null
+          requisicao_item_id?: string
+          unidade_compra?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicoes_compra_cotacoes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_cotacoes_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_cotacoes_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_divergencias"
+            referencedColumns: ["pedido_item_id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_cotacoes_requisicao_item_id_fkey"
+            columns: ["requisicao_item_id"]
+            isOneToOne: false
+            referencedRelation: "requisicoes_compra_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisicoes_compra_itens: {
+        Row: {
+          created_at: string
+          fornecedor_id: string | null
+          id: string
+          item_id: string | null
+          item_nome: string | null
+          pedido_item_id: string | null
+          preco_cotado: number | null
+          quantidade_comprar: number | null
+          quantidade_disponivel: number
+          quantidade_faltante: number
+          quantidade_necessaria: number
+          quantidade_recebida: number | null
+          requisicao_id: string
+          status: string
+          unidade: string | null
+        }
+        Insert: {
+          created_at?: string
+          fornecedor_id?: string | null
+          id?: string
+          item_id?: string | null
+          item_nome?: string | null
+          pedido_item_id?: string | null
+          preco_cotado?: number | null
+          quantidade_comprar?: number | null
+          quantidade_disponivel?: number
+          quantidade_faltante: number
+          quantidade_necessaria: number
+          quantidade_recebida?: number | null
+          requisicao_id: string
+          status?: string
+          unidade?: string | null
+        }
+        Update: {
+          created_at?: string
+          fornecedor_id?: string | null
+          id?: string
+          item_id?: string | null
+          item_nome?: string | null
+          pedido_item_id?: string | null
+          preco_cotado?: number | null
+          quantidade_comprar?: number | null
+          quantidade_disponivel?: number
+          quantidade_faltante?: number
+          quantidade_necessaria?: number
+          quantidade_recebida?: number | null
+          requisicao_id?: string
+          status?: string
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicoes_compra_itens_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_divergencias"
+            referencedColumns: ["pedido_item_id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicoes_compra"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       responsaveis_tecnicos: {
         Row: {
@@ -7760,6 +9911,54 @@ export type Database = {
           },
         ]
       }
+      sensores: {
+        Row: {
+          ativo: boolean | null
+          company_id: string
+          created_at: string | null
+          device_id: string
+          id: string
+          nome_dispositivo: string | null
+          nome_sala: string | null
+          responsavel: string | null
+          temperatura_maxima: number | null
+          temperatura_minima: number | null
+          umidade_maxima: number | null
+          umidade_minima: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          company_id: string
+          created_at?: string | null
+          device_id: string
+          id?: string
+          nome_dispositivo?: string | null
+          nome_sala?: string | null
+          responsavel?: string | null
+          temperatura_maxima?: number | null
+          temperatura_minima?: number | null
+          umidade_maxima?: number | null
+          umidade_minima?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          device_id?: string
+          id?: string
+          nome_dispositivo?: string | null
+          nome_sala?: string | null
+          responsavel?: string | null
+          temperatura_maxima?: number | null
+          temperatura_minima?: number | null
+          umidade_maxima?: number | null
+          umidade_minima?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       simulacoes_producao: {
         Row: {
           company_id: string | null
@@ -7996,6 +10195,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trilhas_estudo: {
+        Row: {
+          categoria: string
+          conteudo_md: string
+          created_at: string
+          fontes_relacionadas: string[] | null
+          id: string
+          nivel: string | null
+          ordem: number | null
+          titulo: string
+        }
+        Insert: {
+          categoria: string
+          conteudo_md: string
+          created_at?: string
+          fontes_relacionadas?: string[] | null
+          id?: string
+          nivel?: string | null
+          ordem?: number | null
+          titulo: string
+        }
+        Update: {
+          categoria?: string
+          conteudo_md?: string
+          created_at?: string
+          fontes_relacionadas?: string[] | null
+          id?: string
+          nivel?: string | null
+          ordem?: number | null
+          titulo?: string
+        }
+        Relationships: []
+      }
       unlock_challenges: {
         Row: {
           aprovado_em: string | null
@@ -8165,6 +10397,13 @@ export type Database = {
             foreignKeyName: "vendedor_tabela_precos_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "vendedor_tabela_precos_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -8274,6 +10513,373 @@ export type Database = {
       }
     }
     Views: {
+      anvisa_checker_base: {
+        Row: {
+          advertencias: string[] | null
+          alegacoes: string[] | null
+          alerta_critico: string | null
+          anexo_origem: string | null
+          categoria: string | null
+          chave_norm: string | null
+          fonte_url: string | null
+          grupos_nao_autorizados: string[] | null
+          homologado: boolean | null
+          homologado_em: string | null
+          homologado_por: string | null
+          id: string | null
+          is_proibido: boolean | null
+          limite_max_num: number | null
+          limite_min_num: number | null
+          limite_parse_status: string | null
+          limite_unidade: string | null
+          nome_rotulo: string | null
+          nome_tecnico: string | null
+          norma_inclusao: string | null
+          norma_ultima_alteracao: string | null
+          origem_proveniencia: string | null
+          prazo_adequacao: string | null
+          status_checker: string | null
+        }
+        Insert: {
+          advertencias?: string[] | null
+          alegacoes?: string[] | null
+          alerta_critico?: string | null
+          anexo_origem?: string | null
+          categoria?: string | null
+          chave_norm?: string | null
+          fonte_url?: string | null
+          grupos_nao_autorizados?: string[] | null
+          homologado?: boolean | null
+          homologado_em?: string | null
+          homologado_por?: string | null
+          id?: string | null
+          is_proibido?: boolean | null
+          limite_max_num?: number | null
+          limite_min_num?: number | null
+          limite_parse_status?: string | null
+          limite_unidade?: string | null
+          nome_rotulo?: string | null
+          nome_tecnico?: string | null
+          norma_inclusao?: string | null
+          norma_ultima_alteracao?: string | null
+          origem_proveniencia?: string | null
+          prazo_adequacao?: string | null
+          status_checker?: never
+        }
+        Update: {
+          advertencias?: string[] | null
+          alegacoes?: string[] | null
+          alerta_critico?: string | null
+          anexo_origem?: string | null
+          categoria?: string | null
+          chave_norm?: string | null
+          fonte_url?: string | null
+          grupos_nao_autorizados?: string[] | null
+          homologado?: boolean | null
+          homologado_em?: string | null
+          homologado_por?: string | null
+          id?: string | null
+          is_proibido?: boolean | null
+          limite_max_num?: number | null
+          limite_min_num?: number | null
+          limite_parse_status?: string | null
+          limite_unidade?: string | null
+          nome_rotulo?: string | null
+          nome_tecnico?: string | null
+          norma_inclusao?: string | null
+          norma_ultima_alteracao?: string | null
+          origem_proveniencia?: string | null
+          prazo_adequacao?: string | null
+          status_checker?: never
+        }
+        Relationships: []
+      }
+      anvisa_itens_sem_vinculo: {
+        Row: {
+          company_id: string | null
+          descricao_interna: string | null
+          item_id: string | null
+          potencia_compra: number | null
+          status_vinculo: string | null
+          tipo_item: string | null
+          unidade_interna: string | null
+          usos_em_formulas: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anvisa_limite_por_nutriente: {
+        Row: {
+          dose_max: number | null
+          dose_min: number | null
+          homologado: boolean | null
+          n_formas: number | null
+          nutriente: string | null
+          nutriente_norm: string | null
+          unidade: string | null
+        }
+        Relationships: []
+      }
+      anvisa_rt_pendencias: {
+        Row: {
+          quantidade: number | null
+          status_checker: string | null
+        }
+        Relationships: []
+      }
+      compras_necessidades_consolidadas: {
+        Row: {
+          company_id: string | null
+          embalagem_compra_qtd: number | null
+          embalagem_compra_unidade: string | null
+          item_id: string | null
+          item_nome: string | null
+          n_fornecedores_cadastrados: number | null
+          n_ops: number | null
+          n_requisicoes: number | null
+          num_compras: number | null
+          ops: string[] | null
+          preco_medio: number | null
+          tipo_item: string | null
+          total_falta: number | null
+          ultima_compra_data: string | null
+          ultimo_fornecedor_id: string | null
+          ultimo_fornecedor_nome: string | null
+          ultimo_preco: number | null
+          unidade: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_fornecedor_historico: {
+        Row: {
+          company_id: string | null
+          fornecedor_id: string | null
+          item_id: string | null
+          num_compras: number | null
+          preco_medio: number | null
+          ultima_compra_data: string | null
+          ultima_qtd: number | null
+          ultima_unidade: string | null
+          ultimo_preco: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_notas_entrada_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_historico_compra: {
+        Row: {
+          company_id: string | null
+          item_id: string | null
+          num_compras: number | null
+          preco_medio: number | null
+          ultima_compra_data: string | null
+          ultima_qtd: number | null
+          ultimo_fornecedor_id: string | null
+          ultimo_fornecedor_nome: string | null
+          ultimo_preco: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_notas_entrada_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mapa_cotacao_ranking: {
+        Row: {
+          company_id: string | null
+          custo_itens: number | null
+          custo_total: number | null
+          escolhido: boolean | null
+          fornecedor_id: string | null
+          fornecedor_nome: string | null
+          frete: number | null
+          item_id: string | null
+          item_nome: string | null
+          n_cotados: number | null
+          prazo_dias: number | null
+          prazo_entrega: string | null
+          preco_unitario: number | null
+          qtd_alocada: number | null
+          qtd_compra: number | null
+          qtd_por_pacote: number | null
+          rank_custo: number | null
+          rank_prazo: number | null
+          rank_preco: number | null
+          total_falta: number | null
+          unidade_compra: string | null
+          unidade_item: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicoes_compra_cotacoes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recebimento_divergencias: {
+        Row: {
+          company_id: string | null
+          conferido_por: string[] | null
+          div_faturado_vs_pedido: number | null
+          div_fisico_vs_faturado: number | null
+          div_preco: number | null
+          div_preco_pct: number | null
+          emitido_por: string | null
+          fornecedor_id: string | null
+          fornecedor_nome: string | null
+          item_id: string | null
+          item_nome: string | null
+          n_conferencias: number | null
+          n_notas: number | null
+          notas: string[] | null
+          pedido_id: string | null
+          pedido_item_id: string | null
+          pedido_numero: string | null
+          pedido_status: string | null
+          preco_nota: number | null
+          preco_pedido: number | null
+          qtd_conferida: number | null
+          qtd_faturada: number | null
+          qtd_pedida: number | null
+          situacao_fisico: string | null
+          situacao_preco: string | null
+          situacao_qtd: string | null
+          subtotal_pedido: number | null
+          tem_avaria: boolean | null
+          ultima_conferencia: string | null
+          unidade: string | null
+          unidade_nota: string | null
+          valor_faturado: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_compra_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "anvisa_itens_sem_vinculo"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_anvisa_constituintes_completo: {
         Row: {
           advertencias: string | null
@@ -8362,6 +10968,72 @@ export type Database = {
     Functions: {
       _ghost_audit_key: { Args: never; Returns: string }
       _smtp_enc_key: { Args: never; Returns: string }
+      _uom_fator: { Args: { p: string }; Returns: number }
+      _uom_norm: { Args: { p: string }; Returns: string }
+      _uom_unidade: { Args: { p: string }; Returns: string }
+      ajustar_quantidade_recebida: {
+        Args: {
+          p_lote_id: string
+          p_motivo: string
+          p_qtd_real: number
+          p_unidade?: string
+        }
+        Returns: Json
+      }
+      alocar_fornecedor_item: {
+        Args: {
+          p_fornecedor_id: string
+          p_item_id: string
+          p_num_pacotes?: number
+          p_qtd_alocada: number
+        }
+        Returns: number
+      }
+      anvisa_avaliar_formula: {
+        Args: { p_data?: string; p_formula_id: string; p_grupo?: string }
+        Returns: {
+          ativo_piso_mg: number
+          ativo_teto_mg: number
+          constituinte: string
+          dado_faltante: string
+          insumo: string
+          limite_max_mg: number
+          limite_min_mg: number
+          norma: string
+          status: string
+        }[]
+      }
+      anvisa_limite_para_mg: {
+        Args: { p_unidade: string; p_valor: number }
+        Returns: number
+      }
+      anvisa_limite_por_grupo: {
+        Args: { p_constituinte_id: string; p_grupo: string }
+        Returns: {
+          coluna_fonte: string
+          grupo_normalizado: string
+          limite_max: number
+          limite_max_mg: number
+          limite_min: number
+          limite_min_mg: number
+          unidade: string
+        }[]
+      }
+      anvisa_limites_todos_grupos: {
+        Args: { p_constituinte_id: string }
+        Returns: {
+          grupo: string
+          grupo_label: string
+          limite_max: number
+          limite_min: number
+          unidade: string
+        }[]
+      }
+      aprovar_compra: { Args: never; Returns: Json }
+      aprovar_compra_fornecedor: {
+        Args: { p_fornecedor_id: string }
+        Returns: Json
+      }
       baixar_estoque_op_embalagens: {
         Args: { p_op_id: string }
         Returns: undefined
@@ -8419,18 +11091,27 @@ export type Database = {
         Returns: {
           advertencias: string[] | null
           alegacoes: string[] | null
+          alerta_critico: string | null
           anexo_origem: string
           ativo: boolean | null
           cas_number: string | null
           categoria: string
+          chave_norm: string | null
           created_at: string | null
           data_inclusao: string | null
           fonte_de: string | null
           fonte_url: string | null
           grupos_nao_autorizados: string[] | null
           grupos_permitidos: string[] | null
+          homologado: boolean
+          homologado_em: string | null
+          homologado_por: string | null
           id: string
           is_proibido: boolean | null
+          limite_max_num: number | null
+          limite_min_num: number | null
+          limite_parse_status: string | null
+          limite_unidade: string | null
           limites_0_6_meses: Json | null
           limites_1_3_anos: Json | null
           limites_19_mais: Json | null
@@ -8446,10 +11127,16 @@ export type Database = {
           nome_tecnico: string
           norma_inclusao: string
           norma_ultima_alteracao: string | null
+          origem_proveniencia: string | null
+          prazo_adequacao: string | null
           referencias_especificacao: string[] | null
+          requer_rehomologacao: boolean
+          requer_rehomologacao_em: string | null
+          requer_rehomologacao_motivo: string | null
           restricoes_uso: string | null
           rotulagem_complementar: string[] | null
           search_vector: unknown
+          sincronizado_em: string | null
           sinonimos: string[] | null
           status_normativo: string | null
           subcategoria: string | null
@@ -8465,21 +11152,156 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      buscar_ingrediente_nao_autorizado: {
+        Args: { p_termo: string }
+        Returns: {
+          base_legal: string
+          confirmado_rt: boolean
+          explicacao: string
+          fonte_url: string
+          nome: string
+          nome_cientifico: string
+          status: string
+        }[]
+      }
+      buscar_insumos_similares: {
+        Args: { comp: string; termo: string }
+        Returns: {
+          descricao_interna: string
+          id: string
+          sim: number
+        }[]
+      }
+      calcular_capsula_industrial: {
+        Args: { p_formula_id: string }
+        Returns: Json
+      }
       calcular_dv_lote: { Args: { p_base: string }; Returns: number }
       can_create_company: { Args: never; Returns: boolean }
+      cancelar_conferencia: {
+        Args: { p_conferencia_id: string }
+        Returns: Json
+      }
       cancelar_lote_reservado: {
         Args: { p_motivo: string; p_reserva_id: string }
         Returns: undefined
       }
+      coa_densidade_scan_pendentes: { Args: never; Returns: Json }
+      conferir_recebimento: {
+        Args: {
+          p_avaria?: boolean
+          p_nota_item_id?: string
+          p_observacao?: string
+          p_pedido_item_id: string
+          p_quantidade: number
+          p_unidade?: string
+        }
+        Returns: Json
+      }
+      constituinte_casa_ancora: {
+        Args: { p_ancora: string; p_nome_tecnico: string }
+        Returns: boolean
+      }
+      constituintes_candidatos_premix: {
+        Args: never
+        Returns: {
+          categoria: string
+          constituinte_id: string
+          exige_premix: boolean
+          fator_diluicao_sugerido: number
+          limite_max_num: number
+          limite_unidade: string
+          nome_tecnico: string
+          origem: string
+          proporcao_sugerida: string
+          solubilidade_sugerida: string
+        }[]
+      }
+      converter_para_unidade: {
+        Args: { p_de: string; p_para: string; p_valor: number }
+        Returns: number
+      }
       custo_op_belongs_to_tenant: { Args: { _cid: string }; Returns: boolean }
+      datalegis_url: {
+        Args: { p_ano: number; p_num: number; p_tipo: string }
+        Returns: string
+      }
+      delete_nota_entrada_completa: {
+        Args: { p_nota_id: string }
+        Returns: {
+          estoque_revertido: number
+          itens_deletados: number
+          mensagem: string
+          sucesso: boolean
+        }[]
+      }
+      densidade_blend_estimada: {
+        Args: {
+          p_dens_estearato?: number
+          p_dens_sio2?: number
+          p_dens_talco?: number
+          p_dens_veiculo?: number
+          p_formula_id: string
+        }
+        Returns: Json
+      }
+      densidade_item_resolvida: {
+        Args: {
+          p_dens_fallback?: number
+          p_item_id: string
+          p_lote_id?: string
+        }
+        Returns: Json
+      }
+      desativar_item: {
+        Args: { p_ativo: boolean; p_item_id: string }
+        Returns: Json
+      }
+      desvincular_nota_pedido: { Args: { p_nota_id: string }; Returns: Json }
       entidade_belongs_to_tenant: { Args: { _eid: string }; Returns: boolean }
+      escolher_fornecedor_item_consolidado: {
+        Args: { p_fornecedor_id: string; p_item_id: string }
+        Returns: number
+      }
+      excluir_item_seguro: { Args: { p_item_id: string }; Returns: Json }
+      extrair_ancora_constituinte: { Args: { p_nome: string }; Returns: string }
+      f_de_gramas: {
+        Args: { p_gramas: number; p_unidade: string }
+        Returns: number
+      }
+      f_num_br: { Args: { x: string }; Returns: number }
+      f_para_gramas: {
+        Args: { p_qtd: number; p_unidade: string }
+        Returns: number
+      }
+      f_parse_limite_anvisa:
+        | {
+            Args: { p_limite: Json }
+            Returns: {
+              limite_max: number
+              limite_min: number
+              unidade: string
+            }[]
+          }
+        | { Args: { t: string }; Returns: Json }
+      f_qtd_compra: {
+        Args: {
+          p_falta: number
+          p_qtd_por_pacote: number
+          p_unidade_compra: string
+          p_unidade_item: string
+        }
+        Returns: number
+      }
+      f_recalcular_recebimento_pedido: {
+        Args: { p_pedido_id: string }
+        Returns: undefined
+      }
+      fator_ui_mg_do_lote: { Args: { p_lote_id: string }; Returns: Json }
       formula_belongs_to_tenant: { Args: { _fid: string }; Returns: boolean }
       gerar_codigo_orcamento: { Args: never; Returns: string }
       gerar_codigo_pedido: { Args: never; Returns: string }
       gerar_hash_auditoria: { Args: { dados: Json }; Returns: string }
-      calcular_capsula_industrial: { Args: { p_formula_id: string }; Returns: Json }
-
-      proximo_codigo_formula: { Args: { p_company_id?: string }; Returns: string }
       gerar_hash_qr_code_op: {
         Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }
         Returns: string
@@ -8498,6 +11320,25 @@ export type Database = {
         Args: { p_acao: string; p_payload: Json }
         Returns: undefined
       }
+      gravar_cotacao_item_consolidado: {
+        Args: {
+          p_fornecedor_id: string
+          p_frete?: number
+          p_item_id: string
+          p_observacao?: string
+          p_prazo?: string
+          p_preco: number
+          p_qtd_cotada?: number
+          p_qtd_por_pacote?: number
+          p_unidade?: string
+        }
+        Returns: number
+      }
+      has_active_unlock: { Args: { _user_id: string }; Returns: boolean }
+      has_module_permission: {
+        Args: { _modulo: string; _permission?: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -8514,6 +11355,7 @@ export type Database = {
         Args: { campo_voto: string; pergunta_id: string }
         Returns: undefined
       }
+      is_demo_company: { Args: { _cid: string }; Returns: boolean }
       is_ghost_mode: { Args: { _uid?: string }; Returns: boolean }
       is_super_dev: { Args: { _uid?: string }; Returns: boolean }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
@@ -8526,7 +11368,35 @@ export type Database = {
         }
         Returns: undefined
       }
+      limpar_nome_insumo_match: { Args: { p_nome: string }; Returns: string }
       lote_belongs_to_tenant: { Args: { _lid: string }; Returns: boolean }
+      marcar_nota_avulsa: {
+        Args: { p_motivo: string; p_nota_id: string }
+        Returns: Json
+      }
+      massa_premix_para_dose: {
+        Args: {
+          p_dose_ui: number
+          p_exigir_validacao_rt?: boolean
+          p_lote_premix_id: string
+        }
+        Returns: Json
+      }
+      match_legislacao_chunks: {
+        Args: {
+          match_count: number
+          match_threshold: number
+          query_embedding: string
+        }
+        Returns: {
+          fonte_id: string
+          id: string
+          referencia: string
+          similaridade: number
+          texto: string
+        }[]
+      }
+      norm_texto_ancora: { Args: { p_texto: string }; Returns: string }
       nota_entrada_belongs_to_tenant: {
         Args: { _nid: string }
         Returns: boolean
@@ -8537,6 +11407,12 @@ export type Database = {
       op_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       orcamento_belongs_to_tenant: { Args: { _oid: string }; Returns: boolean }
       pedido_belongs_to_tenant: { Args: { _pid: string }; Returns: boolean }
+      pode_excluir_item: { Args: { p_item_id: string }; Returns: Json }
+      preparar_op_materiais: { Args: { p_op_id: string }; Returns: Json }
+      proximo_codigo_formula: {
+        Args: { p_company_id?: string }
+        Returns: string
+      }
       read_ghost_audit: {
         Args: { p_limit?: number; p_since?: string; p_target_company?: string }
         Returns: {
@@ -8608,6 +11484,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      regulatory_validar_produto: {
+        Args: {
+          p_alegacoes?: string[]
+          p_data?: string
+          p_documento_id?: string
+          p_documento_tipo?: string
+          p_formula_id: string
+          p_grupo?: string
+        }
+        Returns: Json
+      }
       reservar_proximo_lote: {
         Args: {
           p_ano_mes: string
@@ -8633,18 +11520,49 @@ export type Database = {
         }[]
       }
       rt_valido_para_producao: { Args: { p_rt_id: string }; Returns: boolean }
+      score_match_constituinte: {
+        Args: { p_constituinte: string; p_insumo: string }
+        Returns: number
+      }
       set_company_smtp_password: {
         Args: { p_password: string }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       start_ghost_session: {
         Args: { p_target_company_id: string }
         Returns: Json
       }
       stop_ghost_session: { Args: never; Returns: Json }
+      sugerir_constituintes: {
+        Args: { p_item_id: string }
+        Returns: {
+          ancora: string
+          confianca: string
+          constituinte_id: string
+          nome_tecnico: string
+          score: number
+        }[]
+      }
+      sugerir_constituintes_por_nome: {
+        Args: { p_nome: string }
+        Returns: {
+          ancora: string
+          confianca: string
+          constituinte_id: string
+          nome_tecnico: string
+          score: number
+        }[]
+      }
+      unaccent: { Args: { "": string }; Returns: string }
       update_ultimo_acesso: { Args: { p_user_id: string }; Returns: undefined }
       validar_acesso_nota_saida: {
         Args: { p_nuvem_fiscal_id: string }
+        Returns: boolean
+      }
+      validar_acesso_nota_saida_focus: {
+        Args: { p_focus_nfe_id: string }
         Returns: boolean
       }
       validar_compatibilidade_rt: {
@@ -8657,6 +11575,10 @@ export type Database = {
       validar_qr_code_op: {
         Args: { p_hash: string; p_op_id: string }
         Returns: boolean
+      }
+      vincular_nota_pedido: {
+        Args: { p_nota_id: string; p_pedido_id: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -8880,6 +11802,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_departamento: [
