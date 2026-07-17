@@ -54,6 +54,8 @@ const RE_OUTRAS_FORMAS_D = new RegExp(
   ].join('|'),
 );
 
+// IMPORTANTE: `\b` após o número — sem isso, `vitamina\s*b1` casa dentro de
+// "vitamina b12" e a filtragem de forma descarta B12 (falso conflito com B1).
 const RE_B: Record<
   Exclude<
     FormaDiscriminada,
@@ -61,14 +63,14 @@ const RE_B: Record<
   >,
   RegExp
 > = {
-  b12: /(cobalamina|cianocobalamina|metilcobalamina|vitamina\s*b12|\bb12\b)/,
-  b6: /(piridox|vitamina\s*b6|\bb6\b)/,
-  b1: /(tiamina|vitamina\s*b1|\bb1\b)/,
-  b2: /(riboflavina|vitamina\s*b2|\bb2\b)/,
-  b3: /(niacina|nicotinamida|vitamina\s*b3|\bb3\b)/,
-  b5: /(pantoten|vitamina\s*b5|\bb5\b)/,
-  b7: /(biotina|vitamina\s*b7|vitamina\s*h|\bb7\b)/,
-  b9: /(folic|folato|metilfolato|vitamina\s*b9|\bb9\b)/,
+  b12: /(cobalamina|cianocobalamina|metilcobalamina|adenosilcobalamina|hidroxocobalamina|vitamina\s*b12\b|\bb12\b)/,
+  b6: /(piridox|vitamina\s*b6\b|\bb6\b)/,
+  b1: /(tiamina|vitamina\s*b1\b|\bb1\b)/,
+  b2: /(riboflavina|vitamina\s*b2\b|\bb2\b)/,
+  b3: /(niacina|nicotinamida|vitamina\s*b3\b|\bb3\b)/,
+  b5: /(pantoten|vitamina\s*b5\b|\bb5\b)/,
+  b7: /(biotina|vitamina\s*b7\b|vitamina\s*h\b|\bb7\b)/,
+  b9: /(folic|folato|metilfolato|vitamina\s*b9\b|\bb9\b)/,
 };
 
 const B_FORMAS = ['b12', 'b9', 'b7', 'b6', 'b5', 'b3', 'b2', 'b1'] as const;
