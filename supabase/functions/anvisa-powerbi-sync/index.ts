@@ -316,30 +316,87 @@ function montarDescricaoDelta(
   return linhas.join('\n')
 }
 
+/** Stack completa para anvisa_sync_history.erro_mensagem — sem falha calada. */
+function erroStackCompleta(e: unknown): string {
+  if (e instanceof Error) {
+    return (e.stack && e.stack.trim()) || `${e.name}: ${e.message}`
+  }
+  try {
+    return typeof e === 'string' ? e : JSON.stringify(e)
+  } catch {
+    return String(e)
+  }
+}
+
+async function alertarFalhaSyncCron(
+  supabase: ReturnType<typeof createClient>,
+  motivo: string,
+): Promise<void> {
+  const { error } = await supabase.from('anvisa_alertas_normativos').insert({
+    tipo: 'ATUALIZACAO',
+    titulo: 'sync ANVISA falhou — base pode estar desatualizada',
+    descricao:
+      `O cron de sync Power BI falhou ou retornou 0 linhas.\n\n` +
+      `Motivo registrado:\n${motivo.slice(0, 3500)}\n\n` +
+      `A RT deve verificar anvisa_sync_history (status=erro) e a fonte oficial.`,
+    norma: 'IN 28/2018',
+    fonte_url: `${POWERBI_API}/public/reports/${POWERBI_RESOURCE_KEY}`,
+    critico: true,
+    status_revisao: 'PENDENTE',
+  })
+  if (error) {
+    console.error('[anvisa-powerbi-sync] falha ao inserir alerta de sync cron:', error)
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const supabase = createClient(supabaseUrl, serviceKey)
+  const startedAt = new Date().toISOString()
+  console.error('[anvisa-powerbi-sync] INÍCIO', { method: req.method, startedAt })
 
-  // auth: exige usuário autenticado (disparado pelo painel)
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
+  let histId: string | undefined
+  let trigger: string | null = null
+  let supabase: ReturnType<typeof createClient> | null = null
 
-  // registra início do sync
-  const { data: hist } = await supabase
-    .from('anvisa_sync_history')
-    .insert({ tipo: 'powerbi', status: 'em_andamento', iniciado_em: new Date().toISOString() })
-    .select('id')
-    .single()
-  const histId = hist?.id
-
+  // ── PATCH 4: try/catch no corpo inteiro — boot/fetch/auth também deixam rastro ──
   try {
+    let body: Record<string, unknown> = {}
+    try {
+      body = await req.json()
+    } catch {
+      /* sem body (painel dispara sem payload) */
+    }
+    trigger = typeof body.trigger === 'string' ? body.trigger : null
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseUrl || !serviceKey) {
+      throw new Error('boot: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente')
+    }
+
+    supabase = createClient(supabaseUrl, serviceKey)
+
+    // auth: painel (JWT user) ou cron (service role Bearer). verify_jwt=false no config.
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new Error('Unauthorized: missing Bearer token')
+    }
+
+    // registra início do sync — se falhar, o catch ainda tenta insert status=erro
+    const { data: hist, error: histErr } = await supabase
+      .from('anvisa_sync_history')
+      .insert({
+        tipo: 'powerbi',
+        status: 'em_andamento',
+        iniciado_em: new Date().toISOString(),
+        detalhes: { trigger: trigger ?? 'manual' },
+      })
+      .select('id')
+      .single()
+    if (histErr) throw histErr
+    histId = hist?.id
+
     // Snapshot atual (antes do upsert) — base do delta
     const { data: existentes } = await supabase
       .from('anvisa_constituintes')
@@ -350,7 +407,10 @@ Deno.serve(async (req) => {
       )
 
     const rows = await fetchPowerBiRows()
-    if (!rows.length) throw new Error('powerbi_sem_dados: consulta retornou 0 linhas')
+    if (!rows.length) {
+      // cron: alerta PENDENTE explícito; histórico fica no catch abaixo
+      throw new Error('powerbi_sem_dados: consulta retornou 0 linhas')
+    }
 
     const mapped = rows.map(mapRow)
     // dedupe por chave_norm (o Power BI pode repetir o nome do constituinte) — last-wins
@@ -409,6 +469,7 @@ Deno.serve(async (req) => {
         versao_legislacao: 'IN 28 (Power BI oficial)',
         finalizado_em: new Date().toISOString(),
         detalhes: {
+          trigger: trigger ?? 'manual',
           total_linhas: payload.length,
           hash_anterior: syncAnterior?.hash_conteudo ?? null,
           hash_mudou: hashMudou,
@@ -460,6 +521,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.error('[anvisa-powerbi-sync] FIM ok', {
+      histId,
+      trigger,
+      total: payload.length,
+      novos: registrosNovos,
+      removidos: registrosRemovidos,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+    })
+
     return new Response(JSON.stringify({
       ok: true,
       total: payload.length,
@@ -470,17 +541,61 @@ Deno.serve(async (req) => {
       alerta_emitido: houveDelta,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (e) {
-    const anyE = e as any
-    const msg = e instanceof Error ? e.message
-      : (anyE?.message || anyE?.hint || anyE?.details || anyE?.code || JSON.stringify(anyE))
-    if (histId) {
-      await supabase.from('anvisa_sync_history').update({
-        status: 'erro', erro_mensagem: msg, finalizado_em: new Date().toISOString(),
-      }).eq('id', histId)
+    const stack = erroStackCompleta(e)
+    console.error('[anvisa-powerbi-sync] FIM erro', {
+      histId,
+      trigger,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      stack,
+    })
+
+    // Sempre deixa rastro em anvisa_sync_history (update ou insert se boot falhou antes)
+    try {
+      if (!supabase) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        if (supabaseUrl && serviceKey) {
+          supabase = createClient(supabaseUrl, serviceKey)
+        }
+      }
+
+      if (supabase) {
+        if (histId) {
+          await supabase.from('anvisa_sync_history').update({
+            status: 'erro',
+            erro_mensagem: stack,
+            finalizado_em: new Date().toISOString(),
+            detalhes: { trigger: trigger ?? 'manual', falha_alto: true },
+          }).eq('id', histId)
+        } else {
+          await supabase.from('anvisa_sync_history').insert({
+            tipo: 'powerbi',
+            status: 'erro',
+            erro_mensagem: stack,
+            iniciado_em: startedAt,
+            finalizado_em: new Date().toISOString(),
+            detalhes: { trigger: trigger ?? 'manual', falha_alto: true, fase: 'boot_ou_pre_hist' },
+          })
+        }
+
+        // Cron: RT precisa saber que a fonte parou (0 linhas ou qualquer erro)
+        if (trigger === 'cron') {
+          await alertarFalhaSyncCron(supabase, stack)
+        }
+      } else {
+        console.error(
+          '[anvisa-powerbi-sync] impossível gravar histórico: cliente Supabase indisponível',
+        )
+      }
+    } catch (logErr) {
+      console.error('[anvisa-powerbi-sync] falha ao registrar erro em sync_history/alerta:', logErr)
     }
-    console.error('anvisa-powerbi-sync erro:', msg)
-    return new Response(JSON.stringify({ ok: false, error: msg }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+
+    const status = String(e).includes('Unauthorized') ? 401 : 500
+    return new Response(JSON.stringify({ ok: false, error: stack }), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })
