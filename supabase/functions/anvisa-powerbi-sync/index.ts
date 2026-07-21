@@ -2,6 +2,7 @@
 // REESCRITO 2026-07-04: usa o Power BI OFICIAL da ANVISA ("Contituintes IN 28")
 // em vez de Firecrawl. Sem chave externa (relatório público). Popula anvisa_constituintes.
 // PATCH 2026-07: após upsert, emite alerta PENDENTE com delta (novos/removidos/limites/proibição).
+// PATCH 4: falha alto — stack completa em anvisa_sync_history; cron 0 linhas/erro grita pra RT.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
