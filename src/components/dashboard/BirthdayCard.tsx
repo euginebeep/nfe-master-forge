@@ -83,9 +83,10 @@ export function BirthdayCard({ compact = false, className }: { compact?: boolean
 
   if (!destaque) {
     return (
-      <Card className={cn("h-full border-pink-200/60 bg-gradient-to-br from-pink-50/80 to-purple-50/30", className)}>
-        <CardContent className="p-3 flex items-center justify-center h-full">
-          <p className="text-[10px] text-muted-foreground text-center">Nenhum aniversário nos próximos 30 dias</p>
+      <Card className={cn("h-auto border-pink-200/60 bg-gradient-to-br from-pink-50/80 to-purple-50/30", className)}>
+        <CardContent className="px-3 py-2 flex items-center gap-2">
+          <Cake className="h-3.5 w-3.5 text-pink-500 shrink-0" />
+          <p className="text-[10px] text-muted-foreground">Nenhum aniversário nos próximos 30 dias</p>
         </CardContent>
       </Card>
     );

@@ -170,11 +170,11 @@ export function MarketIndicesCard({ compact = false, className }: { compact?: bo
           </div>
         </CardHeader>
         <CardContent className={cn(
-          "flex-1 flex flex-col justify-between min-h-0",
-          compact ? "p-2 pt-1.5 space-y-1.5" : "p-4 pt-3 space-y-3",
+          "flex-1 flex flex-col min-h-0",
+          compact ? "p-2 pt-1.5 gap-1.5" : "p-4 pt-3 gap-3",
         )}>
           <div className={cn(
-            "flex items-center justify-between rounded-xl transition-all border border-transparent",
+            "flex items-center justify-between rounded-xl transition-all border border-transparent shrink-0",
             compact ? "p-1.5" : "p-2",
             getChangeBg(ibovespa?.change || 0)
           )}>
@@ -203,8 +203,8 @@ export function MarketIndicesCard({ compact = false, className }: { compact?: bo
             )}
           </div>
 
-          <div className={cn("bg-muted/30 rounded-xl border border-border/5", compact ? "p-1.5" : "p-2")}>
-            <div className="grid grid-cols-3 gap-0 border-b border-border/10 pb-1 mb-1">
+          <div className={cn("bg-muted/30 rounded-xl border border-border/5 flex-1 min-h-0 overflow-y-auto", compact ? "p-1.5" : "p-2")}>
+            <div className="grid grid-cols-3 gap-0 border-b border-border/10 pb-1 mb-1 sticky top-0 bg-muted/30 z-10 backdrop-blur-sm">
               <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Ativo</p>
               <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Preço (USD)</p>
               <p className="text-[8px] font-black text-muted-foreground uppercase text-center">Var. 24h</p>

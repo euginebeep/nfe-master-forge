@@ -6,22 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-
-interface NewsItem {
-  title: string;
-  link: string;
-  source: string;
-  pubDate: string;
-  description?: string;
-}
-
-async function fetchNews(): Promise<NewsItem[]> {
-  const { data, error } = await supabase.functions.invoke('news-feed');
-  if (error) throw error;
-  return data?.news || [];
-}
+import { useNewsFeed, type NewsItem } from '@/hooks/use-news-feed';
 
 function formatTimeAgo(dateStr: string): string {
   try {
@@ -54,13 +39,7 @@ function getSourceStyle(source: string) {
 
 export function NewsFeedCard() {
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
-  const { data: news, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['news-feed'],
-    queryFn: fetchNews,
-    staleTime: 10 * 60 * 1000,
-    refetchInterval: 15 * 60 * 1000,
-    retry: 1,
-  });
+  const { noticias: news, isLoading, error, refetch, isFetching } = useNewsFeed(undefined, 10);
 
   return (
     <>
@@ -93,7 +72,7 @@ export function NewsFeedCard() {
                     <Skeleton key={i} className="h-5 w-48 rounded-md flex-shrink-0" />
                   ))}
                 </div>
-              ) : error || !news?.length ? (
+              ) : error || !news.length ? (
                 <div className="flex items-center gap-2">
                   <Newspaper className="h-3.5 w-3.5 text-muted-foreground/30" />
                   <span className="text-[11px] text-muted-foreground">

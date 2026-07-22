@@ -65,10 +65,10 @@ export function ExchangeRateCard({ compact = false, className }: ExchangeRateCar
           </div>
         </CardHeader>
         <CardContent className={cn(
-          "flex-1 flex flex-col justify-between min-h-0",
+          "flex-1 flex flex-col min-h-0",
           compact ? "p-2 pt-1.5" : "p-4 pt-3",
         )}>
-          <div className={compact ? "space-y-1.5" : "space-y-2"}>
+          <div className={cn("flex-1 flex flex-col justify-evenly min-h-0", compact ? "gap-1" : "gap-1.5")}>
             {/* USD */}
             <div className={cn(
               "flex items-center justify-between rounded-xl transition-all border border-transparent hover:border-emerald-500/20",
@@ -133,7 +133,7 @@ export function ExchangeRateCard({ compact = false, className }: ExchangeRateCar
           </div>
 
           {lastUpdate && (
-            <div className={cn("flex items-center justify-end gap-1 opacity-50", compact ? "mt-1" : "mt-2")}>
+            <div className={cn("flex items-center justify-end gap-1 opacity-50 mt-auto", compact ? "pt-1" : "pt-2")}>
               <RefreshCw className="h-2.5 w-2.5 animate-pulse" />
               <p className="text-[9px] font-bold uppercase tracking-widest">
                 {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
