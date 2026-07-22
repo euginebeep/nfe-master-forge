@@ -487,4 +487,3 @@ const NutritionalTableGenerator: React.FC = () => {
 };
 
 export default NutritionalTableGenerator;
-
