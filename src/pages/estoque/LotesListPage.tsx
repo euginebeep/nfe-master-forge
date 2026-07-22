@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useLotes } from "@/hooks/use-lotes";
 import { AtribuirClienteWhiteLabelDialog } from "@/components/producao/AtribuirClienteWhiteLabelDialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { formatDate, formatNumber, formatCurrency } from "@/lib/formatters";
+import { formatDate, formatCurrency, formatQtdLote } from "@/lib/formatters";
 import { differenceInDays, parseISO } from "date-fns";
 
 type StatusLote = 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO' | 'APROVADO';
@@ -23,16 +23,6 @@ const STATUS_VARIANTS: Record<string, "success" | "warning" | "error" | "muted">
   BLOQUEADO: "error",
   VENCIDO: "error",
 };
-
-/** Massa/volume → 2 casas; contáveis (UN, MIL, …) → sem casas se inteiro. */
-function formatQtdLote(qtd: number, unidade?: string | null) {
-  const u = (unidade || "").toLowerCase().trim();
-  const massaVolume = ["g", "kg", "mg", "mcg", "µg", "ug", "l", "ml", "lt", "litro", "litros"].includes(u);
-  if (massaVolume) return formatNumber(qtd, 2);
-  const n = Number(qtd);
-  if (Number.isFinite(n) && Number.isInteger(n)) return formatNumber(n, 0);
-  return formatNumber(n, 2);
-}
 
 export default function LotesListPage() {
   const navigate = useNavigate();
