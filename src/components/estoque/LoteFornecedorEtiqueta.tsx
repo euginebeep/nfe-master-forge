@@ -2,7 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { formatDate } from '@/lib/formatters';
+import { formatDate, normalizarQtdExibicao } from '@/lib/formatters';
 
 /**
  * Etiqueta de identificação de insumo — 100 x 150 mm, impressora térmica.
@@ -166,8 +166,17 @@ export function LoteFornecedorEtiqueta({ lote, hideActions = false }: Props) {
           <div className="et-right">
             <span className="et-label">Quantidade</span>
             <div className="et-qtd">
-              <span className="et-qtd-num">{fmtNum(lote.quantidade)}</span>
-              <span className="et-qtd-un">{lote.unidade}</span>
+              {(() => {
+                const q = normalizarQtdExibicao(Number(lote.quantidade), lote.unidade);
+                return (
+                  <>
+                    <span className="et-qtd-num">
+                      {q.valor.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}
+                    </span>{' '}
+                    <span className="et-qtd-un">{q.unidade}</span>
+                  </>
+                );
+              })()}
             </div>
             {mostrarEmbalagem && (
               <div className="et-emb">

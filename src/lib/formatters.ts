@@ -111,3 +111,54 @@ export function diasAteValidade(dataVal?: string | Date | null): number | null {
   alvo.setHours(0, 0, 0, 0);
   return Math.round((alvo.getTime() - hoje.getTime()) / 86400000);
 }
+
+/** Escalas por família de unidade, com o fator para a unidade base. */
+const ESCALAS_UNIDADE: Record<string, Array<[string, number]>> = {
+  mg: [["mg", 1], ["g", 1000], ["kg", 1000000]],
+  g:  [["mg", 0.001], ["g", 1], ["kg", 1000]],
+  kg: [["g", 0.001], ["kg", 1]],
+  ml: [["ml", 1], ["l", 1000]],
+  l:  [["ml", 0.001], ["l", 1]],
+};
+
+/**
+ * Escolhe a unidade mais legível para exibir uma quantidade, SEM alterar o
+ * dado armazenado. 25000 g -> 25 kg | 0,5 kg -> 500 g | 500 g -> 500 g.
+ * Unidades fora de escala (un, MIL, cx...) são devolvidas intactas,
+ * preservando a grafia original.
+ */
+export function normalizarQtdExibicao(
+  qtd: number,
+  unidade?: string | null
+): { valor: number; unidade: string } {
+  const original = (unidade ?? "").trim();
+  const u = original.toLowerCase();
+  const escala = ESCALAS_UNIDADE[u];
+  if (!escala || !Number.isFinite(qtd)) {
+    return { valor: qtd, unidade: original };
+  }
+  const fatorBase = escala.find(([nome]) => nome === u)?.[1] ?? 1;
+  const emBase = qtd * fatorBase;
+
+  let melhor: { valor: number; unidade: string } | null = null;
+  for (const [nome, fator] of escala) {
+    const v = emBase / fator;
+    if (v >= 1) melhor = { valor: v, unidade: nome };
+  }
+  if (!melhor) {
+    const [nome, fator] = escala[0];
+    melhor = { valor: emBase / fator, unidade: nome };
+  }
+  return melhor;
+}
+
+/**
+ * Quantidade de lote pronta para exibição: unidade legível + casas decimais
+ * adequadas. Ex.: (25000, "g") -> "25 kg" | (1250, "g") -> "1,25 kg".
+ */
+export function formatQtdExibicao(qtd: number, unidade?: string | null): string {
+  if (qtd == null || !Number.isFinite(Number(qtd))) return "—";
+  const { valor, unidade: un } = normalizarQtdExibicao(Number(qtd), unidade);
+  const texto = valor.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+  return un ? `${texto} ${un}` : texto;
+}
