@@ -1,6 +1,5 @@
 import { Moon, Sun, Menu, LogOut, Search, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { LogoDemoERP } from "./LogoDemoERP";
 import brainxWordmark from "@/assets/brainx-wordmark.png";
 import brainxWordmark2x from "@/assets/brainx-wordmark@2x.png";
 import { Button } from "@/components/ui/button";
@@ -75,12 +74,6 @@ export function AppHeader() {
         <SidebarTrigger className="h-8 sm:h-9 w-8 sm:w-9" aria-label="Abrir/fechar menu lateral">
           <Menu className="h-4 sm:h-5 w-4 sm:w-5" />
         </SidebarTrigger>
-        <Link to="/dashboard" className="flex items-center gap-1 sm:gap-2" aria-label="BrainX ERP Home">
-          <LogoDemoERP className="w-7 sm:w-9 h-7 sm:h-9" />
-        </Link>
-      </div>
-
-      <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
         <Link to="/dashboard" className="flex items-center shrink-0" aria-label="BrainX ERP">
           <img
             src={brainxWordmark}
@@ -89,7 +82,9 @@ export function AppHeader() {
             className="h-5 sm:h-6 w-auto object-contain"
           />
         </Link>
+      </div>
 
+      <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
         <Button
           variant="ghost"
           size="icon"
