@@ -1298,7 +1298,37 @@ export type Database = {
         }
         Relationships: []
       }
-      arquivos: {
+      qr_scan_log: {
+        Row: {
+          id: string
+          lote_id: string | null
+          ip_hash: string
+          user_agent: string | null
+          ok: boolean
+          motivo: string | null
+          scanned_at: string
+        }
+        Insert: {
+          id?: string
+          lote_id?: string | null
+          ip_hash: string
+          user_agent?: string | null
+          ok?: boolean
+          motivo?: string | null
+          scanned_at?: string
+        }
+        Update: {
+          id?: string
+          lote_id?: string | null
+          ip_hash?: string
+          user_agent?: string | null
+          ok?: boolean
+          motivo?: string | null
+          scanned_at?: string
+        }
+        Relationships: []
+      }
+            arquivos: {
         Row: {
           checksum_sha256: string | null
           company_id: string | null
@@ -11314,6 +11344,8 @@ export type Database = {
         Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }
         Returns: string
       }
+      get_lote_publico: { Args: { p_id: string }; Returns: Json }
+      qr_client_ip_hash: { Args: never; Returns: string }
       get_company_smtp_password: {
         Args: { p_company_id: string }
         Returns: string
