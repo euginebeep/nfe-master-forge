@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDate, formatNumber, formatCurrency } from "@/lib/formatters";
+import { formatDate, formatCurrency, formatQtdLote, diasAteValidade } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -35,13 +35,21 @@ export default function QuarentenaPage() {
           *,
           item:itens(descricao_interna, sku_interno, unidade_interna),
           fornecedor:entidades(razao_social),
+          nota_item:notas_entrada_itens (
+            nota:notas_entrada (numero, serie, dh_emissao)
+          ),
           lote_documentos(tipo_documento, status_validacao)
         `)
         .eq('company_id', companyId!)
         .in('status', ['QUARENTENA', 'BLOQUEADO'])
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []).map((l: any) => ({
+        ...l,
+        nota_numero: l.nota_item?.nota?.numero ?? null,
+        nota_serie: l.nota_item?.nota?.serie ?? null,
+        nota_data: l.nota_item?.nota?.dh_emissao ?? null,
+      }));
     },
   });
 
@@ -147,13 +155,20 @@ export default function QuarentenaPage() {
       key: "quantidade_interna",
       header: "Quantidade",
       render: (item: any) => (
-        <span>{formatNumber(item.quantidade_interna, 2)} {item.item?.unidade_interna || item.unidade_original}</span>
+        <span>{formatQtdLote(item.quantidade_interna, item.unidade_interna)} {item.unidade_interna || "—"}</span>
       ),
     },
     {
-      key: "custo_unitario_original",
+      key: "custo_unitario_interno",
       header: "Preço Unit.",
-      render: (item: any) => item.custo_unitario_original ? formatCurrency(item.custo_unitario_original) : "-",
+      render: (item: any) => item.custo_unitario_interno ? (
+        <span>
+          {formatCurrency(item.custo_unitario_interno)}
+          {item.unidade_interna && (
+            <span className="text-xs text-muted-foreground">/{item.unidade_interna}</span>
+          )}
+        </span>
+      ) : <span className="text-muted-foreground">-</span>,
     },
     {
       key: "data_val",
@@ -161,8 +176,9 @@ export default function QuarentenaPage() {
       sortable: true,
       render: (item: any) => {
         if (!item.data_val) return "-";
-        const isExpired = new Date(item.data_val) < new Date();
-        const isNearExpiry = new Date(item.data_val) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const dias = diasAteValidade(item.data_val);
+        const isExpired = dias != null && dias < 0;
+        const isNearExpiry = dias != null && dias >= 0 && dias <= 30;
         return (
           <span className={isExpired ? "text-destructive" : isNearExpiry ? "text-warning" : ""}>
             {formatDate(item.data_val)}

@@ -74,3 +74,40 @@ export function normalizeString(str: string): string {
     .toLowerCase()
     .trim();
 }
+
+/**
+ * Quantidade de lote com casas decimais adequadas à unidade.
+ * Massa/volume: 2 casas. Contáveis (un, mil, cx): inteiro quando for inteiro.
+ */
+export function formatQtdLote(qtd: number, unidade?: string | null): string {
+  const u = (unidade || "").toLowerCase().trim();
+  const massaVolume = ["g", "kg", "mg", "mcg", "µg", "ug", "l", "ml", "lt", "litro", "litros"].includes(u);
+  if (massaVolume) return formatNumber(qtd, 2);
+  const n = Number(qtd);
+  if (Number.isFinite(n) && Number.isInteger(n)) return formatNumber(n, 0);
+  return formatNumber(n, 2);
+}
+
+/**
+ * Dias até a data de validade. Datas `date` do Postgres chegam como
+ * "YYYY-MM-DD"; `new Date()` as interpreta como meia-noite UTC, o que em
+ * UTC−3 devolve o dia anterior. Aqui montamos a data em horário local.
+ * Retorna null quando a data é ausente ou inválida.
+ */
+export function diasAteValidade(dataVal?: string | Date | null): number | null {
+  if (!dataVal) return null;
+  let alvo: Date;
+  if (dataVal instanceof Date) {
+    alvo = new Date(dataVal);
+  } else {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dataVal).trim());
+    alvo = m
+      ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+      : new Date(dataVal);
+  }
+  if (isNaN(alvo.getTime())) return null;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  alvo.setHours(0, 0, 0, 0);
+  return Math.round((alvo.getTime() - hoje.getTime()) / 86400000);
+}
