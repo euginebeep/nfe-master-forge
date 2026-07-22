@@ -18,7 +18,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { FACTORY_ROLES } from "@/hooks/use-users";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AssistenteTrigger } from "@/components/assistente/BrainXAssistente";
-import { AlertasLoteSemCOAPanel } from "@/components/estoque/AlertasLoteSemCOAPanel";
 import { useCompany } from "@/hooks/use-company";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { formatCNPJ } from "@/lib/cnpj-lookup";
@@ -100,22 +99,21 @@ export function AppHeader() {
         <Button
           variant="outline"
           size="sm"
-          className="hidden sm:flex items-center gap-1 md:gap-2 text-muted-foreground h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm shrink-0"
+          className="hidden sm:flex items-center gap-1.5 md:gap-2 text-foreground h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base shrink-0 min-w-[10rem] md:min-w-[14rem]"
           aria-label="Busca global (Ctrl+K)"
           onClick={() => {
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
           }}
         >
-          <Search className="h-3 sm:h-4 w-3 sm:w-4" />
-          <span className="hidden md:inline">Buscar...</span>
-          <kbd className="ml-1 md:ml-2 pointer-events-none hidden lg:inline-flex h-4 sm:h-5 select-none items-center gap-1 rounded border bg-muted px-1 sm:px-1.5 font-mono text-[9px] sm:text-[10px] font-medium text-muted-foreground">
+          <Search className="h-4 sm:h-5 w-4 sm:w-5 text-muted-foreground" />
+          <span className="hidden md:inline flex-1 text-left text-muted-foreground">Buscar...</span>
+          <kbd className="ml-auto pointer-events-none hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] sm:text-xs font-medium text-muted-foreground">
             Ctrl+K
           </kbd>
         </Button>
 
         {isAuthenticated && <NotificationBell />}
         {isAuthenticated && <AssistenteTrigger />}
-        {isAuthenticated && <AlertasLoteSemCOAPanel />}
 
         {isAuthenticated && company && (
           <div
