@@ -30,6 +30,20 @@ const LINKS_UTEIS = [
   { titulo: 'Biblioteca ANVISA - Suplementos', url: 'https://www.gov.br/anvisa/pt-br/assuntos/alimentos/suplementos-alimentares' },
 ];
 
+/** "há 2 h" / "há 3 d" / data curta. Tolera pubDate ausente ou inválido. */
+function formatarDataNoticia(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const min = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (min < 60) return `há ${Math.max(min, 1)} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} h`;
+  const dias = Math.floor(h / 24);
+  if (dias <= 7) return `há ${dias} d`;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
 export function ConsultaANVISACard({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const {
@@ -160,24 +174,37 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
                 </p>
               )}
 
-              <ul className="space-y-1">
+              <div className="space-y-1.5">
                 {noticias.map((n) => (
-                  <li key={n.link}>
-                    <a
-                      href={n.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(
-                        "block leading-snug hover:underline text-foreground/90 line-clamp-2",
-                        compact ? "text-[8.5px]" : "text-[10px]"
-                      )}
-                      title={n.title}
-                    >
+                  <a
+                    key={n.link}
+                    href={n.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={n.title}
+                    className={cn(
+                      "block rounded-md border bg-muted/40 hover:bg-muted",
+                      "hover:border-primary/40 transition-colors",
+                      compact ? "px-2 py-1.5" : "px-2.5 py-2"
+                    )}
+                  >
+                    <p className={cn(
+                      "font-medium leading-snug line-clamp-2 text-foreground/90",
+                      compact ? "text-[8.5px]" : "text-[10px]"
+                    )}>
                       {n.title}
-                    </a>
-                  </li>
+                    </p>
+                    {n.pubDate && (
+                      <p className={cn(
+                        "text-muted-foreground mt-0.5",
+                        compact ? "text-[7.5px]" : "text-[8.5px]"
+                      )}>
+                        {formatarDataNoticia(n.pubDate)}
+                      </p>
+                    )}
+                  </a>
                 ))}
-              </ul>
+              </div>
             </div>
 
             <a

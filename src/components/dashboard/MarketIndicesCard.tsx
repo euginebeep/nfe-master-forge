@@ -37,7 +37,7 @@ async function fetchMarketData(): Promise<MarketData> {
   }
 }
 
-function useMarketData() {
+export function useMarketData() {
   return useQuery({
     queryKey: ['market-data'],
     queryFn: fetchMarketData,

@@ -8,8 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserWelcomeCard } from "@/components/dashboard/UserWelcomeCard";
 import { useAuth } from "@/hooks/use-auth";
 import { AvisosPopup } from "@/components/AvisosPopup";
-import { ExchangeRateCard } from "@/components/dashboard/ExchangeRateCard";
-import { MarketIndicesCard } from "@/components/dashboard/MarketIndicesCard";
+import { MercadoCard } from "@/components/dashboard/MercadoCard";
 import { ExpiringLotsCard } from "@/components/dashboard/ExpiringLotsCard";
 import { ConsultaANVISACard } from "@/components/dashboard/ConsultaANVISACard";
 import { NewsFeedCard } from "@/components/dashboard/NewsFeedCard";
@@ -140,10 +139,15 @@ const Index = () => {
             </div>
 
             <div className="grid grid-cols-2 grid-rows-2 gap-2 min-w-0 min-h-0 h-full">
-              <ExchangeRateCard compact className="min-h-0" />
-              <MarketIndicesCard compact className="min-h-0" />
+              {/* Mercado ocupa a célula superior esquerda */}
+              <MercadoCard compact className="min-h-0" />
+
+              {/* Consulta ANVISA ocupa a coluna direita inteira — é o card com
+                  mais conteúdo agora, por causa das notícias */}
+              <ConsultaANVISACard compact className="min-h-0 row-span-2" />
+
+              {/* Aniversariantes fica na célula inferior esquerda */}
               <BirthdayCard compact className="min-h-0" />
-              <ConsultaANVISACard compact className="min-h-0" />
             </div>
           </div>
 

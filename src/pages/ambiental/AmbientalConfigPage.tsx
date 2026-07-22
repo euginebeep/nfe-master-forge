@@ -19,6 +19,11 @@ import {
 } from "lucide-react";
 import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
 import { useUserCompanyId } from "@/hooks/use-user-company";
+import {
+  useAmbientalTempoReal,
+  SEM_COMUNICACAO_SEGUNDOS,
+  fmtAtualizadoHa,
+} from "@/hooks/use-sensor-readings";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +57,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { cn } from "@/lib/utils";
 
 type AmbientalConfig = {
   id?: string;
@@ -362,6 +368,11 @@ export default function AmbientalConfigPage() {
       return data ?? [];
     },
   });
+
+  const { data: tempoReal = [] } = useAmbientalTempoReal();
+  const tempoRealByDevice = Object.fromEntries(
+    tempoReal.map((r) => [r.device_id, r]),
+  );
 
   const upsertSensorMutation = useMutation({
     mutationFn: async () => {
@@ -798,18 +809,40 @@ export default function AmbientalConfigPage() {
                         </TableCell>
                         <TableCell>{s.responsible || "—"}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={s.ewelink_online ? "secondary" : "outline"}
-                            className="gap-1"
-                            title="Status reportado pelo eWeLink — não editável aqui"
-                          >
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                s.ewelink_online ? "bg-emerald-500" : "bg-zinc-400"
-                              }`}
-                            />
-                            {s.ewelink_online ? "Online" : "Offline"}
-                          </Badge>
+                          {(() => {
+                            const tr = tempoRealByDevice[s.device_id];
+                            const online =
+                              tr != null && tr.segundos_atras <= SEM_COMUNICACAO_SEGUNDOS;
+                            const label = !tr
+                              ? "Sem dados"
+                              : online
+                                ? "Online"
+                                : "Sem comunicação";
+                            const title = !tr
+                              ? "Nenhuma leitura recebida ainda"
+                              : `${fmtAtualizadoHa(tr.segundos_atras)}${
+                                  s.ewelink_online != null
+                                    ? ` · eWeLink: ${s.ewelink_online ? "online" : "offline"}`
+                                    : ""
+                                }`;
+                            return (
+                              <Badge
+                                variant={online ? "secondary" : "outline"}
+                                className={cn(
+                                  "gap-1",
+                                  !online && "border-red-200 text-red-700",
+                                )}
+                                title={title}
+                              >
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    online ? "bg-emerald-500" : "bg-red-500"
+                                  }`}
+                                />
+                                {label}
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           <Switch
