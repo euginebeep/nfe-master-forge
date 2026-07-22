@@ -281,7 +281,7 @@ export function AppSidebar() {
     return (
       <Sidebar className={cn("border-r border-sidebar-border", collapsed ? "w-16" : "w-64")} collapsible="icon">
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
-          <Link to="/dashboard" className="flex flex-col items-center px-2 md:px-4 py-3 md:py-4">
+          <Link to="/dashboard" className="flex flex-col items-center gap-0 px-2 md:px-4 py-3 md:py-4">
             <div className="relative">
               <img
                 src={brainxLogo}
@@ -294,7 +294,7 @@ export function AppSidebar() {
               />
             </div>
             {!collapsed && (
-              <span className="mt-1 text-[10px] md:text-[11px] font-semibold tracking-[0.18em] uppercase text-sidebar-foreground/70">
+              <span className="mt-0 leading-none text-[10px] md:text-[11px] font-semibold tracking-[0.18em] uppercase text-sidebar-foreground/70">
                 ERP Industrial
               </span>
             )}
@@ -323,7 +323,7 @@ export function AppSidebar() {
         <SidebarHeader className="border-b border-sidebar-border/50 bg-sidebar">
           <Link
             to="/dashboard"
-            className="flex flex-col items-center px-2 md:px-4 pt-3 md:pt-5 pb-2 md:pb-3"
+            className="flex flex-col items-center gap-0 px-2 md:px-4 pt-3 md:pt-4 pb-1.5 md:pb-2"
             aria-label="BrainX ERP Industrial"
           >
             <div className="relative">
@@ -336,7 +336,7 @@ export function AppSidebar() {
               {logoEnergy && <span className="brainx-logo-energy" aria-hidden />}
             </div>
             {!collapsed && (
-              <span className="mt-1.5 text-[10px] md:text-[11px] font-semibold tracking-[0.18em] uppercase text-sidebar-foreground/70">
+              <span className="-mt-1 leading-none text-[10px] md:text-[11px] font-semibold tracking-[0.18em] uppercase text-sidebar-foreground/70">
                 {profile?.is_demo ? "ERP Demo" : "ERP Industrial"}
               </span>
             )}
