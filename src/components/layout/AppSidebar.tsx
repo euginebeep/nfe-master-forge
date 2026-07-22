@@ -1,5 +1,4 @@
-import { useLocation, Link, useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
+import { useLocation, Link } from "react-router-dom";
 import brainxLogo from "@/assets/brainx-logo.png";
 import { LogoDemoERP } from "./LogoDemoERP";
 import { useCompany } from "@/hooks/use-company";
@@ -11,7 +10,6 @@ import {
   PieChart,
   Truck,
   Settings,
-  ChevronDown,
   LayoutDashboard,
   ShoppingCart,
   FileText,
@@ -56,11 +54,6 @@ import {
   SidebarFooter,
   useSidebar } from
 "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger } from
-"@/components/ui/collapsible";
 import {
   Tooltip,
   TooltipContent,
@@ -242,7 +235,6 @@ const footerItems: FooterItem[] = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { role, profile, canView, isLoading, signOut } = useAuth();
@@ -250,49 +242,6 @@ export function AppSidebar() {
   const companyPending = !company;
 
   const isAdmin = role === 'admin';
-
-  // Estado de expansão por grupo, persistido em localStorage.
-  const STORAGE_KEY = "brainx-sidebar-groups-open";
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return {};
-  });
-
-  // Abre automaticamente o grupo que contém a rota ativa (sem fechar os outros já abertos).
-  useEffect(() => {
-    const activeGroup = menuGroups.find((g) =>
-      g.items.some((it) => location.pathname.startsWith(it.url))
-    );
-    if (activeGroup && openGroups[activeGroup.label] !== true) {
-      setOpenGroups((prev) => ({ ...prev, [activeGroup.label]: true }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(openGroups));
-    } catch {}
-  }, [openGroups]);
-
-  const isGroupOpen = (label: string) => openGroups[label] ?? false;
-  const toggleGroup = useCallback((label: string, open: boolean) => {
-    setOpenGroups((prev) => ({ ...prev, [label]: open }));
-  }, []);
-
-  const expandAll = () => {
-    const all: Record<string, boolean> = {};
-    menuGroups.forEach((g) => (all[g.label] = true));
-    setOpenGroups(all);
-  };
-  const collapseAll = () => {
-    const all: Record<string, boolean> = {};
-    menuGroups.forEach((g) => (all[g.label] = false));
-    setOpenGroups(all);
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -393,77 +342,67 @@ export function AppSidebar() {
             if (visibleItems.length === 0) return null;
 
             return (
-              <Collapsible
-                key={group.label}
-                open={collapsed ? true : isGroupOpen(group.label)}
-                onOpenChange={(o) => toggleGroup(group.label, o)}
-                className="mb-2"
-              >
-                <SidebarGroup>
-                  <CollapsibleTrigger className="w-full group" aria-label={`Alternar seção ${group.label}`}>
-                    <SidebarGroupLabel className="flex items-center justify-between px-3 py-2 text-[11px] font-bold text-sidebar-foreground/75 uppercase tracking-wider hover:text-sidebar-foreground transition-colors duration-200">
-                      {!collapsed && group.label}
-                      {!collapsed && <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-data-[state=closed]:-rotate-90" />}
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarGroupContent>
-                      <SidebarMenu className="space-y-0.5">
-                        {visibleItems.map((item) =>
-                        <SidebarMenuItem key={item.url}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <SidebarMenuButton
-                                asChild
-                                isActive={isActive(item.url)}>
+              <SidebarGroup key={group.label} className="mb-2">
+                {!collapsed && (
+                  <SidebarGroupLabel className="px-3 py-2 text-[11px] font-bold text-sidebar-foreground/75 uppercase tracking-wider">
+                    {group.label}
+                  </SidebarGroupLabel>
+                )}
+                <SidebarGroupContent>
+                  <SidebarMenu className="space-y-0.5">
+                    {visibleItems.map((item) =>
+                    <SidebarMenuItem key={item.url}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <SidebarMenuButton
+                            asChild
+                            isActive={isActive(item.url)}>
 
-                                  <Link
-                                  to={item.url}
-                                  className={cn(
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/item",
-                                    isActive(item.url)
-                                      ? item.danger
-                                        ? "bg-red-500/20 text-red-400 shadow-lg shadow-red-500/10 font-bold"
-                                        : "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20 font-semibold"
-                                      : item.danger
-                                        ? "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
-                                        : "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
-                                  )}>
+                              <Link
+                              to={item.url}
+                              className={cn(
+                                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group/item",
+                                isActive(item.url)
+                                  ? item.danger
+                                    ? "bg-red-500/20 text-red-400 shadow-lg shadow-red-500/10 font-bold"
+                                    : "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20 font-semibold"
+                                  : item.danger
+                                    ? "text-red-400/80 hover:bg-red-500/10 hover:text-red-400"
+                                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
+                              )}>
 
-                                    <item.icon className={cn(
-                                      "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
-                                      isActive(item.url) 
-                                        ? item.danger ? "text-red-400" : "text-secondary-foreground" 
-                                        : item.danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/item:text-sidebar-foreground/80"
-                                    )} />
-                                    {!collapsed &&
-                                  <span className="flex-1 text-[13px] font-medium leading-tight">{item.title}</span>
-                                  }
-                                    {!collapsed && item.badge &&
-                                  <span className={cn(
-                                    "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider",
-                                    isActive(item.url)
-                                      ? "bg-secondary-foreground/20 text-secondary-foreground"
-                                      : "bg-sidebar-accent text-sidebar-foreground/60"
-                                  )}>
-                                        {item.badge}
-                                      </span>
-                                  }
-                                  </Link>
-                                </SidebarMenuButton>
-                              </TooltipTrigger>
-                              <TooltipContent side="right" className="max-w-[240px] text-xs">
-                                <p className="font-semibold">{item.title}</p>
-                                <p className="text-muted-foreground mt-0.5">{item.tooltip}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </SidebarMenuItem>
-                        )}
-                      </SidebarMenu>
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </SidebarGroup>
-              </Collapsible>);
+                                <item.icon className={cn(
+                                  "w-[18px] h-[18px] shrink-0 transition-colors duration-200",
+                                  isActive(item.url) 
+                                    ? item.danger ? "text-red-400" : "text-secondary-foreground" 
+                                    : item.danger ? "text-red-400/50" : "text-sidebar-foreground/50 group-hover/item:text-sidebar-foreground/80"
+                                )} />
+                                {!collapsed &&
+                              <span className="flex-1 text-[13px] font-medium leading-tight">{item.title}</span>
+                              }
+                                {!collapsed && item.badge &&
+                              <span className={cn(
+                                "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider",
+                                isActive(item.url)
+                                  ? "bg-secondary-foreground/20 text-secondary-foreground"
+                                  : "bg-sidebar-accent text-sidebar-foreground/60"
+                              )}>
+                                    {item.badge}
+                                  </span>
+                              }
+                              </Link>
+                            </SidebarMenuButton>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[240px] text-xs">
+                            <p className="font-semibold">{item.title}</p>
+                            <p className="text-muted-foreground mt-0.5">{item.tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </SidebarMenuItem>
+                    )}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>);
 
           })}
         </SidebarContent>
