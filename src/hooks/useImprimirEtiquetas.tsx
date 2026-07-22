@@ -52,7 +52,9 @@ export async function carregarDadosEtiquetas(loteIds: string[]): Promise<LoteEti
   const { data, error } = await supabase
     .from('estoque_lotes')
     .select(`
-      id, numero_lote, status, quantidade_original, unidade_original,
+      id, numero_lote, status,
+      quantidade_interna, unidade_interna,
+      quantidade_original, unidade_original,
       data_fab, data_val, created_at,
       item:itens (
         descricao_interna, sku_interno, armazenamento,
@@ -90,8 +92,13 @@ export async function carregarDadosEtiquetas(loteIds: string[]): Promise<LoteEti
       id: l.id,
       numero_lote: l.numero_lote,
       status: l.status,
-      quantidade_original: l.quantidade_original,
-      unidade_original: l.unidade_original,
+      // quantidade NORMALIZADA — unidade_original pode trazer o tamanho da
+      // embalagem em vez da unidade (ex.: "25 KG"), o que fazia a etiqueta
+      // imprimir "1 25 KG" num tambor de 25 kg.
+      quantidade: Number(l.quantidade_interna),
+      unidade: l.unidade_interna,
+      embalagem_qtd: l.quantidade_original,
+      embalagem_unidade: l.unidade_original,
       data_fab: l.data_fab,
       data_val: l.data_val,
       recebido_em: l.created_at,
