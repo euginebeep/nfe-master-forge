@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Plus, Eye, Filter } from "lucide-react";
+import { Users, Plus, Eye, Filter, MapPin, Phone, Mail } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useHybridEntidades, type HybridEntidade } from "@/hooks/use-hybrid-data";
 import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
-import { formatDocument } from "@/lib/formatters";
+import { formatDocument, formatPhone } from "@/lib/formatters";
 import { TenantAccessDiagnostic } from "@/components/diagnostics/TenantAccessDiagnostic";
 
 const PAPEL_LABELS: Record<string, string> = {
@@ -39,6 +39,37 @@ const CLASSIFICACAO_VARIANTS: Record<string, "success" | "info" | "error" | "war
 
 const UF_OPTIONS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
+type EntidadeListItem = HybridEntidade & {
+  cidade: string | null;
+  uf: string | null;
+  endereco_completo: string | null;
+  cep: string | null;
+  telefone: string | null;
+  email: string | null;
+};
+
+function achatarEntidade(e: HybridEntidade): EntidadeListItem {
+  const end =
+    e.entidade_enderecos?.find((x: { principal?: boolean | null }) => x.principal) ??
+    e.entidade_enderecos?.[0];
+  const ctt =
+    e.entidade_contatos?.find((x: { preferencial?: boolean | null }) => x.preferencial) ??
+    e.entidade_contatos?.[0] ??
+    e._primaryContact;
+
+  return {
+    ...e,
+    cidade: end?.cidade ?? null,
+    uf: end?.uf ?? null,
+    endereco_completo: end
+      ? [end.logradouro, end.nro, end.bairro].filter(Boolean).join(", ")
+      : null,
+    cep: end?.cep ?? null,
+    telefone: ctt?.telefone ?? null,
+    email: ctt?.email ?? null,
+  };
+}
+
 export default function EntidadesListPageComplete() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -52,45 +83,33 @@ export default function EntidadesListPageComplete() {
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
 
-  // Apply additional filters
-  const entidades = (entidadesData || []).filter(e => {
-    if (classificacaoFilter !== "all" && e.classificacao !== classificacaoFilter) return false;
-    if (ufFilter !== "all") {
-      const hasUf = e.entidade_enderecos?.some(end => end.uf === ufFilter);
-      if (!hasUf) return false;
-    }
-    return true;
-  });
-
-  const getEnderecoFiscal = (entidade: HybridEntidade) => {
-    const enderecos = entidade.entidade_enderecos || [];
-    const fiscal = enderecos.find((e: any) => e.tipo === 'FISCAL');
-    if (fiscal) return `${fiscal.cidade}/${fiscal.uf}`;
-    const any = enderecos[0];
-    if (any) return `${any.cidade}/${any.uf}`;
-    return '-';
-  };
-
-  const getContatoPrincipal = (entidade: HybridEntidade) => {
-    const contact = entidade._primaryContact;
-    if (contact) return contact.whatsapp || contact.telefone || contact.email || '-';
-    return '-';
-  };
+  const entidades = useMemo(() => {
+    const achatado = (entidadesData || []).map(achatarEntidade);
+    return achatado.filter((e) => {
+      if (classificacaoFilter !== "all" && e.classificacao !== classificacaoFilter) return false;
+      if (ufFilter !== "all") {
+        if (e.uf !== ufFilter) return false;
+      }
+      return true;
+    });
+  }, [entidadesData, classificacaoFilter, ufFilter]);
 
   const columns = [
     {
       key: "codigo_interno",
       header: "Código",
       sortable: true,
-      render: (item: HybridEntidade) => (
-        <span className="font-mono text-sm">{(item as any).codigo_interno || '-'}</span>
+      render: (item: EntidadeListItem) => (
+        <span className="font-mono text-sm tabular-nums">
+          {(item as HybridEntidade & { codigo_interno?: string }).codigo_interno || "—"}
+        </span>
       ),
     },
     {
       key: "razao_social",
       header: "Nome/Razão Social",
       sortable: true,
-      render: (item: HybridEntidade) => (
+      render: (item: EntidadeListItem) => (
         <div>
           <p className="font-medium">{item.razao_social}</p>
           {item.nome_fantasia && (
@@ -103,39 +122,76 @@ export default function EntidadesListPageComplete() {
       key: "documento",
       header: "CPF/CNPJ",
       sortable: true,
-      render: (item: HybridEntidade) => (
-        <span className="font-mono text-sm">{formatDocument(item.documento)}</span>
+      render: (item: EntidadeListItem) => (
+        <span className="font-mono text-sm tabular-nums whitespace-nowrap">
+          {formatDocument(item.documento)}
+        </span>
       ),
     },
     {
       key: "papeis",
       header: "Papéis",
-      render: (item: HybridEntidade) => (
-        <div className="flex flex-wrap gap-1">
-          {item.papeis?.map((papel, idx) => (
-            <StatusBadge key={idx} variant="muted" className="text-xs">
-              {PAPEL_LABELS[papel] || papel}
-            </StatusBadge>
-          ))}
-        </div>
-      ),
+      render: (item: EntidadeListItem) =>
+        item.papeis && item.papeis.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {item.papeis.map((papel, idx) => (
+              <StatusBadge key={idx} variant="muted" className="text-xs">
+                {PAPEL_LABELS[papel] || papel}
+              </StatusBadge>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: "cidade_uf",
       header: "Cidade/UF",
-      render: (item: HybridEntidade) => getEnderecoFiscal(item),
+      render: (item: EntidadeListItem) =>
+        item.cidade ? (
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+            <span className="truncate">{item.cidade}</span>
+            {item.uf && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                {item.uf}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: "contato",
       header: "Contato",
-      render: (item: HybridEntidade) => (
-        <span className="text-sm">{getContatoPrincipal(item)}</span>
-      ),
+      render: (item: EntidadeListItem) =>
+        item.telefone || item.email ? (
+          <div className="flex flex-col gap-0.5 min-w-0">
+            {item.telefone && (
+              <a href={`tel:${item.telefone}`} className="flex items-center gap-1 hover:underline">
+                <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span className="tabular-nums">{formatPhone(item.telefone)}</span>
+              </a>
+            )}
+            {item.email && (
+              <a
+                href={`mailto:${item.email}`}
+                className="flex items-center gap-1 hover:underline text-muted-foreground truncate"
+              >
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate text-[10px]">{item.email}</span>
+              </a>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: "status",
       header: "Status",
-      render: (item: HybridEntidade) => (
+      render: (item: EntidadeListItem) => (
         <StatusBadge variant={STATUS_VARIANTS[item.status] || "muted"}>
           {item.status}
         </StatusBadge>
@@ -144,8 +200,8 @@ export default function EntidadesListPageComplete() {
     {
       key: "classificacao",
       header: "Classificação",
-      render: (item: HybridEntidade) => (
-        <StatusBadge variant={CLASSIFICACAO_VARIANTS[item.classificacao || 'REGULAR'] || "muted"}>
+      render: (item: EntidadeListItem) => (
+        <StatusBadge variant={CLASSIFICACAO_VARIANTS[item.classificacao || "REGULAR"] || "muted"}>
           {item.classificacao || "REGULAR"}
         </StatusBadge>
       ),
@@ -154,7 +210,7 @@ export default function EntidadesListPageComplete() {
       key: "actions",
       header: "",
       className: "w-16",
-      render: (item: HybridEntidade) => (
+      render: (item: EntidadeListItem) => (
         <Button
           variant="ghost"
           size="icon"
@@ -192,7 +248,7 @@ export default function EntidadesListPageComplete() {
         loading={isLoading}
         searchable
         searchPlaceholder="Buscar por nome, documento, telefone ou email..."
-        searchKeys={["documento", "razao_social", "nome_fantasia"]}
+        searchKeys={["documento", "razao_social", "nome_fantasia", "telefone", "email", "cidade"]}
         onRowClick={(item) => navigate(`/cadastros/entidades/${item.id}`)}
         emptyMessage="Nenhuma entidade cadastrada"
         actions={
@@ -242,8 +298,10 @@ export default function EntidadesListPageComplete() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                {UF_OPTIONS.map(uf => (
-                  <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                {UF_OPTIONS.map((uf) => (
+                  <SelectItem key={uf} value={uf}>
+                    {uf}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
