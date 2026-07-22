@@ -4,23 +4,22 @@
 // Exportação PDF A4 com cabeçalho e rodapé padrão BrainX
 // ============================================================
 import { useState, useMemo, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Printer, Download, Calendar, Thermometer,
   Droplets, ShieldCheck, AlertTriangle, CheckCircle2,
   Factory, RefreshCw,
 } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
-import { useUserCompanyId } from "@/hooks/use-user-company";
 import { useCompany } from "@/hooks/use-company";
 import {
-  calcStatus, combineStatus,
-  type SensorReading, type StatusConformidade,
+  useAmbientalHistorico,
+  useAmbientalTempoReal,
+  type PontoAgregado,
+  type StatusConformidade,
 } from "@/hooks/use-sensor-readings";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,15 +33,6 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-// ─── Constantes ──────────────────────────────────────────────
-const TEMP_MARGIN = 1.5;
-const HUM_MARGIN  = 3;
-
-const STATUS_HEX: Record<StatusConformidade, string> = {
-  conforme:     "#059669",
-  atencao:      "#f59e0b",
-  nao_conforme: "#dc2626",
-};
 const STATUS_LABEL: Record<StatusConformidade, string> = {
   conforme:     "Conforme",
   atencao:      "Atenção",
@@ -84,44 +74,18 @@ function fmtDateOnly(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR");
 }
 
-function readingStatus(r: SensorReading) {
-  const temp = calcStatus(r.temperature, r.temp_min, r.temp_max, TEMP_MARGIN);
-  const hum  = calcStatus(r.humidity,    r.hum_min,  r.hum_max,  HUM_MARGIN);
-  return { temp, hum, overall: combineStatus(temp, hum) };
+function aggregateStatus(p: PontoAgregado): StatusConformidade {
+  return p.fora_da_faixa > 0 ? "nao_conforme" : "conforme";
 }
 
-// ─── Hook de dados ────────────────────────────────────────────
-function useSensorDetail(
-  deviceId: string | undefined,
-  since: string,
-  until: string,
-) {
-  const { data: companyId } = useUserCompanyId();
-  return useQuery({
-    queryKey: ["sensor-detail", companyId, deviceId, since, until],
-    enabled: !!companyId && !!deviceId,
-    staleTime: 30_000,
-    queryFn: async (): Promise<SensorReading[]> => {
-      const { data, error } = await (supabase as any)
-        .from("sensor_readings")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("device_id", deviceId)
-        .gte("recorded_at", since)
-        .lte("recorded_at", until)
-        .order("recorded_at", { ascending: true })
-        .limit(10000);
-      if (error) throw error;
-      return (data || []) as SensorReading[];
-    },
-  });
+function fmtNumber(value: number | null | undefined, digits = 1) {
+  return value == null || Number.isNaN(value) ? "—" : value.toFixed(digits);
 }
 
 // ─── Componente principal ─────────────────────────────────────
 export default function SensorDetailPage() {
   const { deviceId } = useParams<{ deviceId: string }>();
   const navigate = useNavigate();
-  const { data: companyId } = useUserCompanyId();
   const { data: company } = useCompany();
   // Período
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
@@ -146,66 +110,68 @@ export default function SensorDetailPage() {
     };
   }, [periodo, customStart, customEnd]);
 
-  const { data: readings = [], isLoading, refetch } = useSensorDetail(deviceId, since, until);
+  const { data: historico = [], isLoading, refetch } = useAmbientalHistorico(since, until, deviceId ?? null);
+  const { data: tempoReal = [] } = useAmbientalTempoReal();
+  const latestTempoReal = useMemo(
+    () => tempoReal.find((r) => r.device_id === deviceId) ?? null,
+    [tempoReal, deviceId],
+  );
 
   // Dados do sensor (último registro)
-  const latest = readings[readings.length - 1];
-  const roomName = latest?.room_name ?? deviceId ?? "Sensor";
-  const tempMin  = latest?.temp_min ?? 18;
-  const tempMax  = latest?.temp_max ?? 25;
-  const humMin   = latest?.hum_min  ?? 40;
-  const humMax   = latest?.hum_max  ?? 60;
+  const latestAggregate = useMemo(
+    () =>
+      historico
+        .slice()
+        .sort((a, b) => new Date(b.bucket).getTime() - new Date(a.bucket).getTime())[0],
+    [historico],
+  );
+  const roomName = latestTempoReal?.room_name ?? latestAggregate?.room_name ?? deviceId ?? "Sensor";
+  const tempMin  = latestTempoReal?.temp_min ?? latestAggregate?.temp_min ?? 18;
+  const tempMax  = latestTempoReal?.temp_max ?? latestAggregate?.temp_max ?? 25;
+  const humMin   = latestTempoReal?.hum_min  ?? latestAggregate?.hum_min  ?? 40;
+  const humMax   = latestTempoReal?.hum_max  ?? latestAggregate?.hum_max  ?? 60;
+  const latestTemperature = latestTempoReal?.temperature ?? latestAggregate?.temp_avg ?? null;
+  const latestHumidity = latestTempoReal?.humidity ?? latestAggregate?.hum_avg ?? null;
+  const latestRecordedAt = latestTempoReal?.recorded_at ?? latestAggregate?.bucket ?? null;
 
   // KPIs
   const kpis = useMemo(() => {
-    if (!readings.length) return null;
-    const temps = readings.map(r => r.temperature).filter((v): v is number => v != null);
-    const hums  = readings.map(r => r.humidity).filter((v): v is number => v != null);
-    const conformes = readings.filter(r => readingStatus(r).overall === "conforme").length;
-    const total = readings.length;
+    if (!historico.length) return null;
+    const tempMins = historico.map(p => p.temp_min).filter((v): v is number => v != null);
+    const tempMaxs = historico.map(p => p.temp_max).filter((v): v is number => v != null);
+    const humMins  = historico.map(p => p.hum_min).filter((v): v is number => v != null);
+    const humMaxs  = historico.map(p => p.hum_max).filter((v): v is number => v != null);
+    const total = historico.reduce((sum, p) => sum + Math.max(1, p.leituras || 0), 0);
+    const naoConformes = historico.reduce((sum, p) => sum + (p.fora_da_faixa || 0), 0);
+    const tempPeso = historico.reduce((sum, p) => sum + (p.temp_avg == null ? 0 : Math.max(1, p.leituras || 0)), 0);
+    const humPeso = historico.reduce((sum, p) => sum + (p.hum_avg == null ? 0 : Math.max(1, p.leituras || 0)), 0);
     return {
-      tempMin:  Math.min(...temps),
-      tempMax:  Math.max(...temps),
-      tempMed:  temps.reduce((a, b) => a + b, 0) / temps.length,
-      humMin:   Math.min(...hums),
-      humMax:   Math.max(...hums),
-      humMed:   hums.reduce((a, b) => a + b, 0) / hums.length,
-      conformidade: total > 0 ? (conformes / total) * 100 : 0,
+      tempMin:  tempMins.length ? Math.min(...tempMins) : 0,
+      tempMax:  tempMaxs.length ? Math.max(...tempMaxs) : 0,
+      tempMed:  tempPeso ? historico.reduce((sum, p) => sum + (p.temp_avg ?? 0) * Math.max(1, p.leituras || 0), 0) / tempPeso : 0,
+      humMin:   humMins.length ? Math.min(...humMins) : 0,
+      humMax:   humMaxs.length ? Math.max(...humMaxs) : 0,
+      humMed:   humPeso ? historico.reduce((sum, p) => sum + (p.hum_avg ?? 0) * Math.max(1, p.leituras || 0), 0) / humPeso : 0,
+      conformidade: total > 0 ? Math.max(0, ((total - naoConformes) / total) * 100) : 0,
       total,
-      naoConformes: readings.filter(r => readingStatus(r).overall === "nao_conforme").length,
+      naoConformes,
     };
-  }, [readings]);
+  }, [historico]);
 
-  // Dados para gráfico (agrupados por hora se > 48 pontos)
+  // Dados para gráfico agregados pela janela escolhida no RPC
   const chartData = useMemo(() => {
-    if (!readings.length) return [];
-    if (readings.length <= 200) {
-      return readings.map(r => ({
-        time: fmtDateShort(r.recorded_at),
-        temperatura: r.temperature != null ? +r.temperature.toFixed(1) : null,
-        umidade:     r.humidity    != null ? +Number(r.humidity).toFixed(1) : null,
-        tempMin, tempMax, humMin, humMax,
+    if (!historico.length) return [];
+    return historico
+      .slice()
+      .sort((a, b) => new Date(a.bucket).getTime() - new Date(b.bucket).getTime())
+      .map(p => ({
+        time: fmtDateShort(p.bucket),
+        temperatura: p.temp_avg != null ? +p.temp_avg.toFixed(1) : null,
+        tempRange: p.temp_min != null && p.temp_max != null ? [p.temp_min, p.temp_max] : null,
+        umidade: p.hum_avg != null ? +Number(p.hum_avg).toFixed(1) : null,
+        humRange: p.hum_min != null && p.hum_max != null ? [p.hum_min, p.hum_max] : null,
       }));
-    }
-    // Agrupar por hora
-    const byHour = new Map<string, SensorReading[]>();
-    readings.forEach(r => {
-      const d = new Date(r.recorded_at);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
-      if (!byHour.has(key)) byHour.set(key, []);
-      byHour.get(key)!.push(r);
-    });
-    return Array.from(byHour.entries()).map(([, group]) => {
-      const temps = group.map(r => r.temperature).filter((v): v is number => v != null);
-      const hums  = group.map(r => r.humidity).filter((v): v is number => v != null);
-      return {
-        time: fmtDateShort(group[0].recorded_at),
-        temperatura: temps.length ? +(temps.reduce((a,b)=>a+b,0)/temps.length).toFixed(1) : null,
-        umidade:     hums.length  ? +(hums.reduce((a,b)=>a+b,0)/hums.length).toFixed(1)  : null,
-        tempMin, tempMax, humMin, humMax,
-      };
-    });
-  }, [readings, tempMin, tempMax, humMin, humMax]);
+  }, [historico]);
 
   // Exportação PDF
   const handleExportPDF = useCallback(() => {
@@ -218,16 +184,17 @@ export default function SensorDetailPage() {
     const conformidade = kpis ? kpis.conformidade.toFixed(1) : "—";
     const naoConformes = kpis ? kpis.naoConformes : 0;
 
-    const rowsHTML = [...readings].reverse().map(r => {
-      const st = readingStatus(r);
-      const statusColor = st.overall === "conforme" ? "#059669"
-        : st.overall === "atencao" ? "#d97706" : "#dc2626";
-      const statusLabel = STATUS_LABEL[st.overall];
+    const rowsHTML = [...historico].reverse().map(p => {
+      const st = aggregateStatus(p);
+      const statusColor = st === "conforme" ? "#059669" : "#dc2626";
+      const statusLabel = STATUS_LABEL[st];
       return `
         <tr>
-          <td>${fmtDate(r.recorded_at)}</td>
-          <td style="color:${calcStatus(r.temperature,r.temp_min,r.temp_max,TEMP_MARGIN)==='nao_conforme'?'#dc2626':calcStatus(r.temperature,r.temp_min,r.temp_max,TEMP_MARGIN)==='atencao'?'#d97706':'#059669'};font-weight:600;">${r.temperature != null ? r.temperature.toFixed(1)+"°C" : "—"}</td>
-          <td style="color:${calcStatus(r.humidity,r.hum_min,r.hum_max,HUM_MARGIN)==='nao_conforme'?'#dc2626':calcStatus(r.humidity,r.hum_min,r.hum_max,HUM_MARGIN)==='atencao'?'#d97706':'#059669'};font-weight:600;">${r.humidity != null ? Number(r.humidity).toFixed(1)+"%" : "—"}</td>
+          <td>${fmtDate(p.bucket)}</td>
+          <td style="font-weight:600;">${fmtNumber(p.temp_avg)}°C <span style="color:#64748B;font-weight:400;">(${fmtNumber(p.temp_min)}–${fmtNumber(p.temp_max)}°C)</span></td>
+          <td style="font-weight:600;">${fmtNumber(p.hum_avg, 0)}% <span style="color:#64748B;font-weight:400;">(${fmtNumber(p.hum_min, 0)}–${fmtNumber(p.hum_max, 0)}%)</span></td>
+          <td>${p.leituras}</td>
+          <td>${p.fora_da_faixa}</td>
           <td style="color:${statusColor};font-weight:600;">${statusLabel}</td>
         </tr>`;
     }).join("");
@@ -293,7 +260,7 @@ export default function SensorDetailPage() {
   <div class="info-cell"><div class="lbl">Sala / Ambiente</div><div class="val">${roomName}</div></div>
   <div class="info-cell"><div class="lbl">Limite Temp.</div><div class="val">${tempMin}–${tempMax} °C</div></div>
   <div class="info-cell"><div class="lbl">Limite Umidade</div><div class="val">${humMin}–${humMax} %</div></div>
-  <div class="info-cell"><div class="lbl">Total Leituras</div><div class="val">${readings.length}</div></div>
+  <div class="info-cell"><div class="lbl">Total Leituras</div><div class="val">${kpis?.total ?? 0}</div></div>
 </div>
 
 <div class="kpi-grid">
@@ -314,13 +281,15 @@ export default function SensorDetailPage() {
   </div>
 </div>
 
-<div class="section-title">Registros de Leituras</div>
+<div class="section-title">Histórico agregado</div>
 <table>
   <thead>
     <tr>
-      <th>Data / Hora</th>
+      <th>Bucket</th>
       <th>Temperatura</th>
       <th>Umidade</th>
+      <th>Leituras</th>
+      <th>Fora da faixa</th>
       <th>Status</th>
     </tr>
   </thead>
@@ -350,7 +319,7 @@ export default function SensorDetailPage() {
     if (!doc) return;
     doc.open(); doc.write(html); doc.close();
     setTimeout(() => { try { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); } catch(e){} }, 600);
-  }, [readings, roomName, deviceId, kpis, company, periodo, customStart, customEnd, tempMin, tempMax, humMin, humMax]);
+  }, [historico, roomName, deviceId, kpis, company, periodo, customStart, customEnd, tempMin, tempMax, humMin, humMax]);
 
   // ─── Render ───────────────────────────────────────────────
   return (
@@ -416,6 +385,34 @@ export default function SensorDetailPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Última atualização</div>
+            <div className="font-mono text-sm font-semibold">
+              {latestRecordedAt ? fmtDate(latestRecordedAt) : "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              {latestTempoReal ? "Tempo real" : "Último bucket agregado"}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Temperatura atual</div>
+            <div className="font-mono text-xl font-semibold text-red-600">
+              {latestTemperature != null ? `${latestTemperature.toFixed(1)}°C` : "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground">Limite: {tempMin}–{tempMax} °C</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Umidade atual</div>
+            <div className="font-mono text-xl font-semibold text-blue-600">
+              {latestHumidity != null ? `${Number(latestHumidity).toFixed(1)}%` : "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground">Limite: {humMin}–{humMax} %</div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* KPIs */}
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -469,18 +466,22 @@ export default function SensorDetailPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: -10 }}>
+                <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: -10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                   <YAxis tick={{ fontSize: 10 }} domain={["auto", "auto"]} />
                   <Tooltip
                     contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                    formatter={(v: any) => [`${v}°C`, "Temperatura"]}
+                    formatter={(v: any, name: string) => {
+                      if (Array.isArray(v)) return [`${v[0]}–${v[1]}°C`, "Faixa temp"];
+                      return [`${v}°C`, name === "temperatura" ? "Temp média" : "Temperatura"];
+                    }}
                   />
                   <ReferenceLine y={tempMin} stroke="#f59e0b" strokeDasharray="4 2" label={{ value: `Mín ${tempMin}°C`, fontSize: 9, fill: "#f59e0b" }} />
                   <ReferenceLine y={tempMax} stroke="#dc2626" strokeDasharray="4 2" label={{ value: `Máx ${tempMax}°C`, fontSize: 9, fill: "#dc2626" }} />
+                  <Area type="monotone" dataKey="tempRange" stroke="none" fill="#ef4444" fillOpacity={0.14} dot={false} activeDot={false} />
                   <Line type="monotone" dataKey="temperatura" stroke="#ef4444" strokeWidth={2} dot={false} connectNulls />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -495,18 +496,22 @@ export default function SensorDetailPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: -10 }}>
+                <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: -10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                   <YAxis tick={{ fontSize: 10 }} domain={["auto", "auto"]} />
                   <Tooltip
                     contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                    formatter={(v: any) => [`${v}%`, "Umidade"]}
+                    formatter={(v: any, name: string) => {
+                      if (Array.isArray(v)) return [`${v[0]}–${v[1]}%`, "Faixa umid"];
+                      return [`${v}%`, name === "umidade" ? "Umid média" : "Umidade"];
+                    }}
                   />
                   <ReferenceLine y={humMin} stroke="#f59e0b" strokeDasharray="4 2" label={{ value: `Mín ${humMin}%`, fontSize: 9, fill: "#f59e0b" }} />
                   <ReferenceLine y={humMax} stroke="#3b82f6" strokeDasharray="4 2" label={{ value: `Máx ${humMax}%`, fontSize: 9, fill: "#3b82f6" }} />
+                  <Area type="monotone" dataKey="humRange" stroke="none" fill="#3b82f6" fillOpacity={0.14} dot={false} activeDot={false} />
                   <Line type="monotone" dataKey="umidade" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -517,10 +522,10 @@ export default function SensorDetailPage() {
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-sm">
-            Registros de Leituras
-            {readings.length > 0 && (
+            Histórico agregado
+            {historico.length > 0 && (
               <span className="ml-2 text-xs text-muted-foreground font-normal">
-                ({readings.length} registros)
+                ({historico.length} buckets)
               </span>
             )}
           </CardTitle>
@@ -531,53 +536,49 @@ export default function SensorDetailPage() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Carregando leituras...</div>
-          ) : readings.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Carregando histórico agregado...</div>
+          ) : historico.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              Nenhuma leitura encontrada para o período selecionado.
+              Nenhum bucket agregado encontrado para o período selecionado.
             </div>
           ) : (
             <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="text-xs">Data / Hora</TableHead>
-                    <TableHead className="text-xs">Temperatura</TableHead>
-                    <TableHead className="text-xs">Limite Temp.</TableHead>
-                    <TableHead className="text-xs">Umidade</TableHead>
-                    <TableHead className="text-xs">Limite Umid.</TableHead>
+                    <TableHead className="text-xs">Bucket</TableHead>
+                    <TableHead className="text-xs">Temp média</TableHead>
+                    <TableHead className="text-xs">Faixa temp</TableHead>
+                    <TableHead className="text-xs">Umid média</TableHead>
+                    <TableHead className="text-xs">Faixa umid</TableHead>
+                    <TableHead className="text-xs">Leituras</TableHead>
+                    <TableHead className="text-xs">Fora da faixa</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {[...readings].reverse().slice(0, 500).map(r => {
-                    const st = readingStatus(r);
+                  {[...historico].reverse().slice(0, 500).map(p => {
+                    const st = aggregateStatus(p);
                     return (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-mono text-xs">{fmtDate(r.recorded_at)}</TableCell>
-                        <TableCell className={cn("font-mono text-xs font-semibold", {
-                          "text-emerald-600": st.temp === "conforme",
-                          "text-amber-500":   st.temp === "atencao",
-                          "text-red-600":     st.temp === "nao_conforme",
-                        })}>
-                          {r.temperature != null ? `${r.temperature.toFixed(1)}°C` : "—"}
+                      <TableRow key={`${p.device_id}-${p.bucket}`}>
+                        <TableCell className="font-mono text-xs">{fmtDate(p.bucket)}</TableCell>
+                        <TableCell className={cn("font-mono text-xs font-semibold", STATUS_BADGE[st].includes("red") ? "text-red-600" : "text-emerald-600")}>
+                          {fmtNumber(p.temp_avg)}°C
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {r.temp_min ?? "—"}–{r.temp_max ?? "—"} °C
+                          {fmtNumber(p.temp_min)}–{fmtNumber(p.temp_max)} °C
                         </TableCell>
-                        <TableCell className={cn("font-mono text-xs font-semibold", {
-                          "text-emerald-600": st.hum === "conforme",
-                          "text-amber-500":   st.hum === "atencao",
-                          "text-red-600":     st.hum === "nao_conforme",
-                        })}>
-                          {r.humidity != null ? `${Number(r.humidity).toFixed(1)}%` : "—"}
+                        <TableCell className={cn("font-mono text-xs font-semibold", STATUS_BADGE[st].includes("red") ? "text-red-600" : "text-emerald-600")}>
+                          {fmtNumber(p.hum_avg, 0)}%
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {r.hum_min ?? "—"}–{r.hum_max ?? "—"} %
+                          {fmtNumber(p.hum_min, 0)}–{fmtNumber(p.hum_max, 0)} %
                         </TableCell>
+                        <TableCell className="font-mono text-xs">{p.leituras}</TableCell>
+                        <TableCell className="font-mono text-xs">{p.fora_da_faixa}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={cn("text-xs", STATUS_BADGE[st.overall])}>
-                            {STATUS_LABEL[st.overall]}
+                          <Badge variant="outline" className={cn("text-xs", STATUS_BADGE[st])}>
+                            {STATUS_LABEL[st]}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -585,9 +586,9 @@ export default function SensorDetailPage() {
                   })}
                 </TableBody>
               </Table>
-              {readings.length > 500 && (
+              {historico.length > 500 && (
                 <div className="text-xs text-muted-foreground text-center py-3 border-t">
-                  Mostrando 500 de {readings.length} registros. Use o PDF para ver todos.
+                  Mostrando 500 de {historico.length} buckets. Use o PDF para ver todos.
                 </div>
               )}
             </div>
