@@ -100,6 +100,59 @@ async function garantirPapelEntidade(
   }
 }
 
+/** Grava o endereço fiscal se a entidade ainda não tiver nenhum. */
+async function garantirEnderecoEntidade(entidadeId: string, entidadeXML: EntidadeXML) {
+  if (!entidadeXML.endereco?.municipio) return;
+
+  const { data: existe } = await supabase
+    .from('entidade_enderecos')
+    .select('id')
+    .eq('entidade_id', entidadeId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existe) return; // já tem: não sobrescreve edição manual
+
+  await supabase.from('entidade_enderecos').insert({
+    entidade_id: entidadeId,
+    tipo: 'FISCAL',
+    logradouro: entidadeXML.endereco.logradouro || null,
+    nro: entidadeXML.endereco.numero || null,
+    compl: entidadeXML.endereco.complemento || null,
+    bairro: entidadeXML.endereco.bairro || null,
+    cidade: entidadeXML.endereco.municipio || null,
+    uf: entidadeXML.endereco.uf || null,
+    cep: entidadeXML.endereco.cep || null,
+    cmun: entidadeXML.endereco.codigo_municipio || null,
+    pais: entidadeXML.endereco.pais || 'Brasil',
+    cpais: entidadeXML.endereco.codigo_pais || '1058',
+    principal: true,
+  });
+}
+
+/** Grava o contato da NF-e se a entidade ainda não tiver nenhum. */
+async function garantirContatoEntidade(entidadeId: string, entidadeXML: EntidadeXML) {
+  if (!entidadeXML.email && !entidadeXML.telefone) return;
+
+  const { data: existe } = await supabase
+    .from('entidade_contatos')
+    .select('id')
+    .eq('entidade_id', entidadeId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existe) return;
+
+  await supabase.from('entidade_contatos').insert({
+    entidade_id: entidadeId,
+    nome: 'Contato da NF-e',
+    email: entidadeXML.email || null,
+    telefone: entidadeXML.telefone || null,
+    preferencial: true,
+    origem: 'XML',
+  });
+}
+
 // ============================================
 // BUSCAR OU CRIAR ENTIDADE NO SUPABASE
 // ============================================
@@ -120,6 +173,8 @@ async function findOrCreateEntidadeSupabase(
   
   if (existente) {
     await garantirPapelEntidade(existente.id, papel, companyId);
+    await garantirEnderecoEntidade(existente.id, entidadeXML);
+    await garantirContatoEntidade(existente.id, entidadeXML);
     return { id: existente.id, isNew: false };
   }
   
@@ -148,36 +203,8 @@ async function findOrCreateEntidadeSupabase(
   }
   
   await garantirPapelEntidade(novaEntidade.id, papel, companyId);
-  
-  // Criar endereço se existir
-  if (entidadeXML.endereco) {
-    await supabase.from('entidade_enderecos').insert({
-      entidade_id: novaEntidade.id,
-      tipo: 'FISCAL',
-      logradouro: entidadeXML.endereco.logradouro || null,
-      nro: entidadeXML.endereco.numero || null,
-      compl: entidadeXML.endereco.complemento || null,
-      bairro: entidadeXML.endereco.bairro || null,
-      cidade: entidadeXML.endereco.municipio || null,
-      uf: entidadeXML.endereco.uf || null,
-      cep: entidadeXML.endereco.cep || null,
-      cmun: entidadeXML.endereco.codigo_municipio || null,
-      pais: entidadeXML.endereco.pais || 'Brasil',
-      cpais: entidadeXML.endereco.codigo_pais || '1058',
-    });
-  }
-  
-  // Criar contato
-  if (entidadeXML.email || entidadeXML.telefone) {
-    await supabase.from('entidade_contatos').insert({
-      entidade_id: novaEntidade.id,
-      nome: 'Contato Principal',
-      email: entidadeXML.email || null,
-      telefone: entidadeXML.telefone || null,
-      preferencial: true,
-      origem: 'XML',
-    });
-  }
+  await garantirEnderecoEntidade(novaEntidade.id, entidadeXML);
+  await garantirContatoEntidade(novaEntidade.id, entidadeXML);
   
   return { id: novaEntidade.id, isNew: true };
 }

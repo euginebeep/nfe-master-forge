@@ -127,9 +127,15 @@ export function useHybridEntidades(filters?: { papel?: string; status?: string }
       // Solução: buscar entidades e papéis separadamente, depois fazer merge em JS.
 
       // 1. Buscar entidades (sem join com entidade_papeis)
+      // entidade_enderecos/contatos entram aqui para a listagem exibir Cidade/UF e Contato.
+      // entidade_papeis continua em query separada (RLS recursivo no join).
       let entidadesQuery = supabase
         .from('entidades')
-        .select('*, entidade_contatos (*)')
+        .select(`
+          *,
+          entidade_enderecos ( cidade, uf, logradouro, nro, bairro, cep, principal, tipo ),
+          entidade_contatos ( telefone, email, whatsapp, preferencial )
+        `)
         .order('razao_social');
 
       if (filters?.status) {
