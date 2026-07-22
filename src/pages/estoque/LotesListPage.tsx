@@ -178,7 +178,7 @@ export default function LotesListPage() {
       header: "Quantidade",
       render: (item: any) => (
         <span>
-          {formatNumber(item.quantidade_interna, 2)} {item.item?.unidade_interna || item.unidade_original}
+          {formatNumber(item.quantidade_interna, 2)} {item.unidade_interna || "—"}
         </span>
       ),
     },

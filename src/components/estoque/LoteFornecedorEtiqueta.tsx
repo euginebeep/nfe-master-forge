@@ -75,15 +75,29 @@ const STATUS_MAP: Record<string, { rotulo: string; enfase: 'normal' | 'hachura' 
   CONSUMIDO:  { rotulo: 'CONSUMIDO', enfase: 'normal' },
 };
 
+/**
+ * Datas `date` do Postgres chegam como "YYYY-MM-DD". `new Date("2027-08-30")`
+ * parseia como MEIA-NOITE UTC; renderizado em São Paulo (UTC-3) vira 21h do
+ * dia anterior, e a etiqueta imprime a validade um dia adiantada.
+ * Aqui montamos a data em horário LOCAL, explicitamente.
+ */
+function parseDataLocal(d: string): Date | null {
+  const s = String(d).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const p = new Date(s); // timestamptz: conversão para local é o correto
+  return isNaN(p.getTime()) ? null : p;
+}
+
 function fmt(d?: string | null) {
   if (!d) return '—';
-  const p = new Date(d);
-  return isNaN(p.getTime()) ? '—' : format(p, 'dd/MM/yyyy');
+  const p = parseDataLocal(d);
+  return p ? format(p, 'dd/MM/yyyy') : '—';
 }
 
 function fmtDateTime(d?: string | null) {
   if (!d) return '—';
-  const p = new Date(d);
+  const p = new Date(d); // sempre timestamptz
   return isNaN(p.getTime()) ? '—' : format(p, 'dd/MM/yyyy HH:mm');
 }
 

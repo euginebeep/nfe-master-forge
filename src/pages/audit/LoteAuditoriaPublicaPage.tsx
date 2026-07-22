@@ -101,7 +101,13 @@ type LotePublico = {
 function fmt(value?: string | null) {
   if (!value) return "—";
   try {
-    return format(new Date(value), "dd/MM/yyyy", { locale: ptBR });
+    // Datas `date` do Postgres chegam como "YYYY-MM-DD". new Date("2027-08-30")
+    // parseia como meia-noite UTC; em São Paulo (UTC−3) vira o dia anterior.
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value).trim());
+    const d = m
+      ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) // date-only: LOCAL
+      : new Date(value); // timestamptz
+    return isNaN(d.getTime()) ? "—" : format(d, "dd/MM/yyyy", { locale: ptBR });
   } catch {
     return "—";
   }
