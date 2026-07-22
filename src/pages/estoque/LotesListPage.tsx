@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useLotes } from "@/hooks/use-lotes";
 import { AtribuirClienteWhiteLabelDialog } from "@/components/producao/AtribuirClienteWhiteLabelDialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { formatDate, formatCurrency, formatQtdLote } from "@/lib/formatters";
+import { formatDate, formatCurrency, formatQtdExibicao } from "@/lib/formatters";
 import { differenceInDays, parseISO } from "date-fns";
 
 type StatusLote = 'QUARENTENA' | 'DISPONIVEL' | 'BLOQUEADO' | 'VENCIDO' | 'APROVADO';
@@ -182,7 +182,7 @@ export default function LotesListPage() {
       header: "Quantidade",
       render: (item: any) => (
         <span>
-          {formatQtdLote(item.quantidade_interna, item.unidade_interna)} {item.unidade_interna || "—"}
+          {formatQtdExibicao(item.quantidade_interna, item.unidade_interna)}
         </span>
       ),
     },

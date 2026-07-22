@@ -23,6 +23,7 @@ import { LoteFornecedorEtiqueta } from "@/components/estoque/LoteFornecedorEtiqu
 import { carregarDadosEtiquetas, useImprimirEtiquetas } from "@/hooks/useImprimirEtiquetas";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatDate, formatQtdExibicao } from "@/lib/formatters";
 
 type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
 
@@ -340,12 +341,12 @@ export default function LoteDetailPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Quantidade interna</span>
               <span className="font-mono font-medium">
-                {Number(lote.quantidade_interna).toLocaleString("pt-BR")} {lote.unidade_interna || "—"}
+                {formatQtdExibicao(Number(lote.quantidade_interna), lote.unidade_interna)}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Validade</span>
-              <span className="font-mono font-medium">{lote.data_val || "-"}</span>
+              <span className="font-mono font-medium">{lote.data_val ? formatDate(lote.data_val) : "-"}</span>
             </div>
             <Separator />
             <Alert className="bg-muted/50">
