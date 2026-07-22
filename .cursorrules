@@ -1,0 +1,105 @@
+# Regras do projeto — BrainX ERP
+
+React + TypeScript + Vite + Supabase + Vercel.
+ERP multi-tenant para fabricantes brasileiros de suplementos alimentares.
+Software regulado: erro de rastreabilidade é achado de auditoria ANVISA,
+não é bug cosmético.
+
+Cada regra abaixo existe porque o problema já aconteceu neste repositório.
+
+---
+
+## 1. Artefatos entregues prontos: commitar verbatim
+
+Arquivo `.sql` de migration entregue pronto na tarefa **é commitado como
+recebido**. Não reescrever, não "melhorar", não renomear colunas, não
+regerar do zero.
+
+Motivo: uma migration entregue pronta normalmente **já foi aplicada no
+banco de produção**. Reescrevê-la faz o arquivo descrever um schema que não
+existe. Ambiente novo, staging ou recuperação de desastre passam a gerar um
+banco diferente de produção.
+
+Incidente real (22/07/2026): a migration `qr_publico_lote_e_rate_limit` foi
+reescrita. O arquivo ficou com colunas `ok`/`motivo` em vez de
+`encontrado`/`bloqueado`/`company_id`, perdeu a policy de RLS por tenant,
+perdeu `security_invoker` na view e concedeu a `anon` uma função que havia
+sido explicitamente revogada.
+
+Se o SQL entregue parecer errado: **não corrija — sinalize e pare.**
+
+## 2. Banco de dados
+
+- **Nunca aplicar SQL sem instrução explícita.** Merge no Vercel publica
+  frontend e edge functions; **não** executa migration.
+- Se a tarefa disser que o banco já está aplicado, o arquivo `.sql` é
+  apenas registro. Não executar.
+- Toda tabela nova nasce com `ENABLE ROW LEVEL SECURITY` **e** policy por
+  tenant (`company_id = public.get_user_company_id()`). RLS ligada sem
+  policy não é segurança: é a feature nascendo quebrada.
+- View sobre tabela com RLS: sempre `WITH (security_invoker = true)`.
+  Sem isso a view roda como owner e vaza dados entre tenants.
+- Função exposta a `anon`: `SECURITY DEFINER` + `SET search_path` +
+  parâmetro **tipado**. Nunca montar filtro PostgREST por interpolação de
+  string vinda de URL.
+- Não conceder `EXECUTE` a `anon` em função auxiliar interna.
+
+## 3. Escopo
+
+Alterar apenas os arquivos listados na tarefa. Se um arquivo fora da lista
+precisar mudar, **fazer e relatar explicitamente** o que mudou e por quê.
+
+Exceção legítima e desejada: descobrir que o alvo real é outro arquivo
+(ex.: a coluna de ações já estar extraída em `NotaEntradaAcoesCell.tsx`).
+Nesse caso, mudar no lugar certo e avisar.
+
+## 4. Extensões de arquivo
+
+Arquivo que contém JSX é **`.tsx`**, sem exceção — inclusive hooks.
+`.ts` com JSX quebra o build no esbuild com `Expected ">" but found
+"className"`.
+
+## 5. Regressões proibidas
+
+Nunca reverter, em nenhuma circunstância:
+
+- **Provedor de NF-e.** É **Focus NFe**. Nuvem Fiscal foi desativada em
+  31/07/2026. Referência a Nuvem Fiscal só é aceitável como alias
+  retrocompatível já existente.
+- **Credenciais Supabase.** URL e anon key vêm de env. Nunca hardcoded em
+  arquivo do `src/`.
+- **Lockout de staff SaaS.**
+- **Criptografia de segredos** (certificado A1, SMTP, tokens). Segredo
+  nunca volta a texto plano em `localStorage` ou coluna aberta.
+
+## 6. Rastreabilidade e BPF/ANVISA
+
+- Número de lote **nunca** via `Math.random()`. Precisa ser determinístico
+  e auditável.
+- Nada de razão social hardcoded em PDF ou etiqueta: ler da tabela
+  `company`. O sistema é white-label.
+- Data exibida como "recebido em", "fabricado em", "validade" vem **do
+  banco**. Nunca `new Date()` no momento da renderização — reimpressão
+  passaria a mentir sobre a data.
+- Status de lote (quarentena / liberado / bloqueado) sempre lido do
+  registro. Nunca texto fixo.
+- Não inventar valor regulatório (limite, VDR, prazo, número de IN/RDC).
+  Sem fonte confirmada, deixar explícito como pendência.
+
+## 7. Rate limit e dados sensíveis
+
+- Rate limit é **server-side**. `localStorage` não protege nada: some ao
+  abrir aba anônima.
+- IP de visitante é armazenado **hasheado**, nunca em claro (LGPD).
+- Payload de endpoint público não expõe custo, saldo de estoque, nome de
+  cliente nem `company_id`.
+
+## 8. Antes de encerrar a tarefa
+
+1. `npm run build` passa.
+2. Nenhum arquivo fora do escopo alterado sem relato.
+3. Seletor CSS que dependa de `id` confere com o `id` realmente
+   renderizado (falha silenciosa: build passa, tela funciona, impressão
+   sai errada).
+4. Relatar o que **não** foi possível verificar (hardware, impressora,
+   comportamento em produção).
