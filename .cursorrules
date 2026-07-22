@@ -97,9 +97,19 @@ Nunca reverter, em nenhuma circunstância:
 ## 8. Antes de encerrar a tarefa
 
 1. `npm run build` passa.
-2. Nenhum arquivo fora do escopo alterado sem relato.
-3. Seletor CSS que dependa de `id` confere com o `id` realmente
+2. Rodar `npx tsc --noEmit -p tsconfig.app.json` — **nunca**
+   `-p tsconfig.json`, que tem `files: []` e não verifica nada.
+   `vite build` passar **não** significa que os tipos estão corretos.
+   Se algum arquivo apresentar erro `TS1xxx` (sintaxe), corrigir
+   primeiro: erro de sintaxe cega a verificação de tipos do projeto
+   inteiro.
+3. Nenhum arquivo fora do escopo alterado sem relato.
+4. Seletor CSS que dependa de `id` confere com o `id` realmente
    renderizado (falha silenciosa: build passa, tela funciona, impressão
    sai errada).
-4. Relatar o que **não** foi possível verificar (hardware, impressora,
+5. Relatar o que **não** foi possível verificar (hardware, impressora,
    comportamento em produção).
+
+**Nota:** `npm run typecheck` existe, mas **não** está no `build` ainda —
+há ~190 erros semânticos legados. Não amarrar typecheck ao deploy até
+zerar. Enquanto isso, o typecheck serve para tornar os erros visíveis.
