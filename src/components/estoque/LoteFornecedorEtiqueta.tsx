@@ -133,11 +133,18 @@ export function LoteFornecedorEtiqueta({ lote, hideActions = false }: Props) {
       )}
 
       <div className="etiqueta-lote">
+        {/* Cabeçalho SEMPRE renderizado. Sem optional chaining a etiqueta
+            quebraria com empresa ausente; sem fallback o bloco colapsaria e
+            a altura da etiqueta mudaria entre impressões. */}
         <header className="et-header">
-          <div className="et-empresa">{lote.empresa.nome_fantasia || lote.empresa.razao_social}</div>
+          <div className="et-empresa">
+            {lote.empresa?.nome_fantasia || lote.empresa?.razao_social || '—'}
+          </div>
           <div className="et-empresa-sub">
-            CNPJ {formatarDoc(lote.empresa.cnpj)}
-            {lote.empresa.licenca_sanitaria ? ` · Lic. Sanit. ${lote.empresa.licenca_sanitaria}` : ''}
+            {lote.empresa?.cnpj ? `CNPJ ${formatarDoc(lote.empresa.cnpj)}` : '\u00A0'}
+            {lote.empresa?.licenca_sanitaria
+              ? ` · Lic. Sanit. ${lote.empresa.licenca_sanitaria}`
+              : ''}
           </div>
           <div className="et-titulo">IDENTIFICAÇÃO DE INSUMO</div>
         </header>
@@ -253,7 +260,7 @@ export function LoteFornecedorEtiqueta({ lote, hideActions = false }: Props) {
           font-variant-numeric: tabular-nums lining-nums;
           margin: 0 auto; overflow: hidden;
         }
-        .et-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 1mm; }
+        .et-header { text-align:center; border-bottom:2px solid #000; padding-bottom:1mm; min-height:15mm; }
         .et-empresa { font-size: 11pt; font-weight: 800; text-transform: uppercase; line-height: 1.1; }
         .et-empresa-sub { font-size: 7.5pt; }
         .et-titulo { font-size: 8.5pt; font-weight: 800; letter-spacing: .5px; margin-top: .8mm; }
@@ -316,7 +323,11 @@ export function LoteFornecedorEtiqueta({ lote, hideActions = false }: Props) {
         }
 
         @media print {
+          /* O tamanho do papel no driver PRECISA ser 100x150mm e a escala
+             do diálogo em 100% (não "ajustar à página"), senão o Chrome
+             redimensiona e o conteúdo é cortado. */
           @page { size: 100mm 150mm; margin: 0; }
+          html, body { width: 100mm; }
           .etiqueta-lote {
             border:none; width:100mm; height:150mm;
             page-break-after: always; break-after: page;
