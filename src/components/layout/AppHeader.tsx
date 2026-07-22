@@ -1,6 +1,8 @@
 import { Moon, Sun, Menu, LogOut, Search, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LogoDemoERP } from "./LogoDemoERP";
+import brainxWordmark from "@/assets/brainx-wordmark.png";
+import brainxWordmark2x from "@/assets/brainx-wordmark@2x.png";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -79,6 +81,15 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+        <Link to="/dashboard" className="flex items-center shrink-0" aria-label="BrainX ERP">
+          <img
+            src={brainxWordmark}
+            srcSet={`${brainxWordmark} 1x, ${brainxWordmark2x} 2x`}
+            alt="BrainX ERP"
+            className="h-5 sm:h-6 w-auto object-contain"
+          />
+        </Link>
+
         <Button
           variant="ghost"
           size="icon"
