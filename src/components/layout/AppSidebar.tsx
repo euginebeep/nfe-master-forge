@@ -1,4 +1,5 @@
 import { useLocation, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import brainxLogo from "@/assets/brainx-logo.png";
 import { LogoDemoERP } from "./LogoDemoERP";
 import { useCompany } from "@/hooks/use-company";
@@ -242,6 +243,12 @@ export function AppSidebar() {
   const companyPending = !company;
 
   const isAdmin = role === 'admin';
+  const [logoEnergy, setLogoEnergy] = useState(true);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setLogoEnergy(false), 10_000);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -274,22 +281,23 @@ export function AppSidebar() {
     return (
       <Sidebar className={cn("border-r border-sidebar-border", collapsed ? "w-16" : "w-64")} collapsible="icon">
         <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
-          <Link to="/dashboard" className="flex items-center gap-1 md:gap-3 px-2 md:px-4 py-3 md:py-4">
-            <img
-              src={brainxLogo}
-              alt="BrainX ERP"
-              className={cn(
-                "object-contain rounded shrink-0 transition-all duration-200",
-                collapsed ? "w-[50px] h-[50px] md:w-[65px] md:h-[65px]" : "w-[64px] h-[64px] md:w-[87px] md:h-[87px] lg:w-[101px] lg:h-[101px]"
-              )}
-              loading="lazy"
-            />
-            {!collapsed &&
-            <div className="flex flex-col">
-                <span className="font-bold text-lg text-sidebar-foreground tracking-tight">BrainX ERP</span>
-                <span className="text-xs text-sidebar-foreground/60 font-medium">Industrial</span>
-              </div>
-            }
+          <Link to="/dashboard" className="flex flex-col items-center px-2 md:px-4 py-3 md:py-4">
+            <div className="relative">
+              <img
+                src={brainxLogo}
+                alt="BrainX ERP"
+                className={cn(
+                  "object-contain rounded shrink-0 transition-all duration-200",
+                  collapsed ? "w-[50px] h-[50px] md:w-[65px] md:h-[65px]" : "w-[64px] h-[64px] md:w-[87px] md:h-[87px] lg:w-[101px] lg:h-[101px]"
+                )}
+                loading="lazy"
+              />
+            </div>
+            {!collapsed && (
+              <span className="mt-1 text-[10px] md:text-[11px] font-semibold tracking-[0.18em] uppercase text-sidebar-foreground/70">
+                ERP Industrial
+              </span>
+            )}
           </Link>
         </SidebarHeader>
         <SidebarContent className="px-2 py-4 bg-sidebar">
@@ -313,7 +321,11 @@ export function AppSidebar() {
         collapsible="icon">
 
         <SidebarHeader className="border-b border-sidebar-border/50 bg-sidebar">
-          <Link to="/dashboard" className="flex items-center gap-1 md:gap-3 px-2 md:px-4 pt-3 md:pt-5 pb-0.5 md:pb-1">
+          <Link
+            to="/dashboard"
+            className="flex flex-col items-center px-2 md:px-4 pt-3 md:pt-5 pb-2 md:pb-3"
+            aria-label="BrainX ERP Industrial"
+          >
             <div className="relative">
               <LogoDemoERP
                 className={cn(
@@ -321,18 +333,13 @@ export function AppSidebar() {
                   collapsed ? "w-[50px] h-[50px] md:w-[65px] md:h-[65px]" : "w-[64px] h-[64px] md:w-[87px] md:h-[87px] lg:w-[101px] lg:h-[101px]"
                 )}
               />
+              {logoEnergy && <span className="brainx-logo-energy" aria-hidden />}
             </div>
-            {!collapsed &&
-            <div className="flex flex-col min-w-0 -ml-4 relative z-10">
-                <span className="font-bold text-base md:text-lg text-sidebar-foreground tracking-tight leading-tight truncate">
-                  {profile?.is_demo ? 'BrainX Demo' : 'BrainX ERP'}
-                </span>
-                <span className="text-[10px] md:text-[11px] text-sidebar-foreground/50 font-medium tracking-wide flex items-center gap-1">
-                  {profile?.is_demo ? 'Demonstração' : 'Industrial'}
-                  {!profile?.is_demo && <span className="bg-primary/20 text-[9px] px-1 rounded-sm text-primary-foreground font-bold">Matriz</span>}
-                </span>
-              </div>
-            }
+            {!collapsed && (
+              <span className="mt-1.5 text-[10px] md:text-[11px] font-semibold tracking-[0.18em] uppercase text-sidebar-foreground/70">
+                {profile?.is_demo ? "ERP Demo" : "ERP Industrial"}
+              </span>
+            )}
           </Link>
         </SidebarHeader>
 
