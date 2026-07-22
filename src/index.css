@@ -269,6 +269,47 @@
   .fade-in {
     @apply animate-in;
   }
+
+  /* Energia passando pelo logo da sidebar — desliga após 10s via JS */
+  @keyframes brainx-energy-sweep {
+    0% {
+      transform: translateX(-140%) skewX(-18deg);
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    88% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(220%) skewX(-18deg);
+      opacity: 0;
+    }
+  }
+
+  .brainx-logo-energy {
+    @apply pointer-events-none absolute inset-0 overflow-hidden rounded;
+  }
+
+  .brainx-logo-energy::after {
+    content: "";
+    position: absolute;
+    top: -25%;
+    left: 0;
+    width: 35%;
+    height: 150%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 200, 255, 0.15) 25%,
+      rgba(0, 220, 255, 0.65) 50%,
+      rgba(255, 80, 200, 0.45) 70%,
+      transparent 100%
+    );
+    filter: blur(1px);
+    animation: brainx-energy-sweep 1.65s ease-in-out infinite;
+  }
 }
 
 /* ============================================
