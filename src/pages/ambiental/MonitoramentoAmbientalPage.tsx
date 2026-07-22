@@ -635,6 +635,14 @@ export default function MonitoramentoAmbientalPage() {
   const semConfiguracao = !isCarregandoEstado && sensores.length === 0 && !isDemo;
   const aguardandoLeituras = !isCarregandoEstado && sensores.length > 0 && tempoReal.length === 0 && historico.length === 0 && !isDemo;
 
+  const sensoresOnline = useMemo(
+    () => tempoReal.filter((r) => r.segundos_atras <= SEM_COMUNICACAO_SEGUNDOS).length,
+    [tempoReal],
+  );
+  const sensoresSemComunicacao = tempoReal.length - sensoresOnline;
+  const monitoramentoAoVivo = tempoReal.length > 0 && sensoresSemComunicacao === 0;
+  const monitoramentoParcial = sensoresOnline > 0 && sensoresSemComunicacao > 0;
+
   return (
     <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-5">
       <PageHeader
@@ -643,12 +651,43 @@ export default function MonitoramentoAmbientalPage() {
         description="Controle de temperatura e umidade em tempo real"
         actions={
           <>
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1.5 hover:bg-emerald-100">
+            <Badge
+              className={cn(
+                "gap-1.5",
+                monitoramentoAoVivo
+                  ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                  : monitoramentoParcial
+                    ? "bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100"
+                    : "bg-red-100 text-red-700 border-red-200 hover:bg-red-100",
+              )}
+              title={
+                tempoReal.length === 0
+                  ? "Sem leituras recentes"
+                  : `${sensoresOnline} online · ${sensoresSemComunicacao} sem comunicação (>${SEM_COMUNICACAO_SEGUNDOS / 60} min)`
+              }
+            >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+                {monitoramentoAoVivo && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                )}
+                <span
+                  className={cn(
+                    "relative inline-flex rounded-full h-2 w-2",
+                    monitoramentoAoVivo
+                      ? "bg-emerald-600"
+                      : monitoramentoParcial
+                        ? "bg-amber-500"
+                        : "bg-red-600",
+                  )}
+                />
               </span>
-              Ao vivo
+              {monitoramentoAoVivo
+                ? "Ao vivo"
+                : monitoramentoParcial
+                  ? `${sensoresOnline}/${tempoReal.length} online`
+                  : tempoReal.length === 0
+                    ? "Sem dados"
+                    : "Sem comunicação"}
             </Badge>
             <Button variant="outline" size="sm" onClick={exportCSV} disabled={!isDemo && isEmpty}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
