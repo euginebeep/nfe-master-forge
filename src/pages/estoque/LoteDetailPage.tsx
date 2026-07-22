@@ -340,7 +340,7 @@ export default function LoteDetailPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Quantidade interna</span>
               <span className="font-mono font-medium">
-                {Number(lote.quantidade_interna).toLocaleString("pt-BR")} {(item as any).unidade_interna || 'g'}
+                {Number(lote.quantidade_interna).toLocaleString("pt-BR")} {lote.unidade_interna || "—"}
               </span>
             </div>
             <div className="flex items-center justify-between">
