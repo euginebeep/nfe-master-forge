@@ -289,7 +289,7 @@
   }
 
   .brainx-logo-energy {
-    @apply pointer-events-none absolute inset-0 overflow-hidden rounded;
+    @apply pointer-events-none absolute inset-[-18%] overflow-hidden rounded;
   }
 
   .brainx-logo-energy::after {
@@ -309,6 +309,13 @@
     );
     filter: blur(1px);
     animation: brainx-energy-sweep 1.65s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brainx-logo-energy::after {
+      animation: none;
+      display: none;
+    }
   }
 }
 
