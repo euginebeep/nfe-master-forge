@@ -31,8 +31,12 @@ type LotePublico = {
   id?: string;
   numero_lote?: string;
   status?: string;
+  /** quantidade normalizada (preferida); fallback legado: quantidade_recebida */
+  quantidade?: number;
   quantidade_recebida?: number;
   unidade?: string;
+  embalagem_qtd?: number | null;
+  embalagem_unidade?: string | null;
   data_fab?: string | null;
   data_val?: string | null;
   recebido_em?: string | null;
@@ -68,6 +72,29 @@ type LotePublico = {
     tipo_conselho?: string | null;
     numero_registro?: string | null;
     uf_conselho?: string | null;
+  } | null;
+  /** Presente só quando o usuário autenticado pertence ao tenant dono do lote. */
+  tenant?: {
+    nf_chave?: string | null;
+    custo_unitario_interno?: number | null;
+    potencia?: {
+      tipo?: string | null;
+      valor?: number | null;
+      unidade?: string | null;
+      validada_rt?: boolean | null;
+      validada_em?: string | null;
+    } | null;
+    documentos?: Array<{
+      tipo?: string | null;
+      nome?: string | null;
+      versao?: string | null;
+      status?: string | null;
+      data_emissao?: string | null;
+    }> | null;
+    scans?: {
+      total?: number | null;
+      ultimo?: string | null;
+    } | null;
   } | null;
 };
 
@@ -236,11 +263,20 @@ export default function LoteAuditoriaPublicaPage() {
               </div>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Quantidade recebida</p>
+              <p className="text-sm text-muted-foreground">Quantidade</p>
               <p className="font-medium">
-                {Number(lote.quantidade_recebida ?? 0).toLocaleString("pt-BR")}{" "}
+                {Number(lote.quantidade ?? lote.quantidade_recebida ?? 0).toLocaleString("pt-BR")}{" "}
                 {lote.unidade || ""}
               </p>
+              {lote.embalagem_qtd != null &&
+                lote.embalagem_unidade &&
+                `${Number(lote.embalagem_qtd).toLocaleString("pt-BR")} ${lote.embalagem_unidade}`.toLowerCase() !==
+                  `${Number(lote.quantidade ?? lote.quantidade_recebida ?? 0).toLocaleString("pt-BR")} ${lote.unidade || ""}`.toLowerCase() && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {Number(lote.embalagem_qtd).toLocaleString("pt-BR")} × {lote.embalagem_unidade}{" "}
+                    (conforme NF)
+                  </p>
+                )}
             </div>
             {lote.insumo?.armazenamento && (
               <div className="flex items-start gap-2 text-sm">
@@ -321,6 +357,88 @@ export default function LoteAuditoriaPublicaPage() {
               {lote.coa.possui
                 ? `${lote.coa.quantidade ?? 1} documento(s) de COA vinculado(s)`
                 : "Sem COA vinculado a este lote"}
+            </CardContent>
+          </Card>
+        )}
+
+        {lote.tenant != null && (
+          <Card className="border-amber-500/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Shield className="w-5 h-5" />
+                Informações internas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              {lote.tenant.nf_chave && (
+                <div>
+                  <p className="text-muted-foreground">Chave da NF-e</p>
+                  <p className="font-mono text-xs break-all">{lote.tenant.nf_chave}</p>
+                </div>
+              )}
+              {lote.tenant.custo_unitario_interno != null && (
+                <div>
+                  <p className="text-muted-foreground">Custo unitário interno</p>
+                  <p className="font-medium">
+                    {Number(lote.tenant.custo_unitario_interno).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </p>
+                </div>
+              )}
+              {lote.tenant.potencia && (
+                <div>
+                  <p className="text-muted-foreground">Potência / teor</p>
+                  <p className="font-medium">
+                    {[
+                      lote.tenant.potencia.tipo,
+                      lote.tenant.potencia.valor != null
+                        ? Number(lote.tenant.potencia.valor).toLocaleString("pt-BR")
+                        : null,
+                      lote.tenant.potencia.unidade,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </p>
+                  {(lote.tenant.potencia.validada_rt || lote.tenant.potencia.validada_em) && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {lote.tenant.potencia.validada_rt ? "Validada pelo RT" : "Não validada"}
+                      {lote.tenant.potencia.validada_em
+                        ? ` · ${fmt(lote.tenant.potencia.validada_em)}`
+                        : ""}
+                    </p>
+                  )}
+                </div>
+              )}
+              {Array.isArray(lote.tenant.documentos) && lote.tenant.documentos.length > 0 && (
+                <div>
+                  <p className="text-muted-foreground mb-2">Documentos / COA</p>
+                  <ul className="space-y-2">
+                    {lote.tenant.documentos.map((doc, i) => (
+                      <li key={i} className="border-b border-border/50 pb-2 last:border-0">
+                        <p className="font-medium">{doc.nome || doc.tipo || "Documento"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {[doc.tipo, doc.versao && `v${doc.versao}`, doc.status, doc.data_emissao && fmt(doc.data_emissao)]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {lote.tenant.scans && (
+                <div>
+                  <p className="text-muted-foreground">Scans do QR</p>
+                  <p className="font-medium">
+                    {lote.tenant.scans.total ?? 0} consulta(s)
+                    {lote.tenant.scans.ultimo
+                      ? ` · último em ${fmt(lote.tenant.scans.ultimo)}`
+                      : ""}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

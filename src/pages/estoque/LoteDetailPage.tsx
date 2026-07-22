@@ -241,9 +241,13 @@ export default function LoteDetailPage() {
         icon={FileText}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => window.print()}>
+            <Button
+              variant="outline"
+              disabled={imprimindoEtiqueta || !id}
+              onClick={() => imprimir([id!])}
+            >
               <Printer className="h-4 w-4 mr-2" />
-              Etiqueta
+              {imprimindoEtiqueta ? "Preparando…" : "Etiqueta"}
             </Button>
             <Button variant="outline" onClick={() => navigate("/estoque/lotes")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -299,10 +303,7 @@ export default function LoteDetailPage() {
             </CardHeader>
             <CardContent className="p-6 flex flex-col items-center">
               {dadosEtiqueta ? (
-                <LoteFornecedorEtiqueta
-                  lote={dadosEtiqueta}
-                  onPrint={() => imprimir([id!])}
-                />
+                <LoteFornecedorEtiqueta lote={dadosEtiqueta} hideActions />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {imprimindoEtiqueta
