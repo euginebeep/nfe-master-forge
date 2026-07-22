@@ -69,7 +69,7 @@ export function AppHeader() {
   const companyLogo = branding?.logo_url;
 
   return (
-    <header className="h-12 sm:h-14 border-b bg-card flex items-center justify-between px-2 sm:px-4 shrink-0 gap-1 sm:gap-2">
+    <header className="h-20 sm:h-24 border-b bg-card flex items-center justify-between px-2 sm:px-4 shrink-0 gap-1 sm:gap-2">
       <div className="flex items-center gap-1 sm:gap-2">
         <SidebarTrigger className="h-8 sm:h-9 w-8 sm:w-9" aria-label="Abrir/fechar menu lateral">
           <Menu className="h-4 sm:h-5 w-4 sm:w-5" />
@@ -126,11 +126,11 @@ export function AppHeader() {
               <img
                 src={companyLogo}
                 alt=""
-                className="h-7 w-7 sm:h-8 sm:w-8 rounded-md object-contain bg-background border border-border/60 shrink-0"
+                className="h-14 w-14 sm:h-16 sm:w-16 rounded-md object-contain bg-background border border-border/60 shrink-0"
               />
             ) : (
-              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                <Building2 className="h-3.5 w-3.5 text-primary" />
+              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <Building2 className="h-7 w-7 text-primary" />
               </div>
             )}
             <div className="flex flex-col leading-tight min-w-0">
@@ -162,11 +162,11 @@ export function AppHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2">
-                <Avatar className="h-9 sm:h-10 w-9 sm:w-10 border-2 border-primary/30 shadow-sm">
+                <Avatar className="h-[4.5rem] sm:h-20 w-[4.5rem] sm:w-20 border-2 border-primary/30 shadow-sm">
                   {profile.avatar_url ? (
                     <AvatarImage src={profile.avatar_url} alt={profile.nome_completo} />
                   ) : (
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm font-semibold">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-base sm:text-lg font-semibold">
                       {getInitials(profile.nome_completo)}
                     </AvatarFallback>
                   )}
