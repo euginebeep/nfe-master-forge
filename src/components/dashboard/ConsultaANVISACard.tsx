@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useAnvisaSearch } from '@/hooks/use-anvisa-search';
 import { useAnvisaSync } from '@/hooks/use-anvisa-sync';
+import { useNewsFeed } from '@/hooks/use-news-feed';
 import { DoseTable } from '@/components/regulatorio/DoseTable';
 import { estiloStatusAnvisaConsulta } from '@/lib/anvisa-consultar';
 import { cn } from '@/lib/utils';
@@ -41,6 +42,7 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
     consultaMensagem,
   } = useAnvisaSearch();
   const { sincronizarSubstancia, sincronizandoSubstancia } = useAnvisaSync();
+  const { noticias, isLoading: carregandoNoticias } = useNewsFeed("ANVISA", 4);
   const estilo = estiloStatusAnvisaConsulta(consultaStatus ?? undefined);
 
   const handleVerificarANVISA = (nomeTecnico: string) => {
@@ -121,7 +123,7 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
               </Button>
             </div>
 
-            <div className={cn("flex flex-wrap gap-0.5 mt-auto", compact ? "pt-0" : "pt-1")}>
+            <div className={cn("flex flex-wrap gap-0.5", compact ? "pt-0" : "pt-1")}>
               {['Vitamina D', 'Melatonina'].map((item) => (
                 <Button
                   key={item}
@@ -136,6 +138,46 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
                   {item}
                 </Button>
               ))}
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto border-t pt-1.5 mt-1.5">
+              <p className={cn(
+                "font-bold uppercase tracking-wide text-muted-foreground mb-1",
+                compact ? "text-[8px]" : "text-[9px]"
+              )}>
+                Últimas da ANVISA
+              </p>
+
+              {carregandoNoticias && (
+                <p className={cn("text-muted-foreground", compact ? "text-[8px]" : "text-[9px]")}>
+                  Carregando...
+                </p>
+              )}
+
+              {!carregandoNoticias && noticias.length === 0 && (
+                <p className={cn("text-muted-foreground", compact ? "text-[8px]" : "text-[9px]")}>
+                  Sem notícias no momento
+                </p>
+              )}
+
+              <ul className="space-y-1">
+                {noticias.map((n) => (
+                  <li key={n.link}>
+                    <a
+                      href={n.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "block leading-snug hover:underline text-foreground/90 line-clamp-2",
+                        compact ? "text-[8.5px]" : "text-[10px]"
+                      )}
+                      title={n.title}
+                    >
+                      {n.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <a

@@ -94,6 +94,31 @@ function parseRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
   return items;
 }
 
+/** Remove acentos para comparar termos setoriais. */
+function semAcento(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/**
+ * ANVISA passa integralmente. Fontes generalistas só passam se a manchete
+ * ou descrição contiver termo do setor (suplementos / regulatório / BPF).
+ */
+const TERMOS_SETORIAIS = [
+  "anvisa", "suplemento", "suplementos", "rotulagem", "rotulo",
+  "rdc", "instrucao normativa", "in 28", "bpf", "boas praticas",
+  "recall", "importacao", "vitamina", "colageno", "creatina",
+  "melatonina", "omega", "probiotico", "prebiotico", "nutraceutico",
+  "alimento", "alimentos", "constituinte", "alegacao", "farmacia",
+  "industria", "qualidade", "inspecao", "vigilancia sanitaria",
+  "registro", "notificacao", "cosmetico", "saude",
+];
+
+function ehRelevanteSetorial(item: NewsItem): boolean {
+  if (item.source === "ANVISA") return true;
+  const texto = semAcento(`${item.title} ${item.description ?? ""}`);
+  return TERMOS_SETORIAIS.some((t) => texto.includes(semAcento(t)));
+}
+
 const RSS_SOURCES = [
   { url: "https://www.cnnbrasil.com.br/feed/", name: "CNN Brasil", parser: "rss2" as const },
   { url: "https://jovempan.com.br/feed", name: "Jovem Pan", parser: "rss2" as const },
@@ -148,7 +173,7 @@ serve(async (req) => {
 
     for (const result of results) {
       if (result.status === "fulfilled") {
-        allNews.push(...result.value);
+        allNews.push(...result.value.filter(ehRelevanteSetorial));
       }
     }
 
