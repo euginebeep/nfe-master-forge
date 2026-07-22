@@ -1,128 +1,98 @@
-import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Shield, Package, Calendar, UserCheck, CheckCircle2, AlertTriangle,
-  QrCode, Factory, Beaker, Clock, ShieldCheck, Truck, FileText
+import {
+  Shield,
+  Package,
+  Calendar,
+  AlertTriangle,
+  QrCode,
+  ShieldCheck,
+  Truck,
+  Building2,
+  Thermometer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { QRCodeAuditoria } from "@/components/shared/QRCodeAuditoria";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type LotePublicoPayload = {
+  ok: boolean;
+  mensagem?: string;
+  tipo_lote?: string;
+  lote?: {
+    id: string;
+    numero_lote: string;
+    status: string;
+    quantidade_original: number;
+    unidade_original: string;
+    data_fab: string | null;
+    data_val: string | null;
+    recebido_em: string | null;
+    observacoes_qc: string | null;
+    insumo: {
+      descricao: string;
+      sku: string | null;
+      tipo_item: string | null;
+      armazenamento: string | null;
+      texto_alerta: string | null;
+      unidade_interna: string | null;
+    };
+    fornecedor: {
+      razao_social: string;
+      nome_fantasia: string | null;
+      documento: string | null;
+    } | null;
+    empresa: {
+      razao_social: string;
+      nome_fantasia: string | null;
+      cnpj: string | null;
+      site: string | null;
+      afe_anvisa: string | null;
+      licenca_sanitaria: string | null;
+    } | null;
+    nota_entrada: {
+      numero: string | null;
+      serie: string | null;
+      dh_emissao: string | null;
+    } | null;
+  };
+};
+
+function fmt(value?: string | null) {
+  if (!value) return "—";
+  try {
+    return format(new Date(value), "dd/MM/yyyy", { locale: ptBR });
+  } catch {
+    return "—";
+  }
+}
 
 export default function LoteAuditoriaPublicaPage() {
   const { hash } = useParams<{ hash: string }>();
-  const [searchParams] = useSearchParams();
-  const tenantId = searchParams.get('cid');
-  const [isBlocked, setIsBlocked] = useState(false);
-
-  useEffect(() => {
-    const checkRateLimit = async () => {
-      const storageKey = 'qr_scans_history';
-      const now = Date.now();
-      const windowMs = 60 * 1000; // 1 minuto
-      const limit = 5;
-
-      const scans = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const recentScans = scans.filter((ts: number) => now - ts < windowMs);
-      
-      if (recentScans.length >= limit) {
-        setIsBlocked(true);
-        
-        // Log de bloqueio
-        await supabase.from('audit_log').insert({
-          acao: 'QR_CODE_RATE_LIMIT_BLOCKED',
-          entidade: 'SECURITY',
-          company_id: tenantId as any,
-          payload: {
-            hash,
-            tenant_scanned: tenantId,
-            reason: 'Excessive scan attempts',
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent
-          }
-        });
-        
-        toast.error("Muitas tentativas. Por favor, aguarde um minuto.");
-        return;
-      }
-
-      recentScans.push(now);
-      localStorage.setItem(storageKey, JSON.stringify(recentScans));
-    };
-
-    checkRateLimit();
-  }, [hash, tenantId]);
 
   const { data: loteData, isLoading, error } = useQuery({
-    queryKey: ['lote-auditoria-publica', hash, tenantId],
-    queryFn: async () => {
-      if (isBlocked) throw new Error('Acesso bloqueado temporariamente');
-      if (!hash) throw new Error('Hash não informado');
-      
-      // Prioriza busca pelo ID (UUID) que agora é o padrão para QR Codes de fornecedor
-      const { data: lf } = await supabase
-        .from('estoque_lotes')
-        .select('*, item:itens(*), fornecedor:entidades(*), lote_documentos(*, arquivo:arquivos(*))')
-        .or(`id.eq."${hash}",qr_code_hash.eq."${hash}"`) // Aceita tanto ID quanto Hash antigo
-        .maybeSingle();
+    queryKey: ["lote-auditoria-publica", hash],
+    queryFn: async (): Promise<LotePublicoPayload> => {
+      if (!hash) throw new Error("Código não informado");
 
-      if (lf) {
-        return {
-          id: lf.id,
-          status: lf.status,
-          numero_lote: lf.numero_lote,
-          tipo_lote: 'FORNECEDOR',
-          produto_nome: (lf.item as any)?.descricao_interna || 'Insumo',
-          produto_codigo: (lf.item as any)?.sku_interno || '',
-          data_fabricacao: lf.data_fab,
-          data_validade: lf.data_val,
-          quantidade_produzida: lf.quantidade_original,
-          unidade: lf.unidade_original,
-          fornecedor: lf.fornecedor,
-          lote_documentos: lf.lote_documentos,
-          qr_code_hash: (lf as any).qr_code_hash || lf.id,
-          company_id: (lf as any).company_id
-        };
-      }
+      if (!UUID_RE.test(hash)) throw new Error("Código inválido");
 
-      const { data: la } = await supabase
-        .from('lotes_produto_acabado')
-        .select('*')
-        .or(`id.eq."${hash}",qr_code_hash.eq."${hash}"`)
-        .maybeSingle();
-
-      if (!la) throw new Error('Lote não encontrado');
-
-      const { data: mp } = await supabase
-        .from('lote_materias_primas')
-        .select('*')
-        .eq('lote_produto_acabado_id', la.id);
-
-      return {
-        id: la.id,
-        status: la.status,
-        numero_lote: la.numero_lote,
-        produto_nome: la.produto_nome,
-        produto_codigo: la.produto_codigo,
-        data_fabricacao: la.data_fabricacao,
-        data_validade: la.data_validade,
-        quantidade_produzida: la.quantidade_produzida,
-        rt_nome: la.rt_nome,
-        rt_tipo_conselho: la.rt_tipo_conselho,
-        rt_numero_registro: la.rt_numero_registro,
-        rt_uf_conselho: la.rt_uf_conselho,
-        tipo_lote: 'ACABADO',
-        materias_primas: mp || [],
-        qr_code_hash: la.qr_code_hash,
-        company_id: null // lotes_produto_acabado doesn't have company_id yet
-      };
+      const { data, error: rpcError } = await supabase.rpc("get_lote_publico", {
+        p_id: hash,
+      });
+      if (rpcError) throw rpcError;
+      const payload = data as LotePublicoPayload | null;
+      if (!payload?.ok) throw new Error(payload?.mensagem ?? "Lote não encontrado");
+      return payload;
     },
     enabled: !!hash,
+    retry: false,
   });
 
   if (isLoading) {
@@ -136,43 +106,22 @@ export default function LoteAuditoriaPublicaPage() {
     );
   }
 
-  const lote = loteData as any;
-
-  // Log de falha se o lote não for encontrado ou se o tenantId não coincidir
-  const isInvalid = !isLoading && (error || !lote || (tenantId && lote.company_id && lote.company_id !== tenantId));
-
-  if (isInvalid) {
-    // Tenta registrar no log de auditoria se houver uma falha de consulta
-    const logFailure = async () => {
-      try {
-        await supabase.from('audit_log').insert({
-          acao: 'QR_CODE_NOT_FOUND',
-          entidade: 'QR_CODE_SCAN',
-          company_id: tenantId as any,
-          payload: {
-            hash,
-            tenant_scanned: tenantId,
-            error: error?.message || 'Lote não encontrado ou empresa divergente',
-            timestamp: new Date().toISOString(),
-            platform: navigator.platform,
-            userAgent: navigator.userAgent
-          }
-        });
-      } catch (err) {
-        console.error('Falha ao registrar log de auditoria:', err);
-      }
-    };
-
-    if (hash) logFailure();
-
+  if (error || !loteData?.lote) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
           <CardContent className="p-8 text-center">
             <AlertTriangle className="w-12 h-12 mx-auto text-destructive mb-4" />
-            <h1 className="text-xl font-bold mb-2">Lote Não Encontrado</h1>
+            <h1 className="text-xl font-bold mb-2">
+              {(error as Error)?.message === "Código inválido"
+                ? "Código inválido"
+                : (error as Error)?.message?.includes("Muitas consultas")
+                ? "Muitas consultas"
+                : "Lote Não Encontrado"}
+            </h1>
             <p className="text-muted-foreground">
-              O QR Code escaneado não corresponde a nenhum lote registrado para esta empresa.
+              {(error as Error)?.message ||
+                "O QR Code escaneado não corresponde a nenhum lote registrado."}
             </p>
           </CardContent>
         </Card>
@@ -180,38 +129,39 @@ export default function LoteAuditoriaPublicaPage() {
     );
   }
 
-  const statusConfig: Record<string, { variant: 'warning' | 'success' | 'error'; icon: any }> = {
-    QUARENTENA: { variant: 'warning', icon: AlertTriangle },
-    APROVADO: { variant: 'success', icon: CheckCircle2 },
-    BLOQUEADO: { variant: 'error', icon: AlertTriangle },
-    LIBERADO: { variant: 'success', icon: CheckCircle2 },
-    DISPONIVEL: { variant: 'success', icon: CheckCircle2 },
-  };
+  const lote = loteData.lote;
+  const status = (lote.status || "").toUpperCase();
+  const statusVariant =
+    status === "QUARENTENA"
+      ? "warning"
+      : status === "BLOQUEADO" || status === "REJEITADO"
+      ? "error"
+      : status === "DISPONIVEL" || status === "APROVADO" || status === "LIBERADO"
+      ? "success"
+      : "muted";
 
-  const status = statusConfig[lote.status] || statusConfig.QUARENTENA;
-  const isVerified = lote.qr_code_hash === hash || lote.tipo_lote === 'FORNECEDOR';
+  const empresaNome =
+    lote.empresa?.nome_fantasia || lote.empresa?.razao_social || "BrainX ERP";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
       <div className="bg-primary text-primary-foreground py-6 px-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8" />
-            <div>
-              <h1 className="text-xl font-bold">Certificado de Rastreabilidade</h1>
-              <p className="text-sm opacity-80">BrainX ERP — Auditoria Pública</p>
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Shield className="w-8 h-8 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold truncate">Certificado de Rastreabilidade</h1>
+              <p className="text-sm opacity-80 truncate">{empresaNome}</p>
             </div>
           </div>
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 200, delay: 0.5 }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-              isVerified ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
-            }`}
+            transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-green-500/20 text-green-100 shrink-0"
           >
-            {isVerified ? <ShieldCheck className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-            {isVerified ? 'Verificado' : 'Não verificado'}
+            <ShieldCheck className="h-5 w-5" />
+            Verificado
           </motion.div>
         </div>
       </div>
@@ -220,16 +170,11 @@ export default function LoteAuditoriaPublicaPage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-muted">
-                  <status.icon className="w-8 h-8" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status do Lote</p>
-                  <StatusBadge variant={status.variant} className="text-lg px-4 py-1">
-                    {lote.status}
-                  </StatusBadge>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status do Lote</p>
+                <StatusBadge variant={statusVariant as any} className="text-lg px-4 py-1 mt-1">
+                  {lote.status}
+                </StatusBadge>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Lote Nº</p>
@@ -243,188 +188,107 @@ export default function LoteAuditoriaPublicaPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Package className="w-5 h-5" />
-              {lote.tipo_lote === 'FORNECEDOR' ? 'Insumo / Matéria-Prima' : 'Produto'}
+              Insumo / Matéria-Prima
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">Nome</p>
-              <p className="text-lg font-semibold">{lote.produto_nome}</p>
-              {lote.produto_codigo && (
-                <p className="text-sm text-muted-foreground">Código: {lote.produto_codigo}</p>
+              <p className="text-lg font-semibold">{lote.insumo.descricao}</p>
+              {lote.insumo.sku && (
+                <p className="text-sm text-muted-foreground">SKU: {lote.insumo.sku}</p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Data de Fabricação</p>
-                <p className="font-medium">{lote.data_fabricacao ? format(new Date(lote.data_fabricacao), "dd/MM/yyyy", { locale: ptBR }) : '—'}</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" /> Fabricação
+                </p>
+                <p className="font-medium">{fmt(lote.data_fab)}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Data de Validade</p>
-                <p className="font-medium">{lote.data_validade ? format(new Date(lote.data_validade), "dd/MM/yyyy", { locale: ptBR }) : '—'}</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" /> Validade
+                </p>
+                <p className="font-medium">{fmt(lote.data_val)}</p>
               </div>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">{lote.tipo_lote === 'FORNECEDOR' ? 'Quantidade Recebida' : 'Quantidade Produzida'}</p>
-              <p className="font-medium">{lote.quantidade_produzida} {lote.unidade || 'unidades'}</p>
+              <p className="text-sm text-muted-foreground">Quantidade recebida</p>
+              <p className="font-medium">
+                {Number(lote.quantidade_original).toLocaleString("pt-BR")}{" "}
+                {lote.unidade_original}
+              </p>
             </div>
+            {lote.insumo.armazenamento && (
+              <div className="flex items-start gap-2 text-sm">
+                <Thermometer className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <span>{lote.insumo.armazenamento}</span>
+              </div>
+            )}
+            {lote.insumo.texto_alerta && (
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                ⚠ {lote.insumo.texto_alerta}
+              </p>
+            )}
           </CardContent>
         </Card>
 
         <Card className="border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              {lote.tipo_lote === 'FORNECEDOR' ? (
-                <>
-                  <Truck className="w-5 h-5 text-primary" />
-                  Origem do Insumo
-                </>
-              ) : (
-                <>
-                  <UserCheck className="w-5 h-5 text-primary" />
-                  Responsável Técnico
-                </>
-              )}
+              <Truck className="w-5 h-5 text-primary" />
+              Origem do Insumo
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-primary/5 rounded-lg p-4">
-              {lote.tipo_lote === 'FORNECEDOR' ? (
-                <>
-                  <p className="text-lg font-semibold">{lote.fornecedor?.razao_social || 'Fornecedor não identificado'}</p>
-                  {lote.fornecedor?.documento && <p className="text-muted-foreground">CNPJ: {lote.fornecedor.documento}</p>}
-                </>
-              ) : (
-                <>
-                  <p className="text-lg font-semibold">{lote.rt_nome}</p>
-                  <p className="text-muted-foreground">
-                    {lote.rt_tipo_conselho} {lote.rt_numero_registro}/{lote.rt_uf_conselho}
-                  </p>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {lote.tipo_lote === 'ACABADO' && lote.materias_primas && lote.materias_primas.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Beaker className="w-5 h-5" />
-                Composição do Lote ({lote.materias_primas.length} itens)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {lote.materias_primas.map((mp: any) => (
-                  <div key={mp.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{mp.insumo_nome}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Lote: {mp.insumo_lote} | Fornecedor: {mp.fornecedor_nome}
-                      </p>
-                    </div>
-                    <p className="text-sm font-mono">{Number(mp.quantidade_utilizada_g).toFixed(2)}g</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {lote.tipo_lote === 'FORNECEDOR' && lote.lote_documentos && lote.lote_documentos.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="w-5 h-5" />
-                Documentação Técnica (COA/Laudo)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {lote.lote_documentos.map((doc: any) => (
-                  <div key={doc.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="font-medium text-sm">{doc.arquivo_nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Tipo: {doc.tipo_documento} | Status: <StatusBadge variant={doc.status_validacao === 'VALIDADO' ? 'success' : 'warning'}>{doc.status_validacao}</StatusBadge>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {lote.audit_trail && lote.audit_trail.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Clock className="w-5 h-5" />
-                Histórico de Rastreabilidade
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="relative ml-4 border-l-2 border-muted-foreground/20 space-y-6 pl-6">
-                {lote.audit_trail.map((evento: any, idx: number) => (
-                  <motion.div
-                    key={evento.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="relative"
-                  >
-                    <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-primary border-2 border-background" />
-                    <div>
-                      <p className="font-medium text-sm">{evento.descricao}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {evento.tipo_evento} — {format(new Date(evento.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                        {evento.usuario_nome && ` por ${evento.usuario_nome}`}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="bg-muted/30">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-3">
-              <Shield className="w-6 h-6 text-primary mt-1" />
-              <div>
-                <p className="font-semibold mb-2">Declaração de Conformidade</p>
-                <p className="text-sm text-muted-foreground">
-                  Este lote foi processado sob responsabilidade técnica conforme legislação 
-                  sanitária vigente (ANVISA). Todos os processos seguem as Boas Práticas 
-                  de Fabricação (BPF) e são auditáveis eletronicamente.
+            <div className="bg-primary/5 rounded-lg p-4 space-y-1">
+              <p className="text-lg font-semibold">
+                {lote.fornecedor?.razao_social || "Fornecedor não identificado"}
+              </p>
+              {lote.fornecedor?.documento && (
+                <p className="text-muted-foreground">
+                  CNPJ/CPF: {lote.fornecedor.documento}
                 </p>
-              </div>
+              )}
+              {lote.nota_entrada?.numero && (
+                <p className="text-sm text-muted-foreground">
+                  NF-e {lote.nota_entrada.numero}
+                  {lote.nota_entrada.serie ? `/${lote.nota_entrada.serie}` : ""}
+                  {lote.nota_entrada.dh_emissao
+                    ? ` · ${fmt(lote.nota_entrada.dh_emissao)}`
+                    : ""}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Recebido em: {fmt(lote.recebido_em)}
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex flex-col items-center py-4 gap-4">
-          <QRCodeAuditoria
-            tipo={lote.tipo_lote === 'FORNECEDOR' ? "LOTE_MP" : "PRODUTO_ACABADO"}
-            id={lote.id}
-            hash={hash!}
-            codigo={lote.numero_lote}
-            label="QR Code de Verificação"
-            size={100}
-          />
-          <div className="text-center text-xs text-muted-foreground">
-            <p className="font-mono break-all max-w-md">{hash}</p>
-            <p className="mt-2">
-              Verificado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-            </p>
-          </div>
-        </div>
+        {lote.empresa && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Building2 className="w-5 h-5" />
+                Empresa receptora
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <p className="font-semibold text-base">{lote.empresa.razao_social}</p>
+              {lote.empresa.cnpj && <p>CNPJ {lote.empresa.cnpj}</p>}
+              {lote.empresa.afe_anvisa && <p>AFE: {lote.empresa.afe_anvisa}</p>}
+              {lote.empresa.licenca_sanitaria && (
+                <p>Licença: {lote.empresa.licenca_sanitaria}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <p className="text-center text-xs text-muted-foreground pb-8">
+          Consulta pública via QR · dados sem custo, saldo ou cliente · BrainX ERP
+        </p>
       </div>
     </div>
   );

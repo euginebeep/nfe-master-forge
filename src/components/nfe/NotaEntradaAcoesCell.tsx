@@ -1,4 +1,4 @@
-import { Eye, Undo2 } from 'lucide-react';
+import { Eye, Undo2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnexarXmlButton } from '@/components/nfe/AnexarXmlButton';
 import { DeleteNotaDialog } from '@/components/nfe/DeleteNotaDialog';
@@ -8,9 +8,11 @@ interface NotaEntradaAcoesCellProps {
   item: NotaEntrada;
   processandoId: string | null;
   revertendoId: string | null;
+  imprimindoEtiquetas?: boolean;
   onView: (nota: NotaEntrada) => void;
   onProcessar: (nota: NotaEntrada) => void;
   onReverter: (nota: NotaEntrada) => void;
+  onImprimirEtiquetas?: (nota: NotaEntrada) => void;
   onRefresh: () => void;
 }
 
@@ -19,9 +21,11 @@ export function NotaEntradaAcoesCell({
   item,
   processandoId,
   revertendoId,
+  imprimindoEtiquetas = false,
   onView,
   onProcessar,
   onReverter,
+  onImprimirEtiquetas,
   onRefresh,
 }: NotaEntradaAcoesCellProps) {
   return (
@@ -34,6 +38,20 @@ export function NotaEntradaAcoesCell({
       >
         <Eye className="h-4 w-4" />
       </Button>
+      {onImprimirEtiquetas && (
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Imprimir etiquetas dos lotes desta NF"
+          disabled={imprimindoEtiquetas}
+          onClick={(e) => {
+            e.stopPropagation();
+            onImprimirEtiquetas(item);
+          }}
+        >
+          <Tag className="h-4 w-4" />
+        </Button>
+      )}
       {item.status === 'IMPORTADA' && (
         <Button
           variant="default"

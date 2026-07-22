@@ -26,6 +26,8 @@ import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useImprimirEtiquetas } from "@/hooks/useImprimirEtiquetas";
 import {
   Tooltip,
   TooltipContent,
@@ -116,6 +118,8 @@ export default function NotasEntradaPage() {
   const [notaVinculo, setNotaVinculo] = useState<NotaEntrada | null>(null);
   const [dialogVinculoOpen, setDialogVinculoOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { imprimir, carregando: carregandoEtiquetas, portal: portalEtiquetas } =
+    useImprimirEtiquetas();
 
   const handleViewNota = useCallback((nota: NotaEntrada) => {
     if (nota.chave_nfe) {
@@ -170,6 +174,44 @@ export default function NotasEntradaPage() {
       setProcessando(null);
     }
   }, [queryClient]);
+
+  const imprimirEtiquetasDaNota = useCallback(
+    async (nota: NotaEntrada) => {
+      const { data: itensNota, error: itensErr } = await supabase
+        .from("notas_entrada_itens")
+        .select("id")
+        .eq("nota_entrada_id", nota.id);
+
+      if (itensErr) {
+        toast.error("Falha ao buscar itens da nota.");
+        return;
+      }
+      if (!itensNota?.length) {
+        toast.info("Esta nota ainda não gerou lotes.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("estoque_lotes")
+        .select("id")
+        .in(
+          "nota_entrada_item_id",
+          itensNota.map((i) => i.id),
+        );
+
+      if (error) {
+        toast.error("Falha ao buscar lotes da nota.");
+        return;
+      }
+      if (!data?.length) {
+        toast.info("Esta nota ainda não gerou lotes.");
+        return;
+      }
+
+      await imprimir(data.map((l) => l.id));
+    },
+    [imprimir],
+  );
 
   // ── Dados filtrados ──────────────────────────────────────────
   const notasFiltradas = useMemo(() => {
@@ -405,14 +447,16 @@ export default function NotasEntradaPage() {
           item={item}
           processandoId={processando}
           revertendoId={reverting}
+          imprimindoEtiquetas={carregandoEtiquetas}
           onView={handleViewNota}
           onProcessar={handleProcessarNota}
           onReverter={handleReverter}
+          onImprimirEtiquetas={imprimirEtiquetasDaNota}
           onRefresh={handleRefreshNotas}
         />
       ),
     },
-  ], [processando, reverting, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas, abrirDialogVinculo]);
+  ], [processando, reverting, carregandoEtiquetas, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas, imprimirEtiquetasDaNota, abrirDialogVinculo]);
 
   const periodoLabel: Record<PeriodoFiltro, string> = {
     todos: "Todos os períodos",
@@ -576,6 +620,7 @@ export default function NotasEntradaPage() {
           if (!open) setNotaVinculo(null);
         }}
       />
+      {portalEtiquetas}
     </div>
   );
 }

@@ -18,8 +18,9 @@ import { useLote, useUpdateLoteStatus, useCreateLoteDocumento, useUpdateDocument
 import { supabase } from "@/integrations/supabase/client";
 import { COAParserButton } from "@/components/lotes/COAParserButton";
 import { QRCodeAuditoria } from "@/components/shared/QRCodeAuditoria";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoteFornecedorEtiqueta } from "@/components/estoque/LoteFornecedorEtiqueta";
+import { carregarDadosEtiquetas, useImprimirEtiquetas } from "@/hooks/useImprimirEtiquetas";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -46,6 +47,14 @@ export default function LoteDetailPage() {
   const { data: loteData, isLoading } = useLote(id);
   const updateLoteStatus = useUpdateLoteStatus();
   const updateDocValidacao = useUpdateDocumentoValidacao();
+  const { imprimir, carregando: imprimindoEtiqueta, portal: portalEtiquetas } =
+    useImprimirEtiquetas();
+
+  const { data: dadosEtiqueta } = useQuery({
+    queryKey: ["etiqueta-lote", id],
+    queryFn: async () => (await carregarDadosEtiquetas([id!]))[0] ?? null,
+    enabled: !!id,
+  });
 
   const lote = loteData as any;
   const item = lote?.item;
@@ -289,13 +298,18 @@ export default function LoteDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 flex flex-col items-center">
-              <LoteFornecedorEtiqueta 
-                lote={{
-                  ...lote,
-                  item: item,
-                  qr_url: `https://www.brainxerp.com/audit/lote/${lote.id}`
-                }} 
-              />
+              {dadosEtiqueta ? (
+                <LoteFornecedorEtiqueta
+                  lote={dadosEtiqueta}
+                  onImprimir={() => imprimir([id!])}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {imprimindoEtiqueta
+                    ? "Preparando etiqueta…"
+                    : "Carregando dados da etiqueta…"}
+                </p>
+              )}
             </CardContent>
           </Card>
           
@@ -613,6 +627,7 @@ export default function LoteDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {portalEtiquetas}
     </div>
   );
 }
