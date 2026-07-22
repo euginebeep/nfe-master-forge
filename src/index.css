@@ -627,62 +627,12 @@ body.pdf-export-anvisa #anvisa-print-area .no-print {
   }
 }
 
+
 /* ---- Impressão de etiquetas 100x150mm (térmica) ---- */
-#etiquetas-print-root {
-  display: none;
-}
+#etiquetas-print-root { display: none; }
 
 @media print {
-  /* Isolamento: só a pilha de etiquetas vai para a térmica */
-  body.imprimindo-etiquetas > #root {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
-  body.imprimindo-etiquetas > #etiquetas-print-root {
-    display: block !important;
-    visibility: visible !important;
-  }
-
-  body.imprimindo-etiquetas {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-
-  body.imprimindo-etiquetas * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  @page {
-    size: 100mm 150mm;
-    margin: 0;
-  }
-
-  /* Quando NÃO estamos em modo etiqueta, mantém @page A4 do bloco acima —
-     browsers aplicam o último @page; forçamos só sob a classe. */
-  body.imprimindo-etiquetas {
-    width: 100mm;
-  }
-
-  body.imprimindo-etiquetas .etiqueta-print-page {
-    page-break-after: always;
-    break-after: page;
-    width: 100mm;
-    height: 150mm;
-    overflow: hidden;
-    margin: 0;
-    padding: 0;
-  }
-
-  body.imprimindo-etiquetas .etiqueta-print-page:last-child {
-    page-break-after: auto;
-    break-after: auto;
-  }
-
-  body.imprimindo-etiquetas .etiqueta-folha {
-    box-shadow: none !important;
-    margin: 0 !important;
-  }
+  body.imprimindo-etiquetas > #root { display: none !important; }
+  body.imprimindo-etiquetas > #etiquetas-print-root { display: block !important; }
+  body.imprimindo-etiquetas { margin: 0; padding: 0; background: #fff; }
 }

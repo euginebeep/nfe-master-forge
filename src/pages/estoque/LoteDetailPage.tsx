@@ -301,7 +301,7 @@ export default function LoteDetailPage() {
               {dadosEtiqueta ? (
                 <LoteFornecedorEtiqueta
                   lote={dadosEtiqueta}
-                  onImprimir={() => imprimir([id!])}
+                  onPrint={() => imprimir([id!])}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">
