@@ -173,6 +173,7 @@ export function GlobalSearchDialog() {
         placeholder="Buscar páginas, entidades, itens, fórmulas, lotes..."
         value={query}
         onValueChange={setQuery}
+        className="h-14 text-base sm:text-lg"
       />
       <CommandList>
         {searching ? (

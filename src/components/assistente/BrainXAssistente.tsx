@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router-dom';
-import { X, Send, Loader2, Bot } from 'lucide-react';
+import { X, Send, Loader2, Bot, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -115,7 +115,7 @@ export function AssistenteProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Gatilho compacto para o cabeçalho superior */
+/** Gatilho compacto para o cabeçalho superior — deixa claro que o mascote é ajuda */
 export function AssistenteTrigger() {
   const { open, setOpen } = useAssistente();
 
@@ -124,23 +124,31 @@ export function AssistenteTrigger() {
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant="ghost"
-            size="icon"
+            variant="outline"
             onClick={() => setOpen(!open)}
-            aria-label="Assistente BrainX"
-            className="h-10 sm:h-11 w-10 sm:w-11 shrink-0"
+            aria-label="Ajuda — Assistente BrainX"
+            className="h-10 sm:h-11 shrink-0 gap-1.5 sm:gap-2 px-2 sm:px-2.5 rounded-full border-primary/25 bg-primary/5 hover:bg-primary/10"
           >
-            <Avatar className="w-9 h-9 sm:w-10 sm:h-10 border-2 border-primary/30 shadow-sm bg-white">
-              <AvatarImage src="/brainx-mascot.png" alt="" className="object-cover" />
-              <AvatarFallback className="bg-primary/10 text-primary">
-                <Bot className="w-4 h-4" />
-              </AvatarFallback>
-            </Avatar>
+            <span className="relative inline-flex">
+              <Avatar className="w-8 h-8 sm:w-9 sm:h-9 border border-primary/30 shadow-sm bg-white">
+                <AvatarImage src="/brainx-mascot.png" alt="" className="object-cover" />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  <Bot className="w-4 h-4" />
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
+                <HelpCircle className="h-2.5 w-2.5" />
+              </span>
+            </span>
+            <span className="hidden sm:flex flex-col items-start leading-none pr-0.5">
+              <span className="text-xs sm:text-sm font-semibold text-foreground">Ajuda</span>
+              <span className="text-[10px] text-muted-foreground">Assistente</span>
+            </span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-snug">
-          Assistente BrainX — Tire dúvidas sobre a tela em que você está, o sistema e as regras
-          do ERP. Clique para conversar.
+          Ajuda — Assistente BrainX. Tire dúvidas sobre a tela em que você está, o sistema e as
+          regras do ERP. Clique para conversar.
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
