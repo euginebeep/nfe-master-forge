@@ -1,1 +1,518 @@
-/**\n * Tabela Nutricional Conforme RDC 429/2020 e IN 75/2020\n * \n * Gera tabela nutricional EXATAMENTE conforme legislação ANVISA:\n * - Tamanho de fonte correto\n * - Ordem dos ativos conforme legislação\n * - Dizeres obrigatórios\n * - Formatação de borda\n * - Espaçamento correto\n */\n\nimport React, { useState } from 'react';\nimport { Card } from '@/components/ui/card';\nimport { Button } from '@/components/ui/button';\nimport { Alert, AlertDescription } from '@/components/ui/alert';\nimport { Copy, Download, AlertCircle } from 'lucide-react';\nimport { toast } from 'sonner';\n\ninterface NutritionalValue {\n  name: string;\n  dose: number;\n  unit: string;\n  order: number; // Ordem conforme legislação\n}\n\ninterface NutritionalTableProps {\n  productName: string;\n  servingSize: number;\n  servingSizeUnit: string;\n  servingsPerPackage: number;\n  constituents: NutritionalValue[];\n  targetAudience?: string;\n}\n\n/**\n * ORDEM CONFORME RDC 429/2020:\n * 1. Valor Energético\n * 2. Carboidratos\n * 3. Açúcares\n * 4. Proteína\n * 5. Gorduras Totais\n * 6. Gordura Saturada\n * 7. Gordura Trans\n * 8. Fibra Alimentar\n * 9. Sódio\n * 10. Constituintes (Vitaminas, Minerais, etc.) — em ordem alfabética\n */\n\nconst NutritionalTableANVISA: React.FC<NutritionalTableProps> = ({\n  productName,\n  servingSize,\n  servingSizeUnit,\n  servingsPerPackage,\n  constituents,\n}) => {\n  const [format, setFormat] = useState<'html' | 'css' | 'pdf'>('html');\n\n  // Ordenar constituintes conforme legislação\n  const sortedConstituents = [...constituents].sort((a, b) => a.order - b.order);\n\n  // Gerar HTML conforme RDC 429/2020\n  const generateHTML = () => {\n    return `\n<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Tabela Nutricional - ${productName}</title>\n    <style>\n        * {\n            margin: 0;\n            padding: 0;\n            box-sizing: border-box;\n        }\n\n        body {\n            font-family: 'Arial', sans-serif;\n            padding: 20px;\n            background: #f5f5f5;\n        }\n\n        .container {\n            max-width: 400px;\n            margin: 0 auto;\n            background: white;\n            padding: 20px;\n        }\n\n        /* TABELA NUTRICIONAL - Conforme RDC 429/2020 */\n        .tabela-nutricional {\n            border: 2px solid #000;\n            font-family: 'Arial', sans-serif;\n            width: 100%;\n            border-collapse: collapse;\n        }\n\n        /* CABEÇALHO - Fonte 14pt bold */\n        .tabela-nutricional .header {\n            background: #fff;\n            border-bottom: 2px solid #000;\n            padding: 8px;\n            text-align: center;\n            font-size: 14pt;\n            font-weight: bold;\n            text-transform: uppercase;\n        }\n\n        /* SUBTÍTULO - Fonte 11pt */\n        .tabela-nutricional .subtitulo {\n            border-bottom: 1px solid #000;\n            padding: 6px 8px;\n            font-size: 11pt;\n            text-align: center;\n            background: #f9f9f9;\n        }\n\n        /* PORÇÃO - Fonte 11pt */\n        .tabela-nutricional .porcao {\n            border-bottom: 2px solid #000;\n            padding: 6px 8px;\n            font-size: 11pt;\n            display: flex;\n            justify-content: space-between;\n        }\n\n        /* LINHA DE CONSTITUINTE - Fonte 10pt */\n        .tabela-nutricional .constituinte {\n            border-bottom: 1px solid #ccc;\n            padding: 6px 8px;\n            font-size: 10pt;\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n        }\n\n        /* LINHA DE CONSTITUINTE - DESTAQUE (primeiro nível) */\n        .tabela-nutricional .constituinte.destaque {\n            font-weight: bold;\n            background: #f9f9f9;\n            border-bottom: 1px solid #000;\n        }\n\n        /* LINHA DE CONSTITUINTE - SUB-ITEM */\n        .tabela-nutricional .constituinte.subitem {\n            padding-left: 20px;\n            font-size: 9pt;\n            background: #fafafa;\n        }\n\n        /* RODAPÉ - Fonte 8pt */\n        .tabela-nutricional .rodape {\n            padding: 6px 8px;\n            font-size: 8pt;\n            line-height: 1.4;\n            color: #333;\n            border-top: 2px solid #000;\n        }\n\n        /* VALORES */\n        .valor {\n            text-align: right;\n            min-width: 60px;\n            font-weight: bold;\n        }\n\n        /* UNIDADE */\n        .unidade {\n            font-size: 9pt;\n            margin-left: 4px;\n            color: #666;\n        }\n\n        /* OBSERVAÇÕES */\n        .observacoes {\n            margin-top: 15px;\n            font-size: 9pt;\n            line-height: 1.5;\n            color: #333;\n            border-top: 1px solid #ccc;\n            padding-top: 10px;\n        }\n\n        /* ADVERTÊNCIAS OBRIGATÓRIAS */\n        .advertencias {\n            margin-top: 15px;\n            padding: 10px;\n            background: #fff3cd;\n            border: 1px solid #ffc107;\n            border-radius: 4px;\n            font-size: 8pt;\n            line-height: 1.4;\n        }\n\n        .advertencias strong {\n            display: block;\n            margin-bottom: 5px;\n        }\n\n        /* PRINT */\n        @media print {\n            body {\n                background: white;\n                padding: 0;\n            }\n            .container {\n                max-width: 100%;\n                padding: 0;\n                box-shadow: none;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <table class=\"tabela-nutricional\">\n            <tr>\n                <td colspan=\"2\" class=\"header\">INFORMAÇÃO NUTRICIONAL</td>\n            </tr>\n            <tr>\n                <td colspan=\"2\" class=\"subtitulo\">Porção: ${servingSize} ${servingSizeUnit}(s)</td>\n            </tr>\n            <tr>\n                <td colspan=\"2\" class=\"porcao\">\n                    <span><strong>Constituinte</strong></span>\n                    <span class=\"valor\"><strong>Quantidade</strong></span>\n                </td>\n            </tr>\n\n            ${sortedConstituents\n              .map(\n                (constituent) => `\n            <tr>\n                <td><strong>${constituent.name}</strong></td>\n                <td class=\"valor\">${constituent.dose}<span class=\"unidade\">${constituent.unit}</span></td>\n            </tr>\n            `\n              )\n              .join('')}\n\n            <tr>\n                <td colspan=\"2\" class=\"rodape\">\n                    <strong>Porções por embalagem:</strong> ${servingsPerPackage}<br>\n                    <strong>*% Valores de Referência não estabelecidos.</strong>\n                </td>\n            </tr>\n        </table>\n\n        <div class=\"observacoes\">\n            <p><strong>OBSERVAÇÕES IMPORTANTES:</strong></p>\n            <ul style=\"margin-left: 15px; margin-top: 5px;\">\n                <li>Este produto não é um medicamento.</li>\n                <li>Consulte um profissional de saúde antes de consumir.</li>\n                <li>Gestantes e lactantes devem consultar um médico antes de usar.</li>\n                <li>Manter fora do alcance de crianças.</li>\n                <li>Conservar em local fresco e seco.</li>\n            </ul>\n        </div>\n\n        <div class=\"advertencias\">\n            <strong>⚠️ ADVERTÊNCIAS OBRIGATÓRIAS:</strong>\n            <p>Este produto contém constituintes que podem não ser adequados para determinados grupos populacionais. Consulte a bula ou um profissional de saúde antes de consumir.</p>\n        </div>\n    </div>\n</body>\n</html>\n    `;\n  };\n\n  // Gerar CSS puro para integração\n  const generateCSS = () => {\n    return `\n/* Tabela Nutricional ANVISA - CSS Puro */\n.tabela-nutricional {\n    border: 2px solid #000;\n    font-family: 'Arial', sans-serif;\n    width: 100%;\n    border-collapse: collapse;\n    max-width: 400px;\n}\n\n.tabela-nutricional .header {\n    background: #fff;\n    border-bottom: 2px solid #000;\n    padding: 8px;\n    text-align: center;\n    font-size: 14pt;\n    font-weight: bold;\n    text-transform: uppercase;\n}\n\n.tabela-nutricional .subtitulo {\n    border-bottom: 1px solid #000;\n    padding: 6px 8px;\n    font-size: 11pt;\n    text-align: center;\n    background: #f9f9f9;\n}\n\n.tabela-nutricional .porcao {\n    border-bottom: 2px solid #000;\n    padding: 6px 8px;\n    font-size: 11pt;\n    display: flex;\n    justify-content: space-between;\n}\n\n.tabela-nutricional .constituinte {\n    border-bottom: 1px solid #ccc;\n    padding: 6px 8px;\n    font-size: 10pt;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n}\n\n.tabela-nutricional .rodape {\n    padding: 6px 8px;\n    font-size: 8pt;\n    line-height: 1.4;\n    color: #333;\n    border-top: 2px solid #000;\n}\n\n.valor {\n    text-align: right;\n    min-width: 60px;\n    font-weight: bold;\n}\n\n.unidade {\n    font-size: 9pt;\n    margin-left: 4px;\n    color: #666;\n}\n    `;\n  };\n\n  // Gerar HTML para PDF\n  const generatePDF = () => {\n    const html = generateHTML();\n    const blob = new Blob([html], { type: 'text/html' });\n    const url = URL.createObjectURL(blob);\n    const link = document.createElement('a');\n    link.href = url;\n    link.download = `tabela-nutricional-${productName}.html`;\n    link.click();\n    toast.success('Tabela baixada!');\n  };\n\n  const copyToClipboard = (text: string) => {\n    navigator.clipboard.writeText(text);\n    toast.success('Copiado para clipboard!');\n  };\n\n  return (\n    <div className=\"space-y-6 p-6\">\n      <div>\n        <h1 className=\"text-3xl font-bold mb-2\">📋 Tabela Nutricional ANVISA</h1>\n        <p className=\"text-gray-600\">Conforme RDC 429/2020 e IN 75/2020 — Pronta para inserir no rótulo</p>\n      </div>\n\n      <Alert className=\"border-blue-500 bg-blue-50\">\n        <AlertCircle className=\"h-4 w-4 text-blue-600\" />\n        <AlertDescription className=\"text-blue-800\">\n          ✅ Tabela gerada conforme legislação ANVISA com tamanho de fonte, ordem e dizeres corretos.\n        </AlertDescription>\n      </Alert>\n\n      {/* Prévia */}\n      <Card className=\"p-6\">\n        <h2 className=\"text-xl font-bold mb-4\">Prévia da Tabela</h2>\n        <div\n          className=\"bg-white p-6 border-2 border-black inline-block\"\n          style={{\n            fontFamily: 'Arial, sans-serif',\n            maxWidth: '400px',\n          }}\n        >\n          <div\n            style={{\n              textAlign: 'center',\n              fontSize: '14pt',\n              fontWeight: 'bold',\n              marginBottom: '10px',\n              borderBottom: '2px solid #000',\n              paddingBottom: '8px',\n            }}\n          >\n            INFORMAÇÃO NUTRICIONAL\n          </div>\n\n          <div\n            style={{\n              textAlign: 'center',\n              fontSize: '11pt',\n              marginBottom: '10px',\n              borderBottom: '1px solid #000',\n              paddingBottom: '6px',\n            }}\n          >\n            Porção: {servingSize} {servingSizeUnit}(s)\n          </div>\n\n          <div\n            style={{\n              display: 'flex',\n              justifyContent: 'space-between',\n              fontSize: '11pt',\n              fontWeight: 'bold',\n              marginBottom: '10px',\n              borderBottom: '2px solid #000',\n              paddingBottom: '6px',\n            }}\n          >\n            <span>Constituinte</span>\n            <span>Quantidade</span>\n          </div>\n\n          {sortedConstituents.map((constituent, idx) => (\n            <div\n              key={idx}\n              style={{\n                display: 'flex',\n                justifyContent: 'space-between',\n                fontSize: '10pt',\n                padding: '6px 0',\n                borderBottom: '1px solid #ccc',\n              }}\n            >\n              <span>{constituent.name}</span>\n              <span>\n                <strong>\n                  {constituent.dose}\n                  <span style={{ fontSize: '9pt', marginLeft: '4px', color: '#666' }}>\n                    {constituent.unit}\n                  </span>\n                </strong>\n              </span>\n            </div>\n          ))}\n\n          <div\n            style={{\n              fontSize: '8pt',\n              marginTop: '10px',\n              borderTop: '2px solid #000',\n              paddingTop: '6px',\n              lineHeight: '1.4',\n            }}\n          >\n            <p>\n              <strong>Porções por embalagem:</strong> {servingsPerPackage}\n            </p>\n            <p>\n              <strong>*% Valores de Referência não estabelecidos.</strong>\n            </p>\n          </div>\n        </div>\n      </Card>\n\n      {/* Formatos */}\n      <Card className=\"p-6\">\n        <h2 className=\"text-xl font-bold mb-4\">Formatos de Exportação</h2>\n        <div className=\"space-y-4\">\n          <div>\n            <h3 className=\"font-semibold mb-2\">HTML</h3>\n            <pre className=\"bg-gray-100 p-4 rounded text-xs overflow-auto max-h-48\">\n              {generateHTML().substring(0, 500)}...\n            </pre>\n            <Button\n              onClick={() => copyToClipboard(generateHTML())}\n              className=\"mt-2 gap-2\"\n            >\n              <Copy className=\"w-4 h-4\" />\n              Copiar HTML\n            </Button>\n          </div>\n\n          <div>\n            <h3 className=\"font-semibold mb-2\">CSS</h3>\n            <pre className=\"bg-gray-100 p-4 rounded text-xs overflow-auto max-h-48\">\n              {generateCSS()}\n            </pre>\n            <Button\n              onClick={() => copyToClipboard(generateCSS())}\n              className=\"mt-2 gap-2\"\n            >\n              <Copy className=\"w-4 h-4\" />\n              Copiar CSS\n            </Button>\n          </div>\n\n          <Button onClick={generatePDF} className=\"gap-2 w-full\">\n            <Download className=\"w-4 h-4\" />\n            Baixar como HTML\n          </Button>\n        </div>\n      </Card>\n\n      {/* Informações */}\n      <Card className=\"p-6 bg-blue-50 border-blue-200\">\n        <h3 className=\"font-bold mb-3\">📋 Conforme Legislação ANVISA</h3>\n        <ul className=\"text-sm space-y-2 list-disc list-inside\">\n          <li><strong>RDC 429/2020:</strong> Rotulagem nutricional de alimentos</li>\n          <li><strong>IN 75/2020:</strong> Tabela nutricional</li>\n          <li><strong>Tamanho de fonte:</strong> Cabeçalho 14pt, Constituintes 10pt, Rodapé 8pt</li>\n          <li><strong>Ordem:</strong> Conforme legislação (constituintes em ordem alfabética)</li>\n          <li><strong>Borda:</strong> 2px sólida preta</li>\n          <li><strong>Dizeres:</strong> Obrigatórios inclusos</li>\n        </ul>\n      </Card>\n    </div>\n  );\n};\n\nexport default NutritionalTableANVISA;\n
+/**
+ * Tabela Nutricional Conforme RDC 429/2020 e IN 75/2020
+ * 
+ * Gera tabela nutricional EXATAMENTE conforme legislação ANVISA:
+ * - Tamanho de fonte correto
+ * - Ordem dos ativos conforme legislação
+ * - Dizeres obrigatórios
+ * - Formatação de borda
+ * - Espaçamento correto
+ */
+
+import React, { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Copy, Download, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface NutritionalValue {
+  name: string;
+  dose: number;
+  unit: string;
+  order: number; // Ordem conforme legislação
+}
+
+interface NutritionalTableProps {
+  productName: string;
+  servingSize: number;
+  servingSizeUnit: string;
+  servingsPerPackage: number;
+  constituents: NutritionalValue[];
+  targetAudience?: string;
+}
+
+/**
+ * ORDEM CONFORME RDC 429/2020:
+ * 1. Valor Energético
+ * 2. Carboidratos
+ * 3. Açúcares
+ * 4. Proteína
+ * 5. Gorduras Totais
+ * 6. Gordura Saturada
+ * 7. Gordura Trans
+ * 8. Fibra Alimentar
+ * 9. Sódio
+ * 10. Constituintes (Vitaminas, Minerais, etc.) — em ordem alfabética
+ */
+
+const NutritionalTableANVISA: React.FC<NutritionalTableProps> = ({
+  productName,
+  servingSize,
+  servingSizeUnit,
+  servingsPerPackage,
+  constituents,
+}) => {
+  const [format, setFormat] = useState<'html' | 'css' | 'pdf'>('html');
+
+  // Ordenar constituintes conforme legislação
+  const sortedConstituents = [...constituents].sort((a, b) => a.order - b.order);
+
+  // Gerar HTML conforme RDC 429/2020
+  const generateHTML = () => {
+    return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabela Nutricional - ${productName}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+        }
+
+        /* TABELA NUTRICIONAL - Conforme RDC 429/2020 */
+        .tabela-nutricional {
+            border: 2px solid #000;
+            font-family: 'Arial', sans-serif;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* CABEÇALHO - Fonte 14pt bold */
+        .tabela-nutricional .header {
+            background: #fff;
+            border-bottom: 2px solid #000;
+            padding: 8px;
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* SUBTÍTULO - Fonte 11pt */
+        .tabela-nutricional .subtitulo {
+            border-bottom: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 11pt;
+            text-align: center;
+            background: #f9f9f9;
+        }
+
+        /* PORÇÃO - Fonte 11pt */
+        .tabela-nutricional .porcao {
+            border-bottom: 2px solid #000;
+            padding: 6px 8px;
+            font-size: 11pt;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* LINHA DE CONSTITUINTE - Fonte 10pt */
+        .tabela-nutricional .constituinte {
+            border-bottom: 1px solid #ccc;
+            padding: 6px 8px;
+            font-size: 10pt;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* LINHA DE CONSTITUINTE - DESTAQUE (primeiro nível) */
+        .tabela-nutricional .constituinte.destaque {
+            font-weight: bold;
+            background: #f9f9f9;
+            border-bottom: 1px solid #000;
+        }
+
+        /* LINHA DE CONSTITUINTE - SUB-ITEM */
+        .tabela-nutricional .constituinte.subitem {
+            padding-left: 20px;
+            font-size: 9pt;
+            background: #fafafa;
+        }
+
+        /* RODAPÉ - Fonte 8pt */
+        .tabela-nutricional .rodape {
+            padding: 6px 8px;
+            font-size: 8pt;
+            line-height: 1.4;
+            color: #333;
+            border-top: 2px solid #000;
+        }
+
+        /* VALORES */
+        .valor {
+            text-align: right;
+            min-width: 60px;
+            font-weight: bold;
+        }
+
+        /* UNIDADE */
+        .unidade {
+            font-size: 9pt;
+            margin-left: 4px;
+            color: #666;
+        }
+
+        /* OBSERVAÇÕES */
+        .observacoes {
+            margin-top: 15px;
+            font-size: 9pt;
+            line-height: 1.5;
+            color: #333;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+
+        /* ADVERTÊNCIAS OBRIGATÓRIAS */
+        .advertencias {
+            margin-top: 15px;
+            padding: 10px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            font-size: 8pt;
+            line-height: 1.4;
+        }
+
+        .advertencias strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* PRINT */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                max-width: 100%;
+                padding: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <table class="tabela-nutricional">
+            <tr>
+                <td colspan="2" class="header">INFORMAÇÃO NUTRICIONAL</td>
+            </tr>
+            <tr>
+                <td colspan="2" class="subtitulo">Porção: ${servingSize} ${servingSizeUnit}(s)</td>
+            </tr>
+            <tr>
+                <td colspan="2" class="porcao">
+                    <span><strong>Constituinte</strong></span>
+                    <span class="valor"><strong>Quantidade</strong></span>
+                </td>
+            </tr>
+
+            ${sortedConstituents
+              .map(
+                (constituent) => `
+            <tr>
+                <td><strong>${constituent.name}</strong></td>
+                <td class="valor">${constituent.dose}<span class="unidade">${constituent.unit}</span></td>
+            </tr>
+            `
+              )
+              .join('')}
+
+            <tr>
+                <td colspan="2" class="rodape">
+                    <strong>Porções por embalagem:</strong> ${servingsPerPackage}<br>
+                    <strong>*% Valores de Referência não estabelecidos.</strong>
+                </td>
+            </tr>
+        </table>
+
+        <div class="observacoes">
+            <p><strong>OBSERVAÇÕES IMPORTANTES:</strong></p>
+            <ul style="margin-left: 15px; margin-top: 5px;">
+                <li>Este produto não é um medicamento.</li>
+                <li>Consulte um profissional de saúde antes de consumir.</li>
+                <li>Gestantes e lactantes devem consultar um médico antes de usar.</li>
+                <li>Manter fora do alcance de crianças.</li>
+                <li>Conservar em local fresco e seco.</li>
+            </ul>
+        </div>
+
+        <div class="advertencias">
+            <strong>⚠️ ADVERTÊNCIAS OBRIGATÓRIAS:</strong>
+            <p>Este produto contém constituintes que podem não ser adequados para determinados grupos populacionais. Consulte a bula ou um profissional de saúde antes de consumir.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+  };
+
+  // Gerar CSS puro para integração
+  const generateCSS = () => {
+    return `
+/* Tabela Nutricional ANVISA - CSS Puro */
+.tabela-nutricional {
+    border: 2px solid #000;
+    font-family: 'Arial', sans-serif;
+    width: 100%;
+    border-collapse: collapse;
+    max-width: 400px;
+}
+
+.tabela-nutricional .header {
+    background: #fff;
+    border-bottom: 2px solid #000;
+    padding: 8px;
+    text-align: center;
+    font-size: 14pt;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.tabela-nutricional .subtitulo {
+    border-bottom: 1px solid #000;
+    padding: 6px 8px;
+    font-size: 11pt;
+    text-align: center;
+    background: #f9f9f9;
+}
+
+.tabela-nutricional .porcao {
+    border-bottom: 2px solid #000;
+    padding: 6px 8px;
+    font-size: 11pt;
+    display: flex;
+    justify-content: space-between;
+}
+
+.tabela-nutricional .constituinte {
+    border-bottom: 1px solid #ccc;
+    padding: 6px 8px;
+    font-size: 10pt;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tabela-nutricional .rodape {
+    padding: 6px 8px;
+    font-size: 8pt;
+    line-height: 1.4;
+    color: #333;
+    border-top: 2px solid #000;
+}
+
+.valor {
+    text-align: right;
+    min-width: 60px;
+    font-weight: bold;
+}
+
+.unidade {
+    font-size: 9pt;
+    margin-left: 4px;
+    color: #666;
+}
+    `;
+  };
+
+  // Gerar HTML para PDF
+  const generatePDF = () => {
+    const html = generateHTML();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tabela-nutricional-${productName}.html`;
+    link.click();
+    toast.success('Tabela baixada!');
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copiado para clipboard!');
+  };
+
+  return (
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-3xl font-bold mb-2">📋 Tabela Nutricional ANVISA</h1>
+        <p className="text-gray-600">Conforme RDC 429/2020 e IN 75/2020 — Pronta para inserir no rótulo</p>
+      </div>
+
+      <Alert className="border-blue-500 bg-blue-50">
+        <AlertCircle className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800">
+          ✅ Tabela gerada conforme legislação ANVISA com tamanho de fonte, ordem e dizeres corretos.
+        </AlertDescription>
+      </Alert>
+
+      {/* Prévia */}
+      <Card className="p-6">
+        <h2 className="text-xl font-bold mb-4">Prévia da Tabela</h2>
+        <div
+          className="bg-white p-6 border-2 border-black inline-block"
+          style={{
+            fontFamily: 'Arial, sans-serif',
+            maxWidth: '400px',
+          }}
+        >
+          <div
+            style={{
+              textAlign: 'center',
+              fontSize: '14pt',
+              fontWeight: 'bold',
+              marginBottom: '10px',
+              borderBottom: '2px solid #000',
+              paddingBottom: '8px',
+            }}
+          >
+            INFORMAÇÃO NUTRICIONAL
+          </div>
+
+          <div
+            style={{
+              textAlign: 'center',
+              fontSize: '11pt',
+              marginBottom: '10px',
+              borderBottom: '1px solid #000',
+              paddingBottom: '6px',
+            }}
+          >
+            Porção: {servingSize} {servingSizeUnit}(s)
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '11pt',
+              fontWeight: 'bold',
+              marginBottom: '10px',
+              borderBottom: '2px solid #000',
+              paddingBottom: '6px',
+            }}
+          >
+            <span>Constituinte</span>
+            <span>Quantidade</span>
+          </div>
+
+          {sortedConstituents.map((constituent, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '10pt',
+                padding: '6px 0',
+                borderBottom: '1px solid #ccc',
+              }}
+            >
+              <span>{constituent.name}</span>
+              <span>
+                <strong>
+                  {constituent.dose}
+                  <span style={{ fontSize: '9pt', marginLeft: '4px', color: '#666' }}>
+                    {constituent.unit}
+                  </span>
+                </strong>
+              </span>
+            </div>
+          ))}
+
+          <div
+            style={{
+              fontSize: '8pt',
+              marginTop: '10px',
+              borderTop: '2px solid #000',
+              paddingTop: '6px',
+              lineHeight: '1.4',
+            }}
+          >
+            <p>
+              <strong>Porções por embalagem:</strong> {servingsPerPackage}
+            </p>
+            <p>
+              <strong>*% Valores de Referência não estabelecidos.</strong>
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Formatos */}
+      <Card className="p-6">
+        <h2 className="text-xl font-bold mb-4">Formatos de Exportação</h2>
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold mb-2">HTML</h3>
+            <pre className="bg-gray-100 p-4 rounded text-xs overflow-auto max-h-48">
+              {generateHTML().substring(0, 500)}...
+            </pre>
+            <Button
+              onClick={() => copyToClipboard(generateHTML())}
+              className="mt-2 gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              Copiar HTML
+            </Button>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-2">CSS</h3>
+            <pre className="bg-gray-100 p-4 rounded text-xs overflow-auto max-h-48">
+              {generateCSS()}
+            </pre>
+            <Button
+              onClick={() => copyToClipboard(generateCSS())}
+              className="mt-2 gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              Copiar CSS
+            </Button>
+          </div>
+
+          <Button onClick={generatePDF} className="gap-2 w-full">
+            <Download className="w-4 h-4" />
+            Baixar como HTML
+          </Button>
+        </div>
+      </Card>
+
+      {/* Informações */}
+      <Card className="p-6 bg-blue-50 border-blue-200">
+        <h3 className="font-bold mb-3">📋 Conforme Legislação ANVISA</h3>
+        <ul className="text-sm space-y-2 list-disc list-inside">
+          <li><strong>RDC 429/2020:</strong> Rotulagem nutricional de alimentos</li>
+          <li><strong>IN 75/2020:</strong> Tabela nutricional</li>
+          <li><strong>Tamanho de fonte:</strong> Cabeçalho 14pt, Constituintes 10pt, Rodapé 8pt</li>
+          <li><strong>Ordem:</strong> Conforme legislação (constituintes em ordem alfabética)</li>
+          <li><strong>Borda:</strong> 2px sólida preta</li>
+          <li><strong>Dizeres:</strong> Obrigatórios inclusos</li>
+        </ul>
+      </Card>
+    </div>
+  );
+};
+
+export default NutritionalTableANVISA;
+
