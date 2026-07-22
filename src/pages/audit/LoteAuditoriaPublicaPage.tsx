@@ -11,6 +11,7 @@ import {
   Truck,
   Building2,
   Thermometer,
+  FileCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,47 +22,53 @@ import { motion } from "framer-motion";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type LotePublicoPayload = {
+/** Payload flat da RPC get_lote_publico (produção). */
+type LotePublico = {
   ok: boolean;
+  erro?: string;
   mensagem?: string;
   tipo_lote?: string;
-  lote?: {
-    id: string;
-    numero_lote: string;
-    status: string;
-    quantidade_original: number;
-    unidade_original: string;
-    data_fab: string | null;
-    data_val: string | null;
-    recebido_em: string | null;
-    observacoes_qc: string | null;
-    insumo: {
-      descricao: string;
-      sku: string | null;
-      tipo_item: string | null;
-      armazenamento: string | null;
-      texto_alerta: string | null;
-      unidade_interna: string | null;
-    };
-    fornecedor: {
-      razao_social: string;
-      nome_fantasia: string | null;
-      documento: string | null;
-    } | null;
-    empresa: {
-      razao_social: string;
-      nome_fantasia: string | null;
-      cnpj: string | null;
-      site: string | null;
-      afe_anvisa: string | null;
-      licenca_sanitaria: string | null;
-    } | null;
-    nota_entrada: {
-      numero: string | null;
-      serie: string | null;
-      dh_emissao: string | null;
-    } | null;
+  id?: string;
+  numero_lote?: string;
+  status?: string;
+  quantidade_recebida?: number;
+  unidade?: string;
+  data_fab?: string | null;
+  data_val?: string | null;
+  recebido_em?: string | null;
+  insumo?: {
+    descricao?: string;
+    sku?: string | null;
+    armazenamento?: string | null;
+    higroscopico?: boolean | null;
+    controle_especial?: boolean | null;
+    criticidade?: string | null;
+    alerta?: string | null;
   };
+  fornecedor?: {
+    razao_social?: string;
+    nome_fantasia?: string | null;
+    documento?: string | null;
+  } | null;
+  nota_entrada?: {
+    numero?: string | null;
+    serie?: string | null;
+    chave?: string | null;
+    emissao?: string | null;
+  } | null;
+  empresa?: {
+    razao_social?: string;
+    nome_fantasia?: string | null;
+    cnpj?: string | null;
+    licenca_sanitaria?: string | null;
+  } | null;
+  coa?: { possui?: boolean; quantidade?: number } | null;
+  rt?: {
+    nome?: string | null;
+    tipo_conselho?: string | null;
+    numero_registro?: string | null;
+    uf_conselho?: string | null;
+  } | null;
 };
 
 function fmt(value?: string | null) {
@@ -73,12 +80,21 @@ function fmt(value?: string | null) {
   }
 }
 
+function formatarDoc(doc?: string | null) {
+  if (!doc) return null;
+  const n = doc.replace(/\D/g, "");
+  if (n.length === 14) {
+    return n.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  }
+  return doc;
+}
+
 export default function LoteAuditoriaPublicaPage() {
   const { hash } = useParams<{ hash: string }>();
 
   const { data: loteData, isLoading, error } = useQuery({
     queryKey: ["lote-auditoria-publica", hash],
-    queryFn: async (): Promise<LotePublicoPayload> => {
+    queryFn: async (): Promise<LotePublico> => {
       if (!hash) throw new Error("Código não informado");
 
       if (!UUID_RE.test(hash)) throw new Error("Código inválido");
@@ -87,8 +103,11 @@ export default function LoteAuditoriaPublicaPage() {
         p_id: hash,
       });
       if (rpcError) throw rpcError;
-      const payload = data as LotePublicoPayload | null;
-      if (!payload?.ok) throw new Error(payload?.mensagem ?? "Lote não encontrado");
+
+      const payload = data as LotePublico | null;
+      if (!payload?.ok) {
+        throw new Error(payload?.mensagem ?? "Lote não encontrado");
+      }
       return payload;
     },
     enabled: !!hash,
@@ -106,30 +125,29 @@ export default function LoteAuditoriaPublicaPage() {
     );
   }
 
-  if (error || !loteData?.lote) {
+  if (error || !loteData?.ok) {
+    const msg = (error as Error)?.message || loteData?.mensagem || "Lote não encontrado";
+    const titulo =
+      msg === "Código inválido"
+        ? "Código inválido"
+        : /muitas consultas|rate.?limit/i.test(msg)
+        ? "Muitas consultas"
+        : "Lote Não Encontrado";
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-8 text-center">
             <AlertTriangle className="w-12 h-12 mx-auto text-destructive mb-4" />
-            <h1 className="text-xl font-bold mb-2">
-              {(error as Error)?.message === "Código inválido"
-                ? "Código inválido"
-                : (error as Error)?.message?.includes("Muitas consultas")
-                ? "Muitas consultas"
-                : "Lote Não Encontrado"}
-            </h1>
-            <p className="text-muted-foreground">
-              {(error as Error)?.message ||
-                "O QR Code escaneado não corresponde a nenhum lote registrado."}
-            </p>
+            <h1 className="text-xl font-bold mb-2">{titulo}</h1>
+            <p className="text-muted-foreground">{msg}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const lote = loteData.lote;
+  const lote = loteData;
   const status = (lote.status || "").toUpperCase();
   const statusVariant =
     status === "QUARENTENA"
@@ -142,6 +160,10 @@ export default function LoteAuditoriaPublicaPage() {
 
   const empresaNome =
     lote.empresa?.nome_fantasia || lote.empresa?.razao_social || "BrainX ERP";
+  const avisos: string[] = [];
+  if (lote.insumo?.higroscopico) avisos.push("HIGROSCÓPICO — manter recipiente fechado");
+  if (lote.insumo?.controle_especial) avisos.push("CONTROLE ESPECIAL");
+  if (lote.insumo?.alerta) avisos.push(lote.insumo.alerta);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
@@ -188,14 +210,14 @@ export default function LoteAuditoriaPublicaPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Package className="w-5 h-5" />
-              Insumo / Matéria-Prima
+              {lote.tipo_lote === "ACABADO" ? "Produto" : "Insumo / Matéria-Prima"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">Nome</p>
-              <p className="text-lg font-semibold">{lote.insumo.descricao}</p>
-              {lote.insumo.sku && (
+              <p className="text-lg font-semibold">{lote.insumo?.descricao || "—"}</p>
+              {lote.insumo?.sku && (
                 <p className="text-sm text-muted-foreground">SKU: {lote.insumo.sku}</p>
               )}
             </div>
@@ -216,20 +238,22 @@ export default function LoteAuditoriaPublicaPage() {
             <div>
               <p className="text-sm text-muted-foreground">Quantidade recebida</p>
               <p className="font-medium">
-                {Number(lote.quantidade_original).toLocaleString("pt-BR")}{" "}
-                {lote.unidade_original}
+                {Number(lote.quantidade_recebida ?? 0).toLocaleString("pt-BR")}{" "}
+                {lote.unidade || ""}
               </p>
             </div>
-            {lote.insumo.armazenamento && (
+            {lote.insumo?.armazenamento && (
               <div className="flex items-start gap-2 text-sm">
                 <Thermometer className="h-4 w-4 mt-0.5 text-muted-foreground" />
                 <span>{lote.insumo.armazenamento}</span>
               </div>
             )}
-            {lote.insumo.texto_alerta && (
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                ⚠ {lote.insumo.texto_alerta}
-              </p>
+            {avisos.length > 0 && (
+              <ul className="text-sm font-medium text-amber-700 dark:text-amber-400 space-y-1">
+                {avisos.map((a) => (
+                  <li key={a}>⚠ {a}</li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>
@@ -248,15 +272,15 @@ export default function LoteAuditoriaPublicaPage() {
               </p>
               {lote.fornecedor?.documento && (
                 <p className="text-muted-foreground">
-                  CNPJ/CPF: {lote.fornecedor.documento}
+                  CNPJ/CPF: {formatarDoc(lote.fornecedor.documento)}
                 </p>
               )}
               {lote.nota_entrada?.numero && (
                 <p className="text-sm text-muted-foreground">
                   NF-e {lote.nota_entrada.numero}
                   {lote.nota_entrada.serie ? `/${lote.nota_entrada.serie}` : ""}
-                  {lote.nota_entrada.dh_emissao
-                    ? ` · ${fmt(lote.nota_entrada.dh_emissao)}`
+                  {lote.nota_entrada.emissao
+                    ? ` · ${fmt(lote.nota_entrada.emissao)}`
                     : ""}
                 </p>
               )}
@@ -277,8 +301,7 @@ export default function LoteAuditoriaPublicaPage() {
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
               <p className="font-semibold text-base">{lote.empresa.razao_social}</p>
-              {lote.empresa.cnpj && <p>CNPJ {lote.empresa.cnpj}</p>}
-              {lote.empresa.afe_anvisa && <p>AFE: {lote.empresa.afe_anvisa}</p>}
+              {lote.empresa.cnpj && <p>CNPJ {formatarDoc(lote.empresa.cnpj)}</p>}
               {lote.empresa.licenca_sanitaria && (
                 <p>Licença: {lote.empresa.licenca_sanitaria}</p>
               )}
@@ -286,8 +309,40 @@ export default function LoteAuditoriaPublicaPage() {
           </Card>
         )}
 
+        {lote.coa && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileCheck className="w-5 h-5" />
+                COA / Laudo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
+              {lote.coa.possui
+                ? `${lote.coa.quantidade ?? 1} documento(s) de COA vinculado(s)`
+                : "Sem COA vinculado a este lote"}
+            </CardContent>
+          </Card>
+        )}
+
+        {lote.tipo_lote === "ACABADO" && lote.rt?.nome && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Responsável Técnico</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="font-semibold">{lote.rt.nome}</p>
+              <p className="text-muted-foreground text-sm">
+                {[lote.rt.tipo_conselho, lote.rt.numero_registro, lote.rt.uf_conselho]
+                  .filter(Boolean)
+                  .join(" ")}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <p className="text-center text-xs text-muted-foreground pb-8">
-          Consulta pública via QR · dados sem custo, saldo ou cliente · BrainX ERP
+          Consulta pública via QR · sem custo, saldo ou cliente · BrainX ERP
         </p>
       </div>
     </div>
