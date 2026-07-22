@@ -37,6 +37,7 @@ export function useLotes(filters?: { item_id?: string; status?: StatusLote }) {
         ...l,
         nota_numero: l.nota_item?.nota?.numero ?? null,
         nota_serie: l.nota_item?.nota?.serie ?? null,
+        nota_chave: l.nota_item?.nota?.chave_nfe ?? null,
       }));
 
       return (achatado as unknown) as (EstoqueLote & {
@@ -45,6 +46,7 @@ export function useLotes(filters?: { item_id?: string; status?: StatusLote }) {
         lote_documentos: LoteDocumento[];
         nota_numero: string | null;
         nota_serie: string | null;
+        nota_chave: string | null;
       })[];
     },
   });

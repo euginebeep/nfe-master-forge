@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatDate } from '@/lib/formatters';
 
 /**
  * Etiqueta de identificação de insumo — 100 x 150 mm, impressora térmica.
@@ -77,33 +78,20 @@ const STATUS_MAP: Record<string, { rotulo: string; enfase: 'normal' | 'hachura' 
 
 /**
  * Datas `date` do Postgres chegam como "YYYY-MM-DD". `new Date("2027-08-30")`
- * parseia como MEIA-NOITE UTC; renderizado em São Paulo (UTC-3) vira 21h do
- * dia anterior, e a etiqueta imprime a validade um dia adiantada.
- * Aqui montamos a data em horário LOCAL, explicitamente.
+ * parseia como MEIA-NOITE UTC; em São Paulo (UTC-3) vira 21h do dia anterior,
+ * e a etiqueta imprimiria a validade um dia adiantada.
+ * `formatDate` de @/lib/formatters já trata isso por troca de string —
+ * usamos o helper do projeto em vez de reimplementar.
  */
-function parseDataLocal(d: string): Date | null {
-  const s = String(d).trim();
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  const p = new Date(s); // timestamptz: conversão para local é o correto
-  return isNaN(p.getTime()) ? null : p;
-}
-
 function fmt(d?: string | null) {
-  if (!d) return '—';
-  const p = parseDataLocal(d);
-  return p ? format(p, 'dd/MM/yyyy') : '—';
+  return d ? formatDate(d) : '—';
 }
 
+/** recebido_em é timestamptz: aqui a conversão para local É o correto. */
 function fmtDateTime(d?: string | null) {
   if (!d) return '—';
-  const p = new Date(d); // sempre timestamptz
+  const p = new Date(d);
   return isNaN(p.getTime()) ? '—' : format(p, 'dd/MM/yyyy HH:mm');
-}
-
-/** Número sem casas decimais inúteis: 25,0000 -> "25" | 1,2500 -> "1,25" */
-function fmtNum(n: number) {
-  return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 }
 
 function formatarDoc(doc?: string | null) {
