@@ -1,1 +1,106 @@
-import { useState } from \"react\";\nimport { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from \"@/components/ui/dialog\";\nimport { Button } from \"@/components/ui/button\";\nimport { Input } from \"@/components/ui/input\";\nimport { Label } from \"@/components/ui/label\";\nimport { Alert, AlertDescription } from \"@/components/ui/alert\";\nimport { AlertCircle } from \"lucide-react\";\n\ninterface FatorConversaoDialogProps {\n  open: boolean;\n  onOpenChange: (open: boolean) => void;\n  unidadeOrigem: string;\n  unidadeDestino: string;\n  fatorSugerido?: number;\n  fatorAtual?: number;\n  onConfirm: (fator: number) => void;\n}\n\n/**\n * Diálogo para ajuste manual de fator de conversão\n */\nexport function FatorConversaoDialog({\n  open,\n  onOpenChange,\n  unidadeOrigem,\n  unidadeDestino,\n  fatorSugerido,\n  fatorAtual,\n  onConfirm,\n}: FatorConversaoDialogProps) {\n  const [fator, setFator] = useState(fatorSugerido?.toString() || fatorAtual?.toString() || \"1\");\n  const [erro, setErro] = useState<string | null>(null);\n\n  const handleConfirm = () => {\n    const fatorNum = parseFloat(fator);\n\n    if (isNaN(fatorNum) || fatorNum <= 0) {\n      setErro(\"Fator deve ser um número positivo\");\n      return;\n    }\n\n    onConfirm(fatorNum);\n    onOpenChange(false);\n  };\n\n  return (\n    <Dialog open={open} onOpenChange={onOpenChange}>\n      <DialogContent>\n        <DialogHeader>\n          <DialogTitle>Ajustar Fator de Conversão</DialogTitle>\n          <DialogDescription>\n            Defina o fator para converter de {unidadeOrigem} para {unidadeDestino}\n          </DialogDescription>\n        </DialogHeader>\n\n        <div className=\"space-y-4\">\n          {fatorSugerido && fatorAtual && fatorSugerido !== fatorAtual && (\n            <Alert className=\"border-amber-300 bg-amber-50\">\n              <AlertCircle className=\"h-4 w-4 text-amber-600\" />\n              <AlertDescription className=\"text-amber-800 ml-2\">\n                Fator sugerido: <strong>{fatorSugerido}</strong> | Fator atual: <strong>{fatorAtual}</strong>\n              </AlertDescription>\n            </Alert>\n          )}\n\n          <div>\n            <Label htmlFor=\"fator\">Fator de Conversão</Label>\n            <Input\n              id=\"fator\"\n              type=\"number\"\n              step=\"0.0001\"\n              min=\"0\"\n              value={fator}\n              onChange={(e) => {\n                setFator(e.target.value);\n                setErro(null);\n              }}\n              placeholder=\"Ex: 1000\"\n              className=\"mt-2\"\n            />\n            <p className=\"text-xs text-muted-foreground mt-2\">\n              Exemplo: 1 {unidadeOrigem} = {fator} {unidadeDestino}\n            </p>\n          </div>\n\n          {erro && (\n            <Alert variant=\"destructive\">\n              <AlertCircle className=\"h-4 w-4\" />\n              <AlertDescription className=\"ml-2\">{erro}</AlertDescription>\n            </Alert>\n          )}\n\n          <div className=\"flex gap-2 justify-end pt-4\">\n            <Button variant=\"outline\" onClick={() => onOpenChange(false)}>\n              Cancelar\n            </Button>\n            <Button onClick={handleConfirm}>\n              Confirmar\n            </Button>\n          </div>\n        </div>\n      </DialogContent>\n    </Dialog>\n  );\n}\n
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+
+interface FatorConversaoDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  unidadeOrigem: string;
+  unidadeDestino: string;
+  fatorSugerido?: number;
+  fatorAtual?: number;
+  onConfirm: (fator: number) => void;
+}
+
+/**
+ * Diálogo para ajuste manual de fator de conversão
+ */
+export function FatorConversaoDialog({
+  open,
+  onOpenChange,
+  unidadeOrigem,
+  unidadeDestino,
+  fatorSugerido,
+  fatorAtual,
+  onConfirm,
+}: FatorConversaoDialogProps) {
+  const [fator, setFator] = useState(fatorSugerido?.toString() || fatorAtual?.toString() || "1");
+  const [erro, setErro] = useState<string | null>(null);
+
+  const handleConfirm = () => {
+    const fatorNum = parseFloat(fator);
+
+    if (isNaN(fatorNum) || fatorNum <= 0) {
+      setErro("Fator deve ser um número positivo");
+      return;
+    }
+
+    onConfirm(fatorNum);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Ajustar Fator de Conversão</DialogTitle>
+          <DialogDescription>
+            Defina o fator para converter de {unidadeOrigem} para {unidadeDestino}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {fatorSugerido && fatorAtual && fatorSugerido !== fatorAtual && (
+            <Alert className="border-amber-300 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 ml-2">
+                Fator sugerido: <strong>{fatorSugerido}</strong> | Fator atual: <strong>{fatorAtual}</strong>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div>
+            <Label htmlFor="fator">Fator de Conversão</Label>
+            <Input
+              id="fator"
+              type="number"
+              step="0.0001"
+              min="0"
+              value={fator}
+              onChange={(e) => {
+                setFator(e.target.value);
+                setErro(null);
+              }}
+              placeholder="Ex: 1000"
+              className="mt-2"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Exemplo: 1 {unidadeOrigem} = {fator} {unidadeDestino}
+            </p>
+          </div>
+
+          {erro && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="ml-2">{erro}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex gap-2 justify-end pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirm}>
+              Confirmar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
