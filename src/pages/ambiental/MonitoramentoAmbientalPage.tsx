@@ -337,8 +337,6 @@ function Heatmap({ pontos, rooms }: { pontos: PontoAgregado[]; rooms: { deviceId
     if (st === "conforme") {
       const intensity = 0.2 + (1 - Math.min(1, distFromCenter)) * 0.6;
       bg = `rgba(16,185,129,${intensity.toFixed(2)})`;
-    } else if (st === "atencao") {
-      bg = "rgba(245,158,11,0.6)";
     } else {
       bg = "rgba(220,38,38,0.7)";
     }
