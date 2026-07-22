@@ -94,6 +94,11 @@ function fmtDateTime(d?: string | null) {
   return isNaN(p.getTime()) ? '—' : format(p, 'dd/MM/yyyy HH:mm');
 }
 
+/** Número sem casas decimais inúteis: 25,0000 -> "25" | 1,2500 -> "1,25" */
+function fmtNum(n: number) {
+  return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+}
+
 function formatarDoc(doc?: string | null) {
   if (!doc) return null;
   const n = doc.replace(/\D/g, '');
