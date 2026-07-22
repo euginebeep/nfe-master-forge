@@ -12,8 +12,11 @@ export function useLotes(filters?: { item_id?: string; status?: StatusLote }) {
         .from("estoque_lotes")
         .select(`
           *,
-          item:itens (id, sku_interno, descricao_interna, tipo_item),
+          item:itens (id, sku_interno, descricao_interna, tipo_item, unidade_interna),
           fornecedor:entidades (id, razao_social, documento),
+          nota_item:notas_entrada_itens (
+            nota:notas_entrada (numero, serie, chave_nfe)
+          ),
           lote_documentos (*)
         `)
         .order("created_at", { ascending: false });
@@ -29,10 +32,21 @@ export function useLotes(filters?: { item_id?: string; status?: StatusLote }) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return (data as unknown) as (EstoqueLote & {
-        item: { id: string; sku_interno: string; descricao_interna: string; tipo_item: string };
+
+      const achatado = (data ?? []).map((l: any) => ({
+        ...l,
+        nota_numero: l.nota_item?.nota?.numero ?? null,
+        nota_serie: l.nota_item?.nota?.serie ?? null,
+        nota_chave: l.nota_item?.nota?.chave_nfe ?? null,
+      }));
+
+      return (achatado as unknown) as (EstoqueLote & {
+        item: { id: string; sku_interno: string; descricao_interna: string; tipo_item: string; unidade_interna: string | null };
         fornecedor: { id: string; razao_social: string; documento: string } | null;
         lote_documentos: LoteDocumento[];
+        nota_numero: string | null;
+        nota_serie: string | null;
+        nota_chave: string | null;
       })[];
     },
   });

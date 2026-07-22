@@ -13,11 +13,10 @@ import {
   Thermometer,
   FileCheck,
 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { formatDate } from "@/lib/formatters";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -100,11 +99,8 @@ type LotePublico = {
 
 function fmt(value?: string | null) {
   if (!value) return "—";
-  try {
-    return format(new Date(value), "dd/MM/yyyy", { locale: ptBR });
-  } catch {
-    return "—";
-  }
+  // formatDate trata date-only Postgres por troca de string (sem UTC−1 dia)
+  return formatDate(value);
 }
 
 function formatarDoc(doc?: string | null) {

@@ -24,6 +24,16 @@ const STATUS_VARIANTS: Record<string, "success" | "warning" | "error" | "muted">
   VENCIDO: "error",
 };
 
+/** Massa/volume → 2 casas; contáveis (UN, MIL, …) → sem casas se inteiro. */
+function formatQtdLote(qtd: number, unidade?: string | null) {
+  const u = (unidade || "").toLowerCase().trim();
+  const massaVolume = ["g", "kg", "mg", "mcg", "µg", "ug", "l", "ml", "lt", "litro", "litros"].includes(u);
+  if (massaVolume) return formatNumber(qtd, 2);
+  const n = Number(qtd);
+  if (Number.isFinite(n) && Number.isInteger(n)) return formatNumber(n, 0);
+  return formatNumber(n, 2);
+}
+
 export default function LotesListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -97,13 +107,17 @@ export default function LotesListPage() {
 
   // Counts
   const counts = useMemo(() => {
-    if (!allLotes) return { total: 0, quarentena: 0, disponivel: 0, bloqueado: 0, vencendo30: 0 };
+    if (!allLotes) return { total: 0, quarentena: 0, disponivel: 0, bloqueado: 0, vencidos: 0, vencendo30: 0 };
     const today = new Date();
     return {
       total: allLotes.length,
       quarentena: allLotes.filter(l => l.status === 'QUARENTENA').length,
       disponivel: allLotes.filter(l => l.status === 'DISPONIVEL' || (l.status as string) === 'APROVADO').length,
       bloqueado: allLotes.filter(l => l.status === 'BLOQUEADO').length,
+      vencidos: allLotes.filter(l => {
+        if (!(l as any).data_val) return false;
+        return differenceInDays(parseISO((l as any).data_val), today) < 0;
+      }).length,
       vencendo30: allLotes.filter(l => {
         if (!(l as any).data_val) return false;
         const dias = differenceInDays(parseISO((l as any).data_val), today);
@@ -178,15 +192,21 @@ export default function LotesListPage() {
       header: "Quantidade",
       render: (item: any) => (
         <span>
-          {formatNumber(item.quantidade_interna, 2)} {item.item?.unidade_interna || item.unidade_original}
+          {formatQtdLote(item.quantidade_interna, item.unidade_interna)} {item.unidade_interna || "—"}
         </span>
       ),
     },
     {
-      key: "custo_unitario_original",
+      key: "custo_unitario_interno",
       header: "Preço Unit.",
-      render: (item: any) => item.custo_unitario_original ?
-        formatCurrency(item.custo_unitario_original) : "-",
+      render: (item: any) => item.custo_unitario_interno ? (
+        <span>
+          {formatCurrency(item.custo_unitario_interno)}
+          {item.unidade_interna && (
+            <span className="text-xs text-muted-foreground">/{item.unidade_interna}</span>
+          )}
+        </span>
+      ) : <span className="text-muted-foreground">-</span>,
     },
     {
       key: "data_val",
@@ -307,8 +327,9 @@ export default function LotesListPage() {
       />
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <button
+          type="button"
           onClick={() => { clearFilters(); }}
           className={`p-3 rounded-lg border text-center transition-colors ${!hasActiveFilters ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
         >
@@ -316,6 +337,7 @@ export default function LotesListPage() {
           <p className="text-xs text-muted-foreground">Total</p>
         </button>
         <button
+          type="button"
           onClick={() => { setStatusFilter('DISPONIVEL'); setValidadeFilter('all'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${statusFilter === 'DISPONIVEL' ? 'border-emerald-500 bg-emerald-500/5' : 'hover:bg-muted/50'}`}
         >
@@ -323,6 +345,7 @@ export default function LotesListPage() {
           <p className="text-xs text-muted-foreground">Disponível</p>
         </button>
         <button
+          type="button"
           onClick={() => { setStatusFilter('QUARENTENA'); setValidadeFilter('all'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${statusFilter === 'QUARENTENA' ? 'border-amber-500 bg-amber-500/5' : 'hover:bg-muted/50'}`}
         >
@@ -330,6 +353,7 @@ export default function LotesListPage() {
           <p className="text-xs text-muted-foreground">Quarentena</p>
         </button>
         <button
+          type="button"
           onClick={() => { setStatusFilter('BLOQUEADO'); setValidadeFilter('all'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${statusFilter === 'BLOQUEADO' ? 'border-destructive bg-destructive/5' : 'hover:bg-muted/50'}`}
         >
@@ -337,6 +361,15 @@ export default function LotesListPage() {
           <p className="text-xs text-muted-foreground">Bloqueado</p>
         </button>
         <button
+          type="button"
+          onClick={() => { setStatusFilter('all'); setValidadeFilter('vencido'); }}
+          className={`p-3 rounded-lg border text-center transition-colors ${validadeFilter === 'vencido' ? 'border-destructive bg-destructive/10' : 'hover:bg-muted/50 border-destructive/40'}`}
+        >
+          <p className="text-2xl font-bold text-destructive">{counts.vencidos}</p>
+          <p className="text-xs text-destructive/80 font-medium">Vencidos</p>
+        </button>
+        <button
+          type="button"
           onClick={() => { setStatusFilter('all'); setValidadeFilter('30dias'); }}
           className={`p-3 rounded-lg border text-center transition-colors ${validadeFilter === '30dias' ? 'border-destructive bg-destructive/5' : 'hover:bg-muted/50'}`}
         >
@@ -350,8 +383,8 @@ export default function LotesListPage() {
         columns={columns}
         loading={isLoading}
         searchable
-        searchPlaceholder="Buscar por lote, SKU, insumo ou fornecedor..."
-        searchKeys={["numero_lote", "item_sku", "item_descricao", "fornecedor_nome"]}
+        searchPlaceholder="Buscar por lote, SKU, insumo, fornecedor ou NF..."
+        searchKeys={["numero_lote", "item_sku", "item_descricao", "fornecedor_nome", "nota_numero"]}
         onRowClick={(item) => navigate(`/estoque/lotes/${item.id}`)}
         emptyMessage="Nenhum lote encontrado"
         actions={

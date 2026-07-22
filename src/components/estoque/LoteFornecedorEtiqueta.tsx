@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatDate } from '@/lib/formatters';
 
 /**
  * Etiqueta de identificação de insumo — 100 x 150 mm, impressora térmica.
@@ -75,21 +76,22 @@ const STATUS_MAP: Record<string, { rotulo: string; enfase: 'normal' | 'hachura' 
   CONSUMIDO:  { rotulo: 'CONSUMIDO', enfase: 'normal' },
 };
 
+/**
+ * Datas `date` do Postgres chegam como "YYYY-MM-DD". `new Date("2027-08-30")`
+ * parseia como MEIA-NOITE UTC; em São Paulo (UTC-3) vira 21h do dia anterior,
+ * e a etiqueta imprimiria a validade um dia adiantada.
+ * `formatDate` de @/lib/formatters já trata isso por troca de string —
+ * usamos o helper do projeto em vez de reimplementar.
+ */
 function fmt(d?: string | null) {
-  if (!d) return '—';
-  const p = new Date(d);
-  return isNaN(p.getTime()) ? '—' : format(p, 'dd/MM/yyyy');
+  return d ? formatDate(d) : '—';
 }
 
+/** recebido_em é timestamptz: aqui a conversão para local É o correto. */
 function fmtDateTime(d?: string | null) {
   if (!d) return '—';
   const p = new Date(d);
   return isNaN(p.getTime()) ? '—' : format(p, 'dd/MM/yyyy HH:mm');
-}
-
-/** Número sem casas decimais inúteis: 25,0000 -> "25" | 1,2500 -> "1,25" */
-function fmtNum(n: number) {
-  return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 }
 
 function formatarDoc(doc?: string | null) {
