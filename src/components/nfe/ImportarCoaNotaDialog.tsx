@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { FileText, Loader2, Upload } from 'lucide-react';
+import { AlertTriangle, FileText, Loader2, Upload } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +14,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import {
   extrairTextoPorPagina,
@@ -25,6 +26,7 @@ import {
   montarPreviewImportacaoCoa,
   lotesComCoaExistente,
   buscarCoasDosLotes,
+  buscarNotaPorNumero,
   labelCampoCasamento,
   type PreviewImportacaoCoa,
   type CasamentoCertificado,
@@ -48,14 +50,23 @@ function erroMsg(err: unknown): string {
 }
 
 interface ImportarCoaNotaFlowProps {
-  notaId: string;
-  notaNumero: string;
+  /** Null = PDF-first: o sistema resolve a nota pelo cabeçalho do certificado */
+  notaId: string | null;
+  notaNumero: string | null;
   onDone?: () => void;
   onFechar?: () => void;
+  /** Chamado quando o PDF (ou o botão Trocar) resolve/muda a nota */
+  onNotaResolvida?: (nota: { id: string; numero: string }) => void;
 }
 
 /** Fluxo interno reutilizável (sem trigger/dialog wrapper) */
-export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: ImportarCoaNotaFlowProps) {
+export function ImportarCoaNotaFlow({
+  notaId,
+  notaNumero,
+  onDone,
+  onFechar,
+  onNotaResolvida,
+}: ImportarCoaNotaFlowProps) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -64,6 +75,7 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
   const [preview, setPreview] = useState<PreviewImportacaoCoa | null>(null);
   const [progresso, setProgresso] = useState(0);
   const [resumo, setResumo] = useState<ResumoEnvio | null>(null);
+  const [trocandoNota, setTrocandoNota] = useState(false);
 
   const resetar = () => {
     setEtapa('selecionar');
@@ -73,7 +85,7 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
     setResumo(null);
   };
 
-  const processarArquivo = async (file: File) => {
+  const processarArquivo = async (file: File, notaOverride?: { id: string; numero: string } | null) => {
     setArquivo(file);
     setEtapa('analisando');
     try {
@@ -86,12 +98,31 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
 
       const certificados = parseCertificados(paginas);
       if (!certificados.length) {
-        toast.error('Nenhum certificado encontrado no PDF. Verifique se contém campos "Insumo:" e lote (Fabricante ou Interno).');
+        toast.error(
+          'Nenhum certificado encontrado no PDF. Verifique se contém campos "Insumo:" e lote (Fabricante ou Interno).',
+        );
         setEtapa('selecionar');
         return;
       }
 
-      const prev = await montarPreviewImportacaoCoa(notaId, certificados);
+      const notaAtual = notaOverride === undefined
+        ? (notaId && notaNumero ? { id: notaId, numero: notaNumero } : null)
+        : notaOverride;
+
+      let prev = await montarPreviewImportacaoCoa(notaAtual?.id ?? null, certificados, {
+        notaNumeroSelecionada: notaAtual?.numero ?? null,
+      });
+
+      if (!notaAtual && prev.notaResolvidaPorPdf) {
+        onNotaResolvida?.(prev.notaResolvidaPorPdf);
+        prev = await montarPreviewImportacaoCoa(prev.notaResolvidaPorPdf.id, certificados, {
+          notaNumeroSelecionada: prev.notaResolvidaPorPdf.numero,
+        });
+        toast.success(`Nota NF-e ${prev.notaExtraidaDoPdf ?? prev.notaResolvidaPorPdf?.numero} identificada no PDF`);
+      } else if (!notaAtual && prev.notaExtraidaDoPdf && !prev.notaResolvidaPorPdf) {
+        toast.message(`PDF indica NF ${prev.notaExtraidaDoPdf}, mas ela não foi encontrada no cadastro. Casando lotes em todo o estoque.`);
+      }
+
       setPreview(prev);
       setEtapa('preview');
     } catch (err) {
@@ -109,6 +140,24 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
       return;
     }
     processarArquivo(file);
+  };
+
+  const trocarParaNotaDoPdf = async () => {
+    if (!arquivo || !preview?.notaExtraidaDoPdf) return;
+    setTrocandoNota(true);
+    try {
+      const encontrada = await buscarNotaPorNumero(preview.notaExtraidaDoPdf);
+      if (!encontrada) {
+        toast.error(`Nota ${preview.notaExtraidaDoPdf} não encontrada no cadastro.`);
+        return;
+      }
+      onNotaResolvida?.(encontrada);
+      await processarArquivo(arquivo, encontrada);
+    } catch (err) {
+      toast.error(`Erro ao trocar nota: ${erroMsg(err)}`);
+    } finally {
+      setTrocandoNota(false);
+    }
   };
 
   const confirmarEnvio = async () => {
@@ -203,8 +252,9 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
         <div className="flex flex-col items-center gap-4 py-6">
           <Upload className="h-10 w-10 text-muted-foreground" />
           <p className="text-sm text-muted-foreground text-center">
-            NF-e {notaNumero} — o sistema identificará certificados, casará com lotes pelo número
-            do fabricante e mostrará um preview antes de anexar.
+            {notaNumero
+              ? `NF-e ${notaNumero} — o PDF será lido e os lotes casados em todo o estoque (não só desta nota).`
+              : 'Envie o PDF compilado. O sistema lê a NF e o lote no certificado e encontra a nota sozinho.'}
           </p>
           <Button onClick={() => inputRef.current?.click()}>
             Selecionar PDF compilado
@@ -221,6 +271,37 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
 
       {etapa === 'preview' && preview && (
         <div className="space-y-4">
+          {preview.avisoNotaDivergente && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Certificado de outra nota</AlertTitle>
+              <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>{preview.avisoNotaDivergente}</span>
+                {preview.notaExtraidaDoPdf && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={trocandoNota}
+                    onClick={trocarParaNotaDoPdf}
+                  >
+                    {trocandoNota ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      `Trocar para NF ${preview.notaExtraidaDoPdf}`
+                    )}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {preview.notaExtraidaDoPdf && !preview.avisoNotaDivergente && (
+            <p className="text-xs text-muted-foreground">
+              NF no PDF: <strong>{preview.notaExtraidaDoPdf}</strong>
+              {notaNumero ? ` · nota em uso: ${notaNumero}` : null}
+            </p>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="rounded-lg border p-3">
               <p className="text-2xl font-bold">{preview.certificados.length}</p>
@@ -287,6 +368,8 @@ export function ImportarCoaNotaFlow({ notaId, notaNumero, onDone, onFechar }: Im
                       {!c.loteFabricante && !c.loteInterno ? (
                         <span className="text-muted-foreground">(sem lote no certificado)</span>
                       ) : null}
+                      {c.validade ? <> · val. {c.validade}</> : null}
+                      {c.conclusao ? <> · {c.conclusao}</> : null}
                       {' — págs '}{c.paginaInicio}–{c.paginaFim}
                     </li>
                   ))}
@@ -451,9 +534,18 @@ export function ImportarCoaNotaDialog({
   );
 }
 
+function metaCertificado(c: CertificadoCoa): string {
+  const parts: string[] = [];
+  if (c.validade) parts.push(`val. ${c.validade}`);
+  if (c.fabricacao) parts.push(`fab. ${c.fabricacao}`);
+  if (c.conclusao) parts.push(c.conclusao);
+  return parts.join(' · ');
+}
+
 function CasamentoLinha({ casamento }: { casamento: CasamentoCertificado }) {
   const { certificado: c, lotes, camposCasados } = casamento;
   const campoLabel = labelCampoCasamento(camposCasados);
+  const meta = metaCertificado(c);
   return (
     <div className="text-xs border-b last:border-0 pb-2">
       <p className="font-medium">{c.insumo || '(sem insumo)'}</p>
@@ -465,8 +557,10 @@ function CasamentoLinha({ casamento }: { casamento: CasamentoCertificado }) {
         {c.loteInterno ? (
           <>Interno: <code>{c.loteInterno}</code></>
         ) : null}
+        {c.nota ? <> · NF {c.nota}</> : null}
         {' · págs '}{c.paginaInicio}–{c.paginaFim}
       </p>
+      {meta && <p className="text-muted-foreground text-[10px] mt-0.5">{meta}</p>}
       {campoLabel && (
         <p className="text-green-700 text-[10px] mt-0.5">
           Casou por: <strong>{campoLabel}</strong>
@@ -510,7 +604,7 @@ function RevisarManualLinha({ item }: { item: CasamentoRevisar }) {
   );
 }
 
-/** Atalho no dashboard — seleciona nota antes do fluxo */
+/** Atalho no dashboard — PDF primeiro; escolha manual de nota é exceção */
 export function ImportarCoaNotaSeletor({
   notas,
   onDone,
@@ -520,12 +614,18 @@ export function ImportarCoaNotaSeletor({
   onDone?: () => void;
   emptyMessage?: string;
 }) {
+  /** null = PDF-first; objeto = nota já escolhida (manual ou pelo PDF) */
   const [notaSelecionada, setNotaSelecionada] = useState<{ id: string; numero: string } | null>(null);
+  /** 'pdf' mostra o fluxo direto; 'lista' pede escolha manual antes */
+  const [tela, setTela] = useState<'pdf' | 'lista'>('pdf');
   const [open, setOpen] = useState(false);
+  /** Só remonta o Flow ao mudar de modo/nota manual — NÃO ao auto-resolver NF do PDF */
+  const [flowKey, setFlowKey] = useState(0);
 
   const fechar = () => {
     setOpen(false);
     setNotaSelecionada(null);
+    setTela('pdf');
   };
 
   const labelNota = (n: { id: string; numero: string; lotesSemCoa?: number }) => {
@@ -550,11 +650,13 @@ export function ImportarCoaNotaSeletor({
           <DialogDescription>
             {notaSelecionada
               ? `NF-e ${notaSelecionada.numero}`
-              : 'Selecione a nota de entrada para importar o PDF compilado de COAs.'}
+              : tela === 'lista'
+                ? 'Selecione a nota de entrada (opcional — o PDF também identifica a NF sozinho).'
+                : 'Envie o PDF: o sistema lê a NF e o lote no certificado e encontra a nota.'}
           </DialogDescription>
         </DialogHeader>
 
-        {!notaSelecionada ? (
+        {tela === 'lista' ? (
           <>
             {notas.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">{emptyMessage}</p>
@@ -566,7 +668,11 @@ export function ImportarCoaNotaSeletor({
                       key={n.id}
                       variant="ghost"
                       className="w-full justify-start"
-                      onClick={() => setNotaSelecionada(n)}
+                      onClick={() => {
+                        setNotaSelecionada(n);
+                        setTela('pdf');
+                        setFlowKey((k) => k + 1);
+                      }}
                     >
                       {labelNota(n)}
                     </Button>
@@ -574,26 +680,55 @@ export function ImportarCoaNotaSeletor({
                 </div>
               </ScrollArea>
             )}
-            <DialogFooter>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setTela('pdf');
+                  setNotaSelecionada(null);
+                  setFlowKey((k) => k + 1);
+                }}
+              >
+                ← Voltar ao PDF
+              </Button>
               <Button variant="outline" onClick={fechar}>Cancelar</Button>
             </DialogFooter>
           </>
         ) : (
           <>
-            <Button
-              variant="link"
-              size="sm"
-              className="px-0 h-auto"
-              onClick={() => setNotaSelecionada(null)}
-            >
-              ← Trocar nota
-            </Button>
+            {notaSelecionada && (
+              <Button
+                variant="link"
+                size="sm"
+                className="px-0 h-auto"
+                onClick={() => {
+                  setNotaSelecionada(null);
+                  setFlowKey((k) => k + 1);
+                }}
+              >
+                ← Limpar nota / outro PDF
+              </Button>
+            )}
             <ImportarCoaNotaFlow
-              notaId={notaSelecionada.id}
-              notaNumero={notaSelecionada.numero}
+              key={flowKey}
+              notaId={notaSelecionada?.id ?? null}
+              notaNumero={notaSelecionada?.numero ?? null}
+              onNotaResolvida={(n) => setNotaSelecionada(n)}
               onDone={() => { onDone?.(); }}
               onFechar={fechar}
             />
+            {!notaSelecionada && (
+              <div className="border-t pt-3">
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="px-0 h-auto"
+                  onClick={() => setTela('lista')}
+                >
+                  Ou escolher a nota manualmente…
+                </Button>
+              </div>
+            )}
           </>
         )}
       </DialogContent>
