@@ -4,6 +4,7 @@ import {
   casarCertificadoComLotes,
   identificadoresLoteCertificado,
   labelCampoCasamento,
+  variantesNumeroLote,
   type LoteParaCoa,
 } from '@/lib/coa-import';
 
@@ -101,5 +102,33 @@ describe('labelCampoCasamento', () => {
     expect(labelCampoCasamento(['FABRICANTE'])).toBe('Fabricante');
     expect(labelCampoCasamento(['INTERNO'])).toBe('Interno');
     expect(labelCampoCasamento(['FABRICANTE', 'INTERNO'])).toBe('Fabricante e Interno');
+  });
+});
+
+describe('variantesNumeroLote', () => {
+  it('casa HA2025102144X #3 com HA2025102144X', () => {
+    const comerciais = variantesNumeroLote('HA2025102144X #3');
+    const fab = variantesNumeroLote('HA2025102144X');
+    expect(comerciais).toContain('HA2025102144X');
+    expect(comerciais.some((v) => fab.includes(v))).toBe(true);
+  });
+
+  it('permite casar certificado ProLab pelo Lote Fab. no estoque', () => {
+    const estoque = mapa(
+      ...variantesNumeroLote('HA2025102144X').map(
+        (v) => [v, [lote('1', 'HA2025102144X')]] as [string, LoteParaCoa[]],
+      ),
+    );
+    const resultado = casarCertificadoComLotes(
+      cert({
+        loteFabricante: 'HA2025102144X #3',
+        loteInterno: 'HA2025102144X',
+      }),
+      estoque,
+    );
+    expect(resultado.tipo).toBe('unico');
+    if (resultado.tipo === 'unico') {
+      expect(resultado.lotes[0].numero_lote).toBe('HA2025102144X');
+    }
   });
 });
