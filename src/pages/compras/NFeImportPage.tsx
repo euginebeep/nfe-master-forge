@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   FileText, Upload, Loader2, Check, AlertCircle, Building2, 
@@ -17,7 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { parseNFeCompleto, formatCNPJ, formatCurrency, formatDate, formatDateTime } from "@/lib/nfe-parser-completo";
-import { checkNotaFiscalExistsSupabase, importarNFeCompletaSupabase, tipoExigeLote, extrairLoteDaDescricao, mapClassificacaoToTipo, type ImportStats, type ItemImportConfig } from "@/lib/supabase-nfe-import";
+import { checkNotaFiscalExistsSupabase, importarNFeCompletaSupabase, tipoExigeLote, extrairLoteDaDescricao, mapClassificacaoToTipo, sugerirMatchItemSupabase, type ImportStats, type ItemImportConfig, type ItemMatchResultado } from "@/lib/supabase-nfe-import";
+import { getUserCompanyId } from "@/hooks/use-user-company";
+import { supabase } from "@/integrations/supabase/client";
 import type { NFeParseResult, ClassificacaoNota } from "@/types/nfe-completa";
 import { FiscalReviewDialog, type FiscalItemConfig } from "@/components/nfe/FiscalReviewDialog";
 import { ItemVinculoSelector } from "@/components/nfe/ItemVinculoSelector";
@@ -110,6 +112,52 @@ export default function NFeImportPage() {
   const [parsing, setParsing] = useState(false);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
   const [fiscalReviewOpen, setFiscalReviewOpen] = useState(false);
+  const [matchHints, setMatchHints] = useState<Record<number, ItemMatchResultado>>({});
+  const [criarNovoFlags, setCriarNovoFlags] = useState<Record<number, boolean>>({});
+
+  // Auto-casamento ao entrar no preview
+  useEffect(() => {
+    if (!parsedResult || step !== 'preview') return;
+    let cancelled = false;
+    (async () => {
+      const companyId = await getUserCompanyId();
+      if (!companyId || cancelled) return;
+
+      let fornecedorId: string | null = null;
+      const doc = parsedResult.emitente.documento?.replace(/\D/g, '');
+      if (doc) {
+        const { data: ent } = await supabase
+          .from('entidades')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('documento', doc)
+          .maybeSingle();
+        fornecedorId = ent?.id ?? null;
+      }
+
+      const hints: Record<number, ItemMatchResultado> = {};
+      const vinculosAuto: Record<number, string | undefined> = { ...itemVinculos };
+
+      for (let i = 0; i < parsedResult.itens.length; i++) {
+        if (vinculosAuto[i]) continue;
+        const r = await sugerirMatchItemSupabase(
+          parsedResult.itens[i].item,
+          companyId,
+          fornecedorId,
+        );
+        hints[i] = r;
+        if (r.status === 'match') {
+          vinculosAuto[i] = r.id;
+        }
+      }
+
+      if (cancelled) return;
+      setMatchHints(hints);
+      setItemVinculos(vinculosAuto);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao mudar o XML parseado
+  }, [parsedResult, step]);
 
   /**
    * Parses compound units like "500 G", "500G", "250ML", "1.5KG", "0.5L"
@@ -282,6 +330,7 @@ export default function NFeImportPage() {
           dataFabManual: config.dataFabManual,
           tipoItem: config.vinculoTipoItem
             || (classificacao ? mapClassificacaoToTipo(classificacao, parsedResult.itens[idx]?.item.descricao || '') : undefined),
+          permitirCriarNovo: criarNovoFlags[idx] === true,
           // Adicionar dados fiscais editados se houver
           ...(fiscalConfig && {
             ncm: fiscalConfig.ncm,
@@ -376,14 +425,24 @@ export default function NFeImportPage() {
 
   const importBloqueado = useMemo(() => {
     if (!parsedResult || !classificacao) return true;
-    return parsedResult.itens.some((itemData, index) => {
+    const lotePendente = parsedResult.itens.some((itemData, index) => {
       if (itemData.rastros.length > 0) return false;
       const config = itemConfigs[index];
       const tipo = resolveTipoItem(index, itemData.item.descricao);
       if (!tipoExigeLote(tipo)) return false;
       return !config?.loteManual?.trim() || !config?.dataValidadeManual?.trim();
     });
-  }, [parsedResult, classificacao, itemConfigs, resolveTipoItem]);
+    if (lotePendente) return true;
+
+    // Itens com candidatos similares exigem vínculo OU "criar novo"
+    return parsedResult.itens.some((_, index) => {
+      const hint = matchHints[index];
+      if (!hint || hint.status !== 'precisa_usuario') return false;
+      if (itemVinculos[index]) return false;
+      if (criarNovoFlags[index]) return false;
+      return true;
+    });
+  }, [parsedResult, classificacao, itemConfigs, resolveTipoItem, matchHints, itemVinculos, criarNovoFlags]);
 
   const resetImport = () => {
     clearDraft(initialImportDraft);
@@ -834,6 +893,52 @@ export default function NFeImportPage() {
                                 <Link className="h-3 w-3" />
                                 Vincular a Item Cadastrado
                               </Label>
+                              {matchHints[index]?.status === 'precisa_usuario' && !vinculoId && (
+                                <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 space-y-2">
+                                  <p className="text-xs text-amber-900 dark:text-amber-100 font-medium">
+                                    Possível duplicata — escolha um cadastro ou confirme item novo:
+                                  </p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {matchHints[index].status === 'precisa_usuario' &&
+                                      matchHints[index].candidatos.map((c) => (
+                                        <Button
+                                          key={c.id}
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() =>
+                                            handleItemVinculo(index, {
+                                              id: c.id,
+                                              descricao_interna: c.descricao_interna,
+                                            } as LocalItem)
+                                          }
+                                        >
+                                          {c.descricao_interna.slice(0, 40)}
+                                          {c.descricao_interna.length > 40 ? '…' : ''} ({Math.round(c.sim * 100)}%)
+                                        </Button>
+                                      ))}
+                                  </div>
+                                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={criarNovoFlags[index] === true}
+                                      onChange={(e) =>
+                                        setCriarNovoFlags((prev) => ({
+                                          ...prev,
+                                          [index]: e.target.checked,
+                                        }))
+                                      }
+                                    />
+                                    Confirmar: é item novo (criar cadastro)
+                                  </label>
+                                </div>
+                              )}
+                              {matchHints[index]?.status === 'match' && vinculoId && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  Casado automaticamente ({matchHints[index].status === 'match' ? matchHints[index].camada : ''})
+                                </p>
+                              )}
                               <ItemVinculoSelector
                                 xmlDescricao={itemData.item.descricao}
                                 xmlCodigo={itemData.item.codigo_produto}
