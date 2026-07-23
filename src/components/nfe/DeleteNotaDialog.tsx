@@ -38,8 +38,7 @@ export function DeleteNotaDialog({
   const handleDelete = async () => {
     setIsLoading(true);
     try {
-      // Chamar RPC para excluir nota com cascata
-      const { error } = await supabase.rpc('delete_nota_entrada_completa', {
+      const { data, error } = await supabase.rpc('delete_nota_entrada_completa', {
         p_nota_id: notaId,
       });
 
@@ -48,9 +47,13 @@ export function DeleteNotaDialog({
         return;
       }
 
-      toast.success(
-        `NF-e ${notaNumero}/${notaSerie} excluída com sucesso!`
-      );
+      const r = Array.isArray(data) ? data[0] : data;
+      if (!r?.sucesso) {
+        toast.error(r?.mensagem ?? 'Falha ao excluir');
+        return;
+      }
+
+      toast.success(r.mensagem || `NF-e ${notaNumero}/${notaSerie} excluída com sucesso!`);
       setOpen(false);
       onDeleted?.();
     } catch (err) {

@@ -1,0 +1,17 @@
+{
+  "_comment": "Objetos já referenciados no código e ainda ausentes do types.ts (ou edge function confundida). Remover daqui quando types forem regenerados / objeto criado. Novas fantasmas NÃO devem ser adicionadas sem investigação.",
+  "tables": [
+    "arquivos"
+  ],
+  "rpcs": [
+    "ambiental_historico_agregado",
+    "ambiental_tempo_real",
+    "get_uom_info",
+    "registrar_evento_auditoria",
+    "empresa_razao_social_em",
+    "empresa_rt_em"
+  ],
+  "views": [
+    "v_notas_sem_xml"
+  ]
+}

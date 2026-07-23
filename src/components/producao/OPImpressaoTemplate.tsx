@@ -47,7 +47,35 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         if (opError) throw opError;
         if (!op) throw new Error('OP não encontrada');
         setOpData(op);
-        setCompanyData(op.company);
+
+        const company = op.company as any;
+        const dataEvento =
+          (op as any).data_inicio ||
+          (op as any).created_at ||
+          new Date().toISOString();
+        const companyId = (op as any).company_id || company?.id;
+
+        if (companyId && company) {
+          const { empresaRazaoSocialEm, empresaRtEm } = await import('@/lib/empresa-historico');
+          const razao = await empresaRazaoSocialEm(
+            companyId,
+            dataEvento,
+            company.razao_social || company.nome_fantasia || '—',
+          );
+          const rt = await empresaRtEm(companyId, dataEvento);
+          setCompanyData({
+            ...company,
+            razao_social: razao,
+            // RT histórico sobrescreve campos da OP só na impressão quando a RPC responder
+            ...(rt
+              ? {
+                  _rt_historico: rt,
+                }
+              : {}),
+          });
+        } else {
+          setCompanyData(company);
+        }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
         setError(`Erro ao carregar OP: ${errorMsg}`);
@@ -112,7 +140,11 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
   const formatarData = (d: string | null): string => d ? new Date(d).toLocaleDateString('pt-BR') : '';
   const checklistCat = (cat: string) => (opData.op_checklist || []).filter((c: any) => c.categoria === cat).sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0));
   const pesoAlvo = op.peso_capsula_mg || 500;
-  const conselho = `${opData.rt_tipo_conselho || ''}-${opData.rt_uf_conselho || ''} ${opData.rt_numero_registro || ''}`.trim();
+  const rtHist = (companyData as any)?._rt_historico;
+  const conselho = rtHist
+    ? `${rtHist.tipo_conselho || ''}-${rtHist.uf_conselho || ''} ${rtHist.numero_registro || ''}`.trim()
+    : `${opData.rt_tipo_conselho || ''}-${opData.rt_uf_conselho || ''} ${opData.rt_numero_registro || ''}`.trim();
+  const rtNome = rtHist?.nome || opData.rt_nome || null;
 
   // ===== campos de empresa/cliente (novos — com fallback seguro) =====
   const fabNome = (companyData as any).razao_social || companyData.nome_fantasia || '—';
@@ -154,7 +186,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
       <div className="band">
         <div className="b"><div className="k">Quantidade</div><div className="v">{opData.quantidade_frascos} fr × {opData.capsulas_por_frasco} un</div></div>
         <div className="b"><div className="k">Total c/ acréscimo</div><div className="v">{totalCaps.toLocaleString('pt-BR')} un</div></div>
-        <div className="b"><div className="k">Resp. técnico</div><div className="v">{opData.rt_nome}</div></div>
+        <div className="b"><div className="k">Resp. técnico</div><div className="v">{rtNome}</div></div>
         <div className="b"><div className="k">Conselho</div><div className="v">{conselho}</div></div>
         <div className="b"><div className="k">Fabricação</div><div className="v">{formatarData(opData.data_fabricacao)}</div></div>
         <div className="b"><div className="k">Validade</div><div className="v">{formatarData(opData.data_validade)}</div></div>
@@ -165,7 +197,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
     <div className="signs">
       <div className="sign"><div className="line" /><div className="who">&nbsp;</div><div className="role">{a}</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
       <div className="sign"><div className="line" /><div className="who">&nbsp;</div><div className="role">{b}</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
-      <div className="sign"><div className="line" /><div className="who">{opData.rt_nome}</div><div className="role">{c}</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
+      <div className="sign"><div className="line" /><div className="who">{rtNome}</div><div className="role">{c}</div><div className="date">Data/Hora: ____/____/______ __:__</div></div>
     </div>
   );
 
@@ -228,7 +260,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           <div className="cell"><div className="k">Cápsulas (+acréscimo)</div><div className="v">{totalCaps.toLocaleString('pt-BR')}</div></div>
           <div className="cell"><div className="k">Cápsula</div><div className="v">#{op.tamanho_capsula ?? 0} · {pesoAlvo} mg</div></div>
           <div className="cell"><div className="k">Excipiente base</div><div className="v">{excipienteBase[0]?.insumo_nome || 'Amido (QSP)'}</div></div>
-          <div className="cell" style={{ gridColumn: 'span 2' }}><div className="k">Responsável técnico</div><div className="v">{opData.rt_nome} · {conselho}</div></div>
+          <div className="cell" style={{ gridColumn: 'span 2' }}><div className="k">Responsável técnico</div><div className="v">{rtNome} · {conselho}</div></div>
           <div className="cell" style={{ gridColumn: 'span 2' }}><div className="k">Responsável de produção</div><div className="v">{op.responsavel_producao_nome || '—'}</div></div>
         </div>
 

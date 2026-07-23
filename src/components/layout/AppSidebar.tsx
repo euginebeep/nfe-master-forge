@@ -115,7 +115,7 @@ const menuGroups: MenuGroup[] = [
   { title: "Pedidos de Compra", url: "/compras/pedidos", icon: Package, tooltip: "Pedidos de compra gerados após aprovação do mapa", modulo: "compras" },
   { title: "Importar NF-e", url: "/compras/importar-nfe", icon: FileInput, tooltip: "Importação de notas fiscais de entrada via XML", modulo: "compras" },
   { title: "Notas de Entrada", url: "/compras/notas-entrada", icon: FileText, tooltip: "Consulta e gestão de notas fiscais de compra recebidas", modulo: "compras" },
-  { title: "Fator de Conversão", url: "/compras/fator-conversao", icon: BarChart3, tooltip: "Histórico de conversões de unidades por fornecedor com sugestões automáticas", modulo: "compras" },
+  { title: "XMLs pendentes", url: "/compras/notas-sem-xml", icon: FileArchive, tooltip: "Notas sem XML no storage ou sem XML — backfill e upload manual", modulo: "compras" },
   { title: "Acompanhamento", url: "/compras/requisicoes", icon: ClipboardList, tooltip: "Acompanhamento de requisições: cotação, aprovação, pedido e recebimento", modulo: "compras" }]
 
 },

@@ -45,3 +45,5 @@ project_id = "cqkvekdrifmvedvpjmjr"
     verify_jwt = false
   [functions.coa-densidade-parser]
     verify_jwt = false
+  [functions.backfill-xml-storage]
+    verify_jwt = true

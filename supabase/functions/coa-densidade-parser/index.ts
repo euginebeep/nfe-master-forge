@@ -136,9 +136,24 @@ Deno.serve(async (req) => {
         }
       }
 
+      const { data: notaRow } = await supabase
+        .from("notas_entrada")
+        .select("company_id")
+        .eq("id", l.nota_entrada_id)
+        .maybeSingle();
+      const companyId =
+        notaRow?.company_id || alvos[0]?.company_id || null;
+
       const path = (
-        l.url_laudo || (l.nome_arquivo ? `vitalnow/${l.nome_arquivo}` : "")
+        l.url_laudo ||
+        (l.nome_arquivo && companyId
+          ? `${companyId}/${l.nome_arquivo}`
+          : l.nome_arquivo || "")
       ).replace(/^.*erp-files\//, "");
+      if (!path) {
+        report.erros++;
+        continue;
+      }
       const { data: blob, error } = await supabase.storage
         .from("erp-files")
         .download(path);

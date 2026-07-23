@@ -3,6 +3,8 @@ import { FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { uploadNfeXmlToStorage } from "@/lib/nfe-xml-storage";
+import { getUserCompanyId } from "@/hooks/use-user-company";
 
 export function AnexarXmlButton({ notaId, chaveNfe, onDone }: {
   notaId: string; chaveNfe: string; onDone: () => void;
@@ -23,13 +25,29 @@ export function AnexarXmlButton({ notaId, chaveNfe, onDone }: {
         toast.error("Não encontrei a chave da NF-e no arquivo. É um XML de NF-e válido?");
         return;
       }
-      if (chaveXml !== chaveNfe) {
+      if (chaveXml !== chaveNfe.replace(/\D/g, "")) {
         toast.error(`Este XML é de outra nota (…${chaveXml.slice(-6)} ≠ …${chaveNfe.slice(-6)}).`);
         return;
       }
       const { error } = await supabase.from("notas_entrada").update({ xml_raw: xml }).eq("id", notaId);
       if (error) { toast.error(`Falha ao salvar XML: ${error.message || error.code}`); return; }
-      toast.success("XML anexado à nota.");
+
+      const companyId = await getUserCompanyId();
+      if (!companyId) {
+        toast.error("XML salvo no banco, mas empresa não encontrada para gravar no storage.");
+        onDone();
+        return;
+      }
+      try {
+        await uploadNfeXmlToStorage(companyId, chaveXml, xml);
+      } catch (storageErr: unknown) {
+        const msg = storageErr instanceof Error ? storageErr.message : String(storageErr);
+        toast.warning(`XML no banco, mas storage falhou: ${msg}`);
+        onDone();
+        return;
+      }
+
+      toast.success("XML anexado à nota e gravado no storage.");
       onDone();
     } catch (err: any) {
       toast.error(`Erro ao ler/salvar o XML: ${err?.message || err?.code || "desconhecido"}`);

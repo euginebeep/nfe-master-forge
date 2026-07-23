@@ -58,7 +58,7 @@ const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage")
 const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
 const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
 const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
-const FatorConversaoPage = lazy(() => import("./pages/compras/FatorConversaoPage"));
+const NotasSemXmlPage = lazy(() => import("./pages/compras/NotasSemXmlPage"));
 const MapaCotacaoPage = lazy(() => import("./pages/compras/MapaCotacaoPage"));
 const PedidosCompraPage = lazy(() => import("./pages/compras/PedidosCompraPage"));
 const PedidoCompraDetailPage = lazy(() => import("./pages/compras/PedidoCompraDetailPage"));
@@ -228,7 +228,7 @@ const App = () => (
                 <Route path="/compras/importar-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NFeImportPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/nfe-import" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NFeImportPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/notas-entrada" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NotasEntradaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
-                <Route path="/compras/fator-conversao" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><FatorConversaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/compras/notas-sem-xml" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NotasSemXmlPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/comprar" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><PainelCompradorPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/mapa" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><MapaCotacaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/pedidos" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><PedidosCompraPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
