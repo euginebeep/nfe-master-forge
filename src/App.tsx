@@ -59,6 +59,7 @@ const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePa
 const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
 const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
 const NotasSemXmlPage = lazy(() => import("./pages/compras/NotasSemXmlPage"));
+const MesclarItensPage = lazy(() => import("./pages/cadastros/MesclarItensPage"));
 const MapaCotacaoPage = lazy(() => import("./pages/compras/MapaCotacaoPage"));
 const PedidosCompraPage = lazy(() => import("./pages/compras/PedidosCompraPage"));
 const PedidoCompraDetailPage = lazy(() => import("./pages/compras/PedidoCompraDetailPage"));
@@ -194,6 +195,7 @@ const App = () => (
                 <Route path="/cadastros/transportadoras" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><TransportadorasListPage /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/entidades/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><EntidadeDetailPageComplete /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/produtos" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="itens" moduloLabel="Produtos/Insumos"><ItensListPageComplete /></ModuleGuard></ErrorBoundary></Suspense>} />
+                <Route path="/cadastros/mesclar-itens" element={<ProtectedRoute minRole="admin"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="itens" moduloLabel="Produtos/Insumos"><MesclarItensPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/cadastros/itens" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ItensListPageComplete /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/itens/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ProdutoDetailPage /></ErrorBoundary></Suspense>} />
                 <Route path="/cadastros/produtos/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ProdutoDetailPage /></ErrorBoundary></Suspense>} />

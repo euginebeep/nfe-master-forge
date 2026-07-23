@@ -30,6 +30,8 @@ export interface ItemImportConfig {
   dataValidadeManual?: string;
   dataFabManual?: string;
   tipoItem?: string;
+  /** Usuário confirmou explicitamente "criar item novo" apesar de candidatos similares */
+  permitirCriarNovo?: boolean;
 }
 
 const TIPOS_LOTE_OPCIONAL = new Set(['EMBALAGEM', 'POTE', 'TAMPA', 'ROTULO', 'OUTRO']);
@@ -284,58 +286,202 @@ async function buscarFatorConversaoUI(descricao: string): Promise<number | null>
 
 // ============================================
 // BUSCAR OU CRIAR ITEM NO SUPABASE
+// Cascata: item_fornecedores → EAN → norm_txt → similaridade (pede usuário)
 // ============================================
-async function findOrCreateItemSupabase(
+
+export type ItemMatchCamada = 'fornecedor_codigo' | 'ean' | 'norm_txt' | 'similar' | 'vinculo' | 'novo';
+
+export type ItemMatchResultado =
+  | { status: 'match'; id: string; camada: ItemMatchCamada; descricao?: string }
+  | {
+      status: 'precisa_usuario';
+      candidatos: { id: string; descricao_interna: string; sim: number }[];
+    }
+  | { status: 'criar' };
+
+/** Sugestão pré-importação (não cria item). */
+export async function sugerirMatchItemSupabase(
   itemXML: NFeParseResult['itens'][0]['item'],
-  classificacao: ClassificacaoNota,
-  companyId: string
-): Promise<{ id: string; isNew: boolean }> {
+  companyId: string,
+  fornecedorId?: string | null,
+): Promise<ItemMatchResultado> {
   const ean = itemXML.ean && itemXML.ean !== 'SEM GTIN' ? itemXML.ean.replace(/\D/g, '') : null;
-  const ncm = itemXML.ncm;
   const descricao = itemXML.descricao;
-  
-  // 1. Buscar por EAN dentro da mesma empresa (com validação de descrição)
+  const codigoForn = (itemXML.codigo_produto || '').trim();
+
+  // 1. item_fornecedores (fornecedor + código)
+  if (fornecedorId && codigoForn) {
+    const { data: link } = await supabase
+      .from('item_fornecedores')
+      .select('item_id, itens!inner(id, descricao_interna, company_id, ativo)')
+      .eq('fornecedor_id', fornecedorId)
+      .eq('codigo_fornecedor', codigoForn)
+      .eq('itens.company_id', companyId)
+      .eq('itens.ativo', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (link?.item_id) {
+      return {
+        status: 'match',
+        id: link.item_id,
+        camada: 'fornecedor_codigo',
+        descricao: (link as any).itens?.descricao_interna,
+      };
+    }
+  }
+
+  // Alias textual (mesmo fornecedor ou global)
+  const { data: alias } = await supabase
+    .from('item_alias')
+    .select('item_id, itens!inner(id, company_id, ativo, descricao_interna)')
+    .eq('texto', descricao)
+    .eq('itens.company_id', companyId)
+    .eq('itens.ativo', true)
+    .limit(1)
+    .maybeSingle();
+  if (alias?.item_id) {
+    return {
+      status: 'match',
+      id: alias.item_id,
+      camada: 'norm_txt',
+      descricao: (alias as any).itens?.descricao_interna,
+    };
+  }
+
+  // 2. EAN
   if (ean) {
     const { data: itemPorEan } = await supabase
       .from('itens')
       .select('id, descricao_interna')
       .eq('ean', ean)
       .eq('company_id', companyId)
+      .eq('ativo', true)
       .maybeSingle();
 
     if (itemPorEan && similaridadeAceitaParaEan(descricao, itemPorEan.descricao_interna)) {
-      return { id: itemPorEan.id, isNew: false };
+      return { status: 'match', id: itemPorEan.id, camada: 'ean', descricao: itemPorEan.descricao_interna };
     }
   }
-  
-  // 2. Buscar por descrição exata dentro da mesma empresa
-  const { data: itemPorDesc } = await supabase
-    .from('itens')
+
+  // 3. descrição NORMALIZADA (norm_txt / fallback local)
+  {
+    const { data: all } = await supabase
+      .from('itens')
+      .select('id, descricao_interna')
+      .eq('company_id', companyId)
+      .eq('ativo', true)
+      .limit(500);
+    const hit = (all || []).find(
+      (i) => normalizarDescricaoLocal(i.descricao_interna) === normalizarDescricaoLocal(descricao),
+    );
+    if (hit) {
+      return { status: 'match', id: hit.id, camada: 'norm_txt', descricao: hit.descricao_interna };
+    }
+  }
+
+  // 4. similaridade difusa — NÃO cria
+  const { data: similares, error: simErr } = await supabase.rpc('buscar_insumos_similares', {
+    termo: descricao,
+    comp: companyId,
+  });
+  if (!simErr && similares && similares.length > 0) {
+    const bons = similares.filter((s) => (s.sim ?? 0) > 0.3);
+    if (bons.length > 0) {
+      return {
+        status: 'precisa_usuario',
+        candidatos: bons.map((s) => ({
+          id: s.id,
+          descricao_interna: s.descricao_interna,
+          sim: s.sim,
+        })),
+      };
+    }
+  }
+
+  return { status: 'criar' };
+}
+
+function normalizarDescricaoLocal(s: string): string {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+async function gravarAliasSeNovo(
+  itemId: string,
+  texto: string,
+  fornecedorId?: string | null,
+): Promise<void> {
+  if (!texto?.trim()) return;
+  const { data: existe } = await supabase
+    .from('item_alias')
     .select('id')
-    .ilike('descricao_interna', descricao)
-    .eq('company_id', companyId)
+    .eq('item_id', itemId)
+    .eq('texto', texto)
+    .limit(1)
     .maybeSingle();
-  
-  if (itemPorDesc) return { id: itemPorDesc.id, isNew: false };
-  
-  // 3. Criar novo item
+  if (existe) return;
+  await supabase.from('item_alias').insert({
+    item_id: itemId,
+    texto,
+    tipo: 'XML',
+    fornecedor_id: fornecedorId || null,
+  });
+}
+
+async function findOrCreateItemSupabase(
+  itemXML: NFeParseResult['itens'][0]['item'],
+  classificacao: ClassificacaoNota,
+  companyId: string,
+  opts?: {
+    fornecedorId?: string | null;
+    vinculoItemId?: string;
+    permitirCriarNovo?: boolean;
+  },
+): Promise<{ id: string; isNew: boolean }> {
+  const descricao = itemXML.descricao;
+
+  // Vínculo explícito da UI
+  if (opts?.vinculoItemId) {
+    await gravarAliasSeNovo(opts.vinculoItemId, descricao, opts.fornecedorId);
+    return { id: opts.vinculoItemId, isNew: false };
+  }
+
+  const sugestao = await sugerirMatchItemSupabase(itemXML, companyId, opts?.fornecedorId);
+  if (sugestao.status === 'match') {
+    await gravarAliasSeNovo(sugestao.id, descricao, opts?.fornecedorId);
+    return { id: sugestao.id, isNew: false };
+  }
+
+  if (sugestao.status === 'precisa_usuario' && !opts?.permitirCriarNovo) {
+    const nomes = sugestao.candidatos
+      .slice(0, 3)
+      .map((c) => `${c.descricao_interna} (${Math.round(c.sim * 100)}%)`)
+      .join('; ');
+    throw new Error(
+      `Item "${descricao}" parece duplicata de cadastro existente (${nomes}). ` +
+        `Vincule ao item correto ou confirme "criar item novo" antes de importar.`,
+    );
+  }
+
+  // Criar novo (sem candidatos ou usuário confirmou)
+  const ean = itemXML.ean && itemXML.ean !== 'SEM GTIN' ? itemXML.ean.replace(/\D/g, '') : null;
+  const ncm = itemXML.ncm;
   const tipoItem = mapClassificacaoToTipo(classificacao, descricao);
   const uCom = itemXML.unidade_comercial.toUpperCase();
   const unidadeInterna = inferirUnidadeInterna(uCom, tipoItem, descricao);
-  
-  // Classificação automática por NCM
   const ncmClass = classificarPorNCM(ncm);
   const criticidade = ncmClass?.risco || (tipoItem === 'MP' ? 'CRITICO' : 'NORMAL');
-  
-  // Potência da descrição (regex)
   const potenciaCompra = extrairPotenciaDescricao(descricao);
-  
-  // Fator UI→mg (busca na tabela conversoes_unidades)
+
   let conversaoUiMcg: number | null = null;
   if (descricao.toUpperCase().match(/UI\b/)) {
     conversaoUiMcg = await buscarFatorConversaoUI(descricao);
   }
-  
+
   const insertData: Record<string, unknown> = {
     company_id: companyId,
     descricao_interna: descricao,
@@ -343,7 +489,7 @@ async function findOrCreateItemSupabase(
     ncm: ncm || null,
     ean: ean || null,
     unidade_interna: unidadeInterna,
-    unidade_pesagem: unidadeInterna, // Sync: unidade_pesagem = unidade_interna
+    unidade_pesagem: unidadeInterna,
     unidade_fornecedor: itemXML.unidade_comercial || null,
     cest: (itemXML as any).cest || null,
     cfop_entrada_padrao: (itemXML as any).cfop || null,
@@ -356,19 +502,19 @@ async function findOrCreateItemSupabase(
     potencia_compra: potenciaCompra,
     ativo: true,
   };
-  
+
   if (conversaoUiMcg) insertData.conversao_ui_mcg = conversaoUiMcg;
-  
+
   const { data: novoItem, error } = await supabase
     .from('itens')
     .insert(insertData as any)
     .select('id')
     .single();
-  
+
   if (error || !novoItem) {
     throw new Error(`Erro ao criar item: ${error?.message}`);
   }
-  
+
   return { id: novoItem.id, isNew: true };
 }
 
@@ -550,6 +696,12 @@ export async function importarNFeCompletaSupabase(
   };
 
   const chaveNfe = (parseResult.notaFiscal.chave_acesso || '').replace(/\D/g, '');
+  const xmlRawObrigatorio = parseResult.notaFiscal.xml_raw;
+  if (!xmlRawObrigatorio?.trim()) {
+    throw new Error(
+      'XML da NF-e ausente no resultado do parser. Importação abortada — não é permitido gravar nota sem xml_raw.',
+    );
+  }
   if (chaveNfe.length === 44) {
     const { data: jaExiste } = await supabase
       .from('notas_entrada')
@@ -608,7 +760,7 @@ export async function importarNFeCompletaSupabase(
         company_id: companyId,
         chave_nfe: chaveNfe || parseResult.notaFiscal.chave_acesso,
         fornecedor_id: emitente.id,
-        xml_raw: parseResult.notaFiscal.xml_raw || null,
+        xml_raw: parseResult.notaFiscal.xml_raw,
         numero: parseResult.notaFiscal.numero,
         serie: parseResult.notaFiscal.serie,
         modelo: parseResult.notaFiscal.modelo,
@@ -645,8 +797,17 @@ export async function importarNFeCompletaSupabase(
         itemId = configManual.vinculoItemId;
         isNew = false;
         stats.produtosVinculados++;
+        await gravarAliasSeNovo(
+          itemId,
+          itemData.item.descricao,
+          emitente.id,
+        );
       } else {
-        const result = await findOrCreateItemSupabase(itemData.item, classificacao, companyId);
+        const result = await findOrCreateItemSupabase(itemData.item, classificacao, companyId, {
+          fornecedorId: emitente.id,
+          vinculoItemId: configManual?.vinculoItemId,
+          permitirCriarNovo: configManual?.permitirCriarNovo === true,
+        });
         itemId = result.id;
         isNew = result.isNew;
         if (isNew) {

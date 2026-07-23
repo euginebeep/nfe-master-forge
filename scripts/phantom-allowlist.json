@@ -9,7 +9,9 @@
     "get_uom_info",
     "registrar_evento_auditoria",
     "empresa_razao_social_em",
-    "empresa_rt_em"
+    "empresa_rt_em",
+    "mesclar_itens",
+    "norm_txt"
   ],
   "views": [
     "v_notas_sem_xml"

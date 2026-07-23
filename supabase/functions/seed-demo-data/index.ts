@@ -367,50 +367,136 @@ Deno.serve(async (req) => {
     log.push(`Formulas: ${formulas.length}`);
 
     // ───────────────── 8. Notas de Entrada + Contas a Pagar ─────────────────
+    // CNPJ emitente demo obviamente falso — nunca usar CNPJ real
+    const DEMO_CNPJ_EMIT = '00000000000191';
+
+    function xmlNfeDemo(opts: {
+      chave: string;
+      numero: string;
+      dhEmi: string;
+      emitNome: string;
+      itens: {
+        cProd: string;
+        xProd: string;
+        uCom: string;
+        qCom: number;
+        vUnCom: number;
+        lotes: { nLote: string; qLote: number }[];
+      }[];
+    }): string {
+      const dets = opts.itens.map((it, idx) => {
+        const vProd = (it.qCom * it.vUnCom).toFixed(2);
+        const rastros = it.lotes
+          .map(
+            (l) =>
+              `<rastro><nLote>${l.nLote}</nLote><qLote>${l.qLote}</qLote><dFab>${opts.dhEmi.slice(0, 10)}</dFab><dVal>2030-12-31</dVal></rastro>`,
+          )
+          .join('');
+        return `<det nItem="${idx + 1}"><prod><cProd>${it.cProd}</cProd><xProd>${it.xProd}</xProd><uCom>${it.uCom}</uCom><qCom>${it.qCom}</qCom><vUnCom>${it.vUnCom}</vUnCom><vProd>${vProd}</vProd></prod>${rastros}</det>`;
+      }).join('');
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe${opts.chave}" versao="4.00">
+      <ide><cUF>35</cUF><natOp>Compra demo</natOp><mod>55</mod><serie>1</serie><nNF>${opts.numero}</nNF><dhEmi>${opts.dhEmi}T10:00:00-03:00</dhEmi><tpNF>0</tpNF><idDest>1</idDest><cMunFG>3550308</cMunFG><tpImp>1</tpImp><tpEmis>1</tpEmis><tpAmb>2</tpAmb><finNFe>1</finNFe><indFinal>1</indFinal><indPres>1</indPres></ide>
+      <emit><CNPJ>${DEMO_CNPJ_EMIT}</CNPJ><xNome>${opts.emitNome}</xNome><enderEmit><xLgr>Rua Demo</xLgr><nro>100</nro><xBairro>Centro</xBairro><cMun>3550308</cMun><xMun>Sao Paulo</xMun><UF>SP</UF><CEP>01001000</CEP><cPais>1058</cPais><xPais>Brasil</xPais></enderEmit><IE>123456789</IE></emit>
+      <dest><CNPJ>00000000000191</CNPJ><xNome>Demo Tenant</xNome></dest>
+      ${dets}
+      <total><ICMSTot><vBC>0.00</vBC><vICMS>0.00</vICMS><vProd>${opts.itens.reduce((s, i) => s + i.qCom * i.vUnCom, 0).toFixed(2)}</vProd><vNF>${opts.itens.reduce((s, i) => s + i.qCom * i.vUnCom, 0).toFixed(2)}</vNF></ICMSTot></total>
+    </infNFe>
+  </NFe>
+</nfeProc>`;
+    }
+
     const notasEntrada: any[] = [];
     const notasEntradaItens: any[] = [];
     const contasPagar: any[] = [];
     for (let i = 0; i < 25; i++) {
       const nid = uid(7000 + i, 'ne');
       const forn = pick(fornecedoresIds, i);
+      const fornNome = pick(fornecedoresNomes, i);
       const valor = 5000 + i * 1200;
+      const chave = `35260${String(i).padStart(38, '0')}`.slice(0, 44);
+      const numero = String(10000 + i);
+      const dh = addDays(-60 + i * 2);
+      const itemBase = pick(mpItens, i);
+
+      // Nota 0: dois lotes no mesmo item (cobre <rastro> múltiplo)
+      const itensXml =
+        i === 0
+          ? [
+              {
+                cProd: 'DEMO-ESP',
+                xProd: itemBase.descricao_interna || 'Espirulina 60% DEMO',
+                uCom: 'KG',
+                qCom: 5,
+                vUnCom: valor / 5,
+                lotes: [
+                  { nLote: 'DEMO-LOTE-A', qLote: 1 },
+                  { nLote: 'DEMO-LOTE-B', qLote: 4 },
+                ],
+              },
+            ]
+          : [
+              {
+                cProd: `DEMO-${i}`,
+                xProd: itemBase.descricao_interna,
+                uCom: 'KG',
+                qCom: 10 + i,
+                vUnCom: valor / (10 + i),
+                lotes: [{ nLote: `DEMO-L-${i}`, qLote: 10 + i }],
+              },
+            ];
+
+      const xml_raw = xmlNfeDemo({
+        chave,
+        numero,
+        dhEmi: dh,
+        emitNome: fornNome,
+        itens: itensXml,
+      });
+
       notasEntrada.push({
         id: nid,
         company_id: c,
-        chave_nfe: `35260${String(i).padStart(38, '0')}`.slice(0, 44),
-        numero: String(10000 + i),
+        chave_nfe: chave,
+        numero,
         serie: '1',
-        emitente_id: forn,
-        data_emissao: addDays(-60 + i * 2),
-        data_entrada: addDays(-60 + i * 2 + 1),
-        valor_total: valor,
-        status: 'PROCESSADA',
+        fornecedor_id: forn,
+        dh_emissao: `${dh}T10:00:00.000Z`,
+        total_produtos: valor,
+        total_nota: valor,
+        status: 'IMPORTADA',
+        xml_raw,
       });
       notasEntradaItens.push({
+        company_id: c,
         nota_entrada_id: nid,
-        item_id: pick(mpItens, i).id,
-        descricao: pick(mpItens, i).descricao_interna,
-        quantidade: 10 + i,
-        valor_unitario: valor / (10 + i),
-        valor_total: valor,
+        item_id: itemBase.id,
+        codigo_fornecedor: itensXml[0].cProd,
+        descricao: itensXml[0].xProd,
+        ucom: itensXml[0].uCom,
+        qcom: itensXml[0].qCom,
+        vuncom: itensXml[0].vUnCom,
+        vprod: valor,
       });
       contasPagar.push({
         company_id: c,
-        descricao: `NF ${10000 + i} — ${pick(fornecedoresNomes, i)}`,
+        descricao: `NF ${numero} — ${fornNome}`,
         valor,
         valor_pago: i < 15 ? valor : 0,
-        data_emissao: addDays(-60 + i * 2),
+        data_emissao: dh,
         data_vencimento: addDays(-30 + i * 2),
         data_pagamento: i < 15 ? addDays(-25 + i * 2) : null,
-        status: i < 15 ? 'PAGO' : 'PENDENTE',
-        entidade_id: forn,
+        status: i < 15 ? 'pago' : 'pendente',
+        fornecedor_id: forn,
         nota_entrada_id: nid,
       });
     }
     await supabase.from('notas_entrada').insert(notasEntrada);
     await supabase.from('notas_entrada_itens').insert(notasEntradaItens);
     await supabase.from('contas_pagar').insert(contasPagar);
-    log.push(`NFe entrada: ${notasEntrada.length} | Contas pagar: ${contasPagar.length}`);
+    log.push(`NFe entrada: ${notasEntrada.length} (com xml_raw) | Contas pagar: ${contasPagar.length}`);
 
     // ───────────────── 9. Vendedores Externos ─────────────────
     const vendedores: any[] = [];
