@@ -1,0 +1,21 @@
+name: Check phantom DB objects
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  phantom-objects:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g tsx
+      - name: Scan .from() / .rpc() vs types.ts
+        run: npx tsx scripts/check-phantom-objects.ts
+        env:
+          # Opcional: compara com o banco real se o secret existir
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

@@ -8,6 +8,7 @@ import { getUserCompanyId } from '@/hooks/use-user-company';
 import type { NFeParseResult, ClassificacaoNota, EntidadeXML } from '@/types/nfe-completa';
 import { preprocessarUnidadeComercial } from '@/lib/unidades-dose';
 import { similaridadeAceitaParaEan } from '@/lib/item-similaridade';
+import { uploadNfeXmlToStorage } from '@/lib/nfe-xml-storage';
 
 export interface ImportStats {
   entidadesCriadas: number;
@@ -547,9 +548,30 @@ export async function importarNFeCompletaSupabase(
     lotesCriados: 0,
     contasPagarGeradas: 0,
   };
+
+  const chaveNfe = (parseResult.notaFiscal.chave_acesso || '').replace(/\D/g, '');
+  if (chaveNfe.length === 44) {
+    const { data: jaExiste } = await supabase
+      .from('notas_entrada')
+      .select('id, numero, serie, dh_emissao, created_at')
+      .eq('company_id', companyId)
+      .eq('chave_nfe', chaveNfe)
+      .maybeSingle();
+
+    if (jaExiste) {
+      const quando = jaExiste.dh_emissao || jaExiste.created_at;
+      const dataFmt = quando
+        ? new Date(quando).toLocaleDateString('pt-BR')
+        : 'data desconhecida';
+      throw new Error(
+        `Nota já importada em ${dataFmt} (NF-e ${jaExiste.numero || '?'}/${jaExiste.serie || '?'}).`,
+      );
+    }
+  }
   
-  // Track created resources for rollback on failure
+  // Track created resources for rollback on failure (fallback se a RPC falhar)
   const createdResources: { table: string; id: string }[] = [];
+  let notaEntradaId: string | null = null;
   
   const classificacao = classificacaoManual || parseResult.notaFiscal.classificacao;
   
@@ -579,12 +601,12 @@ export async function importarNFeCompletaSupabase(
       }
     }
     
-    // 2. Criar nota_entrada no Supabase COM company_id
+    // 2. Criar nota_entrada — status IMPORTADA só é confiável após contagem no fim
     const { data: notaEntrada, error: notaError } = await supabase
       .from('notas_entrada')
       .insert({
-        company_id: companyId,  // ← FIX: company_id obrigatório
-        chave_nfe: parseResult.notaFiscal.chave_acesso,
+        company_id: companyId,
+        chave_nfe: chaveNfe || parseResult.notaFiscal.chave_acesso,
         fornecedor_id: emitente.id,
         xml_raw: parseResult.notaFiscal.xml_raw || null,
         numero: parseResult.notaFiscal.numero,
@@ -599,9 +621,16 @@ export async function importarNFeCompletaSupabase(
       .single();
     
     if (notaError || !notaEntrada) {
+      const msg = notaError?.message || '';
+      if (/duplicate|unique|23505/i.test(msg)) {
+        throw new Error(
+          `Nota já importada (chave duplicada). Não é possível reimportar a mesma NF-e.`,
+        );
+      }
       throw new Error(`Erro ao salvar nota de entrada: ${notaError?.message}`);
     }
     
+    notaEntradaId = notaEntrada.id;
     createdResources.push({ table: 'notas_entrada', id: notaEntrada.id });
     
     // 3. Processar cada item
@@ -831,25 +860,101 @@ export async function importarNFeCompletaSupabase(
         stats.contasPagarGeradas++;
       }
     }
+
+    // 5. Confirmar contagem de itens = <det> do XML antes de considerar sucesso
+    const { count: itensGravados, error: countErr } = await supabase
+      .from('notas_entrada_itens')
+      .select('id', { count: 'exact', head: true })
+      .eq('nota_entrada_id', notaEntrada.id);
+
+    if (countErr) {
+      throw new Error(`Não foi possível validar a contagem de itens: ${countErr.message}`);
+    }
+    if ((itensGravados ?? 0) !== parseResult.itens.length) {
+      throw new Error(
+        `Divergência na importação: XML tem ${parseResult.itens.length} itens, ` +
+          `gravados ${itensGravados ?? 0}. Importação será revertida.`,
+      );
+    }
+
+    // 6. Upload do XML no storage (após nota persistida). Falha não é silenciosa.
+    const xmlRaw = parseResult.notaFiscal.xml_raw;
+    if (xmlRaw && chaveNfe.length === 44) {
+      try {
+        await uploadNfeXmlToStorage(companyId, chaveNfe, xmlRaw);
+      } catch (storageErr) {
+        const msg = storageErr instanceof Error ? storageErr.message : String(storageErr);
+        console.error('[NF-e Import] Storage XML falhou:', msg);
+        // Não faz rollback: xml_raw está no banco e é recuperável via backfill.
+        const incomplete = new Error(
+          `Nota gravada (id=${notaEntrada.id}), mas o XML NÃO foi salvo no storage: ${msg}. ` +
+            `Use Compras → XMLs pendentes para rodar o backfill.`,
+        );
+        (incomplete as Error & { skipRollback?: boolean }).skipRollback = true;
+        throw incomplete;
+      }
+    }
     
     return { notaId: notaEntrada.id, stats };
     
   } catch (error) {
-    // ROLLBACK: Apagar tudo que foi criado nesta importação (ordem reversa)
-    console.error('[NF-e Import] Erro durante importação, iniciando rollback:', error);
-    
-    const rollbackOrder = [...createdResources].reverse();
-    for (const resource of rollbackOrder) {
-      try {
-        await supabase.from(resource.table as any).delete().eq('id', resource.id);
-      } catch (rollbackErr) {
-        console.warn(`[Rollback] Falha ao remover ${resource.table}/${resource.id}:`, rollbackErr);
-      }
+    if ((error as Error & { skipRollback?: boolean })?.skipRollback) {
+      throw error;
     }
-    
+
+    console.error('[NF-e Import] Erro durante importação, iniciando rollback:', error);
+
+    let rollbackConfirmado = false;
+    let rollbackDetalhe = '';
+
+    if (notaEntradaId) {
+      // Ordem correta de FKs via RPC reescrita (movimentações → lotes → itens → nota)
+      const { data: delData, error: delErr } = await supabase.rpc(
+        'delete_nota_entrada_completa',
+        { p_nota_id: notaEntradaId },
+      );
+      const r = Array.isArray(delData) ? delData[0] : delData;
+      if (!delErr && r?.sucesso) {
+        rollbackConfirmado = true;
+        rollbackDetalhe = r.mensagem || 'RPC ok';
+      } else {
+        rollbackDetalhe = delErr?.message || r?.mensagem || 'RPC sem sucesso';
+        // Fallback: ordem manual de exclusão (NO ACTION não cascateia)
+        try {
+          await reverterImportacaoNFe(notaEntradaId);
+          const { data: aindaExiste } = await supabase
+            .from('notas_entrada')
+            .select('id')
+            .eq('id', notaEntradaId)
+            .maybeSingle();
+          rollbackConfirmado = !aindaExiste;
+        } catch (fbErr) {
+          rollbackDetalhe += ` | fallback: ${fbErr instanceof Error ? fbErr.message : String(fbErr)}`;
+        }
+      }
+    } else {
+      // Só entidades/itens avulsos — melhor esforço
+      const rollbackOrder = [...createdResources].reverse();
+      for (const resource of rollbackOrder) {
+        try {
+          await supabase.from(resource.table as any).delete().eq('id', resource.id);
+        } catch (rollbackErr) {
+          console.warn(`[Rollback] Falha ao remover ${resource.table}/${resource.id}:`, rollbackErr);
+        }
+      }
+      rollbackConfirmado = true;
+    }
+
+    const original = error instanceof Error ? error.message : String(error);
+    if (rollbackConfirmado) {
+      throw new Error(
+        `Importação falhou e foi revertida. Nenhum dado parcial da nota ficou no sistema. ` +
+          `Erro original: ${original}`,
+      );
+    }
     throw new Error(
-      `Importação falhou e foi revertida. Nenhum dado parcial ficou no sistema. ` +
-      `Erro original: ${error instanceof Error ? error.message : String(error)}`
+      `Importação falhou e o rollback NÃO pôde ser confirmado (${rollbackDetalhe}). ` +
+        `Verifique notas de entrada / lotes parcialmente criados. Erro original: ${original}`,
     );
   }
 }
@@ -859,28 +964,38 @@ export async function importarNFeCompletaSupabase(
 // Remove todos os dados associados a uma nota
 // ============================================
 export async function reverterImportacaoNFe(notaId: string): Promise<void> {
-  // 1. Buscar itens da nota para encontrar lotes
+  // Ordem obrigatória com FKs NO ACTION:
+  // estoque_movimentacoes → estoque_lotes → notas_entrada_itens → notas_entrada
+  // contas_pagar.nota_entrada_id é SET NULL — desvincular antes de apagar a nota.
+
   const { data: notaItens } = await supabase
     .from('notas_entrada_itens')
     .select('id')
     .eq('nota_entrada_id', notaId);
-  
-  if (notaItens && notaItens.length > 0) {
-    const notaItemIds = notaItens.map(ni => ni.id);
-    
-    // 2. Apagar lotes vinculados
-    for (const niId of notaItemIds) {
-      await supabase.from('estoque_lotes').delete().eq('nota_entrada_item_id', niId);
+
+  const notaItemIds = (notaItens || []).map((ni) => ni.id);
+
+  if (notaItemIds.length > 0) {
+    const { data: lotes } = await supabase
+      .from('estoque_lotes')
+      .select('id')
+      .in('nota_entrada_item_id', notaItemIds);
+
+    const loteIds = (lotes || []).map((l) => l.id);
+    if (loteIds.length > 0) {
+      await supabase.from('estoque_movimentacoes').delete().in('lote_id', loteIds);
+      await supabase.from('estoque_lotes').delete().in('id', loteIds);
     }
-    
-    // 3. Apagar itens da nota
+
     await supabase.from('notas_entrada_itens').delete().eq('nota_entrada_id', notaId);
   }
-  
-  // 4. Apagar contas a pagar geradas por esta nota
-  await supabase.from('contas_pagar').delete().eq('nota_entrada_id', notaId);
-  
-  // 5. Apagar a nota
+
+  // SET NULL em vez de delete — não órfã contas a pagar
+  await supabase
+    .from('contas_pagar')
+    .update({ nota_entrada_id: null })
+    .eq('nota_entrada_id', notaId);
+
   await supabase.from('notas_entrada').delete().eq('id', notaId);
 }
 

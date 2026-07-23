@@ -52,7 +52,7 @@ export async function carregarDadosEtiquetas(loteIds: string[]): Promise<LoteEti
   const { data, error } = await supabase
     .from('estoque_lotes')
     .select(`
-      id, numero_lote, status,
+      id, numero_lote, status, company_id,
       quantidade_interna, unidade_interna,
       quantidade_original, unidade_original,
       data_fab, data_val, created_at,
@@ -71,7 +71,7 @@ export async function carregarDadosEtiquetas(loteIds: string[]): Promise<LoteEti
 
   const { data: empresa, error: errEmpresa } = await supabase
     .from('company')
-    .select('razao_social, nome_fantasia, cnpj, licenca_sanitaria')
+    .select('id, razao_social, nome_fantasia, cnpj, licenca_sanitaria')
     .limit(1)
     .maybeSingle();
 
@@ -82,19 +82,26 @@ export async function carregarDadosEtiquetas(loteIds: string[]): Promise<LoteEti
     );
   }
 
+  const { empresaRazaoSocialEm } = await import('@/lib/empresa-historico');
+
   // preserva a ordem pedida pelo chamador
   const porId = new Map((data ?? []).map((l: any) => [l.id, l]));
 
-  return loteIds
-    .map((id) => porId.get(id))
-    .filter(Boolean)
-    .map((l: any) => ({
+  const result: LoteEtiquetaData[] = [];
+  for (const id of loteIds) {
+    const l: any = porId.get(id);
+    if (!l) continue;
+
+    const dataEvento = l.created_at || new Date().toISOString();
+    const companyId = l.company_id || empresa.id;
+    const razaoHistorica = companyId
+      ? await empresaRazaoSocialEm(companyId, dataEvento, empresa.razao_social)
+      : empresa.razao_social;
+
+    result.push({
       id: l.id,
       numero_lote: l.numero_lote,
       status: l.status,
-      // quantidade NORMALIZADA — unidade_original pode trazer o tamanho da
-      // embalagem em vez da unidade (ex.: "25 KG"), o que fazia a etiqueta
-      // imprimir "1 25 KG" num tambor de 25 kg.
       quantidade: Number(l.quantidade_interna),
       unidade: l.unidade_interna,
       embalagem_qtd: l.quantidade_original,
@@ -117,13 +124,16 @@ export async function carregarDadosEtiquetas(loteIds: string[]): Promise<LoteEti
         ? { numero: l.nota_item.nota.numero, serie: l.nota_item.nota.serie }
         : null,
       empresa: {
-        razao_social: empresa.razao_social,
-        nome_fantasia: empresa.nome_fantasia,
+        razao_social: razaoHistorica,
+        nome_fantasia:
+          razaoHistorica === empresa.razao_social ? empresa.nome_fantasia : null,
         cnpj: empresa.cnpj ?? '',
         licenca_sanitaria: empresa.licenca_sanitaria,
       },
       qr_url: montarQrUrl(l.id),
-    }));
+    });
+  }
+  return result;
 }
 
 export function useImprimirEtiquetas() {
