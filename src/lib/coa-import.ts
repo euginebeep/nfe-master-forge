@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { CertificadoCoa } from '@/lib/coa-splitter';
+import { normalizarNotaFiscal } from '@/lib/coa-splitter';
 
 export interface LoteParaCoa {
   id: string;
@@ -29,6 +30,12 @@ export interface PreviewImportacaoCoa {
   semCorrespondencia: CertificadoCoa[];
   lotesNota: LoteParaCoa[];
   lotesNotaSemCertificado: LoteParaCoa[];
+  /** NF normalizada extraída do PDF (mais frequente) */
+  notaExtraidaDoPdf: string | null;
+  /** Aviso quando a NF do PDF ≠ nota selecionada */
+  avisoNotaDivergente: string | null;
+  /** Nota encontrada automaticamente pelo número do PDF */
+  notaResolvidaPorPdf: { id: string; numero: string } | null;
 }
 
 type LoteRow = {
@@ -41,22 +48,38 @@ type LoteRow = {
 };
 
 export function normalizarNumeroLote(valor?: string | null): string {
-  return valor?.trim().toUpperCase() ?? '';
+  return valor?.trim().toUpperCase().replace(/\s+/g, ' ') ?? '';
 }
 
-/** Identificadores de lote presentes no certificado (fabricante e/ou interno) */
+/** Variantes para casar "HA2025102144X #3" com "HA2025102144X" e vice-versa */
+export function variantesNumeroLote(valor?: string | null): string[] {
+  const base = normalizarNumeroLote(valor);
+  if (!base) return [];
+  const out = new Set<string>([base]);
+  const semHash = base.replace(/\s*#\s*\d+\s*$/, '').trim();
+  if (semHash) out.add(semHash);
+  out.add(base.replace(/\s+/g, ''));
+  if (semHash) out.add(semHash.replace(/\s+/g, ''));
+  return [...out];
+}
+
+/** Identificadores de lote presentes no certificado (fabricante e/ou interno + variantes) */
 export function identificadoresLoteCertificado(
   cert: CertificadoCoa
 ): { campo: CampoLoteCasamento; valor: string }[] {
   const ids: { campo: CampoLoteCasamento; valor: string }[] = [];
+  const seen = new Set<string>();
 
-  const fabricante = normalizarNumeroLote(cert.loteFabricante);
-  if (fabricante) ids.push({ campo: 'FABRICANTE', valor: fabricante });
+  const push = (campo: CampoLoteCasamento, raw?: string | null) => {
+    for (const v of variantesNumeroLote(raw)) {
+      if (seen.has(v)) continue;
+      seen.add(v);
+      ids.push({ campo, valor: v });
+    }
+  };
 
-  const interno = normalizarNumeroLote(cert.loteInterno);
-  if (interno && !ids.some((i) => i.valor === interno)) {
-    ids.push({ campo: 'INTERNO', valor: interno });
-  }
+  push('FABRICANTE', cert.loteFabricante);
+  push('INTERNO', cert.loteInterno);
 
   return ids;
 }
@@ -66,7 +89,7 @@ export type ResultadoCasamento =
   | { tipo: 'ambiguo'; lotes: LoteParaCoa[]; motivo: string }
   | { tipo: 'nenhum' };
 
-/** Casa certificado contra mapa numero_lote → lotes (normalizado trim+UPPER) */
+/** Casa certificado contra mapa numero_lote → lotes (normalizado + variantes) */
 export function casarCertificadoComLotes(
   cert: CertificadoCoa,
   lotesPorNumero: Map<string, LoteParaCoa[]>
@@ -106,11 +129,21 @@ export function casarCertificadoComLotes(
   }
 
   const lote = lista[0];
-  const numLote = normalizarNumeroLote(lote.numero_lote);
+  const variantesLote = new Set(variantesNumeroLote(lote.numero_lote));
   const camposDoLote: CampoLoteCasamento[] = [];
 
-  if (normalizarNumeroLote(cert.loteFabricante) === numLote) camposDoLote.push('FABRICANTE');
-  if (normalizarNumeroLote(cert.loteInterno) === numLote) camposDoLote.push('INTERNO');
+  for (const v of variantesNumeroLote(cert.loteFabricante)) {
+    if (variantesLote.has(v)) {
+      camposDoLote.push('FABRICANTE');
+      break;
+    }
+  }
+  for (const v of variantesNumeroLote(cert.loteInterno)) {
+    if (variantesLote.has(v)) {
+      camposDoLote.push('INTERNO');
+      break;
+    }
+  }
 
   return {
     tipo: 'unico',
@@ -164,18 +197,64 @@ export async function buscarLotesDaNota(notaEntradaId: string): Promise<LotePara
   return ((data || []) as unknown as LoteRow[]).map(mapLoteRow);
 }
 
-/** Busca lotes globalmente por numero_lote (mesmo lote em várias notas) */
+/** Busca lotes globalmente por numero_lote (exato + prefixo para variantes #N) */
 export async function buscarLotesPorNumeros(numerosLote: string[]): Promise<LoteParaCoa[]> {
-  const unicos = [...new Set(numerosLote.map((n) => n.trim()).filter(Boolean))];
-  if (!unicos.length) return [];
+  const variantes = [
+    ...new Set(numerosLote.flatMap((n) => variantesNumeroLote(n)).filter(Boolean)),
+  ];
+  if (!variantes.length) return [];
 
-  const { data, error } = await supabase
+  const { data: exactos, error } = await supabase
     .from('estoque_lotes')
     .select(LOTE_SELECT)
-    .in('numero_lote', unicos);
+    .in('numero_lote', variantes);
 
   if (error) throw error;
-  return ((data || []) as unknown as LoteRow[]).map(mapLoteRow);
+
+  const porId = new Map<string, LoteParaCoa>();
+  for (const row of (exactos || []) as unknown as LoteRow[]) {
+    const m = mapLoteRow(row);
+    porId.set(m.id, m);
+  }
+
+  const bases = [
+    ...new Set(
+      variantes
+        .map((v) => v.replace(/\s*#\s*\d+\s*$/, '').trim())
+        .filter((v) => v.length >= 4),
+    ),
+  ];
+  for (const base of bases) {
+    const { data: pref, error: prefErr } = await supabase
+      .from('estoque_lotes')
+      .select(LOTE_SELECT)
+      .ilike('numero_lote', `${base}%`)
+      .limit(20);
+    if (prefErr) continue;
+    for (const row of (pref || []) as unknown as LoteRow[]) {
+      const m = mapLoteRow(row);
+      porId.set(m.id, m);
+    }
+  }
+
+  return [...porId.values()];
+}
+
+/** Resolve nota de entrada pelo número (normalizado). */
+export async function buscarNotaPorNumero(
+  numero: string,
+): Promise<{ id: string; numero: string } | null> {
+  const alvo = normalizarNotaFiscal(numero);
+  if (!alvo) return null;
+
+  const { data, error } = await supabase
+    .from('notas_entrada')
+    .select('id, numero')
+    .limit(200);
+
+  if (error) throw error;
+  const hit = (data || []).find((n) => normalizarNotaFiscal(n.numero) === alvo);
+  return hit ? { id: hit.id, numero: hit.numero || alvo } : null;
 }
 
 /** IDs de lotes que já possuem documento COA */
@@ -198,25 +277,55 @@ function numerosLoteCertificado(cert: CertificadoCoa): string[] {
     .filter(Boolean) as string[];
 }
 
-/** Monta preview de casamento certificado ↔ lote(s) */
+function indexarLotesPorNumero(lotes: LoteParaCoa[]): Map<string, LoteParaCoa[]> {
+  const lotesPorNumero = new Map<string, LoteParaCoa[]>();
+  for (const lote of lotes) {
+    for (const key of variantesNumeroLote(lote.numero_lote)) {
+      const lista = lotesPorNumero.get(key) || [];
+      if (!lista.some((l) => l.id === lote.id)) lista.push(lote);
+      lotesPorNumero.set(key, lista);
+    }
+  }
+  return lotesPorNumero;
+}
+
+/** Monta preview de casamento certificado ↔ lote(s) — busca em TODO o tenant */
 export async function montarPreviewImportacaoCoa(
-  notaEntradaId: string,
-  certificados: CertificadoCoa[]
+  notaEntradaId: string | null,
+  certificados: CertificadoCoa[],
+  opts?: { notaNumeroSelecionada?: string | null },
 ): Promise<PreviewImportacaoCoa> {
-  const lotesNota = await buscarLotesDaNota(notaEntradaId);
+  const contagemNota = new Map<string, number>();
+  for (const c of certificados) {
+    const n = normalizarNotaFiscal(c.nota);
+    if (!n) continue;
+    contagemNota.set(n, (contagemNota.get(n) || 0) + 1);
+  }
+  let notaExtraidaDoPdf: string | null = null;
+  let max = 0;
+  for (const [n, q] of contagemNota) {
+    if (q > max) {
+      max = q;
+      notaExtraidaDoPdf = n;
+    }
+  }
+
+  let notaResolvidaId = notaEntradaId;
+  /** Nota encontrada pelo número do PDF (para o UI auto-selecionar) */
+  let notaResolvidaPorPdf: { id: string; numero: string } | null = null;
+
+  if (!notaResolvidaId && notaExtraidaDoPdf) {
+    notaResolvidaPorPdf = await buscarNotaPorNumero(notaExtraidaDoPdf);
+    if (notaResolvidaPorPdf) notaResolvidaId = notaResolvidaPorPdf.id;
+  }
+
+  const lotesNota = notaResolvidaId ? await buscarLotesDaNota(notaResolvidaId) : [];
 
   const numerosBusca = [
     ...new Set(certificados.flatMap((c) => numerosLoteCertificado(c))),
   ];
   const lotesGlobais = await buscarLotesPorNumeros(numerosBusca);
-
-  const lotesPorNumero = new Map<string, LoteParaCoa[]>();
-  for (const lote of lotesGlobais) {
-    const key = normalizarNumeroLote(lote.numero_lote);
-    const lista = lotesPorNumero.get(key) || [];
-    lista.push(lote);
-    lotesPorNumero.set(key, lista);
-  }
+  const lotesPorNumero = indexarLotesPorNumero(lotesGlobais);
 
   const casamentos: CasamentoCertificado[] = [];
   const revisarManualmente: CasamentoRevisar[] = [];
@@ -232,7 +341,9 @@ export async function montarPreviewImportacaoCoa(
     }
 
     for (const lote of resultado.lotes) {
-      numerosComCertificado.add(normalizarNumeroLote(lote.numero_lote));
+      for (const v of variantesNumeroLote(lote.numero_lote)) {
+        numerosComCertificado.add(v);
+      }
     }
 
     if (resultado.tipo === 'ambiguo') {
@@ -250,9 +361,33 @@ export async function montarPreviewImportacaoCoa(
     }
   }
 
-  const lotesNotaSemCertificado = lotesNota.filter(
-    (l) => !numerosComCertificado.has(normalizarNumeroLote(l.numero_lote))
+  const lotesNotaSemCertificado = lotesNota.filter((l) =>
+    !variantesNumeroLote(l.numero_lote).some((v) => numerosComCertificado.has(v)),
   );
+
+  let avisoNotaDivergente: string | null = null;
+  const selecionada = normalizarNotaFiscal(opts?.notaNumeroSelecionada);
+  if (notaExtraidaDoPdf && selecionada && notaExtraidaDoPdf !== selecionada) {
+    avisoNotaDivergente =
+      `Este certificado é da NF ${notaExtraidaDoPdf}, você está na ${selecionada}. ` +
+      `Trocar para a nota correta?`;
+  } else if (
+    !avisoNotaDivergente &&
+    selecionada &&
+    casamentos.length > 0
+  ) {
+    const notasDosLotes = [
+      ...new Set(
+        casamentos.flatMap((c) => c.lotes.map((l) => normalizarNotaFiscal(l.nota_numero)).filter(Boolean)),
+      ),
+    ];
+    if (notasDosLotes.length === 1 && notasDosLotes[0] !== selecionada) {
+      avisoNotaDivergente =
+        `Os lotes do PDF pertencem à NF ${notasDosLotes[0]}, você está na ${selecionada}. ` +
+        `Trocar para a nota correta?`;
+      if (!notaExtraidaDoPdf) notaExtraidaDoPdf = notasDosLotes[0];
+    }
+  }
 
   return {
     certificados,
@@ -261,6 +396,9 @@ export async function montarPreviewImportacaoCoa(
     semCorrespondencia,
     lotesNota,
     lotesNotaSemCertificado,
+    notaExtraidaDoPdf,
+    avisoNotaDivergente,
+    notaResolvidaPorPdf,
   };
 }
 

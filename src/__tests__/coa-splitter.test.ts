@@ -140,4 +140,32 @@ describe('parseCertificados', () => {
       nota: '775239',
     });
   });
+
+  it('extrai formato ProLab NF. / Lote : / Lote Fab. / validade / conclusão', () => {
+    const paginaProlab = `
+CERTIFICADO DE ANÁLISE
+NF. 101.019   de 21/07/2026
+Insumo: Ácido Hialurônico Pó   Código: 123
+Lote : HA2025102144X #3      Lote Fab.: HA2025102144X
+Validade : 20/10/28          Fabricação : 21/10/25
+CONCLUSÃO: APROVADO
+`;
+
+    const resultado = parseCertificados([paginaProlab]);
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0]).toMatchObject({
+      insumo: 'Ácido Hialurônico Pó',
+      loteFabricante: 'HA2025102144X #3',
+      loteInterno: 'HA2025102144X',
+      nota: '101019',
+      validade: '20/10/28',
+      fabricacao: '21/10/25',
+      conclusao: 'APROVADO',
+    });
+  });
+
+  it('normaliza NF com pontuação (101.019 → 101019)', () => {
+    expect(normalizarNotaFiscal('101.019')).toBe('101019');
+    expect(normalizarNotaFiscal('NF. 101.019')).toBe('101019');
+  });
 });

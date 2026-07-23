@@ -1,21 +1,52 @@
 export interface CertificadoCoa {
   insumo: string;
+  /** Lote comercial / "Lote :" / "Lote do Fabricante:" */
   loteFabricante: string;
+  /** Lote interno / "Lote Fab.:" quando distinto */
   loteInterno: string;
+  /** Número da NF normalizado (só dígitos, sem zeros à esquerda) */
   nota: string;
+  /** Validade extraída do PDF (texto original, ex. 20/10/28) */
+  validade?: string;
+  /** Fabricação extraída do PDF */
+  fabricacao?: string;
+  /** Conclusão APROVADO / REPROVADO quando presente */
+  conclusao?: string | null;
   paginaInicio: number;
   paginaFim: number;
 }
 
 const RE_INSUMO_COM_CODIGO = /Insumo:\s*(.+?)\s*C[óo]digo:/i;
 const RE_INSUMO_LINHA = /Insumo:\s*([^\n]+)/i;
+
+/** Formatos legados (LEPUGE etc.) */
 const RE_LOTE_FABRICANTE = /Lote do Fabricante:\s*(\S+)/i;
-/** \S+ para no espaço — na mesma linha que "Lote do Fabricante:" não engole o rótulo seguinte */
 const RE_LOTE_INTERNO = /Lote Interno:\s*(\S+)/i;
-const RE_NOTA = /Nota Fiscal:\s*0*(\d+)/i;
+
+/**
+ * Formato ProLab / fornecedor comum no PDF:
+ *   Lote : HA2025102144X #3      Lote Fab.: HA2025102144X
+ * Captura até o próximo rótulo ou fim.
+ */
+const RE_LOTE_COMERCIAL =
+  /Lote\s*:\s*([A-Za-z0-9][A-Za-z0-9\-/#.]*(?:\s*#\s*\d+)?)/i;
+const RE_LOTE_FAB =
+  /Lote\s*Fab\.?\s*:\s*([A-Za-z0-9][A-Za-z0-9\-/#.]*)/i;
+
+/** Nota Fiscal: 000322721  |  NF. 101.019  |  NF 101019  |  NFe: 101.019 */
+const RE_NOTA_LEGACY = /Nota Fiscal:\s*0*(\d+)/i;
+const RE_NOTA_NF =
+  /\bN\.?\s*F\.?\s*e?\.?\s*:?\s*([\d.]+)/i;
+
+const RE_VALIDADE = /Validade\s*:?\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})/i;
+const RE_FABRICACAO =
+  /Fabrica[cç][aã]o\s*:?\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})/i;
+const RE_CONCLUSAO =
+  /\b(APROVADO|REPROVADO|CONFORME|N[AÃ]O\s+CONFORME)\b/i;
+
 const RE_TEM_INSUMO = /Insumo:/i;
 
-/** Normaliza número da nota fiscal removendo zeros à esquerda */
+/** Normaliza número da nota fiscal removendo pontuação e zeros à esquerda */
 export function normalizarNotaFiscal(valor?: string | null): string {
   if (!valor) return '';
   const digits = valor.replace(/\D/g, '');
@@ -39,13 +70,50 @@ function extrairCampo(texto: string, regex: RegExp): string {
   return match?.[1] ? normalizarTextoCampo(match[1]) : '';
 }
 
-function extrairCamposCertificado(texto: string): Pick<CertificadoCoa, 'insumo' | 'loteFabricante' | 'loteInterno' | 'nota'> {
+function extrairNota(texto: string): string {
+  const legacy = texto.match(RE_NOTA_LEGACY)?.[1];
+  if (legacy) return normalizarNotaFiscal(legacy);
+  const nf = texto.match(RE_NOTA_NF)?.[1];
+  if (nf) return normalizarNotaFiscal(nf);
+  return '';
+}
+
+function extrairLotes(texto: string): { loteFabricante: string; loteInterno: string } {
+  // Preferir rótulos explícitos legados
+  let loteFabricante = extrairCampo(texto, RE_LOTE_FABRICANTE);
+  let loteInterno = extrairCampo(texto, RE_LOTE_INTERNO);
+
+  // Formato "Lote :" / "Lote Fab.:"
+  if (!loteFabricante) {
+    loteFabricante = extrairCampo(texto, RE_LOTE_COMERCIAL);
+  }
+  if (!loteInterno) {
+    loteInterno = extrairCampo(texto, RE_LOTE_FAB);
+  }
+
+  // Se só veio Lote Fab. e não Lote :, usar fab como fabricante também
+  if (!loteFabricante && loteInterno) {
+    loteFabricante = loteInterno;
+  }
+
+  return { loteFabricante, loteInterno };
+}
+
+function extrairCamposCertificado(
+  texto: string,
+): Pick<
+  CertificadoCoa,
+  'insumo' | 'loteFabricante' | 'loteInterno' | 'nota' | 'validade' | 'fabricacao' | 'conclusao'
+> {
   const insumo = extrairInsumo(texto);
-  const loteFabricante = extrairCampo(texto, RE_LOTE_FABRICANTE);
-  const loteInterno = extrairCampo(texto, RE_LOTE_INTERNO);
-  const notaRaw = texto.match(RE_NOTA)?.[1] ?? '';
-  const nota = normalizarNotaFiscal(notaRaw);
-  return { insumo, loteFabricante, loteInterno, nota };
+  const { loteFabricante, loteInterno } = extrairLotes(texto);
+  const nota = extrairNota(texto);
+  const validade = extrairCampo(texto, RE_VALIDADE) || undefined;
+  const fabricacao = extrairCampo(texto, RE_FABRICACAO) || undefined;
+  const concMatch = texto.match(RE_CONCLUSAO);
+  const conclusao = concMatch?.[1] ? normalizarTextoCampo(concMatch[1]).toUpperCase() : null;
+
+  return { insumo, loteFabricante, loteInterno, nota, validade, fabricacao, conclusao };
 }
 
 /**
@@ -103,6 +171,25 @@ export function parseCertificados(paginasTexto: string[]): CertificadoCoa[] {
   });
 }
 
+/** Extrai o número de NF mais frequente nos certificados (para auto-seleção). */
+export function notaPredominanteNosCertificados(certs: CertificadoCoa[]): string | null {
+  const contagem = new Map<string, number>();
+  for (const c of certs) {
+    const n = normalizarNotaFiscal(c.nota);
+    if (!n) continue;
+    contagem.set(n, (contagem.get(n) || 0) + 1);
+  }
+  let best: string | null = null;
+  let max = 0;
+  for (const [n, q] of contagem) {
+    if (q > max) {
+      max = q;
+      best = n;
+    }
+  }
+  return best;
+}
+
 /** Extrai texto de cada página de um PDF usando pdfjs-dist */
 export async function extrairTextoPorPagina(file: File): Promise<string[]> {
   if (!file) return [];
@@ -153,5 +240,5 @@ export async function fatiarCertificado(file: File, inicio: number, fim: number)
   copied.forEach((page) => newDoc.addPage(page));
 
   const pdfBytes = await newDoc.save();
-  return new Blob([pdfBytes], { type: 'application/pdf' });
+  return new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
 }
