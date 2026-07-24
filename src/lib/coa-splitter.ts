@@ -16,35 +16,84 @@ export interface CertificadoCoa {
   paginaFim: number;
 }
 
-const RE_INSUMO_COM_CODIGO = /Insumo:\s*(.+?)\s*C[óo]digo:/i;
-const RE_INSUMO_LINHA = /Insumo:\s*([^\n]+)/i;
+type CampoCoa =
+  | 'insumo'
+  | 'loteInterno'
+  | 'loteFabricante'
+  | 'nota'
+  | 'validade'
+  | 'fabricacao'
+  | 'conclusao';
 
-/** Formatos legados (LEPUGE etc.) */
-const RE_LOTE_FABRICANTE = /Lote do Fabricante:\s*(\S+)/i;
-const RE_LOTE_INTERNO = /Lote Interno:\s*(\S+)/i;
+type RotuloDef =
+  | { tipo: 'campo'; campo: CampoCoa; label: string; isolado?: boolean }
+  | { tipo: 'fronteira'; label: string };
 
 /**
- * Formato ProLab / fornecedor comum no PDF:
- *   Lote : HA2025102144X #3      Lote Fab.: HA2025102144X
- * Captura até o próximo rótulo ou fim.
+ * Rótulos de campo → CertificadoCoa.
+ * Copiar EXATAMENTE — fornecedor novo = acrescentar variante na lista.
  */
-const RE_LOTE_COMERCIAL =
-  /Lote\s*:\s*([A-Za-z0-9][A-Za-z0-9\-/#.]*(?:\s*#\s*\d+)?)/i;
-const RE_LOTE_FAB =
-  /Lote\s*Fab\.?\s*:\s*([A-Za-z0-9][A-Za-z0-9\-/#.]*)/i;
+const ROTULOS_CAMPO: RotuloDef[] = [
+  { tipo: 'campo', campo: 'insumo', label: 'Matéria-prima' },
+  { tipo: 'campo', campo: 'insumo', label: 'Materia-prima' },
+  { tipo: 'campo', campo: 'insumo', label: 'Insumo' },
+  { tipo: 'campo', campo: 'insumo', label: 'Produto' },
+  { tipo: 'campo', campo: 'insumo', label: 'Material' },
 
-/** Nota Fiscal: 000322721  |  NF. 101.019  |  NF 101019  |  NFe: 101.019 */
-const RE_NOTA_LEGACY = /Nota Fiscal:\s*0*(\d+)/i;
-const RE_NOTA_NF =
-  /\bN\.?\s*F\.?\s*e?\.?\s*:?\s*([\d.]+)/i;
+  { tipo: 'campo', campo: 'loteInterno', label: 'Lote Interno' },
+  { tipo: 'campo', campo: 'loteInterno', label: 'Lote Fab.' },
+  { tipo: 'campo', campo: 'loteInterno', label: 'Lote Fab' },
 
-const RE_VALIDADE = /Validade\s*:?\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})/i;
-const RE_FABRICACAO =
-  /Fabrica[cç][aã]o\s*:?\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})/i;
-const RE_CONCLUSAO =
-  /\b(APROVADO|REPROVADO|CONFORME|N[AÃ]O\s+CONFORME)\b/i;
+  { tipo: 'campo', campo: 'loteFabricante', label: 'Lote do Fabricante' },
+  /** "Lote" isolado — não casa Lote Interno / Lote Fab / Lote do Fabricante */
+  { tipo: 'campo', campo: 'loteFabricante', label: 'Lote', isolado: true },
 
-const RE_TEM_INSUMO = /Insumo:/i;
+  { tipo: 'campo', campo: 'nota', label: 'Nota Fiscal' },
+  { tipo: 'campo', campo: 'nota', label: 'NF.' },
+  { tipo: 'campo', campo: 'nota', label: 'NFe' },
+  { tipo: 'campo', campo: 'nota', label: 'NF' },
+
+  { tipo: 'campo', campo: 'validade', label: 'Data de Vencimento' },
+  { tipo: 'campo', campo: 'validade', label: 'Data de Validade' },
+  { tipo: 'campo', campo: 'validade', label: 'Vencimento' },
+  { tipo: 'campo', campo: 'validade', label: 'Validade' },
+
+  { tipo: 'campo', campo: 'fabricacao', label: 'Data de Fabricação' },
+  { tipo: 'campo', campo: 'fabricacao', label: 'Data de Fabricacao' },
+  { tipo: 'campo', campo: 'fabricacao', label: 'Fabricação' },
+  { tipo: 'campo', campo: 'fabricacao', label: 'Fabricacao' },
+
+  { tipo: 'campo', campo: 'conclusao', label: 'Conclusão' },
+  { tipo: 'campo', campo: 'conclusao', label: 'Conclusao' },
+];
+
+/** Não viram campo — só delimitam o fim do valor anterior. */
+const ROTULOS_FRONTEIRA: RotuloDef[] = [
+  'Origem',
+  'Procedência',
+  'Procedencia',
+  'CAS',
+  'DCB',
+  'DCI',
+  'Data da Análise',
+  'Data da Analise',
+  'Número da Ordem',
+  'Numero da Ordem',
+  'Condições de Armazenamento',
+  'Condicoes de Armazenamento',
+  'Fórmula Molecular',
+  'Formula Molecular',
+  'Peso Molecular',
+  'Código',
+  'Codigo',
+  'Data de Emissão',
+  'Data de Emissao',
+  'TESTES',
+  'ESPECIFICAÇÕES',
+  'ESPECIFICACOES',
+].map((label) => ({ tipo: 'fronteira' as const, label }));
+
+const TODOS_ROTULOS: RotuloDef[] = [...ROTULOS_CAMPO, ...ROTULOS_FRONTEIRA];
 
 /** Normaliza número da nota fiscal removendo pontuação e zeros à esquerda */
 export function normalizarNotaFiscal(valor?: string | null): string {
@@ -58,67 +107,176 @@ function normalizarTextoCampo(valor: string): string {
   return valor.trim().replace(/\s+/g, ' ');
 }
 
-function extrairInsumo(texto: string): string {
-  const comCodigo = texto.match(RE_INSUMO_COM_CODIGO);
-  if (comCodigo?.[1]) return normalizarTextoCampo(comCodigo[1]);
-  const linha = texto.match(RE_INSUMO_LINHA);
-  return linha?.[1] ? normalizarTextoCampo(linha[1]) : '';
-}
-
-function extrairCampo(texto: string, regex: RegExp): string {
-  const match = texto.match(regex);
-  return match?.[1] ? normalizarTextoCampo(match[1]) : '';
-}
-
-function extrairNota(texto: string): string {
-  const legacy = texto.match(RE_NOTA_LEGACY)?.[1];
-  if (legacy) return normalizarNotaFiscal(legacy);
-  const nf = texto.match(RE_NOTA_NF)?.[1];
-  if (nf) return normalizarNotaFiscal(nf);
-  return '';
-}
-
-function extrairLotes(texto: string): { loteFabricante: string; loteInterno: string } {
-  // Preferir rótulos explícitos legados
-  let loteFabricante = extrairCampo(texto, RE_LOTE_FABRICANTE);
-  let loteInterno = extrairCampo(texto, RE_LOTE_INTERNO);
-
-  // Formato "Lote :" / "Lote Fab.:"
-  if (!loteFabricante) {
-    loteFabricante = extrairCampo(texto, RE_LOTE_COMERCIAL);
+/** Padrão regex com espaços flexíveis e acentos opcionais (casamento case-insensitive). */
+function padraoRotulo(label: string): string {
+  const semAcento = label.normalize('NFD').replace(/\p{M}/gu, '');
+  let out = '';
+  for (const ch of semAcento) {
+    if (/\s/.test(ch)) {
+      out += '\\s+';
+      continue;
+    }
+    const lower = ch.toLowerCase();
+    const groups: Record<string, string> = {
+      a: '[AaÁáÀàÂâÃãÄä]',
+      e: '[EeÉéÈèÊêËë]',
+      i: '[IiÍíÌìÎîÏï]',
+      o: '[OoÓóÒòÔôÕõÖö]',
+      u: '[UuÚúÙùÛûÜü]',
+      c: '[CcÇç]',
+      n: '[NnÑñ]',
+    };
+    if (groups[lower]) {
+      out += groups[lower];
+    } else if (/[.*+?^${}()|[\]\\]/.test(ch)) {
+      out += `\\${ch}`;
+    } else {
+      out += ch;
+    }
   }
-  if (!loteInterno) {
-    loteInterno = extrairCampo(texto, RE_LOTE_FAB);
-  }
-
-  // Se só veio Lote Fab. e não Lote :, usar fab como fabricante também
-  if (!loteFabricante && loteInterno) {
-    loteFabricante = loteInterno;
-  }
-
-  return { loteFabricante, loteInterno };
+  return out;
 }
 
-function extrairCamposCertificado(
+type Marcacao = {
+  start: number;
+  end: number; // fim do rótulo (após ":" opcional)
+  labelLen: number;
+  campo: CampoCoa | null;
+};
+
+function marcarRotulos(texto: string): Marcacao[] {
+  const candidatos: Marcacao[] = [];
+
+  for (const rot of TODOS_ROTULOS) {
+    const corpo = padraoRotulo(rot.label);
+    let source: string;
+    if (rot.tipo === 'campo' && rot.isolado) {
+      // "Lote" isolado (ex. ProLab "Lote : HA…#3"): exige ":" para não
+      // casar o prefixo de "LOTE-ABC-123" nem "Lote Interno"/"Lote Fab".
+      source =
+        `\\b(?:${corpo})(?!\\s+(?:Interno|Fab\\.?|do\\s+Fabricante)\\b)\\s*:`;
+    } else if (rot.tipo === 'campo' && rot.campo === 'insumo') {
+      // Evita prosa ("de insumo nesta página") — não precedido de de/do/da/em.
+      source =
+        `(?<!\\bde\\s)(?<!\\bdo\\s)(?<!\\bda\\s)(?<!\\bem\\s)\\b(?:${corpo})\\s*:?`;
+    } else {
+      source = `\\b(?:${corpo})\\s*:?`;
+    }
+
+    const re = new RegExp(source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(texto)) !== null) {
+      candidatos.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        labelLen: rot.label.length,
+        campo: rot.tipo === 'campo' ? rot.campo : null,
+      });
+      if (m[0].length === 0) re.lastIndex++;
+    }
+  }
+
+  // Preferir rótulo mais longo em sobreposição; depois o que começa antes
+  candidatos.sort((a, b) => a.start - b.start || b.labelLen - a.labelLen);
+
+  const escolhidos: Marcacao[] = [];
+  for (const c of candidatos) {
+    const overlap = escolhidos.some((e) => c.start < e.end && c.end > e.start);
+    if (!overlap) escolhidos.push(c);
+  }
+
+  return escolhidos.sort((a, b) => a.start - b.start);
+}
+
+function limparValorNota(bruto: string): string {
+  // "101.019   de 21/07/2026" → só o número da NF
+  const m = bruto.match(/[\d.]+/);
+  return m ? normalizarNotaFiscal(m[0]) : '';
+}
+
+function limparValorConclusao(bruto: string): string | null {
+  const m = bruto.match(/\b(APROVADO|REPROVADO|CONFORME|N[AÃ]O\s+CONFORME)\b/i);
+  return m?.[1] ? normalizarTextoCampo(m[1]).toUpperCase() : null;
+}
+
+function limparValorData(bruto: string): string {
+  const m = bruto.match(/\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}/);
+  return m ? m[0] : normalizarTextoCampo(bruto);
+}
+
+/**
+ * Extrai campos varrendo rótulos conhecidos (campo + fronteira).
+ * Valor = texto entre o fim do rótulo e o início do próximo rótulo qualquer.
+ * Dois-pontos após o rótulo é opcional.
+ */
+export function extrairCamposPorDicionario(
   texto: string,
 ): Pick<
   CertificadoCoa,
   'insumo' | 'loteFabricante' | 'loteInterno' | 'nota' | 'validade' | 'fabricacao' | 'conclusao'
 > {
-  const insumo = extrairInsumo(texto);
-  const { loteFabricante, loteInterno } = extrairLotes(texto);
-  const nota = extrairNota(texto);
-  const validade = extrairCampo(texto, RE_VALIDADE) || undefined;
-  const fabricacao = extrairCampo(texto, RE_FABRICACAO) || undefined;
-  const concMatch = texto.match(RE_CONCLUSAO);
-  const conclusao = concMatch?.[1] ? normalizarTextoCampo(concMatch[1]).toUpperCase() : null;
+  const vazio = {
+    insumo: '',
+    loteFabricante: '',
+    loteInterno: '',
+    nota: '',
+    validade: undefined as string | undefined,
+    fabricacao: undefined as string | undefined,
+    conclusao: null as string | null,
+  };
+  if (!texto?.trim()) return vazio;
 
-  return { insumo, loteFabricante, loteInterno, nota, validade, fabricacao, conclusao };
+  const marcas = marcarRotulos(texto);
+  const bruto: Partial<Record<CampoCoa, string>> = {};
+
+  for (let i = 0; i < marcas.length; i++) {
+    const marca = marcas[i];
+    if (!marca.campo) continue;
+    // Já tem valor neste campo → primeira ocorrência ganha
+    if (bruto[marca.campo] != null && bruto[marca.campo] !== '') continue;
+
+    const fimValor = i + 1 < marcas.length ? marcas[i + 1].start : texto.length;
+    const valor = normalizarTextoCampo(texto.slice(marca.end, fimValor));
+    if (valor) bruto[marca.campo] = valor;
+  }
+
+  let loteFabricante = bruto.loteFabricante ?? '';
+  let loteInterno = bruto.loteInterno ?? '';
+  // Se só veio Lote Fab. / Interno, usar também como fabricante (legado ProLab)
+  if (!loteFabricante && loteInterno) loteFabricante = loteInterno;
+
+  const nota = bruto.nota ? limparValorNota(bruto.nota) : '';
+  const validade = bruto.validade ? limparValorData(bruto.validade) : undefined;
+  const fabricacao = bruto.fabricacao ? limparValorData(bruto.fabricacao) : undefined;
+  const conclusao = bruto.conclusao ? limparValorConclusao(bruto.conclusao) : null;
+
+  return {
+    insumo: bruto.insumo ?? '',
+    loteFabricante,
+    loteInterno,
+    nota,
+    validade,
+    fabricacao,
+    conclusao,
+  };
+}
+
+function paginaTemRotuloInsumo(texto: string): boolean {
+  for (const rot of ROTULOS_CAMPO) {
+    if (rot.tipo !== 'campo' || rot.campo !== 'insumo') continue;
+    const corpo = padraoRotulo(rot.label);
+    const re = new RegExp(
+      `(?<!\\bde\\s)(?<!\\bdo\\s)(?<!\\bda\\s)(?<!\\bem\\s)\\b(?:${corpo})\\s*:?`,
+      'i',
+    );
+    if (re.test(texto)) return true;
+  }
+  return false;
 }
 
 /**
  * Identifica certificados em páginas de texto extraídas de um COA compilado.
- * Páginas consecutivas sem "Insumo:" continuam o certificado anterior.
+ * Páginas consecutivas sem rótulo de insumo continuam o certificado anterior.
  * Páginas consecutivas com o mesmo insumo são agrupadas.
  */
 export function parseCertificados(paginasTexto: string[]): CertificadoCoa[] {
@@ -130,7 +288,7 @@ export function parseCertificados(paginasTexto: string[]): CertificadoCoa[] {
 
   for (let i = 0; i < paginasTexto.length; i++) {
     const texto = paginasTexto[i] ?? '';
-    const temInsumo = RE_TEM_INSUMO.test(texto);
+    const temInsumo = paginaTemRotuloInsumo(texto);
 
     if (!temInsumo) {
       if (atual) {
@@ -140,7 +298,8 @@ export function parseCertificados(paginasTexto: string[]): CertificadoCoa[] {
       continue;
     }
 
-    const insumo = extrairInsumo(texto);
+    const campos = extrairCamposPorDicionario(texto);
+    const insumo = campos.insumo;
     if (!insumo) continue;
 
     if (!atual) {
@@ -161,8 +320,8 @@ export function parseCertificados(paginasTexto: string[]): CertificadoCoa[] {
   if (atual) blocos.push(atual);
 
   return blocos.map((bloco) => {
-    const textoCompleto = bloco.textos.join('\n');
-    const campos = extrairCamposCertificado(textoCompleto);
+    const textoCompleto = bloco.textos.join(' ');
+    const campos = extrairCamposPorDicionario(textoCompleto);
     return {
       ...campos,
       paginaInicio: bloco.paginas[0],
