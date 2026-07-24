@@ -170,14 +170,17 @@ CONCLUSÃO: APROVADO
   });
 
   it('extrai layout SM Empreendimentos (tabela achatada, sem dois-pontos)', () => {
-    // pdfjs + replace(/\s+/g,' ') → uma linha; rótulos sem ":"
-    const paginaSm =
+    const paginaSm = (
       'CERTIFICADO DE ANÁLISE Insumo Astaxantina Lote Interno 26D23-B011-222163 ' +
       'Lote do Fabricante 26031801 Data de Fabricação 18/03/2026 Data de Vencimento ' +
       '17/03/2028 Origem China Procedência China Data da Análise 19/05/2026 Número da ' +
-      'Ordem 222163 Condições de Armazenamento: refrigerado CAS: 472-61-7 DCB: x ' +
-      'TESTES ESPECIFICAÇÕES RESULTADOS Descrição* Pó vermelho escuro Conforme ' +
-      'Fabricante Conclusão: APROVADO';
+      'Ordem 222163 Condições de Armazenamento: Temperatura Geladeira - Manter ao Abrigo ' +
+      'da Luz CAS: 472-61-7 DCB: - DCI: - Fórmula Molecular C40H52O4 Peso Molecular ' +
+      '596.84 1 TESTES ESPECIFICAÇÕES RESULTADOS UNIDADE REFERÊNCIA Descrição* Pó ' +
+      'vermelho escuro, sem odores rançosos e outros, sem impurezas visíveis. Conforme ' +
+      'Fabricante Perda por dessecação* <= 7,0 (2g / 105°C / 3 horas) 2,9000 % Fabricante ' +
+      '[...] Conclusão: APROVADO'
+    ).replace(/\s+/g, ' ');
 
     const resultado = parseCertificados([paginaSm]);
     expect(resultado).toHaveLength(1);
@@ -188,6 +191,31 @@ CONCLUSÃO: APROVADO
       fabricacao: '18/03/2026',
       validade: '17/03/2028',
       conclusao: 'APROVADO',
+      nota: '',
     });
+  });
+
+  it('conclusão só do rótulo — ignora Conforme em especificação', () => {
+    const pagina =
+      'Insumo: Teste X Lote do Fabricante: ABC123 ' +
+      'Descrição* Pó. Conforme Fabricante Perda por dessecação* <= 7,0 ' +
+      'Conclusão: REPROVADO';
+    const resultado = parseCertificados([pagina]);
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0].conclusao).toBe('REPROVADO');
+  });
+
+  it('anti-engolimento: insumo sem Código: não passa de ~80 caracteres', () => {
+    const pagina =
+      'Insumo Astaxantina Lote Interno 26D23-B011-222163 ' +
+      'Lote do Fabricante 26031801 Origem China';
+    const resultado = parseCertificados([pagina]);
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0].insumo.length).toBeLessThanOrEqual(80);
+    expect(resultado[0].insumo).toBe('Astaxantina');
+  });
+
+  it('portão: só Insumo sem rótulo de lote não vira certificado', () => {
+    expect(parseCertificados(['Insumo X sem nenhum lote aqui'])).toEqual([]);
   });
 });

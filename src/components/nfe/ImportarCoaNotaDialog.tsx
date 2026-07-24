@@ -20,6 +20,7 @@ import {
   extrairTextoPorPagina,
   parseCertificados,
   fatiarCertificado,
+  listarRotulosCampoEncontrados,
   type CertificadoCoa,
 } from '@/lib/coa-splitter';
 import {
@@ -90,16 +91,31 @@ export function ImportarCoaNotaFlow({
     setEtapa('analisando');
     try {
       const paginas = await extrairTextoPorPagina(file);
-      if (!paginas.length) {
-        toast.error('PDF sem páginas legíveis ou arquivo vazio.');
+      const totalPaginas = paginas.length;
+      const paginasComTexto = paginas.filter((p) => p.trim().length > 0);
+      const nComTexto = paginasComTexto.length;
+
+      if (totalPaginas === 0 || nComTexto === 0) {
+        toast.error(
+          `PDF sem camada de texto (provavelmente escaneado). ${totalPaginas} páginas lidas, nenhuma com texto extraível.`,
+        );
         setEtapa('selecionar');
         return;
       }
 
       const certificados = parseCertificados(paginas);
       if (!certificados.length) {
+        const diagnostico = paginas
+          .map((p, idx) => {
+            const rotulos = listarRotulosCampoEncontrados(p);
+            const trecho = p.trim()
+              ? (rotulos.length ? `rótulos: ${rotulos.join(', ')}` : 'nenhum rótulo conhecido')
+              : 'sem texto';
+            return `p${idx + 1}: ${trecho}`;
+          })
+          .join('; ');
         toast.error(
-          'Nenhum certificado encontrado no PDF. Verifique se contém campos "Insumo:" e lote (Fabricante ou Interno).',
+          `Nenhum certificado encontrado. ${totalPaginas} páginas, ${nComTexto} com texto. ${diagnostico}`,
         );
         setEtapa('selecionar');
         return;
