@@ -168,4 +168,26 @@ CONCLUSÃO: APROVADO
     expect(normalizarNotaFiscal('101.019')).toBe('101019');
     expect(normalizarNotaFiscal('NF. 101.019')).toBe('101019');
   });
+
+  it('extrai layout SM Empreendimentos (tabela achatada, sem dois-pontos)', () => {
+    // pdfjs + replace(/\s+/g,' ') → uma linha; rótulos sem ":"
+    const paginaSm =
+      'CERTIFICADO DE ANÁLISE Insumo Astaxantina Lote Interno 26D23-B011-222163 ' +
+      'Lote do Fabricante 26031801 Data de Fabricação 18/03/2026 Data de Vencimento ' +
+      '17/03/2028 Origem China Procedência China Data da Análise 19/05/2026 Número da ' +
+      'Ordem 222163 Condições de Armazenamento: refrigerado CAS: 472-61-7 DCB: x ' +
+      'TESTES ESPECIFICAÇÕES RESULTADOS Descrição* Pó vermelho escuro Conforme ' +
+      'Fabricante Conclusão: APROVADO';
+
+    const resultado = parseCertificados([paginaSm]);
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0]).toMatchObject({
+      insumo: 'Astaxantina',
+      loteInterno: '26D23-B011-222163',
+      loteFabricante: '26031801',
+      fabricacao: '18/03/2026',
+      validade: '17/03/2028',
+      conclusao: 'APROVADO',
+    });
+  });
 });
