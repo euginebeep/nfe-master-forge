@@ -55,7 +55,8 @@ function extractRefs(files: string[]) {
 function extractTopLevelKeys(block: string): Set<string> {
   const keys = new Set<string>();
   // Indentação típica do supabase gen: 6 espaços + nome + :
-  for (const m of block.matchAll(/^\s{6}([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\{/gm)) {
+  // Aceita tanto `foo: {` quanto overloads `foo:\n        | {`.
+  for (const m of block.matchAll(/^\s{6}([A-Za-z_][A-Za-z0-9_]*)\s*:/gm)) {
     keys.add(m[1]);
   }
   return keys;
@@ -104,7 +105,12 @@ async function loadDbObjects(): Promise<{ tables: Set<string>; functions: Set<st
   if (!url) return null;
   try {
     const { default: pg } = await import('pg');
-    const client = new pg.Client({ connectionString: url });
+    const client = new pg.Client({
+      connectionString: url,
+      // Pooler Supabase apresenta cadeia self-signed; sem isso o Gate 1 aborta
+      // mesmo com DATABASE_URL válido.
+      ssl: { rejectUnauthorized: false },
+    });
     await client.connect();
     const tablesRes = await client.query(
       `select table_name from information_schema.tables
@@ -122,8 +128,9 @@ async function loadDbObjects(): Promise<{ tables: Set<string>; functions: Set<st
       functions: new Set(fnRes.rows.map((r: { proname: string }) => r.proname)),
     };
   } catch (e) {
-    console.warn('[check-phantom-objects] DATABASE_URL set but query failed:', e);
-    return null;
+    console.error('[check-phantom-objects] DATABASE_URL definido mas a consulta falhou:', e);
+    console.error('O Gate 1 ficaria cego validando apenas contra types.ts. Abortando.');
+    process.exit(1);
   }
 }
 
@@ -181,7 +188,7 @@ async function main() {
   console.log(
     `Schema tipado: ${typed.tables.size} tables, ${typed.views.size} views, ${typed.functions.size} functions`,
   );
-  console.log(`Fonte schema: types.ts${db ? ' + DATABASE_URL' : ' (sem DATABASE_URL)'}`);
+  console.log(`Fonte schema: ${db ? 'types.ts + BANCO REAL' : 'types.ts APENAS (sem DATABASE_URL)'}`);
 
   let failed = false;
   if (phantomTables.length) {
