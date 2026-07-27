@@ -1,0 +1,28 @@
+-- =====================================================================
+-- FERRAMENTA — plpgsql_check (analise estatica de funcoes PL/pgSQL)
+-- Aplicada em producao via MCP em 2026-07-27 (Barretos).
+--
+-- POR QUE: o Postgres NAO valida o corpo de uma funcao ao cria-la — guarda o
+-- texto e so resolve nomes de tabela/coluna quando cada comando executa. Por
+-- isso baixar_estoque_op_materias_primas viveu de fev/2026 ate jul/2026
+-- referenciando a coluna inexistente mp.status sem nunca dar sinal.
+--
+-- Esta extensao percorre o corpo e resolve cada identificador contra o catalogo,
+-- SEM executar nada. Achou 5 defeitos reais na primeira varredura (112 funcoes
+-- plpgsql + 78 gatilhos), incluindo duas ambiguidades variavel-x-coluna que
+-- quebravam em runtime: reservar_proximo_lote e reservar_proximo_numero_nfe.
+--
+-- Complementa o Gate 1: scripts/check-phantom-objects.ts confirma que o objeto
+-- EXISTE; esta extensao olha DENTRO dele.
+--
+-- Custo em runtime: zero. So executa quando chamada.
+-- Reversivel: drop extension plpgsql_check;
+--
+-- USO:
+--   select p.oid::regprocedure::text, cf.message
+--     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--     cross join lateral extensions.plpgsql_check_function_tb(p.oid) cf
+--    where n.nspname = 'public' and cf.level = 'error';
+-- =====================================================================
+
+create extension if not exists plpgsql_check with schema extensions;
