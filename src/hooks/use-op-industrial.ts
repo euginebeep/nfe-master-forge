@@ -532,41 +532,82 @@ export function useOPIndustrial() {
   const registrarPesagem = useCallback(async (
     materiaPrimaId: string,
     quantidadeRealG: number,
-    pesadoPor?: string
+    loteId: string,
+    numeroLote: string,
   ) => {
     try {
+      if (!loteId) {
+        toast.error('Selecione o lote utilizado antes de salvar a pesagem.');
+        return false;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Sessão expirada. Faça login novamente para registrar a pesagem.');
+        return false;
+      }
+
       const { data: mp, error: fetchError } = await supabase
         .from('op_materias_primas')
-        .select('quantidade_minima_g, quantidade_maxima_g')
+        .select('quantidade_minima_g, quantidade_maxima_g, quantidade_teorica_g, tolerancia_percentual, insumo_nome')
         .eq('id', materiaPrimaId)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        toast.error(`Erro ao carregar o item: ${fetchError.message || fetchError.code}`);
+        return false;
+      }
 
-      const dentroTolerancia = quantidadeRealG >= mp.quantidade_minima_g && quantidadeRealG <= mp.quantidade_maxima_g;
+      // tolerancia com fallback: se min/max nulos, calcula pelo percentual sobre o teorico
+      const teorico = mp.quantidade_teorica_g ?? 0;
+      const pct = mp.tolerancia_percentual ?? 10;
+      const min = mp.quantidade_minima_g ?? (teorico > 0 ? teorico * (1 - pct / 100) : null);
+      const max = mp.quantidade_maxima_g ?? (teorico > 0 ? teorico * (1 + pct / 100) : null);
+      const dentroTolerancia =
+        min != null && max != null ? quantidadeRealG >= min && quantidadeRealG <= max : true;
 
-      const { error } = await supabase
+      const { error: updErr } = await supabase
         .from('op_materias_primas')
         .update({
           quantidade_real_g: quantidadeRealG,
           dentro_tolerancia: dentroTolerancia,
-          pesado_por: pesadoPor,
+          lote_id: loteId,
+          numero_lote: numeroLote,
+          pesado_por: user.id,          // uuid — era aqui que ia o texto do lote
           pesado_em: new Date().toISOString(),
         })
         .eq('id', materiaPrimaId);
 
-      if (error) throw error;
-
-      if (!dentroTolerancia) {
-        toast.warning('Peso fora da tolerância! Conferência obrigatória.');
-      } else {
-        toast.success('Pesagem registrada com sucesso');
+      if (updErr) {
+        toast.error(`Erro ao registrar pesagem: ${updErr.message || updErr.code}`);
+        return false;
       }
 
-      return dentroTolerancia;
+      // baixa de estoque pelo peso real (RPC já em prod; types.ts ainda sem o nome)
+      const { data: baixa, error: baixaErr } = await (supabase as any)
+        .rpc('baixar_estoque_op_item', { p_op_material_id: materiaPrimaId });
+
+      if (baixaErr) {
+        // a pesagem ficou gravada; a baixa nao. O operador PRECISA saber.
+        toast.error(`Pesagem salva, mas o estoque NAO baixou: ${baixaErr.message || baixaErr.code}`);
+        return false;
+      }
+
+      const acao = (baixa as { acao?: string } | null)?.acao;
+      const saldo = (baixa as { saldo_lote_g?: number } | null)?.saldo_lote_g;
+
+      if (!dentroTolerancia) {
+        toast.warning(`Peso FORA da tolerância (${min?.toFixed(2)} – ${max?.toFixed(2)} g). Confira antes de seguir.`);
+      } else if (acao === 'ESTORNO') {
+        toast.success(`Pesagem corrigida. Estoque estornado. Saldo do lote: ${saldo} g`);
+      } else {
+        toast.success(`Pesagem registrada. Saldo do lote: ${saldo} g`);
+      }
+
+      return true;
     } catch (error) {
-      console.error('Erro ao registrar pesagem:', error);
-      toast.error('Erro ao registrar pesagem');
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao registrar pesagem: ${msg}`);
       return false;
     }
   }, []);

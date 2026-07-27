@@ -645,8 +645,8 @@ export default function OrdemProducaoDetailPage() {
             statusOP={currentOP.status}
             totalCapsulas={currentOP.total_capsulas_com_acrescimo}
             pesoCapsula={currentOP.peso_capsula_mg}
-            onRegistrarPesagem={async (id, pesoReal, lote) => {
-              const success = await registrarPesagem(id, pesoReal, lote);
+            onRegistrarPesagem={async (id, pesoReal, loteId, numeroLote) => {
+              const success = await registrarPesagem(id, pesoReal, loteId, numeroLote);
               if (success) refresh();
               return success;
             }}

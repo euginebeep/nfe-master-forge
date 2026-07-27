@@ -9,6 +9,7 @@ import {
   Beaker, Droplets, Package, CircleDot,
   ChevronDown, ChevronRight, Pencil
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,8 +24,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
+import { useLotesParaPesagem } from '@/hooks/use-lotes-para-pesagem';
 import type { OPMateriaPrima, OPPesagemCritica } from '@/types/op-industrial';
 
 interface OPTabPesagemIndustrialProps {
@@ -33,7 +42,7 @@ interface OPTabPesagemIndustrialProps {
   statusOP: string;
   totalCapsulas: number;
   pesoCapsula: number;
-  onRegistrarPesagem?: (id: string, pesoReal: number, lote: string) => Promise<boolean>;
+  onRegistrarPesagem?: (id: string, pesoReal: number, loteId: string, numeroLote: string) => Promise<boolean>;
   onRegistrarConferencia?: (id: string, conferente: string) => Promise<boolean>;
 }
 
@@ -114,15 +123,18 @@ function InsumoCard({
   pesagemCritica?: OPPesagemCritica;
   totalCapsulas: number;
   statusOP: string;
-  onRegistrarPesagem?: (id: string, pesoReal: number, lote: string) => Promise<boolean>;
+  onRegistrarPesagem?: (id: string, pesoReal: number, loteId: string, numeroLote: string) => Promise<boolean>;
   onRegistrarConferencia?: (id: string, conferente: string) => Promise<boolean>;
 }) {
   const [expandido, setExpandido] = useState(item.pesagem_critica);
   const [dialogPesagem, setDialogPesagem] = useState(false);
   const [pesoReal, setPesoReal] = useState('');
-  const [loteUsado, setLoteUsado] = useState(item.numero_lote || '');
+  const [loteIdSelecionado, setLoteIdSelecionado] = useState(item.lote_id || '');
   const [conferente1, setConferente1] = useState('');
   const [conferente2, setConferente2] = useState('');
+
+  const { data: lotes = [], isLoading: lotesLoading } = useLotesParaPesagem(item.insumo_id);
+  const loteSelecionado = lotes.find((l) => l.id === loteIdSelecionado);
   
   const risco = classificarRisco(item);
   const qtd = formatarQuantidade(item.quantidade_teorica_g);
@@ -144,12 +156,17 @@ function InsumoCard({
   const handleSalvarPesagem = async () => {
     if (!onRegistrarPesagem) return;
     const peso = parseFloat(pesoReal.replace(',', '.'));
-    if (isNaN(peso)) return;
-    
-    const success = await onRegistrarPesagem(item.id, peso, loteUsado);
-    if (success) {
-      setDialogPesagem(false);
+    if (isNaN(peso) || peso <= 0) {
+      toast.error('Informe um peso válido maior que zero.');
+      return;
     }
+    const lote = lotes.find((l) => l.id === loteIdSelecionado);
+    if (!lote) {
+      toast.error('Selecione o lote utilizado.');
+      return;
+    }
+    const success = await onRegistrarPesagem(item.id, peso, lote.id, lote.numero_lote);
+    if (success) setDialogPesagem(false);
   };
 
   return (
@@ -396,13 +413,34 @@ function InsumoCard({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="loteUsado">Número do Lote Utilizado</Label>
-              <Input
-                id="loteUsado"
-                placeholder="Ex: 2026010-001"
-                value={loteUsado}
-                onChange={(e) => setLoteUsado(e.target.value)}
-              />
+              <Label>Lote Utilizado</Label>
+              {lotesLoading ? (
+                <p className="text-sm text-muted-foreground">Carregando lotes…</p>
+              ) : lotes.length === 0 ? (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    Nenhum lote com saldo disponível para {item.insumo_nome}. Faça a entrada da nota antes de pesar.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Select value={loteIdSelecionado} onValueChange={setLoteIdSelecionado}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o lote" /></SelectTrigger>
+                  <SelectContent>
+                    {lotes.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.numero_lote} — {l.quantidade_interna} g
+                        {l.data_val ? ` — vence ${new Date(l.data_val + 'T00:00:00').toLocaleDateString('pt-BR')}` : ''}
+                        {l.status === 'QUARENTENA' ? ' — QUARENTENA' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {loteSelecionado?.status === 'QUARENTENA' && (
+                <p className="text-sm text-amber-600">
+                  Lote em QUARENTENA — requer liberação da RT antes do uso.
+                </p>
+              )}
             </div>
 
             {(risco.nivel === 'CRITICO' || risco.nivel === 'ULTRA_CRITICO') && (
@@ -434,7 +472,7 @@ function InsumoCard({
             <Button variant="outline" onClick={() => setDialogPesagem(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSalvarPesagem}>
+            <Button onClick={handleSalvarPesagem} disabled={!loteIdSelecionado || lotes.length === 0}>
               Salvar Pesagem
             </Button>
           </DialogFooter>
