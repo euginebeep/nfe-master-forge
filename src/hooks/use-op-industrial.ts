@@ -176,7 +176,7 @@ export function useOPIndustrial() {
         data_fabricacao: form.data_fabricacao,
         data_validade: form.data_validade,
         tipo_apresentacao: 'CAPSULA',
-        peso_capsula_mg: 500,
+        peso_capsula_mg: CAPSULA_PESO_ALVO_MG,
         tipo_capsula: form.tipo_capsula,
         excipiente_base: form.excipiente_base,
         status: 'PLANEJADA',

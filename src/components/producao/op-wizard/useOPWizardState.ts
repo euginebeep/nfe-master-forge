@@ -17,14 +17,23 @@ import {
   type TipoProduto,
   type FormValues,
   formSchema,
-  EXCIPIENTES_TECNOLOGICOS,
   ACRESCIMO_INDUSTRIAL,
-  PESO_CAPSULA_NOMINAL,
 } from "./op-wizard-types";
-import { CAPSULA_PESO_ALVO_MG } from "@/lib/formulador-industrial-rules";
+import {
+  CAPSULA_PESO_ALVO_MG,
+  EXCIPIENTES_INDUSTRIAIS,
+  validarPesoAlvoFisico,
+  calcularCapsulasPorDose,
+  CAPSULA_TAMANHO_PADRAO,
+  type TamanhoCapsula,
+} from "@/lib/formulador-industrial-rules";
+import { useExcipientesConfig } from "@/hooks/use-excipientes-config";
+
+type TecnologicoEfetivo = { nome: string; percentual: number; item_id: string | null };
 
 export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenChange: (open: boolean) => void) {
   const navigate = useNavigate();
+  const { data: excipConfig } = useExcipientesConfig();
   const [etapaAtual, setEtapaAtual] = useState<EtapaWizard>(1);
   const [formulas, setFormulas] = useState<Formula[]>([]);
   const [pedidos, setPedidos] = useState<PedidoVenda[]>([]);
@@ -114,6 +123,16 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
   // (490mg fixo) que ignorava a densidade real da fórmula; agora é a mesma
   // fonte de verdade usada no cálculo de batelada do misturador.
   const PESO_CAPSULA_ALVO = PESO_ENCHIMENTO_MG;
+
+  // fallback só quando o tenant ainda não configurou op_excipientes_config
+  const tecnologicos = (excipConfig ?? []).filter(e => e.categoria === 'EXCIPIENTE_TECNOLOGICO');
+  const tecnologicosEfetivos: TecnologicoEfetivo[] = tecnologicos.length > 0
+    ? tecnologicos.map(e => ({ nome: e.nome, percentual: Number(e.percentual), item_id: e.item_id }))
+    : [
+        { nome: EXCIPIENTES_INDUSTRIAIS.DIOXIDO_SILICIO.nome,    percentual: EXCIPIENTES_INDUSTRIAIS.DIOXIDO_SILICIO.percentual,    item_id: null },
+        { nome: EXCIPIENTES_INDUSTRIAIS.TALCO.nome,              percentual: EXCIPIENTES_INDUSTRIAIS.TALCO.percentual,              item_id: null },
+        { nome: EXCIPIENTES_INDUSTRIAIS.ESTEARATO_MAGNESIO.nome, percentual: EXCIPIENTES_INDUSTRIAIS.ESTEARATO_MAGNESIO.percentual, item_id: null },
+      ];
 
   // 1. Peso total do pó a misturar (kg)
   const pesoTotalMisturaKg = totalFinalComPerdas > 0
@@ -340,6 +359,42 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
     }
     setIsLoading(true);
     try {
+      // Validar capacidade física da cápsula antes de gravar a OP
+      if (values.formula_id && selectedFormula) {
+        const tamanho = (selectedFormula.tipo_capsula || values.tipo_capsula || CAPSULA_TAMANHO_PADRAO) as TamanhoCapsula;
+
+        const vPeso = validarPesoAlvoFisico(PESO_ENCHIMENTO_MG, DENSIDADE_FORMULA, tamanho);
+        if (vPeso.nivel === 'error') {
+          toast.error(vPeso.mensagem);
+          setIsLoading(false);
+          return;
+        }
+
+        const { data: itensFormula, error: itensErr } = await supabase
+          .from("formula_itens")
+          .select("quantidade_convertida_mg")
+          .eq("formula_id", values.formula_id);
+        if (itensErr) throw itensErr;
+
+        const totalAtivosMg = (itensFormula ?? []).reduce(
+          (sum, i) => sum + (Number(i.quantidade_convertida_mg) || 0),
+          0,
+        );
+        const vCaps = calcularCapsulasPorDose(totalAtivosMg, DENSIDADE_FORMULA, tamanho);
+        if (vCaps.n_capsulas > 1) {
+          toast.error(
+            `A fórmula tem ${totalAtivosMg} mg de ativos por dose, mas cabem apenas ` +
+            `${vCaps.cabe_ativos_por_capsula_mg} mg por cápsula (tamanho ${tamanho}, ` +
+            `densidade ${DENSIDADE_FORMULA} kg/L). Seriam necessárias ${vCaps.n_capsulas} cápsulas. ` +
+            `Ajuste a fórmula, a dose ou o tamanho da cápsula antes de criar a OP.`
+          );
+          setIsLoading(false);
+          return;
+        }
+        if (vCaps.nivel !== 'ok' && vCaps.mensagem) toast.warning(vCaps.mensagem);
+        if (vPeso.nivel === 'warning' && vPeso.mensagem) toast.warning(vPeso.mensagem);
+      }
+
       const ano = new Date().getFullYear();
       const { data: lastOP } = await supabase
         .from("ordens_producao_industrial")
@@ -381,7 +436,7 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
         data_fabricacao: format(values.data_fabricacao, "yyyy-MM-dd"),
         data_validade: format(values.data_validade, "yyyy-MM-dd"),
         tipo_apresentacao: values.tipo_produto,
-        peso_capsula_mg: PESO_CAPSULA_NOMINAL,
+        peso_capsula_mg: PESO_ENCHIMENTO_MG,
         tipo_capsula: values.tipo_capsula || "0",
         excipiente_base: values.excipiente_base,
         status: "PLANEJADA",
@@ -427,9 +482,21 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       if (error) throw error;
 
       if (values.formula_id && newOP) {
-        await criarMateriasPrimasDaFormula(newOP.id, values.formula_id, totalFinalComPerdas, values.excipiente_base);
+        await criarMateriasPrimasDaFormula(
+          newOP.id,
+          values.formula_id,
+          totalFinalComPerdas,
+          values.excipiente_base,
+          PESO_CAPSULA_ALVO,
+          tecnologicosEfetivos,
+        );
       } else if (newOP) {
-        await criarExcipientesTecnologicosPadrao(newOP.id, totalFinalComPerdas);
+        await criarExcipientesTecnologicosPadrao(
+          newOP.id,
+          totalFinalComPerdas,
+          PESO_CAPSULA_ALVO,
+          tecnologicosEfetivos,
+        );
       }
 
       if (newOP) {
@@ -448,7 +515,12 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       if (newOP?.id) navigate(`/producao/ordens/${newOP.id}`);
     } catch (error) {
       console.error("Erro ao criar OP:", error);
-      toast.error("Erro ao criar ordem de produção");
+      const msg = error instanceof Error
+        ? error.message
+        : (error as { message?: string; code?: string })?.message
+          || (error as { code?: string })?.code
+          || "Erro ao criar ordem de produção";
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -479,13 +551,21 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
 // FUNÇÕES AUXILIARES DE CRIAÇÃO (DB)
 // ============================================================
 
-async function criarMateriasPrimasDaFormula(opId: string, formulaId: string, totalCaps: number, excipienteBase: string) {
+async function criarMateriasPrimasDaFormula(
+  opId: string,
+  formulaId: string,
+  totalCaps: number,
+  excipienteBase: string,
+  pesoCapsula: number,
+  tecnologicosEfetivos: TecnologicoEfetivo[],
+) {
   try {
-    const { data: itens } = await supabase
+    const { data: itens, error: itensError } = await supabase
       .from("formula_itens")
       .select("*")
       .eq("formula_id", formulaId)
       .order("ordem_mistura", { ascending: true });
+    if (itensError) throw itensError;
     if (!itens || itens.length === 0) return;
 
     let ordemMistura = 1;
@@ -515,80 +595,101 @@ async function criarMateriasPrimasDaFormula(opId: string, formulaId: string, tot
     }
 
     const totalAtivosMg = itens.reduce((sum, i) => sum + i.quantidade_convertida_mg, 0);
-    const totalTecnologicosMg = PESO_CAPSULA_ALVO * (
-      EXCIPIENTES_TECNOLOGICOS.DIOXIDO_SILICIO.percentual +
-      EXCIPIENTES_TECNOLOGICOS.TALCO.percentual +
-      EXCIPIENTES_TECNOLOGICOS.ESTEARATO.percentual
+    const totalTecnologicosMg = pesoCapsula * (
+      tecnologicosEfetivos.reduce((sum, e) => sum + e.percentual, 0)
     ) / 100;
-    const excipienteBaseMg = PESO_CAPSULA_ALVO - totalAtivosMg - totalTecnologicosMg;
+    const excipienteBaseMg = pesoCapsula - totalAtivosMg - totalTecnologicosMg;
+
+    if (excipienteBaseMg < 0) {
+      throw new Error(
+        `A fórmula não cabe na cápsula: ${totalAtivosMg} mg de ativos + ` +
+        `${totalTecnologicosMg.toFixed(1)} mg de excipientes técnicos excedem o ` +
+        `enchimento de ${pesoCapsula} mg em ${Math.abs(excipienteBaseMg).toFixed(1)} mg.`
+      );
+    }
 
     const nomeBase = excipienteBase === "AMIDO" ? "Amido de Milho" :
                      excipienteBase === "CELULOSE" ? "Celulose Microcristalina" : "Pré-blend Industrial";
     const qspG = (excipienteBaseMg * totalCaps) / 1000;
-    materiasData.push({
-      op_id: opId, insumo_nome: `${nomeBase} (Q.S.P.)`, categoria: "EXCIPIENTE_BASE",
-      quantidade_teorica_mg: excipienteBaseMg * totalCaps, quantidade_teorica_g: qspG, unidade: "g",
-      pesagem_critica: false, tolerancia_percentual: 10,
-      quantidade_minima_g: qspG * 0.9, quantidade_maxima_g: qspG * 1.1,
-      ordem_mistura: ordemMistura++,
-    });
-
-    // Excipientes tecnológicos
-    const addTecnologico = (nome: string, percentual: number) => {
-      const mg = PESO_CAPSULA_ALVO * (percentual / 100);
-      const g = (mg * totalCaps) / 1000;
+    if (qspG > 0) {
       materiasData.push({
-        op_id: opId, insumo_nome: nome, categoria: "EXCIPIENTE_TECNOLOGICO",
+        op_id: opId, insumo_nome: `${nomeBase} (Q.S.P.)`, categoria: "EXCIPIENTE_BASE",
+        quantidade_teorica_mg: excipienteBaseMg * totalCaps, quantidade_teorica_g: qspG, unidade: "g",
+        pesagem_critica: false, tolerancia_percentual: 10,
+        quantidade_minima_g: qspG * 0.9, quantidade_maxima_g: qspG * 1.1,
+        ordem_mistura: ordemMistura++,
+      });
+    }
+
+    // Excipientes tecnológicos — ordem já vem de adicionar_por_ultimo + ordem
+    for (const tec of tecnologicosEfetivos) {
+      const mg = pesoCapsula * (tec.percentual / 100);
+      const g = (mg * totalCaps) / 1000;
+      if (g <= 0) continue;
+      materiasData.push({
+        op_id: opId,
+        insumo_id: tec.item_id || undefined,
+        insumo_nome: tec.nome,
+        categoria: "EXCIPIENTE_TECNOLOGICO",
         quantidade_teorica_mg: mg * totalCaps, quantidade_teorica_g: g, unidade: "g",
         pesagem_critica: false, tolerancia_percentual: 10,
         quantidade_minima_g: g * 0.9, quantidade_maxima_g: g * 1.1,
         ordem_mistura: ordemMistura++,
       });
-    };
-    addTecnologico(EXCIPIENTES_TECNOLOGICOS.DIOXIDO_SILICIO.nome, EXCIPIENTES_TECNOLOGICOS.DIOXIDO_SILICIO.percentual);
-    addTecnologico(EXCIPIENTES_TECNOLOGICOS.TALCO.nome, EXCIPIENTES_TECNOLOGICOS.TALCO.percentual);
-    addTecnologico(EXCIPIENTES_TECNOLOGICOS.ESTEARATO.nome, EXCIPIENTES_TECNOLOGICOS.ESTEARATO.percentual);
+    }
 
-    await supabase.from("op_materias_primas").insert(materiasData);
+    const { error: insertMpError } = await supabase.from("op_materias_primas").insert(materiasData);
+    if (insertMpError) throw insertMpError;
 
     // Create critical weighings
     const criticos = materiasData.filter((m) => m.pesagem_critica);
     if (criticos.length > 0) {
-      const { data: mps } = await supabase
+      const { data: mps, error: mpsError } = await supabase
         .from("op_materias_primas")
         .select("id, insumo_nome, quantidade_teorica_mg")
         .eq("op_id", opId)
         .eq("pesagem_critica", true);
+      if (mpsError) throw mpsError;
       if (mps) {
-        await supabase.from("op_pesagens_criticas").insert(
+        const { error: pcError } = await supabase.from("op_pesagens_criticas").insert(
           mps.map((mp) => ({ op_id: opId, materia_prima_id: mp.id, insumo_nome: mp.insumo_nome, quantidade_teorica_mg: mp.quantidade_teorica_mg, status: "PENDENTE" }))
         );
+        if (pcError) throw pcError;
       }
     }
   } catch (error) {
     console.error("Erro ao criar matérias-primas:", error);
+    throw error;
   }
 }
 
-async function criarExcipientesTecnologicosPadrao(opId: string, totalCaps: number) {
+async function criarExcipientesTecnologicosPadrao(
+  opId: string,
+  totalCaps: number,
+  pesoCapsula: number,
+  tecnologicosEfetivos: TecnologicoEfetivo[],
+) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const materiasData: any[] = [];
   let ordemMistura = 1;
-  const add = (nome: string, pct: number) => {
-    const mg = PESO_CAPSULA_ALVO * (pct / 100);
+  for (const tec of tecnologicosEfetivos) {
+    const mg = pesoCapsula * (tec.percentual / 100);
     const g = (mg * totalCaps) / 1000;
+    if (g <= 0) continue;
     materiasData.push({
-      op_id: opId, insumo_nome: nome, categoria: "EXCIPIENTE_TECNOLOGICO",
+      op_id: opId,
+      insumo_id: tec.item_id || undefined,
+      insumo_nome: tec.nome,
+      categoria: "EXCIPIENTE_TECNOLOGICO",
       quantidade_teorica_mg: mg * totalCaps, quantidade_teorica_g: g, unidade: "g",
       pesagem_critica: false, tolerancia_percentual: 10,
       quantidade_minima_g: g * 0.9, quantidade_maxima_g: g * 1.1,
       ordem_mistura: ordemMistura++,
     });
-  };
-  add(EXCIPIENTES_TECNOLOGICOS.DIOXIDO_SILICIO.nome, EXCIPIENTES_TECNOLOGICOS.DIOXIDO_SILICIO.percentual);
-  add(EXCIPIENTES_TECNOLOGICOS.TALCO.nome, EXCIPIENTES_TECNOLOGICOS.TALCO.percentual);
-  add(EXCIPIENTES_TECNOLOGICOS.ESTEARATO.nome, EXCIPIENTES_TECNOLOGICOS.ESTEARATO.percentual);
-  await supabase.from("op_materias_primas").insert(materiasData);
+  }
+  if (materiasData.length === 0) return;
+  const { error } = await supabase.from("op_materias_primas").insert(materiasData);
+  if (error) throw error;
 }
 
 async function criarChecklistPadrao(opId: string) {

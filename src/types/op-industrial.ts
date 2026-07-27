@@ -3,6 +3,8 @@
 // Sistema completo com todos os blocos obrigatórios
 // ============================================================
 
+import { EXCIPIENTES_INDUSTRIAIS } from '@/lib/formulador-industrial-rules';
+
 // ============================================================
 // STATUS E ENUMS
 // ============================================================
@@ -132,10 +134,11 @@ export interface OPMateriaPrima {
 // BLOCO 3: EXCIPIENTES INDUSTRIAIS (FIXOS)
 // ============================================================
 
+/** @deprecated Percentuais reais vêm de op_excipientes_config (por tenant). */
 export const EXCIPIENTES_TECNOLOGICOS_FIXOS = {
-  TALCO: { nome: 'Talco Farmacêutico', percentual: 5.0 },
-  DIOXIDO_SILICIO: { nome: 'Dióxido de Silício', percentual: 2.0 },
-  ESTEARATO_MAGNESIO: { nome: 'Estearato de Magnésio', percentual: 2.5 },
+  TALCO:              EXCIPIENTES_INDUSTRIAIS.TALCO,
+  DIOXIDO_SILICIO:    EXCIPIENTES_INDUSTRIAIS.DIOXIDO_SILICIO,
+  ESTEARATO_MAGNESIO: EXCIPIENTES_INDUSTRIAIS.ESTEARATO_MAGNESIO,
 } as const;
 
 export const ORDEM_MISTURA_PADRAO = [
@@ -383,9 +386,11 @@ export function calcularTolerancia(quantidade: number, percentual: number = 10):
 }
 
 /**
- * Calcula excipientes tecnológicos para cápsula 500mg
+ * Calcula excipientes tecnológicos para o peso de enchimento informado.
+ * Percentuais canônicos (fallback): EXCIPIENTES_INDUSTRIAIS — a fonte real
+ * por tenant é op_excipientes_config.
  */
-export function calcularExcipientesTecnologicos(pesoCapsula: number = 500): {
+export function calcularExcipientesTecnologicos(pesoCapsula: number): {
   talco_mg: number;
   dioxido_silicio_mg: number;
   estearato_mg: number;
