@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/table';
 import { EtapasProducaoTracker, type EtapaProducao, type TipoApresentacao, ETAPAS } from '@/components/producao/EtapasProducaoTracker';
 import { OPTabResumoAuditoria } from '@/components/producao/OPTabResumoAuditoria';
+import { OPAssinaturaRTCard } from '@/components/producao/OPAssinaturaRTCard';
 import { OPTabEmbalagens } from '@/components/producao/OPTabEmbalagens';
 import { OPTabPesagemIndustrial } from '@/components/producao/OPTabPesagemIndustrial';
 import { OPTabProcesso } from '@/components/producao/OPTabProcesso';
@@ -626,6 +627,10 @@ export default function OrdemProducaoDetailPage() {
         {/* Tab: Resumo & Auditoria */}
         <TabsContent value="resumo">
           <OPTabResumoAuditoria op={currentOP as unknown as React.ComponentProps<typeof OPTabResumoAuditoria>['op']} />
+          <OPAssinaturaRTCard
+            op={currentOP as unknown as React.ComponentProps<typeof OPAssinaturaRTCard>['op']}
+            onAssinado={refresh}
+          />
         </TabsContent>
 
         {/* Tab: Conferência de Materiais */}
