@@ -34,7 +34,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           .select(`
             *,
             company:company(*),
-            op_materias_primas(*),
+            op_materias_primas(*, estoque_lotes!op_materias_primas_lote_id_fkey(status)),
             op_embalagens(*),
             op_pesagens_criticas(*),
             op_controle_qualidade(*),
@@ -46,7 +46,13 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           .single();
         if (opError) throw opError;
         if (!op) throw new Error('OP não encontrada');
-        setOpData(op);
+        // Normaliza status do lote (join) para lote_status usado na impressão
+        const mpsNorm = ((op as any).op_materias_primas || []).map((m: any) => ({
+          ...m,
+          lote_status: m.estoque_lotes?.status
+            ?? (typeof m.observacoes === 'string' && m.observacoes.includes('QUARENTENA') ? 'QUARENTENA' : null),
+        }));
+        setOpData({ ...(op as any), op_materias_primas: mpsNorm });
 
         const company = op.company as any;
         const dataEvento =
@@ -133,13 +139,28 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
   const porCapsula = (valorG: number | null | undefined): string => {
     if (valorG == null || totalCaps <= 0) return '—';
     const mg = (Number(valorG) * 1000) / totalCaps;
+    if (mg === 0) return '—';                    // ausente, não micro-dose
     if (mg < 1) return `${(mg * 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ${SIMBOLO_MICROGRAMA}`;
     return `${mg.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mg`;
   };
-  const ehCritico = (g: number | null | undefined) => g != null && !isNaN(Number(g)) && Number(g) < 1;
-  const formatarData = (d: string | null): string => d ? new Date(d).toLocaleDateString('pt-BR') : '';
+  const ehCritico = (g: number | null | undefined) =>
+    g != null && !isNaN(Number(g)) && Number(g) > 0 && Number(g) < 1;
+  const formatarData = (d: string | null): string => {
+    if (!d) return '';
+    // 'YYYY-MM-DD' é interpretado como UTC pelo construtor Date; em UTC-3 isso
+    // devolve o dia anterior. Forçar hora local.
+    const iso = d.length === 10 ? `${d}T00:00:00` : d;
+    return new Date(iso).toLocaleDateString('pt-BR');
+  };
   const checklistCat = (cat: string) => (opData.op_checklist || []).filter((c: any) => c.categoria === cat).sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0));
   const pesoAlvo = op.peso_capsula_mg || 500;
+  const somaRealMgPorCapsula = [...ativos, ...excipienteTec, ...excipienteBase]
+    .reduce((acc, m: any) => acc + ((Number(m.quantidade_teorica_g) || 0) * 1000) / (totalCaps || 1), 0);
+  const divergeDoAlvo = Math.abs(somaRealMgPorCapsula - pesoAlvo) > 1;
+  const marcaQuarentena = (m: any) =>
+    m.lote_status === 'QUARENTENA' ? (
+      <span className="tag r" style={{ marginLeft: 4 }}>QUARENTENA — requer liberação RT</span>
+    ) : null;
   const rtHist = (companyData as any)?._rt_historico;
   const conselho = rtHist
     ? `${rtHist.tipo_conselho || ''}-${rtHist.uf_conselho || ''} ${rtHist.numero_registro || ''}`.trim()
@@ -258,7 +279,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           <div className="cell"><div className="k">Validade</div><div className="v">{formatarData(opData.data_validade)}</div></div>
           <div className="cell"><div className="k">Frascos</div><div className="v">{opData.quantidade_frascos}</div></div>
           <div className="cell"><div className="k">Cápsulas (+acréscimo)</div><div className="v">{totalCaps.toLocaleString('pt-BR')}</div></div>
-          <div className="cell"><div className="k">Cápsula</div><div className="v">#{op.tamanho_capsula ?? 0} · {pesoAlvo} mg</div></div>
+          <div className="cell"><div className="k">Cápsula</div><div className="v">#{op.tipo_capsula ?? 0} · {pesoAlvo} mg</div></div>
           <div className="cell"><div className="k">Excipiente base</div><div className="v">{excipienteBase[0]?.insumo_nome || 'Amido (QSP)'}</div></div>
           <div className="cell" style={{ gridColumn: 'span 2' }}><div className="k">Responsável técnico</div><div className="v">{rtNome} · {conselho}</div></div>
           <div className="cell" style={{ gridColumn: 'span 2' }}><div className="k">Responsável de produção</div><div className="v">{op.responsavel_producao_nome || '—'}</div></div>
@@ -277,15 +298,28 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
               </tr>
             ))}
           </tbody>
-          <tfoot><tr><td colSpan={2}>Total de enchimento por cápsula</td><td className="mg c">{pesoAlvo} mg</td><td className="num">{formatarQtd(op.peso_mistura_kg ? op.peso_mistura_kg * 1000 : null)}</td></tr></tfoot>
+          <tfoot>
+            <tr>
+              <td colSpan={2}>
+                Total de enchimento por cápsula
+                {divergeDoAlvo && (
+                  <span className="tag r" style={{ marginLeft: 6 }}>
+                    ⚠ soma dos componentes ({somaRealMgPorCapsula.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mg) diferente do alvo da OP ({pesoAlvo} mg)
+                  </span>
+                )}
+              </td>
+              <td className="mg c">{somaRealMgPorCapsula.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mg</td>
+              <td className="num">{formatarQtd(op.peso_total_mistura_kg != null ? Number(op.peso_total_mistura_kg) * 1000 : null)}</td>
+            </tr>
+          </tfoot>
         </table>
 
         <div className="sec"><span className="n">3</span><h2>Parâmetros de fabricação</h2></div>
         <div className="grid c4">
-          <div className="cell"><div className="k">Peso da mistura</div><div className="v">{op.peso_mistura_kg ? `${op.peso_mistura_kg.toLocaleString('pt-BR')} kg` : '—'}</div></div>
-          <div className="cell"><div className="k">Densidade do pó</div><div className="v">{op.densidade_kg_l ? `${op.densidade_kg_l} kg/L` : '—'}</div></div>
-          <div className="cell"><div className="k">Volume de pó</div><div className="v">{op.volume_po_l ? `≈ ${op.volume_po_l} L` : '—'}</div></div>
-          <div className="cell"><div className="k">Sílica sachê</div><div className="v">{op.silica_sache ? '1 g / frasco' : '—'}</div></div>
+          <div className="cell"><div className="k">Peso da mistura</div><div className="v">{op.peso_total_mistura_kg != null ? `${Number(op.peso_total_mistura_kg).toLocaleString('pt-BR')} kg` : '—'}</div></div>
+          <div className="cell"><div className="k">Densidade do pó</div><div className="v">{op.densidade_utilizada_kg_l != null ? `${op.densidade_utilizada_kg_l} kg/L` : '—'}</div></div>
+          <div className="cell"><div className="k">Volume de pó</div><div className="v">{op.volume_total_po_l != null ? `≈ ${op.volume_total_po_l} L` : '—'}</div></div>
+          <div className="cell"><div className="k">Sílica sachê</div><div className="v">{op.incluir_silica ? '1 g / frasco' : '—'}</div></div>
           <div className="cell"><div className="k">Sala / máquina</div><div className="v blank">______ / ______</div></div>
           <div className="cell"><div className="k">Turno</div><div className="v blank">______</div></div>
           <div className="cell"><div className="k">Temp. / umidade início</div><div className="v blank">___°C / ___%</div></div>
@@ -297,8 +331,8 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           <div className="card"><div className="t">Fabricado para (cliente / marca)</div><div className="nm">{clienteNome || 'Produção própria'}</div><div className="d">CNPJ do cliente: {clienteCnpj || '— (não aplicável)'}</div></div>
         </div>
 
-        {op.hash_documento && (
-          <div className="hashbox"><div><div className="qt">Rastreabilidade verificável — Controle ANVISA/BPF</div><div className="qh">SHA-256: {op.hash_documento}</div><div className="qh">{fabEndereco ? 'www.brainxerp.com/audit/lote/…' : ''}</div></div></div>
+        {op.qr_code_hash && (
+          <div className="hashbox"><div><div className="qt">Rastreabilidade verificável — Controle ANVISA/BPF</div><div className="qh">SHA-256: {op.qr_code_hash}</div><div className="qh">{fabEndereco ? 'www.brainxerp.com/audit/lote/…' : ''}</div></div></div>
         )}
       </div>
 
@@ -307,13 +341,13 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         <FaseHeader faseK="FASE 1 · PRÉ-PRODUÇÃO" faseT="Folha de Separação de Materiais" />
         <div className="sec"><span className="n">1</span><h2>Ativos e princípios ativos</h2><span className="cnt">{ativos.length} itens</span></div>
         <table><thead><tr><th className="c" style={{ width: '18px' }}>Ord.</th><th>Insumo</th><th className="num" style={{ width: '60px' }}>Qtd. necessária</th><th className="qc" style={{ width: '76px' }}>Lote MP</th><th className="qc c" style={{ width: '50px' }}>Validade</th><th className="qc c" style={{ width: '16px' }}><span className="box" /></th><th className="qc" style={{ width: '74px' }}>Executado por</th><th className="qc" style={{ width: '74px' }}>Conferido por</th></tr></thead>
-          <tbody>{ativos.map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome}{ehCritico(m.quantidade_teorica_g) && <span className="tag r" style={{ marginLeft: 5 }}>⚠ crítico</span>}</td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc">{m.numero_lote || '—'}</td><td className="qc c">{m.data_validade ? formatarData(m.data_validade) : '—'}</td><td className="qc c" /><td className="qc" /><td className="qc" /></tr>))}</tbody></table>
+          <tbody>{ativos.map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome}{ehCritico(m.quantidade_teorica_g) && <span className="tag r" style={{ marginLeft: 5 }}>⚠ crítico</span>}</td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc">{m.numero_lote || '—'}{marcaQuarentena(m)}</td><td className="qc c">{m.data_validade ? formatarData(m.data_validade) : '—'}</td><td className="qc c" /><td className="qc" /><td className="qc" /></tr>))}</tbody></table>
         {excipienteBase.length > 0 && (<><div className="sec"><span className="n">2</span><h2>Excipiente base (Q.S.P.)</h2></div>
         <table><thead><tr><th className="c" style={{ width: '18px' }}>Ord.</th><th>Insumo</th><th className="num" style={{ width: '60px' }}>Qtd. necessária</th><th className="qc" style={{ width: '76px' }}>Lote MP</th><th className="qc c" style={{ width: '50px' }}>Validade</th><th className="qc c" style={{ width: '16px' }}><span className="box" /></th><th className="qc" style={{ width: '74px' }}>Executado por</th><th className="qc" style={{ width: '74px' }}>Conferido por</th></tr></thead>
-          <tbody>{excipienteBase.map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome} <span className="tag e">Q.S.P.</span></td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc">{m.numero_lote || '—'}</td><td className="qc c">{m.data_validade ? formatarData(m.data_validade) : '—'}</td><td className="qc c" /><td className="qc" /><td className="qc" /></tr>))}</tbody></table></>)}
+          <tbody>{excipienteBase.map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome} <span className="tag e">Q.S.P.</span></td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc">{m.numero_lote || '—'}{marcaQuarentena(m)}</td><td className="qc c">{m.data_validade ? formatarData(m.data_validade) : '—'}</td><td className="qc c" /><td className="qc" /><td className="qc" /></tr>))}</tbody></table></>)}
         {excipienteTec.length > 0 && (<><div className="sec"><span className="n">3</span><h2>Excipientes tecnológicos</h2><span className="cnt">{excipienteTec.length} itens</span></div>
         <table><thead><tr><th className="c" style={{ width: '18px' }}>Ord.</th><th>Insumo</th><th style={{ width: '66px' }}>Função</th><th className="num" style={{ width: '60px' }}>Qtd. necessária</th><th className="qc" style={{ width: '76px' }}>Lote MP</th><th className="qc c" style={{ width: '16px' }}><span className="box" /></th><th className="qc" style={{ width: '70px' }}>Executado por</th><th className="qc" style={{ width: '70px' }}>Conferido por</th></tr></thead>
-          <tbody>{excipienteTec.map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome}{m.adicionar_por_ultimo && <span className="warn"> ⚠ por último</span>}</td><td>{m.funcao || 'Tecnológico'}</td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc">{m.numero_lote || '—'}</td><td className="qc c" /><td className="qc" /><td className="qc" /></tr>))}</tbody></table></>)}
+          <tbody>{excipienteTec.map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome}{m.adicionar_por_ultimo && <span className="warn"> ⚠ por último</span>}</td><td>{m.funcao || 'Tecnológico'}</td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc">{m.numero_lote || '—'}{marcaQuarentena(m)}</td><td className="qc c" /><td className="qc" /><td className="qc" /></tr>))}</tbody></table></>)}
         {embalagens.length > 0 && (<><div className="sec"><span className="n">4</span><h2>Materiais de embalagem</h2><span className="cnt">{embalagens.length} itens</span></div>
         <table><thead><tr><th className="c" style={{ width: '18px' }}>Ord.</th><th>Material</th><th style={{ width: '96px' }}>Tipo</th><th className="num" style={{ width: '56px' }}>Necessária</th><th className="qc" style={{ width: '72px' }}>Lote</th><th className="qc c" style={{ width: '16px' }}><span className="box" /></th><th className="qc" style={{ width: '74px' }}>Conferido por</th></tr></thead>
           <tbody>{embalagens.map((e: any, i: number) => (<tr key={e.id}><td className="c">{i + 1}</td><td>{e.material_nome || e.insumo_nome}</td><td>{e.tipo || '—'}</td><td className="num">{e.quantidade_necessaria != null ? `${Number(e.quantidade_necessaria).toLocaleString('pt-BR')} un` : '—'}</td><td className="qc">{e.numero_lote || '—'}</td><td className="qc c" /><td className="qc" /></tr>))}</tbody></table></>)}
@@ -328,7 +362,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         <div className="grid c4"><div className="cell"><div className="k">Temperatura</div><div className="v blank">______ °C</div></div><div className="cell"><div className="k">Umidade relativa</div><div className="v blank">______ %</div></div><div className="cell"><div className="k">Verificado por</div><div className="v blank">__________</div></div><div className="cell"><div className="k">Hora</div><div className="v blank">______</div></div></div>
         <div className="sec"><span className="n">2</span><h2>Pesagem de ativos e excipientes</h2><span className="cnt">tolerância ±10%</span></div>
         <table><thead><tr><th className="c" style={{ width: '15px' }}>#</th><th>Insumo</th><th style={{ width: '48px' }}>Categoria</th><th className="num" style={{ width: '48px' }}>Teórica</th><th className="qc c" style={{ width: '40px' }}>Balança nº</th><th className="qc c" style={{ width: '44px' }}>Peso real</th><th className="qc" style={{ width: '58px' }}>Lote MP</th><th className="qc" style={{ width: '60px' }}>Pesado por</th><th className="qc" style={{ width: '60px' }}>Conferido por</th><th className="qc c" style={{ width: '15px' }}><span className="box" /></th></tr></thead>
-          <tbody>{[...ativos, ...excipienteTec, ...excipienteBase].map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome}{ehCritico(m.quantidade_teorica_g) && <span className="tag r" style={{ marginLeft: 4 }}>⚠ analítica</span>}</td><td>{m.categoria === 'ATIVO' ? 'Ativo' : m.categoria === 'EXCIPIENTE_BASE' ? 'Base (QSP)' : 'Tecnológico'}</td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc" /><td className="qc" /><td className="qc">{m.numero_lote || ''}</td><td className="qc" /><td className="qc" /><td className="qc c" /></tr>))}</tbody></table>
+          <tbody>{[...ativos, ...excipienteTec, ...excipienteBase].map((m: any, i: number) => (<tr key={m.id}><td className="c">{i + 1}</td><td>{m.insumo_nome}{ehCritico(m.quantidade_teorica_g) && <span className="tag r" style={{ marginLeft: 4 }}>⚠ analítica</span>}</td><td>{m.categoria === 'ATIVO' ? 'Ativo' : m.categoria === 'EXCIPIENTE_BASE' ? 'Base (QSP)' : 'Tecnológico'}</td><td className="num">{formatarQtd(m.quantidade_teorica_g)}</td><td className="qc" /><td className="qc" /><td className="qc">{m.numero_lote || ''}{marcaQuarentena(m)}</td><td className="qc" /><td className="qc" /><td className="qc c" /></tr>))}</tbody></table>
         <div className="sec"><span className="n">3</span><h2>Referência de balanças</h2></div>
         <table><thead><tr><th>Faixa de peso</th><th>Tipo de balança</th><th>Precisão</th></tr></thead><tbody><tr><td>≥ 1 kg</td><td>Semi-analítica</td><td>2 casas decimais</td></tr><tr><td>1 g a 1 kg</td><td>Semi-analítica</td><td>3 ou 4 casas</td></tr><tr><td>1 mg a 1 g</td><td>Analítica</td><td>4 ou 5 casas</td></tr><tr><td>&lt; 1 mg</td><td>Ultra-analítica</td><td>5+ casas</td></tr></tbody></table>
         <div className="sec"><span className="n">4</span><h2>Assinaturas e aprovações</h2></div>
@@ -367,7 +401,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
         <FaseHeader faseK="FASE 4 · ENCAPSULAMENTO" faseT="Folha de Encapsulamento" />
         <div className="sec"><span className="n">1</span><h2>Setup da encapsuladora</h2></div>
         <table><thead><tr><th>Item de verificação</th><th style={{ width: '126px' }}>Parâmetro</th><th className="c" style={{ width: '54px' }}>Verif.</th><th className="qc" style={{ width: '104px' }}>Responsável</th></tr></thead>
-          <tbody>{[['Limpeza do equipamento', 'Visualmente limpo'], ['Troca de placas (se aplicável)', `Tamanho ${op.tamanho_capsula ?? 0}`], ['Ajuste de dosagem', `${pesoAlvo} mg ± 5%`], ['Teste de peso (10 cápsulas)', 'Dentro da tolerância'], ['Fechamento das cápsulas', 'Sem vazamento de pó']].map(([a, b]) => (<tr key={a}><td>{a}</td><td>{b}</td><td className="c fill"><span className="box" /> OK</td><td className="qc" /></tr>))}</tbody></table>
+          <tbody>{[['Limpeza do equipamento', 'Visualmente limpo'], ['Troca de placas (se aplicável)', `Tamanho ${op.tipo_capsula ?? 0}`], ['Ajuste de dosagem', `${pesoAlvo} mg ± 5%`], ['Teste de peso (10 cápsulas)', 'Dentro da tolerância'], ['Fechamento das cápsulas', 'Sem vazamento de pó']].map(([a, b]) => (<tr key={a}><td>{a}</td><td>{b}</td><td className="c fill"><span className="box" /> OK</td><td className="qc" /></tr>))}</tbody></table>
         <div className="sec"><span className="n">2</span><h2>Controle de peso durante produção</h2><span className="cnt">a cada 30 min · alvo {pesoAlvo} mg</span></div>
         <table><thead><tr><th style={{ width: '42px' }}>Hora</th><th className="c">C.1</th><th className="c">C.2</th><th className="c">C.3</th><th className="c">C.4</th><th className="c">C.5</th><th className="c">Média</th><th className="c">Desvio</th><th className="c" style={{ width: '32px' }}>OK?</th><th className="qc" style={{ width: '66px' }}>Operador</th></tr></thead>
           <tbody>{[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (<tr key={i}><td className="qc" /><td className="qc" /><td className="qc" /><td className="qc" /><td className="qc" /><td className="qc" /><td className="qc" /><td className="qc" /><td className="c"><span className="box" /></td><td className="qc" /></tr>))}</tbody></table>
@@ -434,7 +468,7 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
               <tbody>{[1, 2, 3].map((n) => (<tr key={n}><td className="c">{n}</td><td className="qc" /><td className="qc" /><td className="qc" /><td className="c fill"><span className="box" /> Resolvido</td><td className="qc" /></tr>))}</tbody></table>
             <div className="sec"><span className="n" style={{ background: '#2e7d32' }}>✓</span><h2>Liberação do lote</h2></div>
             <div className="grid c2"><div className="cell"><div className="k">Checklist 100% concluído?</div><div className="v fill"><span className="box" /> Sim <span className="box" /> Não</div></div><div className="cell"><div className="k">Lote liberado para expedição?</div><div className="v fill"><span className="box" /> Sim <span className="box" /> Não</div></div><div className="cell"><div className="k">Não-conformidades resolvidas?</div><div className="v fill"><span className="box" /> Sim <span className="box" /> Não <span className="box" /> N/A</div></div><div className="cell"><div className="k">Documentação completa?</div><div className="v fill"><span className="box" /> Sim <span className="box" /> Não</div></div></div>
-            <div className="rules" style={{ margin: '8px 0' }}><li><b>Declaração do RT:</b> Declaro que revisei todas as etapas deste registro, que os controles foram executados conforme as Boas Práticas de Fabricação e a legislação ANVISA vigente, e libero o lote {opData.lote_produto_acabado} para expedição.{op.hash_documento ? ` Assinatura eletrônica · hash ${op.hash_documento.substring(0, 16)}…` : ''}</li></div>
+            <div className="rules" style={{ margin: '8px 0' }}><li><b>Declaração do RT:</b> Declaro que revisei todas as etapas deste registro, que os controles foram executados conforme as Boas Práticas de Fabricação e a legislação ANVISA vigente, e libero o lote {opData.lote_produto_acabado} para expedição.{op.qr_code_hash ? ` Assinatura eletrônica · hash ${String(op.qr_code_hash).substring(0, 16)}…` : ''}</li></div>
             <Signs a="Supervisor de produção · verificação" b="Controle de qualidade · aprovação" c="RT · liberação final do lote" />
           </div>
         </>);
