@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import type { OPIndustrialData } from '@/types/op-industrial';
 import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
+
+/** OP + joins usados na impressão (shape do select com relações). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type OPIndustrialData = Record<string, any>;
 
 interface OPImpressaoProps {
   opId?: string;
