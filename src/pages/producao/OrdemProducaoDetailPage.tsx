@@ -71,6 +71,7 @@ export default function OrdemProducaoDetailPage() {
     buscarChecklist,
     atualizarStatus,
     registrarPesagem,
+    finalizarOP,
     verificarChecklist,
   } = useOPIndustrial();
 
@@ -252,7 +253,7 @@ export default function OrdemProducaoDetailPage() {
     }
 
     if (id && currentOP) {
-      const success = await atualizarStatus(id, 'FINALIZADA');
+      const success = await finalizarOP(id, produzida, aprovada);
       if (success) {
         // Disparar calculo de custo apos finalizacao
         try {

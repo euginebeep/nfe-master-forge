@@ -613,6 +613,173 @@ export function useOPIndustrial() {
   }, []);
 
   // ============================================================
+  // FINALIZAR OP + LOTE DE PRODUTO ACABADO
+  // ============================================================
+  const finalizarOP = useCallback(async (
+    opId: string,
+    quantidadeProduzida: number,
+    quantidadeAprovada: number,
+    justificativaPerdas?: string,
+  ) => {
+    try {
+      // 1. carrega a OP
+      const { data: op, error: opErr } = await supabase
+        .from('ordens_producao_industrial')
+        .select('codigo, produto_id, produto_nome, lote_produto_acabado, data_fabricacao, data_validade, total_capsulas_com_acrescimo, responsavel_tecnico_id, rt_nome, rt_tipo_conselho, rt_numero_registro, rt_uf_conselho, status')
+        .eq('id', opId)
+        .single();
+
+      if (opErr) {
+        toast.error(`Erro ao carregar a OP: ${opErr.message || opErr.code}`);
+        return false;
+      }
+
+      if (op.status === 'FINALIZADA') {
+        toast.error('Esta OP já está finalizada.');
+        return false;
+      }
+
+      // 2. RT obrigatório — NUNCA inventar registro de conselho
+      if (!op.responsavel_tecnico_id || !op.rt_numero_registro) {
+        toast.error('OP sem Responsável Técnico vinculado. Vincule o RT antes de finalizar.');
+        return false;
+      }
+
+      // 3. todos os insumos com quantidade teórica precisam estar pesados
+      const { data: mps, error: mpErr } = await supabase
+        .from('op_materias_primas')
+        .select('insumo_nome, quantidade_teorica_g, quantidade_real_g')
+        .eq('op_id', opId);
+
+      if (mpErr) {
+        toast.error(`Erro ao verificar as pesagens: ${mpErr.message || mpErr.code}`);
+        return false;
+      }
+
+      const naoPesados = (mps ?? []).filter(
+        (m) => (m.quantidade_teorica_g ?? 0) > 0 && m.quantidade_real_g == null,
+      );
+      if (naoPesados.length > 0) {
+        toast.error(
+          `Faltam pesagens: ${naoPesados.map((m) => m.insumo_nome).join(', ')}`,
+        );
+        return false;
+      }
+
+      // 4. finaliza a OP
+      const rendimento =
+        op.total_capsulas_com_acrescimo > 0
+          ? (quantidadeProduzida / op.total_capsulas_com_acrescimo) * 100
+          : 0;
+
+      const { error: updErr } = await supabase
+        .from('ordens_producao_industrial')
+        .update({
+          status: 'FINALIZADA',
+          data_fim_producao: new Date().toISOString(),
+          rendimento_percentual: rendimento,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', opId);
+
+      if (updErr) {
+        toast.error(`Erro ao finalizar a OP: ${updErr.message || updErr.code}`);
+        return false;
+      }
+
+      // 5. rendimento e perdas
+      const rejeitada = quantidadeProduzida - quantidadeAprovada;
+      const { error: perdaErr } = await supabase
+        .from('op_controle_perdas')
+        .update({
+          quantidade_produzida: quantidadeProduzida,
+          quantidade_aprovada: quantidadeAprovada,
+          quantidade_rejeitada: rejeitada,
+          perda_total: rejeitada,
+          perda_percentual: quantidadeProduzida > 0 ? (rejeitada / quantidadeProduzida) * 100 : 0,
+          rendimento_percentual: rendimento,
+          justificativa_perdas: justificativaPerdas ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('op_id', opId);
+
+      if (perdaErr) {
+        toast.warning(`OP finalizada, mas o controle de perdas não gravou: ${perdaErr.message || perdaErr.code}`);
+      }
+
+      // 6. lote de Produto Acabado — idempotente
+      const { data: loteExistente } = await supabase
+        .from('lotes_produto_acabado')
+        .select('id, numero_lote')
+        .eq('op_id', opId)
+        .maybeSingle();
+
+      if (!loteExistente) {
+        const numeroLote = op.lote_produto_acabado;   // numero definido na criacao da OP — o mesmo do rotulo
+        if (!numeroLote || !op.data_fabricacao || !op.data_validade) {
+          toast.error('OP finalizada, mas o lote NÃO foi criado: faltam lote de PA, fabricação ou validade na OP.');
+          return false;
+        }
+
+        const hashData = new TextEncoder().encode(numeroLote + opId + Date.now().toString());
+        const hashBuffer = await crypto.subtle.digest('SHA-256', hashData);
+        const qrHash = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('');
+
+        const { error: loteErr } = await supabase
+          .from('lotes_produto_acabado')
+          .insert({
+            op_id: opId,
+            numero_lote: numeroLote,
+            codigo_auditoria: crypto.randomUUID(),
+            qr_code_hash: qrHash,
+            produto_id: op.produto_id ?? null,
+            produto_nome: op.produto_nome,
+            data_fabricacao: op.data_fabricacao,   // da OP, nao "hoje"
+            data_validade: op.data_validade,       // da OP, nao +730 dias fixo
+            quantidade_produzida: quantidadeProduzida,
+            quantidade_aprovada: quantidadeAprovada,
+            quantidade_rejeitada: rejeitada,
+            status: 'QUARENTENA',
+            responsavel_tecnico_id: op.responsavel_tecnico_id,
+            rt_nome: op.rt_nome,
+            rt_tipo_conselho: op.rt_tipo_conselho,
+            rt_numero_registro: op.rt_numero_registro,
+            rt_uf_conselho: op.rt_uf_conselho,
+          });
+
+        if (loteErr) {
+          toast.error(`OP finalizada, mas o lote NÃO foi criado: ${loteErr.message || loteErr.code}`);
+          return false;
+        }
+        toast.info(`Lote ${numeroLote} criado em QUARENTENA — aguardando liberação da RT.`);
+      }
+
+      // 7. historico de etapa
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: histErr } = await supabase.from('op_historico_etapas').insert({
+        op_id: opId,
+        etapa: 'FINALIZADA',
+        iniciada_em: new Date().toISOString(),
+        finalizada_em: new Date().toISOString(),
+        operador_id: user?.id ?? null,
+      });
+
+      if (histErr) {
+        toast.warning(`OP finalizada, mas o histórico de etapa não gravou: ${histErr.message || histErr.code}`);
+      }
+
+      toast.success(`OP ${op.codigo} finalizada — rendimento ${rendimento.toFixed(1)}%`);
+      return true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao finalizar a OP: ${msg}`);
+      return false;
+    }
+  }, []);
+
+  // ============================================================
   // VERIFICAR ITEM DO CHECKLIST
   // ============================================================
   const verificarChecklist = useCallback(async (checklistId: string, verificadoPorId?: string | null) => {
@@ -667,6 +834,7 @@ export function useOPIndustrial() {
     // Ações
     atualizarStatus,
     registrarPesagem,
+    finalizarOP,
     verificarChecklist,
     
     // Utils
