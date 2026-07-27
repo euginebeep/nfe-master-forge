@@ -57,18 +57,10 @@ export interface CriarOPDialogMasterProps {
 // CONSTANTES INDUSTRIAIS
 // ============================================================
 
-export const EXCIPIENTES_TECNOLOGICOS = {
-  DIOXIDO_SILICIO: { nome: "Dióxido de Silício", percentual: 2.0, ordem: 4 },
-  TALCO: { nome: "Talco Farmacêutico", percentual: 5.0, ordem: 5 },
-  ESTEARATO: { nome: "Estearato de Magnésio", percentual: 2.5, ordem: 6 },
-};
-
-export const PESO_CAPSULA_NOMINAL = 500; // mg
-// PESO_CAPSULA_ALVO removido — era uma constante fixa de 490mg ignorando
-// a fórmula real. A massa que enche uma cápsula 0 varia com a densidade
-// do blend (minerais quelados vs. colágeno fofo, por exemplo), então o
-// valor correto vem sempre de `formula.peso_enchimento_mg` (medido em
-// laboratório, com fallback de 500mg só se a fórmula nunca foi pesada).
+// PESO_CAPSULA_NOMINAL e EXCIPIENTES_TECNOLOGICOS removidos — eram fontes paralelas
+// que divergiam do banco. Peso da cápsula vem de formula.peso_enchimento_mg;
+// percentuais e ordem de mistura vêm da tabela op_excipientes_config (por tenant),
+// a mesma fonte que a RPC preparar_op_materiais usa. Ver PR-7.
 export const ACRESCIMO_INDUSTRIAL = 5; // %
 
 // ============================================================
