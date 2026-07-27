@@ -11,7 +11,8 @@
     "empresa_razao_social_em",
     "empresa_rt_em",
     "mesclar_itens",
-    "norm_txt"
+    "norm_txt",
+    "baixar_estoque_op_item"
   ],
   "views": [
     "v_notas_sem_xml"
