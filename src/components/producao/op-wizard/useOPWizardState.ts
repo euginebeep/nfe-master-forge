@@ -435,12 +435,9 @@ export function useOPWizardState(open: boolean, onSuccess: () => void, onOpenCha
       if (newOP) {
         await criarChecklistPadrao(newOP.id);
         await criarControlePerdas(newOP.id, totalUnidades, totalFinalComPerdas);
-        try {
-          await supabase.rpc('baixar_estoque_op_embalagens', { p_op_id: newOP.id });
-          await supabase.rpc('baixar_estoque_op_materias_primas', { p_op_id: newOP.id });
-        } catch (err) {
-          console.warn('Baixa de estoque não realizada:', err);
-        }
+        // A baixa de estoque NÃO ocorre na criação da OP.
+        // Ela acontece por item, no registro da pesagem, via RPC baixar_estoque_op_item
+        // (peso real, não teórico — exigência de BPF). Ver PR-2.
       }
 
       toast.success(`OP ${codigo} criada com sucesso!`, {
