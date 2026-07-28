@@ -1,20 +1,8 @@
 {
-  "_comment": "Objetos já referenciados no código e ainda ausentes do types.ts (ou edge function confundida). Remover daqui quando types forem regenerados / objeto criado. Novas fantasmas NÃO devem ser adicionadas sem investigação.",
-  "tables": [
-    "arquivos"
-  ],
+  "_comment": "Objetos referenciados no código e ausentes do schema. NÃO adicionar sem investigar: cada entrada aqui é um bug escondido. Regenerar types.ts antes de considerar allowlist. get_uom_info NÃO existe no banco — verificado em 28/07/2026 contra pg_proc. É chamada em src/lib/supabase-nfe-import.ts:582; a chamada falha sempre e o código cai no fallback obterUnidadeEFatorLocal, que está correto. Está aqui para não travar o CI, NÃO porque seja aceitável. Resolver no PR do importador de NF-e: criar a função no banco ou remover a chamada.",
+  "tables": [],
   "rpcs": [
-    "ambiental_historico_agregado",
-    "ambiental_tempo_real",
-    "get_uom_info",
-    "registrar_evento_auditoria",
-    "empresa_razao_social_em",
-    "empresa_rt_em",
-    "mesclar_itens",
-    "norm_txt",
-    "baixar_estoque_op_item"
+    "get_uom_info"
   ],
-  "views": [
-    "v_notas_sem_xml"
-  ]
+  "views": []
 }

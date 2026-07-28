@@ -7,36 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       alegacoes_anvisa: {
@@ -68,7 +38,6 @@ export type Database = {
           {
             foreignKeyName: "alegacoes_anvisa_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
@@ -199,7 +168,6 @@ export type Database = {
           {
             foreignKeyName: "ambiental_config_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -261,7 +229,6 @@ export type Database = {
           {
             foreignKeyName: "ambiental_sensores_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -329,21 +296,18 @@ export type Database = {
           {
             foreignKeyName: "amostras_retencao_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "amostras_retencao_lote_produto_acabado_id_fkey"
             columns: ["lote_produto_acabado_id"]
-            isOneToOne: false
             referencedRelation: "lotes_produto_acabado"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "amostras_retencao_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
@@ -444,21 +408,18 @@ export type Database = {
           {
             foreignKeyName: "anvisa_alegacoes_detalhadas_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_alegacoes_detalhadas_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_alegacoes_detalhadas_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
@@ -550,42 +511,36 @@ export type Database = {
           {
             foreignKeyName: "anvisa_associacoes_proibidas_constituinte_a_id_fkey"
             columns: ["constituinte_a_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_associacoes_proibidas_constituinte_a_id_fkey"
             columns: ["constituinte_a_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_associacoes_proibidas_constituinte_a_id_fkey"
             columns: ["constituinte_a_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_associacoes_proibidas_constituinte_b_id_fkey"
             columns: ["constituinte_b_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_associacoes_proibidas_constituinte_b_id_fkey"
             columns: ["constituinte_b_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_associacoes_proibidas_constituinte_b_id_fkey"
             columns: ["constituinte_b_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
@@ -644,21 +599,18 @@ export type Database = {
           {
             foreignKeyName: "anvisa_conferencias_rt_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_conferencias_rt_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_conferencias_rt_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
@@ -840,7 +792,6 @@ export type Database = {
           {
             foreignKeyName: "anvisa_constituintes_sync_id_fkey"
             columns: ["sync_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_sync_history"
             referencedColumns: ["id"]
           },
@@ -881,21 +832,18 @@ export type Database = {
           {
             foreignKeyName: "anvisa_constituintes_historico_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_constituintes_historico_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_constituintes_historico_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
@@ -930,21 +878,18 @@ export type Database = {
           {
             foreignKeyName: "anvisa_consultas_log_constituinte_encontrado_id_fkey"
             columns: ["constituinte_encontrado_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_consultas_log_constituinte_encontrado_id_fkey"
             columns: ["constituinte_encontrado_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "anvisa_consultas_log_constituinte_encontrado_id_fkey"
             columns: ["constituinte_encontrado_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
@@ -1298,37 +1243,7 @@ export type Database = {
         }
         Relationships: []
       }
-      qr_scan_log: {
-        Row: {
-          id: string
-          lote_id: string | null
-          ip_hash: string
-          user_agent: string | null
-          ok: boolean
-          motivo: string | null
-          scanned_at: string
-        }
-        Insert: {
-          id?: string
-          lote_id?: string | null
-          ip_hash: string
-          user_agent?: string | null
-          ok?: boolean
-          motivo?: string | null
-          scanned_at?: string
-        }
-        Update: {
-          id?: string
-          lote_id?: string | null
-          ip_hash?: string
-          user_agent?: string | null
-          ok?: boolean
-          motivo?: string | null
-          scanned_at?: string
-        }
-        Relationships: []
-      }
-            arquivos: {
+      arquivos: {
         Row: {
           checksum_sha256: string | null
           company_id: string | null
@@ -1501,7 +1416,6 @@ export type Database = {
           {
             foreignKeyName: "auditoria_exclusoes_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -1545,7 +1459,6 @@ export type Database = {
           {
             foreignKeyName: "avaliacoes_fornecedor_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -1616,14 +1529,12 @@ export type Database = {
           {
             foreignKeyName: "brainx_campanhas_criativo_id_fkey"
             columns: ["criativo_id"]
-            isOneToOne: false
             referencedRelation: "brainx_criativos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "brainx_campanhas_parceiro_id_fkey"
             columns: ["parceiro_id"]
-            isOneToOne: false
             referencedRelation: "brainx_parceiros"
             referencedColumns: ["id"]
           },
@@ -1679,7 +1590,6 @@ export type Database = {
           {
             foreignKeyName: "brainx_criativos_parceiro_id_fkey"
             columns: ["parceiro_id"]
-            isOneToOne: false
             referencedRelation: "brainx_parceiros"
             referencedColumns: ["id"]
           },
@@ -1711,14 +1621,12 @@ export type Database = {
           {
             foreignKeyName: "brainx_metricas_campanha_id_fkey"
             columns: ["campanha_id"]
-            isOneToOne: false
             referencedRelation: "brainx_campanhas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "brainx_metricas_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -1744,7 +1652,6 @@ export type Database = {
           {
             foreignKeyName: "brainx_optout_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -1830,14 +1737,12 @@ export type Database = {
           {
             foreignKeyName: "catalogo_precos_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "catalogo_precos_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -1878,14 +1783,12 @@ export type Database = {
           {
             foreignKeyName: "chat_messages_recipient_id_fkey"
             columns: ["recipient_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "chat_messages_sender_id_fkey"
             columns: ["sender_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2085,15 +1988,68 @@ export type Database = {
           {
             foreignKeyName: "company_certificado_a1_file_id_fkey"
             columns: ["certificado_a1_file_id"]
-            isOneToOne: false
             referencedRelation: "arquivos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "company_logo_file_id_fkey"
             columns: ["logo_file_id"]
-            isOneToOne: false
             referencedRelation: "arquivos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_certificado_meta: {
+        Row: {
+          ativo: boolean
+          certificado_file_id: string | null
+          cn: string | null
+          cnpj_certificado: string | null
+          company_id: string
+          emissor: string | null
+          extraido_em: string
+          extraido_por: string | null
+          id: string
+          numero_serie: string | null
+          razao_social_certificado: string | null
+          valido_ate: string | null
+          valido_de: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          certificado_file_id?: string | null
+          cn?: string | null
+          cnpj_certificado?: string | null
+          company_id: string
+          emissor?: string | null
+          extraido_em?: string
+          extraido_por?: string | null
+          id?: string
+          numero_serie?: string | null
+          razao_social_certificado?: string | null
+          valido_ate?: string | null
+          valido_de?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          certificado_file_id?: string | null
+          cn?: string | null
+          cnpj_certificado?: string | null
+          company_id?: string
+          emissor?: string | null
+          extraido_em?: string
+          extraido_por?: string | null
+          id?: string
+          numero_serie?: string | null
+          razao_social_certificado?: string | null
+          valido_ate?: string | null
+          valido_de?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_certificado_meta_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
         ]
@@ -2217,70 +2173,60 @@ export type Database = {
           {
             foreignKeyName: "config_custos_producao_capsula_padrao_id_fkey"
             columns: ["capsula_padrao_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "config_custos_producao_capsula_padrao_id_fkey"
             columns: ["capsula_padrao_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "config_custos_producao_lacre_padrao_id_fkey"
             columns: ["lacre_padrao_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "config_custos_producao_lacre_padrao_id_fkey"
             columns: ["lacre_padrao_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "config_custos_producao_pote_padrao_id_fkey"
             columns: ["pote_padrao_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "config_custos_producao_pote_padrao_id_fkey"
             columns: ["pote_padrao_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "config_custos_producao_rotulo_padrao_id_fkey"
             columns: ["rotulo_padrao_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "config_custos_producao_rotulo_padrao_id_fkey"
             columns: ["rotulo_padrao_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "config_custos_producao_tampa_padrao_id_fkey"
             columns: ["tampa_padrao_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "config_custos_producao_tampa_padrao_id_fkey"
             columns: ["tampa_padrao_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -2366,22 +2312,25 @@ export type Database = {
           {
             foreignKeyName: "contas_pagar_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "contas_pagar_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "contas_pagar_nota_entrada_id_fkey"
             columns: ["nota_entrada_id"]
-            isOneToOne: false
             referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_pagar_nota_entrada_id_fkey"
+            columns: ["nota_entrada_id"]
+            referencedRelation: "v_notas_sem_xml"
             referencedColumns: ["id"]
           },
         ]
@@ -2463,21 +2412,18 @@ export type Database = {
           {
             foreignKeyName: "contas_receber_cliente_id_fkey"
             columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "contas_receber_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "contas_receber_nota_saida_id_fkey"
             columns: ["nota_saida_id"]
-            isOneToOne: false
             referencedRelation: "notas_saida"
             referencedColumns: ["id"]
           },
@@ -2596,14 +2542,12 @@ export type Database = {
           {
             foreignKeyName: "crm_interacoes_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "crm_interacoes_oportunidade_id_fkey"
             columns: ["oportunidade_id"]
-            isOneToOne: false
             referencedRelation: "oportunidades"
             referencedColumns: ["id"]
           },
@@ -2737,7 +2681,6 @@ export type Database = {
           {
             foreignKeyName: "custos_op_lotes_custo_op_id_fkey"
             columns: ["custo_op_id"]
-            isOneToOne: false
             referencedRelation: "custos_op"
             referencedColumns: ["id"]
           },
@@ -2770,10 +2713,133 @@ export type Database = {
         }
         Relationships: []
       }
+      empresa_razao_social_historico: {
+        Row: {
+          alteracao_ref: string | null
+          cnpj: string
+          company_id: string
+          confirmado: boolean
+          confirmado_em: string | null
+          confirmado_por: string | null
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          motivo: string | null
+          nome_fantasia: string | null
+          observacao: string | null
+          origem: string
+          razao_social: string
+        }
+        Insert: {
+          alteracao_ref?: string | null
+          cnpj: string
+          company_id: string
+          confirmado?: boolean
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          id?: string
+          motivo?: string | null
+          nome_fantasia?: string | null
+          observacao?: string | null
+          origem?: string
+          razao_social: string
+        }
+        Update: {
+          alteracao_ref?: string | null
+          cnpj?: string
+          company_id?: string
+          confirmado?: boolean
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          motivo?: string | null
+          nome_fantasia?: string | null
+          observacao?: string | null
+          origem?: string
+          razao_social?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_razao_social_historico_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empresa_rt_historico: {
+        Row: {
+          company_id: string
+          confirmado: boolean
+          confirmado_em: string | null
+          confirmado_por: string | null
+          conselho: string | null
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          observacao: string | null
+          origem: string
+          registro: string | null
+          rt_nome: string
+        }
+        Insert: {
+          company_id: string
+          confirmado?: boolean
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          conselho?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          id?: string
+          observacao?: string | null
+          origem?: string
+          registro?: string | null
+          rt_nome: string
+        }
+        Update: {
+          company_id?: string
+          confirmado?: boolean
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          conselho?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          observacao?: string | null
+          origem?: string
+          registro?: string | null
+          rt_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_rt_historico_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entidade_comercial_crm: {
         Row: {
           canal_preferido: string | null
           comissao_padrao_percent: number | null
+          company_id: string | null
           desconto_maximo_percent: number | null
           entidade_id: string
           etapa_funil: string | null
@@ -2787,6 +2853,7 @@ export type Database = {
         Insert: {
           canal_preferido?: string | null
           comissao_padrao_percent?: number | null
+          company_id?: string | null
           desconto_maximo_percent?: number | null
           entidade_id: string
           etapa_funil?: string | null
@@ -2800,6 +2867,7 @@ export type Database = {
         Update: {
           canal_preferido?: string | null
           comissao_padrao_percent?: number | null
+          company_id?: string | null
           desconto_maximo_percent?: number | null
           entidade_id?: string
           etapa_funil?: string | null
@@ -2812,9 +2880,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_comercial_crm_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_comercial_crm_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: true
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -2824,6 +2897,7 @@ export type Database = {
         Row: {
           aceita_whatsapp: boolean | null
           cargo: string | null
+          company_id: string | null
           created_at: string
           departamento: string | null
           email: string | null
@@ -2840,6 +2914,7 @@ export type Database = {
         Insert: {
           aceita_whatsapp?: boolean | null
           cargo?: string | null
+          company_id?: string | null
           created_at?: string
           departamento?: string | null
           email?: string | null
@@ -2856,6 +2931,7 @@ export type Database = {
         Update: {
           aceita_whatsapp?: boolean | null
           cargo?: string | null
+          company_id?: string | null
           created_at?: string
           departamento?: string | null
           email?: string | null
@@ -2871,9 +2947,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_contatos_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_contatos_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -2881,6 +2962,7 @@ export type Database = {
       }
       entidade_documentos: {
         Row: {
+          company_id: string | null
           created_at: string | null
           entidade_id: string
           hash_arquivo: string | null
@@ -2893,6 +2975,7 @@ export type Database = {
           tipo: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           entidade_id: string
           hash_arquivo?: string | null
@@ -2905,6 +2988,7 @@ export type Database = {
           tipo?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           entidade_id?: string
           hash_arquivo?: string | null
@@ -2918,9 +3002,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_documentos_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_documentos_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -2932,6 +3021,7 @@ export type Database = {
           cep: string | null
           cidade: string | null
           cmun: string | null
+          company_id: string | null
           compl: string | null
           contato_local_fone: string | null
           contato_local_nome: string | null
@@ -2952,6 +3042,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           cmun?: string | null
+          company_id?: string | null
           compl?: string | null
           contato_local_fone?: string | null
           contato_local_nome?: string | null
@@ -2972,6 +3063,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           cmun?: string | null
+          company_id?: string | null
           compl?: string | null
           contato_local_fone?: string | null
           contato_local_nome?: string | null
@@ -2989,9 +3081,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_enderecos_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_enderecos_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -3002,6 +3099,7 @@ export type Database = {
           bloquear_inadimplencia: boolean | null
           categoria_financeira_padrao: string | null
           centro_custo_padrao: string | null
+          company_id: string | null
           condicao_pagamento_padrao: string | null
           dias_tolerancia: number | null
           email_boleto: string | null
@@ -3016,6 +3114,7 @@ export type Database = {
           bloquear_inadimplencia?: boolean | null
           categoria_financeira_padrao?: string | null
           centro_custo_padrao?: string | null
+          company_id?: string | null
           condicao_pagamento_padrao?: string | null
           dias_tolerancia?: number | null
           email_boleto?: string | null
@@ -3030,6 +3129,7 @@ export type Database = {
           bloquear_inadimplencia?: boolean | null
           categoria_financeira_padrao?: string | null
           centro_custo_padrao?: string | null
+          company_id?: string | null
           condicao_pagamento_padrao?: string | null
           dias_tolerancia?: number | null
           email_boleto?: string | null
@@ -3042,9 +3142,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_financeiro_config_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_financeiro_config_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: true
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -3056,6 +3161,7 @@ export type Database = {
           bloquear_sem_ie_quando_exigido: boolean | null
           cfop_padrao_entrada: string | null
           cfop_padrao_saida: string | null
+          company_id: string | null
           cst_cofins_padrao: string | null
           cst_icms_padrao: string | null
           cst_pis_padrao: string | null
@@ -3069,6 +3175,7 @@ export type Database = {
           bloquear_sem_ie_quando_exigido?: boolean | null
           cfop_padrao_entrada?: string | null
           cfop_padrao_saida?: string | null
+          company_id?: string | null
           cst_cofins_padrao?: string | null
           cst_icms_padrao?: string | null
           cst_pis_padrao?: string | null
@@ -3082,6 +3189,7 @@ export type Database = {
           bloquear_sem_ie_quando_exigido?: boolean | null
           cfop_padrao_entrada?: string | null
           cfop_padrao_saida?: string | null
+          company_id?: string | null
           cst_cofins_padrao?: string | null
           cst_icms_padrao?: string | null
           cst_pis_padrao?: string | null
@@ -3092,9 +3200,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_fiscal_config_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_fiscal_config_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: true
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -3102,6 +3215,7 @@ export type Database = {
       }
       entidade_logistica_config: {
         Row: {
+          company_id: string | null
           entidade_id: string
           frete_padrao: string | null
           janela_recebimento: string | null
@@ -3113,6 +3227,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          company_id?: string | null
           entidade_id: string
           frete_padrao?: string | null
           janela_recebimento?: string | null
@@ -3124,6 +3239,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          company_id?: string | null
           entidade_id?: string
           frete_padrao?: string | null
           janela_recebimento?: string | null
@@ -3136,16 +3252,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_logistica_config_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_logistica_config_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: true
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "entidade_logistica_config_transportadora_preferencial_enti_fkey"
             columns: ["transportadora_preferencial_entidade_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -3153,6 +3273,7 @@ export type Database = {
       }
       entidade_papeis: {
         Row: {
+          company_id: string | null
           created_at: string
           dados_especificos: Json | null
           entidade_id: string
@@ -3160,6 +3281,7 @@ export type Database = {
           papel: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           dados_especificos?: Json | null
           entidade_id: string
@@ -3167,6 +3289,7 @@ export type Database = {
           papel: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           dados_especificos?: Json | null
           entidade_id?: string
@@ -3175,9 +3298,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "entidade_papeis_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "entidade_papeis_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -3263,7 +3391,6 @@ export type Database = {
           {
             foreignKeyName: "entidades_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -3376,7 +3503,6 @@ export type Database = {
           {
             foreignKeyName: "equipamentos_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -3427,6 +3553,10 @@ export type Database = {
           fornecedor_id: string | null
           id: string
           item_id: string
+          marca_conferida_em: string | null
+          marca_conferida_por: string | null
+          marca_fornecedor: string | null
+          marca_origem: string | null
           nota_entrada_item_id: string | null
           numero_lote: string
           observacoes_qc: string | null
@@ -3454,6 +3584,10 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           item_id: string
+          marca_conferida_em?: string | null
+          marca_conferida_por?: string | null
+          marca_fornecedor?: string | null
+          marca_origem?: string | null
           nota_entrada_item_id?: string | null
           numero_lote: string
           observacoes_qc?: string | null
@@ -3481,6 +3615,10 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           item_id?: string
+          marca_conferida_em?: string | null
+          marca_conferida_por?: string | null
+          marca_fornecedor?: string | null
+          marca_origem?: string | null
           nota_entrada_item_id?: string | null
           numero_lote?: string
           observacoes_qc?: string | null
@@ -3501,35 +3639,30 @@ export type Database = {
           {
             foreignKeyName: "estoque_lotes_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "estoque_lotes_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "estoque_lotes_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "estoque_lotes_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "estoque_lotes_nota_entrada_item_id_fkey"
             columns: ["nota_entrada_item_id"]
-            isOneToOne: false
             referencedRelation: "notas_entrada_itens"
             referencedColumns: ["id"]
           },
@@ -3591,28 +3724,24 @@ export type Database = {
           {
             foreignKeyName: "estoque_movimentacoes_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "estoque_movimentacoes_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "estoque_movimentacoes_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "estoque_movimentacoes_lote_id_fkey"
             columns: ["lote_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
@@ -3665,14 +3794,12 @@ export type Database = {
           {
             foreignKeyName: "expedicao_romaneio_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "expedicao_romaneio_pedido_id_fkey"
             columns: ["pedido_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_vendedor"
             referencedColumns: ["id"]
           },
@@ -3734,21 +3861,18 @@ export type Database = {
           {
             foreignKeyName: "formula_itens_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "formula_itens_produto_materia_prima_id_fkey"
             columns: ["produto_materia_prima_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "formula_itens_produto_materia_prima_id_fkey"
             columns: ["produto_materia_prima_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -3786,7 +3910,6 @@ export type Database = {
           {
             foreignKeyName: "formula_versoes_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
@@ -3807,8 +3930,7 @@ export type Database = {
           doses_por_frasco: number | null
           doses_por_pote: number | null
           excipiente_padrao:
-            | Database["public"]["Enums"]["tipo_excipiente_formula"]
-            | null
+            Database["public"]["Enums"]["tipo_excipiente_formula"] | null
           gotas_por_dose: number | null
           gotas_por_ml: number | null
           grupo_populacional_alvo: string | null
@@ -3825,8 +3947,7 @@ export type Database = {
           peso_total_pote_g: number | null
           produto_acabado_id: string | null
           status:
-            | Database["public"]["Enums"]["status_formula_industrial"]
-            | null
+            Database["public"]["Enums"]["status_formula_industrial"] | null
           tipo_apresentacao: Database["public"]["Enums"]["tipo_apresentacao_formula"]
           tipo_capsula: string | null
           updated_at: string | null
@@ -3848,8 +3969,7 @@ export type Database = {
           doses_por_frasco?: number | null
           doses_por_pote?: number | null
           excipiente_padrao?:
-            | Database["public"]["Enums"]["tipo_excipiente_formula"]
-            | null
+            Database["public"]["Enums"]["tipo_excipiente_formula"] | null
           gotas_por_dose?: number | null
           gotas_por_ml?: number | null
           grupo_populacional_alvo?: string | null
@@ -3866,8 +3986,7 @@ export type Database = {
           peso_total_pote_g?: number | null
           produto_acabado_id?: string | null
           status?:
-            | Database["public"]["Enums"]["status_formula_industrial"]
-            | null
+            Database["public"]["Enums"]["status_formula_industrial"] | null
           tipo_apresentacao?: Database["public"]["Enums"]["tipo_apresentacao_formula"]
           tipo_capsula?: string | null
           updated_at?: string | null
@@ -3889,8 +4008,7 @@ export type Database = {
           doses_por_frasco?: number | null
           doses_por_pote?: number | null
           excipiente_padrao?:
-            | Database["public"]["Enums"]["tipo_excipiente_formula"]
-            | null
+            Database["public"]["Enums"]["tipo_excipiente_formula"] | null
           gotas_por_dose?: number | null
           gotas_por_ml?: number | null
           grupo_populacional_alvo?: string | null
@@ -3907,8 +4025,7 @@ export type Database = {
           peso_total_pote_g?: number | null
           produto_acabado_id?: string | null
           status?:
-            | Database["public"]["Enums"]["status_formula_industrial"]
-            | null
+            Database["public"]["Enums"]["status_formula_industrial"] | null
           tipo_apresentacao?: Database["public"]["Enums"]["tipo_apresentacao_formula"]
           tipo_capsula?: string | null
           updated_at?: string | null
@@ -3920,21 +4037,18 @@ export type Database = {
           {
             foreignKeyName: "formulas_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "formulas_produto_acabado_id_fkey"
             columns: ["produto_acabado_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "formulas_produto_acabado_id_fkey"
             columns: ["produto_acabado_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -3942,6 +4056,7 @@ export type Database = {
       }
       item_alias: {
         Row: {
+          company_id: string | null
           created_at: string
           fornecedor_id: string | null
           id: string
@@ -3950,6 +4065,7 @@ export type Database = {
           tipo: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           fornecedor_id?: string | null
           id?: string
@@ -3958,6 +4074,7 @@ export type Database = {
           tipo?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           fornecedor_id?: string | null
           id?: string
@@ -3967,23 +4084,26 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "item_alias_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "item_alias_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "item_alias_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "item_alias_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -4051,35 +4171,30 @@ export type Database = {
           {
             foreignKeyName: "item_anvisa_vinculo_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "item_anvisa_vinculo_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "item_anvisa_vinculo_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "item_anvisa_vinculo_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "item_anvisa_vinculo_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -4088,6 +4203,7 @@ export type Database = {
       item_fornecedores: {
         Row: {
           codigo_fornecedor: string | null
+          company_id: string | null
           created_at: string
           descricao_fornecedor: string | null
           fator_para_unidade_interna: number | null
@@ -4103,6 +4219,7 @@ export type Database = {
         }
         Insert: {
           codigo_fornecedor?: string | null
+          company_id?: string | null
           created_at?: string
           descricao_fornecedor?: string | null
           fator_para_unidade_interna?: number | null
@@ -4118,6 +4235,7 @@ export type Database = {
         }
         Update: {
           codigo_fornecedor?: string | null
+          company_id?: string | null
           created_at?: string
           descricao_fornecedor?: string | null
           fator_para_unidade_interna?: number | null
@@ -4133,23 +4251,26 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "item_fornecedores_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "item_fornecedores_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "item_fornecedores_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "item_fornecedores_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -4349,7 +4470,6 @@ export type Database = {
           {
             foreignKeyName: "itens_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -4492,7 +4612,6 @@ export type Database = {
           {
             foreignKeyName: "legislacao_chunks_fonte_id_fkey"
             columns: ["fonte_id"]
-            isOneToOne: false
             referencedRelation: "legislacao_fontes"
             referencedColumns: ["id"]
           },
@@ -4629,7 +4748,6 @@ export type Database = {
           {
             foreignKeyName: "legislacao_perguntas_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -4686,6 +4804,7 @@ export type Database = {
       lote_documentos: {
         Row: {
           arquivo_id: string | null
+          company_id: string | null
           created_at: string
           data_emissao: string | null
           hash_arquivo: string | null
@@ -4700,6 +4819,7 @@ export type Database = {
         }
         Insert: {
           arquivo_id?: string | null
+          company_id?: string | null
           created_at?: string
           data_emissao?: string | null
           hash_arquivo?: string | null
@@ -4714,6 +4834,7 @@ export type Database = {
         }
         Update: {
           arquivo_id?: string | null
+          company_id?: string | null
           created_at?: string
           data_emissao?: string | null
           hash_arquivo?: string | null
@@ -4730,14 +4851,18 @@ export type Database = {
           {
             foreignKeyName: "lote_documentos_arquivo_id_fkey"
             columns: ["arquivo_id"]
-            isOneToOne: false
             referencedRelation: "arquivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lote_documentos_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lote_documentos_lote_id_fkey"
             columns: ["lote_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
@@ -4799,14 +4924,12 @@ export type Database = {
           {
             foreignKeyName: "lote_liberacoes_sem_coa_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lote_liberacoes_sem_coa_lote_id_fkey"
             columns: ["lote_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
@@ -4850,28 +4973,24 @@ export type Database = {
           {
             foreignKeyName: "lote_materias_primas_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lote_materias_primas_insumo_id_fkey"
             columns: ["insumo_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "lote_materias_primas_insumo_id_fkey"
             columns: ["insumo_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lote_materias_primas_lote_produto_acabado_id_fkey"
             columns: ["lote_produto_acabado_id"]
-            isOneToOne: false
             referencedRelation: "lotes_produto_acabado"
             referencedColumns: ["id"]
           },
@@ -4903,8 +5022,7 @@ export type Database = {
           rt_nome: string | null
           rt_numero_registro: string | null
           rt_tipo_conselho:
-            | Database["public"]["Enums"]["tipo_conselho_profissional"]
-            | null
+            Database["public"]["Enums"]["tipo_conselho_profissional"] | null
           rt_uf_conselho: string | null
           status: string
           updated_at: string
@@ -4937,8 +5055,7 @@ export type Database = {
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
-            | Database["public"]["Enums"]["tipo_conselho_profissional"]
-            | null
+            Database["public"]["Enums"]["tipo_conselho_profissional"] | null
           rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
@@ -4971,8 +5088,7 @@ export type Database = {
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
-            | Database["public"]["Enums"]["tipo_conselho_profissional"]
-            | null
+            Database["public"]["Enums"]["tipo_conselho_profissional"] | null
           rt_uf_conselho?: string | null
           status?: string
           updated_at?: string
@@ -4984,35 +5100,30 @@ export type Database = {
           {
             foreignKeyName: "lotes_produto_acabado_assinatura_liberacao_id_fkey"
             columns: ["assinatura_liberacao_id"]
-            isOneToOne: false
             referencedRelation: "op_assinaturas_rt"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotes_produto_acabado_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "lotes_produto_acabado_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotes_produto_acabado_responsavel_tecnico_id_fkey"
             columns: ["responsavel_tecnico_id"]
-            isOneToOne: false
             referencedRelation: "responsaveis_tecnicos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotes_produto_acabado_white_label_cliente_id_fkey"
             columns: ["white_label_cliente_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -5092,42 +5203,36 @@ export type Database = {
           {
             foreignKeyName: "lotes_reservados_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotes_reservados_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotes_reservados_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "lotes_reservados_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotes_reservados_lote_pa_id_fkey"
             columns: ["lote_pa_id"]
-            isOneToOne: false
             referencedRelation: "lotes_produto_acabado"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotes_reservados_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
@@ -5168,14 +5273,12 @@ export type Database = {
           {
             foreignKeyName: "manual_busca_log_clicou_em_fkey"
             columns: ["clicou_em"]
-            isOneToOne: false
             referencedRelation: "manual_perguntas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "manual_busca_log_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -5213,7 +5316,6 @@ export type Database = {
           {
             foreignKeyName: "manual_feedback_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -5260,7 +5362,6 @@ export type Database = {
           {
             foreignKeyName: "manual_ia_historico_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -5325,7 +5426,6 @@ export type Database = {
           {
             foreignKeyName: "manual_perguntas_secao_id_fkey"
             columns: ["secao_id"]
-            isOneToOne: false
             referencedRelation: "manual_secoes"
             referencedColumns: ["id"]
           },
@@ -5429,7 +5529,6 @@ export type Database = {
           {
             foreignKeyName: "nfe_auditoria_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -5476,7 +5575,6 @@ export type Database = {
           {
             foreignKeyName: "nfe_numeracao_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -5547,35 +5645,30 @@ export type Database = {
           {
             foreignKeyName: "fk_notas_entrada_company"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_pedido_id_fkey"
             columns: ["pedido_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_pedido_id_fkey"
             columns: ["pedido_id"]
-            isOneToOne: false
             referencedRelation: "recebimento_divergencias"
             referencedColumns: ["pedido_id"]
           },
@@ -5637,42 +5730,42 @@ export type Database = {
           {
             foreignKeyName: "notas_entrada_itens_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_nota_entrada_id_fkey"
             columns: ["nota_entrada_id"]
-            isOneToOne: false
             referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_itens_nota_entrada_id_fkey"
+            columns: ["nota_entrada_id"]
+            referencedRelation: "v_notas_sem_xml"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_compra_itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "recebimento_divergencias"
             referencedColumns: ["pedido_item_id"]
           },
@@ -5824,21 +5917,18 @@ export type Database = {
           {
             foreignKeyName: "notas_saida_cliente_id_fkey"
             columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_saida_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_saida_transportadora_id_fkey"
             columns: ["transportadora_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -5853,6 +5943,7 @@ export type Database = {
           cfop: string | null
           cofins_aliquota: number | null
           cofins_valor: number | null
+          company_id: string | null
           cst_cofins: string | null
           cst_icms: string | null
           cst_pis: string | null
@@ -5886,6 +5977,7 @@ export type Database = {
           cfop?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
+          company_id?: string | null
           cst_cofins?: string | null
           cst_icms?: string | null
           cst_pis?: string | null
@@ -5919,6 +6011,7 @@ export type Database = {
           cfop?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
+          company_id?: string | null
           cst_cofins?: string | null
           cst_icms?: string | null
           cst_pis?: string | null
@@ -5946,30 +6039,32 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "notas_saida_itens_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "notas_saida_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "notas_saida_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_saida_itens_lote_id_fkey"
             columns: ["lote_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_saida_itens_nota_saida_id_fkey"
             columns: ["nota_saida_id"]
-            isOneToOne: false
             referencedRelation: "notas_saida"
             referencedColumns: ["id"]
           },
@@ -6013,6 +6108,7 @@ export type Database = {
       }
       op_anexos: {
         Row: {
+          company_id: string | null
           congelado_em: string | null
           congelado_por: string | null
           created_at: string | null
@@ -6028,6 +6124,7 @@ export type Database = {
           versao: number
         }
         Insert: {
+          company_id?: string | null
           congelado_em?: string | null
           congelado_por?: string | null
           created_at?: string | null
@@ -6043,6 +6140,7 @@ export type Database = {
           versao?: number
         }
         Update: {
+          company_id?: string | null
           congelado_em?: string | null
           congelado_por?: string | null
           created_at?: string | null
@@ -6057,11 +6155,19 @@ export type Database = {
           tipo_anexo?: string
           versao?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "op_anexos_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       op_assinaturas_rt: {
         Row: {
           assinatura_timestamp: string
+          company_id: string | null
           created_at: string
           declaracao_aceita: boolean
           hash_op: string
@@ -6078,6 +6184,7 @@ export type Database = {
         }
         Insert: {
           assinatura_timestamp?: string
+          company_id?: string | null
           created_at?: string
           declaracao_aceita?: boolean
           hash_op: string
@@ -6094,6 +6201,7 @@ export type Database = {
         }
         Update: {
           assinatura_timestamp?: string
+          company_id?: string | null
           created_at?: string
           declaracao_aceita?: boolean
           hash_op?: string
@@ -6110,16 +6218,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "op_assinaturas_rt_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "op_assinaturas_rt_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_assinaturas_rt_responsavel_tecnico_id_fkey"
             columns: ["responsavel_tecnico_id"]
-            isOneToOne: false
             referencedRelation: "responsaveis_tecnicos"
             referencedColumns: ["id"]
           },
@@ -6129,6 +6241,7 @@ export type Database = {
         Row: {
           categoria: string
           codigo: string | null
+          company_id: string | null
           created_at: string | null
           id: string
           item: string
@@ -6143,6 +6256,7 @@ export type Database = {
         Insert: {
           categoria: string
           codigo?: string | null
+          company_id?: string | null
           created_at?: string | null
           id?: string
           item: string
@@ -6157,6 +6271,7 @@ export type Database = {
         Update: {
           categoria?: string
           codigo?: string | null
+          company_id?: string | null
           created_at?: string | null
           id?: string
           item?: string
@@ -6170,16 +6285,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "op_checklist_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "op_checklist_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_checklist_verificado_por_fkey"
             columns: ["verificado_por"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -6188,6 +6307,7 @@ export type Database = {
       op_controle_perdas: {
         Row: {
           acrescimo_percentual: number
+          company_id: string | null
           created_at: string | null
           id: string
           justificativa_perdas: string | null
@@ -6204,6 +6324,7 @@ export type Database = {
         }
         Insert: {
           acrescimo_percentual: number
+          company_id?: string | null
           created_at?: string | null
           id?: string
           justificativa_perdas?: string | null
@@ -6220,6 +6341,7 @@ export type Database = {
         }
         Update: {
           acrescimo_percentual?: number
+          company_id?: string | null
           created_at?: string | null
           id?: string
           justificativa_perdas?: string | null
@@ -6236,9 +6358,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "op_controle_perdas_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "op_controle_perdas_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
@@ -6250,6 +6377,7 @@ export type Database = {
           aparencia_po: string | null
           avaliado_em: string | null
           avaliado_por: string | null
+          company_id: string | null
           created_at: string | null
           desvio_padrao_peso: number | null
           fluidez: string | null
@@ -6271,6 +6399,7 @@ export type Database = {
           aparencia_po?: string | null
           avaliado_em?: string | null
           avaliado_por?: string | null
+          company_id?: string | null
           created_at?: string | null
           desvio_padrao_peso?: number | null
           fluidez?: string | null
@@ -6292,6 +6421,7 @@ export type Database = {
           aparencia_po?: string | null
           avaliado_em?: string | null
           avaliado_por?: string | null
+          company_id?: string | null
           created_at?: string | null
           desvio_padrao_peso?: number | null
           fluidez?: string | null
@@ -6312,14 +6442,18 @@ export type Database = {
           {
             foreignKeyName: "op_controle_qualidade_avaliado_por_fkey"
             columns: ["avaliado_por"]
-            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "op_controle_qualidade_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_controle_qualidade_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
@@ -6327,6 +6461,7 @@ export type Database = {
       }
       op_embalagens: {
         Row: {
+          company_id: string | null
           created_at: string | null
           custo_total: number | null
           custo_unitario: number | null
@@ -6344,6 +6479,7 @@ export type Database = {
           tipo_embalagem: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           custo_total?: number | null
           custo_unitario?: number | null
@@ -6361,6 +6497,7 @@ export type Database = {
           tipo_embalagem: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           custo_total?: number | null
           custo_unitario?: number | null
@@ -6379,9 +6516,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "op_embalagens_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "op_embalagens_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
@@ -6434,14 +6576,12 @@ export type Database = {
           {
             foreignKeyName: "op_excipientes_config_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "op_excipientes_config_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -6449,6 +6589,7 @@ export type Database = {
       }
       op_historico_etapas: {
         Row: {
+          company_id: string | null
           created_at: string | null
           etapa: string
           finalizada_em: string | null
@@ -6460,6 +6601,7 @@ export type Database = {
           operador_nome: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           etapa: string
           finalizada_em?: string | null
@@ -6471,6 +6613,7 @@ export type Database = {
           operador_nome?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           etapa?: string
           finalizada_em?: string | null
@@ -6483,9 +6626,14 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "op_historico_etapas_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "op_historico_etapas_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
@@ -6496,6 +6644,7 @@ export type Database = {
           categoria: string
           coa_arquivo_id: string | null
           coa_hash: string | null
+          company_id: string | null
           conferido_em: string | null
           conferido_por: string | null
           created_at: string | null
@@ -6529,6 +6678,7 @@ export type Database = {
           categoria?: string
           coa_arquivo_id?: string | null
           coa_hash?: string | null
+          company_id?: string | null
           conferido_em?: string | null
           conferido_por?: string | null
           created_at?: string | null
@@ -6562,6 +6712,7 @@ export type Database = {
           categoria?: string
           coa_arquivo_id?: string | null
           coa_hash?: string | null
+          company_id?: string | null
           conferido_em?: string | null
           conferido_por?: string | null
           created_at?: string | null
@@ -6593,51 +6744,50 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "op_materias_primas_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "op_materias_primas_conferido_por_fkey"
             columns: ["conferido_por"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_materias_primas_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_materias_primas_insumo_id_fkey"
             columns: ["insumo_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "op_materias_primas_insumo_id_fkey"
             columns: ["insumo_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_materias_primas_lote_id_fkey"
             columns: ["lote_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_materias_primas_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_materias_primas_pesado_por_fkey"
             columns: ["pesado_por"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -6647,6 +6797,7 @@ export type Database = {
         Row: {
           assinatura_conferente: string | null
           assinatura_operador: string | null
+          company_id: string | null
           conferente_id: string | null
           conferente_nome: string | null
           created_at: string | null
@@ -6666,6 +6817,7 @@ export type Database = {
         Insert: {
           assinatura_conferente?: string | null
           assinatura_operador?: string | null
+          company_id?: string | null
           conferente_id?: string | null
           conferente_nome?: string | null
           created_at?: string | null
@@ -6685,6 +6837,7 @@ export type Database = {
         Update: {
           assinatura_conferente?: string | null
           assinatura_operador?: string | null
+          company_id?: string | null
           conferente_id?: string | null
           conferente_nome?: string | null
           created_at?: string | null
@@ -6703,30 +6856,32 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "op_pesagens_criticas_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "op_pesagens_criticas_conferente_id_fkey"
             columns: ["conferente_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_pesagens_criticas_materia_prima_id_fkey"
             columns: ["materia_prima_id"]
-            isOneToOne: false
             referencedRelation: "op_materias_primas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_pesagens_criticas_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "op_pesagens_criticas_operador_pesagem_id_fkey"
             columns: ["operador_pesagem_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -6800,21 +6955,18 @@ export type Database = {
           {
             foreignKeyName: "oportunidades_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "oportunidades_entidade_id_fkey"
             columns: ["entidade_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "oportunidades_vendedor_id_fkey"
             columns: ["vendedor_id"]
-            isOneToOne: false
             referencedRelation: "vendedores_externos"
             referencedColumns: ["id"]
           },
@@ -6897,28 +7049,24 @@ export type Database = {
           {
             foreignKeyName: "orcamento_itens_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "orcamento_itens_orcamento_id_fkey"
             columns: ["orcamento_id"]
-            isOneToOne: false
             referencedRelation: "orcamentos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "orcamento_itens_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "orcamento_itens_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -7061,14 +7209,12 @@ export type Database = {
           {
             foreignKeyName: "orcamentos_cliente_id_fkey"
             columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "orcamentos_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -7103,7 +7249,6 @@ export type Database = {
           {
             foreignKeyName: "ordens_producao_geradas_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
@@ -7178,8 +7323,7 @@ export type Database = {
           rt_nome: string | null
           rt_numero_registro: string | null
           rt_tipo_conselho:
-            | Database["public"]["Enums"]["tipo_conselho_profissional"]
-            | null
+            Database["public"]["Enums"]["tipo_conselho_profissional"] | null
           rt_uf_conselho: string | null
           rt_vinculado_em: string | null
           sala_producao: string | null
@@ -7271,8 +7415,7 @@ export type Database = {
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
-            | Database["public"]["Enums"]["tipo_conselho_profissional"]
-            | null
+            Database["public"]["Enums"]["tipo_conselho_profissional"] | null
           rt_uf_conselho?: string | null
           rt_vinculado_em?: string | null
           sala_producao?: string | null
@@ -7364,8 +7507,7 @@ export type Database = {
           rt_nome?: string | null
           rt_numero_registro?: string | null
           rt_tipo_conselho?:
-            | Database["public"]["Enums"]["tipo_conselho_profissional"]
-            | null
+            Database["public"]["Enums"]["tipo_conselho_profissional"] | null
           rt_uf_conselho?: string | null
           rt_vinculado_em?: string | null
           sala_producao?: string | null
@@ -7393,126 +7535,108 @@ export type Database = {
           {
             foreignKeyName: "ordens_producao_industrial_assinatura_rt_id_fkey"
             columns: ["assinatura_rt_id"]
-            isOneToOne: false
             referencedRelation: "op_assinaturas_rt"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_capsula_item_id_fkey"
             columns: ["capsula_item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_capsula_item_id_fkey"
             columns: ["capsula_item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_created_by_fkey"
             columns: ["created_by"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_equipamento_id_fkey"
             columns: ["equipamento_id"]
-            isOneToOne: false
             referencedRelation: "equipamentos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_finalizado_por_fkey"
             columns: ["finalizado_por"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_pote_item_id_fkey"
             columns: ["pote_item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_pote_item_id_fkey"
             columns: ["pote_item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_responsavel_producao_id_fkey"
             columns: ["responsavel_producao_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_responsavel_tecnico_id_fkey"
             columns: ["responsavel_tecnico_id"]
-            isOneToOne: false
             referencedRelation: "responsaveis_tecnicos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_silica_item_id_fkey"
             columns: ["silica_item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_silica_item_id_fkey"
             columns: ["silica_item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_tampa_item_id_fkey"
             columns: ["tampa_item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "ordens_producao_industrial_tampa_item_id_fkey"
             columns: ["tampa_item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -7613,42 +7737,36 @@ export type Database = {
           {
             foreignKeyName: "pedido_itens_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_itens_lote_produto_acabado_id_fkey"
             columns: ["lote_produto_acabado_id"]
-            isOneToOne: false
             referencedRelation: "lotes_produto_acabado"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_itens_orcamento_item_id_fkey"
             columns: ["orcamento_item_id"]
-            isOneToOne: false
             referencedRelation: "orcamento_itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_itens_pedido_id_fkey"
             columns: ["pedido_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_venda"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_itens_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "pedido_itens_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -7707,35 +7825,30 @@ export type Database = {
           {
             foreignKeyName: "pedido_vendedor_itens_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_vendedor_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "pedido_vendedor_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_vendedor_itens_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_vendedor_itens_pedido_id_fkey"
             columns: ["pedido_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_vendedor"
             referencedColumns: ["id"]
           },
@@ -7797,14 +7910,12 @@ export type Database = {
           {
             foreignKeyName: "pedidos_compra_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -7866,28 +7977,24 @@ export type Database = {
           {
             foreignKeyName: "pedidos_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "pedidos_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_compra_itens_pedido_id_fkey"
             columns: ["pedido_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_compra_itens_pedido_id_fkey"
             columns: ["pedido_id"]
-            isOneToOne: false
             referencedRelation: "recebimento_divergencias"
             referencedColumns: ["pedido_id"]
           },
@@ -8006,35 +8113,30 @@ export type Database = {
           {
             foreignKeyName: "pedidos_venda_cliente_id_fkey"
             columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_venda_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_venda_endereco_entrega_id_fkey"
             columns: ["endereco_entrega_id"]
-            isOneToOne: false
             referencedRelation: "entidade_enderecos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_venda_orcamento_id_fkey"
             columns: ["orcamento_id"]
-            isOneToOne: false
             referencedRelation: "orcamentos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_venda_transportadora_id_fkey"
             columns: ["transportadora_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -8120,35 +8222,30 @@ export type Database = {
           {
             foreignKeyName: "pedidos_vendedor_cliente_id_fkey"
             columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_vendedor_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_vendedor_oportunidade_id_fkey"
             columns: ["oportunidade_id"]
-            isOneToOne: false
             referencedRelation: "oportunidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_vendedor_transportadora_id_fkey"
             columns: ["transportadora_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_vendedor_vendedor_id_fkey"
             columns: ["vendedor_id"]
-            isOneToOne: false
             referencedRelation: "vendedores_externos"
             referencedColumns: ["id"]
           },
@@ -8195,14 +8292,12 @@ export type Database = {
           {
             foreignKeyName: "pop_registros_execucao_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pop_registros_execucao_pop_id_fkey"
             columns: ["pop_id"]
-            isOneToOne: false
             referencedRelation: "pops"
             referencedColumns: ["id"]
           },
@@ -8273,14 +8368,12 @@ export type Database = {
           {
             foreignKeyName: "pops_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pops_rt_id_fkey"
             columns: ["rt_id"]
-            isOneToOne: false
             referencedRelation: "responsaveis_tecnicos"
             referencedColumns: ["id"]
           },
@@ -8327,49 +8420,42 @@ export type Database = {
           {
             foreignKeyName: "premix_definicao_constituinte_anvisa_id_fkey"
             columns: ["constituinte_anvisa_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "premix_definicao_constituinte_anvisa_id_fkey"
             columns: ["constituinte_anvisa_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "premix_definicao_constituinte_anvisa_id_fkey"
             columns: ["constituinte_anvisa_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "premix_definicao_item_ativo_puro_id_fkey"
             columns: ["item_ativo_puro_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "premix_definicao_item_ativo_puro_id_fkey"
             columns: ["item_ativo_puro_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "premix_definicao_item_premix_id_fkey"
             columns: ["item_premix_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "premix_definicao_item_premix_id_fkey"
             columns: ["item_premix_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -8422,21 +8508,18 @@ export type Database = {
           {
             foreignKeyName: "premix_politica_constituinte_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_checker_base"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "premix_politica_constituinte_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_constituintes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "premix_politica_constituinte_constituinte_id_fkey"
             columns: ["constituinte_id"]
-            isOneToOne: false
             referencedRelation: "vw_anvisa_constituintes_completo"
             referencedColumns: ["id"]
           },
@@ -8495,14 +8578,12 @@ export type Database = {
           {
             foreignKeyName: "previsoes_producao_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "previsoes_producao_produto_id_fkey"
             columns: ["produto_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -8564,7 +8645,6 @@ export type Database = {
           {
             foreignKeyName: "profiles_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -8626,14 +8706,12 @@ export type Database = {
           {
             foreignKeyName: "qc_analises_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "qc_analises_lote_id_fkey"
             columns: ["lote_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
@@ -8683,7 +8761,6 @@ export type Database = {
           {
             foreignKeyName: "qc_calibracoes_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -8874,18 +8951,52 @@ export type Database = {
           {
             foreignKeyName: "qc_desvios_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "qc_desvios_lote_id_fkey"
             columns: ["lote_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
         ]
+      }
+      qr_scan_log: {
+        Row: {
+          bloqueado: boolean
+          company_id: string | null
+          encontrado: boolean
+          id: string
+          ip_hash: string
+          lote_id: string | null
+          scanned_at: string
+          tipo_lote: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          bloqueado?: boolean
+          company_id?: string | null
+          encontrado?: boolean
+          id?: string
+          ip_hash: string
+          lote_id?: string | null
+          scanned_at?: string
+          tipo_lote?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          bloqueado?: boolean
+          company_id?: string | null
+          encontrado?: boolean
+          id?: string
+          ip_hash?: string
+          lote_id?: string | null
+          scanned_at?: string
+          tipo_lote?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       ranking_fornecedores: {
         Row: {
@@ -8949,7 +9060,6 @@ export type Database = {
           {
             foreignKeyName: "ranking_fornecedores_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: true
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
@@ -8990,28 +9100,24 @@ export type Database = {
           {
             foreignKeyName: "rastreabilidade_lote_mp_item_mp_id_fkey"
             columns: ["item_mp_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "rastreabilidade_lote_mp_item_mp_id_fkey"
             columns: ["item_mp_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rastreabilidade_lote_mp_lote_mp_id_fkey"
             columns: ["lote_mp_id"]
-            isOneToOne: false
             referencedRelation: "estoque_lotes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rastreabilidade_lote_mp_lote_produto_acabado_id_fkey"
             columns: ["lote_produto_acabado_id"]
-            isOneToOne: false
             referencedRelation: "lotes_produto_acabado"
             referencedColumns: ["id"]
           },
@@ -9061,28 +9167,24 @@ export type Database = {
           {
             foreignKeyName: "recebimentos_conferencia_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "recebimentos_conferencia_nota_entrada_item_id_fkey"
             columns: ["nota_entrada_item_id"]
-            isOneToOne: false
             referencedRelation: "notas_entrada_itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "recebimentos_conferencia_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_compra_itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "recebimentos_conferencia_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "recebimento_divergencias"
             referencedColumns: ["pedido_item_id"]
           },
@@ -9186,14 +9288,12 @@ export type Database = {
           {
             foreignKeyName: "regulatory_snapshots_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "regulatory_snapshots_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
@@ -9270,21 +9370,24 @@ export type Database = {
           {
             foreignKeyName: "requisicoes_compra_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_nota_entrada_id_fkey"
             columns: ["nota_entrada_id"]
-            isOneToOne: false
             referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_compra_nota_entrada_id_fkey"
+            columns: ["nota_entrada_id"]
+            referencedRelation: "v_notas_sem_xml"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_op_id_fkey"
             columns: ["op_id"]
-            isOneToOne: false
             referencedRelation: "ordens_producao_industrial"
             referencedColumns: ["id"]
           },
@@ -9349,28 +9452,24 @@ export type Database = {
           {
             foreignKeyName: "requisicoes_compra_cotacoes_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_cotacoes_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_compra_itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_cotacoes_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "recebimento_divergencias"
             referencedColumns: ["pedido_item_id"]
           },
           {
             foreignKeyName: "requisicoes_compra_cotacoes_requisicao_item_id_fkey"
             columns: ["requisicao_item_id"]
-            isOneToOne: false
             referencedRelation: "requisicoes_compra_itens"
             referencedColumns: ["id"]
           },
@@ -9432,42 +9531,36 @@ export type Database = {
           {
             foreignKeyName: "requisicoes_compra_itens_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "pedidos_compra_itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_pedido_item_id_fkey"
             columns: ["pedido_item_id"]
-            isOneToOne: false
             referencedRelation: "recebimento_divergencias"
             referencedColumns: ["pedido_item_id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_requisicao_id_fkey"
             columns: ["requisicao_id"]
-            isOneToOne: false
             referencedRelation: "requisicoes_compra"
             referencedColumns: ["id"]
           },
@@ -9535,14 +9628,12 @@ export type Database = {
           {
             foreignKeyName: "responsaveis_tecnicos_contrato_prestacao_servico_id_fkey"
             columns: ["contrato_prestacao_servico_id"]
-            isOneToOne: false
             referencedRelation: "arquivos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "responsaveis_tecnicos_documento_comprobatorio_id_fkey"
             columns: ["documento_comprobatorio_id"]
-            isOneToOne: false
             referencedRelation: "arquivos"
             referencedColumns: ["id"]
           },
@@ -9640,7 +9731,6 @@ export type Database = {
           {
             foreignKeyName: "saas_company_notas_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -9693,7 +9783,6 @@ export type Database = {
           {
             foreignKeyName: "saas_comunicados_alvo_tenant_fkey"
             columns: ["alvo_tenant"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -9722,7 +9811,6 @@ export type Database = {
           {
             foreignKeyName: "saas_comunicados_lidos_comunicado_id_fkey"
             columns: ["comunicado_id"]
-            isOneToOne: false
             referencedRelation: "saas_comunicados"
             referencedColumns: ["id"]
           },
@@ -9829,7 +9917,6 @@ export type Database = {
           {
             foreignKeyName: "saas_ticket_mensagens_ticket_id_fkey"
             columns: ["ticket_id"]
-            isOneToOne: false
             referencedRelation: "saas_tickets"
             referencedColumns: ["id"]
           },
@@ -9882,7 +9969,6 @@ export type Database = {
           {
             foreignKeyName: "saas_tickets_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -9935,7 +10021,6 @@ export type Database = {
           {
             foreignKeyName: "sensor_readings_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -10165,7 +10250,6 @@ export type Database = {
           {
             foreignKeyName: "tabelas_nutricionais_formula_id_fkey"
             columns: ["formula_id"]
-            isOneToOne: false
             referencedRelation: "formulas"
             referencedColumns: ["id"]
           },
@@ -10419,28 +10503,24 @@ export type Database = {
           {
             foreignKeyName: "vendedor_tabela_precos_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vendedor_tabela_precos_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "vendedor_tabela_precos_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vendedor_tabela_precos_vendedor_id_fkey"
             columns: ["vendedor_id"]
-            isOneToOne: false
             referencedRelation: "vendedores_externos"
             referencedColumns: ["id"]
           },
@@ -10499,7 +10579,6 @@ export type Database = {
           {
             foreignKeyName: "vendedores_externos_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -10639,7 +10718,6 @@ export type Database = {
           {
             foreignKeyName: "itens_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
@@ -10689,14 +10767,12 @@ export type Database = {
           {
             foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -10718,35 +10794,30 @@ export type Database = {
           {
             foreignKeyName: "fk_notas_entrada_company"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -10768,28 +10839,24 @@ export type Database = {
           {
             foreignKeyName: "fk_notas_entrada_company"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "notas_entrada_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -10824,21 +10891,18 @@ export type Database = {
           {
             foreignKeyName: "requisicoes_compra_cotacoes_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "requisicoes_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
             referencedColumns: ["id"]
           },
@@ -10883,29 +10947,71 @@ export type Database = {
           {
             foreignKeyName: "pedidos_compra_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: false
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
-            isOneToOne: false
             referencedRelation: "entidades"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "anvisa_itens_sem_vinculo"
             referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "pedidos_compra_itens_item_id_fkey"
             columns: ["item_id"]
-            isOneToOne: false
             referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_notas_sem_xml: {
+        Row: {
+          acao: string | null
+          chave_nfe: string | null
+          company_id: string | null
+          emissao: string | null
+          id: string | null
+          numero: string | null
+          xml_no_banco: boolean | null
+          xml_no_storage: boolean | null
+        }
+        Insert: {
+          acao?: never
+          chave_nfe?: string | null
+          company_id?: string | null
+          emissao?: never
+          id?: string | null
+          numero?: string | null
+          xml_no_banco?: never
+          xml_no_storage?: never
+        }
+        Update: {
+          acao?: never
+          chave_nfe?: string | null
+          company_id?: string | null
+          emissao?: never
+          id?: string | null
+          numero?: string | null
+          xml_no_banco?: never
+          xml_no_storage?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_notas_entrada_company"
+            columns: ["company_id"]
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrada_company_id_fkey"
+            columns: ["company_id"]
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
         ]
@@ -10994,6 +11100,16 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_lote_scans: {
+        Row: {
+          company_id: string | null
+          lote_id: string | null
+          scans_bloqueados: number | null
+          scans_ok: number | null
+          ultimo_scan: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _ghost_audit_key: { Args: never; Returns: string }
@@ -11019,6 +11135,43 @@ export type Database = {
         }
         Returns: number
       }
+      ambiental_historico_agregado: {
+        Args: {
+          p_bucket?: string
+          p_device_id?: string
+          p_since: string
+          p_until?: string
+        }
+        Returns: {
+          bucket: string
+          device_id: string
+          fora_da_faixa: number
+          hum_avg: number
+          hum_max: number
+          hum_min: number
+          leituras: number
+          room_name: string
+          temp_avg: number
+          temp_max: number
+          temp_min: number
+        }[]
+      }
+      ambiental_tempo_real: {
+        Args: never
+        Returns: {
+          device_id: string
+          fora_da_faixa: boolean
+          hum_max: number
+          hum_min: number
+          humidity: number
+          recorded_at: string
+          room_name: string
+          segundos_atras: number
+          temp_max: number
+          temp_min: number
+          temperature: number
+        }[]
+      }
       anvisa_avaliar_formula: {
         Args: { p_data?: string; p_formula_id: string; p_grupo?: string }
         Returns: {
@@ -11032,6 +11185,10 @@ export type Database = {
           norma: string
           status: string
         }[]
+      }
+      anvisa_consultar: {
+        Args: { p_dose_mg?: number; p_grupo?: string; p_termo: string }
+        Returns: Json
       }
       anvisa_limite_para_mg: {
         Args: { p_unidade: string; p_valor: number }
@@ -11059,6 +11216,7 @@ export type Database = {
           unidade: string
         }[]
       }
+      anvisa_service_role_key: { Args: never; Returns: string }
       aprovar_compra: { Args: never; Returns: Json }
       aprovar_compra_fornecedor: {
         Args: { p_fornecedor_id: string }
@@ -11068,17 +11226,13 @@ export type Database = {
         Args: { p_op_id: string }
         Returns: undefined
       }
+      baixar_estoque_op_item: {
+        Args: { p_op_material_id: string }
+        Returns: Json
+      }
       baixar_estoque_op_materias_primas: {
         Args: { p_op_id: string }
         Returns: undefined
-      }
-      anvisa_consultar: {
-        Args: {
-          p_termo: string
-          p_grupo?: string | null
-          p_dose_mg?: number | null
-        }
-        Returns: Json
       }
       buscar_constituinte_fuzzy: {
         Args: { termo_busca: string }
@@ -11224,7 +11378,17 @@ export type Database = {
         Args: { p_motivo: string; p_reserva_id: string }
         Returns: undefined
       }
+      certificado_divergencia: { Args: { p_company_id: string }; Returns: Json }
       coa_densidade_scan_pendentes: { Args: never; Returns: Json }
+      conferir_marca_lote: {
+        Args: {
+          p_lote_id: string
+          p_marca: string
+          p_observacao?: string
+          p_origem?: string
+        }
+        Returns: Json
+      }
       conferir_recebimento: {
         Args: {
           p_avaria?: boolean
@@ -11296,6 +11460,30 @@ export type Database = {
         Returns: Json
       }
       desvincular_nota_pedido: { Args: { p_nota_id: string }; Returns: Json }
+      empresa_identidade_em: {
+        Args: { p_company_id: string; p_data: string }
+        Returns: {
+          cnpj: string
+          confirmado: boolean
+          do_historico: boolean
+          nome_fantasia: string
+          origem: string
+          razao_social: string
+        }[]
+      }
+      empresa_razao_social_em: {
+        Args: { p_company_id: string; p_data: string }
+        Returns: string
+      }
+      empresa_rt_em: {
+        Args: { p_company_id: string; p_data: string }
+        Returns: {
+          confirmado: boolean
+          conselho: string
+          registro: string
+          rt_nome: string
+        }[]
+      }
       entidade_belongs_to_tenant: { Args: { _eid: string }; Returns: boolean }
       escolher_fornecedor_item_consolidado: {
         Args: { p_fornecedor_id: string; p_item_id: string }
@@ -11344,13 +11532,12 @@ export type Database = {
         Args: { p_lote_pa: string; p_op_id: string; p_secret?: string }
         Returns: string
       }
-      get_lote_publico: { Args: { p_id: string }; Returns: Json }
-      qr_client_ip_hash: { Args: never; Returns: string }
       get_company_smtp_password: {
         Args: { p_company_id: string }
         Returns: string
       }
       get_ghost_target_company: { Args: { _uid?: string }; Returns: string }
+      get_lote_publico: { Args: { p_id: string }; Returns: Json }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -11436,7 +11623,16 @@ export type Database = {
           texto: string
         }[]
       }
+      mesclar_itens: {
+        Args: {
+          p_item_absorver: string
+          p_item_manter: string
+          p_motivo?: string
+        }
+        Returns: Json
+      }
       norm_texto_ancora: { Args: { p_texto: string }; Returns: string }
+      norm_txt: { Args: { p: string }; Returns: string }
       nota_entrada_belongs_to_tenant: {
         Args: { _nid: string }
         Returns: boolean
@@ -11453,6 +11649,7 @@ export type Database = {
         Args: { p_company_id?: string }
         Returns: string
       }
+      qr_client_ip_hash: { Args: never; Returns: string }
       read_ghost_audit: {
         Args: { p_limit?: number; p_since?: string; p_target_company?: string }
         Returns: {
@@ -11535,6 +11732,10 @@ export type Database = {
         }
         Returns: Json
       }
+      reprocessar_dados_derivados_nota: {
+        Args: { p_nota_id: string }
+        Returns: Json
+      }
       reservar_proximo_lote: {
         Args: {
           p_ano_mes: string
@@ -11559,6 +11760,28 @@ export type Database = {
           serie: number
         }[]
       }
+      rt_confirmar_vinculo: {
+        Args: {
+          p_company_id: string
+          p_confirmado_por: string
+          p_constituinte_id: string
+          p_item_id: string
+          p_observacao?: string
+          p_teor_max_pct?: number
+          p_teor_min_pct?: number
+          p_teor_nominal_pct?: number
+        }
+        Returns: Json
+      }
+      rt_marcar_vinculo_nao_aplicavel: {
+        Args: {
+          p_company_id: string
+          p_confirmado_por: string
+          p_item_id: string
+          p_observacao?: string
+        }
+        Returns: Json
+      }
       rt_valido_para_producao: { Args: { p_rt_id: string }; Returns: boolean }
       score_match_constituinte: {
         Args: { p_constituinte: string; p_insumo: string }
@@ -11575,19 +11798,6 @@ export type Database = {
         Returns: Json
       }
       stop_ghost_session: { Args: never; Returns: Json }
-      rt_confirmar_vinculo: {
-        Args: {
-          p_item_id: string
-          p_constituinte_id: string
-          p_confirmado_por: string
-          p_company_id: string
-          p_teor_nominal_pct?: number | null
-          p_teor_min_pct?: number | null
-          p_teor_max_pct?: number | null
-          p_observacao?: string | null
-        }
-        Returns: Json
-      }
       sugerir_constituintes: {
         Args: { p_item_id: string }
         Returns: {
@@ -11745,12 +11955,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11772,13 +11982,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11797,13 +12006,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11822,13 +12030,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11841,11 +12048,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11855,9 +12062,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_departamento: [
