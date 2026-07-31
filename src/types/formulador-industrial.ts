@@ -75,7 +75,7 @@ export interface Formula {
   peso_por_capsula_mg?: number;
   massa_ativos_dose_mg?: number;
 
-  /** Grupo populacional-alvo (ADULTOS, CRIANCAS_4_8, …) — limite Anvisa por faixa */
+  /** Grupo populacional-alvo canônico (19_mais, 4_8_anos, …) — chk_grupo_populacional */
   grupo_populacional_alvo?: string | null;
   /** Doses por dia (recomendação diária) — usado no motor regulatório */
   doses_por_dia?: number | null;
