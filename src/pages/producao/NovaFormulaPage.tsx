@@ -56,9 +56,10 @@ export default function NovaFormulaPage() {
     volume_frasco_ml: 30,
     volume_por_dose_ml: 1,
     gotas_por_ml: 20,
-    // Pó
+    // Pó / Cápsula — doses_por_pote também vale para CÁPSULA (PR-2).
+    // Default 60: coerente com OP típica (120 cáps/frasco ÷ 2 cáps/dose).
     peso_por_dose_g: 10,
-    doses_por_pote: 30,
+    doses_por_pote: 60,
   });
 
 
@@ -95,6 +96,9 @@ export default function NovaFormulaPage() {
           tipo_capsula: form.tipo_capsula,
           excipiente_padrao: form.excipiente_padrao,
           densidade_aparente_kg_l: form.densidade_aparente_kg_l,
+          // Quantas doses o pote entrega ao consumidor.
+          // cápsulas/frasco = doses_por_pote × n_capsulas_por_dose (este último na aprovação).
+          doses_por_pote: form.doses_por_pote,
         }),
         ...(form.tipo_apresentacao === 'LIQUIDO' && {
           volume_frasco_ml: form.volume_frasco_ml,
@@ -335,6 +339,40 @@ export default function NovaFormulaPage() {
                     Típico suplementos: 0,45–0,80 kg/L. Pós densos (creatina): ~0,90. Pós leves (colágeno): ~0,40.
                     Default conservador: 0,65 kg/L.
                   </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="doses_por_pote_capsula">Doses por pote</Label>
+                  <Input
+                    id="doses_por_pote_capsula"
+                    type="number"
+                    min="1"
+                    value={form.doses_por_pote}
+                    onChange={(e) => setForm(prev => ({
+                      ...prev,
+                      doses_por_pote: Math.max(1, parseInt(e.target.value, 10) || 1),
+                    }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Quantas doses o pote entrega ao consumidor (editável; default 60).
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Cápsulas por frasco (derivado)</Label>
+                  <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <div>
+                      1 cáps/dose → <strong>{form.doses_por_pote}</strong> cáps/frasco
+                    </div>
+                    <div>
+                      2 cáps/dose → <strong>{form.doses_por_pote * 2}</strong> cáps/frasco
+                    </div>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      Relação: cápsulas/frasco = doses_por_pote × n_capsulas_por_dose
+                      (n definido na aprovação pela RPC).
+                    </p>
+                  </div>
                 </div>
               </div>
 
