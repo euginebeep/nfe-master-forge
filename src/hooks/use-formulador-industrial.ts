@@ -383,14 +383,31 @@ export function useAprovarFormula() {
 
       // Obter usuário logado
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Persistir campos calculados que já chegam no parâmetro (antes só iam ao snapshot).
+      // Gravar apenas quando definidos — não sobrescrever coluna existente com undefined.
+      const camposCalculados: Record<string, number> = {};
+      if (formula.n_capsulas_por_dose != null) {
+        camposCalculados.n_capsulas_por_dose = formula.n_capsulas_por_dose;
+      }
+      if (formula.peso_por_capsula_mg != null) {
+        camposCalculados.peso_por_capsula_mg = formula.peso_por_capsula_mg;
+      }
+      if (formula.massa_ativos_dose_mg != null) {
+        camposCalculados.massa_ativos_dose_mg = formula.massa_ativos_dose_mg;
+      }
+      if (formula.densidade_aparente_kg_l != null) {
+        camposCalculados.densidade_aparente_kg_l = formula.densidade_aparente_kg_l;
+      }
       
-      // Atualizar status
+      // Atualizar status + campos calculados
       const { data: formulaAtualizada, error: updateError } = await supabase
         .from('formulas')
         .update({
           status: 'APROVADA' as any,
           aprovado_em: new Date().toISOString(),
           aprovado_por: user?.id ?? null,
+          ...camposCalculados,
         })
         .eq('id', formula.id)
         .select()
