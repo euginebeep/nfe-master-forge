@@ -118,7 +118,7 @@ export function CertificateTestButton({
         type="button"
         variant="outline"
         onClick={handleTest}
-        disabled={isLoading || !certificateFileId}
+        disabled={isLoading || !certificateFileId || !certificatePassword}
         className="w-full"
       >
         {isLoading ? (

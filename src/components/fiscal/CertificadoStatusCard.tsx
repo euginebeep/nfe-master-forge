@@ -185,10 +185,11 @@ export function CertificadoStatusCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const ambienteNfe = (company?.nfe_ambiente || "").toLowerCase();
   const blockEmission =
     checks.some((c) => c.status === "error" && c.label.toLowerCase().includes("certificado")) ||
     checks.some((c) => c.status === "error" && c.label.toLowerCase().includes("cnpj")) ||
-    (company?.nfe_ambiente === "producao" && !hasCert);
+    (ambienteNfe === "producao" && !hasCert);
 
   return (
     <Card>
