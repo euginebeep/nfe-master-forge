@@ -29,7 +29,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { invokeEdge } from "@/lib/edge-invoke";
+import { supabase } from "@/integrations/supabase/client";
 import { useCreateItem } from "@/hooks/use-itens";
+import {
+  calcularFatorDeUnidadeComercial,
+  normalizarDescricaoItem,
+} from "@/lib/fator-conversao-unidade";
 import type { HybridItem } from "@/hooks/use-hybrid-data";
 import {
   UNIDADES,
@@ -67,6 +72,11 @@ export function CadastroRapidoInsumo({
   const [unidadePesagem, setUnidadePesagem] = useState<string>("g");
   const [unidadeDeclaracao, setUnidadeDeclaracao] = useState<string>("mg");
   const [valorDeclaracao, setValorDeclaracao] = useState<string>("");
+  const [ncm, setNcm] = useState("");
+  const [unidadeComercial, setUnidadeComercial] = useState("1 KG");
+  const [fatorConversao, setFatorConversao] = useState<number | null>(1000);
+  const [candidatos, setCandidatos] = useState<HybridItem[]>([]);
+  const [buscandoDup, setBuscandoDup] = useState(false);
 
   const [sugestoes, setSugestoes] = useState<string[]>([]);
   const [sugerindo, setSugerindo] = useState(false);
@@ -82,11 +92,50 @@ export function CadastroRapidoInsumo({
       setUnidadePesagem("g");
       setUnidadeDeclaracao("mg");
       setValorDeclaracao("");
+      setNcm("");
+      setUnidadeComercial("1 KG");
+      setFatorConversao(1000);
+      setCandidatos([]);
       setSugestoes([]);
       setSugerindo(false);
       setConversao(null);
     }
   }, [open, nomeInicial]);
+
+  // Recalcula fator a partir da unidade comercial (N × base)
+  useEffect(() => {
+    setFatorConversao(calcularFatorDeUnidadeComercial(unidadeComercial));
+  }, [unidadeComercial]);
+
+  // Busca item existente por descrição normalizada (evita fantasma)
+  useEffect(() => {
+    if (!open) return;
+    const termo = nome.trim();
+    if (termo.length < 3) {
+      setCandidatos([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setBuscandoDup(true);
+      try {
+        const norm = normalizarDescricaoItem(termo);
+        const { data } = await supabase
+          .from("itens")
+          .select("id, descricao_interna, tipo_item, ncm, fator_conversao, unidade_interna, ativo")
+          .eq("ativo", true)
+          .ilike("descricao_interna", `%${termo.slice(0, 40)}%`)
+          .limit(20);
+        const matches = (data || []).filter((i) => {
+          const n = normalizarDescricaoItem(i.descricao_interna || "");
+          return n === norm || n.includes(norm) || norm.includes(n);
+        });
+        setCandidatos(matches as unknown as HybridItem[]);
+      } finally {
+        setBuscandoDup(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [nome, open]);
 
   const recalcularConversao = useCallback(async () => {
     const valor = parseFloat(valorDeclaracao.replace(",", "."));
@@ -170,6 +219,24 @@ export function CadastroRapidoInsumo({
       toast.error("Informe o nome do insumo.");
       return;
     }
+    const ncmDigits = ncm.replace(/\D/g, "");
+    if (ncmDigits.length !== 8) {
+      toast.error("NCM obrigatório (8 dígitos) — sem NCM o item não entra em NF-e.");
+      return;
+    }
+    if (fatorConversao == null || !Number.isFinite(fatorConversao) || fatorConversao <= 0) {
+      toast.error("Informe unidade comercial válida para calcular o fator de conversão (ex: 1 KG, 25 KG, 5 MIL).");
+      return;
+    }
+    // Não criar duplicata silenciosa se houver correspondência exata normalizada
+    const norm = normalizarDescricaoItem(descricao);
+    const exact = candidatos.find(
+      (c) => normalizarDescricaoItem((c as any).descricao_interna || "") === norm
+    );
+    if (exact) {
+      toast.message("Já existe item com essa descrição — selecione o existente em vez de duplicar.");
+      return;
+    }
 
     // UI com valor: exige conversão OK — nunca converter em silêncio
     const valor = parseFloat(valorDeclaracao.replace(",", "."));
@@ -204,6 +271,9 @@ export function CadastroRapidoInsumo({
         unidade_interna: unidadeInterna,
         unidade_pesagem: unidadePesagem,
         unidade_declaracao: unidadeDeclaracao,
+        unidade_fornecedor: unidadeComercial.trim(),
+        ncm: ncmDigits,
+        fator_conversao: fatorConversao,
         controla_lote: true,
         controla_validade: true,
         higroscopico: false,
@@ -295,6 +365,66 @@ export function CadastroRapidoInsumo({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Candidatos existentes */}
+          {(buscandoDup || candidatos.length > 0) && (
+            <div className="rounded-md border p-3 space-y-2 bg-amber-50/50 border-amber-200">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-700" />
+                Itens existentes parecidos
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Prefira selecionar o item real (com lote/NCM) em vez de criar duplicata fantasma.
+              </p>
+              {buscandoDup && <Loader2 className="h-4 w-4 animate-spin" />}
+              <div className="flex flex-wrap gap-1.5">
+                {candidatos.map((c: any) => (
+                  <Badge
+                    key={c.id}
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-primary/10"
+                    onClick={() => {
+                      onCreated(c as HybridItem);
+                      onOpenChange(false);
+                      toast.success(`Item existente selecionado: ${c.descricao_interna}`);
+                    }}
+                  >
+                    {c.descricao_interna}
+                    {c.ncm ? ` · NCM ${c.ncm}` : " · sem NCM"}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* NCM + fator */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="cri-ncm">NCM *</Label>
+              <Input
+                id="cri-ncm"
+                value={ncm}
+                onChange={(e) => setNcm(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                placeholder="8 dígitos"
+                className="font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cri-ucom">Unidade comercial *</Label>
+              <Input
+                id="cri-ucom"
+                value={unidadeComercial}
+                onChange={(e) => setUnidadeComercial(e.target.value)}
+                placeholder="Ex: 1 KG, 25 KG, 5 MIL"
+              />
+              <p className="text-xs text-muted-foreground">
+                Fator:{" "}
+                {fatorConversao != null
+                  ? fatorConversao.toLocaleString("pt-BR")
+                  : "unidade inválida"}
+              </p>
+            </div>
           </div>
 
           {/* Tipo */}
@@ -416,6 +546,8 @@ export function CadastroRapidoInsumo({
             disabled={
               createItem.isPending ||
               !nome.trim() ||
+              ncm.replace(/\D/g, "").length !== 8 ||
+              fatorConversao == null ||
               (unidadeDeclaracao === "UI" &&
                 !!valorDeclaracao.trim() &&
                 conversao?.status !== "ok" &&
