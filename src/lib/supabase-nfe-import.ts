@@ -9,6 +9,7 @@ import type { NFeParseResult, ClassificacaoNota, EntidadeXML } from '@/types/nfe
 import { preprocessarUnidadeComercial } from '@/lib/unidades-dose';
 import { similaridadeAceitaParaEan } from '@/lib/item-similaridade';
 import { uploadNfeXmlToStorage } from '@/lib/nfe-xml-storage';
+import { inverterCfopParaEntrada } from '@/lib/cfop-entrada';
 
 export interface ImportStats {
   entidadesCriadas: number;
@@ -492,7 +493,8 @@ async function findOrCreateItemSupabase(
     unidade_pesagem: unidadeInterna,
     unidade_fornecedor: itemXML.unidade_comercial || null,
     cest: (itemXML as any).cest || null,
-    cfop_entrada_padrao: (itemXML as any).cfop || null,
+    // XML traz CFOP de saída do fornecedor (5xxx/6xxx) — inverter para entrada (1xxx/2xxx)
+    cfop_entrada_padrao: inverterCfopParaEntrada((itemXML as any).cfop) || null,
     preco_unitario_fornecedor: itemXML.valor_unitario_comercial || null,
     controla_lote: true,
     controla_validade: true,
@@ -837,7 +839,9 @@ export async function importarNFeCompletaSupabase(
       if (impostos.cofins_cst) fiscalUpdate.cst_cofins = impostos.cofins_cst;
       if (impostos.cofins_aliquota) fiscalUpdate.aliquota_cofins = impostos.cofins_aliquota;
       if (itemData.item.cest) fiscalUpdate.cest = itemData.item.cest;
-      if (itemData.item.cfop) fiscalUpdate.cfop_entrada_padrao = itemData.item.cfop;
+      if (itemData.item.cfop) {
+        fiscalUpdate.cfop_entrada_padrao = inverterCfopParaEntrada(itemData.item.cfop);
+      }
       // Dados comerciais
       fiscalUpdate.unidade_fornecedor = itemData.item.unidade_comercial;
       fiscalUpdate.unidade_pesagem = unidadeInternaCalc; // Sync unidade_pesagem
@@ -901,7 +905,7 @@ export async function importarNFeCompletaSupabase(
           codigo_fornecedor: itemData.item.codigo_produto,
           descricao: itemData.item.descricao,
           ncm: itemData.item.ncm || null,
-          cfop: itemData.item.cfop || null,
+          cfop: inverterCfopParaEntrada(itemData.item.cfop) || null,
           ean: itemData.item.ean || null,
           ucom: itemData.item.unidade_comercial,
           qcom: itemData.item.quantidade_comercial,
