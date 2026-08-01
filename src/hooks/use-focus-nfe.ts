@@ -57,8 +57,19 @@ export function useFocusNfe() {
   const consultarEmpresa = (cpfCnpj: string) =>
     callFocusNfe("consultar-empresa", { cpf_cnpj: cpfCnpj });
 
+  /** Legado: envia payload Focus montado no cliente (não usar para notas_saida novas). */
   const emitirNFe = (payload: unknown) =>
     callFocusNfe("emitir-nfe", undefined, payload);
+
+  /**
+   * Contrato de produção (focus-nfe v9+): a edge monta o XML via montar_payload_focus.
+   * dry_run=true valida schema sem transmitir / sem consumir numeração.
+   */
+  const emitirNotaSaida = (notaSaidaId: string, dryRun: boolean) =>
+    callFocusNfe("emitir-nota", undefined, {
+      nota_saida_id: notaSaidaId,
+      dry_run: dryRun,
+    });
 
   const consultarNFe = (id: string, ambiente?: string) =>
     callFocusNfe("consultar-nfe", { id, ambiente: ambiente || "homologacao" });
@@ -108,11 +119,14 @@ export function useFocusNfe() {
     cadastrarEmpresa,
     consultarEmpresa,
     emitirNFe,
+    emitirNotaSaida,
     consultarNFe,
     baixarDanfe,
     baixarXml,
     cancelarNFe,
     cartaCorrecao,
+    /** Alias legado — NotasSaidaPage usava cartaCorrecaoNFe */
+    cartaCorrecaoNFe: cartaCorrecao,
     statusSefaz,
     inutilizarNFe,
     consultarStatus,
