@@ -6,7 +6,7 @@
 // Reutiliza a mutation canônica do cadastro (useCreateItem).
 // ============================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Sparkles, Loader2, Package, AlertTriangle, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateItem } from "@/hooks/use-itens";
+import { invokeEdge } from "@/lib/edge-invoke";
 import type { HybridItem } from "@/hooks/use-hybrid-data";
 import {
   UNIDADES,
@@ -45,6 +46,50 @@ const TIPOS_ITEM = [
   { value: "MP", label: "Matéria-prima (ativo)" },
   { value: "OUTRO", label: "Outro" },
 ] as const;
+
+const BASES_UNIDADE_COMERCIAL: Record<string, { fatorBase: number; unidadeBase: string }> = {
+  KG: { fatorBase: 1000, unidadeBase: "g" },
+  G: { fatorBase: 1, unidadeBase: "g" },
+  MG: { fatorBase: 0.001, unidadeBase: "g" },
+  UN: { fatorBase: 1, unidadeBase: "un" },
+  MI: { fatorBase: 1000, unidadeBase: "un" },
+  MIL: { fatorBase: 1000, unidadeBase: "un" },
+  L: { fatorBase: 1000, unidadeBase: "ml" },
+};
+
+function normalizarDescricaoItem(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function calcularFatorComercial(unidadeComercial: string): {
+  fator: number;
+  quantidade: number;
+  unidade: string;
+  unidadeBase: string;
+} | null {
+  const match = unidadeComercial
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .match(/^(\d+(?:[.,]\d+)?)\s*(KG|G|MG|UN|MI|MIL|L)$/);
+
+  if (!match) return null;
+
+  const quantidade = Number(match[1].replace(",", "."));
+  const base = BASES_UNIDADE_COMERCIAL[match[2]];
+  if (!Number.isFinite(quantidade) || quantidade <= 0 || !base) return null;
+
+  return {
+    fator: quantidade * base.fatorBase,
+    quantidade,
+    unidade: match[2],
+    unidadeBase: base.unidadeBase,
+  };
+}
 
 interface CadastroRapidoInsumoProps {
   open: boolean;
@@ -67,11 +112,20 @@ export function CadastroRapidoInsumo({
   const [unidadePesagem, setUnidadePesagem] = useState<string>("g");
   const [unidadeDeclaracao, setUnidadeDeclaracao] = useState<string>("mg");
   const [valorDeclaracao, setValorDeclaracao] = useState<string>("");
+  const [ncm, setNcm] = useState<string>("");
+  const [unidadeFornecedor, setUnidadeFornecedor] = useState<string>("1 KG");
 
   const [sugestoes, setSugestoes] = useState<string[]>([]);
   const [sugerindo, setSugerindo] = useState(false);
   const [conversao, setConversao] = useState<ConversaoRastreavel | null>(null);
   const [convertendo, setConvertendo] = useState(false);
+  const [itemExistente, setItemExistente] = useState<HybridItem | null>(null);
+  const [buscandoExistente, setBuscandoExistente] = useState(false);
+
+  const fatorComercial = useMemo(
+    () => calcularFatorComercial(unidadeFornecedor),
+    [unidadeFornecedor],
+  );
 
   // Reseta o formulário sempre que abrir com um novo termo
   useEffect(() => {
@@ -82,11 +136,82 @@ export function CadastroRapidoInsumo({
       setUnidadePesagem("g");
       setUnidadeDeclaracao("mg");
       setValorDeclaracao("");
+      setNcm("");
+      setUnidadeFornecedor("1 KG");
       setSugestoes([]);
       setSugerindo(false);
       setConversao(null);
+      setItemExistente(null);
+      setBuscandoExistente(false);
     }
   }, [open, nomeInicial]);
+
+  const buscarItemExistente = useCallback(async (descricao: string): Promise<HybridItem | null> => {
+    const alvo = normalizarDescricaoItem(descricao);
+    if (!alvo) return null;
+
+    const pageSize = 1000;
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("itens")
+        .select(
+          "id, sku_interno, descricao_interna, descricao_comercial, tipo_item, ncm, unidade_interna, unidade_pesagem, fator_conversao, controla_lote, controla_validade, criticidade, higroscopico, exige_premix, ativo, created_at, updated_at",
+        )
+        .eq("ativo", true)
+        .order("descricao_interna")
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+
+      const items = (data || []) as HybridItem[];
+      const hit = items.find(
+        (item) => normalizarDescricaoItem(item.descricao_interna) === alvo,
+      );
+      if (hit) return hit;
+      if (items.length < pageSize) return null;
+
+      from += pageSize;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const descricao = nome.trim();
+    if (!descricao) {
+      setItemExistente(null);
+      setBuscandoExistente(false);
+      return;
+    }
+
+    let cancelado = false;
+    setBuscandoExistente(true);
+    const t = setTimeout(() => {
+      void buscarItemExistente(descricao)
+        .then((item) => {
+          if (!cancelado) setItemExistente(item);
+        })
+        .catch(() => {
+          if (!cancelado) setItemExistente(null);
+        })
+        .finally(() => {
+          if (!cancelado) setBuscandoExistente(false);
+        });
+    }, 300);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(t);
+    };
+  }, [open, nome, buscarItemExistente]);
+
+  const selecionarItemExistente = useCallback((item: HybridItem) => {
+    toast.success(`Insumo existente "${item.descricao_interna}" selecionado`);
+    onCreated(item);
+    onOpenChange(false);
+  }, [onCreated, onOpenChange]);
 
   const recalcularConversao = useCallback(async () => {
     const valor = parseFloat(valorDeclaracao.replace(",", "."));
@@ -147,10 +272,8 @@ export function CadastroRapidoInsumo({
     setSugerindo(true);
     setSugestoes([]);
     try {
-      const { data, error } = await supabase.functions.invoke("anvisa-resolve-name", {
-        body: { termo },
-      });
-      if (error) throw error;
+      const { data, error } = await invokeEdge<{ termos?: string[] }>("anvisa-resolve-name", { termo });
+      if (error) throw new Error(error);
       const termos: string[] = Array.isArray(data?.termos) ? data.termos : [];
       if (termos.length === 0) {
         toast.info("Nenhuma sugestão encontrada. Você pode salvar com o nome digitado.");
@@ -167,6 +290,36 @@ export function CadastroRapidoInsumo({
     const descricao = nome.trim();
     if (!descricao) {
       toast.error("Informe o nome do insumo.");
+      return;
+    }
+
+    let existente: HybridItem | null;
+    try {
+      existente = itemExistente ?? (await buscarItemExistente(descricao));
+    } catch {
+      toast.error("Não foi possível verificar se o insumo já existe. Cadastro bloqueado para evitar duplicidade.");
+      return;
+    }
+    if (existente) {
+      selecionarItemExistente(existente);
+      return;
+    }
+
+    const ncmLimpo = ncm.replace(/\D/g, "");
+    if (ncmLimpo.length !== 8) {
+      toast.error("Informe o NCM com 8 dígitos antes de cadastrar.");
+      return;
+    }
+
+    if (!fatorComercial) {
+      toast.error("Informe a unidade comercial com quantidade e base. Exemplos: 1 KG, 25 KG, 5 MIL.");
+      return;
+    }
+
+    if (unidadeInterna !== fatorComercial.unidadeBase) {
+      toast.error(
+        `Unidade interna incompatível: ${unidadeFornecedor} converte para ${fatorComercial.unidadeBase}.`,
+      );
       return;
     }
 
@@ -200,9 +353,14 @@ export function CadastroRapidoInsumo({
         descricao_interna: descricao,
         tipo_item: tipoItem,
         criticidade,
+        ncm: ncmLimpo,
         unidade_interna: unidadeInterna,
         unidade_pesagem: unidadePesagem,
         unidade_declaracao: unidadeDeclaracao,
+        unidade_fornecedor: unidadeFornecedor.trim().toUpperCase().replace(/\s+/g, " "),
+        fator_conversao: fatorComercial.fator,
+        embalagem_compra_qtd: fatorComercial.quantidade,
+        embalagem_compra_unidade: fatorComercial.unidade,
         controla_lote: true,
         controla_validade: true,
         higroscopico: false,
@@ -294,6 +452,68 @@ export function CadastroRapidoInsumo({
                 ))}
               </div>
             )}
+            {itemExistente && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="font-medium">Insumo já cadastrado</p>
+                    <p className="text-xs">
+                      {itemExistente.sku_interno ? `${itemExistente.sku_interno} — ` : ""}
+                      {itemExistente.descricao_interna}
+                      {itemExistente.ncm ? ` · NCM ${itemExistente.ncm}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => selecionarItemExistente(itemExistente)}
+                    className="shrink-0"
+                  >
+                    Usar este item
+                  </Button>
+                </div>
+              </div>
+            )}
+            {buscandoExistente && (
+              <p className="text-xs text-muted-foreground">Verificando cadastro existente…</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="cri-ncm">NCM *</Label>
+              <Input
+                id="cri-ncm"
+                value={ncm}
+                onChange={(e) => setNcm(e.target.value)}
+                placeholder="8 dígitos"
+                inputMode="numeric"
+                maxLength={10}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cri-unidade-fornecedor">Unidade comercial *</Label>
+              <Input
+                id="cri-unidade-fornecedor"
+                value={unidadeFornecedor}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const fator = calcularFatorComercial(value);
+                  setUnidadeFornecedor(value);
+                  if (fator) {
+                    setUnidadeInterna(fator.unidadeBase);
+                    setUnidadePesagem(fator.unidadeBase);
+                  }
+                }}
+                placeholder="Ex: 1 KG, 25 KG, 5 MIL"
+              />
+              <p className={`text-xs ${fatorComercial ? "text-muted-foreground" : "text-destructive"}`}>
+                {fatorComercial
+                  ? `Fator: ${fatorComercial.fator} ${fatorComercial.unidadeBase}`
+                  : "Use quantidade + KG, G, MG, UN, MI, MIL ou L."}
+              </p>
+            </div>
           </div>
 
           {/* Tipo */}
@@ -422,7 +642,7 @@ export function CadastroRapidoInsumo({
             }
           >
             {createItem.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Cadastrar e selecionar
+            {itemExistente ? "Selecionar existente" : "Cadastrar e selecionar"}
           </Button>
         </DialogFooter>
       </DialogContent>

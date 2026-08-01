@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { rpcAnvisaConsultar } from "@/lib/anvisa-consultar";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 export interface AlertaNormativo {
   id: string;
@@ -21,6 +22,11 @@ export interface AlertaNormativo {
   status_revisao: string;
   lido: boolean;
   created_at: string;
+}
+
+interface MonitorAnvisaDiarioResponse {
+  total_mudancas?: number;
+  total_fontes_inacessiveis?: number;
 }
 
 /** Confere um nome citado no alerta contra a fonte única. */
@@ -153,9 +159,7 @@ export function useMarcarAlertaRevisado() {
 }
 
 export async function invocarMonitorAnvisaDiario() {
-  const { data, error } = await supabase.functions.invoke("monitor-anvisa-diario", {
-    body: { trigger: "manual" },
-  });
-  if (error) throw error;
+  const { data, error } = await invokeEdge<MonitorAnvisaDiarioResponse>("monitor-anvisa-diario", { trigger: "manual" });
+  if (error) throw new Error(error);
   return data;
 }

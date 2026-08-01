@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -181,15 +182,15 @@ export function BibliotecaNormasAdminPanel() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("legislacao-ingest", {
-        body: {
-          fonte_id: fonte.id,
-          aprovado_por: user.id, // uuid do admin logado (coluna é uuid)
-        },
+      const { data, error } = await invokeEdge<{
+        chunks_gerados?: number;
+        fonte?: string;
+      }>("legislacao-ingest", {
+        fonte_id: fonte.id,
+        aprovado_por: user.id, // uuid do admin logado (coluna é uuid)
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(String(data.error));
-      toast.success(`✅ ${data.chunks_gerados} trechos processados para ${data.fonte}. Disponível para todos os tenants.`);
+      if (error) throw new Error(error);
+      toast.success(`✅ ${data?.chunks_gerados} trechos processados para ${data?.fonte}. Disponível para todos os tenants.`);
       queryClient.invalidateQueries({ queryKey: ["saas-legislacao-fontes"] });
       queryClient.invalidateQueries({ queryKey: ["saas-chunk-counts"] });
     } catch (err) {

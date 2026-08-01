@@ -1,3 +1,5 @@
+import { invokeEdge } from "@/lib/edge-invoke";
+
 // CNPJ Lookup Service - Uses BrasilAPI
 // https://brasilapi.com.br/docs#tag/CNPJ
 
@@ -51,28 +53,24 @@ export async function lookupCNPJ(cnpj: string): Promise<CNPJData | null> {
   }
   
   try {
-    // Usa o client do supabase-js (functions.invoke) em vez de fetch manual.
+    // Usa o helper central de Edge Functions em vez de fetch manual.
     // Antes disso, o código mandava a ANON KEY como Bearer token — ou seja,
     // a chamada nunca carregava a sessão real do usuário logado, e qualquer
     // pessoa com a anon key (pública por natureza) podia chamar essa function
     // diretamente, fora do app, sem estar autenticada.
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data, error } = await supabase.functions.invoke("cnpj-lookup", {
-      body: { cnpj: cleanedCNPJ },
-    });
+    const { data, error, status } = await invokeEdge<CNPJData>("cnpj-lookup", { cnpj: cleanedCNPJ });
 
     if (error) {
-      const status = (error as any)?.context?.status;
       if (status === 404) {
         throw new Error('CNPJ não encontrado na base da Receita Federal');
       }
       if (status === 400) {
         throw new Error('CNPJ inválido');
       }
-      throw new Error(error.message || 'Erro ao consultar CNPJ');
+      throw new Error(error || 'Erro ao consultar CNPJ');
     }
 
-    return data as CNPJData;
+    return data;
   } catch (error) {
     if (error instanceof Error) {
       throw error;

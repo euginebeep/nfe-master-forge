@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, FileX, Edit, MoreHorizontal, PenLine, Ban, Hash,
   RefreshCw, Mail, CheckSquare, Square, FileCheck2, Loader2
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFocusNfe } from "@/hooks/use-focus-nfe";
-import { useCompany } from "@/hooks/use-company";
+import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
 
@@ -76,6 +76,200 @@ const MEIOS_PAGAMENTO = [
   { value: "90", label: "Sem Pagamento" },
   { value: "99", label: "Outros" },
 ];
+
+const asRecord = (value: any): Record<string, any> =>
+  value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+const asArray = (value: any): any[] => (Array.isArray(value) ? value : []);
+
+const textFrom = (...values: any[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+};
+
+const numberFrom = (...values: any[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const normalized = typeof value === "string" && value.includes(",")
+      ? value.replace(/\./g, "").replace(",", ".")
+      : value;
+    const number = Number(normalized);
+    if (Number.isFinite(number)) return number;
+  }
+  return 0;
+};
+
+const formatDateFromPayload = (value: any) => {
+  const raw = textFrom(value);
+  if (!raw) return "";
+  const datePart = raw.includes("T") ? raw.split("T")[0] : raw.split(" ")[0];
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+};
+
+const formatTimeFromPayload = (value: any) => {
+  const raw = textFrom(value);
+  const timePart = raw.includes("T") ? raw.split("T")[1] : raw.split(" ")[1];
+  return timePart ? timePart.slice(0, 5) : "";
+};
+
+const unwrapFocusPayload = (rpcData: any) => {
+  const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+  const record = asRecord(row);
+  return record.payload || record.focus_payload || record.nfe_payload || record.montar_payload_focus || row;
+};
+
+const logFocusPayloadShape = (payload: any) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
+  const itens = asArray(payload.itens || payload.items || payload.produtos);
+  console.info("[DANFE] montar_payload_focus response keys", {
+    root: Object.keys(payload),
+    emitente: Object.keys(asRecord(payload.emitente || payload.emit)),
+    destinatario: Object.keys(asRecord(payload.destinatario || payload.dest)),
+    item: Object.keys(asRecord(itens[0])),
+    total: Object.keys(asRecord(payload.total || payload.totais)),
+    transporte: Object.keys(asRecord(payload.transporte)),
+  });
+};
+
+const mapFocusPayloadToDanfeData = (payloadData: any, emitLogoUrl?: string | null) => {
+  const payload = asRecord(payloadData);
+  const emitente = asRecord(payload.emitente || payload.emit);
+  const emitEndereco = asRecord(emitente.endereco);
+  const destinatario = asRecord(payload.destinatario || payload.dest);
+  const destEndereco = asRecord(destinatario.endereco);
+  const transporte = asRecord(payload.transporte);
+  const transportadora = asRecord(transporte.transportadora);
+  const total = asRecord(payload.total || payload.totais);
+  const icmsTotal = asRecord(total.icms_total || total);
+  const freteCodigo = textFrom(transporte.modalidade_frete, payload.modalidade_frete);
+  const freteLabel = MODALIDADES_FRETE.find((m) => m.value === freteCodigo)?.label?.split(" - ")[0] || freteCodigo;
+
+  return {
+    emit_razao: textFrom(emitente.razao_social, emitente.nome, "—"),
+    emit_fantasia: textFrom(emitente.nome_fantasia),
+    emit_logo_url: emitLogoUrl || undefined,
+    emit_logradouro: textFrom(emitEndereco.logradouro, emitente.logradouro),
+    emit_numero: textFrom(emitEndereco.numero, emitente.numero),
+    emit_bairro: textFrom(emitEndereco.bairro, emitente.bairro),
+    emit_cidade: textFrom(emitEndereco.nome_municipio, emitEndereco.municipio, emitEndereco.cidade, emitente.municipio),
+    emit_uf: textFrom(emitEndereco.uf, emitente.uf),
+    emit_cep: textFrom(emitEndereco.cep, emitente.cep),
+    emit_telefone: textFrom(emitEndereco.telefone, emitente.telefone),
+    emit_email: textFrom(emitente.email),
+    emit_cnpj: textFrom(emitente.cpf_cnpj, emitente.cnpj, emitente.documento),
+    emit_ie: textFrom(emitente.inscricao_estadual, emitente.ie),
+    numero: textFrom(payload.numero),
+    serie: textFrom(payload.serie),
+    natureza_operacao: textFrom(payload.natureza_operacao, "Venda de mercadoria"),
+    chave_acesso: textFrom(payload.chave_acesso, payload.chave_nfe),
+    protocolo: textFrom(payload.protocolo_autorizacao, payload.protocolo),
+    data_emissao: formatDateFromPayload(payload.data_emissao),
+    data_saida_entrada: formatDateFromPayload(payload.data_saida_entrada),
+    hora_saida_entrada: formatTimeFromPayload(payload.data_saida_entrada),
+    tipo_operacao: textFrom(payload.tipo_operacao) === "0" ? "0" as const : "1" as const,
+    dest_razao: textFrom(destinatario.razao_social, destinatario.nome),
+    dest_cnpj_cpf: textFrom(destinatario.cpf_cnpj, destinatario.cnpj, destinatario.cpf, destinatario.documento),
+    dest_logradouro: textFrom(destEndereco.logradouro, destinatario.logradouro),
+    dest_numero: textFrom(destEndereco.numero, destinatario.numero),
+    dest_bairro: textFrom(destEndereco.bairro, destinatario.bairro),
+    dest_cidade: textFrom(destEndereco.nome_municipio, destEndereco.municipio, destEndereco.cidade, destinatario.municipio),
+    dest_uf: textFrom(destEndereco.uf, destinatario.uf),
+    dest_cep: textFrom(destEndereco.cep, destinatario.cep),
+    dest_telefone: textFrom(destEndereco.telefone, destinatario.telefone),
+    dest_ie: textFrom(destinatario.inscricao_estadual, destinatario.ie),
+    dest_data_emissao: formatDateFromPayload(payload.data_emissao),
+    bc_icms: numberFrom(icmsTotal.base_calculo, icmsTotal.base_calculo_icms),
+    valor_icms: numberFrom(icmsTotal.valor_icms),
+    bc_icms_st: numberFrom(icmsTotal.base_calculo_st),
+    valor_icms_st: numberFrom(icmsTotal.valor_icms_st),
+    valor_produtos: numberFrom(icmsTotal.valor_produtos, total.valor_produtos),
+    valor_frete: numberFrom(icmsTotal.valor_frete, total.valor_frete),
+    valor_seguro: numberFrom(icmsTotal.valor_seguro, total.valor_seguro),
+    valor_desconto: numberFrom(icmsTotal.valor_desconto, total.valor_desconto),
+    outras_despesas: numberFrom(icmsTotal.outras_despesas, total.outras_despesas),
+    valor_ipi: numberFrom(icmsTotal.valor_ipi, total.valor_ipi),
+    valor_aprox_tributos: numberFrom(icmsTotal.valor_aprox_tributos, total.valor_aprox_tributos),
+    valor_total: numberFrom(icmsTotal.valor_nota, total.valor_nota, payload.valor_total),
+    transp_razao: textFrom(transportadora.razao_social),
+    transp_frete_conta: freteLabel || "—",
+    transp_cnpj_cpf: textFrom(transportadora.cpf_cnpj, transportadora.cnpj, transportadora.cpf),
+    transp_logradouro: textFrom(transportadora.endereco_completo, transportadora.logradouro),
+    transp_cidade: textFrom(transportadora.municipio, transportadora.cidade),
+    transp_cidade_uf: textFrom(transportadora.uf),
+    transp_ie: textFrom(transportadora.inscricao_estadual, transportadora.ie),
+    itens: asArray(payload.itens || payload.items || payload.produtos).map((itemData: any, idx: number) => {
+      const item = asRecord(itemData);
+      const icms = asRecord(item.icms);
+      const ipi = asRecord(item.ipi);
+      const rastros = asArray(item.rastros || item.rastro || item.lotes).map((rastroData: any) => {
+        const rastro = asRecord(rastroData);
+        return {
+          numero_lote: textFrom(rastro.numero_lote, rastro.nLote, rastro.lote),
+          quantidade_lote: numberFrom(rastro.quantidade_lote, rastro.qLote, rastro.quantidade),
+          data_fabricacao: textFrom(rastro.data_fabricacao, rastro.dFab),
+          data_validade: textFrom(rastro.data_validade, rastro.dVal),
+        };
+      }).filter((rastro) => rastro.numero_lote || rastro.data_fabricacao || rastro.data_validade);
+
+      return {
+        numero_item: numberFrom(item.numero_item, idx + 1),
+        codigo_produto: textFrom(item.codigo_produto, item.item_id, idx + 1),
+        descricao: textFrom(item.descricao),
+        ncm: textFrom(item.codigo_ncm, item.ncm),
+        // Nunca inventar CST/CSOSN/CFOP — nota Simples usa CSOSN 900; fallback "00"/"5102" mentia no DANFE
+        cst_icms: textFrom(item.csosn, item.cst_icms, icms.csosn, icms.cst, icms.situacao_tributaria),
+        cfop: textFrom(item.cfop),
+        unidade: textFrom(item.unidade_comercial, item.unidade, "UN"),
+        quantidade: numberFrom(item.quantidade_comercial, item.quantidade),
+        valor_unitario: numberFrom(item.valor_unitario_comercial, item.valor_unitario),
+        valor_total: numberFrom(item.valor_bruto, item.valor_total),
+        icms_base: numberFrom(item.icms_base, icms.base_calculo),
+        icms_aliquota: numberFrom(item.icms_aliquota, icms.aliquota, icms.aliquota_percentual),
+        icms_valor: numberFrom(item.icms_valor, icms.valor),
+        ipi_valor: numberFrom(item.ipi_valor, ipi.valor),
+        ipi_aliquota: numberFrom(item.ipi_aliquota, ipi.aliquota),
+        origem: textFrom(item.origem, item.codigo_origem, icms.origem),
+        rastros,
+      };
+    }),
+    info_complementares: textFrom(payload.informacoes_adicionais_contribuinte, payload.info_complementares),
+    info_fisco: textFrom(payload.informacoes_adicionais_fisco, payload.info_fisco),
+    ambiente: textFrom(payload.ambiente).toLowerCase() === "producao" ? "producao" as const : "homologacao" as const,
+  };
+};
+
+const normalizeFocusEmissionResult = (resultData: any) => {
+  const result = asRecord(resultData);
+  const data = asRecord(result.nota || result.nfe || result.data || result.resultado || result);
+
+  return {
+    id: textFrom(data.id, data.focus_nfe_id, result.id, result.focus_nfe_id),
+    status: textFrom(data.status, result.status),
+    chaveAcesso: textFrom(data.chave_acesso, data.chave_nfe, data.chave, result.chave_acesso, result.chave_nfe),
+    protocolo: textFrom(
+      data.protocolo_autorizacao,
+      data.protocolo,
+      data.numero_protocolo,
+      result.protocolo_autorizacao,
+      result.protocolo
+    ),
+    danfeUrl: textFrom(data.danfe_url, data.link_pdf, data.url_danfe, result.danfe_url, result.link_pdf),
+  };
+};
+
+const formatEmissionDescription = (resultData: any) => {
+  const result = normalizeFocusEmissionResult(resultData);
+  return [
+    `Chave: ${result.chaveAcesso || "pendente"}`,
+    `Protocolo: ${result.protocolo || "pendente"}`,
+    `DANFE: ${result.danfeUrl || "pendente"}`,
+  ].join("\n");
+};
 
 interface NotaItem {
   id?: string;
@@ -144,10 +338,14 @@ export default function NotasSaidaPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Status loading
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
+  const [validatedNotaIds, setValidatedNotaIds] = useState<Set<string>>(new Set());
+  const [transmitConfirmNota, setTransmitConfirmNota] = useState<any | null>(null);
   const queryClient = useQueryClient();
-  const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe } = useFocusNfe();
-  const { data: company } = useCompany();
+  const { emitirNota, consultarNFe, baixarDanfe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe } = useFocusNfe();
+  const { data: companyBranding, refetch: refetchCompanyBranding } = useCompanyBranding();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const notaDestacadaId = searchParams.get("nota");
 
   // Form state
   const [clienteId, setClienteId] = useState("");
@@ -266,341 +464,60 @@ export default function NotasSaidaPage() {
     onError: (err: any) => toast.error("Erro: " + err.message),
   });
 
+  const validarNotaFocus = useMutation({
+    mutationFn: (notaId: string) => emitirNota(notaId, true),
+    onSuccess: (_resultado: any, notaId: string) => {
+      setValidatedNotaIds((prev) => {
+        const next = new Set(prev);
+        next.add(notaId);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+      toast.success("Validação Focus concluída sem erros");
+    },
+    onError: (err: any, notaId: string) => {
+      setValidatedNotaIds((prev) => {
+        const next = new Set(prev);
+        next.delete(notaId);
+        return next;
+      });
+      toast.error("Erro na validação Focus: " + err.message);
+    },
+  });
+
   const transmitirNota = useMutation({
     mutationFn: async (notaId: string) => {
-      await supabase.from("notas_saida")
-        .update({ status: "PROCESSANDO" }).eq("id", notaId);
-      const { data: nota, error: notaErr } = await supabase
-        .from("notas_saida")
-        .select(`
-          *,
-          cliente:entidades!notas_saida_cliente_id_fkey(*),
-          notas_saida_itens(*),
-          transportadora:entidades!notas_saida_transportadora_id_fkey(*)
-        `)
-        .eq("id", notaId).single();
-      if (notaErr || !nota) throw new Error("Nota não encontrada");
-      if (!company) throw new Error("Empresa não configurada. Preencha os dados fiscais em Configurações.");
-      const comp: any = company;
-      if (!comp.cnpj) throw new Error("CNPJ da empresa não configurado em Configurações.");
-      const cli: any = (nota as any).cliente || {};
-      // ── Buscar itens com rastros_json (lotes FEFO) ──
-      const { data: itensComRastros } = await supabase
-        .from("notas_saida_itens")
-        .select("*")
-        .eq("nota_saida_id", notaId);
-
-      // ── Buscar transportadora se houver ──
-      const transp: any = (nota as any).transportadora || {};
-
-      // ── Data/hora de emissão no formato SEFAZ ──
-      const agora = new Date();
-      const dhEmissao = agora.toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T') + '-03:00';
-
-      // ── Determinar destino da operação: 1=interna, 2=interestadual, 3=exterior ──
-      const ufEmit = (comp.endereco_uf || 'SP').toUpperCase();
-      const ufDest = (cli.endereco_uf || 'SP').toUpperCase();
-      const idDest = ufEmit === ufDest ? '1' : '2';
-
-      // ── Montar rastros por item (múltiplos lotes FEFO) ──
-      const itensMap = new Map((itensComRastros || []).map((i: any) => [i.id, i]));
-
-      const payload = {
-        ambiente: comp.nfe_ambiente === "PRODUCAO" ? "producao" : "homologacao",
-        referencia: notaId,
-        natureza_operacao: nota.natureza_operacao || "VENDA DE MERCADORIA",
-        serie: String(comp.nfe_serie_padrao || 1),
-        numero: String(comp.nfe_numero_inicial || 1),
-        data_emissao: dhEmissao,
-        data_saida_entrada: dhEmissao,
-        tipo_operacao: nota.tipo_operacao || "1",
-        finalidade_emissao: nota.finalidade || "1",
-        // indFinal: 0=normal (B2B), 1=consumidor final (B2C)
-        consumidor_final: nota.consumidor_final || "0",
-        // indPres: 9=operação não presencial (internet/televendas)
-        presenca_comprador: nota.presenca_comprador || "9",
-        // indIntermed: 0=operação sem intermediador
-        intermediador: "0",
-        local_destino: idDest,
-        emitente: {
-          cpf_cnpj: (comp.cnpj || "").replace(/\D/g, ""),
-          razao_social: comp.razao_social || "",
-          nome_fantasia: comp.nome_fantasia || comp.razao_social || "",
-          inscricao_estadual: (comp.ie || comp.inscricao_estadual || "").replace(/\D/g, ""),
-          regime_tributario: String(comp.crt || comp.regime_tributario || "1"),
-          endereco: {
-            logradouro: comp.endereco_logradouro || "",
-            numero: comp.endereco_nro || "S/N",
-            complemento: comp.endereco_complemento || undefined,
-            bairro: comp.endereco_bairro || "",
-            codigo_municipio: String(comp.codigo_municipio || ""),
-            nome_municipio: comp.endereco_cidade || "",
-            uf: comp.endereco_uf || "",
-            cep: (comp.endereco_cep || "").replace(/\D/g, ""),
-            codigo_pais: "1058",
-            nome_pais: "Brasil",
-            telefone: (comp.telefone || "").replace(/\D/g, ""),
-          },
-        },
-        destinatario: {
-          cpf_cnpj: (cli.documento || "").replace(/\D/g, ""),
-          razao_social: cli.razao_social || cli.nome_fantasia || "",
-          email: cli.email || undefined,
-          // indicador_ie_dest: 1=contribuinte, 2=isento, 9=não contribuinte
-          indicador_ie_dest: cli.ie ? "1" : "9",
-          inscricao_estadual: cli.ie ? (cli.ie || "").replace(/\D/g, "") : undefined,
-          telefone: cli.telefone ? (cli.telefone || "").replace(/\D/g, "") : undefined,
-          endereco: {
-            logradouro: cli.endereco_logradouro || "",
-            numero: cli.endereco_nro || "S/N",
-            complemento: cli.endereco_complemento || undefined,
-            bairro: cli.endereco_bairro || "",
-            codigo_municipio: String(cli.codigo_municipio || ""),
-            nome_municipio: cli.endereco_cidade || "",
-            uf: cli.endereco_uf || "",
-            cep: (cli.endereco_cep || "").replace(/\D/g, ""),
-            codigo_pais: "1058",
-            nome_pais: "Brasil",
-            telefone: cli.telefone ? (cli.telefone || "").replace(/\D/g, "") : undefined,
-          },
-        },
-        itens: (nota.notas_saida_itens || []).map((item: any, idx: number) => {
-          // Rastros do banco (rastros_json) ou fallback para campos legados
-          const itemDB = itensMap.get(item.id) || item;
-          let rastros: any[] = [];
-          if (itemDB.rastros_json) {
-            try { rastros = JSON.parse(itemDB.rastros_json); } catch {}
-          } else if (itemDB.lote_id && item.nLote) {
-            rastros = [{ nLote: item.nLote, qLote: item.quantidade, dFab: item.dFab, dVal: item.dVal }];
-          }
-
-          // Montar infAdProd com rastreabilidade completa
-          const infAdProd = itemDB.informacoes_adicionais ||
-            (rastros.length > 0
-              ? rastros.map((r: any, ri: number) =>
-                  `${rastros.length > 1 ? `LOTE ${ri+1}: ` : 'LOTE: '}${r.nLote}${r.dVal ? ` VAL: ${r.dVal.split('-').reverse().join('/')}` : ''}${r.dFab ? ` FAB: ${r.dFab.split('-').reverse().join('/')}` : ''} QTD: ${r.qLote}${r.op_codigo ? ` OP: ${r.op_codigo}` : ''}`
-                ).join(' / ')
-              : undefined);
-
-          return {
-            numero_item: String(idx + 1),
-            codigo_produto: item.item_id || String(idx + 1),
-            codigo_ean: "SEM GTIN",
-            descricao: item.descricao || "",
-            codigo_ncm: (item.ncm || "").replace(/\D/g, ""),
-            cfop: item.cfop || "5102",
-            unidade_comercial: item.unidade || "UN",
-            quantidade_comercial: Number(item.quantidade),
-            valor_unitario_comercial: Number(item.valor_unitario),
-            valor_bruto: Number(item.valor_total),
-            codigo_ean_tributavel: "SEM GTIN",
-            unidade_tributavel: item.unidade || "UN",
-            quantidade_tributavel: Number(item.quantidade),
-            valor_unitario_tributavel: Number(item.valor_unitario),
-            // Frete rateado por item (proporcional ao valor)
-            valor_frete: item.valor_frete ? Number(item.valor_frete) : undefined,
-            valor_seguro: item.valor_seguro ? Number(item.valor_seguro) : undefined,
-            valor_desconto: item.valor_desconto ? Number(item.valor_desconto) : undefined,
-            outras_despesas: item.valor_outros ? Number(item.valor_outros) : undefined,
-            inclui_no_total: "1",
-            codigo_origem: item.origem || "0",
-            // Rastros de lote (NT 2013.005 SEFAZ / ANVISA)
-            rastros: rastros.length > 0 ? rastros.map((r: any) => ({
-              numero_lote: r.nLote,
-              quantidade_lote: Number(r.qLote),
-              data_fabricacao: r.dFab || undefined,
-              data_validade: r.dVal || undefined,
-            })) : undefined,
-            icms: {
-              origem: item.origem || "0",
-              cst: item.cst_icms || "00",
-              modalidade_base_calculo: "3",
-              base_calculo: Number(item.icms_base || item.valor_total),
-              aliquota: Number(item.icms_aliquota || 0),
-              valor: Number(item.icms_valor || 0),
-            },
-            ipi: {
-              codigo_enquadramento: "999",
-              cst: item.cst_ipi || "53", // 53=saída não tributada
-              base_calculo: 0,
-              aliquota: 0,
-              valor: Number(item.ipi_valor || 0),
-            },
-            pis: {
-              cst: item.cst_pis || "07",
-              base_calculo: Number(item.pis_base || item.valor_total),
-              aliquota_percentual: Number(item.pis_aliquota || 0),
-              valor: Number(item.pis_valor || 0),
-            },
-            cofins: {
-              cst: item.cst_cofins || "07",
-              base_calculo: Number(item.cofins_base || item.valor_total),
-              aliquota_percentual: Number(item.cofins_aliquota || 0),
-              valor: Number(item.cofins_valor || 0),
-            },
-            // Pedido de compra (xPed / nItemPed)
-            pedido_compra: item.xPed || undefined,
-            numero_item_pedido: item.nItemPed || undefined,
-            // Informações adicionais do item (infAdProd) — rastreabilidade
-            informacoes_adicionais: infAdProd || undefined,
-          };
-        }),
-        total: {
-          icms_total: {
-            base_calculo: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.icms_base || i.valor_total || 0), 0),
-            valor_icms: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.icms_valor || 0), 0),
-            valor_pis: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.pis_valor || 0), 0),
-            valor_cofins: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.cofins_valor || 0), 0),
-            valor_ipi: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.ipi_valor || 0), 0),
-            valor_produtos: (nota.notas_saida_itens || []).reduce((a: number, i: any) => a + Number(i.valor_total || 0), 0),
-            valor_nota: Number(nota.valor_total || 0),
-            valor_frete: Number(nota.valor_frete || 0),
-            valor_seguro: Number(nota.valor_seguro || 0),
-            outras_despesas: Number(nota.valor_outros || 0),
-            valor_desconto: Number(nota.valor_desconto || 0),
-            valor_ii: 0,
-            valor_servicos: 0,
-            base_calculo_st: 0,
-            valor_icms_st: 0,
-            valor_fcp: 0,
-            valor_fcp_st: 0,
-            valor_fcp_st_retido: 0,
-          },
-        },
-        // Transporte
-        transporte: {
-          modalidade_frete: String(nota.modalidade_frete || "9"),
-          ...(transp?.cnpj ? {
-            transportadora: {
-              cpf_cnpj: (transp.cnpj || "").replace(/\D/g, ""),
-              razao_social: transp.razao_social || transp.xNome || "",
-              inscricao_estadual: transp.ie || undefined,
-              endereco_completo: transp.endereco_logradouro || undefined,
-              municipio: transp.endereco_cidade || undefined,
-              uf: transp.endereco_uf || undefined,
-            },
-          } : {}),
-          ...(nota.volumes_qtd ? {
-            volumes: [{
-              quantidade: Number(nota.volumes_qtd || 1),
-              especie: nota.volumes_especie || "CX",
-              marca: nota.volumes_marca || comp.nome_fantasia || "",
-              numeracao: nota.volumes_numeracao || undefined,
-              peso_bruto: Number(nota.peso_bruto || 0),
-              peso_liquido: Number(nota.peso_liquido || 0),
-            }],
-          } : {}),
-        },
-        // Cobrança e duplicatas
-        ...(nota.fat_numero ? {
-          cobranca: {
-            fatura: {
-              numero: nota.fat_numero,
-              valor_original: Number(nota.fat_valor_original || nota.valor_total || 0),
-              valor_desconto: Number(nota.fat_valor_desconto || 0),
-              valor_liquido: Number(nota.fat_valor_liquido || nota.valor_total || 0),
-            },
-          },
-        } : {}),
-        // Pagamentos
-        pagamentos: [{
-          indicador_pagamento: nota.indicador_pagamento || "1", // 1=a prazo
-          forma_pagamento: nota.meio_pagamento || "15",        // 15=boleto bancário, 17=PIX
-          valor: Number(nota.valor_total || 0),
-        }],
-        // Informações adicionais da nota
-        informacoes_adicionais_contribuinte: nota.informacoes_adicionais || "",
-        // Responsável técnico (obrigatório para software house)
-        responsavel_tecnico: {
-          cnpj: "00000000000000", // CNPJ do software house (BrainXERP)
-          contato: "Suporte BrainXERP",
-          email: "suporte@brainxerp.com",
-          telefone: "17000000000",
-        },
-      };
-      const resultado = await emitirNFe(payload);
-      if (!resultado?.id) throw new Error("Resposta inválida da Focus NFe");
-      let autorizada = false;
-      let tentativas = 0;
-      let dadosNfe: any = null;
-      while (!autorizada && tentativas < 10) {
-        await new Promise(r => setTimeout(r, 2000));
-        dadosNfe = await consultarNFe(resultado.id);
-        if (dadosNfe?.status === "autorizado") {
-          autorizada = true;
-        } else if (["erro", "rejeitado", "denegado", "erro_autorizacao"].includes(dadosNfe?.status)) {
-          throw new Error(`NF-e ${dadosNfe.status}: ${dadosNfe?.motivo_rejeicao || "Verifique os dados e tente novamente"}`);
-        }
-        tentativas++;
+      if (!validatedNotaIds.has(notaId)) {
+        throw new Error("Valide a nota na Focus antes de transmitir.");
       }
-      if (!autorizada) {
-        await supabase.from("notas_saida")
-          .update({ status: "RASCUNHO" }).eq("id", notaId);
-        throw new Error("Timeout aguardando SEFAZ. A nota foi salva — consulte depois clicando em Atualizar Status.");
-      }
-      await supabase.from("notas_saida").update({
-        status: "AUTORIZADA",
-        focus_nfe_id: resultado.id,
-        nuvem_fiscal_id: resultado.id,
-        chave_acesso: dadosNfe?.chave_nfe || dadosNfe?.chave_acesso || null,
-        protocolo_autorizacao: dadosNfe?.protocolo || null,
-        numero: dadosNfe?.numero || null,
-        serie: dadosNfe?.serie || null,
-        danfe_url: dadosNfe?.link_pdf || (dadosNfe?.caminho_danfe ? `https://api.focusnfe.com.br${dadosNfe.caminho_danfe}` : null),
-      }).eq("id", notaId);
-
-      // ── Pós-autorização: Conta a Receber + Baixa de Estoque (FEFO) ──
-      try {
-        const { data: nfe } = await supabase
-          .from("notas_saida")
-          .select("id, numero, serie, valor_total, cliente_id, company_id, entidades:cliente_id(razao_social, nome_fantasia)")
-          .eq("id", notaId)
-          .maybeSingle();
-
-        if (nfe) {
-          const clienteNome =
-            (nfe as any).entidades?.razao_social ||
-            (nfe as any).entidades?.nome_fantasia ||
-            "Cliente";
-          const vencimento = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split("T")[0];
-
-          await supabase.from("contas_receber").insert({
-            descricao: `NF-e ${nfe.serie ?? ""}/${nfe.numero ?? ""} — ${clienteNome}`,
-            valor: Number(nfe.valor_total || 0),
-            data_vencimento: vencimento,
-            status: "ABERTO",
-            numero_documento: `NF-e ${nfe.serie ?? ""}/${nfe.numero ?? ""}`,
-            cliente_id: nfe.cliente_id,
-            company_id: nfe.company_id,
-          });
-
-          // Baixa FEFO: debitar 1 unidade do lote LIBERADO mais antigo
-          const { data: lotes } = await supabase
-            .from("lotes_produto_acabado")
-            .select("id, quantidade_aprovada")
-            .eq("status", "LIBERADO")
-            .order("data_fabricacao", { ascending: true })
-            .limit(1);
-
-          if (lotes?.[0]) {
-            await supabase
-              .from("lotes_produto_acabado")
-              .update({
-                quantidade_aprovada: Math.max(0, (lotes[0].quantidade_aprovada ?? 0) - 1),
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", lotes[0].id);
-          }
-        }
-      } catch (e) {
-        console.error("Erro em pós-autorização (CR/estoque):", e);
-      }
+      return emitirNota(notaId, false);
     },
-    onSuccess: () => {
+    onSuccess: (resultado: any, notaId: string) => {
+      setValidatedNotaIds((prev) => {
+        const next = new Set(prev);
+        next.delete(notaId);
+        return next;
+      });
+      setTransmitConfirmNota(null);
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
-      toast.success("NF-e autorizada pela SEFAZ com sucesso! DANFE disponível para download.");
+
+      const emission = normalizeFocusEmissionResult(resultado);
+      const status = emission.status.toUpperCase();
+      const toastOptions: any = { description: formatEmissionDescription(resultado) };
+      if (emission.danfeUrl) {
+        toastOptions.action = {
+          label: "Abrir DANFE",
+          onClick: () => window.open(emission.danfeUrl, "_blank", "noopener,noreferrer"),
+        };
+      }
+
+      toast.success(
+        status.includes("PROCESSANDO") ? "NF-e enviada para processamento na Focus" : "NF-e transmitida com sucesso",
+        toastOptions
+      );
+      if (status.includes("PROCESSANDO")) {
+        toast.info("Status processando: use Consultar NF-e para reconciliar número, série, chave e protocolo.");
+      }
     },
     onError: async (err: any) => {
       toast.error("Erro na transmissão: " + err.message);
@@ -675,15 +592,17 @@ export default function NotasSaidaPage() {
         denegado: "DENEGADA",
         erro_autorizacao: "REJEITADA",
         rejeitado: "REJEITADA",
+        processando: "PROCESSANDO",
         processando_autorizacao: "PROCESSANDO",
       };
-      const novoStatus = statusMap[dados?.status] || "RASCUNHO";
+      const novoStatus = statusMap[String(dados?.status || "").toLowerCase()] || "RASCUNHO";
       await supabase.from("notas_saida").update({
         status: novoStatus,
         chave_acesso: dados?.chave_nfe || dados?.chave_acesso || undefined,
         protocolo_autorizacao: dados?.protocolo || undefined,
         numero: dados?.numero || undefined,
         serie: dados?.serie || undefined,
+        danfe_url: dados?.danfe_url || dados?.link_pdf || undefined,
       }).eq("id", notaId);
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
       toast.success(`Status atualizado: ${novoStatus}`);
@@ -711,71 +630,20 @@ export default function NotasSaidaPage() {
   };
 
   const transmitirSelecionadas = async () => {
-    const ids = Array.from(selectedIds).filter(id => {
-      const n = filtered.find((x: any) => x.id === id);
-      return n?.status === "RASCUNHO";
-    });
-    if (!ids.length) { toast.warning("Nenhum rascunho selecionado"); return; }
-    toast.info(`Transmitindo ${ids.length} nota(s)...`);
-    for (const id of ids) {
-      await transmitirNota.mutateAsync(id).catch(() => {});
-    }
-    setSelectedIds(new Set());
+    toast.warning("Valide e confirme a transmissão de cada NF-e individualmente.");
   };
 
-  const buildDanfeData = (notaData: any, notaItens: any[], comp: any, cliente: any) => ({
-    emit_razao: comp?.razao_social || "—",
-    emit_fantasia: comp?.nome_fantasia || "",
-    emit_logradouro: comp?.endereco_logradouro || "",
-    emit_numero: comp?.endereco_nro || "",
-    emit_bairro: comp?.endereco_bairro || "",
-    emit_cidade: comp?.endereco_cidade || "",
-    emit_uf: comp?.endereco_uf || "",
-    emit_cep: comp?.endereco_cep || "",
-    emit_telefone: comp?.telefone || "",
-    emit_email: comp?.email_fiscal || "",
-    emit_cnpj: comp?.cnpj || "",
-    emit_ie: comp?.ie || "",
-    numero: notaData.numero,
-    serie: notaData.serie || company?.nfe_serie_padrao || "1",
-    natureza_operacao: notaData.natureza_operacao || "Venda de mercadoria",
-    chave_acesso: notaData.chave_acesso || "",
-    protocolo: notaData.protocolo_autorizacao || "",
-    data_emissao: notaData.data_emissao ? new Date(notaData.data_emissao).toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR"),
-    tipo_operacao: "1" as const,
-    dest_razao: cliente?.razao_social || notaData.entidades?.razao_social || "—",
-    dest_cnpj_cpf: cliente?.documento || notaData.entidades?.documento || "",
-    dest_ie: cliente?.ie || "",
-    bc_icms: Number(notaData.valor_produtos || 0),
-    valor_icms: Number(notaData.valor_icms || 0),
-    bc_icms_st: 0,
-    valor_icms_st: 0,
-    valor_produtos: Number(notaData.valor_produtos || 0),
-    valor_frete: 0,
-    valor_seguro: 0,
-    valor_desconto: 0,
-    outras_despesas: 0,
-    valor_ipi: 0,
-    valor_aprox_tributos: Number(notaData.valor_icms || 0) + Number(notaData.valor_pis || 0) + Number(notaData.valor_cofins || 0),
-    valor_total: Number(notaData.valor_total || 0),
-    transp_frete_conta: MODALIDADES_FRETE.find(m => m.value === notaData.modalidade_frete)?.label?.split(" - ")[0] || "9 - Sem transporte",
-    itens: notaItens.map((item: any, idx: number) => ({
-      numero_item: item.numero_item || idx + 1,
-      descricao: item.descricao || "",
-      ncm: item.ncm || "",
-      cst_icms: item.cst_icms || "00",
-      cfop: item.cfop || "5102",
-      unidade: item.unidade || "UN",
-      quantidade: Number(item.quantidade || 0),
-      valor_unitario: Number(item.valor_unitario || 0),
-      valor_total: Number(item.valor_total || 0),
-      icms_aliquota: Number(item.icms_aliquota || 0),
-      icms_valor: Number(item.icms_valor || 0),
-      origem: item.origem || "0",
-    })),
-    info_complementares: notaData.informacoes_adicionais || "",
-    ambiente: (notaData.ambiente || "homologacao") as "homologacao" | "producao",
-  });
+  const buildDanfeData = async (notaId: string) => {
+    const { data, error } = await (supabase as any).rpc("montar_payload_focus", { p_nota_saida_id: notaId });
+    if (error) throw error;
+
+    const payload = unwrapFocusPayload(data);
+    if (!payload) throw new Error("RPC montar_payload_focus não retornou payload");
+    logFocusPayloadShape(payload);
+
+    const branding = companyBranding || (await refetchCompanyBranding()).data;
+    return mapFocusPayloadToDanfeData(payload, branding?.logo_url);
+  };
 
   const openDanfeFromForm = () => {
     // Preview do DANFE só está disponível após salvar a nota,
@@ -784,19 +652,13 @@ export default function NotasSaidaPage() {
   };
 
   const openDanfeFromSavedNota = async (notaId: string) => {
-    const { data: nota } = await supabase
-      .from("notas_saida")
-      .select("*, entidades!notas_saida_cliente_id_fkey(razao_social, nome_fantasia, documento, ie)")
-      .eq("id", notaId)
-      .single();
-    if (!nota) return;
-    const { data: notaItens } = await supabase
-      .from("notas_saida_itens")
-      .select("*")
-      .eq("nota_saida_id", notaId)
-      .order("numero_item");
-    setDanfeData(buildDanfeData(nota, notaItens || [], company, nota.entidades));
-    setDanfePreviewOpen(true);
+    try {
+      setDanfeData(await buildDanfeData(notaId));
+      setDanfePreviewOpen(true);
+    } catch (error: any) {
+      console.error("Erro ao montar DANFE via montar_payload_focus:", error);
+      toast.error("Erro ao montar DANFE: " + (error?.message || "verifique o payload fiscal"));
+    }
   };
 
   const resetForm = () => {
@@ -1056,10 +918,16 @@ export default function NotasSaidaPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((nota: any) => {
-                  const cfg = STATUS_CONFIG[nota.status] || STATUS_CONFIG.RASCUNHO;
+                  const status = String(nota.status || "RASCUNHO").toUpperCase();
+                  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.RASCUNHO;
                   const Icon = cfg.icon;
+                  const isValidated = validatedNotaIds.has(nota.id);
+                  const isEmissionPending = validarNotaFocus.isPending || transmitirNota.isPending;
+                  const rowClassName = nota.id === notaDestacadaId
+                    ? "bg-amber-50 ring-1 ring-amber-300"
+                    : selectedIds.has(nota.id) ? "bg-primary/5" : "";
                   return (
-                    <TableRow key={nota.id} className={selectedIds.has(nota.id) ? "bg-primary/5" : ""}>
+                    <TableRow key={nota.id} className={rowClassName}>
                       <TableCell>
                         <Checkbox
                           checked={selectedIds.has(nota.id)}
@@ -1067,7 +935,7 @@ export default function NotasSaidaPage() {
                         />
                       </TableCell>
                       <TableCell className="font-mono text-sm">
-                        {nota.numero || "—"}
+                        {nota.numero || (status === "RASCUNHO" ? "a definir na transmissão" : "—")}
                       </TableCell>
                       <TableCell>
                         <div>
@@ -1093,7 +961,37 @@ export default function NotasSaidaPage() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
+                        <div className="flex justify-end gap-2">
+                          {status === "RASCUNHO" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => validarNotaFocus.mutate(nota.id)}
+                                disabled={isEmissionPending}
+                              >
+                                {validarNotaFocus.isPending ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <FileCheck2 className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Validar na Focus
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => setTransmitConfirmNota(nota)}
+                                disabled={!isValidated || isEmissionPending}
+                              >
+                                {transmitirNota.isPending ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <Send className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Transmitir
+                              </Button>
+                            </>
+                          )}
+                          <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button size="icon" variant="ghost" className="h-8 w-8">
                               {statusLoadingId === nota.id
@@ -1107,18 +1005,8 @@ export default function NotasSaidaPage() {
                               <Eye className="h-4 w-4 mr-2" /> Visualizar DANFE
                             </DropdownMenuItem>
 
-                            {/* Transmitir (rascunho) */}
-                            {nota.status === "RASCUNHO" && (
-                              <DropdownMenuItem
-                                onClick={() => transmitirNota.mutate(nota.id)}
-                                disabled={transmitirNota.isPending}
-                              >
-                                <Send className="h-4 w-4 mr-2" /> Transmitir à SEFAZ
-                              </DropdownMenuItem>
-                            )}
-
                             {/* Ações para notas autorizadas */}
-                            {nota.status === "AUTORIZADA" && (
+                            {status === "AUTORIZADA" && (
                               <>
                                 <DropdownMenuItem onClick={() => {
                                   const fid = (nota as any).focus_nfe_id || nota.nuvem_fiscal_id;
@@ -1158,16 +1046,17 @@ export default function NotasSaidaPage() {
                             )}
 
                             {/* Consultar status (processando/rejeitada) */}
-                            {["PROCESSANDO", "REJEITADA", "RASCUNHO"].includes(nota.status) && (
+                            {["PROCESSANDO", "REJEITADA", "RASCUNHO"].includes(status) && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => consultarStatusMutation(nota.id)}>
-                                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar Status
+                                  <RefreshCw className="h-4 w-4 mr-2" /> Consultar NF-e
                                 </DropdownMenuItem>
                               </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -1491,6 +1380,52 @@ export default function NotasSaidaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ─── Dialog Confirmação de Transmissão ─── */}
+      <Dialog
+        open={!!transmitConfirmNota}
+        onOpenChange={(open) => {
+          if (!open) setTransmitConfirmNota(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Confirmar transmissão da NF-e
+            </DialogTitle>
+            <DialogDescription>
+              Depois da autorização pela SEFAZ, a saída da nota só poderá ser desfeita por cancelamento dentro da
+              janela legal de 24h ou corrigida por CC-e quando permitido.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <p>
+              Cliente:{" "}
+              <span className="font-medium">
+                {transmitConfirmNota?.entidades?.razao_social || transmitConfirmNota?.entidades?.nome_fantasia || "—"}
+              </span>
+            </p>
+            <p>
+              Valor total:{" "}
+              <span className="font-mono">R$ {fmt(Number(transmitConfirmNota?.valor_total || 0))}</span>
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTransmitConfirmNota(null)}>
+              Voltar
+            </Button>
+            <Button
+              disabled={!transmitConfirmNota || !validatedNotaIds.has(transmitConfirmNota.id) || transmitirNota.isPending}
+              onClick={() => {
+                if (transmitConfirmNota) transmitirNota.mutate(transmitConfirmNota.id);
+              }}
+            >
+              {transmitirNota.isPending ? "Transmitindo..." : "Confirmar e transmitir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ─── Dialog Cancelamento ─── */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent>
@@ -1639,9 +1574,9 @@ export default function NotasSaidaPage() {
                 setInutLoading(true);
                 try {
                   await inutilizarNFe({
-                    serie: Number(inutSerie),
-                    numero_inicial: Number(inutNumIni),
-                    numero_final: Number(inutNumFim),
+                    serie: inutSerie,
+                    numero_inicial: inutNumIni,
+                    numero_final: inutNumFim,
                     justificativa: inutJustificativa,
                   });
                   toast.success("Numeração inutilizada com sucesso");

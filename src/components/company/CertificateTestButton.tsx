@@ -3,6 +3,7 @@ import { ShieldCheck, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 interface CertificateTestButtonProps {
   certificateFileId?: string | null;
@@ -49,11 +50,13 @@ export function CertificateTestButton({
     setResult(null);
 
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data, error } = await supabase.functions.invoke("validate-certificate", {
-        body: { fileId: certificateFileId, password: certificatePassword, companyCnpj },
+      const { data, error } = await invokeEdge<CertificateTestResult>("validate-certificate", {
+        fileId: certificateFileId,
+        password: certificatePassword,
+        companyCnpj,
       });
-      if (error) throw error;
+      if (error) throw new Error(error);
+      if (!data) throw new Error("Resposta vazia ao validar certificado");
 
       const testResult: CertificateTestResult = data;
       setResult(testResult);
@@ -115,7 +118,7 @@ export function CertificateTestButton({
         type="button"
         variant="outline"
         onClick={handleTest}
-        disabled={isLoading || !certificateFileId}
+        disabled={isLoading || !certificateFileId || !certificatePassword}
         className="w-full"
       >
         {isLoading ? (

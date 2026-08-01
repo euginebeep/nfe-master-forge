@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { isSuperDev, startGhost } from "@/lib/ghost-mode";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -143,10 +144,8 @@ export default function SaasDashboardPage() {
     if (!sess?.session) {
       await supabase.auth.refreshSession();
     }
-    const { data, error } = await supabase.functions.invoke("saas-admin", {
-      body: { action, ...body },
-    });
-    if (error) throw new Error(error.message || "saas-admin failed");
+    const { data, error } = await invokeEdge<any>("saas-admin", { action, ...body });
+    if (error) throw new Error(error || "saas-admin failed");
     return data;
   };
 

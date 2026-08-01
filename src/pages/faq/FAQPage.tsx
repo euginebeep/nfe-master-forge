@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -87,12 +88,10 @@ async function healthCheckManualIa(): Promise<boolean> {
 
   try {
     const { data, error } = await Promise.race([
-      supabase.functions.invoke("manual-ia", {
-        body: {
-          pergunta: HEALTH_CHECK_PERGUNTA,
-          historico_chat: [],
-          secao_contexto: null,
-        },
+      invokeEdge<{ resposta?: string }>("manual-ia", {
+        pergunta: HEALTH_CHECK_PERGUNTA,
+        historico_chat: [],
+        secao_contexto: null,
       }),
       timeout,
     ]);
@@ -432,12 +431,10 @@ export default function FAQPage() {
         setTimeout(() => reject(new Error("timeout")), HEALTH_CHECK_TIMEOUT_MS);
       });
       const { data, error } = await Promise.race([
-        supabase.functions.invoke('manual-ia', {
-          body: { pergunta, historico_chat: historico, secao_contexto: secaoAtiva }
-        }),
+        invokeEdge<{ resposta?: string }>('manual-ia', { pergunta, historico_chat: historico, secao_contexto: secaoAtiva }),
         timeout,
       ]);
-      if (error) throw error;
+      if (error) throw new Error(error);
 
       const resposta = typeof data?.resposta === "string" ? data.resposta : "";
       if (!resposta.trim() || isRespostaErroIA(resposta)) {

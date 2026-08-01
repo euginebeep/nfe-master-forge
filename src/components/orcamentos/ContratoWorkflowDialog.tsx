@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { valorPorExtenso } from "@/lib/valor-extenso";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 interface Orcamento {
   id: string;
@@ -106,12 +107,18 @@ export function ContratoWorkflowDialog({
   const nomeUsuario = profile?.nome_completo || "Usuário";
 
   const { data: company } = useQuery({
-    queryKey: ["company-contrato"],
+    queryKey: ["company-contrato", profile?.company_id],
     queryFn: async () => {
-      const { data } = await supabase.from("company").select("*").limit(1).single();
+      if (!profile?.company_id) return null;
+      const { data, error } = await supabase
+        .from("company")
+        .select("*")
+        .eq("id", profile.company_id)
+        .maybeSingle();
+      if (error) throw error;
       return data;
     },
-    enabled: open,
+    enabled: open && !!profile?.company_id,
   });
 
   // Busca URL do logo da empresa
@@ -363,16 +370,14 @@ ${paragrafos}
 
     try {
       const htmlBody = gerarContratoHtml();
-      const { data, error } = await supabase.functions.invoke("send-contract-email", {
-        body: {
-          to: orcamento.cliente_email,
-          subject: `Contrato de Industrialização - ${orcamento.codigo}`,
-          htmlBody,
-          senderName: nomeUsuario,
-        },
+      const { data, error } = await invokeEdge<{ success?: boolean; error?: string }>("send-contract-email", {
+        to: orcamento.cliente_email,
+        subject: `Contrato de Industrialização - ${orcamento.codigo}`,
+        htmlBody,
+        senderName: nomeUsuario,
       });
 
-      if (error) throw new Error(error.message || "Erro ao enviar email");
+      if (error) throw new Error(error || "Erro ao enviar email");
       if (data && !data.success) throw new Error(data.error || "Falha no envio");
 
       await updateField({

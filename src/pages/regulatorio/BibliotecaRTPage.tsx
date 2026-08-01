@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { invokeEdge } from "@/lib/edge-invoke";
 import {
   useAlertasNormativosPendentes,
   useMarcarAlertaRevisado,
@@ -229,14 +230,12 @@ export default function BibliotecaRTPage() {
     setBuscando(true);
     setRespostaRAG(null);
     try {
-      const { data, error } = await supabase.functions.invoke("legislacao-rag-search", {
-        body: {
-          pergunta,
-          company_id: profile?.company_id,
-          usuario_id: user?.id,
-        },
+      const { data, error } = await invokeEdge<RespostaRAG>("legislacao-rag-search", {
+        pergunta,
+        company_id: profile?.company_id,
+        usuario_id: user?.id,
       });
-      if (error) throw error;
+      if (error) throw new Error(error);
       setRespostaRAG(data as RespostaRAG);
     } catch {
       toast.error("Erro ao consultar a base. Tente novamente.");
@@ -252,14 +251,12 @@ export default function BibliotecaRTPage() {
     try {
       const perguntaRevisao =
         `Revise o seguinte texto de POP e identifique afirmações que podem não ter base nas normas ANVISA para suplementos alimentares (RDC 243/2018, RDC 275/2002, IN 28/2018). Para cada afirmação suspeita, indique se há ou não sustentação na base:\n\n${textoPOP}`;
-      const { data, error } = await supabase.functions.invoke("legislacao-rag-search", {
-        body: {
-          pergunta: perguntaRevisao,
-          company_id: profile?.company_id,
-          usuario_id: user?.id,
-        },
+      const { data, error } = await invokeEdge<RespostaRAG>("legislacao-rag-search", {
+        pergunta: perguntaRevisao,
+        company_id: profile?.company_id,
+        usuario_id: user?.id,
       });
-      if (error) throw error;
+      if (error) throw new Error(error);
       setResultadoRevisao(data as RespostaRAG);
     } catch {
       toast.error("Erro ao revisar o POP. Tente novamente.");

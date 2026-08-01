@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdge } from '@/lib/edge-invoke';
 
 interface SyncHistory {
   id: string;
@@ -37,8 +38,8 @@ export function useAnvisaSync() {
 
   const { mutate: sincronizar, isPending: sincronizando } = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('anvisa-powerbi-sync');
-      if (error) throw new Error(error.message);
+      const { data, error } = await invokeEdge('anvisa-powerbi-sync');
+      if (error) throw new Error(error);
       return data;
     },
     onSuccess: () => {
@@ -49,10 +50,8 @@ export function useAnvisaSync() {
 
   const { mutate: sincronizarSubstancia, isPending: sincronizandoSubstancia } = useMutation({
     mutationFn: async (substancia: string) => {
-      const { data, error } = await supabase.functions.invoke('anvisa-powerbi-sync', {
-        body: { substancia },
-      });
-      if (error) throw new Error(error.message);
+      const { data, error } = await invokeEdge('anvisa-powerbi-sync', { substancia });
+      if (error) throw new Error(error);
       return data;
     },
     onSuccess: () => {

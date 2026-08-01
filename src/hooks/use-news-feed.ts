@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 export interface NewsItem {
   title: string;
@@ -11,8 +11,8 @@ export interface NewsItem {
 }
 
 async function fetchNews(): Promise<NewsItem[]> {
-  const { data, error } = await supabase.functions.invoke("news-feed");
-  if (error) throw error;
+  const { data, error } = await invokeEdge<{ news?: NewsItem[] }>("news-feed");
+  if (error) throw new Error(error);
   return data?.news ?? [];
 }
 

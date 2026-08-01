@@ -37,6 +37,21 @@ export interface ItemImportConfig {
 const TIPOS_LOTE_OPCIONAL = new Set(['EMBALAGEM', 'POTE', 'TAMPA', 'ROTULO', 'OUTRO']);
 const TIPOS_LOTE_EXIGIDO = new Set(['MP', 'SILICA', 'CAPSULA_VAZIA', 'PREMIX']);
 
+export function normalizarCfopEntrada(cfop?: string | null): string | null {
+  const valor = cfop?.trim();
+  if (!valor) return null;
+
+  const primeiroDigitoEntrada: Record<string, string> = {
+    '5': '1',
+    '6': '2',
+    '7': '3',
+  };
+
+  if (!/^[567]\d{3}$/.test(valor)) return valor;
+
+  return `${primeiroDigitoEntrada[valor[0]]}${valor.slice(1)}`;
+}
+
 export function tipoExigeLote(tipo?: string | null): boolean {
   const t = (tipo || '').trim().toUpperCase();
   if (!t) return true;
@@ -476,6 +491,7 @@ async function findOrCreateItemSupabase(
   const ncmClass = classificarPorNCM(ncm);
   const criticidade = ncmClass?.risco || (tipoItem === 'MP' ? 'CRITICO' : 'NORMAL');
   const potenciaCompra = extrairPotenciaDescricao(descricao);
+  const cfopEntrada = normalizarCfopEntrada(itemXML.cfop);
 
   let conversaoUiMcg: number | null = null;
   if (descricao.toUpperCase().match(/UI\b/)) {
@@ -492,7 +508,7 @@ async function findOrCreateItemSupabase(
     unidade_pesagem: unidadeInterna,
     unidade_fornecedor: itemXML.unidade_comercial || null,
     cest: (itemXML as any).cest || null,
-    cfop_entrada_padrao: (itemXML as any).cfop || null,
+    cfop_entrada_padrao: cfopEntrada,
     preco_unitario_fornecedor: itemXML.valor_unitario_comercial || null,
     controla_lote: true,
     controla_validade: true,
@@ -824,6 +840,7 @@ export async function importarNFeCompletaSupabase(
       const unidadeInternaCalc = configManual?.unidadeInterna || inferirUnidadeInterna(uComItem, mapClassificacaoToTipo(classificacao, itemData.item.descricao), itemData.item.descricao);
       const fatorConv = configManual?.fatorConversao || calcularFatorConversao(uComItem, unidadeInternaCalc);
       const custoInterno = itemData.item.valor_total / (itemData.item.quantidade_comercial * fatorConv);
+      const cfopEntrada = normalizarCfopEntrada(itemData.item.cfop);
       
       const fiscalUpdate: Record<string, unknown> = {};
       if (impostos.icms_origem) fiscalUpdate.origem_icms = impostos.icms_origem;
@@ -837,7 +854,7 @@ export async function importarNFeCompletaSupabase(
       if (impostos.cofins_cst) fiscalUpdate.cst_cofins = impostos.cofins_cst;
       if (impostos.cofins_aliquota) fiscalUpdate.aliquota_cofins = impostos.cofins_aliquota;
       if (itemData.item.cest) fiscalUpdate.cest = itemData.item.cest;
-      if (itemData.item.cfop) fiscalUpdate.cfop_entrada_padrao = itemData.item.cfop;
+      if (cfopEntrada) fiscalUpdate.cfop_entrada_padrao = cfopEntrada;
       // Dados comerciais
       fiscalUpdate.unidade_fornecedor = itemData.item.unidade_comercial;
       fiscalUpdate.unidade_pesagem = unidadeInternaCalc; // Sync unidade_pesagem
@@ -901,7 +918,7 @@ export async function importarNFeCompletaSupabase(
           codigo_fornecedor: itemData.item.codigo_produto,
           descricao: itemData.item.descricao,
           ncm: itemData.item.ncm || null,
-          cfop: itemData.item.cfop || null,
+          cfop: cfopEntrada,
           ean: itemData.item.ean || null,
           ucom: itemData.item.unidade_comercial,
           qcom: itemData.item.quantidade_comercial,

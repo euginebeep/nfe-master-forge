@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { invokeEdge } from '@/lib/edge-invoke';
 
 interface CryptoPrice {
   symbol: string;
@@ -19,8 +20,6 @@ interface IbovespaData {
   change: number;
 }
 
-import { supabase } from '@/integrations/supabase/client';
-
 interface MarketData {
   ibovespa?: IbovespaData;
   crypto?: Record<string, { usd: number; usd_24h_change: number }>;
@@ -28,9 +27,9 @@ interface MarketData {
 
 async function fetchMarketData(): Promise<MarketData> {
   try {
-    const { data, error } = await supabase.functions.invoke('market-indices');
-    if (error) throw error;
-    return data as MarketData;
+    const { data, error } = await invokeEdge<MarketData>('market-indices');
+    if (error) throw new Error(error);
+    return data ?? {};
   } catch (error) {
     console.error('Erro ao buscar dados de mercado:', error);
     throw error;

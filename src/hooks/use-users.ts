@@ -2,38 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { registrarAuditoria } from '@/lib/audit-logger';
+import { invokeEdge } from '@/lib/edge-invoke';
 import type { Database } from '@/integrations/supabase/types';
-
-/**
- * Extrai a mensagem de erro real de uma resposta de supabase.functions.invoke.
- * Quando o status é não-2xx, o corpo JSON fica em response.error.context (Response).
- * Retorna null quando não há erro.
- */
-async function extractInvokeError(
-  response: { data: any; error: any },
-  fallback: string
-): Promise<string | null> {
-  // 1) Erro de servidor: tenta ler o body do Response em error.context
-  if (response.error) {
-    try {
-      const ctx: any = (response.error as any).context;
-      if (ctx && typeof ctx.json === 'function') {
-        const body = await ctx.clone().json();
-        if (body?.error) return String(body.error);
-        if (body?.message) return String(body.message);
-      } else if (ctx && typeof ctx.text === 'function') {
-        const txt = await ctx.clone().text();
-        if (txt) return txt;
-      }
-    } catch {
-      /* ignora parse */
-    }
-    return response.error.message || fallback;
-  }
-  // 2) Função retornou 2xx mas com { error: "..." } no body
-  if (response.data?.error) return String(response.data.error);
-  return null;
-}
 
 type AppRole = Database['public']['Enums']['app_role'];
 type AppDepartamento = Database['public']['Enums']['app_departamento'];
@@ -207,12 +177,8 @@ export function useUsers() {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await supabase.functions.invoke('admin-create-user', {
-        body: data,
-      });
+      const { data: responseData, error: errorMsg } = await invokeEdge<{ user_id?: string }>('admin-create-user', data);
 
-      // supabase.functions.invoke stores the non-2xx body in response.error.context (a Response)
-      const errorMsg = await extractInvokeError(response, 'Erro ao criar usuário');
       if (errorMsg) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
@@ -224,7 +190,7 @@ export function useUsers() {
         tipo: 'USUARIO_CRIADO',
         descricao: `Usuário "${data.nome_completo}" criado (${data.email})`,
         entidade_tipo: 'Usuario',
-        entidade_id: response.data?.user_id || 'unknown',
+        entidade_id: responseData?.user_id || 'unknown',
       });
       return { success: true };
     } catch (err) {
@@ -242,11 +208,8 @@ export function useUsers() {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await supabase.functions.invoke('admin-update-user', {
-        body: data,
-      });
+      const { error: errorMsg } = await invokeEdge('admin-update-user', data);
 
-      const errorMsg = await extractInvokeError(response, 'Erro ao atualizar usuário');
       if (errorMsg) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
@@ -276,11 +239,8 @@ export function useUsers() {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await supabase.functions.invoke('admin-delete-user', {
-        body: { user_id: userId },
-      });
+      const { error: errorMsg } = await invokeEdge('admin-delete-user', { user_id: userId });
 
-      const errorMsg = await extractInvokeError(response, 'Erro ao excluir usuário');
       if (errorMsg) {
         toast.error(errorMsg);
         return { success: false, error: errorMsg };

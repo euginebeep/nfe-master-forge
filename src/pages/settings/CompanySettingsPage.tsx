@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Building2, Save, Loader2, Upload, X, FileCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
@@ -20,6 +20,7 @@ import { CertificateTestButton } from "@/components/company/CertificateTestButto
 import { MaskedInput } from "@/components/ui/masked-input";
 import type { Company, AmbienteNFe } from "@/types/erp";
 import { toast } from "sonner";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 const UF_OPTIONS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -34,6 +35,16 @@ const CRT_OPTIONS = [
   { value: "4", label: "4 - MEI" },
 ];
 
+type FocusIntegrationStatus = {
+  empresa_cadastrada?: boolean;
+  focus_empresa_id?: string | null;
+  token_producao?: boolean;
+  token_homologacao?: boolean;
+  atualizado_em?: string | null;
+  ambiente?: string | null;
+  certificado_vinculado?: boolean;
+};
+
 export default function CompanySettingsPage() {
   const { data: company, isLoading } = useCompany();
   const upsertCompany = useUpsertCompany();
@@ -41,9 +52,13 @@ export default function CompanySettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [certUploading, setCertUploading] = useState(false);
+  const [selectedCertFile, setSelectedCertFile] = useState<File | null>(null);
   const [certFileName, setCertFileName] = useState<string | null>(null);
   const [certTestResult, setCertTestResult] = useState<{ daysUntilExpiry?: number } | null>(null);
   const [certError, setCertError] = useState<string | null>(null);
+  const [focusStatus, setFocusStatus] = useState<FocusIntegrationStatus | null>(null);
+  const [focusStatusLoading, setFocusStatusLoading] = useState(false);
+  const [focusStatusError, setFocusStatusError] = useState<string | null>(null);
   // A senha do certificado NUNCA deve ser persistida (nem localStorage, nem
   // Supabase) — fica só em memória durante esta sessão da página, usada
   // exclusivamente para testar/validar o certificado. Ver auditoria de
@@ -52,6 +67,24 @@ export default function CompanySettingsPage() {
   // criptografia implementada para ela — salvar ali era texto puro disfarçado.
   const [certSenha, setCertSenha] = useState("");
   const [optoutParceiros, setOptoutParceiros] = useState(false);
+
+  const loadFocusStatus = useCallback(async () => {
+    setFocusStatusLoading(true);
+    setFocusStatusError(null);
+    try {
+      const { data, error } = await (supabase as any).rpc("status_integracao_focus");
+      if (error) throw error;
+      setFocusStatus(Array.isArray(data) ? data[0] ?? null : data ?? null);
+    } catch (err) {
+      setFocusStatusError(err instanceof Error ? err.message : "Erro ao carregar status da integração Focus NFe.");
+    } finally {
+      setFocusStatusLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFocusStatus();
+  }, [loadFocusStatus]);
 
   // Carregar status de opt-out de conteúdo de parceiros
   useEffect(() => {
@@ -245,15 +278,28 @@ export default function CompanySettingsPage() {
     }
   };
 
-  const handleCertUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCertFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedCertFile(file);
+    setCertError(null);
+    setCertTestResult(null);
+  };
 
+  const handleCertValidate = async () => {
+    const file = selectedCertFile;
+    if (!file) return;
     const companyCnpj = form.getValues("cnpj");
 
     if (!certSenha) {
-      setCertError("Preencha a senha do certificado antes de enviar o arquivo.");
-      toast.error("Preencha a senha do certificado antes de enviar o arquivo.");
+      setCertError("Preencha a senha do certificado antes de validar.");
+      toast.error("Preencha a senha do certificado antes de validar.");
+      return;
+    }
+
+    if (!companyCnpj) {
+      setCertError("Preencha o CNPJ da empresa antes de validar o certificado.");
+      toast.error("Preencha o CNPJ da empresa antes de validar o certificado.");
       return;
     }
 
@@ -261,37 +307,39 @@ export default function CompanySettingsPage() {
     setCertError(null);
 
     try {
-      // 1. Upload the file
       const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
 
-      // 2. Validate certificate CNPJ against company CNPJ
-      if (companyCnpj) {
-        const { data: result, error } = await supabase.functions.invoke("validate-certificate", {
-          body: { fileId: arquivo.id, password: certSenha, companyCnpj },
-        });
-        if (error) throw error;
+      const { data: result, error, payload } = await invokeEdge<{
+        valid?: boolean;
+        error?: string;
+        daysUntilExpiry?: number;
+        etapa?: string;
+        focus_status?: string;
+      }>("validate-certificate", { fileId: arquivo.id, password: certSenha, companyCnpj });
 
-        if (!result.valid) {
-          // Certificate is invalid or CNPJ doesn't match — reject
-          setCertError(result.error || "Certificado inválido.");
-          toast.error(result.error || "Certificado inválido.");
-          // Don't link the certificate
-          return;
-        }
-        
-        // Store expiry info
-        setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry });
-        
-        if (result.daysUntilExpiry !== undefined && result.daysUntilExpiry <= 30) {
-          toast.warning(`Atenção: certificado expira em ${result.daysUntilExpiry} dias!`);
-        } else {
-          toast.success("Certificado válido e vinculado com sucesso!");
-        }
+      // valid:false vem em data (helper preserva); transporte vem em error + payload
+      const certResult = result ?? (payload as typeof result | undefined);
+      if (error && !certResult) throw new Error(error);
+
+      if (!certResult?.valid) {
+        const message = certResult?.error || error || "Certificado inválido.";
+        const detalhe = [certResult?.etapa, certResult?.focus_status].filter(Boolean).join(" · ");
+        setCertError(detalhe ? `${message} (${detalhe})` : message);
+        toast.error(message);
+        return; // nunca gravar certificado_a1_file_id se inválido
       }
-      
-      // 3. Link certificate
+
+      setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry });
       form.setValue("certificado_a1_file_id", arquivo.id);
       setCertFileName(file.name);
+      setSelectedCertFile(null);
+      loadFocusStatus();
+
+      if (result.daysUntilExpiry !== undefined && result.daysUntilExpiry <= 30) {
+        toast.warning(`Atenção: certificado expira em ${result.daysUntilExpiry} dias!`);
+      } else {
+        toast.success("Certificado válido e vinculado com sucesso!");
+      }
     } catch (err) {
       setCertError(err instanceof Error ? err.message : "Erro ao processar certificado.");
       toast.error("Erro ao processar certificado.");
@@ -299,6 +347,9 @@ export default function CompanySettingsPage() {
       setCertUploading(false);
     }
   };
+
+  const companyCnpjForCertificate = form.watch("cnpj") || "";
+  const canValidateSelectedCert = !!selectedCertFile && !!certSenha && !!companyCnpjForCertificate && !certUploading;
 
   if (isLoading) {
     return (
@@ -550,6 +601,7 @@ export default function CompanySettingsPage() {
                             onClick={() => {
                               form.setValue("certificado_a1_file_id", null);
                               setCertFileName(null);
+                              setSelectedCertFile(null);
                               setCertTestResult(null);
                             }}
                             title="Remover certificado"
@@ -592,6 +644,7 @@ export default function CompanySettingsPage() {
                           <CertificateTestButton
                             certificateFileId={form.watch("certificado_a1_file_id")}
                             certificatePassword={certSenha || undefined}
+                            companyCnpj={companyCnpjForCertificate || undefined}
                             onTestResult={(result) => setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry })}
                           />
                         </div>
@@ -601,17 +654,7 @@ export default function CompanySettingsPage() {
                         {/* Sem certificado - mostrar upload */}
                         <div className="grid gap-4 md:grid-cols-2">
                           <div className="space-y-2">
-                            <Label>Senha do Certificado *</Label>
-                            <Input
-                              type="password"
-                              placeholder="Digite a senha antes de enviar"
-                              value={certSenha}
-                              onChange={(e) => setCertSenha(e.target.value)}
-                            />
-                            <p className="text-xs text-muted-foreground">Obrigatória para validar o certificado</p>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Arquivo do Certificado (PFX/P12)</Label>
+                            <Label>Arquivo do Certificado (PFX/P12) *</Label>
                             <div className="flex items-center gap-2">
                               <Button
                                 type="button"
@@ -620,17 +663,43 @@ export default function CompanySettingsPage() {
                                 disabled={certUploading}
                                 onClick={() => document.getElementById("cert-upload-input")?.click()}
                               >
-                                {certUploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-                                {certUploading ? "Validando..." : "Enviar Certificado"}
+                                <Upload className="h-4 w-4 mr-1" />
+                                Selecionar arquivo
                               </Button>
                               <input
                                 id="cert-upload-input"
                                 type="file"
                                 accept=".pfx,.p12"
-                                onChange={handleCertUpload}
+                                onChange={handleCertFileSelect}
                                 className="hidden"
                               />
                             </div>
+                            <p className="text-xs text-muted-foreground">
+                              {selectedCertFile ? selectedCertFile.name : "Selecione o arquivo antes de informar a senha."}
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Senha do Certificado *</Label>
+                            <Input
+                              type="password"
+                              placeholder="Digite a senha para validar"
+                              value={certSenha}
+                              onChange={(e) => setCertSenha(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">Obrigatória para validar o certificado</p>
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
+                            <Button
+                              type="button"
+                              disabled={!canValidateSelectedCert}
+                              onClick={handleCertValidate}
+                            >
+                              {certUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileCheck className="h-4 w-4 mr-2" />}
+                              {certUploading ? "Validando..." : "Validar e vincular certificado"}
+                            </Button>
+                            {!companyCnpjForCertificate && (
+                              <p className="text-xs text-muted-foreground">Preencha o CNPJ da empresa antes de validar o certificado.</p>
+                            )}
                           </div>
                         </div>
 
@@ -725,6 +794,70 @@ export default function CompanySettingsPage() {
                   <CardTitle className="text-lg">Configuracao NF-e</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-3 rounded-lg border bg-muted/20 p-4 md:col-span-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-medium">Integração Focus NFe</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Tokens são capturados automaticamente pela Focus NFe quando o certificado é validado.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={loadFocusStatus}
+                        disabled={focusStatusLoading}
+                      >
+                        {focusStatusLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Atualizar
+                      </Button>
+                    </div>
+
+                    {focusStatusError ? (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Status Focus indisponível</AlertTitle>
+                        <AlertDescription>{focusStatusError}</AlertDescription>
+                      </Alert>
+                    ) : (
+                      <div className="grid gap-3 text-sm md:grid-cols-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Empresa cadastrada</p>
+                          <p className="font-medium">{focusStatus?.empresa_cadastrada ? "Sim" : "Não"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">ID Focus</p>
+                          <p className="font-medium">{focusStatus?.focus_empresa_id || "Pendente"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Ambiente</p>
+                          <p className="font-medium">{focusStatus?.ambiente || form.watch("nfe_ambiente") || "HOMOLOGACAO"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Token produção</p>
+                          <p className="font-medium">{focusStatus?.token_producao ? "Configurado" : "Pendente"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Token homologação</p>
+                          <p className="font-medium">{focusStatus?.token_homologacao ? "Configurado" : "Pendente"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Certificado vinculado</p>
+                          <p className="font-medium">{focusStatus?.certificado_vinculado ? "Sim" : "Não"}</p>
+                        </div>
+                        <div className="md:col-span-3">
+                          <p className="text-xs text-muted-foreground">Atualizado em</p>
+                          <p className="font-medium">
+                            {focusStatus?.atualizado_em
+                              ? new Date(focusStatus.atualizado_em).toLocaleString("pt-BR")
+                              : "Ainda não atualizado"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Ambiente</Label>
                     <Select
@@ -759,14 +892,6 @@ export default function CompanySettingsPage() {
                   <div className="space-y-2">
                     <Label>Regime de Apuracao</Label>
                     <Input {...form.register("regime_apuracao")} placeholder="Regime" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>CSC ID Token (NFC-e)</Label>
-                    <Input {...form.register("csc_idtoken")} placeholder="ID Token" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>CSC Token (NFC-e)</Label>
-                    <Input {...form.register("csc_token")} placeholder="Token" />
                   </div>
                 </CardContent>
               </Card>

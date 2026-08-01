@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X, ExternalLink, Info, Megaphone } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 interface ParceirosBrainXProps {
   posicao?: 'DASHBOARD_LATERAL' | 'DASHBOARD_INFERIOR' | 'ANVISA_CHECKER' | 'PRODUCAO' | 'FORNECEDORES' | 'GLOBAL';
@@ -34,15 +34,19 @@ export function ParceirosBrainX({ posicao = 'DASHBOARD_LATERAL', className }: Pa
 
       try {
         const companyId = profile?.company_id;
-        const { data, error } = await supabase.functions.invoke('brainx-parceiros', {
-          method: 'GET',
-          headers: {
-            'x-company-id': companyId || '',
-            'x-posicao': posicao
-          }
-        });
+        const { data, error } = await invokeEdge<{ campanha?: any }>(
+          "brainx-parceiros",
+          undefined,
+          {
+            method: "GET",
+            headers: {
+              "x-company-id": companyId || "",
+              "x-posicao": posicao,
+            },
+          },
+        );
 
-        if (error) throw error;
+        if (error) throw new Error(error);
         if (data?.campanha) {
           setCampanha(data.campanha);
         }
@@ -62,13 +66,10 @@ export function ParceirosBrainX({ posicao = 'DASHBOARD_LATERAL', className }: Pa
     if (!campanha) return;
     
     try {
-      await supabase.functions.invoke('brainx-parceiros', {
-        method: 'POST',
-        body: { 
-          action: 'registrar-clique',
-          campanha_id: campanha.id,
-          company_id: profile?.company_id || ''
-        }
+      await invokeEdge('brainx-parceiros', { 
+        action: 'registrar-clique',
+        campanha_id: campanha.id,
+        company_id: profile?.company_id || ''
       });
     } catch (err) {
       console.error("Erro ao registrar clique:", err);

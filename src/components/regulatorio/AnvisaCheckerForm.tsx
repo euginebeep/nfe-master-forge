@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveAnvisaKey } from "@/lib/anvisa-limits";
+import { invokeEdge } from "@/lib/edge-invoke";
 import JSZip from "jszip";
 
 
@@ -319,25 +320,22 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       else if (file.type === 'application/pdf') fileType = "pdf";
       else if (file.type.startsWith('image/')) fileType = "image";
 
-      const { data, error } = await supabase.functions.invoke('anvisa-ai-verify', {
-        body: {
-          action: 'analyze_file',
-          file_type: fileType,
-          file_name: file.name,
-          file_base64: fileBase64,
-          publico: audience,
-          cliente: clientName
-        }
+      const { data, error } = await invokeEdge<any>('anvisa-ai-verify', {
+        action: 'analyze_file',
+        file_type: fileType,
+        file_name: file.name,
+        file_base64: fileBase64,
+        publico: audience,
+        cliente: clientName
       });
 
       if (error) {
         console.error('Invoke error:', error);
         // Tentar extrair mensagem amigável do corpo do erro (status 503/500)
-        const errMsg = error?.message || '';
         if (data?.erro) {
           throw new Error(data.erro + (data.mensagem ? ': ' + data.mensagem : ''));
         }
-        throw error;
+        throw new Error(error);
       }
 
       // ── VERIFICAR SE A RESPOSTA É UM ERRO ESTRUTURADO (ex: 503 com JSON) ──────────
