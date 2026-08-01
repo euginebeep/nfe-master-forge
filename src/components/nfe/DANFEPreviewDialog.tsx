@@ -5,6 +5,7 @@ import { Printer, X } from "lucide-react";
 
 interface DANFEItem {
   numero_item?: number;
+  codigo_produto?: string;
   descricao: string;
   ncm: string;
   cst_icms: string;
@@ -13,11 +14,18 @@ interface DANFEItem {
   quantidade: number;
   valor_unitario: number;
   valor_total: number;
+  icms_base?: number;
   icms_aliquota: number;
   icms_valor: number;
   ipi_valor?: number;
   ipi_aliquota?: number;
   origem?: string;
+  rastros?: {
+    numero_lote?: string;
+    quantidade_lote?: number;
+    data_fabricacao?: string;
+    data_validade?: string;
+  }[];
 }
 
 interface DANFEData {
@@ -45,6 +53,8 @@ interface DANFEData {
   chave_acesso?: string;
   protocolo?: string;
   data_emissao?: string;
+  data_saida_entrada?: string;
+  hora_saida_entrada?: string;
   tipo_operacao?: "0" | "1"; // 0=Entrada, 1=Saída
   // Destinatário
   dest_razao?: string;
@@ -103,6 +113,14 @@ const fmt = (v: number) =>
 const fmtQtd = (v: number) =>
   v.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
+const fmtData = (value?: string) => {
+  if (!value) return "";
+  const raw = String(value).trim();
+  const datePart = raw.includes("T") ? raw.split("T")[0] : raw.split(" ")[0];
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+};
+
 export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -131,6 +149,21 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
   if (!data) return null;
 
   const isHomolog = data.ambiente === "homologacao";
+  const renderRastros = (item: DANFEItem) => {
+    const rastros = item.rastros?.filter((rastro) =>
+      rastro.numero_lote || rastro.data_fabricacao || rastro.data_validade
+    ) || [];
+
+    if (rastros.length === 0) return "—";
+
+    return rastros.map((rastro, idx) => (
+      <div key={`${rastro.numero_lote || "lote"}-${idx}`} style={{ marginBottom: idx < rastros.length - 1 ? "2px" : 0 }}>
+        {rastro.numero_lote && <div><b>Lote:</b> {rastro.numero_lote}</div>}
+        {rastro.data_fabricacao && <div><b>Fab:</b> {fmtData(rastro.data_fabricacao)}</div>}
+        {rastro.data_validade && <div><b>Val:</b> {fmtData(rastro.data_validade)}</div>}
+      </div>
+    ));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -329,7 +362,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
                     <LabelValue label="CEP" value={data.dest_cep || "—"} />
                   </td>
                   <td style={cellStyle}>
-                    <LabelValue label="DATA DE SAÍDA/ENTRADA" value="—" />
+                    <LabelValue label="DATA DE SAÍDA/ENTRADA" value={data.data_saida_entrada || "—"} />
                   </td>
                 </tr>
                 <tr>
@@ -346,7 +379,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
                     <LabelValue label="INSCRIÇÃO ESTADUAL" value={data.dest_ie || "—"} />
                   </td>
                   <td style={cellStyle}>
-                    <LabelValue label="HORA DE SAÍDA" value="—" />
+                    <LabelValue label="HORA DE SAÍDA" value={data.hora_saida_entrada || "—"} />
                   </td>
                 </tr>
               </tbody>
@@ -402,49 +435,68 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
 
             {/* ═══ DADOS DO PRODUTO/SERVIÇO ═══ */}
             <SectionTitle text="DADOS DO PRODUTO/SERVIÇO" />
-            <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none", fontSize: "6.5pt" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none", fontSize: "6.5pt", tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "4%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "3.5%" }} />
+                <col style={{ width: "3.5%" }} />
+              </colgroup>
               <thead>
                 <tr style={{ background: "#f5f5f5" }}>
                   <th style={thStyle}>CÓD. PROD.</th>
-                  <th style={{ ...thStyle, textAlign: "left", width: "25%" }}>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
+                  <th style={{ ...thStyle, textAlign: "left" }}>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
+                  <th style={{ ...thStyle, textAlign: "left" }}>LOTE / FAB. / VAL.</th>
                   <th style={thStyle}>NCM/SH</th>
                   <th style={thStyle}>O/CST</th>
                   <th style={thStyle}>CFOP</th>
                   <th style={thStyle}>UNID.</th>
-                  <th style={thStyle}>QUANT.</th>
-                  <th style={thStyle}>VALOR UNITÁRIO</th>
-                  <th style={thStyle}>VALOR TOTAL</th>
-                  <th style={thStyle}>B.CÁLC. ICMS</th>
-                  <th style={thStyle}>VALOR ICMS</th>
-                  <th style={thStyle}>VALOR IPI</th>
-                  <th style={thStyle}>ALÍQ. ICMS</th>
-                  <th style={thStyle}>ALÍQ. IPI</th>
+                  <th style={numericThStyle}>QUANT.</th>
+                  <th style={numericThStyle}>VALOR UNITÁRIO</th>
+                  <th style={numericThStyle}>VALOR TOTAL</th>
+                  <th style={numericThStyle}>B.CÁLC. ICMS</th>
+                  <th style={numericThStyle}>VALOR ICMS</th>
+                  <th style={numericThStyle}>VALOR IPI</th>
+                  <th style={numericThStyle}>ALÍQ. ICMS</th>
+                  <th style={numericThStyle}>ALÍQ. IPI</th>
                 </tr>
               </thead>
               <tbody>
                 {data.itens.map((item, idx) => (
                   <tr key={idx}>
-                    <td style={tdStyle}>{item.numero_item || idx + 1}</td>
-                    <td style={{ ...tdStyle, textAlign: "left", fontSize: "6pt" }}>{item.descricao}</td>
+                    <td style={tdStyle}>{item.codigo_produto || item.numero_item || idx + 1}</td>
+                    <td style={textTdStyle}>{item.descricao}</td>
+                    <td style={traceTdStyle}>{renderRastros(item)}</td>
                     <td style={tdStyle}>{item.ncm}</td>
                     <td style={tdStyle}>{item.origem || "0"}{item.cst_icms}</td>
                     <td style={tdStyle}>{item.cfop}</td>
                     <td style={tdStyle}>{item.unidade}</td>
-                    <td style={tdStyle}>{fmtQtd(item.quantidade)}</td>
-                    <td style={tdStyle}>{fmt(item.valor_unitario)}</td>
-                    <td style={tdStyle}>{fmt(item.valor_total)}</td>
-                    <td style={tdStyle}>{fmt(item.valor_total)}</td>
-                    <td style={tdStyle}>{fmt(item.icms_valor)}</td>
-                    <td style={tdStyle}>{fmt(item.ipi_valor || 0)}</td>
-                    <td style={tdStyle}>{fmt(item.icms_aliquota)}</td>
-                    <td style={tdStyle}>{fmt(item.ipi_aliquota || 0)}</td>
+                    <td style={numericTdStyle}>{fmtQtd(item.quantidade)}</td>
+                    <td style={numericTdStyle}>{fmt(item.valor_unitario)}</td>
+                    <td style={numericTdStyle}>{fmt(item.valor_total)}</td>
+                    <td style={numericTdStyle}>{fmt(item.icms_base ?? item.valor_total)}</td>
+                    <td style={numericTdStyle}>{fmt(item.icms_valor)}</td>
+                    <td style={numericTdStyle}>{fmt(item.ipi_valor || 0)}</td>
+                    <td style={numericTdStyle}>{fmt(item.icms_aliquota)}</td>
+                    <td style={numericTdStyle}>{fmt(item.ipi_aliquota || 0)}</td>
                   </tr>
                 ))}
                 {/* Empty rows to fill space */}
                 {data.itens.length < 8 &&
                   Array.from({ length: 8 - data.itens.length }).map((_, i) => (
                     <tr key={`empty-${i}`}>
-                      {Array.from({ length: 14 }).map((_, j) => (
+                      {Array.from({ length: 15 }).map((_, j) => (
                         <td key={j} style={{ ...tdStyle, height: "14px" }}>&nbsp;</td>
                       ))}
                     </tr>
@@ -496,12 +548,38 @@ const thStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
+const numericThStyle: React.CSSProperties = {
+  ...thStyle,
+  textAlign: "right",
+};
+
 const tdStyle: React.CSSProperties = {
   border: "1px solid #000",
   padding: "1px 3px",
   textAlign: "center",
   fontSize: "6.5pt",
   fontFamily: "monospace",
+};
+
+const textTdStyle: React.CSSProperties = {
+  ...tdStyle,
+  textAlign: "left",
+  fontSize: "6pt",
+  fontFamily: "Arial, Helvetica, sans-serif",
+  overflowWrap: "break-word",
+};
+
+const traceTdStyle: React.CSSProperties = {
+  ...textTdStyle,
+  fontSize: "5.5pt",
+  lineHeight: 1.25,
+};
+
+const numericTdStyle: React.CSSProperties = {
+  ...tdStyle,
+  textAlign: "right",
+  padding: "1px 4px",
+  whiteSpace: "nowrap",
 };
 
 function LabelValue({ label, value, bold }: { label: string; value: string; bold?: boolean }) {

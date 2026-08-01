@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFocusNfe } from "@/hooks/use-focus-nfe";
 import { useCompany } from "@/hooks/use-company";
+import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
 
@@ -76,6 +77,171 @@ const MEIOS_PAGAMENTO = [
   { value: "90", label: "Sem Pagamento" },
   { value: "99", label: "Outros" },
 ];
+
+const asRecord = (value: any): Record<string, any> =>
+  value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+const asArray = (value: any): any[] => (Array.isArray(value) ? value : []);
+
+const textFrom = (...values: any[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+};
+
+const numberFrom = (...values: any[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const normalized = typeof value === "string" && value.includes(",")
+      ? value.replace(/\./g, "").replace(",", ".")
+      : value;
+    const number = Number(normalized);
+    if (Number.isFinite(number)) return number;
+  }
+  return 0;
+};
+
+const formatDateFromPayload = (value: any) => {
+  const raw = textFrom(value);
+  if (!raw) return "";
+  const datePart = raw.includes("T") ? raw.split("T")[0] : raw.split(" ")[0];
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+};
+
+const formatTimeFromPayload = (value: any) => {
+  const raw = textFrom(value);
+  const timePart = raw.includes("T") ? raw.split("T")[1] : raw.split(" ")[1];
+  return timePart ? timePart.slice(0, 5) : "";
+};
+
+const unwrapFocusPayload = (rpcData: any) => {
+  const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+  const record = asRecord(row);
+  return record.payload || record.focus_payload || record.nfe_payload || record.montar_payload_focus || row;
+};
+
+const logFocusPayloadShape = (payload: any) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
+  const itens = asArray(payload.itens || payload.items || payload.produtos);
+  console.info("[DANFE] montar_payload_focus response keys", {
+    root: Object.keys(payload),
+    emitente: Object.keys(asRecord(payload.emitente || payload.emit)),
+    destinatario: Object.keys(asRecord(payload.destinatario || payload.dest)),
+    item: Object.keys(asRecord(itens[0])),
+    total: Object.keys(asRecord(payload.total || payload.totais)),
+    transporte: Object.keys(asRecord(payload.transporte)),
+  });
+};
+
+const mapFocusPayloadToDanfeData = (payloadData: any, emitLogoUrl?: string | null) => {
+  const payload = asRecord(payloadData);
+  const emitente = asRecord(payload.emitente || payload.emit);
+  const emitEndereco = asRecord(emitente.endereco);
+  const destinatario = asRecord(payload.destinatario || payload.dest);
+  const destEndereco = asRecord(destinatario.endereco);
+  const transporte = asRecord(payload.transporte);
+  const transportadora = asRecord(transporte.transportadora);
+  const total = asRecord(payload.total || payload.totais);
+  const icmsTotal = asRecord(total.icms_total || total);
+  const freteCodigo = textFrom(transporte.modalidade_frete, payload.modalidade_frete);
+  const freteLabel = MODALIDADES_FRETE.find((m) => m.value === freteCodigo)?.label?.split(" - ")[0] || freteCodigo;
+
+  return {
+    emit_razao: textFrom(emitente.razao_social, emitente.nome, "—"),
+    emit_fantasia: textFrom(emitente.nome_fantasia),
+    emit_logo_url: emitLogoUrl || undefined,
+    emit_logradouro: textFrom(emitEndereco.logradouro, emitente.logradouro),
+    emit_numero: textFrom(emitEndereco.numero, emitente.numero),
+    emit_bairro: textFrom(emitEndereco.bairro, emitente.bairro),
+    emit_cidade: textFrom(emitEndereco.nome_municipio, emitEndereco.municipio, emitEndereco.cidade, emitente.municipio),
+    emit_uf: textFrom(emitEndereco.uf, emitente.uf),
+    emit_cep: textFrom(emitEndereco.cep, emitente.cep),
+    emit_telefone: textFrom(emitEndereco.telefone, emitente.telefone),
+    emit_email: textFrom(emitente.email),
+    emit_cnpj: textFrom(emitente.cpf_cnpj, emitente.cnpj, emitente.documento),
+    emit_ie: textFrom(emitente.inscricao_estadual, emitente.ie),
+    numero: textFrom(payload.numero),
+    serie: textFrom(payload.serie),
+    natureza_operacao: textFrom(payload.natureza_operacao, "Venda de mercadoria"),
+    chave_acesso: textFrom(payload.chave_acesso, payload.chave_nfe),
+    protocolo: textFrom(payload.protocolo_autorizacao, payload.protocolo),
+    data_emissao: formatDateFromPayload(payload.data_emissao),
+    data_saida_entrada: formatDateFromPayload(payload.data_saida_entrada),
+    hora_saida_entrada: formatTimeFromPayload(payload.data_saida_entrada),
+    tipo_operacao: textFrom(payload.tipo_operacao) === "0" ? "0" as const : "1" as const,
+    dest_razao: textFrom(destinatario.razao_social, destinatario.nome),
+    dest_cnpj_cpf: textFrom(destinatario.cpf_cnpj, destinatario.cnpj, destinatario.cpf, destinatario.documento),
+    dest_logradouro: textFrom(destEndereco.logradouro, destinatario.logradouro),
+    dest_numero: textFrom(destEndereco.numero, destinatario.numero),
+    dest_bairro: textFrom(destEndereco.bairro, destinatario.bairro),
+    dest_cidade: textFrom(destEndereco.nome_municipio, destEndereco.municipio, destEndereco.cidade, destinatario.municipio),
+    dest_uf: textFrom(destEndereco.uf, destinatario.uf),
+    dest_cep: textFrom(destEndereco.cep, destinatario.cep),
+    dest_telefone: textFrom(destEndereco.telefone, destinatario.telefone),
+    dest_ie: textFrom(destinatario.inscricao_estadual, destinatario.ie),
+    dest_data_emissao: formatDateFromPayload(payload.data_emissao),
+    bc_icms: numberFrom(icmsTotal.base_calculo, icmsTotal.base_calculo_icms),
+    valor_icms: numberFrom(icmsTotal.valor_icms),
+    bc_icms_st: numberFrom(icmsTotal.base_calculo_st),
+    valor_icms_st: numberFrom(icmsTotal.valor_icms_st),
+    valor_produtos: numberFrom(icmsTotal.valor_produtos, total.valor_produtos),
+    valor_frete: numberFrom(icmsTotal.valor_frete, total.valor_frete),
+    valor_seguro: numberFrom(icmsTotal.valor_seguro, total.valor_seguro),
+    valor_desconto: numberFrom(icmsTotal.valor_desconto, total.valor_desconto),
+    outras_despesas: numberFrom(icmsTotal.outras_despesas, total.outras_despesas),
+    valor_ipi: numberFrom(icmsTotal.valor_ipi, total.valor_ipi),
+    valor_aprox_tributos: numberFrom(icmsTotal.valor_aprox_tributos, total.valor_aprox_tributos),
+    valor_total: numberFrom(icmsTotal.valor_nota, total.valor_nota, payload.valor_total),
+    transp_razao: textFrom(transportadora.razao_social),
+    transp_frete_conta: freteLabel || "—",
+    transp_cnpj_cpf: textFrom(transportadora.cpf_cnpj, transportadora.cnpj, transportadora.cpf),
+    transp_logradouro: textFrom(transportadora.endereco_completo, transportadora.logradouro),
+    transp_cidade: textFrom(transportadora.municipio, transportadora.cidade),
+    transp_cidade_uf: textFrom(transportadora.uf),
+    transp_ie: textFrom(transportadora.inscricao_estadual, transportadora.ie),
+    itens: asArray(payload.itens || payload.items || payload.produtos).map((itemData: any, idx: number) => {
+      const item = asRecord(itemData);
+      const icms = asRecord(item.icms);
+      const ipi = asRecord(item.ipi);
+      const rastros = asArray(item.rastros || item.rastro || item.lotes).map((rastroData: any) => {
+        const rastro = asRecord(rastroData);
+        return {
+          numero_lote: textFrom(rastro.numero_lote, rastro.nLote, rastro.lote),
+          quantidade_lote: numberFrom(rastro.quantidade_lote, rastro.qLote, rastro.quantidade),
+          data_fabricacao: textFrom(rastro.data_fabricacao, rastro.dFab),
+          data_validade: textFrom(rastro.data_validade, rastro.dVal),
+        };
+      }).filter((rastro) => rastro.numero_lote || rastro.data_fabricacao || rastro.data_validade);
+
+      return {
+        numero_item: numberFrom(item.numero_item, idx + 1),
+        codigo_produto: textFrom(item.codigo_produto, item.item_id, idx + 1),
+        descricao: textFrom(item.descricao),
+        ncm: textFrom(item.codigo_ncm, item.ncm),
+        cst_icms: textFrom(item.cst_icms, icms.cst, "00"),
+        cfop: textFrom(item.cfop, "5102"),
+        unidade: textFrom(item.unidade_comercial, item.unidade, "UN"),
+        quantidade: numberFrom(item.quantidade_comercial, item.quantidade),
+        valor_unitario: numberFrom(item.valor_unitario_comercial, item.valor_unitario),
+        valor_total: numberFrom(item.valor_bruto, item.valor_total),
+        icms_base: numberFrom(item.icms_base, icms.base_calculo, item.valor_bruto, item.valor_total),
+        icms_aliquota: numberFrom(item.icms_aliquota, icms.aliquota, icms.aliquota_percentual),
+        icms_valor: numberFrom(item.icms_valor, icms.valor),
+        ipi_valor: numberFrom(item.ipi_valor, ipi.valor),
+        ipi_aliquota: numberFrom(item.ipi_aliquota, ipi.aliquota),
+        origem: textFrom(item.origem, item.codigo_origem, icms.origem, "0"),
+        rastros,
+      };
+    }),
+    info_complementares: textFrom(payload.informacoes_adicionais_contribuinte, payload.info_complementares),
+    info_fisco: textFrom(payload.informacoes_adicionais_fisco, payload.info_fisco),
+    ambiente: textFrom(payload.ambiente) === "producao" ? "producao" as const : "homologacao" as const,
+  };
+};
 
 interface NotaItem {
   id?: string;
@@ -147,6 +313,7 @@ export default function NotasSaidaPage() {
   const queryClient = useQueryClient();
   const { emitirNFe, consultarNFe, baixarDanfe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe } = useFocusNfe();
   const { data: company } = useCompany();
+  const { data: companyBranding, refetch: refetchCompanyBranding } = useCompanyBranding();
   const navigate = useNavigate();
 
   // Form state
@@ -723,59 +890,17 @@ export default function NotasSaidaPage() {
     setSelectedIds(new Set());
   };
 
-  const buildDanfeData = (notaData: any, notaItens: any[], comp: any, cliente: any) => ({
-    emit_razao: comp?.razao_social || "—",
-    emit_fantasia: comp?.nome_fantasia || "",
-    emit_logradouro: comp?.endereco_logradouro || "",
-    emit_numero: comp?.endereco_nro || "",
-    emit_bairro: comp?.endereco_bairro || "",
-    emit_cidade: comp?.endereco_cidade || "",
-    emit_uf: comp?.endereco_uf || "",
-    emit_cep: comp?.endereco_cep || "",
-    emit_telefone: comp?.telefone || "",
-    emit_email: comp?.email_fiscal || "",
-    emit_cnpj: comp?.cnpj || "",
-    emit_ie: comp?.ie || "",
-    numero: notaData.numero,
-    serie: notaData.serie || company?.nfe_serie_padrao || "1",
-    natureza_operacao: notaData.natureza_operacao || "Venda de mercadoria",
-    chave_acesso: notaData.chave_acesso || "",
-    protocolo: notaData.protocolo_autorizacao || "",
-    data_emissao: notaData.data_emissao ? new Date(notaData.data_emissao).toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR"),
-    tipo_operacao: "1" as const,
-    dest_razao: cliente?.razao_social || notaData.entidades?.razao_social || "—",
-    dest_cnpj_cpf: cliente?.documento || notaData.entidades?.documento || "",
-    dest_ie: cliente?.ie || "",
-    bc_icms: Number(notaData.valor_produtos || 0),
-    valor_icms: Number(notaData.valor_icms || 0),
-    bc_icms_st: 0,
-    valor_icms_st: 0,
-    valor_produtos: Number(notaData.valor_produtos || 0),
-    valor_frete: 0,
-    valor_seguro: 0,
-    valor_desconto: 0,
-    outras_despesas: 0,
-    valor_ipi: 0,
-    valor_aprox_tributos: Number(notaData.valor_icms || 0) + Number(notaData.valor_pis || 0) + Number(notaData.valor_cofins || 0),
-    valor_total: Number(notaData.valor_total || 0),
-    transp_frete_conta: MODALIDADES_FRETE.find(m => m.value === notaData.modalidade_frete)?.label?.split(" - ")[0] || "9 - Sem transporte",
-    itens: notaItens.map((item: any, idx: number) => ({
-      numero_item: item.numero_item || idx + 1,
-      descricao: item.descricao || "",
-      ncm: item.ncm || "",
-      cst_icms: item.cst_icms || "00",
-      cfop: item.cfop || "5102",
-      unidade: item.unidade || "UN",
-      quantidade: Number(item.quantidade || 0),
-      valor_unitario: Number(item.valor_unitario || 0),
-      valor_total: Number(item.valor_total || 0),
-      icms_aliquota: Number(item.icms_aliquota || 0),
-      icms_valor: Number(item.icms_valor || 0),
-      origem: item.origem || "0",
-    })),
-    info_complementares: notaData.informacoes_adicionais || "",
-    ambiente: (notaData.ambiente || "homologacao") as "homologacao" | "producao",
-  });
+  const buildDanfeData = async (notaId: string) => {
+    const { data, error } = await (supabase as any).rpc("montar_payload_focus", { p_nota_saida_id: notaId });
+    if (error) throw error;
+
+    const payload = unwrapFocusPayload(data);
+    if (!payload) throw new Error("RPC montar_payload_focus não retornou payload");
+    logFocusPayloadShape(payload);
+
+    const branding = companyBranding || (await refetchCompanyBranding()).data;
+    return mapFocusPayloadToDanfeData(payload, branding?.logo_url);
+  };
 
   const openDanfeFromForm = () => {
     // Preview do DANFE só está disponível após salvar a nota,
@@ -784,19 +909,13 @@ export default function NotasSaidaPage() {
   };
 
   const openDanfeFromSavedNota = async (notaId: string) => {
-    const { data: nota } = await supabase
-      .from("notas_saida")
-      .select("*, entidades!notas_saida_cliente_id_fkey(razao_social, nome_fantasia, documento, ie)")
-      .eq("id", notaId)
-      .single();
-    if (!nota) return;
-    const { data: notaItens } = await supabase
-      .from("notas_saida_itens")
-      .select("*")
-      .eq("nota_saida_id", notaId)
-      .order("numero_item");
-    setDanfeData(buildDanfeData(nota, notaItens || [], company, nota.entidades));
-    setDanfePreviewOpen(true);
+    try {
+      setDanfeData(await buildDanfeData(notaId));
+      setDanfePreviewOpen(true);
+    } catch (error: any) {
+      console.error("Erro ao montar DANFE via montar_payload_focus:", error);
+      toast.error("Erro ao montar DANFE: " + (error?.message || "verifique o payload fiscal"));
+    }
   };
 
   const resetForm = () => {
