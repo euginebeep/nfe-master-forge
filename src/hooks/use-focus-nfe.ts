@@ -54,6 +54,9 @@ export function useFocusNfe() {
   const emitirNFe = (payload: unknown) =>
     callFocusNfe("emitir-nfe", undefined, payload);
 
+  const emitirNota = (notaSaidaId: string, dryRun: boolean) =>
+    callFocusNfe("emitir-nota", undefined, { nota_saida_id: notaSaidaId, dry_run: dryRun });
+
   const consultarNFe = (id: string, ambiente?: string) =>
     callFocusNfe("consultar-nfe", { id, ambiente: ambiente || "homologacao" });
 
@@ -87,10 +90,10 @@ export function useFocusNfe() {
     callFocusNfe("status-sefaz", { cpf_cnpj: cpfCnpj, ambiente: ambiente || "homologacao" });
 
   const inutilizarNFe = (payload: {
-    cnpj: string;
-    serie: string;
-    numero_inicial: string;
-    numero_final: string;
+    cnpj?: string;
+    serie: string | number;
+    numero_inicial: string | number;
+    numero_final: string | number;
     justificativa: string;
     ambiente?: string;
   }) => callFocusNfe("inutilizar-nfe", undefined, payload);
@@ -101,12 +104,14 @@ export function useFocusNfe() {
   return {
     cadastrarEmpresa,
     consultarEmpresa,
+    emitirNota,
     emitirNFe,
     consultarNFe,
     baixarDanfe,
     baixarXml,
     cancelarNFe,
     cartaCorrecao,
+    cartaCorrecaoNFe: cartaCorrecao,
     statusSefaz,
     inutilizarNFe,
     consultarStatus,
