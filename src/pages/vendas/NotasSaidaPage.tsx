@@ -221,24 +221,25 @@ const mapFocusPayloadToDanfeData = (payloadData: any, emitLogoUrl?: string | nul
         codigo_produto: textFrom(item.codigo_produto, item.item_id, idx + 1),
         descricao: textFrom(item.descricao),
         ncm: textFrom(item.codigo_ncm, item.ncm),
-        cst_icms: textFrom(item.cst_icms, icms.cst, "00"),
-        cfop: textFrom(item.cfop, "5102"),
+        // Nunca inventar CST/CSOSN/CFOP — nota Simples usa CSOSN 900; fallback "00"/"5102" mentia no DANFE
+        cst_icms: textFrom(item.csosn, item.cst_icms, icms.csosn, icms.cst, icms.situacao_tributaria),
+        cfop: textFrom(item.cfop),
         unidade: textFrom(item.unidade_comercial, item.unidade, "UN"),
         quantidade: numberFrom(item.quantidade_comercial, item.quantidade),
         valor_unitario: numberFrom(item.valor_unitario_comercial, item.valor_unitario),
         valor_total: numberFrom(item.valor_bruto, item.valor_total),
-        icms_base: numberFrom(item.icms_base, icms.base_calculo, item.valor_bruto, item.valor_total),
+        icms_base: numberFrom(item.icms_base, icms.base_calculo),
         icms_aliquota: numberFrom(item.icms_aliquota, icms.aliquota, icms.aliquota_percentual),
         icms_valor: numberFrom(item.icms_valor, icms.valor),
         ipi_valor: numberFrom(item.ipi_valor, ipi.valor),
         ipi_aliquota: numberFrom(item.ipi_aliquota, ipi.aliquota),
-        origem: textFrom(item.origem, item.codigo_origem, icms.origem, "0"),
+        origem: textFrom(item.origem, item.codigo_origem, icms.origem),
         rastros,
       };
     }),
     info_complementares: textFrom(payload.informacoes_adicionais_contribuinte, payload.info_complementares),
     info_fisco: textFrom(payload.informacoes_adicionais_fisco, payload.info_fisco),
-    ambiente: textFrom(payload.ambiente) === "producao" ? "producao" as const : "homologacao" as const,
+    ambiente: textFrom(payload.ambiente).toLowerCase() === "producao" ? "producao" as const : "homologacao" as const,
   };
 };
 
