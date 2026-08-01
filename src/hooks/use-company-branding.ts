@@ -20,7 +20,7 @@ export function useCompanyBranding() {
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       if (!profile?.company_id) return null;
 
       const { data: company } = await supabase

@@ -126,7 +126,7 @@ export default function POPsPage() {
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       
       const company_id = profile?.company_id;
       if (!company_id) throw new Error("Empresa não vinculada ao perfil");
@@ -164,7 +164,7 @@ export default function POPsPage() {
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       
       const company_id = profile?.company_id;
       if (!company_id) throw new Error("Empresa não vinculada ao perfil");

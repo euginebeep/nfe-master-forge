@@ -22,7 +22,7 @@ export function useCompany() {
         .from("profiles")
         .select("company_id, is_demo")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       const isDemo = profile?.is_demo || isDemoSession;
       const companyId = profile?.company_id || (isDemo ? '00000000-0000-0000-0000-000000000001' : null);
@@ -54,7 +54,7 @@ export function useUpsertCompany() {
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profile?.company_id) {
         // Update existing company

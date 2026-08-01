@@ -111,7 +111,7 @@ export default function LoteDetailPage() {
         .from("profiles")
         .select("full_name, email, company_id")
         .eq("id", user?.id)
-        .single();
+        .maybeSingle();
 
       // Registrar a liberação sem COA
       const { error: insertError } = await supabase

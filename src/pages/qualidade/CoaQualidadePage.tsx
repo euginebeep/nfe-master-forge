@@ -271,7 +271,7 @@ export default function CoaQualidadePage() {
         .from("profiles")
         .select("full_name, email, company_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
 
@@ -327,7 +327,7 @@ export default function CoaQualidadePage() {
         .from("profiles")
         .select("full_name, email")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
 
@@ -472,7 +472,7 @@ export default function CoaQualidadePage() {
           .from("profiles")
           .select("full_name, email")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
         setNomeAuditor(
           (profile as { full_name?: string })?.full_name || user.email || "RT"
         );

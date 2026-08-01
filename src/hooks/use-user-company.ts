@@ -41,7 +41,7 @@ export async function getUserCompanyId(): Promise<string | null> {
     .from("profiles")
     .select("company_id")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   return (data?.company_id as string) || null;
 }

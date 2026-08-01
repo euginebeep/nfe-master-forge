@@ -43,7 +43,7 @@ export function ChatNotificationPopup({ onOpenChat }: ChatNotificationPopupProps
             .from('profiles')
             .select('nome_completo')
             .eq('id', msg.sender_id)
-            .single();
+            .maybeSingle();
 
           setNotification({
             id: msg.id,
