@@ -20,6 +20,7 @@ import { CertificateTestButton } from "@/components/company/CertificateTestButto
 import { MaskedInput } from "@/components/ui/masked-input";
 import type { Company, AmbienteNFe } from "@/types/erp";
 import { toast } from "sonner";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 const UF_OPTIONS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -266,15 +267,18 @@ export default function CompanySettingsPage() {
 
       // 2. Validate certificate CNPJ against company CNPJ
       if (companyCnpj) {
-        const { data: result, error } = await supabase.functions.invoke("validate-certificate", {
-          body: { fileId: arquivo.id, password: certSenha, companyCnpj },
-        });
-        if (error) throw error;
+        const { data: result, error } = await invokeEdge<{
+          valid?: boolean;
+          error?: string;
+          daysUntilExpiry?: number;
+        }>("validate-certificate", { fileId: arquivo.id, password: certSenha, companyCnpj });
+        if (error) throw new Error(error);
 
-        if (!result.valid) {
+        if (!result?.valid) {
           // Certificate is invalid or CNPJ doesn't match — reject
-          setCertError(result.error || "Certificado inválido.");
-          toast.error(result.error || "Certificado inválido.");
+          const message = result?.error || "Certificado inválido.";
+          setCertError(message);
+          toast.error(message);
           // Don't link the certificate
           return;
         }

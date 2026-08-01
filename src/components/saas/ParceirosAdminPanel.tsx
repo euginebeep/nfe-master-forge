@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useUploadFile } from "@/hooks/use-files";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 export function ParceirosAdminPanel() {
   const queryClient = useQueryClient();
@@ -126,12 +127,13 @@ function CampanhasTab() {
   const { data: campanhas, isLoading } = useQuery({
     queryKey: ['parceiros-campanhas-admin'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('brainx-parceiros', {
-        method: 'GET',
-        headers: { 'action': 'list-admin' }
-      });
-      if (error) throw error;
-      return data.campanhas;
+      const { data, error } = await invokeEdge<{ campanhas?: any[] }>(
+        "brainx-parceiros",
+        undefined,
+        { method: "GET", headers: { action: "list-admin" } },
+      );
+      if (error) throw new Error(error);
+      return data?.campanhas;
     }
   });
 

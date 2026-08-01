@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { maskPhone } from '@/lib/masks';
 import { normalizeEmail, normalizePhone, isDemoExpired } from '@/lib/leads-utils';
 import { useAuth } from '@/hooks/use-auth';
+import { invokeEdge } from '@/lib/edge-invoke';
 
 const DEMO_EMAIL = 'demo@brainxerp.com';
 const DEMO_PASSWORD = 'BrainX ERPDemo2026!';
@@ -108,11 +109,11 @@ export function DemoLoginCard() {
       if (result?.error) {
         console.log('Login falhou, executando bootstrap...', result.error);
         toast.info('Preparando conta demo... isso pode levar até 1 minuto.');
-        const { data: bootData, error: bootErr } = await supabase.functions.invoke('bootstrap-demo-user');
+        const { error: bootErr } = await invokeEdge('bootstrap-demo-user');
         
-        if (bootErr || bootData?.error) {
+        if (bootErr) {
           setLoading(false);
-          toast.error('Falha ao preparar demo: ' + (bootErr?.message || bootData?.error));
+          toast.error('Falha ao preparar demo: ' + bootErr);
           return;
         }
         

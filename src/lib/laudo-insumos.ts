@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdge } from '@/lib/edge-invoke';
 import { normalizarUnidadeInformadaCodigo } from '@/lib/unidades-dose';
 
 export type AtivoLaudo = { nome: string; dose: number; unit: string; key?: string };
@@ -117,9 +118,7 @@ export async function casarPorIA(
   if (!termo) return { insumoId: null, tipo: 'nenhum' };
 
   try {
-    const { data, error } = await supabase.functions.invoke('anvisa-resolve-name', {
-      body: { termo },
-    });
+    const { data, error } = await invokeEdge<{ termos?: string[] }>('anvisa-resolve-name', { termo });
     if (error) return { insumoId: null, tipo: 'nenhum' };
 
     const termos: string[] = Array.isArray(data?.termos) ? data.termos : [];

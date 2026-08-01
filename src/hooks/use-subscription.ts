@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdge } from '@/lib/edge-invoke';
 
 export interface SubscriptionState {
   subscribed: boolean;
@@ -10,6 +11,17 @@ export interface SubscriptionState {
   subscriptionEnd: string | null;
   isLoading: boolean;
   isBlocked: boolean; // trial expired + no subscription
+}
+
+interface SubscriptionResponse {
+  subscribed?: boolean;
+  is_in_trial?: boolean;
+  trial_days_remaining?: number;
+  product_id?: string | null;
+  plan_name?: string | null;
+  subscription_end?: string | null;
+  auth_invalid?: boolean;
+  url?: string;
 }
 
 export const PLANS = {
@@ -84,22 +96,11 @@ export function useSubscription() {
         setState(prev => ({ ...prev, isLoading: false }));
         return;
       }
-      const { data, error } = await supabase.functions.invoke('check-subscription');
+      const { data, error } = await invokeEdge<SubscriptionResponse>('check-subscription');
       if (error) {
         console.error('Error checking subscription:', error);
 
-        let bodyText = '';
-        try {
-          if (error?.context?.json) {
-            const json = await error.context.json();
-            bodyText = JSON.stringify(json);
-          } else if (error?.context?.body) {
-            bodyText = await new Response(error.context.body).text();
-          }
-        } catch (_) { /* ignore */ }
-
-      const fullError = `${error?.message || ''} ${bodyText}`;
-        if (shouldInvalidateSession(fullError)) {
+        if (shouldInvalidateSession(error)) {
           console.warn('Stale JWT detected, clearing local session...');
           await clearInvalidSession();
           return;
@@ -118,18 +119,18 @@ export function useSubscription() {
         return;
       }
 
-      const subscribed = data.subscribed === true;
-      const isInTrial = data.is_in_trial === true;
-      const trialDaysRemaining = data.trial_days_remaining ?? 0;
+      const subscribed = data?.subscribed === true;
+      const isInTrial = data?.is_in_trial === true;
+      const trialDaysRemaining = data?.trial_days_remaining ?? 0;
       const isBlocked = !subscribed && !isInTrial;
 
       setState({
         subscribed,
         isInTrial,
         trialDaysRemaining,
-        productId: data.product_id,
-        planName: data.plan_name,
-        subscriptionEnd: data.subscription_end,
+        productId: data?.product_id ?? null,
+        planName: data?.plan_name ?? null,
+        subscriptionEnd: data?.subscription_end ?? null,
         isLoading: false,
         isBlocked,
       });
@@ -152,18 +153,16 @@ export function useSubscription() {
   }, [checkSubscription]);
 
   const createCheckout = async (priceId: string) => {
-    const { data, error } = await supabase.functions.invoke('create-checkout', {
-      body: { priceId },
-    });
-    if (error) throw error;
+    const { data, error } = await invokeEdge<SubscriptionResponse>('create-checkout', { priceId });
+    if (error) throw new Error(error);
     if (data?.url) {
       window.open(data.url, '_blank');
     }
   };
 
   const openCustomerPortal = async () => {
-    const { data, error } = await supabase.functions.invoke('customer-portal');
-    if (error) throw error;
+    const { data, error } = await invokeEdge<SubscriptionResponse>('customer-portal');
+    if (error) throw new Error(error);
     if (data?.url) {
       window.open(data.url, '_blank');
     }

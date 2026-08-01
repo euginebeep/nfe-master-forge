@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AnexarXmlButton } from "@/components/nfe/AnexarXmlButton";
 import { formatDate } from "@/lib/formatters";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 type NotaSemXml = {
   company_id: string;
@@ -50,7 +51,7 @@ export default function NotasSemXmlPage() {
         .order("emissao", { ascending: false });
 
       if (error) throw error;
-      setRows((data as NotaSemXml[]) || []);
+      setRows((data as unknown as NotaSemXml[]) || []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Falha ao ler v_notas_sem_xml: ${msg}`);
@@ -70,11 +71,12 @@ export default function NotasSemXmlPage() {
   const runBackfill = async () => {
     setBackfilling(true);
     try {
-      const { data, error } = await supabase.functions.invoke("backfill-xml-storage", {
-        body: {},
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const { data, error } = await invokeEdge<{
+        ok?: number;
+        falhas?: number;
+        ainda_na_view?: number | string;
+      }>("backfill-xml-storage", {});
+      if (error) throw new Error(error);
       toast.success(
         `Backfill: ${data?.ok ?? 0} ok, ${data?.falhas ?? 0} falhas. ` +
           `Ainda na view: ${data?.ainda_na_view ?? "?"}`,

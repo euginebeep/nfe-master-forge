@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { valorPorExtenso } from "@/lib/valor-extenso";
+import { invokeEdge } from "@/lib/edge-invoke";
 
 interface Orcamento {
   id: string;
@@ -363,16 +364,14 @@ ${paragrafos}
 
     try {
       const htmlBody = gerarContratoHtml();
-      const { data, error } = await supabase.functions.invoke("send-contract-email", {
-        body: {
-          to: orcamento.cliente_email,
-          subject: `Contrato de Industrialização - ${orcamento.codigo}`,
-          htmlBody,
-          senderName: nomeUsuario,
-        },
+      const { data, error } = await invokeEdge<{ success?: boolean; error?: string }>("send-contract-email", {
+        to: orcamento.cliente_email,
+        subject: `Contrato de Industrialização - ${orcamento.codigo}`,
+        htmlBody,
+        senderName: nomeUsuario,
       });
 
-      if (error) throw new Error(error.message || "Erro ao enviar email");
+      if (error) throw new Error(error || "Erro ao enviar email");
       if (data && !data.success) throw new Error(data.error || "Falha no envio");
 
       await updateField({
