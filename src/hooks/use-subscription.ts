@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { extractInvokeError, invokeEdge } from '@/lib/edge-invoke';
 
 export interface SubscriptionState {
   subscribed: boolean;
@@ -84,22 +85,12 @@ export function useSubscription() {
         setState(prev => ({ ...prev, isLoading: false }));
         return;
       }
-      const { data, error } = await supabase.functions.invoke('check-subscription');
-      if (error) {
-        console.error('Error checking subscription:', error);
+      const response = await supabase.functions.invoke('check-subscription');
+      const detail = await extractInvokeError(response, 'Erro ao verificar assinatura');
+      if (detail) {
+        console.error('Error checking subscription:', detail);
 
-        let bodyText = '';
-        try {
-          if (error?.context?.json) {
-            const json = await error.context.json();
-            bodyText = JSON.stringify(json);
-          } else if (error?.context?.body) {
-            bodyText = await new Response(error.context.body).text();
-          }
-        } catch (_) { /* ignore */ }
-
-      const fullError = `${error?.message || ''} ${bodyText}`;
-        if (shouldInvalidateSession(fullError)) {
+        if (shouldInvalidateSession(detail)) {
           console.warn('Stale JWT detected, clearing local session...');
           await clearInvalidSession();
           return;
@@ -109,6 +100,7 @@ export function useSubscription() {
         setState(prev => ({ ...prev, isLoading: false }));
         return;
       }
+      const data = response.data;
 
       // Only clear the session when the edge function explicitly flags it.
       // Generic error text matches caused false-positive reloads.
@@ -152,18 +144,16 @@ export function useSubscription() {
   }, [checkSubscription]);
 
   const createCheckout = async (priceId: string) => {
-    const { data, error } = await supabase.functions.invoke('create-checkout', {
-      body: { priceId },
-    });
-    if (error) throw error;
+    const { data, error } = await invokeEdge('create-checkout', { priceId });
+    if (error) throw new Error(error);
     if (data?.url) {
       window.open(data.url, '_blank');
     }
   };
 
   const openCustomerPortal = async () => {
-    const { data, error } = await supabase.functions.invoke('customer-portal');
-    if (error) throw error;
+    const { data, error } = await invokeEdge('customer-portal');
+    if (error) throw new Error(error);
     if (data?.url) {
       window.open(data.url, '_blank');
     }

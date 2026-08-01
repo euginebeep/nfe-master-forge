@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Building2, Save, Loader2, Upload, X, FileCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { PageHeader } from "@/components/ui/page-header";
@@ -266,15 +267,17 @@ export default function CompanySettingsPage() {
 
       // 2. Validate certificate CNPJ against company CNPJ
       if (companyCnpj) {
-        const { data: result, error } = await supabase.functions.invoke("validate-certificate", {
-          body: { fileId: arquivo.id, password: certSenha, companyCnpj },
+        const { data: result, error } = await invokeEdge("validate-certificate", {
+          fileId: arquivo.id,
+          password: certSenha,
+          companyCnpj,
         });
-        if (error) throw error;
+        if (error) throw new Error(error);
 
-        if (!result.valid) {
+        if (!result?.valid) {
           // Certificate is invalid or CNPJ doesn't match — reject
-          setCertError(result.error || "Certificado inválido.");
-          toast.error(result.error || "Certificado inválido.");
+          setCertError(result?.error || "Certificado inválido.");
+          toast.error(result?.error || "Certificado inválido.");
           // Don't link the certificate
           return;
         }
@@ -293,8 +296,9 @@ export default function CompanySettingsPage() {
       form.setValue("certificado_a1_file_id", arquivo.id);
       setCertFileName(file.name);
     } catch (err) {
-      setCertError(err instanceof Error ? err.message : "Erro ao processar certificado.");
-      toast.error("Erro ao processar certificado.");
+      const msg = err instanceof Error ? err.message : "Erro ao processar certificado.";
+      setCertError(msg);
+      toast.error(msg);
     } finally {
       setCertUploading(false);
     }

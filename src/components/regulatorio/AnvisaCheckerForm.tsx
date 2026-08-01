@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { supabase } from "@/integrations/supabase/client";
+import { extractInvokeError } from "@/lib/edge-invoke";
 import { resolveAnvisaKey } from "@/lib/anvisa-limits";
 import JSZip from "jszip";
 
@@ -319,7 +320,7 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
       else if (file.type === 'application/pdf') fileType = "pdf";
       else if (file.type.startsWith('image/')) fileType = "image";
 
-      const { data, error } = await supabase.functions.invoke('anvisa-ai-verify', {
+      const response = await supabase.functions.invoke('anvisa-ai-verify', {
         body: {
           action: 'analyze_file',
           file_type: fileType,
@@ -329,15 +330,28 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
           cliente: clientName
         }
       });
+      let data = response.data;
 
-      if (error) {
-        console.error('Invoke error:', error);
-        // Tentar extrair mensagem amigável do corpo do erro (status 503/500)
-        const errMsg = error?.message || '';
+      // Em non-2xx o body fica em error.context — recuperar { erro, mensagem } se data veio vazio
+      if (response.error && !data) {
+        try {
+          const ctx: any = (response.error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            data = await (typeof ctx.clone === "function" ? ctx.clone().json() : ctx.json());
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const detail = await extractInvokeError(response);
+      if (detail) {
+        console.error('Invoke error:', detail);
+        // Preferir formato estruturado { erro, mensagem } quando presente
         if (data?.erro) {
           throw new Error(data.erro + (data.mensagem ? ': ' + data.mensagem : ''));
         }
-        throw error;
+        throw new Error(detail);
       }
 
       // ── VERIFICAR SE A RESPOSTA É UM ERRO ESTRUTURADO (ex: 503 com JSON) ──────────

@@ -19,7 +19,7 @@ interface IbovespaData {
   change: number;
 }
 
-import { supabase } from '@/integrations/supabase/client';
+import { invokeEdge } from '@/lib/edge-invoke';
 
 interface MarketData {
   ibovespa?: IbovespaData;
@@ -28,8 +28,8 @@ interface MarketData {
 
 async function fetchMarketData(): Promise<MarketData> {
   try {
-    const { data, error } = await supabase.functions.invoke('market-indices');
-    if (error) throw error;
+    const { data, error } = await invokeEdge<MarketData>('market-indices');
+    if (error) throw new Error(error);
     return data as MarketData;
   } catch (error) {
     console.error('Erro ao buscar dados de mercado:', error);

@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
+import { extractThrownEdgeError, invokeEdge } from '@/lib/edge-invoke';
 
 const CONTEXTO_ROTAS: Record<string, string> = {
   '/producao': 'O usuário está na área de Produção. Pode ter dúvidas sobre Ordens de Produção (OP), lotes, fórmulas, pesagem, mistura, encapsulamento, assinatura do RT.',
@@ -214,13 +215,19 @@ function BrainXAssistentePanel() {
         .slice(-10)
         .map(m => ({ role: m.role, content: m.content }));
 
-      const { data, error } = await supabase.functions.invoke('brainx-assistente', {
-        body: {
-          system: buildSystemPrompt(rota, nomeUsuario),
-          messages: historico,
-        },
+      const { data, error } = await invokeEdge<{ content?: string; error?: string }>('brainx-assistente', {
+        system: buildSystemPrompt(rota, nomeUsuario),
+        messages: historico,
       });
-      if (error) throw error;
+      if (error) {
+        setMensagens(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: error,
+          timestamp: new Date(),
+        }]);
+        return;
+      }
       const resposta = data?.content ?? data?.error ?? 'Desculpe, não consegui processar.';
 
       setMensagens(prev => [...prev, {
@@ -229,11 +236,12 @@ function BrainXAssistentePanel() {
         content: resposta,
         timestamp: new Date(),
       }]);
-    } catch {
+    } catch (e) {
+      const msg = await extractThrownEdgeError(e, 'Ops, tive um problema de conexão. Tente novamente em instantes.');
       setMensagens(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: 'Ops, tive um problema de conexão. Tente novamente em instantes.',
+        content: msg,
         timestamp: new Date(),
       }]);
     } finally {

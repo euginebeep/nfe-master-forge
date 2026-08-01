@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
+import { extractInvokeError } from "@/lib/edge-invoke";
 
 // ─── Mapeamento provider → chave no banco ────────────────────────────────────
 const PROVIDER_TO_CHAVE: Record<string, string> = {
@@ -67,11 +68,12 @@ const TIER_META: Record<ModelTier, { label: string; cls: string; icon: any }> = 
 async function callSaasAdmin(action: string, body: Record<string, any> = {}) {
   const { data: sess } = await supabase.auth.getSession();
   if (!sess?.session) await supabase.auth.refreshSession();
-  const { data, error } = await supabase.functions.invoke("saas-admin", {
+  const response = await supabase.functions.invoke("saas-admin", {
     body: { action, ...body },
   });
-  if (error) throw new Error(error.message || "saas-admin failed");
-  return data;
+  const detail = await extractInvokeError(response, "saas-admin failed");
+  if (detail) throw new Error(detail);
+  return response.data;
 }
 
 export function AIHubPanel() {

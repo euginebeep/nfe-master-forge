@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+import { extractInvokeError } from "@/lib/edge-invoke";
 import { toast } from "sonner";
 import { isSuperDev, startGhost } from "@/lib/ghost-mode";
 import { useNavigate } from "react-router-dom";
@@ -143,11 +144,12 @@ export default function SaasDashboardPage() {
     if (!sess?.session) {
       await supabase.auth.refreshSession();
     }
-    const { data, error } = await supabase.functions.invoke("saas-admin", {
+    const response = await supabase.functions.invoke("saas-admin", {
       body: { action, ...body },
     });
-    if (error) throw new Error(error.message || "saas-admin failed");
-    return data;
+    const detail = await extractInvokeError(response, "saas-admin failed");
+    if (detail) throw new Error(detail);
+    return response.data;
   };
 
   const handleBackupDownload = async (scope: "tenant" | "saas") => {

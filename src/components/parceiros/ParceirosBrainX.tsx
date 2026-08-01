@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X, ExternalLink, Info, Megaphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { extractInvokeError, invokeEdge } from "@/lib/edge-invoke";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,8 @@ export function ParceirosBrainX({ posicao = 'DASHBOARD_LATERAL', className }: Pa
 
       try {
         const companyId = profile?.company_id;
-        const { data, error } = await supabase.functions.invoke('brainx-parceiros', {
+        // GET + headers customizados — extractInvokeError em vez de invokeEdge
+        const response = await supabase.functions.invoke('brainx-parceiros', {
           method: 'GET',
           headers: {
             'x-company-id': companyId || '',
@@ -42,9 +44,10 @@ export function ParceirosBrainX({ posicao = 'DASHBOARD_LATERAL', className }: Pa
           }
         });
 
-        if (error) throw error;
-        if (data?.campanha) {
-          setCampanha(data.campanha);
+        const detail = await extractInvokeError(response);
+        if (detail) throw new Error(detail);
+        if (response.data?.campanha) {
+          setCampanha(response.data.campanha);
         }
       } catch (err) {
         console.error("Erro ao buscar parceiro:", err);
@@ -62,14 +65,12 @@ export function ParceirosBrainX({ posicao = 'DASHBOARD_LATERAL', className }: Pa
     if (!campanha) return;
     
     try {
-      await supabase.functions.invoke('brainx-parceiros', {
-        method: 'POST',
-        body: { 
-          action: 'registrar-clique',
-          campanha_id: campanha.id,
-          company_id: profile?.company_id || ''
-        }
+      const { error } = await invokeEdge('brainx-parceiros', {
+        action: 'registrar-clique',
+        campanha_id: campanha.id,
+        company_id: profile?.company_id || '',
       });
+      if (error) console.error("Erro ao registrar clique:", error);
     } catch (err) {
       console.error("Erro ao registrar clique:", err);
     }

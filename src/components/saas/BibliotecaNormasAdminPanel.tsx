@@ -18,6 +18,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -181,14 +182,14 @@ export function BibliotecaNormasAdminPanel() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("legislacao-ingest", {
-        body: {
-          fonte_id: fonte.id,
-          aprovado_por: user.id, // uuid do admin logado (coluna é uuid)
-        },
+      const { data, error } = await invokeEdge("legislacao-ingest", {
+        fonte_id: fonte.id,
+        aprovado_por: user.id, // uuid do admin logado (coluna é uuid)
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(String(data.error));
+      if (error) {
+        toast.error(error);
+        return;
+      }
       toast.success(`✅ ${data.chunks_gerados} trechos processados para ${data.fonte}. Disponível para todos os tenants.`);
       queryClient.invalidateQueries({ queryKey: ["saas-legislacao-fontes"] });
       queryClient.invalidateQueries({ queryKey: ["saas-chunk-counts"] });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Play, Copy, Check, User, Mail, Phone, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { extractInvokeError } from '@/lib/edge-invoke';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,11 +109,12 @@ export function DemoLoginCard() {
       if (result?.error) {
         console.log('Login falhou, executando bootstrap...', result.error);
         toast.info('Preparando conta demo... isso pode levar até 1 minuto.');
-        const { data: bootData, error: bootErr } = await supabase.functions.invoke('bootstrap-demo-user');
+        const bootResponse = await supabase.functions.invoke('bootstrap-demo-user');
+        const bootDetail = await extractInvokeError(bootResponse, 'Falha ao preparar demo');
         
-        if (bootErr || bootData?.error) {
+        if (bootDetail) {
           setLoading(false);
-          toast.error('Falha ao preparar demo: ' + (bootErr?.message || bootData?.error));
+          toast.error('Falha ao preparar demo: ' + bootDetail);
           return;
         }
         

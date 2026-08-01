@@ -39,7 +39,13 @@ async function callFocusNfe(
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error?.message || data.error || `Erro ${res.status}`);
+    const nested =
+      data?.error?.message ||
+      data?.error?.erro ||
+      data?.message ||
+      data?.erro ||
+      data?.error;
+    throw new Error(typeof nested === "string" ? nested : nested ? String(nested) : `Erro ${res.status}`);
   }
   return data;
 }

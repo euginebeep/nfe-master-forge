@@ -28,6 +28,7 @@ import {
   Pencil, Lock, Unlock, Loader2, FileDown, X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -363,16 +364,14 @@ ${paragrafos}
 
     try {
       const htmlBody = gerarContratoHtml();
-      const { data, error } = await supabase.functions.invoke("send-contract-email", {
-        body: {
-          to: orcamento.cliente_email,
-          subject: `Contrato de Industrialização - ${orcamento.codigo}`,
-          htmlBody,
-          senderName: nomeUsuario,
-        },
+      const { data, error } = await invokeEdge<{ success?: boolean; error?: string }>("send-contract-email", {
+        to: orcamento.cliente_email,
+        subject: `Contrato de Industrialização - ${orcamento.codigo}`,
+        htmlBody,
+        senderName: nomeUsuario,
       });
 
-      if (error) throw new Error(error.message || "Erro ao enviar email");
+      if (error) throw new Error(error);
       if (data && !data.success) throw new Error(data.error || "Falha no envio");
 
       await updateField({

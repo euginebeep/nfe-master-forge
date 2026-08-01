@@ -18,6 +18,7 @@ import {
   Link2,
 } from "lucide-react";
 import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { useUserCompanyId } from "@/hooks/use-user-company";
 import {
   useAmbientalTempoReal,
@@ -114,11 +115,8 @@ const EMPTY_SENSOR_FORM = {
 
 // Helper para chamar a Edge Function ewelink-sync
 async function callEwelinkSync(action: string, body: Record<string, any> = {}) {
-  const { data, error } = await supabase.functions.invoke("ewelink-sync", {
-    body: { action, ...body },
-  });
-  if (error) throw new Error(error.message ?? "Erro na comunicação com eWeLink");
-  if (data?.error) throw new Error(data.error);
+  const { data, error } = await invokeEdge("ewelink-sync", { action, ...body });
+  if (error) throw new Error(error);
   return data;
 }
 

@@ -15,6 +15,7 @@ import {
   Eye, TrendingUp, DollarSign, Loader2, Upload, Link as LinkIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { extractInvokeError } from "@/lib/edge-invoke";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useUploadFile } from "@/hooks/use-files";
@@ -126,12 +127,14 @@ function CampanhasTab() {
   const { data: campanhas, isLoading } = useQuery({
     queryKey: ['parceiros-campanhas-admin'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('brainx-parceiros', {
+      // GET + headers customizados — extractInvokeError em vez de invokeEdge
+      const response = await supabase.functions.invoke('brainx-parceiros', {
         method: 'GET',
         headers: { 'action': 'list-admin' }
       });
-      if (error) throw error;
-      return data.campanhas;
+      const detail = await extractInvokeError(response);
+      if (detail) throw new Error(detail);
+      return response.data.campanhas;
     }
   });
 

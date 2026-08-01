@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { useNfeNumeracao } from "@/hooks/use-nfe-numeracao";
 
 type Status = "ok" | "warn" | "error" | "loading";
@@ -90,10 +91,11 @@ export function CertificadoStatusCard() {
     // 2. Certificado A1 presente — chama validate-certificate (verify_jwt=false na função existente)
     let certPresent = false;
     try {
-      const { data: certRes, error: certErr } = await supabase.functions.invoke("validate-certificate", {
-        body: { company_id: comp.id, only_status: true },
+      const { data: certRes, error: certErr } = await invokeEdge("validate-certificate", {
+        company_id: comp.id,
+        only_status: true,
       });
-      if (certErr) throw certErr;
+      if (certErr) throw new Error(certErr);
       certPresent = !!certRes?.has_certificate;
       setHasCert(certPresent);
       if (!certPresent) {

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { extractInvokeError, extractThrownEdgeError } from "@/lib/edge-invoke";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
@@ -86,7 +87,7 @@ async function healthCheckManualIa(): Promise<boolean> {
   });
 
   try {
-    const { data, error } = await Promise.race([
+    const response = await Promise.race([
       supabase.functions.invoke("manual-ia", {
         body: {
           pergunta: HEALTH_CHECK_PERGUNTA,
@@ -97,8 +98,8 @@ async function healthCheckManualIa(): Promise<boolean> {
       timeout,
     ]);
 
-    if (error) return false;
-    const resposta = typeof data?.resposta === "string" ? data.resposta : "";
+    if (await extractInvokeError(response)) return false;
+    const resposta = typeof response.data?.resposta === "string" ? response.data.resposta : "";
     if (!resposta.trim()) return false;
     return !isRespostaErroIA(resposta);
   } catch {
@@ -431,15 +432,16 @@ export default function FAQPage() {
       const timeout = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error("timeout")), HEALTH_CHECK_TIMEOUT_MS);
       });
-      const { data, error } = await Promise.race([
+      const response = await Promise.race([
         supabase.functions.invoke('manual-ia', {
           body: { pergunta, historico_chat: historico, secao_contexto: secaoAtiva }
         }),
         timeout,
       ]);
-      if (error) throw error;
+      const detail = await extractInvokeError(response);
+      if (detail) throw new Error(detail);
 
-      const resposta = typeof data?.resposta === "string" ? data.resposta : "";
+      const resposta = typeof response.data?.resposta === "string" ? response.data.resposta : "";
       if (!resposta.trim() || isRespostaErroIA(resposta)) {
         setAssistenteStatus("offline");
         setMensagens(prev => [
@@ -453,7 +455,7 @@ export default function FAQPage() {
       setMensagens(prev => [...prev, { role: 'assistant', content: resposta, timestamp: new Date() }]);
     } catch (e) {
       setAssistenteStatus("offline");
-      toast.error(erroMsg(e));
+      toast.error(await extractThrownEdgeError(e, erroMsg(e)));
       setMensagens(prev => [
         ...prev,
         { role: 'assistant', content: MENSAGEM_FALLBACK_MANUAL, timestamp: new Date(), fallbackManual: true },

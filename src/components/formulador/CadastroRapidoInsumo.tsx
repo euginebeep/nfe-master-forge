@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { useCreateItem } from "@/hooks/use-itens";
 import type { HybridItem } from "@/hooks/use-hybrid-data";
 import {
@@ -147,10 +147,11 @@ export function CadastroRapidoInsumo({
     setSugerindo(true);
     setSugestoes([]);
     try {
-      const { data, error } = await supabase.functions.invoke("anvisa-resolve-name", {
-        body: { termo },
-      });
-      if (error) throw error;
+      const { data, error } = await invokeEdge<{ termos?: string[] }>("anvisa-resolve-name", { termo });
+      if (error) {
+        toast.info("Não consegui sugerir nomes agora. Você pode salvar com o nome digitado.");
+        return;
+      }
       const termos: string[] = Array.isArray(data?.termos) ? data.termos : [];
       if (termos.length === 0) {
         toast.info("Nenhuma sugestão encontrada. Você pode salvar com o nome digitado.");

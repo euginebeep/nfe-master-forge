@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/edge-invoke";
 import { AnexarXmlButton } from "@/components/nfe/AnexarXmlButton";
 import { formatDate } from "@/lib/formatters";
 
@@ -70,11 +71,8 @@ export default function NotasSemXmlPage() {
   const runBackfill = async () => {
     setBackfilling(true);
     try {
-      const { data, error } = await supabase.functions.invoke("backfill-xml-storage", {
-        body: {},
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const { data, error } = await invokeEdge("backfill-xml-storage", {});
+      if (error) throw new Error(error);
       toast.success(
         `Backfill: ${data?.ok ?? 0} ok, ${data?.falhas ?? 0} falhas. ` +
           `Ainda na view: ${data?.ainda_na_view ?? "?"}`,
