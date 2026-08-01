@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
+import { buildDanfeDataFromFocus } from "@/lib/danfe-from-focus";
+import { traduzirErroRpcFiscal } from "@/lib/fiscal-rpc";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -723,60 +725,6 @@ export default function NotasSaidaPage() {
     setSelectedIds(new Set());
   };
 
-  const buildDanfeData = (notaData: any, notaItens: any[], comp: any, cliente: any) => ({
-    emit_razao: comp?.razao_social || "—",
-    emit_fantasia: comp?.nome_fantasia || "",
-    emit_logradouro: comp?.endereco_logradouro || "",
-    emit_numero: comp?.endereco_nro || "",
-    emit_bairro: comp?.endereco_bairro || "",
-    emit_cidade: comp?.endereco_cidade || "",
-    emit_uf: comp?.endereco_uf || "",
-    emit_cep: comp?.endereco_cep || "",
-    emit_telefone: comp?.telefone || "",
-    emit_email: comp?.email_fiscal || "",
-    emit_cnpj: comp?.cnpj || "",
-    emit_ie: comp?.ie || "",
-    numero: notaData.numero,
-    serie: notaData.serie || company?.nfe_serie_padrao || "1",
-    natureza_operacao: notaData.natureza_operacao || "Venda de mercadoria",
-    chave_acesso: notaData.chave_acesso || "",
-    protocolo: notaData.protocolo_autorizacao || "",
-    data_emissao: notaData.data_emissao ? new Date(notaData.data_emissao).toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR"),
-    tipo_operacao: "1" as const,
-    dest_razao: cliente?.razao_social || notaData.entidades?.razao_social || "—",
-    dest_cnpj_cpf: cliente?.documento || notaData.entidades?.documento || "",
-    dest_ie: cliente?.ie || "",
-    bc_icms: Number(notaData.valor_produtos || 0),
-    valor_icms: Number(notaData.valor_icms || 0),
-    bc_icms_st: 0,
-    valor_icms_st: 0,
-    valor_produtos: Number(notaData.valor_produtos || 0),
-    valor_frete: 0,
-    valor_seguro: 0,
-    valor_desconto: 0,
-    outras_despesas: 0,
-    valor_ipi: 0,
-    valor_aprox_tributos: Number(notaData.valor_icms || 0) + Number(notaData.valor_pis || 0) + Number(notaData.valor_cofins || 0),
-    valor_total: Number(notaData.valor_total || 0),
-    transp_frete_conta: MODALIDADES_FRETE.find(m => m.value === notaData.modalidade_frete)?.label?.split(" - ")[0] || "9 - Sem transporte",
-    itens: notaItens.map((item: any, idx: number) => ({
-      numero_item: item.numero_item || idx + 1,
-      descricao: item.descricao || "",
-      ncm: item.ncm || "",
-      cst_icms: item.cst_icms || "00",
-      cfop: item.cfop || "5102",
-      unidade: item.unidade || "UN",
-      quantidade: Number(item.quantidade || 0),
-      valor_unitario: Number(item.valor_unitario || 0),
-      valor_total: Number(item.valor_total || 0),
-      icms_aliquota: Number(item.icms_aliquota || 0),
-      icms_valor: Number(item.icms_valor || 0),
-      origem: item.origem || "0",
-    })),
-    info_complementares: notaData.informacoes_adicionais || "",
-    ambiente: (notaData.ambiente || "homologacao") as "homologacao" | "producao",
-  });
-
   const openDanfeFromForm = () => {
     // Preview do DANFE só está disponível após salvar a nota,
     // para evitar exibir dados fiscais inconsistentes/falsos.
@@ -784,19 +732,14 @@ export default function NotasSaidaPage() {
   };
 
   const openDanfeFromSavedNota = async (notaId: string) => {
-    const { data: nota } = await supabase
-      .from("notas_saida")
-      .select("*, entidades!notas_saida_cliente_id_fkey(razao_social, nome_fantasia, documento, ie)")
-      .eq("id", notaId)
-      .single();
-    if (!nota) return;
-    const { data: notaItens } = await supabase
-      .from("notas_saida_itens")
-      .select("*")
-      .eq("nota_saida_id", notaId)
-      .order("numero_item");
-    setDanfeData(buildDanfeData(nota, notaItens || [], company, nota.entidades));
-    setDanfePreviewOpen(true);
+    try {
+      // Fonte única: mesmo payload que a Focus transmite
+      const data = await buildDanfeDataFromFocus(notaId);
+      setDanfeData(data);
+      setDanfePreviewOpen(true);
+    } catch (e) {
+      toast.error(traduzirErroRpcFiscal(e));
+    }
   };
 
   const resetForm = () => {

@@ -1,10 +1,11 @@
-import { useRef } from "react";
+import { useRef, type CSSProperties } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, X } from "lucide-react";
+import { Printer } from "lucide-react";
 
-interface DANFEItem {
+export interface DANFEItem {
   numero_item?: number;
+  codigo?: string;
   descricao: string;
   ncm: string;
   cst_icms: string;
@@ -18,9 +19,13 @@ interface DANFEItem {
   ipi_valor?: number;
   ipi_aliquota?: number;
   origem?: string;
+  /** Rastreabilidade em coluna própria — não embutir na descrição */
+  lote?: string;
+  data_fabricacao?: string;
+  data_validade?: string;
 }
 
-interface DANFEData {
+export interface DANFEData {
   // Emitente
   emit_razao: string;
   emit_fantasia?: string;
@@ -103,49 +108,71 @@ const fmt = (v: number) =>
 const fmtQtd = (v: number) =>
   v.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
-export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDialogProps) {
-  const printRef = useRef<HTMLDivElement>(null);
-
-  const handlePrint = () => {
-    if (!printRef.current) return;
-    const style = document.createElement("style");
-    style.setAttribute("data-danfe-print", "true");
-    style.textContent = `
-      @media print {
-        body > *:not([data-danfe-print-root]) { display: none !important; }
-        [data-danfe-print-root] { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: #fff; }
-        [data-danfe-print-root] * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        @page { size: A4 portrait; margin: 8mm; }
-      }
-    `;
-    document.head.appendChild(style);
-    const wrapper = document.createElement("div");
-    wrapper.setAttribute("data-danfe-print-root", "true");
-    wrapper.innerHTML = printRef.current.innerHTML;
-    document.body.appendChild(wrapper);
-    window.print();
-    document.head.removeChild(style);
-    document.body.removeChild(wrapper);
+function numeroExibicao(numero?: number | string, serie?: number | string) {
+  const temNumero = numero != null && String(numero).trim() !== "" && String(numero) !== "0";
+  return {
+    numero: temNumero ? String(numero) : "a definir na transmissão",
+    serie: serie != null && String(serie).trim() !== "" ? String(serie) : "a definir na transmissão",
   };
+}
 
-  if (!data) return null;
+// ─── Helpers ───
 
+const cellStyle: CSSProperties = {
+  border: "1px solid #000",
+  padding: "1px 4px",
+  verticalAlign: "top",
+  fontSize: "7pt",
+};
+
+const thStyle: CSSProperties = {
+  border: "1px solid #000",
+  padding: "2px 3px",
+  textAlign: "center",
+  fontWeight: "bold",
+  fontSize: "5.5pt",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle: CSSProperties = {
+  border: "1px solid #000",
+  padding: "1px 3px",
+  textAlign: "center",
+  fontSize: "6.5pt",
+  fontFamily: "monospace",
+};
+
+function LabelValue({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div>
+      <div style={{ fontSize: "5.5pt", color: "#333", fontWeight: "bold" }}>{label}</div>
+      <div style={{ fontSize: "7.5pt", fontWeight: bold ? "bold" : "normal" }}>{value}</div>
+    </div>
+  );
+}
+
+function SectionTitle({ text }: { text: string }) {
+  return (
+    <div style={{
+      border: "1px solid #000",
+      borderBottom: "none",
+      padding: "1px 4px",
+      fontSize: "6.5pt",
+      fontWeight: "bold",
+      background: "#f0f0f0",
+    }}>
+      {text}
+    </div>
+  );
+}
+
+/** Documento DANFE compartilhado (entrada e saída). */
+export function DanfeDocument({ data }: { data: DANFEData }) {
   const isHomolog = data.ambiente === "homologacao";
+  const { numero, serie } = numeroExibicao(data.numero, data.serie);
+  const temRastro = data.itens.some((i) => i.lote || i.data_fabricacao || i.data_validade);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[900px] max-h-[95vh] overflow-y-auto p-4">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-base">Pré-visualização DANFE — Rascunho</DialogTitle>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-1" /> Imprimir
-            </Button>
-          </div>
-        </DialogHeader>
-
-        {/* DANFE Render */}
-        <div ref={printRef}>
           <div style={{
             fontFamily: "Arial, Helvetica, sans-serif",
             fontSize: "7.5pt",
@@ -156,7 +183,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
             padding: "4mm",
             lineHeight: 1.3,
           }}>
-            {/* Watermark for homologação */}
             {isHomolog && (
               <div style={{
                 position: "relative",
@@ -182,7 +208,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </div>
             )}
 
-            {/* ═══ Recibo ═══ */}
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", marginBottom: "2mm" }}>
               <tbody>
                 <tr>
@@ -191,8 +216,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
                   </td>
                   <td rowSpan={2} style={{ ...cellStyle, textAlign: "center", width: "120px", verticalAlign: "top", padding: "2px" }}>
                     <div style={{ fontWeight: "bold", fontSize: "9pt" }}>NF-e</div>
-                    <div style={{ fontSize: "8pt" }}>Nº: {data.numero || "000.000.000"}</div>
-                    <div style={{ fontSize: "7pt" }}>SÉRIE: {data.serie || "1"}</div>
+                    <div style={{ fontSize: "8pt" }}>Nº: {numero}</div>
+                    <div style={{ fontSize: "7pt" }}>SÉRIE: {serie}</div>
                   </td>
                 </tr>
                 <tr>
@@ -205,11 +230,9 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ Cabeçalho Principal ═══ */}
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000" }}>
               <tbody>
                 <tr>
-                  {/* Emitente */}
                   <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px 6px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
                       {data.emit_logo_url && (
@@ -230,7 +253,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
                     </div>
                   </td>
 
-                  {/* DANFE Title */}
                   <td style={{ ...cellStyle, width: "25%", verticalAlign: "top", textAlign: "center", padding: "4px" }}>
                     <div style={{ fontWeight: "bold", fontSize: "12pt", letterSpacing: "2px" }}>DANFE</div>
                     <div style={{ fontSize: "6pt", lineHeight: 1.3, margin: "2px 0" }}>
@@ -240,15 +262,13 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
                       {data.tipo_operacao === "0" ? "0 - Entrada" : "1 - Saída"}
                     </div>
                     <div style={{ fontSize: "7.5pt" }}>
-                      Nº <b>{data.numero || "000.000.000"}</b><br />
-                      SÉRIE: <b>{data.serie || "1"}</b><br />
+                      Nº <b>{numero}</b><br />
+                      SÉRIE: <b>{serie}</b><br />
                       FOLHA: {data.folha || "1 de 1"}
                     </div>
                   </td>
 
-                  {/* Barcode / Chave */}
                   <td style={{ ...cellStyle, width: "35%", verticalAlign: "top", padding: "4px" }}>
-                    {/* Barcode placeholder */}
                     <div style={{
                       height: "40px",
                       background: "repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 3px)",
@@ -270,7 +290,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ Natureza + Protocolo ═══ */}
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
               <tbody>
                 <tr>
@@ -284,7 +303,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ IE / CNPJ Emitente ═══ */}
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
               <tbody>
                 <tr>
@@ -301,7 +319,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ DESTINATÁRIO ═══ */}
             <SectionTitle text="DESTINATÁRIO/REMETENTE" />
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
               <tbody>
@@ -352,11 +369,9 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ FATURA ═══ */}
             <SectionTitle text="FATURA" />
             <div style={{ border: "1px solid #000", borderTop: "none", minHeight: "8mm", padding: "2px 4px" }} />
 
-            {/* ═══ CÁLCULO DO IMPOSTO ═══ */}
             <SectionTitle text="CÁLCULO DO IMPOSTO" />
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
               <tbody>
@@ -379,7 +394,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ TRANSPORTADOR ═══ */}
             <SectionTitle text="TRANSPORTADOR/VOLUMES TRANSPORTADOS" />
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
               <tbody>
@@ -400,51 +414,49 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ DADOS DO PRODUTO/SERVIÇO ═══ */}
             <SectionTitle text="DADOS DO PRODUTO/SERVIÇO" />
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none", fontSize: "6.5pt" }}>
               <thead>
                 <tr style={{ background: "#f5f5f5" }}>
-                  <th style={thStyle}>CÓD. PROD.</th>
-                  <th style={{ ...thStyle, textAlign: "left", width: "25%" }}>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
+                  <th style={thStyle}>CÓD.</th>
+                  <th style={{ ...thStyle, textAlign: "left", width: "22%" }}>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
                   <th style={thStyle}>NCM/SH</th>
                   <th style={thStyle}>O/CST</th>
                   <th style={thStyle}>CFOP</th>
-                  <th style={thStyle}>UNID.</th>
-                  <th style={thStyle}>QUANT.</th>
-                  <th style={thStyle}>VALOR UNITÁRIO</th>
-                  <th style={thStyle}>VALOR TOTAL</th>
-                  <th style={thStyle}>B.CÁLC. ICMS</th>
-                  <th style={thStyle}>VALOR ICMS</th>
-                  <th style={thStyle}>VALOR IPI</th>
-                  <th style={thStyle}>ALÍQ. ICMS</th>
-                  <th style={thStyle}>ALÍQ. IPI</th>
+                  <th style={thStyle}>UN</th>
+                  <th style={{ ...thStyle, textAlign: "right", paddingRight: 6 }}>QTD</th>
+                  <th style={{ ...thStyle, textAlign: "right", paddingRight: 6 }}>V. UNIT</th>
+                  <th style={{ ...thStyle, textAlign: "right", paddingRight: 6 }}>V. TOTAL</th>
+                  {temRastro && <th style={thStyle}>LOTE</th>}
+                  {temRastro && <th style={thStyle}>FAB.</th>}
+                  {temRastro && <th style={thStyle}>VALID.</th>}
+                  <th style={{ ...thStyle, textAlign: "right", paddingRight: 6 }}>ICMS</th>
+                  <th style={{ ...thStyle, textAlign: "right", paddingRight: 6 }}>ALÍQ</th>
                 </tr>
               </thead>
               <tbody>
                 {data.itens.map((item, idx) => (
                   <tr key={idx}>
-                    <td style={tdStyle}>{item.numero_item || idx + 1}</td>
-                    <td style={{ ...tdStyle, textAlign: "left", fontSize: "6pt" }}>{item.descricao}</td>
+                    <td style={tdStyle}>{item.codigo || item.numero_item || idx + 1}</td>
+                    <td style={{ ...tdStyle, textAlign: "left", fontSize: "6pt", paddingLeft: 4 }}>{item.descricao}</td>
                     <td style={tdStyle}>{item.ncm}</td>
                     <td style={tdStyle}>{item.origem || "0"}{item.cst_icms}</td>
                     <td style={tdStyle}>{item.cfop}</td>
                     <td style={tdStyle}>{item.unidade}</td>
-                    <td style={tdStyle}>{fmtQtd(item.quantidade)}</td>
-                    <td style={tdStyle}>{fmt(item.valor_unitario)}</td>
-                    <td style={tdStyle}>{fmt(item.valor_total)}</td>
-                    <td style={tdStyle}>{fmt(item.valor_total)}</td>
-                    <td style={tdStyle}>{fmt(item.icms_valor)}</td>
-                    <td style={tdStyle}>{fmt(item.ipi_valor || 0)}</td>
-                    <td style={tdStyle}>{fmt(item.icms_aliquota)}</td>
-                    <td style={tdStyle}>{fmt(item.ipi_aliquota || 0)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", paddingRight: 6, whiteSpace: "nowrap" }}>{fmtQtd(item.quantidade)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", paddingRight: 6, whiteSpace: "nowrap" }}>{fmt(item.valor_unitario)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", paddingRight: 6, whiteSpace: "nowrap" }}>{fmt(item.valor_total)}</td>
+                    {temRastro && <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{item.lote || "—"}</td>}
+                    {temRastro && <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{item.data_fabricacao || "—"}</td>}
+                    {temRastro && <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{item.data_validade || "—"}</td>}
+                    <td style={{ ...tdStyle, textAlign: "right", paddingRight: 6, whiteSpace: "nowrap" }}>{fmt(item.icms_valor)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", paddingRight: 6, whiteSpace: "nowrap" }}>{fmt(item.icms_aliquota)}</td>
                   </tr>
                 ))}
-                {/* Empty rows to fill space */}
                 {data.itens.length < 8 &&
                   Array.from({ length: 8 - data.itens.length }).map((_, i) => (
                     <tr key={`empty-${i}`}>
-                      {Array.from({ length: 14 }).map((_, j) => (
+                      {Array.from({ length: temRastro ? 14 : 11 }).map((_, j) => (
                         <td key={j} style={{ ...tdStyle, height: "14px" }}>&nbsp;</td>
                       ))}
                     </tr>
@@ -452,7 +464,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
 
-            {/* ═══ DADOS ADICIONAIS ═══ */}
             <SectionTitle text="DADOS ADICIONAIS" />
             <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
               <tbody>
@@ -472,58 +483,53 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               </tbody>
             </table>
           </div>
+  );
+}
+
+export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDialogProps) {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    if (!printRef.current) return;
+    const style = document.createElement("style");
+    style.setAttribute("data-danfe-print", "true");
+    style.textContent = `
+      @media print {
+        body > *:not([data-danfe-print-root]) { display: none !important; }
+        [data-danfe-print-root] { display: block !important; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; background: #fff; }
+        [data-danfe-print-root] * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @page { size: A4 portrait; margin: 8mm; }
+      }
+    `;
+    document.head.appendChild(style);
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("data-danfe-print-root", "true");
+    wrapper.innerHTML = printRef.current.innerHTML;
+    document.body.appendChild(wrapper);
+    window.print();
+    document.head.removeChild(style);
+    document.body.removeChild(wrapper);
+  };
+
+  if (!data) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[900px] max-h-[95vh] overflow-y-auto p-4">
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle className="text-base">Pré-visualização DANFE — Rascunho</DialogTitle>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-1" /> Imprimir
+            </Button>
+          </div>
+        </DialogHeader>
+
+        <div ref={printRef}>
+          <DanfeDocument data={data} />
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ─── Helpers ───
-
-const cellStyle: React.CSSProperties = {
-  border: "1px solid #000",
-  padding: "1px 4px",
-  verticalAlign: "top",
-  fontSize: "7pt",
-};
-
-const thStyle: React.CSSProperties = {
-  border: "1px solid #000",
-  padding: "2px 3px",
-  textAlign: "center",
-  fontWeight: "bold",
-  fontSize: "5.5pt",
-  whiteSpace: "nowrap",
-};
-
-const tdStyle: React.CSSProperties = {
-  border: "1px solid #000",
-  padding: "1px 3px",
-  textAlign: "center",
-  fontSize: "6.5pt",
-  fontFamily: "monospace",
-};
-
-function LabelValue({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div>
-      <div style={{ fontSize: "5.5pt", color: "#333", fontWeight: "bold" }}>{label}</div>
-      <div style={{ fontSize: "7.5pt", fontWeight: bold ? "bold" : "normal" }}>{value}</div>
-    </div>
-  );
-}
-
-function SectionTitle({ text }: { text: string }) {
-  return (
-    <div style={{
-      border: "1px solid #000",
-      borderBottom: "none",
-      padding: "1px 4px",
-      fontSize: "6.5pt",
-      fontWeight: "bold",
-      background: "#f0f0f0",
-    }}>
-      {text}
-    </div>
-  );
-}
