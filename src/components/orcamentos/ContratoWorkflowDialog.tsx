@@ -109,7 +109,8 @@ export function ContratoWorkflowDialog({
   const { data: company } = useQuery({
     queryKey: ["company-contrato"],
     queryFn: async () => {
-      const { data } = await supabase.from("company").select("*").limit(1).single();
+      // RLS de company devolve o tenant do usuário; maybeSingle evita erro se 0 linhas.
+      const { data } = await supabase.from("company").select("*").limit(1).maybeSingle();
       return data;
     },
     enabled: open,
@@ -124,7 +125,7 @@ export function ContratoWorkflowDialog({
         .from("arquivos")
         .select("storage_key")
         .eq("id", company.logo_file_id)
-        .single();
+        .maybeSingle();
       if (!arquivo?.storage_key) return null;
       // Bucket é privado, usar URL assinada
       const { data, error } = await supabase.storage.from("erp-files").createSignedUrl(arquivo.storage_key, 3600);
