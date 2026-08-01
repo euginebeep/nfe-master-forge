@@ -202,7 +202,11 @@ export function useOPIndustrial() {
       return data;
     } catch (error) {
       console.error('Erro ao criar OP:', error);
-      toast.error('Erro ao criar ordem de produção');
+      const err = error as { message?: string; code?: string; __opWriteToast?: boolean };
+      // Helpers já exibem toast específico antes do throw
+      if (!err?.__opWriteToast) {
+        toast.error(`Erro ao criar ordem de produção: ${err?.message || err?.code || 'erro desconhecido'}`);
+      }
       return null;
     } finally {
       setIsLoading(false);
@@ -292,7 +296,11 @@ export function useOPIndustrial() {
       return op;
     } catch (error) {
       console.error('Erro ao criar OP de fórmula:', error);
-      toast.error('Erro ao criar ordem de produção');
+      const err = error as { message?: string; code?: string; __opWriteToast?: boolean };
+      // Helpers já exibem toast específico antes do throw
+      if (!err?.__opWriteToast) {
+        toast.error(`Erro ao criar ordem de produção: ${err?.message || err?.code || 'erro desconhecido'}`);
+      }
       return null;
     } finally {
       setIsLoading(false);
@@ -434,29 +442,50 @@ export function useOPIndustrial() {
       .insert(materiasPrimasData);
 
     if (error) {
-      console.error('Erro ao criar matérias-primas:', error);
+      toast.error(`Falha ao registrar matérias-primas: ${error.message || error.code}`);
+      throw Object.assign(error, { __opWriteToast: true });
     }
 
     // Criar registros de pesagem crítica para ativos críticos
     const ativosCriticos = materiasPrimasData.filter(mp => mp.pesagem_critica);
     if (ativosCriticos.length > 0) {
       // Buscar IDs das matérias-primas inseridas
-      const { data: mps } = await supabase
+      const { data: mps, error: mpsError } = await supabase
         .from('op_materias_primas')
         .select('id, insumo_nome, quantidade_teorica_mg')
         .eq('op_id', opId)
         .eq('pesagem_critica', true);
 
-      if (mps && mps.length > 0) {
-        const pesagensCriticas = mps.map(mp => ({
-          op_id: opId,
-          materia_prima_id: mp.id,
-          insumo_nome: mp.insumo_nome,
-          quantidade_teorica_mg: mp.quantidade_teorica_mg,
-          status: 'PENDENTE',
-        }));
+      if (mpsError) {
+        toast.error(`Falha ao buscar matérias-primas críticas: ${mpsError.message || mpsError.code}`);
+        throw Object.assign(mpsError, { __opWriteToast: true });
+      }
 
-        await supabase.from('op_pesagens_criticas').insert(pesagensCriticas);
+      // Distinto de "não há ativos críticos" (esse caso nem entra neste bloco)
+      if (!mps || mps.length === 0) {
+        const err = Object.assign(
+          new Error('Nenhuma matéria-prima crítica retornada após a inserção'),
+          { __opWriteToast: true },
+        );
+        toast.error(`Falha ao buscar matérias-primas críticas: ${err.message}`);
+        throw err;
+      }
+
+      const pesagensCriticas = mps.map(mp => ({
+        op_id: opId,
+        materia_prima_id: mp.id,
+        insumo_nome: mp.insumo_nome,
+        quantidade_teorica_mg: mp.quantidade_teorica_mg,
+        status: 'PENDENTE',
+      }));
+
+      const { error: pesagensError } = await supabase
+        .from('op_pesagens_criticas')
+        .insert(pesagensCriticas);
+
+      if (pesagensError) {
+        toast.error(`Falha ao registrar pesagens críticas: ${pesagensError.message || pesagensError.code}`);
+        throw Object.assign(pesagensError, { __opWriteToast: true });
       }
     }
   };
@@ -473,7 +502,8 @@ export function useOPIndustrial() {
 
     const { error } = await supabase.from('op_checklist').insert(checklistData);
     if (error) {
-      console.error('Erro ao criar checklist:', error);
+      toast.error(`Falha ao registrar checklist: ${error.message || error.code}`);
+      throw Object.assign(error, { __opWriteToast: true });
     }
   };
 
@@ -491,7 +521,8 @@ export function useOPIndustrial() {
     });
 
     if (error) {
-      console.error('Erro ao criar controle de perdas:', error);
+      toast.error(`Falha ao registrar controle de perdas: ${error.message || error.code}`);
+      throw Object.assign(error, { __opWriteToast: true });
     }
   };
 
