@@ -107,12 +107,18 @@ export function ContratoWorkflowDialog({
   const nomeUsuario = profile?.nome_completo || "Usuário";
 
   const { data: company } = useQuery({
-    queryKey: ["company-contrato"],
+    queryKey: ["company-contrato", profile?.company_id],
     queryFn: async () => {
-      const { data } = await supabase.from("company").select("*").limit(1).single();
+      if (!profile?.company_id) return null;
+      const { data, error } = await supabase
+        .from("company")
+        .select("*")
+        .eq("id", profile.company_id)
+        .maybeSingle();
+      if (error) throw error;
       return data;
     },
-    enabled: open,
+    enabled: open && !!profile?.company_id,
   });
 
   // Busca URL do logo da empresa
