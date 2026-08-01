@@ -176,6 +176,20 @@ const UFS = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","P
 
 // ─── Types ───
 
+type OperacaoFiscalSaida = {
+  codigo: string;
+  descricao: string;
+  natureza_operacao: string;
+  cfop_interno: string | null;
+  cfop_interestadual: string | null;
+  finalidade: string | number | null;
+  exige_referencia: boolean;
+  movimenta_estoque: boolean;
+  gera_financeiro: boolean;
+  observacao: string | null;
+  ativo: boolean;
+};
+
 interface NotaItem {
   item_id: string;
   cProd: string; // código produto (SKU)
@@ -258,6 +272,44 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2,
 const fmtQtd = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
 const readOnlyClass = "bg-muted/60 border-dashed text-muted-foreground cursor-not-allowed font-medium";
+const TIPOS_ITEM_VENDA_PRODUCAO = ["PA"];
+const TIPOS_ITEM_INSUMOS_SAIDA = ["MP", "EMBALAGEM", "ROTULO", "CAPSULA_VAZIA", "TAMPA", "POTE"];
+
+const tiposItemPorOperacao = (codigo?: string) => {
+  const op = String(codigo || "").toUpperCase();
+  if (op.startsWith("DEVOLUCAO_COMPRA") || op.startsWith("REMESSA_")) return TIPOS_ITEM_INSUMOS_SAIDA;
+  if (op.startsWith("VENDA_PRODUCAO")) return TIPOS_ITEM_VENDA_PRODUCAO;
+  return [...TIPOS_ITEM_VENDA_PRODUCAO, ...TIPOS_ITEM_INSUMOS_SAIDA];
+};
+
+const formatDatePtBr = (value?: string) => {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split("-").reverse().join("/");
+  return value;
+};
+
+const traduzirErroCriarNota = (error: any, itens: NotaItem[]) => {
+  const mensagem = [error?.message, error?.details, error?.hint, error?.code].filter(Boolean).join(" ");
+  const lower = mensagem.toLowerCase();
+
+  if (lower.includes("item_sem_ncm")) {
+    const item = itens.find((i) => !String(i.ncm || "").trim()) || itens[0];
+    return `NCM obrigatório — ${item?.descricao || "item selecionado"}`;
+  }
+  if (lower.includes("lote_vencido")) {
+    const lote = mensagem.match(/lote\s+([^.,]+?)(?:\s+venceu|\s+vencido|\.|,|$)/i)?.[1]?.trim();
+    const data = mensagem.match(/(?:venceu em|validade|em)\s+(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/i)?.[1];
+    return `Lote vencido${lote ? ` — ${lote}` : ""}${data ? ` (${formatDatePtBr(data)})` : ""}`;
+  }
+  if (lower.includes("lote_bloqueado")) return "Lote em quarentena — selecione um lote liberado";
+  if (lower.includes("lote_nao_pertence_ao_item")) return "Lote não pertence ao item selecionado";
+  if (lower.includes("operacao_exige_chave_referenciada")) return "Informe a chave de acesso referenciada (44 dígitos)";
+  if (lower.includes("valor_unitario_obrigatorio")) return "Valor unitário obrigatório para esta operação";
+  if (lower.includes("emitente_sem_certificado_digital")) return "Emitente sem certificado digital cadastrado";
+  if (lower.includes("destinatario_sem_endereco_cadastrado")) return "Destinatário sem endereço cadastrado";
+
+  return error?.message || "Erro ao criar nota de saída";
+};
 
 type TransportadoraState = {
   razao: string; cnpj: string; ie: string; endereco: string; municipio: string; uf: string;
@@ -267,7 +319,9 @@ type TransportadoraState = {
 
 type NfeDraft = {
   activeTab: string;
+  operacaoFiscalCodigo: string;
   naturezaOperacao: string;
+  chaveReferenciada: string;
   tpNF: string;
   idDest: string;
   finalidadeEmissao: string;
@@ -307,7 +361,9 @@ type NfeDraft = {
 
 const createInitialNfeDraft = (): NfeDraft => ({
   activeTab: "destino",
+  operacaoFiscalCodigo: "VENDA_PRODUCAO",
   naturezaOperacao: "Venda de produto do estabelecimento",
+  chaveReferenciada: "",
   tpNF: "1",
   idDest: "1",
   finalidadeEmissao: "1",
@@ -374,7 +430,8 @@ export default function EmissorNFePage() {
   }, [setDraft]);
 
   const {
-    activeTab, naturezaOperacao, tpNF, idDest, finalidadeEmissao, indicadorPresenca, indFinal,
+    activeTab, operacaoFiscalCodigo = "VENDA_PRODUCAO", naturezaOperacao, chaveReferenciada = "",
+    tpNF, idDest, finalidadeEmissao, indicadorPresenca, indFinal,
     modelo, tpEmis, tpImp, dataSaida, horaSaida, clienteId, indIEDest, emailDest, itens,
     modalidadeFrete, transportadora, meioPagamento, valorPagamento, vTroco, infoAdicionais, infoFisco,
     fatNumero, fatValorOriginal, fatValorDesconto, fatValorLiquido, duplicatas,
@@ -383,7 +440,9 @@ export default function EmissorNFePage() {
   } = draft;
 
   const setActiveTab = (v: string | ((p: string) => string)) => setField("activeTab", v as NfeDraft["activeTab"]);
+  const setOperacaoFiscalCodigo = (v: string | ((p: string) => string)) => setField("operacaoFiscalCodigo", v as NfeDraft["operacaoFiscalCodigo"]);
   const setNaturezaOperacao = (v: string | ((p: string) => string)) => setField("naturezaOperacao", v as NfeDraft["naturezaOperacao"]);
+  const setChaveReferenciada = (v: string | ((p: string) => string)) => setField("chaveReferenciada", v as NfeDraft["chaveReferenciada"]);
   const setTpNF = (v: string | ((p: string) => string)) => setField("tpNF", v as NfeDraft["tpNF"]);
   const setIdDest = (v: string | ((p: string) => string)) => setField("idDest", v as NfeDraft["idDest"]);
   const setFinalidadeEmissao = (v: string | ((p: string) => string)) => setField("finalidadeEmissao", v as NfeDraft["finalidadeEmissao"]);
@@ -482,22 +541,77 @@ export default function EmissorNFePage() {
     enabled: !!clienteId,
   });
 
+  const { data: operacoesFiscais } = useQuery({
+    queryKey: ["operacoes-fiscais-saida-emissor"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("operacoes_fiscais_saida")
+        .select("codigo, descricao, natureza_operacao, cfop_interno, cfop_interestadual, finalidade, exige_referencia, movimenta_estoque, gera_financeiro, observacao, ativo")
+        .eq("ativo", true)
+        .order("descricao");
+      if (error) throw error;
+      return (data || []) as OperacaoFiscalSaida[];
+    },
+  });
+
+  const operacaoSelecionada = useMemo(() => {
+    if (!operacoesFiscais?.length) return null;
+    return operacoesFiscais.find((op) => op.codigo === operacaoFiscalCodigo)
+      || operacoesFiscais.find((op) => op.codigo === "VENDA_PRODUCAO")
+      || operacoesFiscais[0];
+  }, [operacoesFiscais, operacaoFiscalCodigo]);
+
+  const cfopOperacao = useMemo(() => {
+    if (!operacaoSelecionada) return "";
+    return idDest === "2"
+      ? operacaoSelecionada.cfop_interestadual || operacaoSelecionada.cfop_interno || ""
+      : operacaoSelecionada.cfop_interno || operacaoSelecionada.cfop_interestadual || "";
+  }, [operacaoSelecionada, idDest]);
+
+  const tiposItemPermitidos = useMemo(
+    () => tiposItemPorOperacao(operacaoSelecionada?.codigo || operacaoFiscalCodigo),
+    [operacaoSelecionada?.codigo, operacaoFiscalCodigo],
+  );
+
   const { data: produtos } = useQuery({
-    queryKey: ["itens-produtos-emissor"],
+    queryKey: ["itens-produtos-emissor", tiposItemPermitidos.join("|")],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("itens")
         .select("id, descricao_interna, sku_interno, ncm, unidade_interna, tipo_item, ean, catalogo_precos(preco_venda)")
-        .eq("ativo", true).in("tipo_item", ["PA", "ME", "RE"]).order("descricao_interna");
+        .eq("ativo", true)
+        .in("tipo_item", tiposItemPermitidos)
+        .order("descricao_interna");
       if (error) throw error;
       return data;
     },
+    enabled: tiposItemPermitidos.length > 0,
   });
 
   // Hook que busca OPs do produto em foco
   const { data: opsDoProduto, isLoading: loadingOPs } = useOPsPorProduto(produtoFocoId);
 
   const cliente = clientes?.find((c: any) => c.id === clienteId);
+
+  useEffect(() => {
+    if (!operacoesFiscais?.length || !operacaoSelecionada) return;
+    if (operacaoFiscalCodigo !== operacaoSelecionada.codigo) {
+      setOperacaoFiscalCodigo(operacaoSelecionada.codigo);
+    }
+  }, [operacoesFiscais, operacaoSelecionada?.codigo]);
+
+  useEffect(() => {
+    if (!operacaoSelecionada) return;
+    if (naturezaOperacao !== operacaoSelecionada.natureza_operacao) {
+      setNaturezaOperacao(operacaoSelecionada.natureza_operacao);
+    }
+    if (operacaoSelecionada.finalidade && finalidadeEmissao !== String(operacaoSelecionada.finalidade)) {
+      setFinalidadeEmissao(String(operacaoSelecionada.finalidade));
+    }
+    if (cfopOperacao) {
+      setItens((prev) => prev.map((item) => item.cfop === cfopOperacao ? item : { ...item, cfop: cfopOperacao }));
+    }
+  }, [operacaoSelecionada?.codigo, cfopOperacao]);
 
   // Auto-set indIEDest when client changes
   useEffect(() => {
@@ -741,132 +855,45 @@ export default function EmissorNFePage() {
 
   const criarNota = useMutation({
     mutationFn: async () => {
+      if (!operacaoSelecionada) throw new Error("Selecione a operação fiscal");
       if (!clienteId) throw new Error("Selecione o destinatário");
       if (itens.length === 0 || itens.some(i => !i.item_id)) throw new Error("Adicione ao menos um item válido");
+      if (operacaoSelecionada.exige_referencia && chaveReferenciada.replace(/\D/g, "").length !== 44) {
+        throw new Error("Informe a chave de acesso referenciada com 44 dígitos");
+      }
+      if (operacaoSelecionada.gera_financeiro && itens.some(i => !(Number(i.valor_unitario) > 0))) {
+        throw new Error("Valor unitário obrigatório para esta operação");
+      }
+      if (operacaoSelecionada.movimenta_estoque && itens.some(i => !i.rastros.some(r => r.lote_id))) {
+        throw new Error("Selecione um lote para cada item desta operação");
+      }
 
-      const { data: nota, error } = await supabase
-        .from("notas_saida")
-        .insert({
-          cliente_id: clienteId,
-          natureza_operacao: naturezaOperacao,
-          valor_produtos: totais.produtos,
-          valor_total: totais.nota,
-          valor_icms: totais.icms,
-          valor_pis: totais.pis,
-          valor_cofins: totais.cofins,
-          modalidade_frete: modalidadeFrete,
-          meio_pagamento: meioPagamento,
-          informacoes_adicionais: infoAdicionais || null,
-          status: "RASCUNHO",
-          ambiente: isHomolog ? "homologacao" : "producao",
-          modelo: modelo,
-        })
-        .select().single();
+      const { data: notaId, error } = await (supabase as any).rpc("criar_nota_saida", {
+        p_operacao: operacaoSelecionada.codigo,
+        p_cliente_id: clienteId,
+        p_itens: itens.map((item) => ({
+          item_id: item.item_id,
+          quantidade: Number(item.quantidade),
+          valor_unitario: operacaoSelecionada.gera_financeiro ? Number(item.valor_unitario) : (Number(item.valor_unitario) || null),
+          lote_id: item.rastros.find((r) => r.lote_id)?.lote_id || null,
+        })),
+        p_observacao: infoAdicionais || null,
+        p_chave_referenciada: chaveReferenciada.replace(/\D/g, "") || null,
+        p_modalidade_frete: modalidadeFrete,
+        p_valor_frete: Number(valorFrete) || 0,
+      });
       if (error) throw error;
-
-      const itensToInsert = itens.map((item, idx) => ({
-        nota_saida_id: nota.id,
-        item_id: item.item_id, descricao: item.descricao, ncm: item.ncm,
-        cfop: item.cfop, unidade: item.unidade, quantidade: item.quantidade,
-        valor_unitario: item.valor_unitario, valor_total: item.valor_total,
-        icms_aliquota: item.icms_aliquota, icms_valor: item.icms_valor, cst_icms: item.cst_icms,
-        pis_aliquota: item.pis_aliquota, pis_valor: item.pis_valor, cst_pis: item.cst_pis,
-        cofins_aliquota: item.cofins_aliquota, cofins_valor: item.cofins_valor, cst_cofins: item.cst_cofins,
-        origem: item.origem, numero_item: idx + 1,
-        // Rastreabilidade múltipla de lotes (FEFO) — salva como JSON no banco
-        lote_id: item.rastros[0]?.lote_id || null, // lote principal (primeiro FEFO)
-        informacoes_adicionais: item.info_adicional_item || null,
-        // rastros_json: array completo de lotes para rastreabilidade total
-        // (coluna JSONB na tabela notas_saida_itens)
-        rastros_json: item.rastros.length > 0 ? JSON.stringify(item.rastros) : null,
-      }));
-
-      const { error: itensError } = await supabase.from("notas_saida_itens").insert(itensToInsert);
-      if (itensError) throw itensError;
-      return nota;
+      const idCriado = typeof notaId === "string" ? notaId : notaId?.id || notaId?.nota_id || notaId?.[0]?.id || notaId?.[0]?.nota_id;
+      if (!idCriado) throw new Error("RPC criar_nota_saida não retornou o ID da nota");
+      return idCriado;
     },
-    onSuccess: async (notaData) => {
+    onSuccess: async (notaId) => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
-
-      // 1. Gerar conta a receber automaticamente
-      if (notaData?.id && notaData?.valor_total > 0) {
-        const { error: crError } = await supabase
-          .from("contas_receber")
-          .insert({
-            company_id: notaData.company_id,
-            nota_saida_id: notaData.id,
-            cliente_id: notaData.cliente_id || null,
-            descricao: `NF-e ${notaData.numero || notaData.id} — ${cliente?.razao_social || 'Cliente'}`,
-            valor: notaData.valor_total,
-            valor_original: notaData.valor_total,
-            valor_restante: notaData.valor_total,
-            data_emissao: new Date().toISOString().split("T")[0],
-            data_vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            status: "ABERTO",
-            origem: "NF-E",
-          });
-
-        if (crError) {
-          console.error("Erro ao gerar conta a receber:", crError);
-          toast.warning("NF-e emitida, mas falha ao gerar conta a receber. Crie manualmente.");
-        } else {
-          queryClient.invalidateQueries({ queryKey: ["contas-receber"] });
-        }
-      }
-
-      // 2. Baixa FEFO do estoque usando os rastros já calculados na nota
-      try {
-        // Usar os rastros calculados no frontend (FEFO já distribuído)
-        for (const item of itens) {
-          if (!item.item_id || item.rastros.length === 0) continue;
-
-          for (const rastro of item.rastros) {
-            if (!rastro.lote_id || rastro.qLote <= 0) continue;
-
-            // Verificar se é um lote de estoque genérico (origem ESTOQUE)
-            // OPs não têm lote_id de estoque_lotes diretamente
-            if (rastro.origem === "ESTOQUE") {
-              const { data: loteAtual } = await supabase
-                .from("estoque_lotes")
-                .select("quantidade_interna")
-                .eq("id", rastro.lote_id)
-                .maybeSingle();
-
-              if (loteAtual) {
-                await supabase
-                  .from("estoque_lotes")
-                  .update({ quantidade_interna: Math.max(0, loteAtual.quantidade_interna - rastro.qLote) })
-                  .eq("id", rastro.lote_id);
-              }
-            }
-
-            // Registrar movimentação para todos os lotes (OP ou estoque)
-            await supabase.from("estoque_movimentacoes").insert({
-              company_id: notaData.company_id,
-              item_id: item.item_id,
-              lote_id: rastro.origem === "ESTOQUE" ? rastro.lote_id : null,
-              tipo: "SAIDA",
-              quantidade: rastro.qLote,
-              unidade: item.unidade || "UN",
-              motivo: `Saída NF-e ${notaData.numero || notaData.id} — Lote: ${rastro.nLote}${rastro.op_codigo ? ` (OP: ${rastro.op_codigo})` : ""}`,
-              documento_ref_id: notaData.id,
-              origem: "NF-E",
-              // Campos extras de rastreabilidade
-              numero_lote: rastro.nLote,
-              data_validade_lote: rastro.dVal || null,
-            }).catch(() => {}); // não bloqueia se a coluna não existir ainda
-          }
-        }
-        queryClient.invalidateQueries({ queryKey: ["estoque-lotes"] });
-        queryClient.invalidateQueries({ queryKey: ["estoque-movimentacoes"] });
-      } catch (err) {
-        console.error("Erro na baixa FEFO:", err);
-        toast.warning("NF-e emitida, mas verifique o estoque manualmente.");
-      }
-      toast.success("NF-e emitida com sucesso! Conta a receber gerada e estoque atualizado.");
+      toast.success("Nota de saída criada como rascunho");
       clearDraft(createInitialNfeDraft());
+      if (notaId) navigate(`/vendas/notas-saida?nota=${encodeURIComponent(notaId)}`);
     },
-    onError: (err: any) => toast.error("Erro: " + err.message),
+    onError: (err: any) => toast.error(traduzirErroCriarNota(err, itens)),
   });
 
   const handlePrint = () => {
@@ -942,7 +969,7 @@ export default function EmissorNFePage() {
             <Printer className="h-4 w-4 mr-2" /> Imprimir DANFE
           </Button>
           <Button onClick={() => criarNota.mutate()} disabled={criarNota.isPending}>
-            <Send className="h-4 w-4 mr-2" /> Emitir para SEFAZ
+            <Send className="h-4 w-4 mr-2" /> Criar rascunho
           </Button>
         </div>
       </div>
@@ -1023,12 +1050,48 @@ export default function EmissorNFePage() {
                   </div>
 
                   <div>
-                    <Label className="text-xs">Natureza da Operação</Label>
-                    <Select value={naturezaOperacao} onValueChange={setNaturezaOperacao}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{NATUREZA_OPERACOES.map(n => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}</SelectContent>
+                    <Label className="text-xs">Operação fiscal *</Label>
+                    <Select value={operacaoFiscalCodigo} onValueChange={setOperacaoFiscalCodigo}>
+                      <SelectTrigger><SelectValue placeholder="Selecione a operação fiscal..." /></SelectTrigger>
+                      <SelectContent>
+                        {operacoesFiscais?.map((op) => (
+                          <SelectItem key={op.codigo} value={op.codigo}>
+                            {op.descricao}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
+                    {operacaoSelecionada && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[10px]">CFOP {cfopOperacao || "—"}</Badge>
+                        <Badge variant={operacaoSelecionada.movimenta_estoque ? "default" : "secondary"} className="text-[10px]">
+                          {operacaoSelecionada.movimenta_estoque ? "Movimenta estoque" : "Sem estoque"}
+                        </Badge>
+                        <Badge variant={operacaoSelecionada.gera_financeiro ? "default" : "secondary"} className="text-[10px]">
+                          {operacaoSelecionada.gera_financeiro ? "Gera financeiro" : "Sem financeiro"}
+                        </Badge>
+                        {operacaoSelecionada.exige_referencia && <Badge variant="destructive" className="text-[10px]">Exige NF-e referenciada</Badge>}
+                      </div>
+                    )}
+                    {operacaoSelecionada?.observacao && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">{operacaoSelecionada.observacao}</p>
+                    )}
                   </div>
+
+                  {operacaoSelecionada?.exige_referencia && (
+                    <div>
+                      <Label className="text-xs">Chave de acesso referenciada *</Label>
+                      <Input
+                        value={chaveReferenciada}
+                        onChange={e => setChaveReferenciada(e.target.value.replace(/\D/g, "").slice(0, 44))}
+                        maxLength={44}
+                        inputMode="numeric"
+                        placeholder="44 dígitos da NF-e referenciada"
+                        className="font-mono"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">{chaveReferenciada.replace(/\D/g, "").length}/44 dígitos</p>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1219,7 +1282,7 @@ export default function EmissorNFePage() {
                     <div className="grid grid-cols-4 gap-2">
                       <div><Label className="text-xs">Unid. Com.</Label><Input value={item.unidade} onChange={e => updateItem(idx, "unidade", e.target.value)} className="text-xs" /></div>
                       <div><Label className="text-xs">Qtde Com.</Label><Input type="number" step="0.0001" value={item.quantidade} onChange={e => updateItem(idx, "quantidade", Number(e.target.value))} className="text-xs" /></div>
-                      <div><Label className="text-xs">V. Unit. Com.</Label><Input type="number" step="0.0000000001" value={item.valor_unitario} onChange={e => updateItem(idx, "valor_unitario", Number(e.target.value))} className="text-xs" /></div>
+                      <div><Label className="text-xs">V. Unit. Com.{operacaoSelecionada?.gera_financeiro ? " *" : ""}</Label><Input type="number" step="0.0000000001" value={item.valor_unitario} onChange={e => updateItem(idx, "valor_unitario", Number(e.target.value))} className="text-xs" /></div>
                       <div><Label className="text-xs">V. Prod.</Label><Input value={`R$ ${fmt(Number(item.quantidade) * Number(item.valor_unitario))}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
                     <p className="text-xs font-semibold text-muted-foreground">Tributável</p>
@@ -1281,7 +1344,7 @@ export default function EmissorNFePage() {
                     <Separator />
                     <div className="flex items-center gap-2 py-1">
                       <FlaskConical className="h-3.5 w-3.5 text-primary" />
-                      <p className="text-xs font-semibold text-primary">RASTREABILIDADE DE LOTES — FEFO AUTOMÁTICO</p>
+                      <p className="text-xs font-semibold text-primary">RASTREABILIDADE DE LOTES — FEFO AUTOMÁTICO{operacaoSelecionada?.movimenta_estoque ? " *" : ""}</p>
                       {item.rastros.length > 0 && (
                         <Badge variant="default" className="text-[10px] h-5 bg-green-600">
                           <CalendarCheck className="h-3 w-3 mr-1" />
@@ -1290,7 +1353,7 @@ export default function EmissorNFePage() {
                       )}
                       {item.rastros.length === 0 && item.item_id && (
                         <Badge variant="destructive" className="text-[10px] h-5">
-                          Sem lotes — preencha manualmente
+                          {operacaoSelecionada?.movimenta_estoque ? "Sem lotes — preencha manualmente" : "Sem lotes — opcional"}
                         </Badge>
                       )}
                       {item.item_id && (
@@ -1467,9 +1530,9 @@ export default function EmissorNFePage() {
                             <span><strong>Sala:</strong> {opSelecionadaPorItem[idx].sala_producao}</span>
                           )}
                         </div>
-                        {(opSelecionadaPorItem[idx].materias_primas || opSelecionadaPorItem[idx].op_materias_primas)?.filter((mp: any) => mp.numero_lote).length > 0 && (
+                        {(opSelecionadaPorItem[idx].materias_primas || (opSelecionadaPorItem[idx] as any).op_materias_primas)?.filter((mp: any) => mp.numero_lote).length > 0 && (
                           <div className="space-y-0.5">
-                            {(opSelecionadaPorItem[idx].materias_primas || opSelecionadaPorItem[idx].op_materias_primas)
+                            {(opSelecionadaPorItem[idx].materias_primas || (opSelecionadaPorItem[idx] as any).op_materias_primas)
                               .filter((mp: any) => mp.numero_lote)
                               .map((mp: any) => (
                                 <p key={mp.id} className="text-[10px] text-muted-foreground">
