@@ -21,6 +21,7 @@ import { useNotasEntrada, type NotaEntrada, processarNota } from "@/hooks/use-no
 import { formatCurrency, formatDate } from "@/lib/nfe-parser";
 import { NFeVisualizacaoDialog } from "@/components/nfe/NFeVisualizacaoDialog";
 import { NotaEntradaAcoesCell } from "@/components/nfe/NotaEntradaAcoesCell";
+import { GerarDevolucaoDialog } from "@/components/nfe/GerarDevolucaoDialog";
 import { BackButton } from "@/components/ui/back-button";
 import { reverterImportacaoNFe } from "@/lib/supabase-nfe-import";
 import { toast } from "sonner";
@@ -117,6 +118,8 @@ export default function NotasEntradaPage() {
   const [statusFinFiltro, setStatusFinFiltro] = useState<StatusFinFiltro>("todos");
   const [notaVinculo, setNotaVinculo] = useState<NotaEntrada | null>(null);
   const [dialogVinculoOpen, setDialogVinculoOpen] = useState(false);
+  const [notaDevolucao, setNotaDevolucao] = useState<NotaEntrada | null>(null);
+  const [dialogDevolucaoOpen, setDialogDevolucaoOpen] = useState(false);
   const queryClient = useQueryClient();
   const { imprimir, carregando: carregandoEtiquetas, portal: portalEtiquetas } =
     useImprimirEtiquetas();
@@ -139,6 +142,11 @@ export default function NotasEntradaPage() {
     e?.stopPropagation();
     setNotaVinculo(nota);
     setDialogVinculoOpen(true);
+  }, []);
+
+  const handleGerarDevolucao = useCallback((nota: NotaEntrada) => {
+    setNotaDevolucao(nota);
+    setDialogDevolucaoOpen(true);
   }, []);
 
   const handleReverter = useCallback(async (nota: NotaEntrada) => {
@@ -452,11 +460,12 @@ export default function NotasEntradaPage() {
           onProcessar={handleProcessarNota}
           onReverter={handleReverter}
           onImprimirEtiquetas={imprimirEtiquetasDaNota}
+          onGerarDevolucao={handleGerarDevolucao}
           onRefresh={handleRefreshNotas}
         />
       ),
     },
-  ], [processando, reverting, carregandoEtiquetas, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas, imprimirEtiquetasDaNota, abrirDialogVinculo]);
+  ], [processando, reverting, carregandoEtiquetas, handleViewNota, handleProcessarNota, handleReverter, handleRefreshNotas, imprimirEtiquetasDaNota, handleGerarDevolucao, abrirDialogVinculo]);
 
   const periodoLabel: Record<PeriodoFiltro, string> = {
     todos: "Todos os períodos",
@@ -619,6 +628,15 @@ export default function NotasEntradaPage() {
           setDialogVinculoOpen(open);
           if (!open) setNotaVinculo(null);
         }}
+      />
+      <GerarDevolucaoDialog
+        open={dialogDevolucaoOpen}
+        onOpenChange={(open) => {
+          setDialogDevolucaoOpen(open);
+          if (!open) setNotaDevolucao(null);
+        }}
+        notaEntradaId={notaDevolucao?.id ?? null}
+        notaNumero={notaDevolucao?.numero}
       />
       {portalEtiquetas}
     </div>

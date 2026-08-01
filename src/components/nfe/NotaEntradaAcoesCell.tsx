@@ -1,4 +1,4 @@
-import { Eye, Undo2, Tag } from 'lucide-react';
+import { Eye, Undo2, Tag, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnexarXmlButton } from '@/components/nfe/AnexarXmlButton';
 import { DeleteNotaDialog } from '@/components/nfe/DeleteNotaDialog';
@@ -13,6 +13,7 @@ interface NotaEntradaAcoesCellProps {
   onProcessar: (nota: NotaEntrada) => void;
   onReverter: (nota: NotaEntrada) => void;
   onImprimirEtiquetas?: (nota: NotaEntrada) => void;
+  onGerarDevolucao?: (nota: NotaEntrada) => void;
   onRefresh: () => void;
 }
 
@@ -26,6 +27,7 @@ export function NotaEntradaAcoesCell({
   onProcessar,
   onReverter,
   onImprimirEtiquetas,
+  onGerarDevolucao,
   onRefresh,
 }: NotaEntradaAcoesCellProps) {
   return (
@@ -38,6 +40,17 @@ export function NotaEntradaAcoesCell({
       >
         <Eye className="h-4 w-4" />
       </Button>
+      {onGerarDevolucao && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => { e.stopPropagation(); onGerarDevolucao(item); }}
+          title="Gerar devolução"
+          disabled={!item.xml_raw}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+      )}
       {onImprimirEtiquetas && (
         <Button
           variant="ghost"
