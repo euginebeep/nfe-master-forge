@@ -451,9 +451,12 @@ export default function NotasSaidaPage() {
   const transmitirSelecionadas = async () => {
     const ids = Array.from(selectedIds).filter(id => {
       const n = filtered.find((x: any) => x.id === id);
-      return n?.status === "RASCUNHO";
+      return n?.status === "RASCUNHO" && validadasIds.has(id);
     });
-    if (!ids.length) { toast.warning("Nenhum rascunho selecionado"); return; }
+    if (!ids.length) {
+      toast.warning("Nenhum rascunho validado na Focus selecionado. Valide cada nota antes de transmitir.");
+      return;
+    }
     toast.info(`Transmitindo ${ids.length} nota(s)...`);
     for (const id of ids) {
       await transmitirNota.mutateAsync(id).catch(() => {});
@@ -1387,19 +1390,22 @@ export default function NotasSaidaPage() {
                 <Printer className="h-4 w-4 mr-1" /> Abrir DANFE
               </Button>
             )}
-            {String(resultadoEmissao?.status || "").toLowerCase().includes("process") && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  // reconcilia via consultar-nfe
-                  const id = resultadoEmissao?.notaId;
-                  setResultadoEmissao(null);
-                }}
-                className="hidden"
-              />
-            )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
+            {(String(resultadoEmissao?.status || "").toLowerCase().includes("process") ||
+              !resultadoEmissao?.chave_acesso && !resultadoEmissao?.chave_nfe) &&
+              resultadoEmissao?.notaId && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const id = resultadoEmissao.notaId as string;
+                  setResultadoEmissao(null);
+                  void consultarStatusMutation(id);
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-1" /> Consultar status
+              </Button>
+            )}
             <Button onClick={() => setResultadoEmissao(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
