@@ -88,37 +88,53 @@ export function CertificadoStatusCard() {
       });
     }
 
-    // 2. Certificado A1 presente — chama validate-certificate (verify_jwt=false na função existente)
+    // 2. Certificado A1 — validate-certificate v11 (only_status) usa temCertificado/certCnpj/validTo
     let certPresent = false;
     try {
-      const { data: certRes, error: certErr } = await invokeEdge<{
+      const { data: certRes, error: certErr, payload } = await invokeEdge<{
+        temCertificado?: boolean;
         has_certificate?: boolean;
+        nuncaValidado?: boolean;
         filename?: string;
+        subject?: string;
+        certCnpj?: string;
         cnpj?: string;
+        validTo?: string;
         valid_to?: string;
+        daysUntilExpiry?: number;
+        focus_status?: string;
+        focus_sincronizado?: boolean;
+        error?: string;
+        valid?: boolean;
       }>("validate-certificate", {
         company_id: comp.id,
         only_status: true,
       });
       if (certErr) throw new Error(certErr);
-      certPresent = !!certRes?.has_certificate;
+      const statusRes = certRes ?? (payload as typeof certRes | undefined);
+      certPresent = !!(statusRes?.temCertificado ?? statusRes?.has_certificate);
       setHasCert(certPresent);
       if (!certPresent) {
         result.push({
           label: "Certificado A1",
           status: "error",
-          detail: "Nenhum certificado A1 (.pfx) foi enviado para esta empresa.",
+          detail: statusRes?.error || "Nenhum certificado A1 (.pfx) foi enviado para esta empresa.",
         });
       } else {
         result.push({
           label: "Certificado A1 presente",
-          status: "ok",
-          detail: certRes?.filename ? `Arquivo: ${certRes.filename}` : "Certificado armazenado com segurança.",
+          status: statusRes?.nuncaValidado ? "warn" : "ok",
+          detail: statusRes?.nuncaValidado
+            ? (statusRes.error || "Certificado vinculado, mas ainda não validado com a senha.")
+            : (statusRes?.subject || statusRes?.filename
+              ? `CN: ${statusRes.subject || statusRes.filename}`
+              : "Certificado armazenado com segurança."),
         });
 
         // 3. CNPJ do certificado vs CNPJ da empresa
-        if (certRes?.cnpj && comp.cnpj) {
-          const a = String(certRes.cnpj).replace(/\D/g, "");
+        const certCnpj = statusRes?.certCnpj || statusRes?.cnpj;
+        if (certCnpj && comp.cnpj) {
+          const a = String(certCnpj).replace(/\D/g, "");
           const b = String(comp.cnpj).replace(/\D/g, "");
           if (a && b && a === b) {
             result.push({ label: "CNPJ do certificado bate com a empresa", status: "ok", detail: a });
@@ -131,10 +147,9 @@ export function CertificadoStatusCard() {
           }
         }
 
-        // 4. Validade
-        if (certRes?.valid_to) {
-          const expires = new Date(certRes.valid_to);
-          const daysLeft = Math.floor((expires.getTime() - Date.now()) / 86400000);
+        // 4. Validade (v11 já devolve daysUntilExpiry e validTo em pt-BR)
+        const daysLeft = statusRes?.daysUntilExpiry;
+        if (typeof daysLeft === "number") {
           let st: Status = "ok";
           if (daysLeft < 0) st = "error";
           else if (daysLeft < 30) st = "error";
@@ -145,7 +160,18 @@ export function CertificadoStatusCard() {
             detail:
               daysLeft < 0
                 ? `Expirado há ${Math.abs(daysLeft)} dia(s) — renove antes de emitir.`
-                : `Expira em ${expires.toLocaleDateString("pt-BR")} (${daysLeft} dias restantes).`,
+                : `Expira em ${statusRes?.validTo || statusRes?.valid_to || "—"} (${daysLeft} dias restantes).`,
+          });
+        }
+
+        // 5. Sincronização Focus (quando a meta já foi extraída)
+        if (statusRes?.focus_status) {
+          result.push({
+            label: "Sincronização Focus",
+            status: statusRes.focus_sincronizado ? "ok" : "warn",
+            detail: statusRes.focus_sincronizado
+              ? `Focus sincronizado (${statusRes.focus_status}).`
+              : `Focus: ${statusRes.focus_status} — revalide o certificado se a emissão falhar.`,
           });
         }
       }
