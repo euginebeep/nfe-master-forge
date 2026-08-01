@@ -488,7 +488,10 @@ export default function EmissorNFePage() {
       const { data, error } = await supabase
         .from("itens")
         .select("id, descricao_interna, sku_interno, ncm, unidade_interna, tipo_item, ean, catalogo_precos(preco_venda)")
-        .eq("ativo", true).in("tipo_item", ["PA", "ME", "RE"]).order("descricao_interna");
+        // ME/RE não existem no enum; ProLab não tem PA — incluir insumos além de PA
+        .eq("ativo", true)
+        .in("tipo_item", ["PA", "MP", "EMBALAGEM", "ROTULO", "CAPSULA_VAZIA", "OUTRO"] as any)
+        .order("descricao_interna");
       if (error) throw error;
       return data;
     },
