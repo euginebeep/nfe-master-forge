@@ -69,8 +69,7 @@ export function GerarDevolucaoDialog({
         const { data, error } = await supabase
           .from("notas_entrada_itens")
           .select("id, descricao, qcom, ucom")
-          .eq("nota_entrada_id", notaEntradaId)
-          .order("numero_item", { ascending: true });
+          .eq("nota_entrada_id", notaEntradaId);
         if (error) throw error;
         setItens(
           (data || []).map((i) => ({
