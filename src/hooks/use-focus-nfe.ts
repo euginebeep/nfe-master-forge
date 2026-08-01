@@ -39,7 +39,28 @@ async function callFocusNfe(
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error?.message || data.error || `Erro ${res.status}`);
+    // Preservar detalhes da rejeição Focus (schema/campo) — sem isso só aparece "Rejeicao na emissao."
+    const base = data?.error?.message || data?.error || `Erro ${res.status}`;
+    const detalhes = data?.detalhes;
+    const extra =
+      typeof detalhes === "string"
+        ? detalhes
+        : detalhes && typeof detalhes === "object"
+          ? (detalhes.mensagem || detalhes.codigo || "")
+          : "";
+    throw new Error(extra ? `${base} — ${extra}` : String(base));
+  }
+  // HTTP 200 com erro lógico + detalhes (dry_run / rejeição)
+  if (data && typeof data === "object" && data.error) {
+    const base = data.error?.message || data.error;
+    const detalhes = data.detalhes;
+    const extra =
+      typeof detalhes === "string"
+        ? detalhes
+        : detalhes && typeof detalhes === "object"
+          ? (detalhes.mensagem || detalhes.codigo || "")
+          : "";
+    throw new Error(extra ? `${base} — ${extra}` : String(base));
   }
   return data;
 }

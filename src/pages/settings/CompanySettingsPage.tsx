@@ -309,18 +309,24 @@ export default function CompanySettingsPage() {
     try {
       const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
 
-      const { data: result, error } = await invokeEdge<{
+      const { data: result, error, payload } = await invokeEdge<{
         valid?: boolean;
         error?: string;
         daysUntilExpiry?: number;
+        etapa?: string;
+        focus_status?: string;
       }>("validate-certificate", { fileId: arquivo.id, password: certSenha, companyCnpj });
-      if (error) throw new Error(error);
 
-      if (!result?.valid) {
-        const message = result?.error || "Certificado inválido.";
-        setCertError(message);
+      // valid:false vem em data (helper preserva); transporte vem em error + payload
+      const certResult = result ?? (payload as typeof result | undefined);
+      if (error && !certResult) throw new Error(error);
+
+      if (!certResult?.valid) {
+        const message = certResult?.error || error || "Certificado inválido.";
+        const detalhe = [certResult?.etapa, certResult?.focus_status].filter(Boolean).join(" · ");
+        setCertError(detalhe ? `${message} (${detalhe})` : message);
         toast.error(message);
-        return;
+        return; // nunca gravar certificado_a1_file_id se inválido
       }
 
       setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry });
