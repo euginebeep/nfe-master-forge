@@ -180,10 +180,14 @@ export function CertificadoStatusCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Banco grava PRODUCAO/HOMOLOGACAO em maiúsculo — comparar case-insensitive
+  const ambienteProducao =
+    (company?.nfe_ambiente || "").toLowerCase() === "producao";
+
   const blockEmission =
     checks.some((c) => c.status === "error" && c.label.toLowerCase().includes("certificado")) ||
     checks.some((c) => c.status === "error" && c.label.toLowerCase().includes("cnpj")) ||
-    (company?.nfe_ambiente === "producao" && !hasCert);
+    (ambienteProducao && !hasCert);
 
   return (
     <Card>

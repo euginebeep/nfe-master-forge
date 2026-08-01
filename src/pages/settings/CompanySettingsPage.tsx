@@ -52,7 +52,11 @@ export default function CompanySettingsPage() {
   // banco sugere criptografia pelo nome, mas nunca houve função de
   // criptografia implementada para ela — salvar ali era texto puro disfarçado.
   const [certSenha, setCertSenha] = useState("");
+  /** Arquivo escolhido ainda não vinculado — ordem: arquivo → senha → validar */
+  const [certPendingFile, setCertPendingFile] = useState<File | null>(null);
   const [optoutParceiros, setOptoutParceiros] = useState(false);
+  const [focusStatus, setFocusStatus] = useState<import("@/lib/fiscal-rpc").StatusIntegracaoFocus | null>(null);
+  const [focusStatusLoading, setFocusStatusLoading] = useState(false);
 
   // Carregar status de opt-out de conteúdo de parceiros
   useEffect(() => {
@@ -74,7 +78,7 @@ export default function CompanySettingsPage() {
         .from("arquivos")
         .select("nome_original")
         .eq("id", fileId)
-        .single();
+        .maybeSingle();
       setCertFileName(data?.nome_original || null);
     };
     fetchCertName();
@@ -246,15 +250,30 @@ export default function CompanySettingsPage() {
     }
   };
 
-  const handleCertUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCertFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
+    setCertPendingFile(file);
+    setCertError(null);
+    setCertTestResult(null);
+  };
+
+  /** Ordem correta: arquivo → senha → validar. Só vincula se valid:true. */
+  const handleCertValidarEVincular = async () => {
+    if (!certPendingFile) {
+      setCertError("Selecione o arquivo do certificado (.pfx/.p12).");
+      return;
+    }
+    if (!certSenha) {
+      setCertError("Informe a senha do certificado.");
+      return;
+    }
 
     const companyCnpj = form.getValues("cnpj");
-
-    if (!certSenha) {
-      setCertError("Preencha a senha do certificado antes de enviar o arquivo.");
-      toast.error("Preencha a senha do certificado antes de enviar o arquivo.");
+    if (!companyCnpj) {
+      setCertError("Preencha o CNPJ da empresa antes de vincular o certificado.");
+      toast.error("CNPJ da empresa é obrigatório para validar o certificado.");
       return;
     }
 
@@ -262,39 +281,35 @@ export default function CompanySettingsPage() {
     setCertError(null);
 
     try {
-      // 1. Upload the file
-      const arquivo = await uploadFile.mutateAsync({ file, sensivel: true });
+      const arquivo = await uploadFile.mutateAsync({ file: certPendingFile, sensivel: true });
 
-      // 2. Validate certificate CNPJ against company CNPJ
-      if (companyCnpj) {
-        const { data: result, error } = await invokeEdge("validate-certificate", {
-          fileId: arquivo.id,
-          password: certSenha,
-          companyCnpj,
-        });
-        if (error) throw new Error(error);
+      const { data: result, error } = await invokeEdge<{
+        valid?: boolean;
+        error?: string;
+        daysUntilExpiry?: number;
+      }>("validate-certificate", {
+        fileId: arquivo.id,
+        password: certSenha,
+        companyCnpj,
+      });
+      if (error) throw new Error(error);
 
-        if (!result?.valid) {
-          // Certificate is invalid or CNPJ doesn't match — reject
-          setCertError(result?.error || "Certificado inválido.");
-          toast.error(result?.error || "Certificado inválido.");
-          // Don't link the certificate
-          return;
-        }
-        
-        // Store expiry info
-        setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry });
-        
-        if (result.daysUntilExpiry !== undefined && result.daysUntilExpiry <= 30) {
-          toast.warning(`Atenção: certificado expira em ${result.daysUntilExpiry} dias!`);
-        } else {
-          toast.success("Certificado válido e vinculado com sucesso!");
-        }
+      if (!result?.valid) {
+        setCertError(result?.error || "Certificado inválido.");
+        toast.error(result?.error || "Certificado inválido — não foi vinculado.");
+        return;
       }
-      
-      // 3. Link certificate
+
+      setCertTestResult({ daysUntilExpiry: result.daysUntilExpiry });
       form.setValue("certificado_a1_file_id", arquivo.id);
-      setCertFileName(file.name);
+      setCertFileName(certPendingFile.name);
+      setCertPendingFile(null);
+
+      if (result.daysUntilExpiry !== undefined && result.daysUntilExpiry <= 30) {
+        toast.warning(`Atenção: certificado expira em ${result.daysUntilExpiry} dias!`);
+      } else {
+        toast.success("Certificado válido e vinculado com sucesso!");
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao processar certificado.";
       setCertError(msg);
@@ -303,6 +318,23 @@ export default function CompanySettingsPage() {
       setCertUploading(false);
     }
   };
+
+  const carregarStatusFocus = async () => {
+    setFocusStatusLoading(true);
+    try {
+      const { statusIntegracaoFocus } = await import("@/lib/fiscal-rpc");
+      setFocusStatus(await statusIntegracaoFocus());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao consultar status Focus");
+    } finally {
+      setFocusStatusLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void carregarStatusFocus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company?.id]);
 
   if (isLoading) {
     return (
@@ -602,20 +634,10 @@ export default function CompanySettingsPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {/* Sem certificado - mostrar upload */}
+                        {/* Ordem: arquivo → senha → validar */}
                         <div className="grid gap-4 md:grid-cols-2">
                           <div className="space-y-2">
-                            <Label>Senha do Certificado *</Label>
-                            <Input
-                              type="password"
-                              placeholder="Digite a senha antes de enviar"
-                              value={certSenha}
-                              onChange={(e) => setCertSenha(e.target.value)}
-                            />
-                            <p className="text-xs text-muted-foreground">Obrigatória para validar o certificado</p>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Arquivo do Certificado (PFX/P12)</Label>
+                            <Label>1. Arquivo do Certificado (PFX/P12) *</Label>
                             <div className="flex items-center gap-2">
                               <Button
                                 type="button"
@@ -624,21 +646,44 @@ export default function CompanySettingsPage() {
                                 disabled={certUploading}
                                 onClick={() => document.getElementById("cert-upload-input")?.click()}
                               >
-                                {certUploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-                                {certUploading ? "Validando..." : "Enviar Certificado"}
+                                <Upload className="h-4 w-4 mr-1" />
+                                {certPendingFile ? "Trocar arquivo" : "Selecionar arquivo"}
                               </Button>
                               <input
                                 id="cert-upload-input"
                                 type="file"
                                 accept=".pfx,.p12"
-                                onChange={handleCertUpload}
+                                onChange={handleCertFilePick}
                                 className="hidden"
                               />
                             </div>
+                            {certPendingFile && (
+                              <p className="text-xs text-muted-foreground truncate">{certPendingFile.name}</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>2. Senha do Certificado *</Label>
+                            <Input
+                              type="password"
+                              placeholder="Senha do .pfx"
+                              value={certSenha}
+                              onChange={(e) => setCertSenha(e.target.value)}
+                            />
                           </div>
                         </div>
+                        <Button
+                          type="button"
+                          onClick={handleCertValidarEVincular}
+                          disabled={certUploading || !certPendingFile || !certSenha}
+                        >
+                          {certUploading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <FileCheck className="h-4 w-4 mr-2" />
+                          )}
+                          3. Validar e vincular
+                        </Button>
 
-                        {/* Erro de validação do certificado */}
                         {certError && (
                           <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
                             <AlertTriangle className="h-4 w-4" />
@@ -723,7 +768,54 @@ export default function CompanySettingsPage() {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
+              className="space-y-4"
             >
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg">Integração Focus NFe</CardTitle>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={carregarStatusFocus}
+                    disabled={focusStatusLoading}
+                  >
+                    {focusStatusLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Atualizar"
+                    )}
+                  </Button>
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  {[
+                    { label: "Empresa cadastrada", ok: !!focusStatus?.empresa_cadastrada },
+                    { label: "Token produção", ok: !!focusStatus?.token_producao },
+                    { label: "Token homologação", ok: !!focusStatus?.token_homologacao },
+                    { label: "Certificado vinculado", ok: !!focusStatus?.certificado_vinculado },
+                  ].map((ind) => (
+                    <div key={ind.label} className="rounded-md border p-3 text-sm">
+                      <p className="text-muted-foreground text-xs">{ind.label}</p>
+                      <p className={ind.ok ? "text-emerald-700 font-medium" : "text-destructive font-medium"}>
+                        {focusStatus ? (ind.ok ? "Sim" : "Não") : "—"}
+                      </p>
+                    </div>
+                  ))}
+                  <div className="rounded-md border p-3 text-sm">
+                    <p className="text-muted-foreground text-xs">Focus empresa ID</p>
+                    <p className="font-mono text-sm">{focusStatus?.focus_empresa_id || "—"}</p>
+                  </div>
+                  <div className="rounded-md border p-3 text-sm">
+                    <p className="text-muted-foreground text-xs">Ambiente</p>
+                    <p className="font-medium">{focusStatus?.ambiente || "—"}</p>
+                  </div>
+                  <p className="sm:col-span-2 md:col-span-3 text-xs text-muted-foreground">
+                    Tokens Focus são capturados automaticamente na validação do certificado.
+                    Não há campo de token para o usuário preencher.
+                  </p>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Configuracao NF-e</CardTitle>
@@ -753,12 +845,15 @@ export default function CompanySettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Numero Inicial</Label>
+                    <Label>Numero Inicial (cadastro Focus)</Label>
                     <Input
                       type="number"
                       {...form.register("nfe_numero_inicial", { valueAsNumber: true })}
                       placeholder="1"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      No rascunho da nota o número aparece como “a definir na transmissão” — a Focus atribui na emissão.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>Regime de Apuracao</Label>
