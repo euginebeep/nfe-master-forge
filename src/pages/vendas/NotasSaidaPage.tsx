@@ -795,7 +795,7 @@ export default function NotasSaidaPage() {
 
     return {
       ...mapped,
-      status: statusRow?.status || mapped.status,
+      status: statusRow?.status || null,
       pode_imprimir: !!statusRow?.pode_imprimir,
       em_contingencia: !!statusRow?.em_contingencia,
       contingencia_modo: statusRow?.contingencia_modo || null,
