@@ -685,6 +685,14 @@ export default function EmissorNFePage() {
           navigate("/vendas/notas-saida");
           return;
         }
+        if (String(nota.finalidade || "") === "4" && (nota as any).nota_entrada_origem_id) {
+          toast.error(
+            "Devoluções espelham os impostos da nota de origem e não podem ser editadas pelo emissor. "
+            + "Gere novamente a partir da nota de entrada.",
+          );
+          navigate(`/compras/notas-entrada?nota=${(nota as any).nota_entrada_origem_id}`, { replace: true });
+          return;
+        }
         const itensDb = ((nota as any).notas_saida_itens || []) as any[];
         itensDb.sort((a, b) => Number(a.numero_item || 0) - Number(b.numero_item || 0));
 
