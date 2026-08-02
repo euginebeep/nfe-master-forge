@@ -150,6 +150,7 @@ export default function AnvisaCheckerPage() {
               norma_referencia: p.norma_referencia ?? null,
               advertencias: p.advertencias ?? null,
               alegacoes: p.alegacoes ?? null,
+              rotulagem_complementar: p.rotulagem_complementar ?? null,
               substituicao_sugerida: p.substituicao_sugerida ?? null,
               proposta_funcional: p.proposta_funcional ?? null,
               responsavel: p.responsavel ?? null,

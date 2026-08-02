@@ -131,6 +131,10 @@ export async function avaliarProdutosComMotor(
       status_geral: statusGeral,
       ativos: ativosEnriquecidos,
       alertas: [...alertasMotor, ...alertasExistentes],
+      // Alegações/advertências vêm do motor (anvisa_constituintes) — nunca do LLM.
+      alegacoes_permitidas: [],
+      alegacoes_proibidas: [],
+      avisos_rotulo: Array.isArray(produto.avisos_rotulo) ? produto.avisos_rotulo : [],
       motor: "anvisa_avaliar_ativo",
       pareceres: ativosEnriquecidos.map((a) => ({
         nome_ativo: a.nome,

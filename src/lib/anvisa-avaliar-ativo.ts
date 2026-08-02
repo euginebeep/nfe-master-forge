@@ -40,6 +40,8 @@ export type AnvisaAvaliarAtivoResult = {
   norma_referencia?: string | null;
   advertencias?: unknown;
   alegacoes?: unknown;
+  /** Texto oficial de rotulagem complementar (IN) — preferir sobre advertencias quando vier. */
+  rotulagem_complementar?: unknown;
   substituicao_sugerida?: string | null;
   proposta_funcional?: string | null;
   responsavel?: ResponsavelAvaliacao | string | null;
@@ -47,6 +49,29 @@ export type AnvisaAvaliarAtivoResult = {
   /** Erro de transporte / RPC — não confundir com NAO_AUTORIZADO. */
   erro?: string | null;
 };
+
+/** Normaliza jsonb/texto do motor → linhas literais para UI/PDF. Nunca inventar. */
+export function textosDoCampoNormativo(v: unknown): string[] {
+  if (v == null) return [];
+  if (typeof v === "string") {
+    const t = v.trim();
+    return t ? [t] : [];
+  }
+  if (typeof v === "number" || typeof v === "boolean") {
+    return [String(v)];
+  }
+  if (Array.isArray(v)) {
+    return v.flatMap((x) => textosDoCampoNormativo(x));
+  }
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    for (const key of ["texto", "alegacao", "advertencia", "rotulagem", "descricao", "value"]) {
+      if (o[key] != null) return textosDoCampoNormativo(o[key]);
+    }
+    return Object.values(o).flatMap((x) => textosDoCampoNormativo(x));
+  }
+  return [];
+}
 
 export function rotuloResponsavel(responsavel: string | null | undefined): string {
   switch (String(responsavel || "")) {
@@ -199,8 +224,10 @@ export async function rpcAnvisaAvaliarAtivo(params: {
     unidade_comparavel:
       raw.unidade_comparavel == null ? null : Boolean(raw.unidade_comparavel),
     norma_referencia: (raw.norma_referencia as string | null) ?? null,
-    advertencias: raw.advertencias,
-    alegacoes: raw.alegacoes,
+    advertencias: raw.advertencias ?? raw.advertencia ?? null,
+    alegacoes: raw.alegacoes ?? raw.alegacao ?? null,
+    rotulagem_complementar:
+      raw.rotulagem_complementar ?? raw.rotulagem ?? null,
     substituicao_sugerida: (raw.substituicao_sugerida as string | null) ?? null,
     proposta_funcional: (raw.proposta_funcional as string | null) ?? null,
     responsavel,

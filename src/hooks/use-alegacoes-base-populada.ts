@@ -1,23 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-
 /**
- * anvisa_alegacoes_detalhadas vazia = alegações na UI/PDF vieram do modelo de linguagem,
- * não da norma. Enquanto count = 0, o bloco de alegações NÃO deve ser renderizado.
+ * @deprecated T2 corrigido em 02/08/2026.
+ * Alegações/advertências oficiais estão em anvisa_constituintes
+ * (via retorno de anvisa_avaliar_ativo). anvisa_alegacoes_detalhadas
+ * continua vazia e NÃO deve ser usada como fonte.
+ *
+ * Mantido só para não quebrar imports residuais — sempre retorna false
+ * (não habilitar bloco legado baseado em alegacoes_permitidas da IA).
  */
+import { useQuery } from "@tanstack/react-query";
+
 export function useAlegacoesBasePopulada() {
   return useQuery({
-    queryKey: ["anvisa-alegacoes-detalhadas-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("anvisa_alegacoes_detalhadas")
-        .select("id", { count: "exact", head: true });
-      if (error) {
-        console.error("Falha ao contar anvisa_alegacoes_detalhadas:", error);
-        return false;
-      }
-      return (count ?? 0) > 0;
-    },
-    staleTime: 10 * 60 * 1000,
+    queryKey: ["anvisa-alegacoes-detalhadas-deprecated"],
+    queryFn: async () => false,
+    staleTime: Infinity,
   });
 }

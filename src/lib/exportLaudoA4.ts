@@ -10,6 +10,7 @@ import {
   validarAditivo,
   validarProbiotico,
 } from "@/lib/anvisa-limits";
+import { textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
 import { calcularCapsulasPorDose } from "@/lib/formulador-industrial-rules";
 
 const C = {
@@ -607,7 +608,6 @@ function buildBlocoProduto(
   const protocolo = protocoloDoLaudo(data, index, total);
   const statusValidacao = String(data.status_validacao || 'PRELIMINAR').toUpperCase();
   const titulo = tituloDocumento(statusValidacao);
-  const exibirAlegacoes = data.exibir_alegacoes !== false;
   const alertas = produto.alertas || [];
   const publicoAlvo = produto.publico_alvo || 'Adultos ≥19 anos';
 
@@ -658,13 +658,30 @@ function buildBlocoProduto(
     : null;
   const nutriTable = buildTabelaNutricionalOficial(ativos, totalMassa, nCaps, porcoesPorEmbalagem, pesoPorCapsula);
   const alertasHTML = buildAlertasHTML(alertas);
-  const permitidasHTML = exibirAlegacoes
-    ? (produto.alegacoes_permitidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('')
-    : '';
-  const proibidasHTML = exibirAlegacoes
-    ? (produto.alegacoes_proibidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('')
-    : '';
-  const avisosHTML = (produto.avisos_rotulo || []).map(a => `<li style="margin-bottom:5px;"><strong>${esc(a)}</strong></li>`).join('');
+  // Alegações/advertências literais do motor por ativo — nunca listas da IA.
+  const alegacoesPorAtivoHTML = ativos.map((ativo: any) => {
+    const nomeAtivo = ativo.nome || ativo.name || 'Ativo';
+    const p = ativo.parecer;
+    const aleg = textosDoCampoNormativo(p?.alegacoes);
+    const adv = [
+      ...textosDoCampoNormativo(p?.rotulagem_complementar),
+      ...textosDoCampoNormativo(p?.advertencias),
+    ];
+    const alegHtml = aleg.length
+      ? aleg.map((t) => `<li style="margin-bottom:4px;">${esc(t)}</li>`).join('')
+      : `<li style="color:${C.gray};font-style:italic;">Sem texto de alegação no constituinte.</li>`;
+    const advHtml = adv.length
+      ? adv.map((t) => `<li style="margin-bottom:4px;">${esc(t)}</li>`).join('')
+      : `<li style="color:${C.gray};font-style:italic;">Sem advertência específica neste constituinte.</li>`;
+    return `
+      <div style="margin-bottom:12px;padding:10px 12px;border:1px solid ${C.border};border-radius:8px;background:#fff;">
+        <div style="font-weight:800;color:${C.navy};font-size:10pt;margin-bottom:6px;">${esc(nomeAtivo)}</div>
+        <div style="font-size:8pt;font-weight:700;color:${C.greenText};margin-bottom:2px;">Alegações (oficial)</div>
+        <ul style="margin:0 0 8px;padding-left:16px;font-size:9pt;color:${C.textDark};">${alegHtml}</ul>
+        <div style="font-size:8pt;font-weight:700;color:${C.amberText};margin-bottom:2px;">Advertências / rotulagem complementar</div>
+        <ul style="margin:0;padding-left:16px;font-size:9pt;color:${C.textDark};">${advHtml}</ul>
+      </div>`;
+  }).join('');
 
   return `
   <div class="page-break">
@@ -731,23 +748,14 @@ function buildBlocoProduto(
       </div>
     </section>
 
-    ${exibirAlegacoes ? `
     <section>
-      <h2 class="section">4. Alegações de Rotulagem (IN 28/2018 Anexo V)</h2>
-      <div class="duas-colunas">
-        <div class="col-ok">
-          <h3>✓ Permitidas</h3>
-          <ul>${permitidasHTML || `<li style="color:${C.gray};font-style:italic;">Nenhuma alegação aplicável.</li>`}</ul>
-        </div>
-        <div class="col-no">
-          <h3>✕ Proibidas / Avisos</h3>
-          <ul>${proibidasHTML}${avisosHTML}</ul>
-        </div>
-      </div>
-    </section>` : ''}
+      <h2 class="section">4. Alegações e Advertências por Ativo (texto oficial do constituinte)</h2>
+      <p style="font-size:8pt;color:${C.gray};margin:0 0 10px;">Fonte: retorno de anvisa_avaliar_ativo / anvisa_constituintes. Não usar texto gerado por modelo de linguagem. Advertência de um probiótico não se copia para outro.</p>
+      ${alegacoesPorAtivoHTML || `<p style="color:${C.gray};font-size:10pt;">Nenhum ativo para exibir.</p>`}
+    </section>
 
     <section>
-      <h2 class="section">${exibirAlegacoes ? '5' : '4'}. Avisos Obrigatórios de Rotulagem (RDC 243/2018)</h2>
+      <h2 class="section">5. Avisos Obrigatórios de Rotulagem (RDC 243/2018)</h2>
       <div style="display:flex;flex-direction:column;gap:6px;">
         <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">“Este produto não é um medicamento”</div>
         <div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${C.navy};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">“Não substitui uma alimentação variada e equilibrada e um estilo de vida saudável”</div>
@@ -788,13 +796,13 @@ function buildHTMLMultiproduto(data: LaudoData): string {
     ? `<strong style="color:${C.navy};">${esc(data.rt.nome_completo)}</strong><br/><span style="font-size:8px;color:${C.gray};">${esc(data.rt.tipo_conselho)} ${esc(data.rt.numero_registro)}/${esc(data.rt.uf_conselho)}</span>`
     : `<span style="color:${C.redText};font-size:9px;">⚠ Nenhum RT ativo cadastrado</span>`;
 
-  // Normaliza lista de produtos: usa multiplos_produtos se existir, senão usa o produto único
-  const alegacoesOk = data.exibir_alegacoes !== false;
+  // Normaliza lista de produtos: usa multiplos_produtos se existir, senão usa o produto único.
+  // Alegações da IA são descartadas — o PDF lê parecer.alegacoes / advertencias por ativo.
   const produtos: ProdutoItem[] = data.multiplos_produtos && data.multiplos_produtos.length > 1
     ? data.multiplos_produtos.map((p) => ({
         ...p,
-        alegacoes_permitidas: alegacoesOk ? p.alegacoes_permitidas : [],
-        alegacoes_proibidas: alegacoesOk ? p.alegacoes_proibidas : [],
+        alegacoes_permitidas: [],
+        alegacoes_proibidas: [],
       }))
     : [{
         nome: data.produto,
@@ -802,8 +810,8 @@ function buildHTMLMultiproduto(data: LaudoData): string {
         status_geral: data.status_geral,
         alertas: data.alertas,
         analise_ia: data.analise_ia,
-        alegacoes_permitidas: alegacoesOk ? data.alegacoes_permitidas : [],
-        alegacoes_proibidas: alegacoesOk ? data.alegacoes_proibidas : [],
+        alegacoes_permitidas: [],
+        alegacoes_proibidas: [],
         avisos_rotulo: data.avisos_rotulo,
         sugestao_capsulas: data.sugestao_capsulas,
         ativos: data.ativos,

@@ -6,11 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode, FlaskConical } from 'lucide-react';
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE, validarAditivo, validarProbiotico } from "@/lib/anvisa-limits";
-import { estiloStatusParecer, rotuloResponsavel } from "@/lib/anvisa-avaliar-ativo";
+import {
+  estiloStatusParecer,
+  rotuloResponsavel,
+  textosDoCampoNormativo,
+} from "@/lib/anvisa-avaliar-ativo";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { useRTAtivo } from "@/hooks/use-rt-ativo";
-import { useAlegacoesBasePopulada } from "@/hooks/use-alegacoes-base-populada";
 import { ResolverInsumosLaudoDialog } from "@/components/regulatorio/ResolverInsumosLaudoDialog";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +68,6 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
   const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
   const { data: company } = useCompanyBranding();
   const { data: rt } = useRTAtivo();
-  const { data: alegacoesBaseOk } = useAlegacoesBasePopulada();
   const [resolverOpen, setResolverOpen] = React.useState(false);
 
   const isMultiproduto = produtosUnicos.length > 1;
@@ -80,7 +82,6 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
     && String(data.invalidado_motivo).startsWith("Rebaixado automaticamente na emissão")
       ? data.invalidado_motivo
       : null;
-  const mostrarAlegacoes = !!alegacoesBaseOk;
 
   const handleExportLaudo = () => {
     try {
@@ -98,9 +99,10 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         invalidado_motivo: data.invalidado_motivo || undefined,
         protocolo: data.protocolo || undefined,
         emitido_em: data.emitido_em || undefined,
-        exibir_alegacoes: mostrarAlegacoes,
-        alegacoes_permitidas: mostrarAlegacoes ? (data.alegacoes_permitidas || []) : [],
-        alegacoes_proibidas: mostrarAlegacoes ? (data.alegacoes_proibidas || []) : [],
+        // Alegações oficiais vêm por ativo no parecer do motor — não da IA.
+        exibir_alegacoes: true,
+        alegacoes_permitidas: [],
+        alegacoes_proibidas: [],
         multiplos_produtos: isMultiproduto ? produtosUnicos : data.multiplos_produtos,
         company: company ? {
           razao_social: company.razao_social,
@@ -545,29 +547,78 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
           </Card>
         </section>
 
-        {mostrarAlegacoes && (
-          <section className="grid md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold border-l-4 border-green-500 pl-3">Alegações Permitidas</h3>
-              <ul className="space-y-2">
-                {(data.alegacoes_permitidas || []).map((al, i) => (
-                  <li key={i} className="flex gap-2 text-sm items-start"><CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" /> {al}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold border-l-4 border-red-500 pl-3">Alegações Proibidas</h3>
-              <ul className="space-y-2">
-                {(data.alegacoes_proibidas || []).map((al, i) => (
-                  <li key={i} className="flex gap-2 text-sm items-start"><AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> {al}</li>
-                ))}
-                {(data.avisos_rotulo || []).map((av, i) => (
-                  <li key={`av-${i}`} className="flex gap-2 text-sm items-start font-semibold"><Info className="w-4 h-4 text-primary mt-0.5 shrink-0" /> {av}</li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        )}
+        <section className="space-y-4">
+          <h3 className="text-lg font-bold border-l-4 border-primary pl-3">
+            Alegações e advertências por ativo
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              texto oficial do constituinte (motor) · nunca do modelo de linguagem
+            </span>
+          </h3>
+          <div className="space-y-4">
+            {(data.ativos || []).map((ativo, i) => {
+              const nome = ativo.nome || ativo.name || `Ativo ${i + 1}`;
+              const p = ativo.parecer;
+              const alegacoes = textosDoCampoNormativo(p?.alegacoes);
+              const advertencias = [
+                ...textosDoCampoNormativo(p?.rotulagem_complementar),
+                ...textosDoCampoNormativo(p?.advertencias),
+              ];
+              const semMotor = !p;
+              return (
+                <Card key={i} className="border-muted">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-bold">{nome}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-3 text-sm">
+                    {semMotor && (
+                      <p className="text-muted-foreground italic">
+                        Sem parecer do motor — alegação não verificada. Não usar texto de IA.
+                      </p>
+                    )}
+                    {!semMotor && (
+                      <>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                            Alegações (anvisa_constituintes)
+                          </p>
+                          {alegacoes.length === 0 ? (
+                            <p className="text-muted-foreground italic">Sem texto de alegação no constituinte.</p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {alegacoes.map((al, j) => (
+                                <li key={j} className="flex gap-2 items-start">
+                                  <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                                  <span className="whitespace-pre-wrap">{al}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                            Advertências / rotulagem complementar
+                          </p>
+                          {advertencias.length === 0 ? (
+                            <p className="text-muted-foreground italic">Sem advertência específica neste constituinte.</p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {advertencias.map((ad, j) => (
+                                <li key={j} className="flex gap-2 items-start">
+                                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                                  <span className="whitespace-pre-wrap">{ad}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="space-y-4">
           <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Avisos Obrigatórios de Rotulagem (RDC 243/2018)</h3>
