@@ -125,47 +125,52 @@ export default function AnvisaCheckerPage() {
         return;
       }
 
-      // Pareceres por ativo (imutáveis) — motor anvisa_avaliar_ativo
+      // Pareceres por ativo — colunas do contrato (information_schema 02/08/2026).
+      // jsonb do motor: motivo/limite_texto → colunas motivo_tecnico/limite_texto_oficial.
       if (salvos?.length) {
         const pareceresRows: Record<string, unknown>[] = [];
         salvos.forEach((salvo, idx) => {
           const produto = lista[idx] || lista[0] || {};
           const ativos = Array.isArray(produto?.ativos) ? produto.ativos : [];
-          for (const ativo of ativos) {
+          ativos.forEach((ativo: any, itemIdx: number) => {
             const p = ativo?.parecer || {};
             const status = String(ativo?.status_parecer || p.status || "PENDENTE_VERIFICACAO");
+            const motivoTecnico = String(
+              p.motivo
+              || p.motivo_tecnico
+              || "Sem motivo técnico retornado pelo motor.",
+            ).trim();
             pareceresRows.push({
               laudo_id: salvo.id,
               company_id: profileRow.company_id,
-              nome_ativo: ativo?.nome || "Ativo",
-              dose: Number(ativo?.dose) || null,
+              numero_item: itemIdx + 1,
+              ativo_declarado: String(ativo?.nome || "Ativo"),
+              dose: Number.isFinite(Number(ativo?.dose)) ? Number(ativo.dose) : null,
               unidade: ativo?.unit || ativo?.unidade || null,
-              status,
-              motivo: p.motivo ?? null,
-              constituinte_id: p.constituinte_id ?? null,
-              limite_min_oficial: p.limite_min_oficial ?? null,
-              limite_max_oficial: p.limite_max_oficial ?? null,
-              limite_texto: p.limite_texto ?? null,
-              unidade_comparavel: p.unidade_comparavel ?? null,
-              norma_referencia: p.norma_referencia ?? null,
-              advertencias: p.advertencias ?? null,
-              alegacoes: p.alegacoes ?? null,
-              rotulagem_complementar: p.rotulagem_complementar ?? null,
-              substituicao_sugerida: p.substituicao_sugerida ?? null,
-              proposta_funcional: p.proposta_funcional ?? null,
-              responsavel: p.responsavel ?? null,
               especie_declarada: p.especie_declarada ?? ativo?.especie_declarada ?? null,
               parte_vegetal: p.parte_vegetal ?? ativo?.parte_vegetal ?? null,
               tipo_extrato: p.tipo_extrato ?? ativo?.tipo_extrato ?? null,
               padronizacao: p.padronizacao ?? ativo?.padronizacao ?? null,
+              constituinte_id: p.constituinte_id ?? null,
+              chave_casada: p.chave_casada ?? p.constituinte ?? null,
+              limite_min_oficial: p.limite_min_oficial ?? null,
+              limite_max_oficial: p.limite_max_oficial ?? null,
+              unidade_oficial: p.unidade_oficial ?? null,
+              limite_texto_oficial: p.limite_texto ?? p.limite_texto_oficial ?? null,
+              unidade_comparavel: p.unidade_comparavel ?? null,
+              status,
+              motivo_tecnico: motivoTecnico || "Sem motivo técnico retornado pelo motor.",
+              norma_referencia: p.norma_referencia ?? null,
+              anexo_referencia: p.anexo_referencia ?? null,
+              substituicao_sugerida: p.substituicao_sugerida ?? null,
             });
-          }
+          });
         });
 
         if (pareceresRows.length > 0) {
-          const { error: parecerErr } = await (supabase as any)
+          const { error: parecerErr } = await supabase
             .from("anvisa_laudo_pareceres")
-            .insert(pareceresRows);
+            .insert(pareceresRows as any);
           if (parecerErr) {
             console.error("Falha ao gravar anvisa_laudo_pareceres:", parecerErr);
             toast.error(

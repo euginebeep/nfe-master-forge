@@ -407,9 +407,11 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       produtos = uniqueProductsByName(produtos);
 
-      // Motor único: anvisa_avaliar_ativo decide conformidade (IA só extrai).
+      // Motor único: anvisa_avaliar_ativo / anvisa_avaliar_insumo (IA só extrai).
       setCurrentStep(2);
-      produtos = await avaliarProdutosComMotor(produtos, audience);
+      produtos = await avaliarProdutosComMotor(produtos, audience, {
+        companyId: profile?.company_id ?? null,
+      });
 
       // A gravação do laudo foi centralizada em AnvisaCheckerPage.handleLaudoGenerated
       // (grava para qualquer fluxo — fórmula e arquivo/imagem — uma única vez, sem duplicar).

@@ -16,7 +16,7 @@ export type StatusParecerAtivo =
   | "REPROVADO_ALEGACAO";
 
 /**
- * Quem age — doutrina 01-principios.
+ * Quem age — doutrina 01-principios / contrato do banco.
  * Só `rt_do_tenant_confirma_vinculo` é da RT, e só sobre o pó do galpão dela.
  * Nunca pedir à RT que decida limite, órfão do painel ou norma não revisada.
  */
@@ -24,26 +24,41 @@ export type ResponsavelAvaliacao =
   | "regra_da_anvisa_nao_negociavel"
   | "plataforma"
   | "rt_do_tenant_confirma_vinculo"
-  | "formulador_ajusta_dose";
+  | "formulador_ajusta_dose"
+  | "nenhum";
 
 /** Marcação obrigatória de afirmação regulatória. */
 export type MarcacaoRegulatoria = "VERIFICADO" | "INFERIDO" | "NAO_VERIFICADO";
 
 export type AnvisaAvaliarAtivoResult = {
   status: StatusParecerAtivo | string;
+  /** Campo do jsonb do motor. Na tabela vira motivo_tecnico. */
   motivo?: string | null;
   constituinte_id?: string | null;
+  constituinte?: string | null;
+  chave_casada?: string | null;
+  categoria?: string | null;
+  grupo?: string | null;
   limite_min_oficial?: number | null;
   limite_max_oficial?: number | null;
+  unidade_oficial?: string | null;
+  /** Campo do jsonb do motor. Na tabela vira limite_texto_oficial. */
   limite_texto?: string | null;
   unidade_comparavel?: boolean | null;
   norma_referencia?: string | null;
+  anexo_referencia?: string | null;
+  orfao_do_painel?: boolean | null;
+  sincronizado_em?: string | null;
   advertencias?: unknown;
   alegacoes?: unknown;
   /** Texto oficial de rotulagem complementar (IN) — preferir sobre advertencias quando vier. */
   rotulagem_complementar?: unknown;
   substituicao_sugerida?: string | null;
   proposta_funcional?: string | null;
+  observacao_substituicao?: string | null;
+  proxima_via?: string | null;
+  acao_da_rt?: string | null;
+  fonte?: string | null;
   responsavel?: ResponsavelAvaliacao | string | null;
   marcacao?: MarcacaoRegulatoria;
   /** Erro de transporte / RPC — não confundir com NAO_AUTORIZADO. */
@@ -83,6 +98,8 @@ export function rotuloResponsavel(responsavel: string | null | undefined): strin
       return "RT confirma vínculo do insumo";
     case "formulador_ajusta_dose":
       return "Formulador ajusta dose";
+    case "nenhum":
+      return "Conforme — nenhuma ação";
     default:
       return responsavel ? String(responsavel) : "—";
   }
@@ -165,6 +182,47 @@ export function aplicarPortaoBotanico(
   };
 }
 
+function parseMotorJsonb(data: unknown): AnvisaAvaliarAtivoResult {
+  const raw = (data ?? {}) as Record<string, unknown>;
+  return {
+    status: String(raw.status || "PENDENTE_VERIFICACAO"),
+    motivo: (raw.motivo as string | null) ?? null,
+    constituinte_id: (raw.constituinte_id as string | null) ?? null,
+    constituinte: (raw.constituinte as string | null) ?? null,
+    chave_casada: (raw.chave_casada as string | null) ?? null,
+    categoria: (raw.categoria as string | null) ?? null,
+    grupo: (raw.grupo as string | null) ?? null,
+    limite_min_oficial:
+      raw.limite_min_oficial == null ? null : Number(raw.limite_min_oficial),
+    limite_max_oficial:
+      raw.limite_max_oficial == null ? null : Number(raw.limite_max_oficial),
+    unidade_oficial: (raw.unidade_oficial as string | null) ?? null,
+    limite_texto: (raw.limite_texto as string | null) ?? null,
+    unidade_comparavel:
+      raw.unidade_comparavel == null ? null : Boolean(raw.unidade_comparavel),
+    norma_referencia: (raw.norma_referencia as string | null) ?? null,
+    anexo_referencia: (raw.anexo_referencia as string | null) ?? null,
+    orfao_do_painel:
+      raw.orfao_do_painel == null ? null : Boolean(raw.orfao_do_painel),
+    sincronizado_em: (raw.sincronizado_em as string | null) ?? null,
+    advertencias: raw.advertencias ?? raw.advertencia ?? null,
+    alegacoes: raw.alegacoes ?? raw.alegacao ?? null,
+    rotulagem_complementar:
+      raw.rotulagem_complementar ?? raw.rotulagem ?? null,
+    substituicao_sugerida: (raw.substituicao_sugerida as string | null) ?? null,
+    proposta_funcional: (raw.proposta_funcional as string | null) ?? null,
+    observacao_substituicao: (raw.observacao_substituicao as string | null) ?? null,
+    proxima_via: (raw.proxima_via as string | null) ?? null,
+    acao_da_rt: (raw.acao_da_rt as string | null) ?? null,
+    fonte: (raw.fonte as string | null) ?? null,
+    responsavel:
+      (raw.responsavel as string | null)
+      || (raw.responsavel_acao as string | null)
+      || null,
+    marcacao: "VERIFICADO",
+  };
+}
+
 export async function rpcAnvisaAvaliarAtivo(params: {
   nome: string;
   dose: number;
@@ -205,34 +263,43 @@ export async function rpcAnvisaAvaliarAtivo(params: {
     };
   }
 
-  const raw = (data ?? {}) as Record<string, unknown>;
-  const status = String(raw.status || "PENDENTE_VERIFICACAO");
-  const responsavel =
-    (raw.responsavel as string | null)
-    || (raw.responsavel_acao as string | null)
-    || null;
+  return parseMotorJsonb(data);
+}
 
-  return {
-    status,
-    motivo: (raw.motivo as string | null) ?? null,
-    constituinte_id: (raw.constituinte_id as string | null) ?? null,
-    limite_min_oficial:
-      raw.limite_min_oficial == null ? null : Number(raw.limite_min_oficial),
-    limite_max_oficial:
-      raw.limite_max_oficial == null ? null : Number(raw.limite_max_oficial),
-    limite_texto: (raw.limite_texto as string | null) ?? null,
-    unidade_comparavel:
-      raw.unidade_comparavel == null ? null : Boolean(raw.unidade_comparavel),
-    norma_referencia: (raw.norma_referencia as string | null) ?? null,
-    advertencias: raw.advertencias ?? raw.advertencia ?? null,
-    alegacoes: raw.alegacoes ?? raw.alegacao ?? null,
-    rotulagem_complementar:
-      raw.rotulagem_complementar ?? raw.rotulagem ?? null,
-    substituicao_sugerida: (raw.substituicao_sugerida as string | null) ?? null,
-    proposta_funcional: (raw.proposta_funcional as string | null) ?? null,
-    responsavel,
-    marcacao: "VERIFICADO",
-  };
+/**
+ * Preferir quando houver item_id: resolve pelo vínculo confirmado da RT + teor.
+ * anvisa_avaliar_ativo casa só por nome (risco Ashwagandha→omega3).
+ */
+export async function rpcAnvisaAvaliarInsumo(params: {
+  itemId: string;
+  companyId: string;
+  dose?: number | null;
+  unidade?: string | null;
+  grupo?: string | null;
+}): Promise<AnvisaAvaliarAtivoResult> {
+  const grupo = grupoDoPublicoChecker(params.grupo);
+  const { data, error } = await (supabase as any).rpc("anvisa_avaliar_insumo", {
+    p_item_id: params.itemId,
+    p_company_id: params.companyId,
+    p_dose: params.dose == null || !Number.isFinite(Number(params.dose))
+      ? null
+      : Number(params.dose),
+    p_unidade: (params.unidade || "mg").trim() || "mg",
+    p_grupo: grupo,
+  });
+
+  if (error) {
+    return {
+      status: "PENDENTE_VERIFICACAO",
+      motivo: `Falha ao avaliar insumo no motor SQL: ${error.message}. Pendência da plataforma — não é decisão da RT.`,
+      unidade_comparavel: false,
+      responsavel: "plataforma",
+      marcacao: "NAO_VERIFICADO",
+      erro: error.message,
+    };
+  }
+
+  return parseMotorJsonb(data);
 }
 
 /** Agrega pareceres por ativo → status_geral do documento (vocabulário do Checker). */
