@@ -12425,6 +12425,19 @@ export type Database = {
         Args: { p_fornecedor_id: string }
         Returns: Json
       }
+      atualizar_nota_saida: {
+        Args: {
+          p_chave_referenciada?: string
+          p_cliente_id: string
+          p_itens: Json
+          p_modalidade_frete?: string
+          p_nota_saida_id: string
+          p_observacao?: string
+          p_operacao: string
+          p_valor_frete?: number
+        }
+        Returns: string
+      }
       atualizar_numeracao_focus: {
         Args: {
           p_company_id: string
@@ -12831,6 +12844,7 @@ export type Database = {
       is_ghost_mode: { Args: { _uid?: string }; Returns: boolean }
       is_super_dev: { Args: { _uid?: string }; Returns: boolean }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
+      itens_devolviveis: { Args: { p_nota_entrada_id: string }; Returns: Json }
       liberar_numero_nfe: {
         Args: {
           p_modelo: string
