@@ -34,6 +34,12 @@ export interface ConversaoUnidade {
 // ITEM DA FÓRMULA (ATIVO)
 // ============================================================
 
+export type FuncaoNoProdutoFormula =
+  | "ATIVO"
+  | "EXCIPIENTE"
+  | "COADJUVANTE"
+  | "VEICULO";
+
 export interface FormulaItem {
   id: string;
   formula_id: string;
@@ -44,6 +50,11 @@ export interface FormulaItem {
   quantidade_convertida_mg: number;
   ativo_critico: boolean; // FLAG AUTOMÁTICA
   exige_premix: boolean; // USUÁRIO DECIDE
+  /** Função no produto — nunca inferir por nome químico. NULL = ATIVO (fail-safe). */
+  funcao_no_produto?: FuncaoNoProdutoFormula | string | null;
+  funcao_tecnologica?: string | null;
+  justificativa_funcao?: string | null;
+  funcao_declarada_por?: string | null;
   ordem_mistura: number;
   percentual_na_capsula?: number;
   created_at?: string;

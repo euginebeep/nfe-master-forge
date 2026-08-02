@@ -34,6 +34,7 @@ import {
 import { StatusFormula, TipoApresentacao } from "@/types/formulador-industrial";
 import { calcularCapsulaIndustrial, calcularCapsulasPorDose, CodigoVeiculoBase, CAPSULA_PESO_ALVO_MG, CAPSULA_TAMANHO_PADRAO, DENSIDADE_PADRAO_KG_L, type TamanhoCapsula } from "@/lib/formulador-industrial-rules";
 import { formatarUnidadeInformada } from "@/lib/unidades-dose";
+import { rotuloFuncaoNoProduto } from "@/lib/funcao-no-produto";
 import { FichaTecnicaPDF } from "@/components/formulador/FichaTecnicaPDF";
 import { useCompany } from "@/hooks/use-company";
 
@@ -345,6 +346,7 @@ export default function VisualizarFormulaPage() {
                   <TableRow>
                     <TableHead>#</TableHead>
                     <TableHead>Insumo</TableHead>
+                    <TableHead>Função</TableHead>
                     <TableHead className="text-right">Qtd. Informada</TableHead>
                     <TableHead className="text-right">Convertido (mg)</TableHead>
                     <TableHead className="text-center">Flags</TableHead>
@@ -355,6 +357,11 @@ export default function VisualizarFormulaPage() {
                     <TableRow key={item.id} className={item.ativo_critico ? "bg-destructive/5" : ""}>
                       <TableCell className="font-mono text-muted-foreground">{index + 1}</TableCell>
                       <TableCell className="font-medium">{item.nome_insumo}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {rotuloFuncaoNoProduto(item.funcao_no_produto)}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right font-mono">
                         {item.quantidade_informada} {formatarUnidadeInformada(item.unidade_informada)}
                       </TableCell>

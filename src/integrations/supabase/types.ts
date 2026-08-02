@@ -4186,6 +4186,11 @@ export type Database = {
           created_at: string | null
           exige_premix: boolean | null
           formula_id: string
+          /** ATIVO | EXCIPIENTE | COADJUVANTE | VEICULO — NULL tratado como ATIVO pelo gate */
+          funcao_no_produto: string | null
+          funcao_tecnologica: string | null
+          justificativa_funcao: string | null
+          funcao_declarada_por: string | null
           id: string
           metodo_distribuicao: string | null
           nome_insumo: string
@@ -4204,6 +4209,10 @@ export type Database = {
           created_at?: string | null
           exige_premix?: boolean | null
           formula_id: string
+          funcao_no_produto?: string | null
+          funcao_tecnologica?: string | null
+          justificativa_funcao?: string | null
+          funcao_declarada_por?: string | null
           id?: string
           metodo_distribuicao?: string | null
           nome_insumo: string
@@ -4222,6 +4231,10 @@ export type Database = {
           created_at?: string | null
           exige_premix?: boolean | null
           formula_id?: string
+          funcao_no_produto?: string | null
+          funcao_tecnologica?: string | null
+          justificativa_funcao?: string | null
+          funcao_declarada_por?: string | null
           id?: string
           metodo_distribuicao?: string | null
           nome_insumo?: string

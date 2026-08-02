@@ -17,6 +17,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  FUNCOES_NO_PRODUTO,
+  exigeJustificativaFuncao,
+  normalizarFuncaoNoProduto,
+  rotuloFuncaoNoProduto,
+  type FuncaoNoProduto,
+} from "@/lib/funcao-no-produto";
 import {
   Select,
   SelectContent,
@@ -98,6 +107,9 @@ type FormulaEditDraft = {
     quantidade_informada: number;
     unidade_informada: UnidadeInformada;
     exige_premix: boolean;
+    funcao_no_produto: FuncaoNoProduto;
+    funcao_tecnologica: string;
+    justificativa_funcao: string;
   };
 };
 
@@ -107,11 +119,15 @@ const initialNovoItem = {
   quantidade_informada: 0,
   unidade_informada: "MG" as UnidadeInformada,
   exige_premix: false,
+  funcao_no_produto: "ATIVO" as FuncaoNoProduto,
+  funcao_tecnologica: "",
+  justificativa_funcao: "",
 };
 
 export default function EditarFormulaPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const { formula, itens, loading, refresh } = useFormula(id);
   const { atualizar: atualizarFormula } = useFormulaCRUD();
   const { adicionar, atualizar, remover } = useFormulaItensCRUD();
@@ -241,6 +257,21 @@ export default function EditarFormulaPage() {
       return;
     }
 
+    const funcao = normalizarFuncaoNoProduto(novoItem.funcao_no_produto);
+    if (exigeJustificativaFuncao(funcao)) {
+      if (!novoItem.funcao_tecnologica.trim() || !novoItem.justificativa_funcao.trim()) {
+        toast.error(
+          "Excipiente/coadjuvante/veículo exige função tecnológica e justificativa. " +
+            "A classificação é pela função no produto — não pelo nome químico.",
+        );
+        return;
+      }
+      if (!user?.id) {
+        toast.error("É preciso estar autenticado para declarar função não-ativa (autor da declaração).");
+        return;
+      }
+    }
+
     // Verificar se é ativo ultra crítico
     const infoUltraCritico = await verificarAtivoUltraCritico(novoItem.nome_insumo);
     
@@ -308,18 +339,18 @@ export default function EditarFormulaPage() {
       ordem_mistura: itensLocal.length,
       classificacao_risco: classificacaoRisco,
       metodo_distribuicao: classificacaoRisco === 'ULTRA_CRITICO' ? 'DISTRIBUICAO_GEOMETRICA_POR_PREMIX' : null,
+      funcao_no_produto: funcao,
+      funcao_tecnologica: exigeJustificativaFuncao(funcao) ? novoItem.funcao_tecnologica.trim() : null,
+      justificativa_funcao: exigeJustificativaFuncao(funcao) ? novoItem.justificativa_funcao.trim() : null,
+      funcao_declarada_por: exigeJustificativaFuncao(funcao) ? (user?.id ?? null) : null,
     });
 
     if (item) {
       setItensLocal(prev => [...prev, item]);
-      setNovoItem({
-        nome_insumo: "",
-        produto_materia_prima_id: null,
-        quantidade_informada: 0,
-        unidade_informada: "MG",
-        exige_premix: false,
-      });
-      toast.success("Ativo adicionado");
+      setNovoItem({ ...initialNovoItem });
+      toast.success(
+        funcao === "ATIVO" ? "Ativo adicionado" : `${rotuloFuncaoNoProduto(funcao)} adicionado`,
+      );
     }
   };
 
@@ -495,7 +526,10 @@ export default function EditarFormulaPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Plus className="h-4 w-4" />
-                  Adicionar Ativo
+                  Adicionar item
+                  <span className="block text-xs font-normal text-muted-foreground mt-1">
+                    Função no produto (ATIVO/EXCIPIENTE/…) — nunca inferida pelo nome químico
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -563,6 +597,25 @@ export default function EditarFormulaPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="col-span-3 space-y-2">
+                    <Label>Função no produto</Label>
+                    <Select
+                      value={novoItem.funcao_no_produto}
+                      onValueChange={(v) => setNovoItem((prev) => ({
+                        ...prev,
+                        funcao_no_produto: v as FuncaoNoProduto,
+                      }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FUNCOES_NO_PRODUTO.map((f) => (
+                          <SelectItem key={f} value={f}>{rotuloFuncaoNoProduto(f)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="col-span-3 flex items-center gap-2 pt-6">
                     <Checkbox
                       id="premix"
@@ -585,16 +638,47 @@ export default function EditarFormulaPage() {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <div className="col-span-3">
-                    <Button 
-                      onClick={handleAdicionarItem}
-                      disabled={!novoItem.nome_insumo.trim() || novoItem.quantidade_informada <= 0}
-                      className="w-full"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar
-                    </Button>
+                </div>
+
+                {exigeJustificativaFuncao(novoItem.funcao_no_produto) && (
+                  <div className="grid grid-cols-12 gap-4 mt-2">
+                    <div className="col-span-4 space-y-2">
+                      <Label>Função tecnológica (IN 211)</Label>
+                      <Input
+                        value={novoItem.funcao_tecnologica}
+                        onChange={(e) => setNovoItem((prev) => ({
+                          ...prev,
+                          funcao_tecnologica: e.target.value,
+                        }))}
+                        placeholder="Ex: lubrificante, antiumectante"
+                      />
+                    </div>
+                    <div className="col-span-8 space-y-2">
+                      <Label>Justificativa</Label>
+                      <Textarea
+                        value={novoItem.justificativa_funcao}
+                        onChange={(e) => setNovoItem((prev) => ({
+                          ...prev,
+                          justificativa_funcao: e.target.value,
+                        }))}
+                        placeholder="Por que este pó é excipiente/coadjuvante neste produto (não no cadastro do item)."
+                        rows={2}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        IN 211 ainda não ingerida: o motor registra PENDENTE_VERIFICACAO (plataforma), sem afirmar conformidade.
+                      </p>
+                    </div>
                   </div>
+                )}
+
+                <div className="flex justify-end mt-2">
+                  <Button 
+                    onClick={handleAdicionarItem}
+                    disabled={!novoItem.nome_insumo.trim() || novoItem.quantidade_informada <= 0}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar
+                  </Button>
                 </div>
 
                 {novoItem.unidade_informada === 'UI' && (
@@ -691,6 +775,7 @@ export default function EditarFormulaPage() {
                     <TableRow>
                       <TableHead className="w-8">#</TableHead>
                       <TableHead>Insumo</TableHead>
+                      <TableHead>Função</TableHead>
                       <TableHead className="text-right">Qtd. Informada</TableHead>
                       <TableHead className="text-right">Convertido (mg)</TableHead>
                       <TableHead className="text-center">Flags</TableHead>
@@ -724,6 +809,21 @@ export default function EditarFormulaPage() {
                               </Badge>
                             );
                           })()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              normalizarFuncaoNoProduto(item.funcao_no_produto) === "ATIVO"
+                                ? "border-primary/40"
+                                : "border-amber-400 text-amber-800"
+                            }
+                          >
+                            {rotuloFuncaoNoProduto(item.funcao_no_produto)}
+                          </Badge>
+                          {item.funcao_tecnologica && (
+                            <p className="text-[10px] text-muted-foreground mt-1">{item.funcao_tecnologica}</p>
+                          )}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {item.quantidade_informada} {formatarUnidadeInformada(item.unidade_informada)}
