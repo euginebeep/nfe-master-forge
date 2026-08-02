@@ -48,6 +48,7 @@ interface DANFEData {
   /** Linhas prontas da RPC dados_danfe — não remontar na tela */
   emit_endereco_linha1?: string;
   emit_endereco_linha2?: string;
+  emit_endereco_linha3?: string;
   emit_telefone?: string;
   emit_email?: string;
   emit_cnpj: string;
@@ -375,14 +376,17 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
     </table>
   );
 
-  // Preferir linhas prontas da RPC; fallback só se a view antiga não trouxer
+  // Preferir linhas prontas da RPC; fallback sem complemento/fantasia (só no XML)
   const emitEnderecoLinha1 = textFrom(
     data.emit_endereco_linha1,
-    [data.emit_logradouro, data.emit_numero].filter(Boolean).join(", ")
-      + (data.emit_complemento ? ` - ${data.emit_complemento}` : ""),
+    [data.emit_logradouro, data.emit_numero].filter(Boolean).join(", "),
   );
   const emitEnderecoLinha2 = textFrom(
     data.emit_endereco_linha2,
+    data.emit_bairro ? `Bairro ${data.emit_bairro}` : "",
+  );
+  const emitEnderecoLinha3 = textFrom(
+    data.emit_endereco_linha3,
     [
       data.emit_cidade && data.emit_uf ? `${data.emit_cidade} - ${data.emit_uf}` : (data.emit_cidade || data.emit_uf),
       data.emit_cep ? `CEP ${fmtCep(data.emit_cep)}` : "",
@@ -393,10 +397,6 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
     [data.dest_logradouro, data.dest_numero].filter(Boolean).join(", ")
       + (data.dest_complemento ? ` - ${data.dest_complemento}` : ""),
   );
-  const emitFantasia =
-    data.emit_fantasia && data.emit_fantasia !== data.emit_razao
-      ? data.emit_fantasia
-      : "";
   const emitEmail = data.emit_email ? data.emit_email.toLowerCase() : "";
 
   const numeroDefinitivo = data.numero != null && String(data.numero).trim() !== ""
@@ -423,10 +423,9 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               )}
               <div style={{ fontSize: "6.5pt", lineHeight: 1.35, position: "relative", zIndex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: "8pt" }}>{data.emit_razao}</div>
-                {emitFantasia && <div style={{ fontWeight: 600 }}>{emitFantasia}</div>}
                 {emitEnderecoLinha1 && <div>{emitEnderecoLinha1}</div>}
-                {data.emit_bairro && <div>{data.emit_bairro}</div>}
                 {emitEnderecoLinha2 && <div>{emitEnderecoLinha2}</div>}
+                {emitEnderecoLinha3 && <div>{emitEnderecoLinha3}</div>}
                 {data.emit_telefone && <div>Fone: {fmtFone(data.emit_telefone)}</div>}
                 {emitEmail && <div>{emitEmail}</div>}
                 {data.emit_site && <div style={{ fontWeight: 700 }}>{data.emit_site}</div>}
