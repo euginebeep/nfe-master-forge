@@ -595,6 +595,54 @@ export default function EmissorNFePage() {
     }
   }, [company?.nfe_serie_padrao]);
 
+  // Revalidar existência/status a cada montagem — mesmo com rascunho local (editLoadedRef).
+  // Cobre nota excluída/substituída em outra aba ou regenerada por "Refazer devolução".
+  useEffect(() => {
+    if (!editId || !profile?.company_id) return;
+    let cancelado = false;
+    (async () => {
+      const { data } = await supabase
+        .from("notas_saida")
+        .select("id, status, finalidade, nota_entrada_origem_id")
+        .eq("id", editId)
+        .eq("company_id", profile.company_id)
+        .maybeSingle();
+      if (cancelado) return;
+
+      if (!data) {
+        try {
+          sessionStorage.removeItem(`draft:nfe:${profile.company_id}:edit:${editId}`);
+        } catch { /* ignore */ }
+        editLoadedRef.current = null;
+        toast.error("Esta nota não existe mais. Pode ter sido excluída ou substituída.");
+        navigate("/vendas/notas-saida", { replace: true });
+        return;
+      }
+
+      const st = String(data.status || "").toUpperCase();
+      const editaveis = ["RASCUNHO", "VALIDADA", "REJEITADO", "REJEITADA", "ERRO"];
+      if (!editaveis.includes(st)) {
+        toast.error(`Nota em status ${data.status} não pode ser editada.`);
+        navigate("/vendas/notas-saida", { replace: true });
+        return;
+      }
+
+      // Devolução com vínculo de origem: impostos do XML — bloquear via genérica
+      if (String(data.finalidade || "") === "4" && data.nota_entrada_origem_id) {
+        try {
+          sessionStorage.removeItem(`draft:nfe:${profile.company_id}:edit:${editId}`);
+        } catch { /* ignore */ }
+        editLoadedRef.current = null;
+        toast.error(
+          "Devoluções espelham os impostos da nota de origem e não podem ser editadas pelo emissor. "
+          + "Gere novamente a partir da nota de entrada.",
+        );
+        navigate(`/compras/notas-entrada?nota=${data.nota_entrada_origem_id}`, { replace: true });
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [editId, profile?.company_id, navigate]);
+
   // Carregar nota existente para edição (rota /vendas/notas-saida/:id/editar)
   useEffect(() => {
     if (!editId || !profile?.company_id) return;
@@ -609,7 +657,7 @@ export default function EmissorNFePage() {
         const { data: nota, error } = await supabase
           .from("notas_saida")
           .select(`
-            id, status, cliente_id, natureza_operacao, tipo_operacao, finalidade,
+            id, status, cliente_id, natureza_operacao, tipo_operacao, finalidade, nota_entrada_origem_id,
             modalidade_frete, meio_pagamento, informacoes_adicionais, nfe_referenciada_chave,
             valor_frete, valor_seguro, valor_desconto, valor_outras_despesas, serie, modelo, tp_emis,
             notas_saida_itens (
@@ -635,6 +683,14 @@ export default function EmissorNFePage() {
         if (!["RASCUNHO", "VALIDADA", "REJEITADO", "REJEITADA", "ERRO"].includes(status)) {
           toast.error("Somente rascunho, rejeitada ou com erro podem ser editados");
           navigate("/vendas/notas-saida");
+          return;
+        }
+        if (String(nota.finalidade || "") === "4" && (nota as any).nota_entrada_origem_id) {
+          toast.error(
+            "Devoluções espelham os impostos da nota de origem e não podem ser editadas pelo emissor. "
+            + "Gere novamente a partir da nota de entrada.",
+          );
+          navigate(`/compras/notas-entrada?nota=${(nota as any).nota_entrada_origem_id}`, { replace: true });
           return;
         }
         const itensDb = ((nota as any).notas_saida_itens || []) as any[];

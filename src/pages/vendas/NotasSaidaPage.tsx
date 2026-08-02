@@ -1283,23 +1283,38 @@ export default function NotasSaidaPage() {
                       </TableCell>
                       <TableCell className="w-[220px] text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          {(nota.pode_editar || status === "RASCUNHO" || ["REJEITADO", "REJEITADA"].includes(status)) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8"
-                              onClick={() => {
-                                setValidatedNotaIds((prev) => {
-                                  if (!prev.has(nota.id)) return prev;
-                                  const next = new Set(prev);
-                                  next.delete(nota.id);
-                                  return next;
-                                });
-                                navigate(`/vendas/notas-saida/${nota.id}/editar`);
-                              }}
-                            >
-                              <Edit className="h-3.5 w-3.5 mr-1" /> Editar
-                            </Button>
+                          {/* Devolução gerada de nota de entrada: impostos espelhados do XML — não editar pela via genérica */}
+                          {String(nota.finalidade || "") === "4" && !!nota.nota_entrada_origem_id ? (
+                            (nota.pode_editar || status === "RASCUNHO" || ["REJEITADO", "REJEITADA", "ERRO"].includes(status)) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                title="Devoluções espelham os impostos da nota de origem. Para alterar itens ou quantidades, gere novamente a partir da nota de entrada."
+                                onClick={() => navigate(`/compras/notas-entrada?nota=${nota.nota_entrada_origem_id}`)}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refazer devolução
+                              </Button>
+                            )
+                          ) : (
+                            (nota.pode_editar || status === "RASCUNHO" || ["REJEITADO", "REJEITADA"].includes(status)) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => {
+                                  setValidatedNotaIds((prev) => {
+                                    if (!prev.has(nota.id)) return prev;
+                                    const next = new Set(prev);
+                                    next.delete(nota.id);
+                                    return next;
+                                  });
+                                  navigate(`/vendas/notas-saida/${nota.id}/editar`);
+                                }}
+                              >
+                                <Edit className="h-3.5 w-3.5 mr-1" /> Editar
+                              </Button>
+                            )
                           )}
                           {(nota.pode_validar ?? nota.pode_transmitir) && (
                             <Button size="sm" variant="outline" className="h-8" onClick={() => validarNotaFocus.mutate(nota.id)} disabled={isEmissionPending}>
