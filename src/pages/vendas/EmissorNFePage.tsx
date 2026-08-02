@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from "react"
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
   Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck,
-  Save, Check, CheckCircle2, Loader2, Layers, Copy, ChevronDown, AlertTriangle
+  Save, Check, CheckCircle2, Loader2, Layers, Copy, ChevronDown, AlertTriangle, History
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/use-company";
 import { useAuth } from "@/hooks/use-auth";
-import { useFormPersist } from "@/hooks/use-form-persist";
+import { useFormPersist, readPersistedForm, purgeExpiredFormPersists } from "@/hooks/use-form-persist";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useFocusNfe } from "@/hooks/use-focus-nfe";
 import { useNumeracaoNfePrevista, fmtNumeroNfe } from "@/hooks/use-numeracao-nfe-prevista";
@@ -280,6 +285,26 @@ const emptyItem: NotaItem = {
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtQtd = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+const fmtRelativo = (ts?: number | null) => {
+  if (!ts) return "há pouco";
+  const mins = Math.max(0, Math.round((Date.now() - ts) / 60_000));
+  if (mins < 1) return "agora";
+  if (mins < 60) return `há ${mins} min`;
+  const horas = Math.round(mins / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.round(horas / 24);
+  return `há ${dias} dia${dias === 1 ? "" : "s"}`;
+};
+const fmtHora = (ts?: number | null) => {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+const draftTemConteudo = (d?: {
+  clienteId?: string;
+  itens?: unknown[];
+  chaveReferenciada?: string;
+} | null) =>
+  !!d && (!!d.clienteId || (d.itens?.length ?? 0) > 0 || !!d.chaveReferenciada);
 
 const readOnlyClass = "bg-muted/60 border-dashed text-muted-foreground cursor-not-allowed font-medium";
 const TIPOS_ITEM_VENDA_PRODUCAO = ["PA"];
@@ -438,6 +463,11 @@ export default function EmissorNFePage() {
   } | null>(null);
   const [selecaoDevolucao, setSelecaoDevolucao] = useState<Record<string, { selecionado: boolean; quantidade: number }>>({});
   const [carregandoDevolucao, setCarregandoDevolucao] = useState(false);
+  const [rascunhoPendente, setRascunhoPendente] = useState<NfeDraft | null>(null);
+  const [rascunhoRetomado, setRascunhoRetomado] = useState(false);
+  const [rascunhoTs, setRascunhoTs] = useState<number | null>(null);
+  /** Enquanto o diálogo de retomar está aberto, não gravar (evita apagar o rascunho). */
+  const [persistHabilitado, setPersistHabilitado] = useState(!!editId);
 
   const { data: company } = useCompany();
   const queryClient = useQueryClient();
@@ -447,10 +477,34 @@ export default function EmissorNFePage() {
     ? `nfe:${profile?.company_id ?? "pending"}:edit:${editId}`
     : `nfe:${profile?.company_id ?? "pending"}`;
 
+  // Nota nova: NÃO restaurar em silêncio — começa limpo e pergunta se houver rascunho.
   const [draft, setDraft, clearDraft] = useFormPersist(
     formPersistKey,
     createInitialNfeDraft(),
+    {
+      ttlHoras: 12,
+      restore: !!editId,
+      persist: persistHabilitado,
+    },
   );
+
+  // Limpa rascunhos de edição órfãos e decide se pergunta "retomar"
+  useEffect(() => {
+    if (!profile?.company_id) return;
+    purgeExpiredFormPersists(`draft:nfe:${profile.company_id}:edit:`, 12);
+    if (editId) return;
+
+    const peeked = readPersistedForm<NfeDraft>(`nfe:${profile.company_id}`, 12);
+    if (peeked && draftTemConteudo(peeked.data)) {
+      setRascunhoPendente(peeked.data);
+      setRascunhoTs(peeked.ts);
+      setPersistHabilitado(false);
+      // garante formulário limpo enquanto o diálogo está aberto
+      setDraft(createInitialNfeDraft());
+    } else {
+      setPersistHabilitado(true);
+    }
+  }, [editId, profile?.company_id, setDraft]);
 
   const setField = useCallback(<K extends keyof NfeDraft>(
     key: K,
@@ -473,6 +527,15 @@ export default function EmissorNFePage() {
     valorFrete, valorSeguro, valorDesconto, valorOutros,
     lotesCache, opSelecionadaPorItem, produtoFocoId, itemFocoIdx, serie,
   } = draft;
+
+  // Limpar ao sair da tela se o formulário de nota nova estiver vazio
+  useEffect(() => {
+    return () => {
+      if (editId) return;
+      const vazio = !clienteId && itens.length === 0;
+      if (vazio) clearDraft(createInitialNfeDraft());
+    };
+  }, [editId, clienteId, itens.length, clearDraft]);
 
   const setActiveTab = (v: string | ((p: string) => string)) => setField("activeTab", v as NfeDraft["activeTab"]);
   const setOperacaoFiscalCodigo = (v: string | ((p: string) => string)) => setField("operacaoFiscalCodigo", v as NfeDraft["operacaoFiscalCodigo"]);
@@ -761,6 +824,24 @@ export default function EmissorNFePage() {
   const { data: opsDoProduto, isLoading: loadingOPs } = useOPsPorProduto(produtoFocoId);
 
   const cliente = clientes?.find((c: any) => c.id === clienteId);
+
+  // Atualiza horário do indicador enquanto há conteúdo persistido
+  useEffect(() => {
+    if (!persistHabilitado || !draftTemConteudo(draft)) return;
+    setRascunhoTs(Date.now());
+  }, [persistHabilitado, draft.clienteId, draft.itens.length, draft.operacaoFiscalCodigo, draft.chaveReferenciada]);
+
+  const nomeClienteRascunhoPendente = (() => {
+    if (!rascunhoPendente?.clienteId) return null;
+    const c = clientes?.find((x: any) => x.id === rascunhoPendente.clienteId);
+    return c?.razao_social || c?.nome_fantasia || null;
+  })();
+  const descricaoOperacaoRascunhoPendente = (() => {
+    const codigo = rascunhoPendente?.operacaoFiscalCodigo;
+    if (!codigo) return rascunhoPendente?.naturezaOperacao || "—";
+    const op = operacoesFiscais?.find((o) => o.codigo === codigo);
+    return op?.descricao || rascunhoPendente?.naturezaOperacao || codigo;
+  })();
 
   useEffect(() => {
     if (!operacoesFiscais?.length || !operacaoSelecionada) return;
@@ -1267,6 +1348,9 @@ export default function EmissorNFePage() {
         total: totais.nota,
       });
       clearDraft(createInitialNfeDraft());
+      setRascunhoRetomado(false);
+      setRascunhoTs(null);
+      setPersistHabilitado(true);
       setNotaCriada(notaId);
       refreshNumeracao().catch(() => {});
     },
@@ -1344,23 +1428,29 @@ export default function EmissorNFePage() {
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Check className="h-3 w-3 text-green-600" />
-            Rascunho salvo automaticamente neste navegador
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => {
-                if (window.confirm("Limpar o formulário deste navegador?")) {
-                  clearDraft(createInitialNfeDraft());
-                  toast.success("Formulário limpo");
-                }
-              }}
-            >
-              Limpar formulário
-            </Button>
-          </div>
+          {draftTemConteudo(draft) && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Check className="h-3 w-3 text-green-600" />
+              Rascunho salvo automaticamente neste navegador
+              {rascunhoTs ? ` · Salvo às ${fmtHora(rascunhoTs)}` : ""}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => {
+                  if (window.confirm("Limpar o formulário deste navegador?")) {
+                    clearDraft(createInitialNfeDraft());
+                    setRascunhoRetomado(false);
+                    setRascunhoTs(null);
+                    setPersistHabilitado(true);
+                    toast.success("Formulário limpo");
+                  }
+                }}
+              >
+                Limpar formulário
+              </Button>
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -1389,6 +1479,28 @@ export default function EmissorNFePage() {
           </div>
         </div>
       </div>
+
+      {rascunhoRetomado && (
+        <Alert className="mb-1">
+          <History className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between gap-3">
+            <span>Rascunho retomado de {fmtRelativo(rascunhoTs)}.</span>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0"
+              onClick={() => {
+                clearDraft(createInitialNfeDraft());
+                setRascunhoRetomado(false);
+                setRascunhoTs(null);
+                setPersistHabilitado(true);
+              }}
+            >
+              Limpar e começar do zero
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -2676,6 +2788,64 @@ export default function EmissorNFePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!rascunhoPendente}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retomar rascunho não salvo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Há uma nota que você começou e não salvou.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-sm">
+            {nomeClienteRascunhoPendente && (
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Destinatário</span>
+                <span className="font-medium truncate max-w-[60%]">{nomeClienteRascunhoPendente}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Operação</span>
+              <span className="font-medium truncate max-w-[60%]">{descricaoOperacaoRascunhoPendente}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Itens</span>
+              <span className="font-medium">{rascunhoPendente?.itens?.length ?? 0}</span>
+            </div>
+            {rascunhoTs && (
+              <div className="flex justify-between gap-3 text-xs text-muted-foreground pt-1">
+                <span>Salvo</span>
+                <span>{fmtRelativo(rascunhoTs)} · {fmtHora(rascunhoTs)}</span>
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                clearDraft(createInitialNfeDraft());
+                setRascunhoPendente(null);
+                setRascunhoRetomado(false);
+                setRascunhoTs(null);
+                setPersistHabilitado(true);
+              }}
+            >
+              Descartar e começar do zero
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (rascunhoPendente) setDraft(rascunhoPendente);
+                setRascunhoPendente(null);
+                setRascunhoRetomado(true);
+                setPersistHabilitado(true);
+              }}
+            >
+              Retomar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
