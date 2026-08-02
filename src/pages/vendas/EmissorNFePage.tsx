@@ -509,7 +509,10 @@ export default function EmissorNFePage() {
   // Carregar nota existente para edição (rota /vendas/notas-saida/:id/editar)
   useEffect(() => {
     if (!editId || !profile?.company_id) return;
-    if (editLoadedRef.current === editId) return;
+    if (editLoadedRef.current === editId) {
+      setCarregandoEdicao(false);
+      return;
+    }
     let cancelled = false;
     setCarregandoEdicao(true);
     (async () => {
