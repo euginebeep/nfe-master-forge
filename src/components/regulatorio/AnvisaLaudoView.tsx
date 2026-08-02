@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode, FlaskConical } from 'lucide-react';
 import { toast } from "sonner";
-import { ANVISA_LIMITS, VD_REFERENCE, validarAditivo, validarProbiotico } from "@/lib/anvisa-limits";
+import { VD_REFERENCE } from "@/lib/anvisa-limits";
 import {
   estiloStatusParecer,
+  motivoParaUi,
   rotuloResponsavel,
   textosDoCampoNormativo,
 } from "@/lib/anvisa-avaliar-ativo";
@@ -349,35 +350,24 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
               {data.ativos.map((ativo, i) => {
                 const parecer = ativo.parecer;
                 const nomeAtivo = ativo.nome || ativo.name || '-';
-                const statusMotor = String(
-                  ativo.status_parecer || parecer?.status || '',
-                ).toUpperCase();
-                // Preferir motor SQL. Fallback legado só se ainda não houver parecer.
-                const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
-                const limitLegacy = key ? ANVISA_LIMITS[key] : null;
-                let status = statusMotor;
-                let marcacao = String(parecer?.marcacao || (statusMotor ? 'VERIFICADO' : 'NAO_VERIFICADO'));
-                if (!status) {
-                  status = 'PENDENTE_VERIFICACAO';
-                  marcacao = 'NAO_VERIFICADO';
-                  if (limitLegacy) {
-                    const doseNum = parseFloat(ativo.dose);
-                    if (!limitLegacy.auth) status = 'NAO_AUTORIZADO';
-                    else if (limitLegacy.max != null && doseNum > limitLegacy.max) status = 'PENDENTE_VERIFICACAO';
-                    else if (doseNum < limitLegacy.min) status = 'PENDENTE_VERIFICACAO';
-                    else status = 'APROVADO';
-                    marcacao = 'INFERIDO'; // veio do arquivo estático legado — não é fonte
-                  }
-                }
+                // Só o motor decide. Sem parecer → PENDENTE + NÃO VERIFICADO.
+                // Nunca inventar APROVADO/NAO_AUTORIZADO a partir de anvisa-limits.ts.
+                const status = String(
+                  ativo.status_parecer || parecer?.status || 'PENDENTE_VERIFICACAO',
+                ).toUpperCase() || 'PENDENTE_VERIFICACAO';
+                const marcacao = String(
+                  parecer?.marcacao || (parecer || ativo.status_parecer ? 'VERIFICADO' : 'NAO_VERIFICADO'),
+                );
                 const estilo = estiloStatusParecer(status);
                 const limiteTexto =
                   parecer?.limite_texto
                   || (parecer?.limite_min_oficial != null || parecer?.limite_max_oficial != null
                     ? `${parecer?.limite_min_oficial ?? '—'} – ${parecer?.limite_max_oficial ?? '—'}`
                     : null)
-                  || (limitLegacy?.max != null ? `${limitLegacy.max} ${limitLegacy.unit}` : '—');
-                const norma = parecer?.norma_referencia || limitLegacy?.norm || '—';
+                  || '—';
+                const norma = parecer?.norma_referencia || '—';
                 const responsavel = parecer?.responsavel || null;
+                const motivo = motivoParaUi(parecer);
 
                 return (
                   <TableRow key={i}>
@@ -388,9 +378,9 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                           {marcacao}
                         </Badge>
                       </div>
-                      {parecer?.motivo && (
+                      {motivo && (
                         <p className="text-[11px] text-muted-foreground font-normal mt-1 whitespace-pre-wrap">
-                          {parecer.motivo}
+                          {motivo}
                         </p>
                       )}
                       {parecer?.substituicao_sugerida && (
@@ -433,21 +423,28 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
               <div className="divide-y-2 divide-black">
                 {data.ativos.map((ativo, i) => {
                   const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+                  // %VD: cache de referência no frontend — não é fonte de parecer/limite.
                   const vdRef = key ? VD_REFERENCE[key] : null;
-                  const limit = key ? ANVISA_LIMITS[key] : null;
+                  const parecer = ativo.parecer;
                   const nomeAtivo = ativo.nome || ativo.name || 'Indefinido';
                   const doseOriginal = parseFloat(ativo.dose) || 0;
                   const unitOriginal = ativo.unit || '';
-                  let doseCorrigida = doseOriginal;
-                  let unitCorrigida = unitOriginal;
-                  let corrigido = false;
-                  if (limit && limit.auth && limit.max != null && doseOriginal > limit.max) {
-                    doseCorrigida = limit.max;
-                    unitCorrigida = limit.unit;
-                    corrigido = true;
-                  }
-                  let doseMg = Number(doseCorrigida) || 0;
-                  const u = (unitCorrigida || '').toLowerCase();
+                  // Correção só quando o motor trouxe teto oficial comparável.
+                  const tetoMotor =
+                    parecer?.unidade_comparavel
+                    && parecer?.limite_max_oficial != null
+                    && Number.isFinite(Number(parecer.limite_max_oficial))
+                      ? Number(parecer.limite_max_oficial)
+                      : null;
+                  const unitMotor = parecer?.unidade_oficial || unitOriginal;
+                  const corrigido =
+                    tetoMotor != null
+                    && doseOriginal > tetoMotor
+                    && String(parecer?.status || '').toUpperCase() !== 'APROVADO';
+                  const doseExibida = corrigido ? tetoMotor : doseOriginal;
+                  const unitExibida = corrigido ? unitMotor : unitOriginal;
+                  let doseMg = Number(doseExibida) || 0;
+                  const u = (unitExibida || '').toLowerCase();
                   if (u === 'mcg') doseMg /= 1000;
                   if (u === 'g') doseMg *= 1000;
                   const percentVD = vdRef ? Math.round((doseMg / vdRef.vd) * 100) : null;
@@ -459,7 +456,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                         {corrigido ? (
                           <>
                             <span className="line-through text-gray-400 font-medium block">{ativo.dose} {unitOriginal}</span>
-                            <span className="text-green-600">Tabela Nutricional Corrigida: {doseCorrigida} {unitCorrigida}</span>
+                            <span className="text-green-600">Limite motor: {doseExibida} {unitExibida}</span>
                           </>
                         ) : (
                           <>{ativo.dose} {ativo.unit}</>
@@ -481,8 +478,8 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
               <p className="text-[8px] text-black font-bold uppercase">
                 ** VD não estabelecido pela ANVISA.
               </p>
-              <p className="text-[8px] text-green-700 font-bold">
-                ⚙ Doses ajustadas automaticamente conforme limites máximos da IN 28/2018 e Painel ANVISA Power BI.
+              <p className="text-[8px] text-muted-foreground">
+                Ajuste de dose só aparece quando o motor SQL devolveu limite máximo oficial comparável.
               </p>
             </div>
           </div>
@@ -490,11 +487,12 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
 
 
         {(() => {
-          const corrigidos = data.ativos.filter(ativo => {
-            const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
-            const limit = key ? ANVISA_LIMITS[key] : null;
-            const doseOriginal = parseFloat(ativo.dose) || 0;
-            return limit && limit.auth && limit.max != null && doseOriginal > limit.max;
+          // Ajustes sugeridos só a partir do parecer do motor — nunca de anvisa-limits.ts.
+          const corrigidos = data.ativos.filter((ativo) => {
+            const p = ativo.parecer;
+            if (!p?.unidade_comparavel || p.limite_max_oficial == null) return false;
+            const dose = parseFloat(ativo.dose) || 0;
+            return dose > Number(p.limite_max_oficial);
           });
 
           if (corrigidos.length === 0) return null;
@@ -502,27 +500,32 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
           return (
             <section className="space-y-4">
               <h3 className="text-lg font-bold border-l-4 border-green-600 pl-3 text-green-600">Resumo Técnico de Ajustes (Rastreabilidade)</h3>
-              <p className="text-sm text-muted-foreground">Os itens abaixo foram ajustados automaticamente para garantir conformidade com os limites máximos da IN 28/2018 e Painel Power BI.</p>
+              <p className="text-sm text-muted-foreground">
+                Itens com dose acima do teto oficial devolvido por <code className="text-xs">anvisa_avaliar_ativo</code>.
+              </p>
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-green-500/10 hover:bg-green-500/10">
                       <TableHead>Nutriente</TableHead>
                       <TableHead className="text-center">Dose Original</TableHead>
-                      <TableHead className="text-center">Dose Corrigida</TableHead>
+                      <TableHead className="text-center">Teto oficial (motor)</TableHead>
                       <TableHead>Regra / Limite</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {corrigidos.map((ativo, i) => {
-                      const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
-                      const limit = ANVISA_LIMITS[key];
+                      const p = ativo.parecer;
                       return (
                         <TableRow key={i}>
                           <TableCell className="font-bold">{ativo.nome || ativo.name}</TableCell>
                           <TableCell className="text-center line-through text-muted-foreground">{ativo.dose} {ativo.unit}</TableCell>
-                          <TableCell className="text-center font-bold text-green-600">{limit.max} {limit.unit}</TableCell>
-                          <TableCell className="text-[10px] text-muted-foreground italic">Teto IN 28/2018 ({limit.max} {limit.unit})</TableCell>
+                          <TableCell className="text-center font-bold text-green-600">
+                            {p.limite_max_oficial} {p.unidade_oficial || ativo.unit}
+                          </TableCell>
+                          <TableCell className="text-[10px] text-muted-foreground italic">
+                            {p.limite_texto || p.norma_referencia || 'limite oficial (motor)'}
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -636,54 +639,6 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
             ))}
           </div>
         </section>
-
-        {(() => {
-          const ativos = (data.ativos || []) as any[];
-          const aditivos: { nome: string; texto: string; ok: boolean }[] = [];
-          const probioticos: { nome: string; texto: string; ok: boolean }[] = [];
-          for (const a of ativos) {
-            const nome = a?.nome || a?.name || "";
-            if (!nome) continue;
-            const prob = validarProbiotico(nome);
-            if (prob.eProbiotico) {
-              probioticos.push({ nome, texto: prob.avisoRotulo || "", ok: Boolean(prob.info) });
-              continue;
-            }
-            const adt = validarAditivo(nome);
-            if (adt.encontrado && adt.info) {
-              aditivos.push({ nome, texto: `${adt.info.funcao} — ${adt.info.norm}${adt.info.obs ? " · " + adt.info.obs : ""}`, ok: adt.info.auth });
-            }
-          }
-          if (aditivos.length === 0 && probioticos.length === 0) return null;
-          return (
-            <section className="space-y-4">
-              <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Aditivos e Probióticos (RDC 239/2018 · RDC 241/2018)</h3>
-              {probioticos.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-primary">Probióticos — RDC 241/2018</p>
-                  {probioticos.map((p, i) => (
-                    <div key={`p-${i}`} className={cn("text-sm rounded px-3 py-2 border-l-4", p.ok ? "border-green-500 bg-green-50" : "border-amber-500 bg-amber-50")}>
-                      <span className="font-bold">{p.nome}</span> — {p.ok ? "AUTORIZADO" : "VERIFICAR"}
-                      {p.texto && <span className="block text-xs text-muted-foreground mt-0.5">{p.texto}</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {aditivos.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-primary">Aditivos e coadjuvantes — RDC 239/2018</p>
-                  {aditivos.map((a, i) => (
-                    <div key={`a-${i}`} className={cn("text-sm rounded px-3 py-2 border-l-4", a.ok ? "border-green-500 bg-green-50" : "border-amber-500 bg-amber-50")}>
-                      <span className="font-bold">{a.nome}</span> — {a.ok ? "AUTORIZADO" : "VERIFICAR"}
-                      <span className="block text-xs text-muted-foreground mt-0.5">{a.texto}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">Excipientes não listados devem ser verificados manualmente pelo RT contra a RDC 239/2018. Cepas probióticas exigem contagem viável (UFC) e identificação de linhagem (RDC 241/2018).</p>
-            </section>
-          );
-        })()}
 
         <footer className="mt-12 pt-8 border-t text-[10px] text-muted-foreground space-y-2">
           <p>*Percentual de valores diários fornecidos pela porção.</p>

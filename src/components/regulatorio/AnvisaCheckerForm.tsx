@@ -399,8 +399,9 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
         }).filter((a: any) => a.nome || a.dose > 0), // remover linhas completamente vazias
         alertas: Array.isArray(p.alertas) ? p.alertas : [],
         analise_ia: p.analise_ia || p.analise || p.analysis || '',
-        alegacoes_permitidas: Array.isArray(p.alegacoes_permitidas) ? p.alegacoes_permitidas : [],
-        alegacoes_proibidas: Array.isArray(p.alegacoes_proibidas) ? p.alegacoes_proibidas : [],
+        // Alegações da IA são descartadas — oficiais vêm do motor (anvisa_constituintes).
+        alegacoes_permitidas: [],
+        alegacoes_proibidas: [],
         avisos_rotulo: Array.isArray(p.avisos_rotulo) ? p.avisos_rotulo : [],
         sugestao_capsulas: p.sugestao_capsulas || { n: 1, tamanho: '#00', frasco: 60, obs: '' },
       }));
