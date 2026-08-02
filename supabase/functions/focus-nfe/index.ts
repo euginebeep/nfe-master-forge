@@ -15,8 +15,6 @@ const HOST_HOMOLOG = "https://homologacao.focusnfe.com.br";
 const host = (amb: string) => (amb === "producao" ? HOST_PROD : HOST_HOMOLOG);
 const baseUrl = (amb: string) => `${host(amb)}/v2`;
 
-// O banco grava nfe_ambiente em MAIUSCULO; a comparacao era case-sensitive e caia
-// silenciosamente em homologacao. Default homologacao: falha para o lado seguro.
 const normAmbiente = (v: unknown) =>
   String(v ?? "").trim().toLowerCase() === "producao" ? "producao" : "homologacao";
 
@@ -32,13 +30,27 @@ function limpar(o: any): any {
   return r;
 }
 
+/** A Focus devolve chave_nfe com prefixo "NFe" (47 chars). DANFE, devolucao e
+ *  consulta na SEFAZ exigem os 44 digitos limpos. */
+function chave44(v: unknown): string | null {
+  const d = String(v ?? "").replace(/\D/g, "");
+  return /^[0-9]{44}$/.test(d) ? d : null;
+}
+
+function mapStatus(s: string): string {
+  return ({ processando_autorizacao: "PROCESSANDO", autorizado: "AUTORIZADO",
+    erro_autorizacao: "REJEITADO", cancelado: "CANCELADO",
+    denegado: "DENEGADO" } as any)[s] || String(s ?? "").toUpperCase();
+}
+
+function admin() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } });
+}
+
 async function tokenDoTenant(companyId: string): Promise<{ token: string | null; origem: string }> {
   try {
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { auth: { persistSession: false } }
-    );
-    const { data, error } = await admin.rpc("get_company_focus_token", { p_company_id: companyId });
+    const { data, error } = await admin().rpc("get_company_focus_token", { p_company_id: companyId });
     if (!error && data) return { token: data as string, origem: "TENANT" };
   } catch (e) {
     console.error("[focus-nfe] token do tenant:", (e as Error).message);
@@ -69,11 +81,24 @@ async function auth(req: Request) {
   );
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error("Unauthorized");
-  // .single() sem filtro falha aqui: a policy deixa ver todos os perfis da empresa.
   const { data: profile } = await supabase
     .from("profiles").select("company_id").eq("id", user.id).maybeSingle();
   if (!profile?.company_id) throw new Error("Perfil sem empresa vinculada.");
   return { supabase, user, authHeader, companyId: profile.company_id as string };
+}
+
+async function registrarRetorno(supabase: any, notaId: string, resposta: any, ambiente: string, ref?: string) {
+  try {
+    const { data, error } = await supabase.rpc("registrar_retorno_focus", {
+      p_nota_saida_id: notaId, p_resposta: resposta,
+      p_ambiente: ambiente, p_ref: ref ?? null,
+    });
+    if (error) console.error("[focus-nfe] registrar_retorno_focus:", error.message);
+    return data;
+  } catch (e) {
+    console.error("[focus-nfe] registrar_retorno_focus:", (e as Error).message);
+    return null;
+  }
 }
 
 async function audit(supabase: any, evento: string, extra: any = {}) {
@@ -86,11 +111,6 @@ async function audit(supabase: any, evento: string, extra: any = {}) {
       p_observacao: extra.observacao ?? null,
     });
   } catch (e) { console.error("[focus-nfe] audit:", (e as Error).message); }
-}
-
-function mapStatus(s: string): string {
-  return ({ processando_autorizacao: "processando", autorizado: "autorizado",
-    erro_autorizacao: "rejeitado", cancelado: "cancelado", denegado: "denegado" } as any)[s] || s;
 }
 
 Deno.serve(async (req) => {
@@ -110,13 +130,48 @@ Deno.serve(async (req) => {
     const { token, origem: origemToken } = await tokenDoTenant(companyId);
     if (!token) return json({ error: "Nenhum token da Focus configurado para esta empresa." }, 400);
 
-    const idActions = new Set(["consultar-nfe","danfe","xml","cancelar-nfe","carta-correcao","consultar-status"]);
+    const idActions = new Set(["consultar-nfe","danfe","xml","cancelar-nfe","carta-correcao","consultar-status","reenviar-email"]);
     if (idActions.has(action!) && id) {
       const { data: ok } = await supabase.rpc("validar_acesso_nota_saida_focus", { p_focus_nfe_id: id });
       if (!ok) return json({ error: "Acesso negado a esta nota." }, 403);
     }
 
     switch (action) {
+
+      // Previsao de numeracao. A Focus e quem atribui na transmissao, mas o
+      // usuario precisa saber QUAL numero a nota provavelmente recebera.
+      // E previsao, nao reserva: em contingencia pode haver pulo.
+      case "proximo-numero": {
+        const { data: emp } = await supabase.from("company")
+          .select("focus_nfe_empresa_id, nfe_ambiente").eq("id", companyId).maybeSingle();
+        if (!emp?.focus_nfe_empresa_id) {
+          return json({ error: "Empresa sem cadastro na Focus." }, 404);
+        }
+
+        const r = await focusReq("GET", `/empresas/${emp.focus_nfe_empresa_id}`, "producao", token);
+        if (!r.ok) return json({ error: "Nao foi possivel consultar a numeracao na Focus." }, r.status);
+        const dados = limpar(await r.json().catch(() => ({})));
+
+        try {
+          await admin().rpc("atualizar_numeracao_focus", {
+            p_company_id: companyId,
+            p_serie_producao: dados?.serie_nfe_producao ?? null,
+            p_proximo_producao: dados?.proximo_numero_nfe_producao ?? null,
+            p_serie_homologacao: dados?.serie_nfe_homologacao ?? null,
+            p_proximo_homologacao: dados?.proximo_numero_nfe_homologacao ?? null,
+          });
+        } catch (e) { console.error("[focus-nfe] cache numeracao:", (e as Error).message); }
+
+        const producao = normAmbiente(emp.nfe_ambiente) === "producao";
+        return json({
+          ambiente: producao ? "producao" : "homologacao",
+          serie: producao ? dados?.serie_nfe_producao : dados?.serie_nfe_homologacao,
+          proximo_numero: producao ? dados?.proximo_numero_nfe_producao
+                                   : dados?.proximo_numero_nfe_homologacao,
+          observacao: "Previsao. A numeracao definitiva e atribuida na transmissao e pode pular em contingencia.",
+          atualizado_em: new Date().toISOString(),
+        });
+      }
 
       case "emitir-nota": {
         const { nota_saida_id, dry_run } = await req.json();
@@ -126,8 +181,14 @@ Deno.serve(async (req) => {
           .select("id, modelo, serie, status, finalidade, ambiente, focus_nfe_id")
           .eq("id", nota_saida_id).maybeSingle();
         if (nErr || !nota) return json({ error: "Nota nao encontrada ou acesso negado." }, 404);
-        if (nota.status !== "RASCUNHO") {
-          return json({ error: `Nota ja esta em status ${nota.status}; apenas rascunhos podem ser transmitidos.` }, 409);
+
+        // A Focus permite reenvio com a mesma ref quando o status e erro_autorizacao.
+        const BLOQUEADOS = new Set(["AUTORIZADO", "CANCELADO", "DENEGADO", "PROCESSANDO"]);
+        if (BLOQUEADOS.has(String(nota.status).toUpperCase())) {
+          return json({ error: `Nota em status ${nota.status}. `
+            + (nota.status === "PROCESSANDO"
+               ? "Aguarde o processamento ou consulte o status."
+               : "Notas autorizadas, canceladas ou denegadas nao podem ser retransmitidas.") }, 409);
         }
 
         const { data: payload, error: pErr } = await supabase
@@ -138,13 +199,7 @@ Deno.serve(async (req) => {
           .select("nfe_ambiente").eq("id", companyId).maybeSingle();
         const ambiente = normAmbiente(nota.ambiente ?? emp?.nfe_ambiente);
 
-        // NUMERACAO: delegada a Focus.
-        // A documentacao recomenda deixar serie e numero em branco. Alem disso, em
-        // indisponibilidade da SEFAZ a Focus reenvia em contingencia e pode cancelar
-        // a tentativa anterior, gerando "pulo" de numeracao. Um contador proprio no
-        // ERP nao tem como acompanhar isso e sairia do sincronismo com a SEFAZ.
-        // A ref usa o id da nota, que ja e unico e idempotente por token.
-        const ref = `ns-${String(nota_saida_id).replace(/-/g, "")}`;
+        const ref = nota.focus_nfe_id ?? `ns-${String(nota_saida_id).replace(/-/g, "")}`;
         const qs = `?ref=${ref}` + (dry_run ? "&dry_run=1" : "");
 
         const r = await focusReq("POST", `/nfe${qs}`, ambiente, token, payload);
@@ -153,66 +208,60 @@ Deno.serve(async (req) => {
         data = limpar(data);
 
         if (!r.ok) {
+          if (!dry_run) {
+            await supabase.from("notas_saida").update({
+              status: "REJEITADO",
+              status_sefaz: data?.codigo ?? data?.status_sefaz ?? String(r.status),
+              mensagem_sefaz: data?.mensagem
+                ?? data?.erros?.map((e: any) => e.mensagem).join(" | ")
+                ?? "Rejeicao na emissao",
+              focus_nfe_id: ref, consultado_em: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }).eq("id", nota_saida_id);
+          }
           await audit(supabase, "REJEICAO", { nota_id: nota_saida_id,
             status: String(r.status), payload: { detalhes: data, ambiente, origemToken } });
           return json({ error: "Rejeicao na emissao.", detalhes: data, ambiente, ref }, r.status);
         }
 
-        // Serie e numero passam a vir da resposta da Focus, nao de contador local.
-        if (!dry_run) {
-          await supabase.from("notas_saida").update({
-            focus_nfe_id: ref,
-            numero: data.numero ? Number(data.numero) : null,
-            serie:  data.serie  ? String(data.serie)  : nota.serie,
-            chave_acesso: data.chave_nfe ?? null,
-            protocolo_autorizacao: data.protocolo ?? null,
-            status: mapStatus(data.status ?? "processando").toUpperCase(),
-            ambiente: ambiente.toUpperCase(),
-            data_emissao: new Date().toISOString(),
-            danfe_url: data.caminho_danfe ? `${host(ambiente)}${data.caminho_danfe}` : null,
-            updated_at: new Date().toISOString(),
-          }).eq("id", nota_saida_id);
-        }
+        let reg: any = null;
+        if (!dry_run) reg = await registrarRetorno(supabase, nota_saida_id, data, ambiente, ref);
 
         await audit(supabase, "EMISSAO", { nota_id: nota_saida_id,
           numero: data.numero ?? null, serie: data.serie ?? null,
-          chave_acesso: data.chave_nfe, protocolo: data.protocolo,
+          chave_acesso: chave44(data.chave_nfe), protocolo: data.protocolo,
           status: data.status ?? "ok",
           payload: { ambiente, ref, origemToken, dry_run: !!dry_run } });
 
         return json({ ...data, id: ref, ref, ambiente,
-          chave_acesso: data.chave_nfe ?? data.chave_acesso,
+          chave_acesso: chave44(data.chave_nfe),
           status_interno: mapStatus(data.status ?? ""),
           link_pdf: data.caminho_danfe ? `${host(ambiente)}${data.caminho_danfe}` : null,
           link_xml: data.caminho_xml_nota_fiscal ? `${host(ambiente)}${data.caminho_xml_nota_fiscal}` : null,
-          dry_run: !!dry_run, origem_token: origemToken });
+          registro: reg, dry_run: !!dry_run, origem_token: origemToken });
       }
 
       case "consultar-nfe":
       case "consultar-status": {
         if (!id) throw new Error("ID (ref) nao informado.");
         const ambiente = normAmbiente(url.searchParams.get("ambiente"));
-        const r = await focusReq("GET", `/nfe/${id}`, ambiente, token);
+        // completa=1: unica forma documentada de obter tpEmis, dhCont e xJust
+        const r = await focusReq("GET", `/nfe/${id}?completa=1`, ambiente, token);
         const data = limpar(await r.json().catch(() => ({})));
-        const st = mapStatus(data.status ?? "");
 
-        // Reconcilia o ERP com a SEFAZ, inclusive numeracao alterada por contingencia.
+        let reg: any = null;
         if (r.ok && data.status) {
-          await supabase.from("notas_saida").update({
-            status: st.toUpperCase(),
-            numero: data.numero ? Number(data.numero) : null,
-            serie:  data.serie  ? String(data.serie)  : null,
-            chave_acesso: data.chave_nfe ?? null,
-            protocolo_autorizacao: data.protocolo ?? null,
-            updated_at: new Date().toISOString(),
-          }).eq("focus_nfe_id", id);
+          const { data: nota } = await supabase.from("notas_saida")
+            .select("id").eq("focus_nfe_id", id).maybeSingle();
+          if (nota?.id) reg = await registrarRetorno(supabase, nota.id, data, ambiente, id);
         }
 
-        return json({ ...data, ambiente, status: st, status_interno: st,
-          chave_acesso: data.chave_nfe ?? data.chave_acesso,
+        return json({ ...data, ambiente,
+          status_interno: mapStatus(data.status ?? ""),
+          chave_acesso: chave44(data.chave_nfe),
           link_pdf: data.caminho_danfe ? `${host(ambiente)}${data.caminho_danfe}` : null,
-          link_xml: data.caminho_xml_nota_fiscal ? `${host(ambiente)}${data.caminho_xml_nota_fiscal}` : null },
-          r.status);
+          link_xml: data.caminho_xml_nota_fiscal ? `${host(ambiente)}${data.caminho_xml_nota_fiscal}` : null,
+          registro: reg }, r.status);
       }
 
       case "danfe":
@@ -235,8 +284,8 @@ Deno.serve(async (req) => {
       case "cancelar-nfe": {
         if (!id) throw new Error("ID (ref) nao informado.");
         const { justificativa } = await req.json();
-        if (!justificativa || justificativa.length < 15) {
-          throw new Error("Justificativa deve ter no minimo 15 caracteres.");
+        if (!justificativa || justificativa.length < 15 || justificativa.length > 255) {
+          throw new Error("Justificativa deve ter entre 15 e 255 caracteres.");
         }
         const ambiente = normAmbiente(url.searchParams.get("ambiente"));
         const r = await focusReq("DELETE", `/nfe/${id}`, ambiente, token, { justificativa });
@@ -244,23 +293,53 @@ Deno.serve(async (req) => {
         if (r.ok) {
           await supabase.from("notas_saida").update({
             status: "CANCELADO", motivo_cancelamento: justificativa,
+            status_sefaz: data.status_sefaz ?? null,
+            mensagem_sefaz: data.mensagem_sefaz ?? null,
+            caminho_xml_cancelamento: data.caminho_xml_cancelamento ?? null,
             data_cancelamento: new Date().toISOString(), updated_at: new Date().toISOString(),
           }).eq("focus_nfe_id", id);
         }
         await audit(supabase, "CANCELAMENTO", { chave_acesso: id,
           status: r.ok ? "ok" : "erro", observacao: justificativa, payload: { ambiente } });
-        return json(data, r.status);
+        return json({ ...data, status_interno: r.ok ? "CANCELADO" : "ERRO_CANCELAMENTO" }, r.status);
       }
 
       case "carta-correcao": {
         if (!id) throw new Error("ID (ref) nao informado.");
         const { correcao } = await req.json();
-        if (!correcao || correcao.length < 15) throw new Error("Correcao deve ter no minimo 15 caracteres.");
+        if (!correcao || correcao.length < 15 || correcao.length > 1000) {
+          throw new Error("Correcao deve ter entre 15 e 1000 caracteres.");
+        }
         const ambiente = normAmbiente(url.searchParams.get("ambiente"));
         const r = await focusReq("POST", `/nfe/${id}/carta_correcao`, ambiente, token, { correcao });
         const data = limpar(await r.json().catch(() => ({})));
+        if (r.ok) {
+          await supabase.from("notas_saida").update({
+            numero_carta_correcao: data.numero_carta_correcao ?? null,
+            caminho_pdf_carta_correcao: data.caminho_pdf_carta_correcao ?? null,
+            updated_at: new Date().toISOString(),
+          }).eq("focus_nfe_id", id);
+        }
         await audit(supabase, "CC_E", { chave_acesso: id, status: r.ok ? "ok" : "erro",
           observacao: correcao, payload: { ambiente } });
+        return json(data, r.status);
+      }
+
+      case "reenviar-email": {
+        if (!id) throw new Error("ID (ref) nao informado.");
+        const body = await req.json().catch(() => ({}));
+        const ambiente = normAmbiente(url.searchParams.get("ambiente"));
+        const emails: string[] = Array.isArray(body.emails) ? body.emails : [];
+        if (emails.length === 0) throw new Error("Informe ao menos um e-mail.");
+        const r = await focusReq("POST", `/nfe/${id}/email`, ambiente, token, { emails });
+        const data = limpar(await r.json().catch(() => ({})));
+        if (r.ok) {
+          await supabase.from("notas_saida").update({
+            email_enviado_em: new Date().toISOString(),
+            email_enviado_para: emails.join(", "),
+            updated_at: new Date().toISOString(),
+          }).eq("focus_nfe_id", id);
+        }
         return json(data, r.status);
       }
 
@@ -270,7 +349,9 @@ Deno.serve(async (req) => {
         if (!cnpj || !serie || !numero_inicial || !numero_final || !justificativa) {
           throw new Error("Campos obrigatorios: cnpj, serie, numero_inicial, numero_final, justificativa.");
         }
-        if (justificativa.length < 15) throw new Error("Justificativa deve ter no minimo 15 caracteres.");
+        if (justificativa.length < 15 || justificativa.length > 255) {
+          throw new Error("Justificativa deve ter entre 15 e 255 caracteres.");
+        }
         const ambiente = normAmbiente(b.ambiente);
         const r = await focusReq("POST", "/nfe/inutilizacao", ambiente, token, {
           cnpj: String(cnpj).replace(/\D/g, ""), serie: String(serie),
