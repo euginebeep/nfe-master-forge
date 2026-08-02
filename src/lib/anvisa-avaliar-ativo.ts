@@ -1,6 +1,9 @@
 /**
- * Motor único de avaliação por ativo — RPC public.anvisa_avaliar_ativo.
- * Fonte de verdade dos pareceres do Checker. Não usar anvisa-limits.ts.
+ * Wrapper fino do motor SQL (contrato v2).
+ * Só monta `.rpc(...)`, tipa o jsonb e helpers de UI.
+ * Nenhuma comparação de limite, nenhum casamento de nome, nenhuma tabela
+ * de constituintes em TS — isso vive no Postgres (anvisa_avaliar_*).
+ * Não usar anvisa-limits.ts como fonte de parecer.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +66,15 @@ export type AnvisaAvaliarAtivoResult = {
   marcacao?: MarcacaoRegulatoria;
   /** Erro de transporte / RPC — não confundir com NAO_AUTORIZADO. */
   erro?: string | null;
+  /** Só anvisa_avaliar_insumo */
+  via?: string | null;
+  item_id?: string | null;
+  insumo?: string | null;
+  dose_constituinte_calculada?: number | null;
+  teor_nominal_pct?: number | null;
+  /** v2: múltiplos vínculos quando ≠ ATIVO / via IN 211 */
+  constituintes?: unknown;
+  n_constituintes?: number | null;
 };
 
 /** Normaliza jsonb/texto do motor → linhas literais para UI/PDF. Nunca inventar. */
@@ -220,6 +232,18 @@ function parseMotorJsonb(data: unknown): AnvisaAvaliarAtivoResult {
       || (raw.responsavel_acao as string | null)
       || null,
     marcacao: "VERIFICADO",
+    via: (raw.via as string | null) ?? null,
+    item_id: (raw.item_id as string | null) ?? null,
+    insumo: (raw.insumo as string | null) ?? null,
+    dose_constituinte_calculada:
+      raw.dose_constituinte_calculada == null
+        ? null
+        : Number(raw.dose_constituinte_calculada),
+    teor_nominal_pct:
+      raw.teor_nominal_pct == null ? null : Number(raw.teor_nominal_pct),
+    constituintes: raw.constituintes ?? null,
+    n_constituintes:
+      raw.n_constituintes == null ? null : Number(raw.n_constituintes),
   };
 }
 
@@ -276,8 +300,13 @@ export async function rpcAnvisaAvaliarInsumo(params: {
   dose?: number | null;
   unidade?: string | null;
   grupo?: string | null;
+  /** ATIVO | EXCIPIENTE | COADJUVANTE | VEICULO — 6º arg do contrato v2 */
+  funcao?: string | null;
 }): Promise<AnvisaAvaliarAtivoResult> {
   const grupo = grupoDoPublicoChecker(params.grupo);
+  const funcao = params.funcao
+    ? String(params.funcao).trim().toUpperCase()
+    : null;
   const { data, error } = await (supabase as any).rpc("anvisa_avaliar_insumo", {
     p_item_id: params.itemId,
     p_company_id: params.companyId,
@@ -286,6 +315,7 @@ export async function rpcAnvisaAvaliarInsumo(params: {
       : Number(params.dose),
     p_unidade: (params.unidade || "mg").trim() || "mg",
     p_grupo: grupo,
+    p_funcao: funcao || null,
   });
 
   if (error) {

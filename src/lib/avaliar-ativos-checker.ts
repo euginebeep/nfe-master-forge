@@ -17,6 +17,8 @@ export type AtivoChecker = {
   key?: string;
   /** Quando presente, preferir anvisa_avaliar_insumo (vínculo RT). */
   item_id?: string | null;
+  /** Função no produto — repassada como p_funcao (≠ ATIVO → via IN 211). */
+  funcao_no_produto?: string | null;
   especie_declarada?: string | null;
   parte_vegetal?: string | null;
   tipo_extrato?: string | null;
@@ -104,6 +106,7 @@ export async function avaliarProdutosComMotor(
           dose: Number(ativo.dose) || 0,
           unidade: ativo.unit || "mg",
           grupo: publicoChecker,
+          funcao: ativo.funcao_no_produto ?? null,
         })
         : await rpcAnvisaAvaliarAtivo({
           nome: ativo.nome,

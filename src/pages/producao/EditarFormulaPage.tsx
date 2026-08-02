@@ -109,7 +109,7 @@ type FormulaEditDraft = {
     exige_premix: boolean;
     funcao_no_produto: FuncaoNoProduto;
     funcao_tecnologica: string;
-    justificativa_funcao: string;
+    funcao_justificativa: string;
   };
 };
 
@@ -121,7 +121,7 @@ const initialNovoItem = {
   exige_premix: false,
   funcao_no_produto: "ATIVO" as FuncaoNoProduto,
   funcao_tecnologica: "",
-  justificativa_funcao: "",
+  funcao_justificativa: "",
 };
 
 export default function EditarFormulaPage() {
@@ -161,7 +161,11 @@ export default function EditarFormulaPage() {
     ...(draft.novoItem || {}),
     funcao_no_produto: normalizarFuncaoNoProduto(draft.novoItem?.funcao_no_produto),
     funcao_tecnologica: draft.novoItem?.funcao_tecnologica ?? "",
-    justificativa_funcao: draft.novoItem?.justificativa_funcao ?? "",
+    // Compat: rascunhos antigos usavam justificativa_funcao (nome errado do #180).
+    funcao_justificativa:
+      draft.novoItem?.funcao_justificativa
+      ?? (draft.novoItem as { justificativa_funcao?: string } | undefined)?.justificativa_funcao
+      ?? "",
   };
   const setItensLocal = (v: FormulaItem[] | ((prev: FormulaItem[]) => FormulaItem[])) =>
     setDraft((d) => ({
@@ -269,7 +273,7 @@ export default function EditarFormulaPage() {
 
     const funcao = normalizarFuncaoNoProduto(novoItem.funcao_no_produto);
     if (exigeJustificativaFuncao(funcao)) {
-      if (!novoItem.funcao_tecnologica.trim() || !novoItem.justificativa_funcao.trim()) {
+      if (!novoItem.funcao_tecnologica.trim() || !novoItem.funcao_justificativa.trim()) {
         toast.error(
           "Excipiente/coadjuvante/veículo exige função tecnológica e justificativa. " +
             "A classificação é pela função no produto — não pelo nome químico.",
@@ -351,7 +355,7 @@ export default function EditarFormulaPage() {
       metodo_distribuicao: classificacaoRisco === 'ULTRA_CRITICO' ? 'DISTRIBUICAO_GEOMETRICA_POR_PREMIX' : null,
       funcao_no_produto: funcao,
       funcao_tecnologica: exigeJustificativaFuncao(funcao) ? novoItem.funcao_tecnologica.trim() : null,
-      justificativa_funcao: exigeJustificativaFuncao(funcao) ? novoItem.justificativa_funcao.trim() : null,
+      funcao_justificativa: exigeJustificativaFuncao(funcao) ? novoItem.funcao_justificativa.trim() : null,
       funcao_declarada_por: exigeJustificativaFuncao(funcao) ? (user?.id ?? null) : null,
     });
 
@@ -666,10 +670,10 @@ export default function EditarFormulaPage() {
                     <div className="col-span-8 space-y-2">
                       <Label>Justificativa</Label>
                       <Textarea
-                        value={novoItem.justificativa_funcao}
+                        value={novoItem.funcao_justificativa}
                         onChange={(e) => setNovoItem((prev) => ({
                           ...prev,
-                          justificativa_funcao: e.target.value,
+                          funcao_justificativa: e.target.value,
                         }))}
                         placeholder="Por que este pó é excipiente/coadjuvante neste produto (não no cadastro do item)."
                         rows={2}
