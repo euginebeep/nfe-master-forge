@@ -45,6 +45,9 @@ interface DANFEData {
   emit_cidade?: string;
   emit_uf?: string;
   emit_cep?: string;
+  /** Linhas prontas da RPC dados_danfe — não remontar na tela */
+  emit_endereco_linha1?: string;
+  emit_endereco_linha2?: string;
   emit_telefone?: string;
   emit_email?: string;
   emit_cnpj: string;
@@ -70,6 +73,7 @@ interface DANFEData {
   dest_cidade?: string;
   dest_uf?: string;
   dest_cep?: string;
+  dest_endereco_linha1?: string;
   dest_telefone?: string;
   dest_ie?: string;
   dest_data_emissao?: string;
@@ -205,9 +209,9 @@ const fmtCep = (v?: string | null) => {
 
 const fmtFone = (v?: string | null) => {
   const d = digitsOnly(v);
-  if (d.length === 10) return d.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  if (d.length === 11) return d.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  return v || "";
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return v ?? "";
 };
 
 const fmtChave = (v?: string | null) => {
@@ -371,17 +375,29 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
     </table>
   );
 
-  const emitEnderecoLinha = [
-    data.emit_logradouro,
-    data.emit_numero,
-  ].filter(Boolean).join(", ")
-    + (data.emit_complemento ? ` - ${data.emit_complemento}` : "");
-
-  const destEnderecoLinha = [
-    data.dest_logradouro,
-    data.dest_numero,
-  ].filter(Boolean).join(", ")
-    + (data.dest_complemento ? ` - ${data.dest_complemento}` : "");
+  // Preferir linhas prontas da RPC; fallback só se a view antiga não trouxer
+  const emitEnderecoLinha1 = textFrom(
+    data.emit_endereco_linha1,
+    [data.emit_logradouro, data.emit_numero].filter(Boolean).join(", ")
+      + (data.emit_complemento ? ` - ${data.emit_complemento}` : ""),
+  );
+  const emitEnderecoLinha2 = textFrom(
+    data.emit_endereco_linha2,
+    [
+      data.emit_cidade && data.emit_uf ? `${data.emit_cidade} - ${data.emit_uf}` : (data.emit_cidade || data.emit_uf),
+      data.emit_cep ? `CEP ${fmtCep(data.emit_cep)}` : "",
+    ].filter(Boolean).join("  "),
+  );
+  const destEnderecoLinha = textFrom(
+    data.dest_endereco_linha1,
+    [data.dest_logradouro, data.dest_numero].filter(Boolean).join(", ")
+      + (data.dest_complemento ? ` - ${data.dest_complemento}` : ""),
+  );
+  const emitFantasia =
+    data.emit_fantasia && data.emit_fantasia !== data.emit_razao
+      ? data.emit_fantasia
+      : "";
+  const emitEmail = data.emit_email ? data.emit_email.toLowerCase() : "";
 
   const numeroDefinitivo = data.numero != null && String(data.numero).trim() !== ""
     ? fmtNumeroNfeLocal(data.numero)
@@ -407,14 +423,13 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               )}
               <div style={{ fontSize: "6.5pt", lineHeight: 1.35, position: "relative", zIndex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: "8pt" }}>{data.emit_razao}</div>
-                {data.emit_fantasia && <div style={{ fontWeight: 600 }}>{data.emit_fantasia}</div>}
-                {emitEnderecoLinha && <div>{emitEnderecoLinha}</div>}
+                {emitFantasia && <div style={{ fontWeight: 600 }}>{emitFantasia}</div>}
+                {emitEnderecoLinha1 && <div>{emitEnderecoLinha1}</div>}
                 {data.emit_bairro && <div>{data.emit_bairro}</div>}
-                {(data.emit_cidade || data.emit_uf) && (
-                  <div>{data.emit_cidade}{data.emit_uf ? `-${data.emit_uf}` : ""}</div>
-                )}
-                {data.emit_cep && <div>{fmtCep(data.emit_cep)}</div>}
+                {emitEnderecoLinha2 && <div>{emitEnderecoLinha2}</div>}
                 {data.emit_telefone && <div>Fone: {fmtFone(data.emit_telefone)}</div>}
+                {emitEmail && <div>{emitEmail}</div>}
+                {data.emit_site && <div style={{ fontWeight: 700 }}>{data.emit_site}</div>}
               </div>
             </div>
           </td>

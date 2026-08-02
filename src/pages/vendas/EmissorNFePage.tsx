@@ -2368,17 +2368,44 @@ export default function EmissorNFePage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000" }}>
                     <tbody>
                       <tr>
-                        <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px 6px" }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
-                            {logoUrl && <img src={logoUrl} alt="Logo" style={{ maxHeight: "50px", maxWidth: "80px", objectFit: "contain" }} />}
-                            <div>
-                              <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "2px" }}>{company?.razao_social || "—"}</div>
-                              <div style={{ fontSize: "6.5pt", lineHeight: 1.4 }}>
-                                {company?.endereco_logradouro && <>{company.endereco_logradouro}{company.endereco_nro ? `, ${company.endereco_nro}` : ""}<br /></>}
-                                {company?.endereco_bairro && <>{company.endereco_bairro} – {company.endereco_cidade} – {company.endereco_uf}<br /></>}
-                                CEP: {company?.endereco_cep} | FONE: {company?.telefone}<br />
-                                {company?.site && <>{company.site}<br /></>}
-                              </div>
+                        <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "3mm 2mm" }}>
+                          <div style={{ display: "flex", gap: "3mm", alignItems: "flex-start" }}>
+                            {logoUrl && (
+                              <img
+                                src={logoUrl}
+                                alt=""
+                                style={{ height: "18mm", maxWidth: "28mm", objectFit: "contain", flexShrink: 0 }}
+                              />
+                            )}
+                            <div style={{ fontSize: "6.5pt", lineHeight: 1.35 }}>
+                              <div style={{ fontWeight: 700, fontSize: "8pt" }}>{company?.razao_social || "—"}</div>
+                              {company?.nome_fantasia && company.nome_fantasia !== company.razao_social && (
+                                <div style={{ fontWeight: 600 }}>{company.nome_fantasia}</div>
+                              )}
+                              {(company?.endereco_logradouro || company?.endereco_nro) && (
+                                <div>
+                                  {[company?.endereco_logradouro, company?.endereco_nro].filter(Boolean).join(", ")}
+                                  {company?.endereco_compl ? ` - ${company.endereco_compl}` : ""}
+                                </div>
+                              )}
+                              {company?.endereco_bairro && <div>{company.endereco_bairro}</div>}
+                              {(company?.endereco_cidade || company?.endereco_uf || company?.endereco_cep) && (
+                                <div>
+                                  {[
+                                    company?.endereco_cidade && company?.endereco_uf
+                                      ? `${company.endereco_cidade} - ${company.endereco_uf}`
+                                      : (company?.endereco_cidade || company?.endereco_uf),
+                                    company?.endereco_cep
+                                      ? `CEP ${String(company.endereco_cep).replace(/\D/g, "").replace(/^(\d{5})(\d{3})$/, "$1-$2")}`
+                                      : "",
+                                  ].filter(Boolean).join("  ")}
+                                </div>
+                              )}
+                              {company?.telefone && <div>Fone: {company.telefone}</div>}
+                              {company?.email_fiscal && (
+                                <div>{String(company.email_fiscal).toLowerCase()}</div>
+                              )}
+                              {company?.site && <div style={{ fontWeight: 700 }}>{company.site}</div>}
                             </div>
                           </div>
                         </td>

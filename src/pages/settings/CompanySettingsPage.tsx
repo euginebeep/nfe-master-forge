@@ -484,26 +484,44 @@ export default function CompanySettingsPage() {
                 <CardHeader>
                   <CardTitle className="text-lg">Contatos</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Email Financeiro</Label>
-                    <Input {...form.register("email_financeiro")} type="email" placeholder="financeiro@empresa.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>E-mail que envia a NF-e ao cliente</Label>
-                    <Input {...form.register("email_fiscal")} type="email" placeholder="fiscal@empresa.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Telefone</Label>
-                    <MaskedInput
-                      mask="phone"
-                      value={form.watch("telefone") || ""}
-                      onChange={(value) => form.setValue("telefone", value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Site</Label>
-                    <Input {...form.register("site")} placeholder="https://empresa.com" />
+                <CardContent className="space-y-4">
+                  {(!String(form.watch("telefone") || "").trim() || !String(form.watch("email_fiscal") || "").trim()) && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Recomendado para o DANFE</AlertTitle>
+                      <AlertDescription>
+                        Telefone e e-mail fiscal aparecem no bloco do emitente da NF-e.
+                        Sem eles, o destinatário fica sem contato na nota impressa.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Email Financeiro</Label>
+                      <Input {...form.register("email_financeiro")} type="email" placeholder="financeiro@empresa.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>
+                        E-mail que envia a NF-e ao cliente
+                        <span className="ml-1 text-xs text-muted-foreground font-normal">(recomendado)</span>
+                      </Label>
+                      <Input {...form.register("email_fiscal")} type="email" placeholder="fiscal@empresa.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>
+                        Telefone
+                        <span className="ml-1 text-xs text-muted-foreground font-normal">(recomendado)</span>
+                      </Label>
+                      <MaskedInput
+                        mask="phone"
+                        value={form.watch("telefone") || ""}
+                        onChange={(value) => form.setValue("telefone", value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Site</Label>
+                      <Input {...form.register("site")} placeholder="https://empresa.com" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
