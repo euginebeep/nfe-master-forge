@@ -2398,6 +2398,7 @@ export type Database = {
           fornecedor_id: string | null
           id: string
           nota_entrada_id: string | null
+          nota_saida_id: string | null
           numero_parcela: number
           observacoes: string | null
           status: string
@@ -2423,6 +2424,7 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           nota_entrada_id?: string | null
+          nota_saida_id?: string | null
           numero_parcela?: number
           observacoes?: string | null
           status?: string
@@ -2448,6 +2450,7 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           nota_entrada_id?: string | null
+          nota_saida_id?: string | null
           numero_parcela?: number
           observacoes?: string | null
           status?: string
@@ -2483,6 +2486,20 @@ export type Database = {
             columns: ["nota_entrada_id"]
             isOneToOne: false
             referencedRelation: "v_notas_sem_xml"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_pagar_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "notas_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_pagar_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_notas_saida_status"
             referencedColumns: ["id"]
           },
         ]
@@ -2580,6 +2597,13 @@ export type Database = {
             columns: ["nota_saida_id"]
             isOneToOne: false
             referencedRelation: "notas_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_receber_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_notas_saida_status"
             referencedColumns: ["id"]
           },
         ]
@@ -6322,20 +6346,31 @@ export type Database = {
       notas_saida: {
         Row: {
           ambiente: string | null
+          caminho_pdf_carta_correcao: string | null
+          caminho_xml: string | null
+          caminho_xml_cancelamento: string | null
           chave_acesso: string | null
           cliente_id: string
           company_id: string
           condicao_pagamento: string | null
+          consultado_em: string | null
           created_at: string | null
           danfe_url: string | null
           data_cancelamento: string | null
           data_emissao: string | null
+          dh_contingencia: string | null
+          efeitos_aplicados_em: string | null
+          efeitos_revertidos_em: string | null
+          email_enviado_em: string | null
+          email_enviado_para: string | null
           finalidade: string | null
           focus_nfe_id: string | null
           forma_pagamento: string | null
           id: string
           informacoes_adicionais: string | null
+          justificativa_contingencia: string | null
           meio_pagamento: string | null
+          mensagem_sefaz: string | null
           modalidade_frete: string | null
           modelo: string | null
           motivo_cancelamento: string | null
@@ -6344,6 +6379,7 @@ export type Database = {
           nfe_referenciada_chave: string | null
           nota_entrada_origem_id: string | null
           numero: number | null
+          numero_carta_correcao: number | null
           nuvem_fiscal_id: string | null
           nuvem_fiscal_status: string | null
           pedido_venda_id: string | null
@@ -6351,7 +6387,9 @@ export type Database = {
           protocolo_autorizacao: string | null
           serie: string | null
           status: string | null
+          status_sefaz: string | null
           tipo_operacao: string | null
+          tp_emis: number | null
           transportadora_id: string | null
           updated_at: string | null
           valor_cofins: number | null
@@ -6372,20 +6410,31 @@ export type Database = {
         }
         Insert: {
           ambiente?: string | null
+          caminho_pdf_carta_correcao?: string | null
+          caminho_xml?: string | null
+          caminho_xml_cancelamento?: string | null
           chave_acesso?: string | null
           cliente_id: string
           company_id?: string
           condicao_pagamento?: string | null
+          consultado_em?: string | null
           created_at?: string | null
           danfe_url?: string | null
           data_cancelamento?: string | null
           data_emissao?: string | null
+          dh_contingencia?: string | null
+          efeitos_aplicados_em?: string | null
+          efeitos_revertidos_em?: string | null
+          email_enviado_em?: string | null
+          email_enviado_para?: string | null
           finalidade?: string | null
           focus_nfe_id?: string | null
           forma_pagamento?: string | null
           id?: string
           informacoes_adicionais?: string | null
+          justificativa_contingencia?: string | null
           meio_pagamento?: string | null
+          mensagem_sefaz?: string | null
           modalidade_frete?: string | null
           modelo?: string | null
           motivo_cancelamento?: string | null
@@ -6394,6 +6443,7 @@ export type Database = {
           nfe_referenciada_chave?: string | null
           nota_entrada_origem_id?: string | null
           numero?: number | null
+          numero_carta_correcao?: number | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
@@ -6401,7 +6451,9 @@ export type Database = {
           protocolo_autorizacao?: string | null
           serie?: string | null
           status?: string | null
+          status_sefaz?: string | null
           tipo_operacao?: string | null
+          tp_emis?: number | null
           transportadora_id?: string | null
           updated_at?: string | null
           valor_cofins?: number | null
@@ -6422,20 +6474,31 @@ export type Database = {
         }
         Update: {
           ambiente?: string | null
+          caminho_pdf_carta_correcao?: string | null
+          caminho_xml?: string | null
+          caminho_xml_cancelamento?: string | null
           chave_acesso?: string | null
           cliente_id?: string
           company_id?: string
           condicao_pagamento?: string | null
+          consultado_em?: string | null
           created_at?: string | null
           danfe_url?: string | null
           data_cancelamento?: string | null
           data_emissao?: string | null
+          dh_contingencia?: string | null
+          efeitos_aplicados_em?: string | null
+          efeitos_revertidos_em?: string | null
+          email_enviado_em?: string | null
+          email_enviado_para?: string | null
           finalidade?: string | null
           focus_nfe_id?: string | null
           forma_pagamento?: string | null
           id?: string
           informacoes_adicionais?: string | null
+          justificativa_contingencia?: string | null
           meio_pagamento?: string | null
+          mensagem_sefaz?: string | null
           modalidade_frete?: string | null
           modelo?: string | null
           motivo_cancelamento?: string | null
@@ -6444,6 +6507,7 @@ export type Database = {
           nfe_referenciada_chave?: string | null
           nota_entrada_origem_id?: string | null
           numero?: number | null
+          numero_carta_correcao?: number | null
           nuvem_fiscal_id?: string | null
           nuvem_fiscal_status?: string | null
           pedido_venda_id?: string | null
@@ -6451,7 +6515,9 @@ export type Database = {
           protocolo_autorizacao?: string | null
           serie?: string | null
           status?: string | null
+          status_sefaz?: string | null
           tipo_operacao?: string | null
+          tp_emis?: number | null
           transportadora_id?: string | null
           updated_at?: string | null
           valor_cofins?: number | null
@@ -6691,6 +6757,112 @@ export type Database = {
             columns: ["nota_saida_id"]
             isOneToOne: false
             referencedRelation: "notas_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_saida_itens_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_notas_saida_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_saida_parcelas: {
+        Row: {
+          company_id: string
+          created_at: string
+          data_vencimento: string
+          id: string
+          nota_saida_id: string
+          numero_parcela: number
+          valor: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          data_vencimento: string
+          id?: string
+          nota_saida_id: string
+          numero_parcela: number
+          valor: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          data_vencimento?: string
+          id?: string
+          nota_saida_id?: string
+          numero_parcela?: number
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_saida_parcelas_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "notas_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_saida_parcelas_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_notas_saida_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_saida_tentativas: {
+        Row: {
+          caminho_xml: string | null
+          caminho_xml_cancelamento: string | null
+          chave_acesso: string | null
+          company_id: string
+          id: string
+          nota_saida_id: string
+          numero: number | null
+          registrado_em: string
+          serie: string | null
+          status: string | null
+        }
+        Insert: {
+          caminho_xml?: string | null
+          caminho_xml_cancelamento?: string | null
+          chave_acesso?: string | null
+          company_id: string
+          id?: string
+          nota_saida_id: string
+          numero?: number | null
+          registrado_em?: string
+          serie?: string | null
+          status?: string | null
+        }
+        Update: {
+          caminho_xml?: string | null
+          caminho_xml_cancelamento?: string | null
+          chave_acesso?: string | null
+          company_id?: string
+          id?: string
+          nota_saida_id?: string
+          numero?: number | null
+          registrado_em?: string
+          serie?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_saida_tentativas_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "notas_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_saida_tentativas_nota_saida_id_fkey"
+            columns: ["nota_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_notas_saida_status"
             referencedColumns: ["id"]
           },
         ]
@@ -11897,6 +12069,63 @@ export type Database = {
           },
         ]
       }
+      v_notas_saida_status: {
+        Row: {
+          ambiente: string | null
+          caminho_xml: string | null
+          caminho_xml_cancelamento: string | null
+          chave_acesso: string | null
+          company_id: string | null
+          consultado_em: string | null
+          contingencia_modo: string | null
+          danfe_url: string | null
+          data_cancelamento: string | null
+          data_emissao: string | null
+          destinatario: string | null
+          destinatario_documento: string | null
+          dh_contingencia: string | null
+          em_contingencia: boolean | null
+          email_enviado_em: string | null
+          email_enviado_para: string | null
+          finalidade: string | null
+          focus_nfe_id: string | null
+          horas_para_autorizar_contingencia: number | null
+          horas_para_cancelar: number | null
+          id: string | null
+          justificativa_contingencia: string | null
+          mensagem_sefaz: string | null
+          mensagem_usuario: string | null
+          modelo: string | null
+          motivo_cancelamento: string | null
+          natureza_operacao: string | null
+          numero: number | null
+          numero_carta_correcao: number | null
+          pode_cancelar: boolean | null
+          pode_carta_correcao: boolean | null
+          pode_consultar: boolean | null
+          pode_imprimir: boolean | null
+          pode_reenviar_email: boolean | null
+          pode_transmitir: boolean | null
+          protocolo_autorizacao: string | null
+          serie: string | null
+          status: string | null
+          status_label: string | null
+          status_sefaz: string | null
+          status_tom: string | null
+          tentativas_anteriores: number | null
+          tp_emis: number | null
+          valor_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_saida_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_notas_sem_xml: {
         Row: {
           acao: string | null
@@ -12147,6 +12376,10 @@ export type Database = {
         }[]
       }
       anvisa_service_role_key: { Args: never; Returns: string }
+      aplicar_efeitos_nota_saida: {
+        Args: { p_nota_saida_id: string }
+        Returns: Json
+      }
       aprovar_compra: { Args: never; Returns: Json }
       aprovar_compra_fornecedor: {
         Args: { p_fornecedor_id: string }
@@ -12672,6 +12905,15 @@ export type Database = {
           p_user_agent?: string
         }
         Returns: string
+      }
+      registrar_retorno_focus: {
+        Args: {
+          p_ambiente?: string
+          p_nota_saida_id: string
+          p_ref?: string
+          p_resposta: Json
+        }
+        Returns: Json
       }
       regularizar_lote_reservado: {
         Args: {

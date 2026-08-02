@@ -490,7 +490,7 @@ export default function CompanySettingsPage() {
                     <Input {...form.register("email_financeiro")} type="email" placeholder="financeiro@empresa.com" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Email Fiscal</Label>
+                    <Label>E-mail que envia a NF-e ao cliente</Label>
                     <Input {...form.register("email_fiscal")} type="email" placeholder="fiscal@empresa.com" />
                   </div>
                   <div className="space-y-2">
@@ -882,12 +882,15 @@ export default function CompanySettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Numero Inicial</Label>
+                    <Label>Número inicial (informativo)</Label>
                     <Input
                       type="number"
                       {...form.register("nfe_numero_inicial", { valueAsNumber: true })}
                       placeholder="1"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      A numeração efetiva da NF-e é controlada pela Focus NFe. Este campo é apenas referência.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>Regime de Apuracao</Label>

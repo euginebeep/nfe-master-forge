@@ -503,7 +503,7 @@ export default function EmissorNFePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("entidades")
-        .select("id, razao_social, nome_fantasia, documento, ie, im, contribuinte_icms, tipo_pessoa, site")
+        .select("id, razao_social, nome_fantasia, documento, ie, im, contribuinte_icms, tipo_pessoa, site, prazo_pagamento_padrao_dias")
         .eq("status", "ATIVO").order("razao_social");
       if (error) throw error;
       return data;
@@ -824,7 +824,7 @@ export default function EmissorNFePage() {
     });
   }, [itens, calcularRastrosFEFO]);
 
-  // Duplicatas
+  // Duplicatas / parcelas → notas_saida_parcelas
   const addDuplicata = () => setDuplicatas(prev => [...prev, { nDup: String(prev.length + 1).padStart(3, "0"), dVenc: "", vDup: 0 }]);
   const removeDuplicata = (idx: number) => setDuplicatas(prev => prev.filter((_, i) => i !== idx));
   const updateDuplicata = (idx: number, field: keyof Duplicata, value: any) => {
@@ -844,6 +844,15 @@ export default function EmissorNFePage() {
     cofins: itens.reduce((s, i) => s + (i.cofins_valor || 0), 0),
     get nota() { return this.produtos - this.desconto + this.frete + this.seguro + this.outros + this.ipi; },
   }), [itens, valorDesconto, valorFrete, valorSeguro, valorOutros]);
+
+  const gerarParcelaPadraoCliente = () => {
+    const prazo = Number((cliente as any)?.prazo_pagamento_padrao_dias);
+    const dias = Number.isFinite(prazo) && prazo >= 0 ? prazo : 0;
+    const venc = new Date();
+    venc.setDate(venc.getDate() + dias);
+    const iso = venc.toISOString().slice(0, 10);
+    setDuplicatas([{ nDup: "001", dVenc: iso, vDup: Number(totais.nota) || 0 }]);
+  };
 
   // Auto-sync valor pagamento
   useEffect(() => { setValorPagamento(totais.nota); }, [totais.nota]);
@@ -885,6 +894,25 @@ export default function EmissorNFePage() {
       if (error) throw error;
       const idCriado = typeof notaId === "string" ? notaId : notaId?.id || notaId?.nota_id || notaId?.[0]?.id || notaId?.[0]?.nota_id;
       if (!idCriado) throw new Error("RPC criar_nota_saida não retornou o ID da nota");
+
+      // Parcelas alimentam o bloco FATURA do DANFE e o financeiro pós-autorização
+      const companyId = profile?.company_id;
+      if (companyId && duplicatas.length > 0) {
+        const parcelas = duplicatas
+          .filter((d) => d.dVenc && Number(d.vDup) > 0)
+          .map((d, idx) => ({
+            company_id: companyId,
+            nota_saida_id: idCriado,
+            numero_parcela: Number(d.nDup) || idx + 1,
+            data_vencimento: d.dVenc,
+            valor: Number(d.vDup),
+          }));
+        if (parcelas.length > 0) {
+          const { error: parcErr } = await (supabase as any).from("notas_saida_parcelas").insert(parcelas);
+          if (parcErr) throw parcErr;
+        }
+      }
+
       return idCriado;
     },
     onSuccess: async (notaId) => {
@@ -1671,12 +1699,21 @@ export default function EmissorNFePage() {
               </Card>
 
               <Card>
-                <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm text-primary">DUPLICATAS</CardTitle>
-                  <Button size="sm" variant="outline" onClick={addDuplicata}><Plus className="h-3 w-3 mr-1" /> Adicionar</Button>
+                <CardHeader className="py-3 px-4 flex flex-row items-center justify-between gap-2">
+                  <CardTitle className="text-sm text-primary">DUPLICATAS / PARCELAS</CardTitle>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={gerarParcelaPadraoCliente} disabled={!clienteId}>
+                      Prazo do cliente
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={addDuplicata}><Plus className="h-3 w-3 mr-1" /> Adicionar</Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="pt-2 pb-4 px-4 space-y-2">
-                  {duplicatas.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhuma duplicata adicionada</p>}
+                  {duplicatas.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      Nenhuma parcela — sem parcelas a RPC cria título único à vista. Gravadas em notas_saida_parcelas (bloco FATURA do DANFE).
+                    </p>
+                  )}
                   {duplicatas.map((dup, idx) => (
                     <div key={idx} className="grid grid-cols-4 gap-2 items-end">
                       <div><Label className="text-xs">Número</Label><Input value={dup.nDup} onChange={e => updateDuplicata(idx, "nDup", e.target.value)} className="text-xs" /></div>
