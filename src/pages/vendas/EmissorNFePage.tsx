@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from "react"
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
   Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck,
-  Save, Check, CheckCircle2, Loader2, Layers, Copy, ChevronDown, AlertTriangle, History,
+  Save, Check, CheckCircle2, Loader2, Layers, Copy, AlertTriangle, History,
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
