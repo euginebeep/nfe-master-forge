@@ -154,7 +154,15 @@ export default function EditarFormulaPage() {
     `formula-edit:${id ?? "new"}`,
     { itensLocal: [], novoItem: initialNovoItem },
   );
-  const { itensLocal, novoItem } = draft;
+  const { itensLocal } = draft;
+  // Rascunhos antigos podem não ter os campos de função — falha segura para ATIVO.
+  const novoItem: FormulaEditDraft["novoItem"] = {
+    ...initialNovoItem,
+    ...(draft.novoItem || {}),
+    funcao_no_produto: normalizarFuncaoNoProduto(draft.novoItem?.funcao_no_produto),
+    funcao_tecnologica: draft.novoItem?.funcao_tecnologica ?? "",
+    justificativa_funcao: draft.novoItem?.justificativa_funcao ?? "",
+  };
   const setItensLocal = (v: FormulaItem[] | ((prev: FormulaItem[]) => FormulaItem[])) =>
     setDraft((d) => ({
       ...d,
@@ -163,7 +171,9 @@ export default function EditarFormulaPage() {
   const setNovoItem = (v: FormulaEditDraft["novoItem"] | ((prev: FormulaEditDraft["novoItem"]) => FormulaEditDraft["novoItem"])) =>
     setDraft((d) => ({
       ...d,
-      novoItem: typeof v === "function" ? v(d.novoItem) : v,
+      novoItem: typeof v === "function"
+        ? v({ ...initialNovoItem, ...(d.novoItem || {}) })
+        : v,
     }));
 
   const dbLoadedRef = useRef(false);
