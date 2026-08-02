@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ScrollText, Download, RefreshCw, Filter } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ScrollText, Download, RefreshCw, Filter, ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,9 @@ function toCsv(rows: NfeAuditoriaRow[]) {
 }
 
 export default function AuditoriaFiscalPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const voltarPara = (location.state as { voltarPara?: string } | null)?.voltarPara;
   const [evento, setEvento] = useState<EventoNfe | "ALL">("ALL");
   const [modelo, setModelo] = useState<"55" | "65" | "ALL">("ALL");
   const [chave, setChave] = useState("");
@@ -126,6 +130,11 @@ export default function AuditoriaFiscalPage() {
         icon={ScrollText}
         actions={
           <div className="flex gap-2">
+            {voltarPara && (
+              <Button variant="ghost" onClick={() => navigate(voltarPara)}>
+                <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
+              </Button>
+            )}
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
             </Button>

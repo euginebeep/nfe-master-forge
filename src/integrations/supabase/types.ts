@@ -1968,6 +1968,11 @@ export type Database = {
           exigir_segregacao_recebimento: boolean
           focus_nfe_empresa_id: string | null
           focus_nfe_status: string | null
+          focus_numeracao_atualizada_em: string | null
+          focus_proximo_numero_homologacao: number | null
+          focus_proximo_numero_producao: number | null
+          focus_serie_homologacao: string | null
+          focus_serie_producao: string | null
           focus_token_atualizado_em: string | null
           focus_token_ciphertext: string | null
           focus_token_homolog_ciphertext: string | null
@@ -2024,6 +2029,11 @@ export type Database = {
           exigir_segregacao_recebimento?: boolean
           focus_nfe_empresa_id?: string | null
           focus_nfe_status?: string | null
+          focus_numeracao_atualizada_em?: string | null
+          focus_proximo_numero_homologacao?: number | null
+          focus_proximo_numero_producao?: number | null
+          focus_serie_homologacao?: string | null
+          focus_serie_producao?: string | null
           focus_token_atualizado_em?: string | null
           focus_token_ciphertext?: string | null
           focus_token_homolog_ciphertext?: string | null
@@ -2080,6 +2090,11 @@ export type Database = {
           exigir_segregacao_recebimento?: boolean
           focus_nfe_empresa_id?: string | null
           focus_nfe_status?: string | null
+          focus_numeracao_atualizada_em?: string | null
+          focus_proximo_numero_homologacao?: number | null
+          focus_proximo_numero_producao?: number | null
+          focus_serie_homologacao?: string | null
+          focus_serie_producao?: string | null
           focus_token_atualizado_em?: string | null
           focus_token_ciphertext?: string | null
           focus_token_homolog_ciphertext?: string | null
@@ -12078,12 +12093,14 @@ export type Database = {
           company_id: string | null
           consultado_em: string | null
           contingencia_modo: string | null
+          created_at: string | null
           danfe_url: string | null
           data_cancelamento: string | null
           data_emissao: string | null
           destinatario: string | null
           destinatario_documento: string | null
           dh_contingencia: string | null
+          efeitos_aplicados_em: string | null
           em_contingencia: boolean | null
           email_enviado_em: string | null
           email_enviado_para: string | null
@@ -12098,15 +12115,23 @@ export type Database = {
           modelo: string | null
           motivo_cancelamento: string | null
           natureza_operacao: string | null
+          nota_entrada_origem_id: string | null
           numero: number | null
           numero_carta_correcao: number | null
+          numero_formatado: string | null
+          pode_baixar_xml: boolean | null
           pode_cancelar: boolean | null
           pode_carta_correcao: boolean | null
           pode_consultar: boolean | null
+          pode_editar: boolean | null
+          pode_excluir: boolean | null
           pode_imprimir: boolean | null
           pode_reenviar_email: boolean | null
           pode_transmitir: boolean | null
+          pode_validar: boolean | null
+          pode_visualizar: boolean | null
           protocolo_autorizacao: string | null
+          qtd_itens: number | null
           serie: string | null
           status: string | null
           status_label: string | null
@@ -12114,6 +12139,7 @@ export type Database = {
           status_tom: string | null
           tentativas_anteriores: number | null
           tp_emis: number | null
+          updated_at: string | null
           valor_total: number | null
         }
         Relationships: [
@@ -12122,6 +12148,20 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_saida_nota_entrada_origem_id_fkey"
+            columns: ["nota_entrada_origem_id"]
+            isOneToOne: false
+            referencedRelation: "notas_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_saida_nota_entrada_origem_id_fkey"
+            columns: ["nota_entrada_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_notas_sem_xml"
             referencedColumns: ["id"]
           },
         ]
@@ -12385,6 +12425,16 @@ export type Database = {
         Args: { p_fornecedor_id: string }
         Returns: Json
       }
+      atualizar_numeracao_focus: {
+        Args: {
+          p_company_id: string
+          p_proximo_homologacao?: number
+          p_proximo_producao: number
+          p_serie_homologacao?: string
+          p_serie_producao: string
+        }
+        Returns: undefined
+      }
       baixar_estoque_op_embalagens: {
         Args: { p_op_id: string }
         Returns: undefined
@@ -12600,6 +12650,7 @@ export type Database = {
         Returns: string
       }
       custo_op_belongs_to_tenant: { Args: { _cid: string }; Returns: boolean }
+      dados_danfe: { Args: { p_nota_saida_id: string }; Returns: Json }
       datalegis_url: {
         Args: { p_ano: number; p_num: number; p_tipo: string }
         Returns: string
@@ -12826,8 +12877,6 @@ export type Database = {
         Returns: Json
       }
       montar_payload_focus: { Args: { p_nota_saida_id: string }; Returns: Json }
-      /** Documento completo para impressão do DANFE — não usar para transmitir */
-      dados_danfe: { Args: { p_nota_saida_id: string }; Returns: Json }
       norm_texto_ancora: { Args: { p_texto: string }; Returns: string }
       norm_txt: { Args: { p: string }; Returns: string }
       nota_entrada_belongs_to_tenant: {
@@ -12842,6 +12891,7 @@ export type Database = {
       pedido_belongs_to_tenant: { Args: { _pid: string }; Returns: boolean }
       pode_excluir_item: { Args: { p_item_id: string }; Returns: Json }
       preparar_op_materiais: { Args: { p_op_id: string }; Returns: Json }
+      proxima_numeracao_prevista: { Args: never; Returns: Json }
       proximo_codigo_formula: {
         Args: { p_company_id?: string }
         Returns: string

@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
-  Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck
+  Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck,
+  Save, Check, CheckCircle2, Loader2, Layers
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,13 +14,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/use-company";
 import { useAuth } from "@/hooks/use-auth";
 import { useFormPersist } from "@/hooks/use-form-persist";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useFocusNfe } from "@/hooks/use-focus-nfe";
+import { useNumeracaoNfePrevista, fmtNumeroNfe } from "@/hooks/use-numeracao-nfe-prevista";
 import { useOPsPorProduto, gerarInfoAdProdOP, gerarRastreabilidadeMPs, type OPRastreabilidade } from "@/hooks/use-ops-por-produto";
 
 // ─── Constants ───
@@ -360,7 +364,7 @@ type NfeDraft = {
 };
 
 const createInitialNfeDraft = (): NfeDraft => ({
-  activeTab: "destino",
+  activeTab: "operacao",
   operacaoFiscalCodigo: "VENDA_PRODUCAO",
   naturezaOperacao: "Venda de produto do estabelecimento",
   chaveReferenciada: "",
@@ -407,13 +411,30 @@ const createInitialNfeDraft = (): NfeDraft => ({
 
 export default function EmissorNFePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams();
+  const editId = params.id || undefined;
   const { profile } = useAuth();
+  const { emitirNota } = useFocusNfe();
+  const { data: numeracao, refresh: refreshNumeracao } = useNumeracaoNfePrevista(true);
+  const [notaCriada, setNotaCriada] = useState<string | null>(null);
+  const [resumoNotaCriada, setResumoNotaCriada] = useState<{
+    operacao?: string; destinatario?: string; itens: number; total: number;
+  } | null>(null);
+  const [transmitindoPosSalvar, setTransmitindoPosSalvar] = useState(false);
+  const [carregandoEdicao, setCarregandoEdicao] = useState(!!editId);
+  const editLoadedRef = useRef<string | null>(null);
+
   const { data: company } = useCompany();
   const queryClient = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
 
+  const formPersistKey = editId
+    ? `nfe:${profile?.company_id ?? "pending"}:edit:${editId}`
+    : `nfe:${profile?.company_id ?? "pending"}`;
+
   const [draft, setDraft, clearDraft] = useFormPersist(
-    `nfe:${profile?.company_id ?? "pending"}`,
+    formPersistKey,
     createInitialNfeDraft(),
   );
 
@@ -484,6 +505,140 @@ export default function EmissorNFePage() {
       setSerie(company.nfe_serie_padrao);
     }
   }, [company?.nfe_serie_padrao]);
+
+  // Carregar nota existente para edição (rota /vendas/notas-saida/:id/editar)
+  useEffect(() => {
+    if (!editId || !profile?.company_id) return;
+    if (editLoadedRef.current === editId) {
+      setCarregandoEdicao(false);
+      return;
+    }
+    let cancelled = false;
+    setCarregandoEdicao(true);
+    (async () => {
+      try {
+        const { data: nota, error } = await supabase
+          .from("notas_saida")
+          .select(`
+            id, status, cliente_id, natureza_operacao, tipo_operacao, finalidade,
+            modalidade_frete, meio_pagamento, informacoes_adicionais, nfe_referenciada_chave,
+            valor_frete, valor_seguro, valor_desconto, valor_outras_despesas, serie, modelo, tp_emis,
+            notas_saida_itens (
+              item_id, descricao, ncm, cest, ean, cfop, unidade, quantidade, valor_unitario, valor_total,
+              valor_desconto, valor_frete, valor_seguro, valor_outras, base_icms, icms_aliquota, icms_valor,
+              cst_icms, origem, ipi_aliquota, ipi_valor, pis_aliquota, pis_valor, cst_pis,
+              cofins_aliquota, cofins_valor, cst_cofins, informacoes_adicionais, lote_id,
+              rastro_n_lote, rastro_q_lote, rastro_d_fab, rastro_d_val, numero_item,
+              itens ( sku_interno, ean )
+            ),
+            notas_saida_parcelas ( numero_parcela, data_vencimento, valor )
+          `)
+          .eq("id", editId)
+          .eq("company_id", profile.company_id)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error || !nota) {
+          toast.error(error?.message || "Nota não encontrada");
+          navigate("/vendas/notas-saida");
+          return;
+        }
+        const status = String(nota.status || "").toUpperCase();
+        if (!["RASCUNHO", "VALIDADA", "REJEITADO", "REJEITADA", "ERRO"].includes(status)) {
+          toast.error("Somente rascunho, rejeitada ou com erro podem ser editados");
+          navigate("/vendas/notas-saida");
+          return;
+        }
+        const itensDb = ((nota as any).notas_saida_itens || []) as any[];
+        itensDb.sort((a, b) => Number(a.numero_item || 0) - Number(b.numero_item || 0));
+        const mappedItens: NotaItem[] = itensDb.map((it) => {
+          const rastros: RastroLote[] = it.lote_id || it.rastro_n_lote ? [{
+            lote_id: String(it.lote_id || ""),
+            nLote: String(it.rastro_n_lote || ""),
+            qLote: Number(it.rastro_q_lote || it.quantidade || 0),
+            dFab: String(it.rastro_d_fab || ""),
+            dVal: String(it.rastro_d_val || ""),
+            op_codigo: "",
+            op_id: "",
+            origem: "ESTOQUE" as const,
+          }] : [];
+          return {
+            ...emptyItem,
+            item_id: String(it.item_id || ""),
+            cProd: String(it.itens?.sku_interno || ""),
+            descricao: String(it.descricao || ""),
+            ncm: String(it.ncm || ""),
+            cest: String(it.cest || ""),
+            ean: String(it.ean || it.itens?.ean || "SEM GTIN"),
+            eanTrib: String(it.ean || it.itens?.ean || "SEM GTIN"),
+            cfop: String(it.cfop || "5102"),
+            unidade: String(it.unidade || "UN"),
+            uTrib: String(it.unidade || "UN"),
+            quantidade: Number(it.quantidade || 0),
+            qTrib: Number(it.quantidade || 0),
+            valor_unitario: Number(it.valor_unitario || 0),
+            vUnTrib: Number(it.valor_unitario || 0),
+            valor_total: Number(it.valor_total || 0),
+            valor_desconto: Number(it.valor_desconto || 0),
+            valor_frete: Number(it.valor_frete || 0),
+            valor_seguro: Number(it.valor_seguro || 0),
+            valor_outros: Number(it.valor_outras || 0),
+            icms_base: Number(it.base_icms || 0),
+            icms_aliquota: Number(it.icms_aliquota || 0),
+            icms_valor: Number(it.icms_valor || 0),
+            cst_icms: String(it.cst_icms || "00"),
+            origem: String(it.origem ?? "0"),
+            ipi_aliquota: Number(it.ipi_aliquota || 0),
+            ipi_valor: Number(it.ipi_valor || 0),
+            pis_aliquota: Number(it.pis_aliquota || 0),
+            pis_valor: Number(it.pis_valor || 0),
+            cst_pis: String(it.cst_pis || "01"),
+            cofins_aliquota: Number(it.cofins_aliquota || 0),
+            cofins_valor: Number(it.cofins_valor || 0),
+            cst_cofins: String(it.cst_cofins || "01"),
+            info_adicional_item: String(it.informacoes_adicionais || ""),
+            rastros,
+          };
+        });
+        const parcelas = ((nota as any).notas_saida_parcelas || []) as any[];
+        parcelas.sort((a, b) => Number(a.numero_parcela || 0) - Number(b.numero_parcela || 0));
+        setDraft({
+          ...createInitialNfeDraft(),
+          activeTab: "operacao",
+          operacaoFiscalCodigo: String(nota.tipo_operacao || "VENDA_PRODUCAO"),
+          naturezaOperacao: String(nota.natureza_operacao || "Venda de produto do estabelecimento"),
+          chaveReferenciada: String(nota.nfe_referenciada_chave || "").replace(/\D/g, "").slice(0, 44),
+          finalidadeEmissao: String(nota.finalidade || "1"),
+          clienteId: String(nota.cliente_id || ""),
+          modalidadeFrete: String(nota.modalidade_frete || "9"),
+          meioPagamento: String(nota.meio_pagamento || "99"),
+          infoAdicionais: String(nota.informacoes_adicionais || ""),
+          valorFrete: Number(nota.valor_frete || 0),
+          valorSeguro: Number(nota.valor_seguro || 0),
+          valorDesconto: Number(nota.valor_desconto || 0),
+          valorOutros: Number(nota.valor_outras_despesas || 0),
+          serie: Number(nota.serie || 1) || 1,
+          modelo: String(nota.modelo || "55"),
+          tpEmis: nota.tp_emis != null ? String(nota.tp_emis) : "1",
+          itens: mappedItens.length ? mappedItens : [ { ...emptyItem } ],
+          duplicatas: parcelas.map((p) => ({
+            nDup: String(p.numero_parcela || "").padStart(3, "0"),
+            dVenc: String(p.data_vencimento || ""),
+            vDup: Number(p.valor || 0),
+          })),
+        });
+        editLoadedRef.current = editId;
+        toast.message("Rascunho carregado para edição");
+      } catch (e: any) {
+        if (!cancelled) {
+          toast.error(e?.message || "Erro ao carregar nota");
+          navigate("/vendas/notas-saida");
+        }
+      } finally {
+        if (!cancelled) setCarregandoEdicao(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [editId, profile?.company_id, navigate, setDraft]);
 
   // ─── Queries ───
   const { data: logoUrl } = useQuery({
@@ -857,24 +1012,46 @@ export default function EmissorNFePage() {
   // Auto-sync valor pagamento
   useEffect(() => { setValorPagamento(totais.nota); }, [totais.nota]);
 
-  const numero = company?.nfe_numero_inicial
-    ? String(company.nfe_numero_inicial).padStart(9, "0").replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3")
-    : "000.000.001";
+  const numeroPrevistoFmt = numeracao?.proximo_numero != null
+    ? fmtNumeroNfe(numeracao.proximo_numero)
+    : null;
+  const seriePrevista = numeracao?.serie != null ? String(numeracao.serie) : String(serie);
+  const numero = numeroPrevistoFmt || "—";
   const isHomolog = company?.nfe_ambiente === "HOMOLOGACAO" || !company?.nfe_ambiente;
 
   const criarNota = useMutation({
     mutationFn: async () => {
+      const erros: string[] = [];
+      if (!operacaoSelecionada) erros.push("Selecione a operação fiscal");
+      if (!clienteId) erros.push("Selecione o destinatário");
+      if (itens.length === 0 || itens.some(i => !i.item_id)) erros.push("Adicione ao menos um item válido");
+      if (operacaoSelecionada?.exige_referencia && chaveReferenciada.replace(/\D/g, "").length !== 44) {
+        erros.push("Informe a chave de acesso referenciada (44 dígitos)");
+      }
+      if (operacaoSelecionada?.gera_financeiro && itens.some(i => !(Number(i.valor_unitario) > 0))) {
+        erros.push("Valor unitário obrigatório para esta operação");
+      }
+      if (operacaoSelecionada?.movimenta_estoque && itens.some(i => !i.rastros.some(r => r.lote_id))) {
+        erros.push("Selecione um lote para cada item");
+      }
+      if (erros.length) throw new Error(erros.join("\n"));
       if (!operacaoSelecionada) throw new Error("Selecione a operação fiscal");
-      if (!clienteId) throw new Error("Selecione o destinatário");
-      if (itens.length === 0 || itens.some(i => !i.item_id)) throw new Error("Adicione ao menos um item válido");
-      if (operacaoSelecionada.exige_referencia && chaveReferenciada.replace(/\D/g, "").length !== 44) {
-        throw new Error("Informe a chave de acesso referenciada com 44 dígitos");
-      }
-      if (operacaoSelecionada.gera_financeiro && itens.some(i => !(Number(i.valor_unitario) > 0))) {
-        throw new Error("Valor unitário obrigatório para esta operação");
-      }
-      if (operacaoSelecionada.movimenta_estoque && itens.some(i => !i.rastros.some(r => r.lote_id))) {
-        throw new Error("Selecione um lote para cada item desta operação");
+
+      // Edição: remove o rascunho anterior e recria via RPC (cálculo fiscal no servidor).
+      // Zera a marca de validação Focus — o payload mudou.
+      if (editId) {
+        await supabase.from("notas_saida_parcelas").delete().eq("nota_saida_id", editId);
+        await supabase.from("notas_saida_itens").delete().eq("nota_saida_id", editId);
+        const { error: delErr } = await supabase.from("notas_saida").delete().eq("id", editId);
+        if (delErr) {
+          // Tentativas anteriores podem bloquear delete — limpa e tenta de novo
+          await (supabase as any).from("notas_saida_tentativas").delete().eq("nota_saida_id", editId);
+          const { error: delErr2 } = await supabase.from("notas_saida").delete().eq("id", editId);
+          if (delErr2) throw new Error("Não foi possível substituir o rascunho: " + delErr2.message);
+        }
+        try {
+          sessionStorage.setItem("nfe-clear-validated", editId);
+        } catch { /* ignore */ }
       }
 
       const { data: notaId, error } = await (supabase as any).rpc("criar_nota_saida", {
@@ -917,11 +1094,21 @@ export default function EmissorNFePage() {
     },
     onSuccess: async (notaId) => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
-      toast.success("Nota de saída criada como rascunho");
+      setResumoNotaCriada({
+        operacao: operacaoSelecionada?.descricao,
+        destinatario: cliente?.razao_social || undefined,
+        itens: itens.length,
+        total: totais.nota,
+      });
       clearDraft(createInitialNfeDraft());
-      if (notaId) navigate(`/vendas/notas-saida?nota=${encodeURIComponent(notaId)}`);
+      setNotaCriada(notaId);
+      refreshNumeracao().catch(() => {});
     },
-    onError: (err: any) => toast.error(traduzirErroCriarNota(err, itens)),
+    onError: (err: any) => {
+      const msg = traduzirErroCriarNota(err, itens);
+      const lines = String(err?.message || msg).split("\n").filter(Boolean);
+      toast.error(lines[0] || msg, lines.length > 1 ? { description: lines.slice(1).join(" · ") } : undefined);
+    },
   });
 
   const handlePrint = () => {
@@ -981,24 +1168,59 @@ export default function EmissorNFePage() {
           </Button>
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <FileOutput className="h-5 w-5" /> Emissor NF-e
+              <FileOutput className="h-5 w-5" /> {editId ? "Editar NF-e" : "Emissor NF-e"}
             </h1>
-            <p className="text-sm text-muted-foreground">Preencha o formulário → DANFE atualiza em tempo real</p>
+            <p className="text-sm text-muted-foreground">
+              {carregandoEdicao
+                ? "Carregando rascunho…"
+                : "Preencha o formulário → DANFE atualiza em tempo real"}
+            </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/settings/certificado-status")}>
-            <ShieldCheck className="h-4 w-4 mr-2" /> Status certificado
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/vendas/auditoria-fiscal")}>
-            <ScrollText className="h-4 w-4 mr-2" /> Auditoria
-          </Button>
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" /> Imprimir DANFE
-          </Button>
-          <Button onClick={() => criarNota.mutate()} disabled={criarNota.isPending}>
-            <Send className="h-4 w-4 mr-2" /> Criar rascunho
-          </Button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Check className="h-3 w-3 text-green-600" />
+            Rascunho salvo automaticamente neste navegador
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => {
+                if (window.confirm("Limpar o formulário deste navegador?")) {
+                  clearDraft(createInitialNfeDraft());
+                  toast.success("Formulário limpo");
+                }
+              }}
+            >
+              Limpar formulário
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/vendas/auditoria-fiscal", {
+                state: { voltarPara: location.pathname + location.search },
+              })}
+            >
+              <ScrollText className="h-4 w-4 mr-2" /> Auditoria
+            </Button>
+            <Button variant="outline" onClick={handlePrint} disabled={itens.length === 0}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir prévia
+            </Button>
+            <div className="flex flex-col items-end">
+              <Button onClick={() => criarNota.mutate()} disabled={criarNota.isPending || carregandoEdicao || !operacaoSelecionada || !clienteId}>
+                {criarNota.isPending
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando…</>
+                  : <><Save className="h-4 w-4 mr-2" /> {editId ? "Atualizar nota" : "Salvar nota"}</>}
+              </Button>
+              <p className="text-xs text-muted-foreground text-right mt-1">
+                {editId
+                  ? "Atualiza o rascunho e zera a validação Focus anterior."
+                  : "Salva como rascunho. A transmissão é feita na próxima etapa."}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1027,8 +1249,23 @@ export default function EmissorNFePage() {
             </CardContent>
           </Card>
 
+          {operacaoSelecionada && (
+            <div className="flex items-center gap-3 px-4 py-2 rounded-md bg-muted/50 border mb-3">
+              <Badge variant="secondary">{operacaoSelecionada.descricao}</Badge>
+              <span className="text-sm">
+                CFOP <span className="font-mono font-semibold">{cfopOperacao || "—"}</span>
+                <span className="text-muted-foreground ml-1">
+                  ({idDest === "1" ? "mesma UF" : idDest === "2" ? "interestadual" : "exterior"})
+                </span>
+              </span>
+              <span className="text-sm text-muted-foreground truncate">{operacaoSelecionada.natureza_operacao}</span>
+              <Button variant="ghost" size="sm" onClick={() => setActiveTab("operacao")}>Alterar</Button>
+            </div>
+          )}
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-6">
+            <TabsList className="w-full grid grid-cols-7">
+              <TabsTrigger value="operacao" className="text-xs gap-1"><Layers className="h-3 w-3" /> Operação</TabsTrigger>
               <TabsTrigger value="destino" className="text-xs gap-1"><ChevronRight className="h-3 w-3" /> Destino</TabsTrigger>
               <TabsTrigger value="itens" className="text-xs gap-1">
                 <Package className="h-3 w-3" /> Itens
@@ -1037,16 +1274,102 @@ export default function EmissorNFePage() {
               <TabsTrigger value="transporte" className="text-xs gap-1"><Truck className="h-3 w-3" /> Transp.</TabsTrigger>
               <TabsTrigger value="cobranca" className="text-xs gap-1"><Receipt className="h-3 w-3" /> Cobr.</TabsTrigger>
               <TabsTrigger value="pagamento" className="text-xs gap-1"><CreditCard className="h-3 w-3" /> Pgto</TabsTrigger>
-              <TabsTrigger value="nota" className="text-xs gap-1"><ScrollText className="h-3 w-3" /> Nota</TabsTrigger>
+              <TabsTrigger value="obs" className="text-xs gap-1"><ScrollText className="h-3 w-3" /> Obs.</TabsTrigger>
             </TabsList>
 
-            {/* ════════ Aba Nota (antes era Emitente) ════════ */}
-            <TabsContent value="nota" className="space-y-4 mt-3">
+            {/* ════════ Operação fiscal (primeira decisão) ════════ */}
+            <TabsContent value="operacao" className="space-y-4 mt-3">
+              <Card>
+                <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">OPERAÇÃO FISCAL</CardTitle></CardHeader>
+                <CardContent className="px-4 pb-4 space-y-3">
+                  <div>
+                    <Label className="text-xs">Operação *</Label>
+                    <Select
+                      value={operacaoFiscalCodigo}
+                      onValueChange={(codigo) => {
+                        const nova = operacoesFiscais?.find((o) => o.codigo === codigo);
+                        if (!nova) return;
+                        const itensComProduto = itens.filter((i) => i.item_id).length;
+                        if (itensComProduto > 0 && codigo !== operacaoFiscalCodigo) {
+                          const cfopNovo = idDest === "2"
+                            ? (nova.cfop_interestadual || nova.cfop_interno || "")
+                            : (nova.cfop_interno || nova.cfop_interestadual || "");
+                          const avisos: string[] = [];
+                          avisos.push(`O CFOP dos ${itensComProduto} itens mudará para ${cfopNovo || "—"}.`);
+                          if (nova.movimenta_estoque) avisos.push("A nota passará a exigir lote.");
+                          if (!window.confirm(avisos.join(" ") + " Continuar?")) return;
+                        }
+                        setOperacaoFiscalCodigo(codigo);
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Selecione a operação fiscal..." /></SelectTrigger>
+                      <SelectContent>
+                        {(['Venda', 'Devolução de compra', 'Industrialização', 'Remessa e retorno', 'Outras'] as const).map((grupo) => {
+                          const ops = (operacoesFiscais || []).filter((op) => {
+                            const d = (op.descricao || '').toLowerCase();
+                            if (grupo === 'Venda') return d.includes('venda') && !d.includes('devol');
+                            if (grupo === 'Devolução de compra') return d.includes('devol');
+                            if (grupo === 'Industrialização') return d.includes('industri');
+                            if (grupo === 'Remessa e retorno') return d.includes('remessa') || d.includes('retorno');
+                            return !(d.includes('venda') || d.includes('devol') || d.includes('industri') || d.includes('remessa') || d.includes('retorno'));
+                          });
+                          if (!ops.length) return null;
+                          return (
+                            <div key={grupo}>
+                              <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase">{grupo}</div>
+                              {ops.map((op) => (
+                                <SelectItem key={op.codigo} value={op.codigo}>{op.descricao}</SelectItem>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {operacaoSelecionada && (
+                    <div className="rounded-md border bg-muted/40 p-3 space-y-2 text-sm">
+                      <div><span className="text-muted-foreground">Natureza:</span> <span className="font-medium">{operacaoSelecionada.natureza_operacao}</span></div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline">CFOP interno {operacaoSelecionada.cfop_interno || "—"}</Badge>
+                        <Badge variant="outline">CFOP interestadual {operacaoSelecionada.cfop_interestadual || "—"}</Badge>
+                        <Badge variant={operacaoSelecionada.movimenta_estoque ? "default" : "secondary"}>
+                          {operacaoSelecionada.movimenta_estoque ? "Movimenta estoque (exige lote)" : "Sem estoque"}
+                        </Badge>
+                        <Badge variant={operacaoSelecionada.gera_financeiro ? "default" : "secondary"}>
+                          {operacaoSelecionada.gera_financeiro ? "Gera financeiro (preço obrigatório)" : "Sem financeiro"}
+                        </Badge>
+                        {operacaoSelecionada.exige_referencia && <Badge variant="destructive">Exige NF-e referenciada</Badge>}
+                      </div>
+                      {operacaoSelecionada.observacao && (
+                        <p className="text-xs text-muted-foreground">{operacaoSelecionada.observacao}</p>
+                      )}
+                    </div>
+                  )}
+                  {operacaoSelecionada?.exige_referencia && (
+                    <div>
+                      <Label className="text-xs">Chave de acesso referenciada *</Label>
+                      <Input
+                        value={chaveReferenciada}
+                        onChange={e => setChaveReferenciada(e.target.value.replace(/\D/g, "").slice(0, 44))}
+                        maxLength={44}
+                        inputMode="numeric"
+                        placeholder="44 dígitos da NF-e referenciada"
+                        className="font-mono"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">{chaveReferenciada.replace(/\D/g, "").length}/44 dígitos</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ════════ Obs. (dados auxiliares da nota) ════════ */}
+            <TabsContent value="obs" className="space-y-4 mt-3">
               <Card>
                 <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">DADOS DA NOTA FISCAL</CardTitle></CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-4 gap-3">
-                    <div><Label className="text-xs">Número <Badge variant="secondary" className="ml-1 text-[10px]">auto</Badge></Label><Input value={numero} readOnly className={readOnlyClass} /></div>
+                    <div><Label className="text-xs">Número previsto <Badge variant="secondary" className="ml-1 text-[10px]">Focus</Badge></Label><Input value={numeroPrevistoFmt ? `${numeroPrevistoFmt}*` : "—"} readOnly className={readOnlyClass} title="Previsão. Definitivo na transmissão." /><p className="text-[10px] text-muted-foreground">* número previsto — pode pular em contingência</p></div>
                     <div><Label className="text-xs">Série</Label><Input type="number" min={1} value={String(serie)} onChange={e => setSerie(Number(e.target.value) || 1)} /></div>
                     <div>
                       <Label className="text-xs">Modelo</Label>
@@ -1076,50 +1399,6 @@ export default function EmissorNFePage() {
                     <div><Label className="text-xs">Data Saída/Entrada</Label><Input type="date" value={dataSaida} onChange={e => setDataSaida(e.target.value)} /></div>
                     <div><Label className="text-xs">Hora Saída</Label><Input value={horaSaida} onChange={e => setHoraSaida(e.target.value)} placeholder="HH:MM" /></div>
                   </div>
-
-                  <div>
-                    <Label className="text-xs">Operação fiscal *</Label>
-                    <Select value={operacaoFiscalCodigo} onValueChange={setOperacaoFiscalCodigo}>
-                      <SelectTrigger><SelectValue placeholder="Selecione a operação fiscal..." /></SelectTrigger>
-                      <SelectContent>
-                        {operacoesFiscais?.map((op) => (
-                          <SelectItem key={op.codigo} value={op.codigo}>
-                            {op.descricao}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {operacaoSelecionada && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <Badge variant="outline" className="text-[10px]">CFOP {cfopOperacao || "—"}</Badge>
-                        <Badge variant={operacaoSelecionada.movimenta_estoque ? "default" : "secondary"} className="text-[10px]">
-                          {operacaoSelecionada.movimenta_estoque ? "Movimenta estoque" : "Sem estoque"}
-                        </Badge>
-                        <Badge variant={operacaoSelecionada.gera_financeiro ? "default" : "secondary"} className="text-[10px]">
-                          {operacaoSelecionada.gera_financeiro ? "Gera financeiro" : "Sem financeiro"}
-                        </Badge>
-                        {operacaoSelecionada.exige_referencia && <Badge variant="destructive" className="text-[10px]">Exige NF-e referenciada</Badge>}
-                      </div>
-                    )}
-                    {operacaoSelecionada?.observacao && (
-                      <p className="mt-1 text-[10px] text-muted-foreground">{operacaoSelecionada.observacao}</p>
-                    )}
-                  </div>
-
-                  {operacaoSelecionada?.exige_referencia && (
-                    <div>
-                      <Label className="text-xs">Chave de acesso referenciada *</Label>
-                      <Input
-                        value={chaveReferenciada}
-                        onChange={e => setChaveReferenciada(e.target.value.replace(/\D/g, "").slice(0, 44))}
-                        maxLength={44}
-                        inputMode="numeric"
-                        placeholder="44 dígitos da NF-e referenciada"
-                        className="font-mono"
-                      />
-                      <p className="text-[10px] text-muted-foreground mt-1">{chaveReferenciada.replace(/\D/g, "").length}/44 dígitos</p>
-                    </div>
-                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1797,8 +2076,8 @@ export default function EmissorNFePage() {
                           <div style={{ fontSize: "6pt" }}>VALOR DA NOTA</div>
                           <div style={{ fontSize: "9pt", fontWeight: "bold" }}>R$ {fmt(totais.nota)}</div>
                           <div style={{ fontSize: "7pt" }}>NF-e</div>
-                          <div style={{ fontSize: "7pt" }}>Nº {numero}</div>
-                          <div style={{ fontSize: "6pt" }}>SÉRIE: {serie}</div>
+                          <div style={{ fontSize: "7pt" }}>Nº {numeroPrevistoFmt ? <>{numeroPrevistoFmt}<sup>*</sup></> : "—"}</div>
+                          <div style={{ fontSize: "6pt" }}>SÉRIE: {seriePrevista}</div>
                         </td>
                       </tr>
                     </tbody>
@@ -1826,7 +2105,12 @@ export default function EmissorNFePage() {
                           <div style={{ fontWeight: "bold", fontSize: "14pt", letterSpacing: "2px" }}>DANFE</div>
                           <div style={{ fontSize: "5.5pt", lineHeight: 1.2 }}>DOCUMENTO AUXILIAR<br />DA NOTA FISCAL<br />ELETRÔNICA</div>
                           <div style={{ fontSize: "7pt", margin: "3px 0" }}>{tpNF === "0" ? <><b>0 - Entrada</b> &nbsp; 1 - Saída</> : <>0 - Entrada &nbsp; <b>1 - Saída</b></>}</div>
-                          <div style={{ fontSize: "8pt" }}>Nº <b>{numero}</b><br />SÉRIE: <b>{serie}</b><br />FOLHA: 1 de 1</div>
+                          <div style={{ fontSize: "8pt" }}>
+                            Nº <b title="Previsão. O número definitivo é atribuído na transmissão.">{numeroPrevistoFmt ? <>{numeroPrevistoFmt}<sup>*</sup></> : "—"}</b><br />
+                            SÉRIE: <b>{seriePrevista}</b><br />
+                            FOLHAS 1/1
+                            {numeroPrevistoFmt && <div style={{ fontSize: "5pt", color: "#666" }}>* número previsto</div>}
+                          </div>
                         </td>
                         <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px" }}>
                           <div style={{ fontSize: "6pt", textAlign: "center", fontWeight: "bold" }}>CHAVE DE ACESSO</div>
@@ -2030,6 +2314,87 @@ export default function EmissorNFePage() {
             </CardContent>
           </Card>
         </div>
+
+      <Dialog open={!!notaCriada} onOpenChange={(open) => { if (!open) { setNotaCriada(null); setResumoNotaCriada(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-green-100 dark:bg-green-950 p-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <DialogTitle>Nota salva</DialogTitle>
+                <DialogDescription>{editId ? "Rascunho atualizado. Ainda não transmitida." : "Rascunho criado. Ainda não transmitida."}</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Operação</span>
+              <span className="font-medium">{resumoNotaCriada?.operacao || "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Destinatário</span>
+              <span className="font-medium truncate max-w-[60%]">{resumoNotaCriada?.destinatario || "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Itens</span>
+              <span className="font-medium">{resumoNotaCriada?.itens ?? 0}</span>
+            </div>
+            <div className="flex justify-between border-t pt-1 mt-1">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-semibold">R$ {fmt(resumoNotaCriada?.total || 0)}</span>
+            </div>
+            {numeracao?.proximo_numero != null && (
+              <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                <span>Número previsto</span>
+                <span className="font-mono">{fmtNumeroNfe(numeracao.proximo_numero)}/{numeracao.serie ?? seriePrevista}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between gap-2">
+            <Button variant="ghost" onClick={() => { setNotaCriada(null); setResumoNotaCriada(null); }}>
+              Criar outra
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate(`/vendas/notas-saida?nota=${encodeURIComponent(notaCriada!)}`)}>
+                Ver na listagem
+              </Button>
+              <Button
+                disabled={transmitindoPosSalvar || !notaCriada}
+                onClick={async () => {
+                  if (!notaCriada) return;
+                  setTransmitindoPosSalvar(true);
+                  try {
+                    await emitirNota(notaCriada, true);
+                    toast.success("Validação Focus OK");
+                    if (!window.confirm("Validação ok. Transmitir a NF-e agora?")) return;
+                    await emitirNota(notaCriada, false);
+                    toast.success("NF-e enviada à SEFAZ");
+                    refreshNumeracao().catch(() => {});
+                    navigate(`/vendas/notas-saida?nota=${encodeURIComponent(notaCriada)}`);
+                  } catch (e: any) {
+                    toast.error("Falha ao validar/transmitir: " + (e?.message || "erro"), {
+                      action: {
+                        label: "Ver na listagem",
+                        onClick: () => navigate(`/vendas/notas-saida?nota=${encodeURIComponent(notaCriada)}`),
+                      },
+                    });
+                  } finally {
+                    setTransmitindoPosSalvar(false);
+                  }
+                }}
+              >
+                {transmitindoPosSalvar
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processando…</>
+                  : <><Send className="h-4 w-4 mr-2" /> Validar e transmitir</>}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </div>
   );

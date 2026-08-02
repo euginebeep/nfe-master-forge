@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, FileX, Edit, MoreHorizontal, PenLine, Ban, Hash,
   RefreshCw, Mail, CheckSquare, Square, FileCheck2, Loader2
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,33 +32,33 @@ import { useFocusNfe } from "@/hooks/use-focus-nfe";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
+import { useNumeracaoNfePrevista, fmtNumeroNfe } from "@/hooks/use-numeracao-nfe-prevista";
 
 /** Fallback só se a view não trouxer status_label/status_tom */
 const STATUS_FALLBACK: Record<string, { label: string; tom: string }> = {
-  RASCUNHO: { label: "Rascunho", tom: "cinza" },
-  PROCESSANDO: { label: "Aguardando SEFAZ", tom: "ambar" },
-  AUTORIZADO: { label: "Autorizada", tom: "verde" },
-  AUTORIZADA: { label: "Autorizada", tom: "verde" },
-  REJEITADO: { label: "Rejeitada", tom: "vermelho" },
-  REJEITADA: { label: "Rejeitada", tom: "vermelho" },
-  CANCELADO: { label: "Cancelada", tom: "cinza_escuro" },
-  CANCELADA: { label: "Cancelada", tom: "cinza_escuro" },
-  DENEGADO: { label: "Denegada", tom: "vermelho_escuro" },
-  DENEGADA: { label: "Denegada", tom: "vermelho_escuro" },
+  RASCUNHO: { label: "Rascunho", tom: "neutro" },
+  PROCESSANDO: { label: "Aguardando SEFAZ", tom: "aguardando" },
+  AUTORIZADO: { label: "Autorizada", tom: "sucesso" },
+  AUTORIZADA: { label: "Autorizada", tom: "sucesso" },
+  REJEITADO: { label: "Rejeitada", tom: "erro" },
+  REJEITADA: { label: "Rejeitada", tom: "erro" },
+  CANCELADO: { label: "Cancelada", tom: "cancelado" },
+  CANCELADA: { label: "Cancelada", tom: "cancelado" },
+  DENEGADO: { label: "Denegada", tom: "erro" },
+  DENEGADA: { label: "Denegada", tom: "erro" },
 };
 
 const statusBadgeClass = (tom: string | null | undefined) => {
-  const t = String(tom || "cinza").toLowerCase();
-  if (t.includes("verde")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (t.includes("ambar") || t.includes("âmbar") || t.includes("amber") || t.includes("amarelo")) {
+  const t = String(tom || "neutro").toLowerCase();
+  if (t === "sucesso" || t.includes("verde")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  if (t === "aguardando" || t.includes("ambar") || t.includes("âmbar") || t.includes("amber") || t.includes("amarelo")) {
     return "bg-amber-100 text-amber-900 border-amber-200";
   }
-  if (t.includes("vermelho_escuro") || t.includes("dark")) return "bg-red-900 text-white border-red-900";
-  if (t.includes("vermelho") || t.includes("red")) return "bg-red-100 text-red-800 border-red-200";
-  if (t.includes("escuro") || t.includes("dark") || t.includes("cinza_escuro")) {
+  if (t === "erro" || t.includes("vermelho")) return "bg-red-100 text-red-800 border-red-200";
+  if (t === "cancelado" || t.includes("cinza_escuro") || t.includes("escuro")) {
     return "bg-slate-700 text-white border-slate-700 line-through";
   }
-  return "bg-slate-100 text-slate-700 border-slate-200";
+  return "bg-slate-100 text-slate-700 border-slate-200"; // neutro
 };
 
 const isAutorizado = (status: string | null | undefined) =>
@@ -353,8 +353,6 @@ const emptyItem: NotaItem = {
 };
 
 export default function NotasSaidaPage() {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("TODOS");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("destinatario");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -377,6 +375,23 @@ export default function NotasSaidaPage() {
   // Status loading
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const [validatedNotaIds, setValidatedNotaIds] = useState<Set<string>>(new Set());
+
+  // Edição de rascunho invalida a marca de validação Focus (payload mudou)
+  useEffect(() => {
+    try {
+      const clearId = sessionStorage.getItem("nfe-clear-validated");
+      if (clearId) {
+        sessionStorage.removeItem("nfe-clear-validated");
+        setValidatedNotaIds((prev) => {
+          if (!prev.has(clearId)) return prev;
+          const next = new Set(prev);
+          next.delete(clearId);
+          return next;
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const [transmitConfirmNota, setTransmitConfirmNota] = useState<any | null>(null);
   const [expandedTentativas, setExpandedTentativas] = useState<Set<string>>(new Set());
   const [reenviarEmailNota, setReenviarEmailNota] = useState<any | null>(null);
@@ -390,8 +405,26 @@ export default function NotasSaidaPage() {
   } = useFocusNfe();
   const { data: companyBranding, refetch: refetchCompanyBranding } = useCompanyBranding();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const notaDestacadaId = searchParams.get("nota");
+  const { data: numeracao, refresh: refreshNumeracao } = useNumeracaoNfePrevista(true);
+
+  // Filtros na URL — sair e voltar não zera busca/status
+  const [search, setSearchState] = useState(searchParams.get("q") || "");
+  const [statusFilter, setStatusFilterState] = useState(searchParams.get("status") || "TODOS");
+  const setSearch = (q: string) => {
+    setSearchState(q);
+    const next = new URLSearchParams(searchParams);
+    if (q) next.set("q", q); else next.delete("q");
+    setSearchParams(next, { replace: true });
+  };
+  const setStatusFilter = (status: string) => {
+    setStatusFilterState(status);
+    const next = new URLSearchParams(searchParams);
+    if (status && status !== "TODOS") next.set("status", status); else next.delete("status");
+    setSearchParams(next, { replace: true });
+  };
 
   // Form state
   const [clienteId, setClienteId] = useState("");
@@ -621,6 +654,7 @@ export default function NotasSaidaPage() {
       if (isAutorizado(status) || status.includes("AUTORIZAD")) {
         await aplicarEfeitosNota(notaId);
       }
+      refreshNumeracao().catch(() => {});
     },
     onError: async (err: any) => {
       toast.error("Erro na transmissão: " + err.message);
@@ -810,6 +844,8 @@ export default function NotasSaidaPage() {
       dh_contingencia: statusRow?.dh_contingencia ?? mapped.dh_contingencia ?? null,
       justificativa_contingencia: statusRow?.justificativa_contingencia ?? mapped.justificativa_contingencia ?? null,
       parcelas,
+      numero_previsto: mapped.numero ? null : numeracao?.proximo_numero ?? null,
+      serie_prevista: mapped.serie || numeracao?.serie || null,
     };
   };
 
@@ -914,13 +950,18 @@ export default function NotasSaidaPage() {
   }, [notas, search, statusFilter]);
 
   const kpis = useMemo(() => {
-    if (!notas) return { total: 0, rascunhos: 0, autorizadas: 0, valorTotal: 0 };
+    if (!notas) return { total: 0, rascunhos: 0, autorizadas: 0, rejeitadas: 0, valorTotal: 0 };
+    const rejeitadas = notas.filter((n: any) =>
+      ["REJEITADO", "REJEITADA"].includes(String(n.status || "").toUpperCase())
+    ).length;
     return {
       total: notas.length,
       rascunhos: notas.filter((n: any) => String(n.status || "").toUpperCase() === "RASCUNHO").length,
       autorizadas: notas.filter((n: any) => isAutorizado(n.status)).length,
+      rejeitadas,
+      // Faturado: só AUTORIZADO + finalidade normal (1). Devolução não fatura.
       valorTotal: notas
-        .filter((n: any) => isAutorizado(n.status))
+        .filter((n: any) => isAutorizado(n.status) && String(n.finalidade || "1") === "1")
         .reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0),
     };
   }, [notas]);
@@ -935,11 +976,13 @@ export default function NotasSaidaPage() {
         icon={FileOutput}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate("/settings/certificado-status")}>
-              <ShieldCheck className="h-4 w-4 mr-2" />
-              Status do certificado
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/vendas/auditoria-fiscal")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/vendas/auditoria-fiscal", {
+                state: { voltarPara: location.pathname + location.search },
+              })}
+            >
               <ScrollText className="h-4 w-4 mr-2" />
               Auditoria fiscal
             </Button>
@@ -948,7 +991,7 @@ export default function NotasSaidaPage() {
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 gap-4 ${kpis.rejeitadas > 0 ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <FileText className="h-8 w-8 text-primary" />
@@ -976,6 +1019,17 @@ export default function NotasSaidaPage() {
             </div>
           </CardContent>
         </Card>
+        {kpis.rejeitadas > 0 && (
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+              <div>
+                <p className="text-2xl font-bold">{kpis.rejeitadas}</p>
+                <p className="text-xs text-muted-foreground">Rejeitadas</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <DollarSign className="h-8 w-8 text-info" />
@@ -1088,7 +1142,7 @@ export default function NotasSaidaPage() {
                   <TableHead className="text-right">Valor Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Emissão</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead className="w-[220px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1112,7 +1166,13 @@ export default function NotasSaidaPage() {
                         />
                       </TableCell>
                       <TableCell className="font-mono text-sm">
-                        {nota.numero || (status === "RASCUNHO" ? "a definir na transmissão" : "—")}
+                        {nota.numero_formatado
+                          ? <span className="font-mono">{nota.numero_formatado}</span>
+                          : <span className="text-muted-foreground text-sm font-mono" title="Número previsto. Definitivo na transmissão.">
+                              {numeracao?.proximo_numero != null
+                                ? `${numeracao.proximo_numero}/${numeracao.serie ?? "—"}*`
+                                : "—"}
+                            </span>}
                       </TableCell>
                       <TableCell>
                         <div>
@@ -1148,7 +1208,7 @@ export default function NotasSaidaPage() {
                             )}
                             {label}
                           </Badge>
-                          {nota.mensagem_usuario && (
+                          {(String(tom).toLowerCase() === "erro" || ["REJEITADO", "REJEITADA", "DENEGADO", "DENEGADA"].includes(status)) && nota.mensagem_usuario && (
                             <p className="text-xs text-foreground whitespace-pre-wrap leading-snug">
                               {nota.mensagem_usuario}
                             </p>
@@ -1217,130 +1277,141 @@ export default function NotasSaidaPage() {
                           ? new Date(nota.data_emissao).toLocaleDateString("pt-BR")
                           : "—"}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2 flex-wrap">
-                          {nota.pode_transmitir && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => validarNotaFocus.mutate(nota.id)}
-                                disabled={isEmissionPending}
-                              >
-                                {validarNotaFocus.isPending ? (
-                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                                ) : (
-                                  <FileCheck2 className="h-3.5 w-3.5 mr-1" />
-                                )}
-                                Validar
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => setTransmitConfirmNota(nota)}
-                                disabled={!isValidated || isEmissionPending}
-                              >
-                                {transmitirNota.isPending ? (
-                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                                ) : (
-                                  <Send className="h-3.5 w-3.5 mr-1" />
-                                )}
-                                Transmitir
-                              </Button>
-                            </>
-                          )}
-                          <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-8 w-8">
-                              {statusLoadingId === nota.id
-                                ? <Loader2 className="h-4 w-4 animate-spin" />
-                                : <MoreHorizontal className="h-4 w-4" />}
+                      <TableCell className="w-[220px] text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          {(nota.pode_editar || status === "RASCUNHO" || ["REJEITADO", "REJEITADA"].includes(status)) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              onClick={() => {
+                                setValidatedNotaIds((prev) => {
+                                  if (!prev.has(nota.id)) return prev;
+                                  const next = new Set(prev);
+                                  next.delete(nota.id);
+                                  return next;
+                                });
+                                navigate(`/vendas/notas-saida/${nota.id}/editar`);
+                              }}
+                            >
+                              <Edit className="h-3.5 w-3.5 mr-1" /> Editar
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-60">
-                            <DropdownMenuItem onClick={() => openDanfeFromSavedNota(nota.id)}>
-                              <Eye className="h-4 w-4 mr-2" /> Visualizar DANFE
-                            </DropdownMenuItem>
+                          )}
+                          {(nota.pode_validar ?? nota.pode_transmitir) && (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => validarNotaFocus.mutate(nota.id)} disabled={isEmissionPending}>
+                              {validarNotaFocus.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCheck2 className="h-3.5 w-3.5 mr-1" />}
+                              Validar
+                            </Button>
+                          )}
+                          {nota.pode_transmitir && (
+                            <Button
+                              size="sm"
+                              className="h-8"
+                              onClick={() => setTransmitConfirmNota(nota)}
+                              disabled={!isValidated || isEmissionPending}
+                              title={!isValidated ? "Valide na Focus antes de transmitir" : undefined}
+                            >
+                              <Send className="h-3.5 w-3.5 mr-1" /> Transmitir
+                            </Button>
+                          )}
+                          {nota.pode_consultar && status === "PROCESSANDO" && (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => consultarStatusMutation(nota.id)}>
+                              <RefreshCw className="h-3.5 w-3.5 mr-1" /> Consultar
+                            </Button>
+                          )}
+                          {nota.pode_imprimir && (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => openDanfeFromSavedNota(nota.id)}>
+                              <Printer className="h-3.5 w-3.5 mr-1" /> DANFE
+                            </Button>
+                          )}
+                          {(nota.pode_baixar_xml ?? !!nota.focus_nfe_id) && isAutorizado(status) && (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => baixarXml(nota.focus_nfe_id)}>
+                              <Download className="h-3.5 w-3.5 mr-1" /> XML
+                            </Button>
+                          )}
+                          {nota.pode_imprimir && ["CANCELADO", "CANCELADA"].includes(status) && (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => openDanfeFromSavedNota(nota.id)}>
+                              <Printer className="h-3.5 w-3.5 mr-1" /> DANFE
+                            </Button>
+                          )}
 
-                            {nota.pode_imprimir && (
-                              <DropdownMenuItem onClick={() => {
-                                openDanfeFromSavedNota(nota.id);
-                                registrarEventoNfe({
-                                  evento: "REIMPRESSAO",
-                                  nota_id: nota.id,
-                                  modelo: nota.modelo,
-                                  serie: nota.serie ? Number(nota.serie) : null,
-                                  numero: nota.numero ?? null,
-                                  chave_acesso: nota.chave_acesso,
-                                  protocolo: nota.protocolo_autorizacao,
-                                  status: nota.status,
-                                  observacao: "Reimpressão do DANFE BrainX",
-                                }).catch(() => {});
-                              }}>
-                                <Printer className="h-4 w-4 mr-2" /> Imprimir DANFE
-                              </DropdownMenuItem>
-                            )}
-
-                            {nota.danfe_url && (
-                              <DropdownMenuItem onClick={() => window.open(nota.danfe_url, "_blank", "noopener,noreferrer")}>
-                                <FileText className="h-4 w-4 mr-2" /> PDF da Focus (conferência)
-                              </DropdownMenuItem>
-                            )}
-
-                            {nota.focus_nfe_id && (
-                              <DropdownMenuItem onClick={() => baixarXml(nota.focus_nfe_id)}>
-                                <Download className="h-4 w-4 mr-2" /> Exportar XML
-                              </DropdownMenuItem>
-                            )}
-
-                            {nota.pode_consultar && (
-                              <>
-                                <DropdownMenuSeparator />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-8 w-8">
+                                {statusLoadingId === nota.id
+                                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                                  : <MoreHorizontal className="h-4 w-4" />}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-60">
+                              {(nota.pode_visualizar !== false) && (
+                                <DropdownMenuItem onClick={() => openDanfeFromSavedNota(nota.id)}>
+                                  <Eye className="h-4 w-4 mr-2" /> Visualizar
+                                </DropdownMenuItem>
+                              )}
+                              {nota.pode_consultar && status !== "PROCESSANDO" && (
                                 <DropdownMenuItem onClick={() => consultarStatusMutation(nota.id)}>
                                   <RefreshCw className="h-4 w-4 mr-2" /> Consultar NF-e
                                 </DropdownMenuItem>
-                              </>
-                            )}
-
-                            {nota.pode_carta_correcao && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => {
-                                  setSelectedNotaId(nota.id);
-                                  setCceTexto("");
-                                  setCceDialogOpen(true);
-                                }}>
-                                  <PenLine className="h-4 w-4 mr-2" /> Carta de Correção (CC-e)
+                              )}
+                              {["REJEITADO", "REJEITADA"].includes(status) && nota.mensagem_usuario && (
+                                <DropdownMenuItem onClick={() => toast.message("Motivo SEFAZ", { description: nota.mensagem_usuario })}>
+                                  <AlertTriangle className="h-4 w-4 mr-2" /> Ver motivo
                                 </DropdownMenuItem>
-                              </>
-                            )}
-
-                            {nota.pode_reenviar_email && (
-                              <DropdownMenuItem onClick={() => {
-                                setReenviarEmailNota(nota);
-                                setReenviarEmails(nota.email_enviado_para || "");
-                              }}>
-                                <Mail className="h-4 w-4 mr-2" /> Reenviar e-mail
-                              </DropdownMenuItem>
-                            )}
-
-                            {nota.pode_cancelar && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => {
-                                    setSelectedNotaId(nota.id);
-                                    setJustificativa("");
-                                    setCancelDialogOpen(true);
-                                  }}
-                                >
-                                  <Ban className="h-4 w-4 mr-2" /> Cancelar NF-e
-                                  {horasCancel ? ` (${horasCancel})` : ""}
+                              )}
+                              {nota.pode_carta_correcao && (
+                                <DropdownMenuItem onClick={() => { setSelectedNotaId(nota.id); setCceTexto(""); setCceDialogOpen(true); }}>
+                                  <PenLine className="h-4 w-4 mr-2" /> Carta de Correção
                                 </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              )}
+                              {nota.pode_reenviar_email && (
+                                <DropdownMenuItem onClick={() => { setReenviarEmailNota(nota); setReenviarEmails(nota.email_enviado_para || ""); }}>
+                                  <Mail className="h-4 w-4 mr-2" /> Reenviar e-mail
+                                </DropdownMenuItem>
+                              )}
+                              {nota.focus_nfe_id && !isAutorizado(status) && (
+                                <DropdownMenuItem onClick={() => baixarXml(nota.focus_nfe_id)}>
+                                  <Download className="h-4 w-4 mr-2" /> Exportar XML
+                                </DropdownMenuItem>
+                              )}
+                              {nota.caminho_xml_cancelamento && (
+                                <DropdownMenuItem onClick={() => window.open(nota.caminho_xml_cancelamento, "_blank", "noopener,noreferrer")}>
+                                  <Download className="h-4 w-4 mr-2" /> XML do cancelamento
+                                </DropdownMenuItem>
+                              )}
+                              {nota.pode_cancelar && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => { setSelectedNotaId(nota.id); setJustificativa(""); setCancelDialogOpen(true); }}
+                                  >
+                                    <Ban className="h-4 w-4 mr-2" /> Cancelar NF-e
+                                    {horasCancel ? ` (${horasCancel})` : ""}
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {(nota.pode_excluir || status === "RASCUNHO" || ["REJEITADO", "REJEITADA"].includes(status)) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={async () => {
+                                      if (!window.confirm("Excluir este rascunho/rejeitada?")) return;
+                                      const { error } = await supabase.from("notas_saida").delete().eq("id", nota.id);
+                                      if (error) toast.error(error.message);
+                                      else {
+                                        toast.success("Nota excluída");
+                                        queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                         {nota.pode_cancelar && horasCancel && (
                           <p className="text-[10px] text-muted-foreground mt-1 text-right">
