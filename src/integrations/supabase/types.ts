@@ -12826,6 +12826,8 @@ export type Database = {
         Returns: Json
       }
       montar_payload_focus: { Args: { p_nota_saida_id: string }; Returns: Json }
+      /** Documento completo para impressão do DANFE — não usar para transmitir */
+      dados_danfe: { Args: { p_nota_saida_id: string }; Returns: Json }
       norm_texto_ancora: { Args: { p_texto: string }; Returns: string }
       norm_txt: { Args: { p: string }; Returns: string }
       nota_entrada_belongs_to_tenant: {
