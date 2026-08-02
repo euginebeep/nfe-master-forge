@@ -152,6 +152,7 @@ export default function AnvisaCheckerPage() {
               alegacoes: p.alegacoes ?? null,
               substituicao_sugerida: p.substituicao_sugerida ?? null,
               proposta_funcional: p.proposta_funcional ?? null,
+              responsavel: p.responsavel ?? null,
               especie_declarada: p.especie_declarada ?? ativo?.especie_declarada ?? null,
               parte_vegetal: p.parte_vegetal ?? ativo?.parte_vegetal ?? null,
               tipo_extrato: p.tipo_extrato ?? ativo?.tipo_extrato ?? null,

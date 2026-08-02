@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode, FlaskConical } from 'lucide-react';
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE, validarAditivo, validarProbiotico } from "@/lib/anvisa-limits";
-import { estiloStatusParecer } from "@/lib/anvisa-avaliar-ativo";
+import { estiloStatusParecer, rotuloResponsavel } from "@/lib/anvisa-avaliar-ativo";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { useRTAtivo } from "@/hooks/use-rt-ativo";
@@ -339,7 +339,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                 <TableHead>Ativo/Ingrediente</TableHead>
                 <TableHead>Dose</TableHead>
                 <TableHead>Limite oficial</TableHead>
-                <TableHead>Referência</TableHead>
+                <TableHead>Quem age</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -354,14 +354,17 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                 const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
                 const limitLegacy = key ? ANVISA_LIMITS[key] : null;
                 let status = statusMotor;
+                let marcacao = String(parecer?.marcacao || (statusMotor ? 'VERIFICADO' : 'NAO_VERIFICADO'));
                 if (!status) {
                   status = 'PENDENTE_VERIFICACAO';
+                  marcacao = 'NAO_VERIFICADO';
                   if (limitLegacy) {
                     const doseNum = parseFloat(ativo.dose);
                     if (!limitLegacy.auth) status = 'NAO_AUTORIZADO';
                     else if (limitLegacy.max != null && doseNum > limitLegacy.max) status = 'PENDENTE_VERIFICACAO';
                     else if (doseNum < limitLegacy.min) status = 'PENDENTE_VERIFICACAO';
                     else status = 'APROVADO';
+                    marcacao = 'INFERIDO'; // veio do arquivo estático legado — não é fonte
                   }
                 }
                 const estilo = estiloStatusParecer(status);
@@ -372,11 +375,17 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                     : null)
                   || (limitLegacy?.max != null ? `${limitLegacy.max} ${limitLegacy.unit}` : '—');
                 const norma = parecer?.norma_referencia || limitLegacy?.norm || '—';
+                const responsavel = parecer?.responsavel || null;
 
                 return (
                   <TableRow key={i}>
                     <TableCell className="font-medium">
-                      <div>{nomeAtivo}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{nomeAtivo}</span>
+                        <Badge variant="outline" className="text-[10px] font-normal">
+                          {marcacao}
+                        </Badge>
+                      </div>
                       {parecer?.motivo && (
                         <p className="text-[11px] text-muted-foreground font-normal mt-1 whitespace-pre-wrap">
                           {parecer.motivo}
@@ -388,10 +397,13 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                           {parecer.proposta_funcional ? ` — ${parecer.proposta_funcional}` : ''}
                         </p>
                       )}
+                      <p className="text-[10px] text-muted-foreground mt-1">{norma}</p>
                     </TableCell>
                     <TableCell>{ativo.dose} {ativo.unit}</TableCell>
                     <TableCell className="text-xs">{limiteTexto}</TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground">{norma}</TableCell>
+                    <TableCell className="text-[11px] max-w-[140px]">
+                      {rotuloResponsavel(responsavel)}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={estilo.className}>
                         {estilo.label}

@@ -169,6 +169,16 @@ function buildComparativoRows(ativos: any[]): string {
         justificativa += ` — ${esc(parecer.proposta_funcional)}`;
       }
     }
+    if (parecer?.responsavel) {
+      const respMap: Record<string, string> = {
+        regra_da_anvisa_nao_negociavel: 'Regra da ANVISA — não negociável',
+        plataforma: 'Pendência da plataforma (não é decisão da RT)',
+        rt_do_tenant_confirma_vinculo: 'RT confirma vínculo do insumo',
+        formulador_ajusta_dose: 'Formulador ajusta dose',
+      };
+      const respLabel = respMap[String(parecer.responsavel)] || String(parecer.responsavel);
+      justificativa += ` · Quem age: ${esc(respLabel)}`;
+    }
 
     if (!parecer?.motivo) {
       if (removido) {

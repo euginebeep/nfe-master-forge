@@ -15,6 +15,20 @@ export type StatusParecerAtivo =
   | "AVALIAR_FITOTERAPICO"
   | "REPROVADO_ALEGACAO";
 
+/**
+ * Quem age — doutrina 01-principios.
+ * Só `rt_do_tenant_confirma_vinculo` é da RT, e só sobre o pó do galpão dela.
+ * Nunca pedir à RT que decida limite, órfão do painel ou norma não revisada.
+ */
+export type ResponsavelAvaliacao =
+  | "regra_da_anvisa_nao_negociavel"
+  | "plataforma"
+  | "rt_do_tenant_confirma_vinculo"
+  | "formulador_ajusta_dose";
+
+/** Marcação obrigatória de afirmação regulatória. */
+export type MarcacaoRegulatoria = "VERIFICADO" | "INFERIDO" | "NAO_VERIFICADO";
+
 export type AnvisaAvaliarAtivoResult = {
   status: StatusParecerAtivo | string;
   motivo?: string | null;
@@ -28,9 +42,26 @@ export type AnvisaAvaliarAtivoResult = {
   alegacoes?: unknown;
   substituicao_sugerida?: string | null;
   proposta_funcional?: string | null;
+  responsavel?: ResponsavelAvaliacao | string | null;
+  marcacao?: MarcacaoRegulatoria;
   /** Erro de transporte / RPC — não confundir com NAO_AUTORIZADO. */
   erro?: string | null;
 };
+
+export function rotuloResponsavel(responsavel: string | null | undefined): string {
+  switch (String(responsavel || "")) {
+    case "regra_da_anvisa_nao_negociavel":
+      return "Regra da ANVISA — não negociável";
+    case "plataforma":
+      return "Pendência da plataforma (não é decisão da RT)";
+    case "rt_do_tenant_confirma_vinculo":
+      return "RT confirma vínculo do insumo";
+    case "formulador_ajusta_dose":
+      return "Formulador ajusta dose";
+    default:
+      return responsavel ? String(responsavel) : "—";
+  }
+}
 
 /** Vocabulário do Checker (AUDIENCES) → grupo canônico do banco. */
 export function grupoDoPublicoChecker(publico: string | null | undefined): string {
@@ -97,6 +128,9 @@ export function aplicarPortaoBotanico(
   return {
     ...resultado,
     status: "PENDENTE_VERIFICACAO",
+    // Identidade do pó = aplicação por tenant — única fatia da RT.
+    responsavel: "rt_do_tenant_confirma_vinculo",
+    marcacao: "INFERIDO",
     motivo: [
       resultado.motivo,
       "Identidade botânica incompleta: informe espécie, parte vegetal, tipo de extrato e/ou padronização. Sem isso o status máximo é PENDENTE_VERIFICACAO.",
@@ -118,6 +152,8 @@ export async function rpcAnvisaAvaliarAtivo(params: {
       status: "PENDENTE_VERIFICACAO",
       motivo: "Nome do ativo vazio.",
       unidade_comparavel: false,
+      responsavel: "rt_do_tenant_confirma_vinculo",
+      marcacao: "NAO_VERIFICADO",
     };
   }
 
@@ -125,6 +161,7 @@ export async function rpcAnvisaAvaliarAtivo(params: {
   const dose = Number(params.dose);
   const unidade = (params.unidade || "mg").trim() || "mg";
 
+  // Nunca filtrar por homologado — regra da ANVISA não depende de assinatura da RT.
   const { data, error } = await (supabase as any).rpc("anvisa_avaliar_ativo", {
     p_nome: nome,
     p_dose: Number.isFinite(dose) ? dose : 0,
@@ -135,14 +172,20 @@ export async function rpcAnvisaAvaliarAtivo(params: {
   if (error) {
     return {
       status: "PENDENTE_VERIFICACAO",
-      motivo: `Falha ao avaliar no motor SQL: ${error.message}`,
+      motivo: `Falha ao avaliar no motor SQL: ${error.message}. Pendência da plataforma — não é decisão da RT.`,
       unidade_comparavel: false,
+      responsavel: "plataforma",
+      marcacao: "NAO_VERIFICADO",
       erro: error.message,
     };
   }
 
   const raw = (data ?? {}) as Record<string, unknown>;
   const status = String(raw.status || "PENDENTE_VERIFICACAO");
+  const responsavel =
+    (raw.responsavel as string | null)
+    || (raw.responsavel_acao as string | null)
+    || null;
 
   return {
     status,
@@ -160,6 +203,8 @@ export async function rpcAnvisaAvaliarAtivo(params: {
     alegacoes: raw.alegacoes,
     substituicao_sugerida: (raw.substituicao_sugerida as string | null) ?? null,
     proposta_funcional: (raw.proposta_funcional as string | null) ?? null,
+    responsavel,
+    marcacao: "VERIFICADO",
   };
 }
 
