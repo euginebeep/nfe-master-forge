@@ -117,6 +117,33 @@ export function rotuloResponsavel(responsavel: string | null | undefined): strin
   }
 }
 
+/**
+ * Guarda de UI: órfão do painel / limite não parseado é pendência da plataforma.
+ * Se o jsonb ainda trouxer texto antigo pedindo "decisão da RT", não mostre isso
+ * quando responsavel = plataforma (doutrina 01-principios / 06-erros §4).
+ */
+export function motivoParaUi(
+  parecer:
+    | { motivo?: string | null; responsavel?: string | null }
+    | null
+    | undefined,
+): string {
+  const motivo = String(parecer?.motivo || "").trim();
+  if (!motivo) return "";
+  if (String(parecer?.responsavel || "") !== "plataforma") return motivo;
+  if (!/decis[aã]o da\s*RT|exige (a )?RT/i.test(motivo)) return motivo;
+  return motivo
+    .replace(
+      /Exige decis[aã]o da RT[^.]*\.?/gi,
+      "Pendência da plataforma (fato sobre a norma — não é decisão da RT).",
+    )
+    .replace(
+      /decis[aã]o da RT/gi,
+      "pendência da plataforma",
+    )
+    .trim();
+}
+
 /** Vocabulário do Checker (AUDIENCES) → grupo canônico do banco. */
 export function grupoDoPublicoChecker(publico: string | null | undefined): string {
   const p = String(publico || "")

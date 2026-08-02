@@ -1,16 +1,10 @@
 import {
-  ANVISA_LIMITS,
-  VD_REFERENCE,
   calcPercentVD,
-  calcStatus,
-  calcDesvio,
   resolveAnvisaKey,
   arredondarValorNutricional,
   formatarPorcoesEmbalagem,
-  validarAditivo,
-  validarProbiotico,
 } from "@/lib/anvisa-limits";
-import { textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
+import { motivoParaUi, textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
 import { calcularCapsulasPorDose } from "@/lib/formulador-industrial-rules";
 
 const C = {
@@ -71,7 +65,10 @@ interface LaudoData {
   protocolo?: string | null;
   invalidado_motivo?: string | null;
   emitido_em?: string | null;
-  /** false quando anvisa_alegacoes_detalhadas está vazia — não renderizar bloco. */
+  /**
+   * Alegações oficiais vêm de anvisa_constituintes via motor (por ativo).
+   * anvisa_alegacoes_detalhadas vazia NÃO significa ausência de alegações.
+   */
   exibir_alegacoes?: boolean;
   alertas: Array<{ tipo: 'err' | 'warn' | 'ok' | 'info'; titulo: string; corpo: string }>;
   analise_ia: string;
@@ -143,26 +140,26 @@ function statusBadgeHTML(status: string) {
 function buildComparativoRows(ativos: any[]): string {
   return ativos.map((ativo: any) => {
     const nomeAtivo = ativo.nome || ativo.name || '-';
-    const key = (ativo.key || ativo.anvisaKey || resolveAnvisaKey(nomeAtivo) || '').toLowerCase();
-    const limit = key ? ANVISA_LIMITS[key] : null;
     const doseOriginal = Number(ativo.dose) || 0;
     const unitOriginal = ativo.unit || 'mg';
     const parecer = ativo.parecer;
-    const statusMotor = String(ativo.status_parecer || parecer?.status || '').toUpperCase();
-
-    // Motor SQL tem prioridade; legado ANVISA_LIMITS só como fallback de display.
-    let statusOriginal = statusMotor || (key ? calcStatus(key, doseOriginal, unitOriginal) : 'VERIFICAR');
-    const desvio = key ? calcDesvio(key, doseOriginal, unitOriginal) : null;
+    // Só o motor. Sem parecer → PENDENTE — nunca calcStatus(anvisa-limits).
+    const statusOriginal = String(
+      ativo.status_parecer || parecer?.status || 'PENDENTE_VERIFICACAO',
+    ).toUpperCase();
     const removido =
-      statusMotor === 'NAO_AUTORIZADO'
-      || statusMotor === 'REPROVADO_ALEGACAO'
-      || (limit && !limit.auth && !statusMotor);
+      statusOriginal === 'NAO_AUTORIZADO'
+      || statusOriginal === 'REPROVADO_ALEGACAO'
+      || statusOriginal === 'AVALIAR_FITOTERAPICO';
 
     let doseCorrigida = doseOriginal;
     let unitCorrigida = unitOriginal;
-    let justificativa = parecer?.motivo
-      ? esc(parecer.motivo)
-      : 'Sem alteração — em conformidade';
+    const motivoUi = motivoParaUi(parecer);
+    let justificativa = motivoUi
+      ? esc(motivoUi)
+      : (statusOriginal === 'APROVADO'
+        ? 'Sem alteração — em conformidade'
+        : 'Sem parecer do motor — não inventar limite estático');
 
     if (parecer?.substituicao_sugerida) {
       justificativa += ` · Substituição (proposta funcional): ${esc(parecer.substituicao_sugerida)}`;
@@ -181,20 +178,21 @@ function buildComparativoRows(ativos: any[]): string {
       justificativa += ` · Quem age: ${esc(respLabel)}`;
     }
 
-    if (!parecer?.motivo) {
-      if (removido) {
-        justificativa = `Não autorizado — ${esc(parecer?.norma_referencia || limit?.norm || 'não consta Anexo I IN 28/2018')}`;
-      } else if ((statusOriginal === 'BLOQUEADO' || statusOriginal === 'NAO_AUTORIZADO') && limit?.max != null) {
-        doseCorrigida = limit.max;
-        unitCorrigida = limit.unit;
-        justificativa = `Corrigido para o limite máximo — ${esc(limit.norm || 'IN 28/2018 Anexo IV')}`;
-      } else if (statusOriginal === 'ATENÇÃO' || statusOriginal === 'PENDENTE_VERIFICACAO') {
-        justificativa = desvio ? esc(desvio) : (parecer?.limite_texto ? esc(parecer.limite_texto) : 'Verificar dose / unidade comparável');
+    if (
+      !removido
+      && parecer?.unidade_comparavel
+      && parecer?.limite_max_oficial != null
+      && doseOriginal > Number(parecer.limite_max_oficial)
+    ) {
+      doseCorrigida = Number(parecer.limite_max_oficial);
+      unitCorrigida = parecer.unidade_oficial || unitOriginal;
+      if (!motivoUi) {
+        justificativa = `Acima do teto oficial do motor — ${esc(parecer.limite_texto || parecer.norma_referencia || 'limite oficial')}`;
       }
     }
 
     const corOriginal = statusPillStyle(
-      statusOriginal === 'NAO_AUTORIZADO' || statusOriginal === 'REPROVADO_ALEGACAO'
+      statusOriginal === 'NAO_AUTORIZADO' || statusOriginal === 'REPROVADO_ALEGACAO' || statusOriginal === 'AVALIAR_FITOTERAPICO'
         ? 'BLOQUEADO'
         : statusOriginal === 'PENDENTE_VERIFICACAO' || statusOriginal === 'APROVAVEL_COM_CORRECAO'
           ? 'ATENÇÃO'
@@ -221,10 +219,10 @@ function buildTabelaNutricionalOficial(
   porcoesPorEmbalagem: number,
   peso_por_capsula_mg?: number // Peso TOTAL da cápsula (ativos + excipientes), não apenas massa de ativos
 ): string {
+  // Excluir só o que o motor reprovou — nunca filtrar por ANVISA_LIMITS.auth.
   const ativosValidos = ativos.filter((a: any) => {
-    const key = (a.key || a.anvisaKey || resolveAnvisaKey(a.nome || a.name || '') || '').toLowerCase();
-    const limit = key ? ANVISA_LIMITS[key] : null;
-    return !(limit && !limit.auth);
+    const st = String(a.status_parecer || a.parecer?.status || '').toUpperCase();
+    return !['NAO_AUTORIZADO', 'REPROVADO_ALEGACAO', 'AVALIAR_FITOTERAPICO'].includes(st);
   });
 
   const nutrientesCore = [
@@ -252,18 +250,21 @@ function buildTabelaNutricionalOficial(
   const linhasAtivosHTML = ativosValidos.map((ativo: any, i: number) => {
     const nomeAtivo = ativo.nome || ativo.name || '-';
     const key = (ativo.key || ativo.anvisaKey || resolveAnvisaKey(nomeAtivo) || '').toLowerCase();
-    const limit = key ? ANVISA_LIMITS[key] : null;
+    const parecer = ativo.parecer;
     let dose = Number(ativo.dose) || 0;
     let unit = ativo.unit || 'mg';
 
-    if (limit && limit.auth && limit.max != null) {
-      const status = key ? calcStatus(key, dose, unit) : 'APROVADO';
-      if (status === 'BLOQUEADO') {
-        dose = limit.max;
-        unit = limit.unit;
-      }
+    // Clamp só com teto oficial do motor (unidade comparável).
+    if (
+      parecer?.unidade_comparavel
+      && parecer?.limite_max_oficial != null
+      && dose > Number(parecer.limite_max_oficial)
+    ) {
+      dose = Number(parecer.limite_max_oficial);
+      unit = parecer.unidade_oficial || unit;
     }
 
+    // %VD: cache de referência — não decide autorização.
     const percentVD = key ? calcPercentVD(key, dose, unit) : '**';
     const valPorcao = arredondarValorNutricional(dose, unit);
     const isLast = i === ativosValidos.length - 1;
@@ -543,53 +544,42 @@ function buildResumoExecutivo(produtos: ProdutoItem[], protocoloRef: string): st
 }
 
 // ─── Bloco individual por produto ─────────────────────────────────────────────
+/** Advertências/rotulagem do motor — sem revalidar em anvisa-limits.ts. */
 function buildSecaoAditivosProbioticos(produto: ProdutoItem): string {
   const ativos = (produto.ativos || []) as any[];
-  if (ativos.length === 0) return '';
-
-  const aditivosDetectados: string[] = [];
-  const probioticosDetectados: string[] = [];
-
-  for (const a of ativos) {
+  const cards = ativos.flatMap((a) => {
     const nome = a?.nome || a?.name || '';
-    if (!nome) continue;
+    const p = a?.parecer;
+    if (!nome || !p) return [] as string[];
+    const avisos = [
+      ...textosDoCampoNormativo(p.rotulagem_complementar),
+      ...textosDoCampoNormativo(p.advertencias),
+    ];
+    if (avisos.length === 0) return [] as string[];
+    const st = String(p.status || '').toUpperCase();
+    const cor =
+      ['NAO_AUTORIZADO', 'REPROVADO_ALEGACAO', 'AVALIAR_FITOTERAPICO'].includes(st)
+        ? C.red
+        : st === 'APROVADO'
+          ? C.green
+          : C.amber;
+    return [
+      `<div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${cor};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">` +
+      `<strong>${esc(nome)}</strong> — ${esc(st || 'PENDENTE')}` +
+      (p.norma_referencia ? ` (${esc(p.norma_referencia)})` : '') +
+      `<br/><span style="font-size:8.5pt;color:${C.gray};">${esc(avisos.join(' · '))}</span></div>`,
+    ];
+  });
 
-    // Probiótico?
-    const prob = validarProbiotico(nome);
-    if (prob.eProbiotico) {
-      const status = prob.info ? 'AUTORIZADO' : 'VERIFICAR';
-      const cor = prob.info ? C.green : C.amber;
-      probioticosDetectados.push(
-        `<div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${cor};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">` +
-        `<strong>${esc(nome)}</strong> — ${status} (RDC 241/2018)<br/>` +
-        `<span style="font-size:8.5pt;color:${C.gray};">${esc(prob.avisoRotulo || '')}</span></div>`
-      );
-      continue;
-    }
-
-    // Aditivo/excipiente?
-    const adt = validarAditivo(nome);
-    if (adt.encontrado && adt.info) {
-      const cor = adt.info.auth ? C.green : C.amber;
-      const status = adt.info.auth ? 'AUTORIZADO' : 'VERIFICAR';
-      aditivosDetectados.push(
-        `<div style="background:${C.navyLight};border:1px solid ${C.border};border-left:4px solid ${cor};padding:9px 14px;border-radius:6px;font-size:9pt;color:${C.textDark};">` +
-        `<strong>${esc(nome)}</strong> — ${esc(adt.info.funcao)} — ${status} (${esc(adt.info.norm)})` +
-        `${adt.info.obs ? `<br/><span style="font-size:8.5pt;color:${C.gray};">${esc(adt.info.obs)}</span>` : ''}</div>`
-      );
-    }
-  }
-
-  if (aditivosDetectados.length === 0 && probioticosDetectados.length === 0) return '';
+  if (cards.length === 0) return '';
 
   return `
     <section>
-      <h2 class="section">Aditivos e Probióticos (RDC 239/2018 e RDC 241/2018)</h2>
+      <h2 class="section">Advertências oficiais por ativo (motor)</h2>
       <div style="display:flex;flex-direction:column;gap:6px;">
-        ${probioticosDetectados.length > 0 ? `<div style="font-size:9pt;font-weight:700;color:${C.navy};margin-bottom:2px;">Probióticos — RDC 241/2018</div>${probioticosDetectados.join('')}` : ''}
-        ${aditivosDetectados.length > 0 ? `<div style="font-size:9pt;font-weight:700;color:${C.navy};margin:6px 0 2px;">Aditivos e coadjuvantes — RDC 239/2018</div>${aditivosDetectados.join('')}` : ''}
+        ${cards.join('')}
       </div>
-      <p style="font-size:8pt;color:${C.gray};margin-top:6px;">Excipientes não listados devem ser verificados manualmente pelo Responsável Técnico contra a RDC 239/2018. Cepas probióticas exigem dossiê de segurança/benefício e contagem viável (UFC) por porção conforme RDC 241/2018.</p>
+      <p style="font-size:8pt;color:${C.gray};margin-top:6px;">Texto de anvisa_constituintes via anvisa_avaliar_* — não reavaliado no frontend.</p>
     </section>`;
 }
 
