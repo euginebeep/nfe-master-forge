@@ -460,6 +460,13 @@ export default function EmissorNFePage() {
   const [transmitindoPosSalvar, setTransmitindoPosSalvar] = useState(false);
   const [carregandoEdicao, setCarregandoEdicao] = useState(!!editId);
   const editLoadedRef = useRef<string | null>(null);
+  /** Operação fiscal identificada ao abrir a edição — para alertar troca silenciosa */
+  const [operacaoOriginalEdicao, setOperacaoOriginalEdicao] = useState<{
+    codigo: string;
+    descricao: string;
+    cfop: string;
+    natureza: string;
+  } | null>(null);
   const [itensExpandidos, setItensExpandidos] = useState<Set<number>>(() => new Set([0]));
   const [notaEntradaDevolucaoId, setNotaEntradaDevolucaoId] = useState("");
   const [itensDevolviveis, setItensDevolviveis] = useState<any[]>([]);
@@ -632,6 +639,40 @@ export default function EmissorNFePage() {
         }
         const itensDb = ((nota as any).notas_saida_itens || []) as any[];
         itensDb.sort((a, b) => Number(a.numero_item || 0) - Number(b.numero_item || 0));
+
+        // tipo_operacao é tpNF (0/1), NÃO o código de operacoes_fiscais_saida.
+        // Derivar a operação por CFOP + finalidade (+ natureza). Nunca fallback VENDA_PRODUCAO.
+        const { data: opsCatalogo, error: opsErr } = await (supabase as any)
+          .from("operacoes_fiscais_saida")
+          .select("codigo, descricao, natureza_operacao, cfop_interno, cfop_interestadual, finalidade")
+          .eq("ativo", true);
+        if (opsErr) throw opsErr;
+        const cfopDaNota = itensDb[0]?.cfop != null ? String(itensDb[0].cfop) : "";
+        const finalidadeNota = String(nota.finalidade ?? "");
+        const naturezaNota = String(nota.natureza_operacao || "");
+        const ops = (opsCatalogo || []) as OperacaoFiscalSaida[];
+        const opEncontrada =
+          ops.find((o) =>
+            (String(o.cfop_interno || "") === cfopDaNota || String(o.cfop_interestadual || "") === cfopDaNota)
+            && String(o.finalidade ?? "") === finalidadeNota,
+          )
+          ?? ops.find((o) => String(o.natureza_operacao || "") === naturezaNota);
+
+        if (!opEncontrada) {
+          toast.error(
+            `Não foi possível identificar a operação fiscal desta nota `
+            + `(CFOP ${cfopDaNota || "—"}, natureza "${naturezaNota || "—"}"). `
+            + `Selecione a operação antes de salvar.`,
+          );
+        }
+
+        setOperacaoOriginalEdicao({
+          codigo: opEncontrada?.codigo || "",
+          descricao: opEncontrada?.descricao || naturezaNota || "desconhecida",
+          cfop: cfopDaNota || opEncontrada?.cfop_interno || "",
+          natureza: naturezaNota || opEncontrada?.natureza_operacao || "",
+        });
+
         const mappedItens: NotaItem[] = itensDb.map((it) => {
           const rastros: RastroLote[] = it.lote_id || it.rastro_n_lote ? [{
             lote_id: String(it.lote_id || ""),
@@ -683,21 +724,29 @@ export default function EmissorNFePage() {
         });
         const parcelas = ((nota as any).notas_saida_parcelas || []) as any[];
         parcelas.sort((a, b) => Number(a.numero_parcela || 0) - Number(b.numero_parcela || 0));
+
+        // Frete/desconto/seguro/outras na nota são a SOMA do rateio dos itens na devolução.
+        // Se os itens já trazem rateio, o campo global fica zerado para não dobrar.
+        const temFreteNosItens = mappedItens.some((i) => Number(i.valor_frete) > 0);
+        const temSeguroNosItens = mappedItens.some((i) => Number(i.valor_seguro) > 0);
+        const temDescontoNosItens = mappedItens.some((i) => Number(i.valor_desconto) > 0);
+        const temOutrosNosItens = mappedItens.some((i) => Number(i.valor_outros) > 0);
+
         setDraft({
           ...createInitialNfeDraft(),
           activeTab: "operacao",
-          operacaoFiscalCodigo: String(nota.tipo_operacao || "VENDA_PRODUCAO"),
-          naturezaOperacao: String(nota.natureza_operacao || "Venda de produto do estabelecimento"),
+          operacaoFiscalCodigo: opEncontrada?.codigo ?? "",
+          naturezaOperacao: naturezaNota || opEncontrada?.natureza_operacao || "",
           chaveReferenciada: String(nota.nfe_referenciada_chave || "").replace(/\D/g, "").slice(0, 44),
-          finalidadeEmissao: String(nota.finalidade || "1"),
+          finalidadeEmissao: finalidadeNota || String(opEncontrada?.finalidade || "") || "1",
           clienteId: String(nota.cliente_id || ""),
           modalidadeFrete: String(nota.modalidade_frete || "9"),
           meioPagamento: String(nota.meio_pagamento || "99"),
           infoAdicionais: String(nota.informacoes_adicionais || ""),
-          valorFrete: Number(nota.valor_frete || 0),
-          valorSeguro: Number(nota.valor_seguro || 0),
-          valorDesconto: Number(nota.valor_desconto || 0),
-          valorOutros: Number(nota.valor_outras_despesas || 0),
+          valorFrete: temFreteNosItens ? 0 : Number(nota.valor_frete || 0),
+          valorSeguro: temSeguroNosItens ? 0 : Number(nota.valor_seguro || 0),
+          valorDesconto: temDescontoNosItens ? 0 : Number(nota.valor_desconto || 0),
+          valorOutros: temOutrosNosItens ? 0 : Number(nota.valor_outras_despesas || 0),
           serie: Number(nota.serie || 1) || 1,
           modelo: String(nota.modelo || "55"),
           tpEmis: nota.tp_emis != null ? String(nota.tp_emis) : "1",
@@ -793,10 +842,12 @@ export default function EmissorNFePage() {
 
   const operacaoSelecionada = useMemo(() => {
     if (!operacoesFiscais?.length) return null;
-    return operacoesFiscais.find((op) => op.codigo === operacaoFiscalCodigo)
-      || operacoesFiscais.find((op) => op.codigo === "VENDA_PRODUCAO")
-      || operacoesFiscais[0];
-  }, [operacoesFiscais, operacaoFiscalCodigo]);
+    const byCodigo = operacoesFiscais.find((op) => op.codigo === operacaoFiscalCodigo);
+    if (byCodigo) return byCodigo;
+    // Edição ou código explícito inválido: nunca inventar VENDA_PRODUCAO (converte devolução em venda)
+    if (editId || operacaoFiscalCodigo) return null;
+    return operacoesFiscais.find((op) => op.codigo === "VENDA_PRODUCAO") || null;
+  }, [operacoesFiscais, operacaoFiscalCodigo, editId]);
 
   const cfopOperacao = useMemo(() => {
     if (!operacaoSelecionada) return "";
@@ -849,13 +900,18 @@ export default function EmissorNFePage() {
   })();
 
   useEffect(() => {
+    if (carregandoEdicao) return;
     if (!operacoesFiscais?.length || !operacaoSelecionada) return;
+    // Em edição com código vazio (não identificado), não forçar fallback
+    if (editId && !operacaoFiscalCodigo) return;
     if (operacaoFiscalCodigo !== operacaoSelecionada.codigo) {
       setOperacaoFiscalCodigo(operacaoSelecionada.codigo);
     }
-  }, [operacoesFiscais, operacaoSelecionada?.codigo]);
+  }, [operacoesFiscais, operacaoSelecionada?.codigo, operacaoFiscalCodigo, editId, carregandoEdicao]);
 
   useEffect(() => {
+    // Evita reescrever CFOP/finalidade com VENDA_PRODUCAO enquanto a nota ainda carrega
+    if (carregandoEdicao) return;
     if (!operacaoSelecionada) return;
     if (naturezaOperacao !== operacaoSelecionada.natureza_operacao) {
       setNaturezaOperacao(operacaoSelecionada.natureza_operacao);
@@ -866,7 +922,7 @@ export default function EmissorNFePage() {
     if (cfopOperacao) {
       setItens((prev) => prev.map((item) => item.cfop === cfopOperacao ? item : { ...item, cfop: cfopOperacao }));
     }
-  }, [operacaoSelecionada?.codigo, cfopOperacao]);
+  }, [operacaoSelecionada?.codigo, cfopOperacao, carregandoEdicao]);
 
   // Auto-set indIEDest when client changes
   useEffect(() => {
@@ -1126,19 +1182,32 @@ export default function EmissorNFePage() {
     setDuplicatas(prev => { const u = [...prev]; u[idx] = { ...u[idx], [field]: value }; return u; });
   };
 
-  const totais = useMemo(() => ({
-    produtos: itens.reduce((s, i) => s + (Number(i.quantidade) * Number(i.valor_unitario) || 0), 0),
-    desconto: itens.reduce((s, i) => s + (i.valor_desconto || 0), 0) + valorDesconto,
-    frete: itens.reduce((s, i) => s + (i.valor_frete || 0), 0) + valorFrete,
-    seguro: itens.reduce((s, i) => s + (i.valor_seguro || 0), 0) + valorSeguro,
-    outros: itens.reduce((s, i) => s + (i.valor_outros || 0), 0) + valorOutros,
-    icms_base: itens.reduce((s, i) => s + (i.icms_base || 0), 0),
-    icms: itens.reduce((s, i) => s + (i.icms_valor || 0), 0),
-    ipi: itens.reduce((s, i) => s + (i.ipi_valor || 0), 0),
-    pis: itens.reduce((s, i) => s + (i.pis_valor || 0), 0),
-    cofins: itens.reduce((s, i) => s + (i.cofins_valor || 0), 0),
-    get nota() { return this.produtos - this.desconto + this.frete + this.seguro + this.outros + this.ipi; },
-  }), [itens, valorDesconto, valorFrete, valorSeguro, valorOutros]);
+  // Frete/desconto/seguro/outras: na devolução o XML é rateado por item e o total da nota
+  // é a soma desse rateio. Somar campo global + itens dobra o valor.
+  const totais = useMemo(() => {
+    const freteItens = itens.reduce((s, i) => s + (Number(i.valor_frete) || 0), 0);
+    const descontoItens = itens.reduce((s, i) => s + (Number(i.valor_desconto) || 0), 0);
+    const seguroItens = itens.reduce((s, i) => s + (Number(i.valor_seguro) || 0), 0);
+    const outrosItens = itens.reduce((s, i) => s + (Number(i.valor_outros) || 0), 0);
+    return {
+      produtos: itens.reduce((s, i) => s + (Number(i.quantidade) * Number(i.valor_unitario) || 0), 0),
+      desconto: descontoItens > 0 ? descontoItens : Number(valorDesconto) || 0,
+      frete: freteItens > 0 ? freteItens : Number(valorFrete) || 0,
+      seguro: seguroItens > 0 ? seguroItens : Number(valorSeguro) || 0,
+      outros: outrosItens > 0 ? outrosItens : Number(valorOutros) || 0,
+      icms_base: itens.reduce((s, i) => s + (i.icms_base || 0), 0),
+      icms: itens.reduce((s, i) => s + (i.icms_valor || 0), 0),
+      ipi: itens.reduce((s, i) => s + (i.ipi_valor || 0), 0),
+      pis: itens.reduce((s, i) => s + (i.pis_valor || 0), 0),
+      cofins: itens.reduce((s, i) => s + (i.cofins_valor || 0), 0),
+      get nota() { return this.produtos - this.desconto + this.frete + this.seguro + this.outros + this.ipi; },
+    };
+  }, [itens, valorDesconto, valorFrete, valorSeguro, valorOutros]);
+
+  const freteRateadoNosItens = itens.some((i) => Number(i.valor_frete) > 0);
+  const descontoRateadoNosItens = itens.some((i) => Number(i.valor_desconto) > 0);
+  const seguroRateadoNosItens = itens.some((i) => Number(i.valor_seguro) > 0);
+  const outrosRateadoNosItens = itens.some((i) => Number(i.valor_outros) > 0);
 
   const gerarParcelaPadraoCliente = () => {
     const prazo = Number((cliente as any)?.prazo_pagamento_padrao_dias);
@@ -1303,7 +1372,8 @@ export default function EmissorNFePage() {
         p_observacao: infoAdicionais || null,
         p_chave_referenciada: chaveReferenciada.replace(/\D/g, "") || null,
         p_modalidade_frete: modalidadeFrete,
-        p_valor_frete: Number(valorFrete) || 0,
+        // Preferir soma do rateio dos itens (devolução); campo global só quando não há rateio
+        p_valor_frete: totais.frete,
       };
 
       // Edição: atualizar_nota_saida preserva o ID e a trilha de tentativas (transação no banco).
@@ -1509,6 +1579,31 @@ export default function EmissorNFePage() {
             >
               Limpar e começar do zero
             </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {editId && operacaoOriginalEdicao?.codigo && operacaoFiscalCodigo
+        && operacaoFiscalCodigo !== operacaoOriginalEdicao.codigo && (
+        <Alert variant="destructive" className="mb-1">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>A operação fiscal será alterada</AlertTitle>
+          <AlertDescription>
+            Esta nota era <b>{operacaoOriginalEdicao.descricao}</b>
+            {" "}(CFOP {operacaoOriginalEdicao.cfop || "—"}) e passará a ser{" "}
+            <b>{operacaoSelecionada?.descricao || operacaoFiscalCodigo}</b>
+            {" "}(CFOP {cfopOperacao || "—"}). Isso muda a natureza fiscal do documento.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {editId && !operacaoSelecionada && !carregandoEdicao && (
+        <Alert variant="destructive" className="mb-1">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Operação fiscal não identificada</AlertTitle>
+          <AlertDescription>
+            Selecione a operação correta antes de atualizar a nota. Salvar sem operação
+            identificada é bloqueado para evitar converter devolução em venda.
           </AlertDescription>
         </Alert>
       )}
@@ -1876,10 +1971,60 @@ export default function EmissorNFePage() {
                 <CardHeader className="py-3 px-4"><CardTitle className="text-sm text-primary">VALORES GLOBAIS DA NOTA</CardTitle></CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="grid grid-cols-4 gap-3">
-                    <div><Label className="text-xs">Frete (R$)</Label><Input type="number" step="0.01" value={valorFrete} onChange={e => setValorFrete(Number(e.target.value))} className="text-xs" /></div>
-                    <div><Label className="text-xs">Seguro (R$)</Label><Input type="number" step="0.01" value={valorSeguro} onChange={e => setValorSeguro(Number(e.target.value))} className="text-xs" /></div>
-                    <div><Label className="text-xs">Desconto (R$)</Label><Input type="number" step="0.01" value={valorDesconto} onChange={e => setValorDesconto(Number(e.target.value))} className="text-xs" /></div>
-                    <div><Label className="text-xs">Outras Desp. (R$)</Label><Input type="number" step="0.01" value={valorOutros} onChange={e => setValorOutros(Number(e.target.value))} className="text-xs" /></div>
+                    <div>
+                      <Label className="text-xs">Frete (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={freteRateadoNosItens ? totais.frete : valorFrete}
+                        onChange={e => setValorFrete(Number(e.target.value))}
+                        readOnly={freteRateadoNosItens}
+                        className={`text-xs ${freteRateadoNosItens ? "bg-muted" : ""}`}
+                      />
+                      {freteRateadoNosItens && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Frete rateado por item, espelhado da nota de origem.
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs">Seguro (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={seguroRateadoNosItens ? totais.seguro : valorSeguro}
+                        onChange={e => setValorSeguro(Number(e.target.value))}
+                        readOnly={seguroRateadoNosItens}
+                        className={`text-xs ${seguroRateadoNosItens ? "bg-muted" : ""}`}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Desconto (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={descontoRateadoNosItens ? totais.desconto : valorDesconto}
+                        onChange={e => setValorDesconto(Number(e.target.value))}
+                        readOnly={descontoRateadoNosItens}
+                        className={`text-xs ${descontoRateadoNosItens ? "bg-muted" : ""}`}
+                      />
+                      {descontoRateadoNosItens && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Desconto rateado por item, espelhado da nota de origem.
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs">Outras Desp. (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={outrosRateadoNosItens ? totais.outros : valorOutros}
+                        onChange={e => setValorOutros(Number(e.target.value))}
+                        readOnly={outrosRateadoNosItens}
+                        className={`text-xs ${outrosRateadoNosItens ? "bg-muted" : ""}`}
+                      />
+                    </div>
                   </div>
                   <Separator />
                   <div className="grid grid-cols-3 gap-2 text-xs">
