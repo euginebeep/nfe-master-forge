@@ -1056,17 +1056,24 @@ export type Database = {
           company_id: string
           criado_em: string | null
           criado_por: string | null
+          emitido_em: string | null
           id: string
+          invalidado_em: string | null
+          invalidado_motivo: string | null
+          invalidado_por: string | null
           logo_empresa_url: string | null
           logo_rt_url: string | null
           payload_entrada: Json | null
           produto: string
+          protocolo: string | null
           resultado_ia: Json | null
           rt_crf: string | null
           rt_estado: string | null
           rt_nome: string | null
           rt_snapshot_at: string | null
           status_geral: string | null
+          /** PRELIMINAR · VALIDADO_RT · INVALIDADO — validade do papel, não o parecer da fórmula */
+          status_validacao: string | null
         }
         Insert: {
           cliente?: string | null
@@ -1075,17 +1082,23 @@ export type Database = {
           company_id: string
           criado_em?: string | null
           criado_por?: string | null
+          emitido_em?: string | null
           id?: string
+          invalidado_em?: string | null
+          invalidado_motivo?: string | null
+          invalidado_por?: string | null
           logo_empresa_url?: string | null
           logo_rt_url?: string | null
           payload_entrada?: Json | null
           produto: string
+          protocolo?: string | null
           resultado_ia?: Json | null
           rt_crf?: string | null
           rt_estado?: string | null
           rt_nome?: string | null
           rt_snapshot_at?: string | null
           status_geral?: string | null
+          status_validacao?: string | null
         }
         Update: {
           cliente?: string | null
@@ -1094,17 +1107,23 @@ export type Database = {
           company_id?: string
           criado_em?: string | null
           criado_por?: string | null
+          emitido_em?: string | null
           id?: string
+          invalidado_em?: string | null
+          invalidado_motivo?: string | null
+          invalidado_por?: string | null
           logo_empresa_url?: string | null
           logo_rt_url?: string | null
           payload_entrada?: Json | null
           produto?: string
+          protocolo?: string | null
           resultado_ia?: Json | null
           rt_crf?: string | null
           rt_estado?: string | null
           rt_nome?: string | null
           rt_snapshot_at?: string | null
           status_geral?: string | null
+          status_validacao?: string | null
         }
         Relationships: []
       }

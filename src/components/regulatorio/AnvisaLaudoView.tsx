@@ -9,6 +9,7 @@ import { ANVISA_LIMITS, VD_REFERENCE, validarAditivo, validarProbiotico } from "
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { useRTAtivo } from "@/hooks/use-rt-ativo";
+import { useAlegacoesBasePopulada } from "@/hooks/use-alegacoes-base-populada";
 import { ResolverInsumosLaudoDialog } from "@/components/regulatorio/ResolverInsumosLaudoDialog";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +46,14 @@ interface AnvisaLaudoViewProps {
     cliente_logo_url?: string | null;
     ativos: any[];
     multiplos_produtos?: any[];
+    /** Validade do papel — distinto de status_geral (parecer da fórmula) */
+    status_validacao?: string | null;
+    invalidado_motivo?: string | null;
+    invalidado_em?: string | null;
+    protocolo?: string | null;
+    emitido_em?: string | null;
+    rt_nome?: string | null;
+    rt_crf?: string | null;
   };
   onReset: () => void;
   onSelectProduct?: (produto: any) => void;
@@ -55,18 +64,42 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
   const produtosUnicos = uniqueProductsByName(data.multiplos_produtos || []);
   const { data: company } = useCompanyBranding();
   const { data: rt } = useRTAtivo();
+  const { data: alegacoesBaseOk } = useAlegacoesBasePopulada();
   const [resolverOpen, setResolverOpen] = React.useState(false);
-  
+
   const isMultiproduto = produtosUnicos.length > 1;
+  const statusValidacao = String(data.status_validacao || "PRELIMINAR").toUpperCase();
+  const ehLaudoValido = statusValidacao === "VALIDADO_RT";
+  const ehInvalidado = statusValidacao === "INVALIDADO";
+  const tituloDocumento = ehLaudoValido
+    ? "Laudo de Conformidade Regulatória"
+    : "Parecer preliminar — sem valor de laudo técnico";
+  const motivoRebaixamento =
+    data.invalidado_motivo
+    && String(data.invalidado_motivo).startsWith("Rebaixado automaticamente na emissão")
+      ? data.invalidado_motivo
+      : null;
+  const mostrarAlegacoes = !!alegacoesBaseOk;
 
   const handleExportLaudo = () => {
     try {
-      if (!rt) {
-        toast.warning("Nenhum RT ativo cadastrado. O laudo será gerado sem assinatura.");
+      if (ehInvalidado) {
+        toast.error("Documento INVALIDADO — download bloqueado. Motivo: " + (data.invalidado_motivo || "—"));
+        return;
+      }
+      if (!rt && !data.rt_nome) {
+        toast.error("Cadastre um responsável técnico ativo antes de emitir.");
+        return;
       }
       exportLaudoA4({
         ...data,
-        // Para multiproduto, passa todos os produtos para gerar capa + resumo executivo + blocos individuais
+        status_validacao: statusValidacao,
+        invalidado_motivo: data.invalidado_motivo || undefined,
+        protocolo: data.protocolo || undefined,
+        emitido_em: data.emitido_em || undefined,
+        exibir_alegacoes: mostrarAlegacoes,
+        alegacoes_permitidas: mostrarAlegacoes ? (data.alegacoes_permitidas || []) : [],
+        alegacoes_proibidas: mostrarAlegacoes ? (data.alegacoes_proibidas || []) : [],
         multiplos_produtos: isMultiproduto ? produtosUnicos : data.multiplos_produtos,
         company: company ? {
           razao_social: company.razao_social,
@@ -75,7 +108,12 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
           cnpj: company.cnpj,
           endereco: company.endereco
         } : undefined,
-        rt: rt ? {
+        rt: data.rt_nome ? {
+          nome_completo: data.rt_nome,
+          tipo_conselho: (data.rt_crf || "").split(" ")[0] || "CRF",
+          numero_registro: data.rt_crf || "",
+          uf_conselho: "",
+        } : rt ? {
           nome_completo: rt.nome_completo,
           tipo_conselho: rt.tipo_conselho,
           numero_registro: rt.numero_registro,
@@ -83,11 +121,11 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         } : null
       });
       const msg = isMultiproduto
-        ? `Laudo multiproduto gerado (${produtosUnicos.length} produtos). Use 'Salvar como PDF'.`
-        : "Laudo gerado. Use 'Salvar como PDF' na janela de impressão.";
+        ? `Documento multiproduto gerado (${produtosUnicos.length} produtos). Use 'Salvar como PDF'.`
+        : "Documento gerado. Use 'Salvar como PDF' na janela de impressão.";
       toast.success(msg);
     } catch (e: any) {
-      toast.error("Falha ao gerar laudo: " + (e?.message || 'erro'));
+      toast.error("Falha ao gerar documento: " + (e?.message || 'erro'));
     }
   };
 
@@ -108,12 +146,18 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center print:hidden">
-        <h2 className="text-xl font-bold">Laudo de Conformidade</h2>
+        <h2 className="text-xl font-bold">{ehLaudoValido ? "Laudo de Conformidade" : "Parecer preliminar"}</h2>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
-          <Button variant="default" size="sm" onClick={handleExportLaudo}>
+          <Button variant="outline" size="sm" onClick={handlePrint} disabled={ehInvalidado}>
+            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          </Button>
+          <Button variant="default" size="sm" onClick={handleExportLaudo} disabled={ehInvalidado}>
             <FileDown className="w-4 h-4 mr-2" />
-            {isMultiproduto ? `Exportar Laudo Completo (${produtosUnicos.length} produtos)` : 'Exportar Laudo (A4/PDF)'}
+            {ehInvalidado
+              ? "PDF bloqueado (INVALIDADO)"
+              : isMultiproduto
+                ? `Exportar documento (${produtosUnicos.length} produtos)`
+                : "Exportar PDF (A4)"}
           </Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink}><Copy className="w-4 h-4 mr-2" /> Copiar link</Button>
           <Button variant="secondary" size="sm" onClick={() => setResolverOpen(true)}><FlaskConical className="w-4 h-4 mr-2" /> Criar fórmula a partir deste laudo</Button>
@@ -133,7 +177,26 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         }))}
       />
 
-      <div id="laudo-content" className="space-y-8 bg-background p-8 border rounded-lg shadow-sm">
+      <div id="laudo-content" className="space-y-8 bg-background p-8 border rounded-lg shadow-sm relative overflow-hidden">
+        {ehInvalidado && (
+          <div className="rounded-md border-2 border-destructive bg-destructive/10 px-4 py-3 text-destructive space-y-1">
+            <p className="font-bold uppercase tracking-wide text-sm">Documento INVALIDADO</p>
+            {data.invalidado_motivo && (
+              <p className="text-sm">{data.invalidado_motivo}</p>
+            )}
+            {data.invalidado_em && (
+              <p className="text-xs opacity-80">
+                Em {new Date(data.invalidado_em).toLocaleString("pt-BR")}
+              </p>
+            )}
+          </div>
+        )}
+        {motivoRebaixamento && !ehInvalidado && (
+          <div className="rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-amber-900 dark:text-amber-100 text-sm">
+            <p className="font-semibold">Emitido como preliminar</p>
+            <p>{motivoRebaixamento}</p>
+          </div>
+        )}
         {produtosUnicos.length > 1 && (
           <section className="print:hidden mb-8 border-b pb-6">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -181,8 +244,11 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
               {company?.endereco || ""}
             </p>
           )}
-          <h1 className="text-3xl font-bold tracking-tight pt-2">Laudo de Conformidade Regulatória</h1>
+          <h1 className="text-3xl font-bold tracking-tight pt-2">{tituloDocumento}</h1>
           <p className="text-muted-foreground">Módulo ANVISA Checker · RDC 429/2020 · IN 75/2020 · RDC 243/2018 · IN 28/2018</p>
+          {data.protocolo && (
+            <p className="text-sm font-mono font-semibold pt-1">Protocolo {data.protocolo}</p>
+          )}
         </section>
 
         <section className="grid md:grid-cols-2 gap-8">
@@ -190,12 +256,37 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Dados do Produto</h3>
             <p className="text-lg font-bold">{data.produto}</p>
             {data.cliente && <p className="text-sm">Cliente: {data.cliente}</p>}
+            {(data.rt_nome || data.rt_crf) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                RT: {data.rt_nome}{data.rt_crf ? ` · ${data.rt_crf}` : ""}
+              </p>
+            )}
           </div>
-          <div className="text-right">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Status Geral</h3>
-            <Badge className={`text-sm px-4 py-1 font-bold ${getStatusColor(data.status_geral)}`}>
-              {data.status_geral}
-            </Badge>
+          <div className="text-right space-y-3">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Parecer da fórmula
+              </h3>
+              <Badge className={`text-sm px-4 py-1 font-bold ${getStatusColor(data.status_geral)}`}>
+                {data.status_geral}
+              </Badge>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Validade do documento
+              </h3>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-sm px-4 py-1 font-bold",
+                  ehLaudoValido && "border-green-600 text-green-700",
+                  ehInvalidado && "border-destructive text-destructive",
+                  !ehLaudoValido && !ehInvalidado && "border-amber-500 text-amber-700",
+                )}
+              >
+                {statusValidacao}
+              </Badge>
+            </div>
           </div>
         </section>
 
@@ -413,27 +504,29 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
           </Card>
         </section>
 
-        <section className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold border-l-4 border-green-500 pl-3">Alegações Permitidas</h3>
-            <ul className="space-y-2">
-              {data.alegacoes_permitidas.map((al, i) => (
-                <li key={i} className="flex gap-2 text-sm items-start"><CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" /> {al}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold border-l-4 border-red-500 pl-3">Alegações Proibidas</h3>
-            <ul className="space-y-2">
-              {data.alegacoes_proibidas.map((al, i) => (
-                <li key={i} className="flex gap-2 text-sm items-start"><AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> {al}</li>
-              ))}
-              {data.avisos_rotulo.map((av, i) => (
-                <li key={`av-${i}`} className="flex gap-2 text-sm items-start font-semibold"><Info className="w-4 h-4 text-primary mt-0.5 shrink-0" /> {av}</li>
-              ))}
-            </ul>
-          </div>
-        </section>
+        {mostrarAlegacoes && (
+          <section className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold border-l-4 border-green-500 pl-3">Alegações Permitidas</h3>
+              <ul className="space-y-2">
+                {(data.alegacoes_permitidas || []).map((al, i) => (
+                  <li key={i} className="flex gap-2 text-sm items-start"><CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" /> {al}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold border-l-4 border-red-500 pl-3">Alegações Proibidas</h3>
+              <ul className="space-y-2">
+                {(data.alegacoes_proibidas || []).map((al, i) => (
+                  <li key={i} className="flex gap-2 text-sm items-start"><AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> {al}</li>
+                ))}
+                {(data.avisos_rotulo || []).map((av, i) => (
+                  <li key={`av-${i}`} className="flex gap-2 text-sm items-start font-semibold"><Info className="w-4 h-4 text-primary mt-0.5 shrink-0" /> {av}</li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
         <section className="space-y-4">
           <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Avisos Obrigatórios de Rotulagem (RDC 243/2018)</h3>
