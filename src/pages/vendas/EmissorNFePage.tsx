@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -246,6 +246,8 @@ interface NotaItem {
   nota_entrada_item_id?: string;
   lote_fornecedor?: string;
   aviso_lote_estoque?: string;
+  /** Fator unidade comercial → unidade interna (itens.fator_conversao) */
+  fator_conversao?: number;
 }
 
 // Rastro individual de lote (pode haver vários por item)
@@ -258,6 +260,9 @@ interface RastroLote {
   op_codigo: string;  // Código da OP de origem
   op_id: string;      // ID da OP de origem
   origem: "OP" | "ESTOQUE"; // Origem do lote
+  /** Saldo do lote em unidade interna (itens_devolviveis / estoque_lotes) */
+  saldo_estoque?: number | null;
+  unidade_interna?: string;
 }
 
 interface Duplicata {
@@ -810,7 +815,7 @@ export default function EmissorNFePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("itens")
-        .select("id, descricao_interna, sku_interno, ncm, unidade_interna, tipo_item, ean, catalogo_precos(preco_venda)")
+        .select("id, descricao_interna, sku_interno, ncm, unidade_interna, fator_conversao, tipo_item, ean, catalogo_precos(preco_venda)")
         .eq("ativo", true)
         .in("tipo_item", tiposItemPermitidos)
         .order("descricao_interna");
@@ -1214,6 +1219,9 @@ export default function EmissorNFePage() {
       if (!Number.isFinite(qtd) || qtd <= 0) qtd = max;
       qtd = Math.min(qtd, max || qtd);
       const semLoteEstoque = !it.lote_id && !!it.lote_fornecedor;
+      const produto = produtos?.find((p: any) => p.id === String(it.item_id || ""));
+      const unidadeInterna = String(it.unidade_interna || produto?.unidade_interna || "").trim() || undefined;
+      const fatorConv = Number(it.fator_conversao ?? produto?.fator_conversao);
       const rastros: RastroLote[] = (it.lote_id || it.lote_fornecedor) ? [{
         lote_id: String(it.lote_id || ""),
         nLote: String(it.lote_fornecedor || ""),
@@ -1223,6 +1231,8 @@ export default function EmissorNFePage() {
         op_codigo: "",
         op_id: "",
         origem: "ESTOQUE",
+        saldo_estoque: it.saldo_estoque != null ? Number(it.saldo_estoque) : null,
+        unidade_interna: unidadeInterna,
       }] : [];
       return {
         ...emptyItem,
@@ -1241,8 +1251,9 @@ export default function EmissorNFePage() {
         rastros,
         nota_entrada_item_id: id,
         lote_fornecedor: it.lote_fornecedor ? String(it.lote_fornecedor) : undefined,
+        fator_conversao: Number.isFinite(fatorConv) && fatorConv > 0 ? fatorConv : undefined,
         aviso_lote_estoque: semLoteEstoque
-          ? "Lote do fornecedor não encontrado no estoque — a nota sai com a rastreabilidade da origem, sem baixa."
+          ? "Lote sem correspondência no estoque"
           : undefined,
       };
     });
@@ -1753,7 +1764,10 @@ export default function EmissorNFePage() {
                                       <td className="px-2 py-1.5 font-mono text-[10px]">
                                         {it.lote_fornecedor || "—"}
                                         {it.saldo_estoque != null && (
-                                          <div className="text-muted-foreground">saldo {fmtQtd(Number(it.saldo_estoque))}</div>
+                                          <div className="text-muted-foreground">
+                                            saldo {fmtQtd(Number(it.saldo_estoque))}
+                                            {it.unidade_interna ? ` ${it.unidade_interna}` : ""}
+                                          </div>
                                         )}
                                       </td>
                                     </tr>
@@ -2000,13 +2014,25 @@ export default function EmissorNFePage() {
                   </div>
                 );
 
+                const loteSemEstoque = item.rastros.find((r) => !r.lote_id && r.nLote);
+                const fatorItem = (() => {
+                  if (item.fator_conversao != null && item.fator_conversao > 0) return item.fator_conversao;
+                  const p = produtos?.find((x: any) => x.id === item.item_id);
+                  const f = Number(p?.fator_conversao);
+                  return Number.isFinite(f) && f > 0 ? f : 1;
+                })();
                 const corpo = (
                   <div className="space-y-2">
-                    {item.aviso_lote_estoque && (
-                      <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>{item.aviso_lote_estoque}</span>
-                      </div>
+                    {loteSemEstoque && (
+                      <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-300">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Lote sem correspondência no estoque</AlertTitle>
+                        <AlertDescription className="text-xs">
+                          O lote <b>{loteSemEstoque.nLote || item.lote_fornecedor}</b> informado pelo fornecedor não foi encontrado
+                          no estoque deste produto. A rastreabilidade vai na nota normalmente, mas o
+                          estoque <b>não será baixado</b> para este item na autorização.
+                        </AlertDescription>
+                      </Alert>
                     )}
                     <div>
                       <Label className="text-xs">Produto</Label>
@@ -2132,13 +2158,6 @@ export default function EmissorNFePage() {
                       )}
                     </div>
 
-                    {item.rastros.some((r) => !r.lote_id && r.nLote) && (
-                      <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>Há lote do fornecedor sem vínculo de estoque (lote_id nulo) — a nota sai com a rastreabilidade da origem, sem baixa.</span>
-                      </div>
-                    )}
-
                     {item.rastros.length > 0 && (
                       <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 overflow-hidden">
                         <table className="w-full text-[10px]">
@@ -2155,11 +2174,26 @@ export default function EmissorNFePage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {item.rastros.map((r, ri) => (
-                              <tr key={ri} className="border-t border-green-200 dark:border-green-800">
+                            {item.rastros.map((r, ri) => {
+                              const qtdInterna = Number(r.qLote || 0) * fatorItem;
+                              const saldoLote = r.saldo_estoque;
+                              const excedeSaldo = saldoLote != null && Number.isFinite(Number(saldoLote)) && qtdInterna > Number(saldoLote);
+                              const unSaldo = r.unidade_interna
+                                || produtos?.find((p: any) => p.id === item.item_id)?.unidade_interna
+                                || "";
+                              return (
+                              <React.Fragment key={ri}>
+                              <tr className="border-t border-green-200 dark:border-green-800">
                                 <td className="px-2 py-1 text-muted-foreground">{ri + 1}</td>
                                 <td className="px-2 py-1">
-                                  <Input value={r.nLote} onChange={e => { const novos = [...item.rastros]; novos[ri] = { ...novos[ri], nLote: e.target.value }; updateItem(idx, "rastros", novos); }} className="h-6 text-[10px] font-mono w-32 border-0 bg-transparent p-0 focus-visible:ring-0" />
+                                  <div className="flex items-baseline gap-2 flex-wrap">
+                                    <Input value={r.nLote} onChange={e => { const novos = [...item.rastros]; novos[ri] = { ...novos[ri], nLote: e.target.value }; updateItem(idx, "rastros", novos); }} className="h-6 text-[10px] font-mono w-32 border-0 bg-transparent p-0 focus-visible:ring-0" />
+                                    {r.saldo_estoque != null && (
+                                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                        saldo {fmtQtd(Number(r.saldo_estoque))}{unSaldo ? ` ${unSaldo}` : ""}
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="px-2 py-1 text-right">
                                   <Input type="number" step="0.0001" value={r.qLote} onChange={e => { const novos = [...item.rastros]; novos[ri] = { ...novos[ri], qLote: Number(e.target.value) }; updateItem(idx, "rastros", novos); }} className="h-6 text-[10px] w-20 border-0 bg-transparent p-0 text-right focus-visible:ring-0" />
@@ -2180,7 +2214,19 @@ export default function EmissorNFePage() {
                                   </Button>
                                 </td>
                               </tr>
-                            ))}
+                              {excedeSaldo && (
+                                <tr className="border-t-0">
+                                  <td colSpan={8} className="px-2 pb-1.5 pt-0">
+                                    <p className="text-xs text-destructive mt-0.5">
+                                      Quantidade excede o saldo do lote ({fmtQtd(Number(saldoLote))}{unSaldo ? ` ${unSaldo}` : ""}).
+                                      A transmissão será recusada.
+                                    </p>
+                                  </td>
+                                </tr>
+                              )}
+                              </React.Fragment>
+                              );
+                            })}
                           </tbody>
                           <tfoot>
                             <tr className="border-t border-green-300 bg-green-100/50 dark:bg-green-900/20">
