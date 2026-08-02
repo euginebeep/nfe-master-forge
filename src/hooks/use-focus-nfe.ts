@@ -122,6 +122,14 @@ export function useFocusNfe() {
   const consultarStatus = (id: string, ambiente?: string) =>
     callFocusNfe("consultar-status", { id, ambiente: ambiente || "homologacao" });
 
+  /** Reenvia e-mail da NF-e autorizada (Focus v10+). Body: { emails: string[] } */
+  const reenviarEmail = (id: string, emails: string[], ambiente?: string) =>
+    callFocusNfe(
+      "reenviar-email",
+      { id, ambiente: ambiente || "homologacao" },
+      { emails },
+    );
+
   return {
     cadastrarEmpresa,
     consultarEmpresa,
@@ -136,6 +144,7 @@ export function useFocusNfe() {
     statusSefaz,
     inutilizarNFe,
     consultarStatus,
+    reenviarEmail,
   };
 }
 

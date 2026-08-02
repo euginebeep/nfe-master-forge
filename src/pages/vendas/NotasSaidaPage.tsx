@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   FileOutput, Search, Plus, Eye, FileText, DollarSign, CheckCircle, XCircle, Clock,
   Send, Download, Trash2, Printer, AlertTriangle, Package, Truck, CreditCard,
@@ -33,13 +33,43 @@ import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
 
-const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-  RASCUNHO: { label: "Rascunho", variant: "outline", icon: Clock },
-  PROCESSANDO: { label: "Processando", variant: "secondary", icon: Clock },
-  AUTORIZADA: { label: "Autorizada", variant: "default", icon: CheckCircle },
-  CANCELADA: { label: "Cancelada", variant: "destructive", icon: XCircle },
-  DENEGADA: { label: "Denegada", variant: "destructive", icon: XCircle },
-  REJEITADA: { label: "Rejeitada", variant: "destructive", icon: AlertTriangle },
+/** Fallback só se a view não trouxer status_label/status_tom */
+const STATUS_FALLBACK: Record<string, { label: string; tom: string }> = {
+  RASCUNHO: { label: "Rascunho", tom: "cinza" },
+  PROCESSANDO: { label: "Aguardando SEFAZ", tom: "ambar" },
+  AUTORIZADO: { label: "Autorizada", tom: "verde" },
+  AUTORIZADA: { label: "Autorizada", tom: "verde" },
+  REJEITADO: { label: "Rejeitada", tom: "vermelho" },
+  REJEITADA: { label: "Rejeitada", tom: "vermelho" },
+  CANCELADO: { label: "Cancelada", tom: "cinza_escuro" },
+  CANCELADA: { label: "Cancelada", tom: "cinza_escuro" },
+  DENEGADO: { label: "Denegada", tom: "vermelho_escuro" },
+  DENEGADA: { label: "Denegada", tom: "vermelho_escuro" },
+};
+
+const statusBadgeClass = (tom: string | null | undefined) => {
+  const t = String(tom || "cinza").toLowerCase();
+  if (t.includes("verde")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  if (t.includes("ambar") || t.includes("âmbar") || t.includes("amber") || t.includes("amarelo")) {
+    return "bg-amber-100 text-amber-900 border-amber-200";
+  }
+  if (t.includes("vermelho_escuro") || t.includes("dark")) return "bg-red-900 text-white border-red-900";
+  if (t.includes("vermelho") || t.includes("red")) return "bg-red-100 text-red-800 border-red-200";
+  if (t.includes("escuro") || t.includes("dark") || t.includes("cinza_escuro")) {
+    return "bg-slate-700 text-white border-slate-700 line-through";
+  }
+  return "bg-slate-100 text-slate-700 border-slate-200";
+};
+
+const isAutorizado = (status: string | null | undefined) =>
+  ["AUTORIZADO", "AUTORIZADA"].includes(String(status || "").toUpperCase());
+
+const formatHorasCancelar = (horas: number | null | undefined) => {
+  if (horas == null || !Number.isFinite(Number(horas))) return null;
+  const totalMin = Math.max(0, Math.floor(Number(horas) * 60));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h${String(m).padStart(2, "0")}`;
 };
 
 const NATUREZA_OPERACOES = [
@@ -101,6 +131,22 @@ const numberFrom = (...values: any[]) => {
     if (Number.isFinite(number)) return number;
   }
   return 0;
+};
+
+const traduzirErroEfeitos = (payload: any): string | null => {
+  const row = Array.isArray(payload) ? payload[0] : payload;
+  const rec = asRecord(row);
+  if (rec.aplicado === true) return null;
+  const codigo = textFrom(rec.codigo, rec.motivo, rec.error, rec.erro);
+  const msg = textFrom(rec.mensagem, rec.message, rec.detalhe);
+  if (codigo.includes("saldo_insuficiente") || String(msg).includes("saldo_insuficiente")) {
+    return msg || "Saldo insuficiente no lote para baixar estoque.";
+  }
+  if (codigo.includes("lote_nao_encontrado_no_item") || String(msg).includes("lote_nao_encontrado")) {
+    return msg || "Item sem lote vinculado.";
+  }
+  if (codigo || msg) return [codigo, msg].filter(Boolean).join(" — ");
+  return null;
 };
 
 const formatDateFromPayload = (value: any) => {
@@ -195,6 +241,11 @@ const mapFocusPayloadToDanfeData = (payloadData: any, emitLogoUrl?: string | nul
     valor_ipi: numberFrom(icmsTotal.valor_ipi, total.valor_ipi),
     valor_aprox_tributos: numberFrom(icmsTotal.valor_aprox_tributos, total.valor_aprox_tributos),
     valor_total: numberFrom(icmsTotal.valor_nota, total.valor_nota, payload.valor_total),
+    im: textFrom(emitente.inscricao_municipal, emitente.im),
+    emit_im: textFrom(emitente.inscricao_municipal, emitente.im),
+    valor_servicos: numberFrom(total.valor_servicos, icmsTotal.valor_servicos, 0),
+    bc_issqn: numberFrom(total.base_calculo_issqn, total.bc_issqn, 0),
+    valor_issqn: numberFrom(total.valor_issqn, total.valor_iss, 0),
     transp_razao: textFrom(transportadora.razao_social),
     transp_frete_conta: freteLabel || "—",
     transp_cnpj_cpf: textFrom(transportadora.cpf_cnpj, transportadora.cnpj, transportadora.cpf),
@@ -340,8 +391,16 @@ export default function NotasSaidaPage() {
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const [validatedNotaIds, setValidatedNotaIds] = useState<Set<string>>(new Set());
   const [transmitConfirmNota, setTransmitConfirmNota] = useState<any | null>(null);
+  const [expandedTentativas, setExpandedTentativas] = useState<Set<string>>(new Set());
+  const [reenviarEmailNota, setReenviarEmailNota] = useState<any | null>(null);
+  const [reenviarEmails, setReenviarEmails] = useState("");
+  const [pollingExhausted, setPollingExhausted] = useState<Set<string>>(new Set());
+  const pollingStartedAt = useRef<Record<string, number>>({});
+  const efeitosAplicados = useRef<Set<string>>(new Set());
   const queryClient = useQueryClient();
-  const { emitirNota, consultarNFe, baixarDanfe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe } = useFocusNfe();
+  const {
+    emitirNota, consultarNFe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe, reenviarEmail,
+  } = useFocusNfe();
   const { data: companyBranding, refetch: refetchCompanyBranding } = useCompanyBranding();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -355,15 +414,50 @@ export default function NotasSaidaPage() {
   const [infoAdicionais, setInfoAdicionais] = useState("");
   const [itens, setItens] = useState<NotaItem[]>([{ ...emptyItem }]);
 
+  /** Fonte única do status fiscal — não recalcular a partir de notas_saida */
   const { data: notas, isLoading } = useQuery({
     queryKey: ["notas-saida"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notas_saida")
-        .select("*, entidades!notas_saida_cliente_id_fkey(razao_social, nome_fantasia, documento)")
-        .order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from("v_notas_saida_status")
+        .select("*")
+        .order("data_emissao", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as any[];
+    },
+    refetchInterval: (query) => {
+      const rows = (query.state.data as any[]) || [];
+      const hasProcessing = rows.some((n) => String(n.status || "").toUpperCase() === "PROCESSANDO");
+      return hasProcessing ? 5000 : false;
+    },
+  });
+
+  const processandoIds = useMemo(
+    () => (notas || [])
+      .filter((n: any) => String(n.status || "").toUpperCase() === "PROCESSANDO")
+      .map((n: any) => n.id as string)
+      .filter(Boolean),
+    [notas],
+  );
+
+  const { data: tentativasMap } = useQuery({
+    queryKey: ["notas-saida-tentativas", Array.from(expandedTentativas).sort().join(",")],
+    enabled: expandedTentativas.size > 0,
+    queryFn: async () => {
+      const ids = Array.from(expandedTentativas);
+      const { data, error } = await (supabase as any)
+        .from("notas_saida_tentativas")
+        .select("id, nota_saida_id, numero, serie, chave_acesso, caminho_xml_cancelamento, caminho_xml, status, registrado_em")
+        .in("nota_saida_id", ids)
+        .order("registrado_em", { ascending: false });
+      if (error) throw error;
+      const map: Record<string, any[]> = {};
+      for (const row of data || []) {
+        const key = row.nota_saida_id;
+        if (!map[key]) map[key] = [];
+        map[key].push(row);
+      }
+      return map;
     },
   });
 
@@ -485,6 +579,28 @@ export default function NotasSaidaPage() {
     },
   });
 
+  const aplicarEfeitosNota = useCallback(async (notaId: string) => {
+    if (!notaId || efeitosAplicados.current.has(notaId)) return;
+    try {
+      const { data, error } = await (supabase as any).rpc("aplicar_efeitos_nota_saida", {
+        p_nota_saida_id: notaId,
+      });
+      if (error) throw error;
+      efeitosAplicados.current.add(notaId);
+      const aviso = traduzirErroEfeitos(data);
+      const row = asRecord(Array.isArray(data) ? data[0] : data);
+      if (row.aplicado === true) {
+        toast.success(
+          `Efeitos aplicados: ${row.lotes_baixados ?? 0} lote(s), ${row.titulos_gerados ?? 0} título(s)`,
+        );
+      } else if (aviso && !String(row.motivo || row.codigo || "").includes("ja_aplicado") && !String(row.motivo || "").includes("já")) {
+        toast.warning(aviso);
+      }
+    } catch (e: any) {
+      toast.error("Erro ao aplicar efeitos da nota: " + (e?.message || "falha desconhecida"));
+    }
+  }, []);
+
   const transmitirNota = useMutation({
     mutationFn: async (notaId: string) => {
       if (!validatedNotaIds.has(notaId)) {
@@ -492,31 +608,31 @@ export default function NotasSaidaPage() {
       }
       return emitirNota(notaId, false);
     },
-    onSuccess: (resultado: any, notaId: string) => {
+    onSuccess: async (resultado: any, notaId: string) => {
       setValidatedNotaIds((prev) => {
         const next = new Set(prev);
         next.delete(notaId);
         return next;
       });
       setTransmitConfirmNota(null);
-      queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+      delete pollingStartedAt.current[notaId];
+      setPollingExhausted((prev) => {
+        const next = new Set(prev);
+        next.delete(notaId);
+        return next;
+      });
+      await queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
 
       const emission = normalizeFocusEmissionResult(resultado);
       const status = emission.status.toUpperCase();
-      const toastOptions: any = { description: formatEmissionDescription(resultado) };
-      if (emission.danfeUrl) {
-        toastOptions.action = {
-          label: "Abrir DANFE",
-          onClick: () => window.open(emission.danfeUrl, "_blank", "noopener,noreferrer"),
-        };
-      }
-
       toast.success(
-        status.includes("PROCESSANDO") ? "NF-e enviada para processamento na Focus" : "NF-e transmitida com sucesso",
-        toastOptions
+        status.includes("PROCESSANDO")
+          ? "NF-e enviada à SEFAZ. Aguardando autorização…"
+          : "NF-e transmitida com sucesso",
+        { description: formatEmissionDescription(resultado) },
       );
-      if (status.includes("PROCESSANDO")) {
-        toast.info("Status processando: use Consultar NF-e para reconciliar número, série, chave e protocolo.");
+      if (isAutorizado(status) || status.includes("AUTORIZAD")) {
+        await aplicarEfeitosNota(notaId);
       }
     },
     onError: async (err: any) => {
@@ -527,6 +643,9 @@ export default function NotasSaidaPage() {
 
   const cancelarNotaMutation = useMutation({
     mutationFn: async ({ notaId, justificativa }: { notaId: string; justificativa: string }) => {
+      if (justificativa.trim().length < 15 || justificativa.trim().length > 255) {
+        throw new Error("Justificativa deve ter entre 15 e 255 caracteres.");
+      }
       const { data: nota } = await supabase
         .from("notas_saida")
         .select("focus_nfe_id, nuvem_fiscal_id")
@@ -534,22 +653,12 @@ export default function NotasSaidaPage() {
         .single();
 
       const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
-      if (focusId) {
-        await cancelarNFe(focusId, justificativa);
-      }
-
-      await supabase
-        .from("notas_saida")
-        .update({
-          status: "CANCELADA",
-          motivo_cancelamento: justificativa,
-          data_cancelamento: new Date().toISOString(),
-        })
-        .eq("id", notaId);
+      if (!focusId) throw new Error("NF-e não encontrada na Focus NFe");
+      await cancelarNFe(focusId, justificativa.trim());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
-      toast.success("Nota cancelada");
+      toast.success("Cancelamento enviado à SEFAZ");
       setCancelDialogOpen(false);
       setJustificativa("");
     },
@@ -558,6 +667,9 @@ export default function NotasSaidaPage() {
 
   const cartaCorrecaoMutation = useMutation({
     mutationFn: async ({ notaId, texto }: { notaId: string; texto: string }) => {
+      if (texto.trim().length < 15 || texto.trim().length > 1000) {
+        throw new Error("Texto da CC-e deve ter entre 15 e 1000 caracteres.");
+      }
       const { data: nota } = await supabase
         .from("notas_saida")
         .select("focus_nfe_id, nuvem_fiscal_id")
@@ -565,9 +677,10 @@ export default function NotasSaidaPage() {
         .single();
       const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
       if (!focusId) throw new Error("NF-e não encontrada na Focus NFe");
-      await cartaCorrecaoNFe(focusId, texto);
+      await cartaCorrecaoNFe(focusId, texto.trim());
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
       toast.success("Carta de Correção emitida com sucesso");
       setCceDialogOpen(false);
       setCceTexto("");
@@ -575,7 +688,7 @@ export default function NotasSaidaPage() {
     onError: (err: any) => toast.error("Erro na CC-e: " + err.message),
   });
 
-  const consultarStatusMutation = useCallback(async (notaId: string) => {
+  const consultarStatusMutation = useCallback(async (notaId: string, silent = false) => {
     setStatusLoadingId(notaId);
     try {
       const { data: nota } = await supabase
@@ -584,34 +697,57 @@ export default function NotasSaidaPage() {
         .eq("id", notaId)
         .single();
       const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
-      if (!focusId) { toast.error("NF-e não transmitida"); return; }
-      const dados = await consultarNFe(focusId);
-      const statusMap: Record<string, string> = {
-        autorizado: "AUTORIZADA",
-        cancelado: "CANCELADA",
-        denegado: "DENEGADA",
-        erro_autorizacao: "REJEITADA",
-        rejeitado: "REJEITADA",
-        processando: "PROCESSANDO",
-        processando_autorizacao: "PROCESSANDO",
-      };
-      const novoStatus = statusMap[String(dados?.status || "").toLowerCase()] || "RASCUNHO";
-      await supabase.from("notas_saida").update({
-        status: novoStatus,
-        chave_acesso: dados?.chave_nfe || dados?.chave_acesso || undefined,
-        protocolo_autorizacao: dados?.protocolo || undefined,
-        numero: dados?.numero || undefined,
-        serie: dados?.serie || undefined,
-        danfe_url: dados?.danfe_url || dados?.link_pdf || undefined,
-      }).eq("id", notaId);
-      queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
-      toast.success(`Status atualizado: ${novoStatus}`);
+      if (!focusId) {
+        if (!silent) toast.error("NF-e não transmitida");
+        return;
+      }
+      // Edge grava status/mensagem/contingência/tentativas — frontend só consulta e relê a view
+      await consultarNFe(focusId);
+      await queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+      const { data: refreshed } = await (supabase as any)
+        .from("v_notas_saida_status")
+        .select("status, status_label")
+        .eq("id", notaId)
+        .maybeSingle();
+      if (isAutorizado(refreshed?.status)) {
+        await aplicarEfeitosNota(notaId);
+      }
+      if (!silent) {
+        toast.success(`Status: ${refreshed?.status_label || refreshed?.status || "atualizado"}`);
+      }
     } catch (e: any) {
-      toast.error("Erro ao consultar: " + e.message);
+      if (!silent) toast.error("Erro ao consultar: " + e.message);
     } finally {
       setStatusLoadingId(null);
     }
-  }, [consultarNFe, queryClient]);
+  }, [consultarNFe, queryClient, aplicarEfeitosNota]);
+
+  // Polling PROCESSANDO: a cada 5s por até 2 minutos; depois só consulta manual
+  useEffect(() => {
+    if (processandoIds.length === 0) return;
+    const now = Date.now();
+    for (const id of processandoIds) {
+      if (!pollingStartedAt.current[id]) pollingStartedAt.current[id] = now;
+    }
+    const active = processandoIds.filter((id) => {
+      const started = pollingStartedAt.current[id] || now;
+      if (now - started > 120_000) {
+        setPollingExhausted((prev) => {
+          if (prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.add(id);
+          return next;
+        });
+        return false;
+      }
+      return !pollingExhausted.has(id);
+    });
+    if (active.length === 0) return;
+    const timer = window.setInterval(() => {
+      active.forEach((id) => consultarStatusMutation(id, true));
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [processandoIds, pollingExhausted, consultarStatusMutation]);
 
   const toggleSelectAll = () => {
     if (selectedIds.size === filtered.length) {
@@ -642,7 +778,38 @@ export default function NotasSaidaPage() {
     logFocusPayloadShape(payload);
 
     const branding = companyBranding || (await refetchCompanyBranding()).data;
-    return mapFocusPayloadToDanfeData(payload, branding?.logo_url);
+    const mapped = mapFocusPayloadToDanfeData(payload, branding?.logo_url);
+
+    const [{ data: statusRow }, { data: parcelas }] = await Promise.all([
+      (supabase as any)
+        .from("v_notas_saida_status")
+        .select("status, pode_imprimir, em_contingencia, contingencia_modo, dh_contingencia, justificativa_contingencia, ambiente")
+        .eq("id", notaId)
+        .maybeSingle(),
+      (supabase as any)
+        .from("notas_saida_parcelas")
+        .select("numero_parcela, data_vencimento, valor")
+        .eq("nota_saida_id", notaId)
+        .order("numero_parcela", { ascending: true }),
+    ]);
+
+    return {
+      ...mapped,
+      status: statusRow?.status || mapped.status,
+      pode_imprimir: !!statusRow?.pode_imprimir,
+      em_contingencia: !!statusRow?.em_contingencia,
+      contingencia_modo: statusRow?.contingencia_modo || null,
+      dh_contingencia: statusRow?.dh_contingencia || null,
+      justificativa_contingencia: statusRow?.justificativa_contingencia || null,
+      ambiente: textFrom(statusRow?.ambiente, mapped.ambiente).toLowerCase() === "producao"
+        ? "producao" as const
+        : "homologacao" as const,
+      parcelas: (parcelas || []).map((p: any) => ({
+        numero_parcela: p.numero_parcela,
+        data_vencimento: p.data_vencimento,
+        valor: Number(p.valor || 0),
+      })),
+    };
   };
 
   const openDanfeFromForm = () => {
@@ -724,15 +891,22 @@ export default function NotasSaidaPage() {
     if (!notas) return [];
     let result = notas;
     if (statusFilter !== "TODOS") {
-      result = result.filter((n: any) => n.status === statusFilter);
+      result = result.filter((n: any) => {
+        const st = String(n.status || "").toUpperCase();
+        if (statusFilter === "AUTORIZADO") return isAutorizado(st);
+        if (statusFilter === "REJEITADO") return ["REJEITADO", "REJEITADA"].includes(st);
+        if (statusFilter === "CANCELADO") return ["CANCELADO", "CANCELADA"].includes(st);
+        return st === statusFilter;
+      });
     }
     if (search) {
       const s = search.toLowerCase();
       result = result.filter(
         (n: any) =>
-          n.entidades?.razao_social?.toLowerCase().includes(s) ||
+          String(n.destinatario || "").toLowerCase().includes(s) ||
+          String(n.destinatario_documento || "").toLowerCase().includes(s) ||
           String(n.numero || "").includes(s) ||
-          n.chave_acesso?.includes(s)
+          String(n.chave_acesso || "").includes(s)
       );
     }
     return result;
@@ -742,10 +916,10 @@ export default function NotasSaidaPage() {
     if (!notas) return { total: 0, rascunhos: 0, autorizadas: 0, valorTotal: 0 };
     return {
       total: notas.length,
-      rascunhos: notas.filter((n: any) => n.status === "RASCUNHO").length,
-      autorizadas: notas.filter((n: any) => n.status === "AUTORIZADA").length,
+      rascunhos: notas.filter((n: any) => String(n.status || "").toUpperCase() === "RASCUNHO").length,
+      autorizadas: notas.filter((n: any) => isAutorizado(n.status)).length,
       valorTotal: notas
-        .filter((n: any) => n.status === "AUTORIZADA")
+        .filter((n: any) => isAutorizado(n.status))
         .reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0),
     };
   }, [notas]);
@@ -824,11 +998,9 @@ export default function NotasSaidaPage() {
             </Button>
             <Button size="sm" variant="outline" onClick={() => {
               const ids = Array.from(selectedIds);
-              ids.forEach(id => {
+              ids.forEach((id) => {
                 const nota = filtered.find((n: any) => n.id === id);
-                if (nota?.focus_nfe_id || nota?.nuvem_fiscal_id) {
-                  baixarDanfe((nota.focus_nfe_id || nota.nuvem_fiscal_id)!);
-                }
+                if (nota?.pode_imprimir) openDanfeFromSavedNota(id);
               });
             }}>
               <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir DANFE
@@ -869,9 +1041,11 @@ export default function NotasSaidaPage() {
           <SelectContent>
             <SelectItem value="TODOS">Todos os Status</SelectItem>
             <SelectItem value="RASCUNHO">Rascunho</SelectItem>
-            <SelectItem value="AUTORIZADA">Autorizada</SelectItem>
-            <SelectItem value="CANCELADA">Cancelada</SelectItem>
-            <SelectItem value="REJEITADA">Rejeitada</SelectItem>
+            <SelectItem value="PROCESSANDO">Aguardando SEFAZ</SelectItem>
+            <SelectItem value="AUTORIZADO">Autorizada</SelectItem>
+            <SelectItem value="REJEITADO">Rejeitada</SelectItem>
+            <SelectItem value="CANCELADO">Cancelada</SelectItem>
+            <SelectItem value="DENEGADO">Denegada</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={() => setInutDialogOpen(true)}>
@@ -919,10 +1093,12 @@ export default function NotasSaidaPage() {
               <TableBody>
                 {filtered.map((nota: any) => {
                   const status = String(nota.status || "RASCUNHO").toUpperCase();
-                  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.RASCUNHO;
-                  const Icon = cfg.icon;
+                  const fallback = STATUS_FALLBACK[status] || STATUS_FALLBACK.RASCUNHO;
+                  const label = nota.status_label || fallback.label;
+                  const tom = nota.status_tom || fallback.tom;
                   const isValidated = validatedNotaIds.has(nota.id);
                   const isEmissionPending = validarNotaFocus.isPending || transmitirNota.isPending;
+                  const horasCancel = formatHorasCancelar(nota.horas_para_cancelar);
                   const rowClassName = nota.id === notaDestacadaId
                     ? "bg-amber-50 ring-1 ring-amber-300"
                     : selectedIds.has(nota.id) ? "bg-primary/5" : "";
@@ -940,20 +1116,100 @@ export default function NotasSaidaPage() {
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm">
-                            {nota.entidades?.razao_social || nota.entidades?.nome_fantasia || "—"}
+                            {nota.destinatario || "—"}
                           </p>
-                          <p className="text-xs text-muted-foreground">{nota.entidades?.documento}</p>
+                          <p className="text-xs text-muted-foreground">{nota.destinatario_documento}</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{nota.natureza_operacao || "VENDA"}</TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         R$ {fmt(Number(nota.valor_total))}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant={cfg.variant} className="gap-1">
-                          <Icon className="h-3 w-3" />
-                          {cfg.label}
-                        </Badge>
+                      <TableCell className="min-w-[220px]">
+                        <div className="space-y-1.5">
+                          {nota.em_contingencia && (
+                            <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-950">
+                              ⚠️ Emitida em contingência {nota.contingencia_modo || ""}
+                              {nota.horas_para_autorizar_contingencia != null && (
+                                <div className="mt-0.5 text-[10px] leading-snug">
+                                  Contingência {nota.contingencia_modo || ""} — autorizar em até{" "}
+                                  {Math.ceil(Number(nota.horas_para_autorizar_contingencia))}h.
+                                  Após 168h a nota não pode mais ser autorizada e a numeração precisa ser inutilizada.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <Badge className={`gap-1 border ${statusBadgeClass(tom)}`}>
+                            {status === "PROCESSANDO" && <Loader2 className="h-3 w-3 animate-spin" />}
+                            {status !== "PROCESSANDO" && isAutorizado(status) && <CheckCircle className="h-3 w-3" />}
+                            {["REJEITADO", "REJEITADA", "DENEGADO", "DENEGADA"].includes(status) && (
+                              <AlertTriangle className="h-3 w-3" />
+                            )}
+                            {label}
+                          </Badge>
+                          {nota.mensagem_usuario && (
+                            <p className="text-xs text-foreground whitespace-pre-wrap leading-snug">
+                              {nota.mensagem_usuario}
+                            </p>
+                          )}
+                          {nota.mensagem_sefaz && (
+                            <p className="text-[11px] text-muted-foreground whitespace-pre-wrap leading-snug border-l-2 border-muted pl-2">
+                              SEFAZ: {nota.mensagem_sefaz}
+                            </p>
+                          )}
+                          {status === "PROCESSANDO" && pollingExhausted.has(nota.id) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={() => consultarStatusMutation(nota.id)}
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" /> Consultar agora
+                            </Button>
+                          )}
+                          {Number(nota.tentativas_anteriores || 0) > 0 && (
+                            <div>
+                              <button
+                                type="button"
+                                className="text-[11px] text-primary underline-offset-2 hover:underline inline-flex items-center gap-1"
+                                onClick={() => {
+                                  setExpandedTentativas((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(nota.id)) next.delete(nota.id);
+                                    else next.add(nota.id);
+                                    return next;
+                                  });
+                                }}
+                              >
+                                {expandedTentativas.has(nota.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                {nota.tentativas_anteriores} tentativa(s) anterior(es) — explica pulo de numeração
+                              </button>
+                              {expandedTentativas.has(nota.id) && (
+                                <ul className="mt-1 space-y-1 text-[11px] text-muted-foreground">
+                                  {(tentativasMap?.[nota.id] || []).map((t: any) => (
+                                    <li key={t.id} className="rounded border bg-muted/40 px-2 py-1">
+                                      Nº {t.numero ?? "—"} / série {t.serie ?? "—"}
+                                      {t.chave_acesso && <div className="font-mono break-all">{t.chave_acesso}</div>}
+                                      {(t.caminho_xml_cancelamento || t.caminho_xml) && (
+                                        <a
+                                          className="text-primary underline"
+                                          href={t.caminho_xml_cancelamento || t.caminho_xml}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          XML cancelamento (guarda 5 anos)
+                                        </a>
+                                      )}
+                                    </li>
+                                  ))}
+                                  {(tentativasMap?.[nota.id] || []).length === 0 && (
+                                    <li>Carregando tentativas…</li>
+                                  )}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {nota.data_emissao
@@ -961,8 +1217,8 @@ export default function NotasSaidaPage() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {status === "RASCUNHO" && (
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          {nota.pode_transmitir && (
                             <>
                               <Button
                                 size="sm"
@@ -975,7 +1231,7 @@ export default function NotasSaidaPage() {
                                 ) : (
                                   <FileCheck2 className="h-3.5 w-3.5 mr-1" />
                                 )}
-                                Validar na Focus
+                                Validar
                               </Button>
                               <Button
                                 size="sm"
@@ -999,30 +1255,53 @@ export default function NotasSaidaPage() {
                                 : <MoreHorizontal className="h-4 w-4" />}
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52">
-                            {/* Visualizar */}
+                          <DropdownMenuContent align="end" className="w-60">
                             <DropdownMenuItem onClick={() => openDanfeFromSavedNota(nota.id)}>
                               <Eye className="h-4 w-4 mr-2" /> Visualizar DANFE
                             </DropdownMenuItem>
 
-                            {/* Ações para notas autorizadas */}
-                            {status === "AUTORIZADA" && (
+                            {nota.pode_imprimir && (
+                              <DropdownMenuItem onClick={() => {
+                                openDanfeFromSavedNota(nota.id);
+                                registrarEventoNfe({
+                                  evento: "REIMPRESSAO",
+                                  nota_id: nota.id,
+                                  modelo: nota.modelo,
+                                  serie: nota.serie ? Number(nota.serie) : null,
+                                  numero: nota.numero ?? null,
+                                  chave_acesso: nota.chave_acesso,
+                                  protocolo: nota.protocolo_autorizacao,
+                                  status: nota.status,
+                                  observacao: "Reimpressão do DANFE BrainX",
+                                }).catch(() => {});
+                              }}>
+                                <Printer className="h-4 w-4 mr-2" /> Imprimir DANFE
+                              </DropdownMenuItem>
+                            )}
+
+                            {nota.danfe_url && (
+                              <DropdownMenuItem onClick={() => window.open(nota.danfe_url, "_blank", "noopener,noreferrer")}>
+                                <FileText className="h-4 w-4 mr-2" /> PDF da Focus (conferência)
+                              </DropdownMenuItem>
+                            )}
+
+                            {nota.focus_nfe_id && (
+                              <DropdownMenuItem onClick={() => baixarXml(nota.focus_nfe_id)}>
+                                <Download className="h-4 w-4 mr-2" /> Exportar XML
+                              </DropdownMenuItem>
+                            )}
+
+                            {nota.pode_consultar && (
                               <>
-                                <DropdownMenuItem onClick={() => {
-                                  const fid = (nota as any).focus_nfe_id || nota.nuvem_fiscal_id;
-                                  if (fid) {
-                                    baixarDanfe(fid);
-                                    registrarEventoNfe({ evento: "REIMPRESSAO", nota_id: nota.id, modelo: nota.modelo, serie: nota.serie ? Number(nota.serie) : null, numero: nota.numero ?? null, chave_acesso: nota.chave_acesso, protocolo: nota.protocolo_autorizacao, status: nota.status, observacao: "Reimpressão do DANFE" }).catch(() => {});
-                                  }
-                                }}>
-                                  <Printer className="h-4 w-4 mr-2" /> Baixar DANFE (PDF)
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => consultarStatusMutation(nota.id)}>
+                                  <RefreshCw className="h-4 w-4 mr-2" /> Consultar NF-e
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  const fid = (nota as any).focus_nfe_id || nota.nuvem_fiscal_id;
-                                  if (fid) baixarXml(fid);
-                                }}>
-                                  <Download className="h-4 w-4 mr-2" /> Exportar XML
-                                </DropdownMenuItem>
+                              </>
+                            )}
+
+                            {nota.pode_carta_correcao && (
+                              <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => {
                                   setSelectedNotaId(nota.id);
@@ -1031,6 +1310,20 @@ export default function NotasSaidaPage() {
                                 }}>
                                   <PenLine className="h-4 w-4 mr-2" /> Carta de Correção (CC-e)
                                 </DropdownMenuItem>
+                              </>
+                            )}
+
+                            {nota.pode_reenviar_email && (
+                              <DropdownMenuItem onClick={() => {
+                                setReenviarEmailNota(nota);
+                                setReenviarEmails(nota.email_enviado_para || "");
+                              }}>
+                                <Mail className="h-4 w-4 mr-2" /> Reenviar e-mail
+                              </DropdownMenuItem>
+                            )}
+
+                            {nota.pode_cancelar && (
+                              <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
@@ -1041,22 +1334,18 @@ export default function NotasSaidaPage() {
                                   }}
                                 >
                                   <Ban className="h-4 w-4 mr-2" /> Cancelar NF-e
-                                </DropdownMenuItem>
-                              </>
-                            )}
-
-                            {/* Consultar status (processando/rejeitada) */}
-                            {["PROCESSANDO", "REJEITADA", "RASCUNHO"].includes(status) && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => consultarStatusMutation(nota.id)}>
-                                  <RefreshCw className="h-4 w-4 mr-2" /> Consultar NF-e
+                                  {horasCancel ? ` (${horasCancel})` : ""}
                                 </DropdownMenuItem>
                               </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         </div>
+                        {nota.pode_cancelar && horasCancel && (
+                          <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                            Cancelamento disponível por mais {horasCancel}.
+                          </p>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -1402,7 +1691,7 @@ export default function NotasSaidaPage() {
             <p>
               Cliente:{" "}
               <span className="font-medium">
-                {transmitConfirmNota?.entidades?.razao_social || transmitConfirmNota?.entidades?.nome_fantasia || "—"}
+                {transmitConfirmNota?.destinatario || "—"}
               </span>
             </p>
             <p>
@@ -1435,19 +1724,19 @@ export default function NotasSaidaPage() {
               Cancelar Nota Fiscal
             </DialogTitle>
             <DialogDescription>
-              O cancelamento é irreversível. A justificativa deve ter no mínimo 15 caracteres.
+              O cancelamento é irreversível. Justificativa entre 15 e 255 caracteres.
             </DialogDescription>
           </DialogHeader>
           <div>
             <Label>Justificativa do Cancelamento</Label>
             <Textarea
               value={justificativa}
-              onChange={(e) => setJustificativa(e.target.value)}
+              onChange={(e) => setJustificativa(e.target.value.slice(0, 255))}
               placeholder="Descreva o motivo do cancelamento..."
               rows={3}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {justificativa.length}/15 caracteres mínimos
+              {justificativa.length}/255 (mínimo 15)
             </p>
           </div>
           <DialogFooter>
@@ -1456,7 +1745,7 @@ export default function NotasSaidaPage() {
             </Button>
             <Button
               variant="destructive"
-              disabled={justificativa.length < 15 || cancelarNotaMutation.isPending}
+              disabled={justificativa.length < 15 || justificativa.length > 255 || cancelarNotaMutation.isPending}
               onClick={() => {
                 if (selectedNotaId) {
                   cancelarNotaMutation.mutate({ notaId: selectedNotaId, justificativa });
@@ -1477,20 +1766,21 @@ export default function NotasSaidaPage() {
               Carta de Correção (CC-e)
             </DialogTitle>
             <DialogDescription>
-              Mínimo 15 caracteres. Não pode corrigir dados do emitente, destinatário, valores ou impostos.
+              Texto entre 15 e 1000 caracteres. Até 20 CC-e; vale sempre a última.
+              Não corrige valor, imposto, destinatário nem data.
             </DialogDescription>
           </DialogHeader>
           <div>
             <Label>Descrição da Correção</Label>
             <Textarea
               value={cceTexto}
-              onChange={(e) => setCceTexto(e.target.value)}
+              onChange={(e) => setCceTexto(e.target.value.slice(0, 1000))}
               placeholder="Descreva a correção a ser realizada..."
               rows={4}
               minLength={15}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {cceTexto.length}/15 caracteres mínimos
+              {cceTexto.length}/1000 (mínimo 15)
             </p>
           </div>
           <DialogFooter>
@@ -1503,9 +1793,55 @@ export default function NotasSaidaPage() {
                   cartaCorrecaoMutation.mutate({ notaId: selectedNotaId, texto: cceTexto });
                 }
               }}
-              disabled={cceTexto.length < 15 || cartaCorrecaoMutation.isPending}
+              disabled={cceTexto.length < 15 || cceTexto.length > 1000 || cartaCorrecaoMutation.isPending}
             >
               {cartaCorrecaoMutation.isPending ? "Enviando..." : "Emitir CC-e"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Dialog Reenviar e-mail ─── */}
+      <Dialog open={!!reenviarEmailNota} onOpenChange={(open) => { if (!open) setReenviarEmailNota(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Reenviar e-mail da NF-e
+            </DialogTitle>
+            <DialogDescription>
+              Informe um ou mais e-mails separados por vírgula.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label>Destinatários</Label>
+            <Input
+              value={reenviarEmails}
+              onChange={(e) => setReenviarEmails(e.target.value)}
+              placeholder="cliente@empresa.com, fiscal@empresa.com"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReenviarEmailNota(null)}>Cancelar</Button>
+            <Button
+              disabled={!reenviarEmails.trim() || !reenviarEmailNota?.focus_nfe_id}
+              onClick={async () => {
+                try {
+                  const emails = reenviarEmails.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean);
+                  if (emails.length === 0) {
+                    toast.error("Informe ao menos um e-mail");
+                    return;
+                  }
+                  await reenviarEmail(reenviarEmailNota.focus_nfe_id, emails, reenviarEmailNota.ambiente || undefined);
+                  toast.success("E-mail reenviado");
+                  setReenviarEmailNota(null);
+                  queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+                } catch (e: any) {
+                  toast.error("Erro ao reenviar e-mail: " + e.message);
+                }
+              }}
+            >
+              Reenviar
             </Button>
           </DialogFooter>
         </DialogContent>
