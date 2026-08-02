@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from "react"
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
   Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck,
-  Save, Check, CheckCircle2, Loader2, Layers, Copy, ChevronDown, AlertTriangle, History
+  Save, Check, CheckCircle2, Loader2, Layers, Copy, ChevronDown, AlertTriangle, History,
+  AlertCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -468,6 +470,7 @@ export default function EmissorNFePage() {
     natureza: string;
   } | null>(null);
   const [itensExpandidos, setItensExpandidos] = useState<Set<number>>(() => new Set([0]));
+  const [itemParaRemover, setItemParaRemover] = useState<number | null>(null);
   const [notaEntradaDevolucaoId, setNotaEntradaDevolucaoId] = useState("");
   const [itensDevolviveis, setItensDevolviveis] = useState<any[]>([]);
   const [metaDevolucao, setMetaDevolucao] = useState<{
@@ -758,6 +761,7 @@ export default function EmissorNFePage() {
           })),
         });
         editLoadedRef.current = editId;
+        setItensExpandidos(new Set()); // edição: todos fechados para enxergar o conjunto
         toast.message("Rascunho carregado para edição");
       } catch (e: any) {
         if (!cancelled) {
@@ -971,22 +975,36 @@ export default function EmissorNFePage() {
     });
   };
 
+  const validarItem = useCallback((item: NotaItem): boolean => {
+    if (!item.item_id) return false;
+    if (!(Number(item.quantidade) > 0)) return false;
+    if (operacaoSelecionada?.gera_financeiro && !(Number(item.valor_unitario) > 0)) return false;
+    if (operacaoSelecionada?.movimenta_estoque && !item.rastros?.some((r) => r.lote_id)) return false;
+    return true;
+  }, [operacaoSelecionada?.gera_financeiro, operacaoSelecionada?.movimenta_estoque]);
+
+  const primeiraPendenciaDoItem = useCallback((item: NotaItem): string => {
+    if (!item.item_id) return "Selecione o produto";
+    if (!(Number(item.quantidade) > 0)) return "Informe a quantidade";
+    if (operacaoSelecionada?.gera_financeiro && !(Number(item.valor_unitario) > 0)) {
+      return "Informe o valor unitário";
+    }
+    if (operacaoSelecionada?.movimenta_estoque && !item.rastros?.some((r) => r.lote_id)) {
+      return "Selecione o lote";
+    }
+    return "";
+  }, [operacaoSelecionada?.gera_financeiro, operacaoSelecionada?.movimenta_estoque]);
+
   const addItem = () => {
     setItens((prev) => {
       const nextIdx = prev.length;
-      setItensExpandidos((exp) => {
-        const next = new Set(exp);
-        next.add(nextIdx);
-        return next;
-      });
+      // Novo aberto, anteriores fechados
+      setItensExpandidos(new Set([nextIdx]));
       return [...prev, { ...emptyItem }];
     });
   };
+
   const removeItem = (index: number) => {
-    const item = itens[index];
-    if (item?.item_id || item?.descricao) {
-      if (!window.confirm(`Remover o item ${index + 1}${item.descricao ? ` (${item.descricao})` : ""}?`)) return;
-    }
     setItens((prev) => prev.filter((_, i) => i !== index));
     setItensExpandidos((prev) => {
       const next = new Set<number>();
@@ -997,20 +1015,49 @@ export default function EmissorNFePage() {
       return next;
     });
   };
+
+  const confirmarRemocao = (index: number) => {
+    const item = itens[index];
+    if (!item?.item_id) {
+      removeItem(index);
+      return;
+    }
+    setItemParaRemover(index);
+  };
+
   const duplicateItem = (index: number) => {
     setItens((prev) => {
       const src = prev[index];
       if (!src) return prev;
-      const copy = { ...src, rastros: src.rastros.map((r) => ({ ...r })) };
+      // Lote não se duplica: cada item deve ter o seu (evita baixa dupla)
+      const copy = { ...src, rastros: [] as RastroLote[] };
       const next = [...prev];
       next.splice(index + 1, 0, copy);
       return next;
     });
+    setItensExpandidos(new Set([index + 1]));
+  };
+
+  const concluirEAdicionar = (idx: number) => {
+    const item = itens[idx];
+    if (!item || !validarItem(item)) {
+      toast.error(primeiraPendenciaDoItem(item) || "Complete o item antes de adicionar outro");
+      setItensExpandidos(new Set([idx]));
+      return;
+    }
+    setItens((prev) => {
+      const nextIdx = prev.length;
+      setItensExpandidos(new Set([nextIdx]));
+      return [...prev, { ...emptyItem }];
+    });
+  };
+
+  const toggleItem = (idx: number) => {
     setItensExpandidos((prev) => {
-      const next = new Set<number>();
-      [...prev].forEach((i) => next.add(i > index ? i + 1 : i));
-      next.add(index + 1);
-      return next;
+      const novo = new Set(prev);
+      if (novo.has(idx)) novo.delete(idx);
+      else novo.add(idx);
+      return novo;
     });
   };
 
@@ -1327,7 +1374,7 @@ export default function EmissorNFePage() {
       };
     });
     setItens(mapped);
-    setItensExpandidos(new Set(mapped.map((_, i) => i)));
+    setItensExpandidos(new Set()); // conjunto fechado — conferir totais antes de abrir
     setActiveTab("itens");
     toast.success(`${mapped.length} item(ns) carregado(s) da nota de entrada`);
   };
@@ -1353,6 +1400,15 @@ export default function EmissorNFePage() {
       }
       if (operacaoSelecionada?.movimenta_estoque && itens.some(i => !i.rastros.some(r => r.lote_id))) {
         erros.push("Selecione um lote para cada item");
+      }
+      const idxPendente = itens.findIndex((i) => !validarItem(i));
+      if (idxPendente >= 0) {
+        setActiveTab("itens");
+        setItensExpandidos(new Set([idxPendente]));
+        requestAnimationFrame(() => {
+          document.getElementById(`nfe-item-${idxPendente}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        erros.push(primeiraPendenciaDoItem(itens[idxPendente]) || "Há item incompleto");
       }
       if (erros.length) throw new Error(erros.join("\n"));
       if (!operacaoSelecionada) throw new Error("Selecione a operação fiscal");
@@ -2107,19 +2163,26 @@ export default function EmissorNFePage() {
 
             {/* ════════ Itens Tab ════════ */}
             <TabsContent value="itens" className="space-y-3 mt-3">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-medium">
-                  Itens da nota
-                  {itens.length > 0 && (
-                    <span className="ml-2 text-muted-foreground font-normal">
-                      {itens.length} {itens.length === 1 ? "item" : "itens"}
+              <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-2 rounded-md border bg-background/95 backdrop-blur">
+                <div className="text-sm">
+                  <span className="font-medium">{itens.length}</span>
+                  <span className="text-muted-foreground ml-1">
+                    {itens.length === 1 ? "item" : "itens"}
+                  </span>
+                  {itens.filter((i) => !validarItem(i)).length > 0 && (
+                    <span className="ml-2 text-destructive text-xs">
+                      {itens.filter((i) => !validarItem(i)).length} com pendência
                     </span>
                   )}
-                </h3>
-                <Button size="sm" onClick={addItem}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar item
-                </Button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm">
+                    Total <span className="font-semibold">R$ {fmt(totais.nota)}</span>
+                  </span>
+                  <Button size="sm" onClick={addItem}>
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar item
+                  </Button>
+                </div>
               </div>
 
               {itens.length === 0 && (
@@ -2133,27 +2196,38 @@ export default function EmissorNFePage() {
               )}
 
               {itens.map((item, idx) => {
-                const usarAcordeao = itens.length >= 3;
-                const aberto = !usarAcordeao || itensExpandidos.has(idx);
+                const aberto = itensExpandidos.has(idx);
+                const itemValido = validarItem(item);
+                const primeiraPendencia = primeiraPendenciaDoItem(item);
                 const header = (
                   <div className="flex items-center justify-between w-full gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      {usarAcordeao && <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${aberto ? "rotate-180" : ""}`} />}
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold">Item {idx + 1} de {itens.length}</p>
-                        {!aberto && (
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {item.descricao || "Sem produto"} · {fmtQtd(item.quantidade)} {item.unidade} · R$ {fmt(item.valor_total)}
-                          </p>
-                        )}
-                      </div>
+                      <ChevronRight
+                        className={cn("h-4 w-4 shrink-0 transition-transform", aberto && "rotate-90")}
+                      />
+                      <p className="text-xs font-semibold shrink-0">Item {idx + 1}</p>
+                      {!aberto && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+                          <span className="truncate max-w-[280px]">
+                            {item.descricao || <span className="italic">sem produto</span>}
+                          </span>
+                          <span className="shrink-0">{fmtQtd(item.quantidade)} {item.unidade}</span>
+                          <span className="shrink-0 font-medium text-foreground">R$ {fmt(item.valor_total)}</span>
+                          {item.rastros?.some((r) => r.lote_id) && (
+                            <Badge variant="secondary" className="h-4 text-[10px] shrink-0">lote</Badge>
+                          )}
+                          {!itemValido && (
+                            <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" title="Duplicar" onClick={() => duplicateItem(idx)}>
-                        <Copy className="h-3.5 w-3.5" />
+                      <Button size="icon" variant="ghost" className="h-6 w-6" title="Duplicar item" onClick={() => duplicateItem(idx)}>
+                        <Copy className="h-3 w-3" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Remover" onClick={() => removeItem(idx)}>
-                        <Trash2 className="h-3.5 w-3.5" />
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Remover item" onClick={() => confirmarRemocao(idx)}>
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
@@ -2442,17 +2516,30 @@ export default function EmissorNFePage() {
                       </Label>
                       <Input value={item.info_adicional_item} onChange={e => updateItem(idx, "info_adicional_item", e.target.value)} className="text-xs font-mono" placeholder="LOTE: xxx | VAL: dd/mm/aaaa | OBS: ..." />
                     </div>
+
+                    <div className="flex items-center justify-between border-t bg-muted/20 -mx-3 -mb-3 px-3 py-2 mt-2">
+                      <div className="text-xs text-muted-foreground">
+                        {itemValido ? (
+                          <span className="text-green-700 flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Item completo
+                          </span>
+                        ) : (
+                          <span className="text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" /> {primeiraPendencia}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" type="button" onClick={() => toggleItem(idx)}>
+                          Recolher
+                        </Button>
+                        <Button size="sm" variant="outline" type="button" onClick={() => concluirEAdicionar(idx)}>
+                          <Plus className="h-3 w-3 mr-1" /> Concluir e adicionar outro
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 );
-
-                if (!usarAcordeao) {
-                  return (
-                    <Card key={idx}>
-                      <CardHeader className="py-2 px-3">{header}</CardHeader>
-                      <CardContent className="px-3 pb-3">{corpo}</CardContent>
-                    </Card>
-                  );
-                }
 
                 return (
                   <Collapsible
@@ -2464,7 +2551,7 @@ export default function EmissorNFePage() {
                       return next;
                     })}
                   >
-                    <Card>
+                    <Card id={`nfe-item-${idx}`}>
                       <CollapsibleTrigger asChild>
                         <CardHeader className="py-2 px-3 cursor-pointer hover:bg-muted/40">{header}</CardHeader>
                       </CollapsibleTrigger>
@@ -3007,6 +3094,30 @@ export default function EmissorNFePage() {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={itemParaRemover !== null} onOpenChange={(open) => { if (!open) setItemParaRemover(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover item {(itemParaRemover ?? 0) + 1}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {itemParaRemover != null && itens[itemParaRemover]
+                ? `${itens[itemParaRemover].descricao || "Sem descrição"} — R$ ${fmt(itens[itemParaRemover].valor_total)}`
+                : "Este item será removido da nota."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Manter</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (itemParaRemover != null) removeItem(itemParaRemover);
+                setItemParaRemover(null);
+              }}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!rascunhoPendente}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -3056,6 +3167,7 @@ export default function EmissorNFePage() {
                 if (rascunhoPendente) setDraft(rascunhoPendente);
                 setRascunhoPendente(null);
                 setRascunhoRetomado(true);
+                setItensExpandidos(new Set()); // rascunho retomado: todos fechados
                 setPersistHabilitado(true);
               }}
             >
