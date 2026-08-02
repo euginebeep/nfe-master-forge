@@ -8,6 +8,8 @@ interface DANFEItem {
   codigo_produto?: string;
   descricao: string;
   ncm: string;
+  /** origem+CSOSN/CST já concatenado pela RPC — não recalcular */
+  o_cst?: string;
   cst_icms: string;
   cfop: string;
   unidade: string;
@@ -19,13 +21,10 @@ interface DANFEItem {
   icms_valor: number;
   ipi_valor?: number;
   ipi_aliquota?: number;
-  origem?: string;
-  rastros?: {
-    numero_lote?: string;
-    quantidade_lote?: number;
-    data_fabricacao?: string;
-    data_validade?: string;
-  }[];
+  lote?: string;
+  data_fabricacao?: string;
+  data_validade?: string;
+  informacoes_adicionais?: string;
 }
 
 interface DANFEParcela {
@@ -41,6 +40,7 @@ interface DANFEData {
   emit_site?: string;
   emit_logradouro?: string;
   emit_numero?: string;
+  emit_complemento?: string;
   emit_bairro?: string;
   emit_cidade?: string;
   emit_uf?: string;
@@ -65,6 +65,7 @@ interface DANFEData {
   dest_cnpj_cpf?: string;
   dest_logradouro?: string;
   dest_numero?: string;
+  dest_complemento?: string;
   dest_bairro?: string;
   dest_cidade?: string;
   dest_uf?: string;
@@ -94,7 +95,6 @@ interface DANFEData {
   valor_ipi: number;
   valor_aprox_tributos: number;
   valor_total: number;
-  // ISSQN (obrigatório no DANFE mesmo zerado)
   im?: string;
   valor_servicos?: number;
   bc_issqn?: number;
@@ -104,7 +104,6 @@ interface DANFEData {
   info_complementares?: string;
   info_fisco?: string;
   ambiente?: "homologacao" | "producao";
-  /** false = rascunho/não autorizado — marca d'água + impressão bloqueada */
   pode_imprimir?: boolean;
   em_contingencia?: boolean;
   contingencia_modo?: string | null;
@@ -119,17 +118,29 @@ interface DANFEPreviewDialogProps {
   data: DANFEData | null;
 }
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 10;
 const APP_VERSION =
   typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__
     ? __APP_VERSION__
     : "6.0.0";
 
 const fmt = (v: number) =>
-  v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/** Quantidade: até 4 casas, sem zeros à direita */
 const fmtQtd = (v: number) =>
-  v.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+  Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+
+/** Valor unitário: 2 a 4 casas */
+const fmtUnit = (v: number) => {
+  const n = Number(v || 0);
+  const fixed = n.toFixed(4).replace(/\.?0+$/, "");
+  const [intPart, dec = ""] = fixed.split(".");
+  const intFmt = Number(intPart).toLocaleString("pt-BR");
+  if (!dec) return `${intFmt},00`;
+  if (dec.length === 1) return `${intFmt},${dec}0`;
+  return `${intFmt},${dec}`;
+};
 
 const fmtData = (value?: string | null) => {
   if (!value) return "";
@@ -151,11 +162,44 @@ const fmtDataHora = (value?: string | null) => {
   return raw;
 };
 
-/** CST no DANFE = origem (1 dígito) + CSOSN/CST concatenados — ex.: 0900 */
-const cstColuna = (item: DANFEItem) => {
-  const origem = String(item.origem ?? "0").replace(/\D/g, "").slice(-1) || "0";
-  const cst = String(item.cst_icms || "").replace(/\D/g, "");
-  return `${origem}${cst}`;
+const digitsOnly = (v?: string | null) => String(v || "").replace(/\D/g, "");
+
+const fmtCnpjCpf = (v?: string | null) => {
+  const d = digitsOnly(v);
+  if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  return v || "—";
+};
+
+const fmtCep = (v?: string | null) => {
+  const d = digitsOnly(v);
+  if (d.length === 8) return d.replace(/^(\d{5})(\d{3})$/, "$1-$2");
+  return v || "—";
+};
+
+const fmtFone = (v?: string | null) => {
+  const d = digitsOnly(v);
+  if (d.length === 10) return d.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
+  if (d.length === 11) return d.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
+  return v || "";
+};
+
+const fmtChave = (v?: string | null) => {
+  const d = digitsOnly(v);
+  if (d.length !== 44) return v || "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000";
+  return d.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+};
+
+/** Usa o_cst da RPC — não recalcular origem+CSOSN */
+const cstColuna = (item: DANFEItem) => textFrom(item.o_cst, item.cst_icms) || "—";
+
+const textFrom = (...values: any[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
 };
 
 export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDialogProps) {
@@ -194,7 +238,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
           position: fixed;
           top: 0;
           left: 0;
-          width: 100%;
+          width: 200mm !important;
+          transform: none !important;
           z-index: 99999;
           background: #fff;
         }
@@ -207,6 +252,9 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
         .no-print { display: none !important; }
         .danfe-page { page-break-after: always; }
         .danfe-page:last-child { page-break-after: auto; }
+        table { page-break-inside: auto; }
+        tr { page-break-inside: avoid; }
+        thead { display: table-header-group; }
       }
     `;
     document.head.appendChild(style);
@@ -221,97 +269,73 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
 
   if (!data) return null;
 
-  const renderRastros = (item: DANFEItem) => {
-    const rastros = item.rastros?.filter((rastro) =>
-      rastro.numero_lote || rastro.data_fabricacao || rastro.data_validade
-    ) || [];
-
-    if (rastros.length === 0) return "—";
-
-    return rastros.map((rastro, idx) => (
-      <div key={`${rastro.numero_lote || "lote"}-${idx}`} style={{ marginBottom: idx < rastros.length - 1 ? "2px" : 0 }}>
-        {rastro.numero_lote && <div><b>Lote:</b> {rastro.numero_lote}</div>}
-        {rastro.data_fabricacao && <div><b>Fab:</b> {fmtData(rastro.data_fabricacao)}</div>}
-        {rastro.data_validade && <div><b>Val:</b> {fmtData(rastro.data_validade)}</div>}
-      </div>
-    ));
-  };
-
-  const renderWatermarks = () => (
-    <>
-      {isRascunhoSemValor && (
-        <div style={{
-          position: "absolute",
-          top: "45%",
-          left: "50%",
-          transform: "translate(-50%, -50%) rotate(-32deg)",
-          fontSize: "22pt",
-          fontWeight: "bold",
-          color: "rgba(180,0,0,0.18)",
-          whiteSpace: "nowrap",
-          letterSpacing: "2px",
-          pointerEvents: "none",
-          zIndex: 20,
-          WebkitPrintColorAdjust: "exact",
-          printColorAdjust: "exact",
-        } as React.CSSProperties}>
-          SEM VALOR FISCAL — DOCUMENTO NÃO TRANSMITIDO
+  const renderItemDescricao = (item: DANFEItem) => (
+    <div>
+      <div>{item.descricao}</div>
+      {(item.lote || item.data_fabricacao || item.data_validade) && (
+        <div style={{ fontSize: "6pt", marginTop: "1px" }}>
+          {item.lote && <>Lote: {item.lote}</>}
+          {item.data_fabricacao && <> Fab: {fmtData(item.data_fabricacao)}</>}
+          {item.data_validade && <> Val: {fmtData(item.data_validade)}</>}
         </div>
       )}
-      {emContingencia && (
-        <div style={{
-          position: "absolute",
-          top: "62%",
-          left: "50%",
-          transform: "translate(-50%, -50%) rotate(-32deg)",
-          fontSize: "28pt",
-          fontWeight: "bold",
-          color: "rgba(120,80,0,0.16)",
-          whiteSpace: "nowrap",
-          letterSpacing: "3px",
-          pointerEvents: "none",
-          zIndex: 20,
-          WebkitPrintColorAdjust: "exact",
-          printColorAdjust: "exact",
-        } as React.CSSProperties}>
-          DANFE em Contingência
-        </div>
+      {item.informacoes_adicionais && (
+        <div style={{ fontSize: "5.5pt", color: "#333", marginTop: "1px" }}>{item.informacoes_adicionais}</div>
       )}
-      {isHomolog && !isRascunhoSemValor && (
-        <div style={{
-          position: "absolute",
-          top: "30%",
-          left: "50%",
-          transform: "translateX(-50%) rotate(-30deg)",
-          fontSize: "40pt",
-          fontWeight: "bold",
-          color: "rgba(200,0,0,0.12)",
-          whiteSpace: "nowrap",
-          letterSpacing: "8px",
-          pointerEvents: "none",
-          zIndex: 10,
-        }}>
-          SEM VALOR FISCAL
-        </div>
-      )}
-    </>
+    </div>
   );
+
+  const renderWatermarks = () => {
+    const text = emContingencia
+      ? "DANFE em Contingência"
+      : isRascunhoSemValor
+        ? "SEM VALOR FISCAL — DOCUMENTO NÃO TRANSMITIDO"
+        : isHomolog
+          ? "SEM VALOR FISCAL"
+          : null;
+    if (!text) return null;
+    return (
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        pointerEvents: "none",
+        zIndex: 0,
+        overflow: "hidden",
+      }}>
+        <div style={{
+          transform: "rotate(-35deg)",
+          fontSize: "36pt",
+          fontWeight: 700,
+          letterSpacing: "6px",
+          color: "rgba(220, 38, 38, 0.07)",
+          whiteSpace: "nowrap",
+          WebkitPrintColorAdjust: "exact",
+          printColorAdjust: "exact",
+        } as React.CSSProperties}>
+          {text}
+        </div>
+      </div>
+    );
+  };
 
   const renderCanhoto = () => (
     <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", marginBottom: "2mm" }}>
       <tbody>
         <tr>
-          <td colSpan={3} style={{ ...cellStyle, fontSize: "6.5pt", padding: "2px 4px" }}>
+          <td colSpan={3} style={{ ...cellStyle, fontSize: "6.5pt", padding: "2px 4px", minHeight: "7mm" }}>
             RECEBEMOS DE <b>{data.emit_razao}</b> OS PRODUTOS/SERVIÇOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO. EMISSÃO: <b>{data.data_emissao || "—"}</b>
           </td>
           <td rowSpan={2} style={{ ...cellStyle, textAlign: "center", width: "120px", verticalAlign: "top", padding: "2px" }}>
-            <div style={{ fontWeight: "bold", fontSize: "9pt" }}>NF-e</div>
+            <div style={{ fontWeight: 700, fontSize: "9pt" }}>NF-e</div>
             <div style={{ fontSize: "8pt" }}>Nº: {data.numero || "000.000.000"}</div>
             <div style={{ fontSize: "7pt" }}>SÉRIE: {data.serie || "1"}</div>
           </td>
         </tr>
         <tr>
-          <td style={{ ...cellStyle, width: "30%", fontSize: "6pt" }}>DATA DE RECEBIMENTO</td>
+          <td style={{ ...cellStyle, width: "30%", fontSize: "6pt", minHeight: "7mm" }}>DATA DE RECEBIMENTO</td>
           <td style={{ ...cellStyle, width: "30%", fontSize: "6pt" }}>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</td>
           <td style={{ ...cellStyle, fontSize: "6pt" }}>
             DESTINATÁRIO<br /><b style={{ fontSize: "7pt" }}>{data.dest_razao || "—"}</b>
@@ -321,36 +345,56 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
     </table>
   );
 
+  const emitEnderecoLinha = [
+    data.emit_logradouro,
+    data.emit_numero,
+  ].filter(Boolean).join(", ")
+    + (data.emit_complemento ? ` - ${data.emit_complemento}` : "");
+
+  const destEnderecoLinha = [
+    data.dest_logradouro,
+    data.dest_numero,
+  ].filter(Boolean).join(", ")
+    + (data.dest_complemento ? ` - ${data.dest_complemento}` : "");
+
   const renderHeader = (pageIdx: number) => (
-    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000" }}>
+    <table className="danfe" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", border: "1px solid #000" }}>
+      <colgroup>
+        <col style={{ width: "46%" }} />
+        <col style={{ width: "20%" }} />
+        <col style={{ width: "34%" }} />
+      </colgroup>
       <tbody>
         <tr>
-          <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px 6px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+          <td style={{ ...cellStyle, verticalAlign: "top", padding: "3mm 2mm" }}>
+            <div style={{ display: "flex", gap: "3mm", alignItems: "flex-start" }}>
               {data.emit_logo_url && (
-                <img src={data.emit_logo_url} alt="Logo" style={{ maxHeight: "50px", maxWidth: "80px", objectFit: "contain" }} />
+                <img
+                  src={data.emit_logo_url}
+                  alt=""
+                  style={{ height: "18mm", maxWidth: "28mm", objectFit: "contain", flexShrink: 0 }}
+                />
               )}
-              <div>
-                <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "2px" }}>
-                  {data.emit_razao}
-                </div>
-                <div style={{ fontSize: "6.5pt", lineHeight: 1.4 }}>
-                  {data.emit_logradouro && <>{data.emit_logradouro}{data.emit_numero ? `, ${data.emit_numero}` : ""}<br /></>}
-                  {data.emit_bairro && <>{data.emit_bairro} – {data.emit_cidade} – {data.emit_uf}<br /></>}
-                  {data.emit_cep && <>CEP: {data.emit_cep}<br /></>}
-                  {data.emit_telefone && <>FONE: {data.emit_telefone}<br /></>}
-                  {data.emit_site && <>{data.emit_site}<br /></>}
-                </div>
+              <div style={{ fontSize: "6.5pt", lineHeight: 1.35, position: "relative", zIndex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: "8pt" }}>{data.emit_razao}</div>
+                {data.emit_fantasia && <div style={{ fontWeight: 600 }}>{data.emit_fantasia}</div>}
+                {emitEnderecoLinha && <div>{emitEnderecoLinha}</div>}
+                {data.emit_bairro && <div>{data.emit_bairro}</div>}
+                {(data.emit_cidade || data.emit_uf) && (
+                  <div>{data.emit_cidade}{data.emit_uf ? `-${data.emit_uf}` : ""}</div>
+                )}
+                {data.emit_cep && <div>{fmtCep(data.emit_cep)}</div>}
+                {data.emit_telefone && <div>Fone: {fmtFone(data.emit_telefone)}</div>}
               </div>
             </div>
           </td>
-          <td style={{ ...cellStyle, width: "25%", verticalAlign: "top", textAlign: "center", padding: "4px" }}>
-            <div style={{ fontWeight: "bold", fontSize: "12pt", letterSpacing: "2px" }}>DANFE</div>
+          <td style={{ ...cellStyle, verticalAlign: "top", textAlign: "center", padding: "4px" }}>
+            <div style={{ fontWeight: 700, fontSize: "13pt", letterSpacing: "3px" }}>DANFE</div>
             <div style={{ fontSize: "6pt", lineHeight: 1.3, margin: "2px 0" }}>
               DOCUMENTO AUXILIAR<br />DA NOTA FISCAL<br />ELETRÔNICA
             </div>
             <div style={{ fontSize: "7pt", margin: "3px 0" }}>
-              {data.tipo_operacao === "0" ? "0 - Entrada" : "1 - Saída"}
+              {data.tipo_operacao === "0" ? <><b>0 - ENTRADA</b> &nbsp; 1 - SAÍDA</> : <>0 - ENTRADA &nbsp; <b>1 - SAÍDA</b></>}
             </div>
             <div style={{ fontSize: "7.5pt" }}>
               Nº <b>{data.numero || "000.000.000"}</b><br />
@@ -358,7 +402,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               FOLHAS {pageIdx + 1}/{totalPages}
             </div>
           </td>
-          <td style={{ ...cellStyle, width: "35%", verticalAlign: "top", padding: "4px" }}>
+          <td style={{ ...cellStyle, verticalAlign: "top", padding: "4px" }}>
             <div style={{
               height: "40px",
               background: "repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 3px)",
@@ -367,8 +411,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
             }} />
             <div style={{ fontSize: "6pt", textAlign: "center" }}>
               <b>CHAVE DE ACESSO</b><br />
-              <span style={{ fontFamily: "monospace", fontSize: "7pt", letterSpacing: "1px" }}>
-                {data.chave_acesso || "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"}
+              <span style={{ fontFamily: "'Courier New', monospace", fontSize: "7.5pt", letterSpacing: "0.5px" }}>
+                {fmtChave(data.chave_acesso)}
               </span>
             </div>
             <div style={{ fontSize: "5.5pt", textAlign: "center", marginTop: "3px", color: "#444" }}>
@@ -378,7 +422,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
             </div>
             {emContingencia && (
               <div style={{ fontSize: "5.5pt", marginTop: "3px", textAlign: "left" }}>
-                <div><b>Modo:</b> {data.contingencia_modo || "—"}</div>
+                {data.contingencia_modo && <div><b>Modo:</b> {data.contingencia_modo}</div>}
                 <div><b>dhContingência:</b> {fmtDataHora(data.dh_contingencia)}</div>
                 <div><b>Justificativa:</b> {data.justificativa_contingencia || "—"}</div>
               </div>
@@ -396,6 +440,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
       fontSize: "5pt",
       color: "#666",
       fontFamily: "Arial, Helvetica, sans-serif",
+      position: "relative",
+      zIndex: 1,
     }}>
       Documento gerado com www.brainxerp.com — versão {APP_VERSION}
     </div>
@@ -403,8 +449,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[900px] max-h-[95vh] overflow-y-auto p-4">
-        <DialogHeader className="flex flex-row items-center justify-between no-print">
+      <DialogContent className="max-w-[820px] max-h-[95vh] overflow-y-auto p-2">
+        <DialogHeader className="flex flex-row items-center justify-between no-print px-2 pt-2">
           <DialogTitle className="text-base">
             {podeImprimir ? "Pré-visualização DANFE" : "Pré-visualização DANFE — Sem valor fiscal"}
           </DialogTitle>
@@ -421,273 +467,271 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
               key={`page-${pageIdx}`}
               className="danfe-page"
               style={{
+                width: "200mm",
+                transform: "scale(0.98)",
+                transformOrigin: "top left",
                 fontFamily: "Arial, Helvetica, sans-serif",
                 fontSize: "7.5pt",
                 color: "#000",
                 background: "#fff",
-                maxWidth: "210mm",
                 margin: "0 auto",
-                padding: "4mm",
+                padding: "2mm",
                 lineHeight: 1.3,
                 position: "relative",
                 pageBreakAfter: pageIdx < totalPages - 1 ? "always" : "auto",
               }}
             >
               {renderWatermarks()}
+              <div style={{ position: "relative", zIndex: 1 }}>
+                {pageIdx === 0 && renderCanhoto()}
+                {renderHeader(pageIdx)}
 
-              {/* Canhoto só na primeira folha */}
-              {pageIdx === 0 && renderCanhoto()}
-              {renderHeader(pageIdx)}
+                {pageIdx === 0 && (
+                  <>
+                    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "60%", minHeight: "7mm" }}>
+                            <LabelValue label="NATUREZA DA OPERAÇÃO" value={data.natureza_operacao} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="PROTOCOLO DE AUTORIZAÇÃO DE USO" value={data.protocolo || "RASCUNHO — Aguardando transmissão"} />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-              {pageIdx === 0 && (
-                <>
-                  <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "60%" }}>
-                          <LabelValue label="NATUREZA DA OPERAÇÃO" value={data.natureza_operacao} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="PROTOCOLO DE AUTORIZAÇÃO DE USO" value={data.protocolo || "RASCUNHO — Aguardando transmissão"} />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "33%", minHeight: "7mm" }}>
+                            <LabelValue label="INSCRIÇÃO ESTADUAL" value={data.emit_ie || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, width: "33%", minHeight: "7mm" }}>
+                            <LabelValue label="INSCRIÇÃO ESTADUAL DO SUBST. TRIBUTÁRIO" value={data.emit_ie_st || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="CNPJ" value={fmtCnpjCpf(data.emit_cnpj)} />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-                  <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "33%" }}>
-                          <LabelValue label="INSCRIÇÃO ESTADUAL" value={data.emit_ie || "—"} />
-                        </td>
-                        <td style={{ ...cellStyle, width: "33%" }}>
-                          <LabelValue label="INSCRIÇÃO ESTADUAL SUB. TRIBUTÁRIA" value={data.emit_ie_st || "—"} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="CNPJ" value={data.emit_cnpj} />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                    <SectionTitle text="DESTINATÁRIO/REMETENTE" />
+                    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "55%", minHeight: "7mm" }}>
+                            <LabelValue label="NOME/RAZÃO SOCIAL" value={data.dest_razao || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, width: "25%", minHeight: "7mm" }}>
+                            <LabelValue label="CNPJ/CPF" value={fmtCnpjCpf(data.dest_cnpj_cpf)} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="DATA DA EMISSÃO" value={data.dest_data_emissao || data.data_emissao || "—"} />
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "40%", minHeight: "7mm" }}>
+                            <LabelValue label="ENDEREÇO" value={destEnderecoLinha || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, width: "25%", minHeight: "7mm" }}>
+                            <LabelValue label="BAIRRO/DISTRITO" value={data.dest_bairro || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, width: "15%", minHeight: "7mm" }}>
+                            <LabelValue label="CEP" value={fmtCep(data.dest_cep)} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="DATA DE SAÍDA/ENTRADA" value={data.data_saida_entrada || "—"} />
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "40%", minHeight: "7mm" }}>
+                            <LabelValue label="MUNICÍPIO" value={data.dest_cidade || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="FONE/FAX" value={fmtFone(data.dest_telefone) || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="UF" value={data.dest_uf || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="INSCRIÇÃO ESTADUAL" value={data.dest_ie || "—"} />
+                          </td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}>
+                            <LabelValue label="HORA DE SAÍDA" value={data.hora_saida_entrada || "—"} />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-                  <SectionTitle text="DESTINATÁRIO/REMETENTE" />
-                  <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "55%" }}>
-                          <LabelValue label="NOME/RAZÃO SOCIAL" value={data.dest_razao || "—"} />
-                        </td>
-                        <td style={{ ...cellStyle, width: "25%" }}>
-                          <LabelValue label="CNPJ/CPF" value={data.dest_cnpj_cpf || "—"} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="DATA DA EMISSÃO" value={data.dest_data_emissao || data.data_emissao || "—"} />
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "40%" }}>
-                          <LabelValue label="ENDEREÇO" value={
-                            [data.dest_logradouro, data.dest_numero].filter(Boolean).join(", ") || "—"
-                          } />
-                        </td>
-                        <td style={{ ...cellStyle, width: "25%" }}>
-                          <LabelValue label="BAIRRO/DISTRITO" value={data.dest_bairro || "—"} />
-                        </td>
-                        <td style={{ ...cellStyle, width: "15%" }}>
-                          <LabelValue label="CEP" value={data.dest_cep || "—"} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="DATA DE SAÍDA/ENTRADA" value={data.data_saida_entrada || "—"} />
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "40%" }}>
-                          <LabelValue label="MUNICÍPIO" value={data.dest_cidade || "—"} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="FONE/FAX" value={data.dest_telefone || "—"} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="UF" value={data.dest_uf || "—"} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="INSCRIÇÃO ESTADUAL" value={data.dest_ie || "—"} />
-                        </td>
-                        <td style={cellStyle}>
-                          <LabelValue label="HORA DE SAÍDA" value={data.hora_saida_entrada || "—"} />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                    <SectionTitle text="FATURA / DUPLICATA" />
+                    <div style={{ border: "1px solid #000", borderTop: "none", minHeight: "8mm", padding: "2px 4px", fontSize: "6.5pt" }}>
+                      {(data.parcelas || []).length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                          {(data.parcelas || []).map((p, i) => (
+                            <span key={i} style={{ fontFamily: "'Courier New', monospace" }}>
+                              {String(p.numero_parcela ?? i + 1).padStart(3, "0")}
+                              {" | "}
+                              VENCIMENTO {fmtData(p.data_vencimento) || "—"}
+                              {" | "}
+                              VALOR R$ {fmt(Number(p.valor || 0))}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: "#666" }}>—</span>
+                      )}
+                    </div>
 
-                  <SectionTitle text="FATURA / DUPLICATA" />
-                  <div style={{ border: "1px solid #000", borderTop: "none", minHeight: "8mm", padding: "2px 4px", fontSize: "6.5pt" }}>
-                    {(data.parcelas || []).length > 0 ? (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                        {(data.parcelas || []).map((p, i) => (
-                          <span key={i} style={{ fontFamily: "monospace" }}>
-                            {String(p.numero_parcela ?? i + 1).padStart(3, "0")}
-                            {" | "}
-                            VENCIMENTO {fmtData(p.data_vencimento) || "—"}
-                            {" | "}
-                            VALOR R$ {fmt(Number(p.valor || 0))}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span style={{ color: "#666" }}>—</span>
-                    )}
-                  </div>
+                    <SectionTitle text="CALCULO DO IMPOSTO" />
+                    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="BASE DE CÁLCULO DO ICMS" value={fmt(data.bc_icms)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR DO ICMS" value={fmt(data.valor_icms)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="BASE DE CÁLCULO DO ICMS ST" value={fmt(data.bc_icms_st)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR DO ICMS ST" value={fmt(data.valor_icms_st)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR TOTAL DOS PRODUTOS" value={fmt(data.valor_produtos)} /></td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR DO FRETE" value={fmt(data.valor_frete)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR DO SEGURO" value={fmt(data.valor_seguro)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="DESCONTO" value={fmt(data.valor_desconto)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="OUTRAS DESPESAS ACESSÓRIAS" value={fmt(data.outras_despesas)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR DO IPI" value={fmt(data.valor_ipi)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR TOTAL DA NOTA" value={fmt(data.valor_total)} bold /></td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-                  <SectionTitle text="CALCULO DO IMPOSTO" />
-                  <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
-                    <tbody>
-                      <tr>
-                        <td style={cellStyle}><LabelValue label="BASE DE CÁLCULO ICMS" value={fmt(data.bc_icms)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR DO ICMS" value={fmt(data.valor_icms)} /></td>
-                        <td style={cellStyle}><LabelValue label="BASE DE CÁLCULO ICMS ST" value={fmt(data.bc_icms_st)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR DO ICMS SUBSTITUIÇÃO" value={fmt(data.valor_icms_st)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR TOTAL DOS PRODUTOS" value={fmt(data.valor_produtos)} /></td>
-                      </tr>
-                      <tr>
-                        <td style={cellStyle}><LabelValue label="VALOR DO FRETE" value={fmt(data.valor_frete)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR DO SEGURO" value={fmt(data.valor_seguro)} /></td>
-                        <td style={cellStyle}><LabelValue label="DESCONTO" value={fmt(data.valor_desconto)} /></td>
-                        <td style={cellStyle}><LabelValue label="OUTRAS DESPESAS ACESSÓRIAS" value={fmt(data.outras_despesas)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR DO IPI" value={fmt(data.valor_ipi)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR APROX. DOS TRIBUTOS" value={fmt(data.valor_aprox_tributos)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR TOTAL DA NOTA" value={fmt(data.valor_total)} bold /></td>
-                      </tr>
-                    </tbody>
-                  </table>
+                    <SectionTitle text="CALCULO DO ISSQN" />
+                    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="INSCRIÇÃO MUNICIPAL" value={data.im || data.emit_im || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR TOTAL DOS SERVIÇOS" value={fmt(data.valor_servicos ?? 0)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="BASE DE CÁLCULO DO ISSQN" value={fmt(data.bc_issqn ?? 0)} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="VALOR DO ISSQN" value={fmt(data.valor_issqn ?? 0)} /></td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-                  <SectionTitle text="CALCULO DO ISSQN" />
-                  <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
-                    <tbody>
-                      <tr>
-                        <td style={cellStyle}><LabelValue label="INSCRIÇÃO MUNICIPAL" value={data.im || data.emit_im || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR TOTAL DOS SERVIÇOS" value={fmt(data.valor_servicos ?? 0)} /></td>
-                        <td style={cellStyle}><LabelValue label="BASE DE CÁLCULO DO ISSQN" value={fmt(data.bc_issqn ?? 0)} /></td>
-                        <td style={cellStyle}><LabelValue label="VALOR DO ISSQN" value={fmt(data.valor_issqn ?? 0)} /></td>
-                      </tr>
-                    </tbody>
-                  </table>
+                    <SectionTitle text="TRANSPORTADOR/VOLUMES TRANSPORTADOS" />
+                    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "30%", minHeight: "7mm" }}><LabelValue label="RAZÃO SOCIAL" value={data.transp_razao || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="FRETE POR CONTA" value={data.transp_frete_conta || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="CÓDIGO ANTT" value={data.transp_codigo_antt || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="PLACA DO VEÍC." value={data.transp_placa || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="UF" value={data.transp_uf || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="CNPJ/CPF" value={fmtCnpjCpf(data.transp_cnpj_cpf)} /></td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "30%", minHeight: "7mm" }}><LabelValue label="ENDEREÇO" value={data.transp_logradouro || "—"} /></td>
+                          <td colSpan={3} style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="MUNICÍPIO" value={data.transp_cidade || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="UF" value={data.transp_cidade_uf || "—"} /></td>
+                          <td style={{ ...cellStyle, minHeight: "7mm" }}><LabelValue label="INSCRIÇÃO ESTADUAL" value={data.transp_ie || "—"} /></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </>
+                )}
 
-                  <SectionTitle text="TRANSPORTADOR/VOLUMES TRANSPORTADOS" />
-                  <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "30%" }}><LabelValue label="RAZÃO SOCIAL" value={data.transp_razao || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="FRETE POR CONTA" value={data.transp_frete_conta || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="CÓDIGO ANTT" value={data.transp_codigo_antt || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="PLACA DO VEÍC." value={data.transp_placa || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="UF" value={data.transp_uf || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="CNPJ/CPF" value={data.transp_cnpj_cpf || "—"} /></td>
-                      </tr>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "30%" }}><LabelValue label="ENDEREÇO" value={data.transp_logradouro || "—"} /></td>
-                        <td colSpan={3} style={cellStyle}><LabelValue label="MUNICÍPIO" value={data.transp_cidade || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="UF" value={data.transp_cidade_uf || "—"} /></td>
-                        <td style={cellStyle}><LabelValue label="INSCRIÇÃO ESTADUAL" value={data.transp_ie || "—"} /></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </>
-              )}
-
-              <SectionTitle text="DADOS DO PRODUTO/SERVIÇO" />
-              <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none", fontSize: "6.5pt", tableLayout: "fixed" }}>
-                <colgroup>
-                  <col style={{ width: "5%" }} />
-                  <col style={{ width: "20%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "6%" }} />
-                  <col style={{ width: "5%" }} />
-                  <col style={{ width: "5%" }} />
-                  <col style={{ width: "4%" }} />
-                  <col style={{ width: "6%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "6%" }} />
-                  <col style={{ width: "6%" }} />
-                  <col style={{ width: "5%" }} />
-                  <col style={{ width: "3.5%" }} />
-                  <col style={{ width: "3.5%" }} />
-                </colgroup>
-                <thead>
-                  <tr style={{ background: "#f5f5f5" }}>
-                    <th style={thStyle}>CÓD. PROD.</th>
-                    <th style={{ ...thStyle, textAlign: "left" }}>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
-                    <th style={{ ...thStyle, textAlign: "left" }}>LOTE / FAB. / VAL.</th>
-                    <th style={thStyle}>NCM/SH</th>
-                    <th style={thStyle}>CST</th>
-                    <th style={thStyle}>CFOP</th>
-                    <th style={thStyle}>UNID.</th>
-                    <th style={numericThStyle}>QUANT.</th>
-                    <th style={numericThStyle}>VALOR UNITÁRIO</th>
-                    <th style={numericThStyle}>VALOR TOTAL</th>
-                    <th style={numericThStyle}>B.CÁLC. ICMS</th>
-                    <th style={numericThStyle}>VALOR ICMS</th>
-                    <th style={numericThStyle}>VALOR IPI</th>
-                    <th style={numericThStyle}>ALÍQ. ICMS</th>
-                    <th style={numericThStyle}>ALÍQ. IPI</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageItens.map((item, idx) => (
-                    <tr key={`${pageIdx}-${idx}`}>
-                      <td style={tdStyle}>{item.codigo_produto || item.numero_item || idx + 1}</td>
-                      <td style={textTdStyle}>{item.descricao}</td>
-                      <td style={traceTdStyle}>{renderRastros(item)}</td>
-                      <td style={tdStyle}>{item.ncm}</td>
-                      <td style={tdStyle}>{cstColuna(item)}</td>
-                      <td style={tdStyle}>{item.cfop}</td>
-                      <td style={tdStyle}>{item.unidade}</td>
-                      <td style={numericTdStyle}>{fmtQtd(item.quantidade)}</td>
-                      <td style={numericTdStyle}>{fmt(item.valor_unitario)}</td>
-                      <td style={numericTdStyle}>{fmt(item.valor_total)}</td>
-                      <td style={numericTdStyle}>{fmt(item.icms_base ?? item.valor_total)}</td>
-                      <td style={numericTdStyle}>{fmt(item.icms_valor)}</td>
-                      <td style={numericTdStyle}>{fmt(item.ipi_valor || 0)}</td>
-                      <td style={numericTdStyle}>{fmt(item.icms_aliquota)}</td>
-                      <td style={numericTdStyle}>{fmt(item.ipi_aliquota || 0)}</td>
+                <SectionTitle text="DADOS DO PRODUTO/SERVIÇO" />
+                <table
+                  className="danfe"
+                  style={{
+                    width: "100%",
+                    tableLayout: "fixed",
+                    borderCollapse: "collapse",
+                    border: "1px solid #000",
+                    borderTop: "none",
+                    fontSize: "6.5pt",
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "26%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "4%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "4%" }} />
+                    <col style={{ width: "4%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr style={{ background: "#f5f5f5" }}>
+                      <th style={thStyle}>CÓD. PROD.</th>
+                      <th style={{ ...thStyle, textAlign: "left" }}>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
+                      <th style={thStyle}>NCM/SH</th>
+                      <th style={thStyle}>O/CST</th>
+                      <th style={thStyle}>CFOP</th>
+                      <th style={thStyle}>UNID.</th>
+                      <th style={thNum}>QUANT.</th>
+                      <th style={thNum}>VLR. UNIT.</th>
+                      <th style={thNum}>VLR. TOTAL</th>
+                      <th style={thNum}>BC ICMS</th>
+                      <th style={thNum}>VLR. ICMS</th>
+                      <th style={thNum}>VLR. IPI</th>
+                      <th style={thNum}>ALÍQ.<br />ICMS</th>
+                      <th style={thNum}>ALÍQ.<br />IPI</th>
                     </tr>
-                  ))}
-                  {pageItens.length < ITEMS_PER_PAGE &&
-                    Array.from({ length: ITEMS_PER_PAGE - pageItens.length }).map((_, i) => (
-                      <tr key={`empty-${pageIdx}-${i}`}>
-                        {Array.from({ length: 15 }).map((_, j) => (
-                          <td key={j} style={{ ...tdStyle, height: "14px" }}>&nbsp;</td>
-                        ))}
+                  </thead>
+                  <tbody>
+                    {pageItens.map((item, idx) => (
+                      <tr key={`${pageIdx}-${idx}`}>
+                        <td style={tdStyle}>{item.codigo_produto || item.numero_item || idx + 1}</td>
+                        <td style={tdText}>{renderItemDescricao(item)}</td>
+                        <td style={tdStyle}>{item.ncm}</td>
+                        <td style={tdStyle}>{cstColuna(item)}</td>
+                        <td style={tdStyle}>{item.cfop}</td>
+                        <td style={tdStyle}>{item.unidade}</td>
+                        <td style={tdNum}>{fmtQtd(item.quantidade)}</td>
+                        <td style={tdNum}>{fmtUnit(item.valor_unitario)}</td>
+                        <td style={tdNum}>{fmt(item.valor_total)}</td>
+                        <td style={tdNum}>{fmt(item.icms_base ?? 0)}</td>
+                        <td style={tdNum}>{fmt(item.icms_valor)}</td>
+                        <td style={tdNum}>{fmt(item.ipi_valor || 0)}</td>
+                        <td style={tdNum}>{fmt(item.icms_aliquota)}</td>
+                        <td style={tdNum}>{fmt(item.ipi_aliquota || 0)}</td>
                       </tr>
                     ))}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
 
-              {pageIdx === totalPages - 1 && (
-                <>
-                  <SectionTitle text="DADOS ADICIONAIS" />
-                  <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ ...cellStyle, width: "50%", verticalAlign: "top", minHeight: "30mm" }}>
-                          <div style={{ fontSize: "6pt", fontWeight: "bold", marginBottom: "2px" }}>INFORMAÇÕES COMPLEMENTARES</div>
-                          <div style={{ fontSize: "6.5pt", whiteSpace: "pre-wrap", minHeight: "20mm" }}>
-                            {data.info_complementares || ""}
-                            {isHomolog && "\nNF-E EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL"}
-                          </div>
-                        </td>
-                        <td style={{ ...cellStyle, width: "50%", verticalAlign: "top" }}>
-                          <div style={{ fontSize: "6pt", fontWeight: "bold", marginBottom: "2px" }}>RESERVADO AO FISCO</div>
-                          <div style={{ fontSize: "6.5pt", minHeight: "20mm" }}>{data.info_fisco || ""}</div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </>
-              )}
+                {pageIdx === totalPages - 1 && (
+                  <>
+                    <SectionTitle text="DADOS ADICIONAIS" />
+                    <table className="danfe" style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", borderTop: "none" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...cellStyle, width: "50%", verticalAlign: "top", minHeight: "30mm" }}>
+                            <div style={{ fontSize: "5.5pt", color: "#333", marginBottom: "2px" }}>INFORMAÇÕES COMPLEMENTARES</div>
+                            <div style={{ fontSize: "6.5pt", whiteSpace: "pre-wrap", minHeight: "20mm" }}>
+                              {data.info_complementares || ""}
+                              {isHomolog && "\nNF-E EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL"}
+                            </div>
+                          </td>
+                          <td style={{ ...cellStyle, width: "50%", verticalAlign: "top" }}>
+                            <div style={{ fontSize: "5.5pt", color: "#333", marginBottom: "2px" }}>RESERVADO AO FISCO</div>
+                            <div style={{ fontSize: "6.5pt", minHeight: "20mm" }}>{data.info_fisco || ""}</div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </>
+                )}
 
-              {renderFooter()}
+                {renderFooter()}
+              </div>
             </div>
           ))}
         </div>
@@ -704,53 +748,50 @@ const cellStyle: React.CSSProperties = {
 };
 
 const thStyle: React.CSSProperties = {
-  border: "1px solid #000",
-  padding: "2px 3px",
+  border: "0.5pt solid #000",
+  padding: "1pt 2pt",
   textAlign: "center",
-  fontWeight: "bold",
+  fontWeight: 600,
   fontSize: "5.5pt",
-  whiteSpace: "nowrap",
+  lineHeight: 1.1,
+  wordBreak: "break-word",
+  whiteSpace: "normal",
+  verticalAlign: "middle",
 };
 
-const numericThStyle: React.CSSProperties = {
+const thNum: React.CSSProperties = {
   ...thStyle,
   textAlign: "right",
 };
 
 const tdStyle: React.CSSProperties = {
-  border: "1px solid #000",
-  padding: "1px 3px",
+  border: "0.5pt solid #000",
+  padding: "1pt 2pt",
   textAlign: "center",
   fontSize: "6.5pt",
-  fontFamily: "monospace",
+  fontFamily: "'Courier New', monospace",
+  lineHeight: 1.15,
+  wordBreak: "break-word",
+  verticalAlign: "top",
 };
 
-const textTdStyle: React.CSSProperties = {
+const tdText: React.CSSProperties = {
   ...tdStyle,
   textAlign: "left",
-  fontSize: "6pt",
   fontFamily: "Arial, Helvetica, sans-serif",
-  overflowWrap: "break-word",
+  fontSize: "6pt",
 };
 
-const traceTdStyle: React.CSSProperties = {
-  ...textTdStyle,
-  fontSize: "5.5pt",
-  lineHeight: 1.25,
-};
-
-const numericTdStyle: React.CSSProperties = {
+const tdNum: React.CSSProperties = {
   ...tdStyle,
   textAlign: "right",
-  padding: "1px 4px",
-  whiteSpace: "nowrap",
 };
 
 function LabelValue({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: "5.5pt", color: "#333", fontWeight: "bold" }}>{label}</div>
-      <div style={{ fontSize: "7.5pt", fontWeight: bold ? "bold" : "normal" }}>{value}</div>
+      <span style={{ fontSize: "5.5pt", color: "#333", fontWeight: 400, lineHeight: 1.1, display: "block" }}>{label}</span>
+      <span style={{ fontSize: "7.5pt", fontWeight: bold ? 700 : 500, lineHeight: 1.2, display: "block", color: "#000" }}>{value}</span>
     </div>
   );
 }
@@ -761,8 +802,9 @@ function SectionTitle({ text }: { text: string }) {
       border: "1px solid #000",
       borderBottom: "none",
       padding: "1px 4px",
-      fontSize: "6.5pt",
-      fontWeight: "bold",
+      fontSize: "6pt",
+      fontWeight: 700,
+      textTransform: "uppercase",
       background: "#f0f0f0",
     }}>
       {text}

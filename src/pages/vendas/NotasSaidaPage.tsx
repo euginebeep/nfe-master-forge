@@ -163,134 +163,121 @@ const formatTimeFromPayload = (value: any) => {
   return timePart ? timePart.slice(0, 5) : "";
 };
 
-const unwrapFocusPayload = (rpcData: any) => {
+/** Preview/impressão: RPC dados_danfe — não usar montar_payload_focus (omite cadastro da Focus). */
+const unwrapDadosDanfe = (rpcData: any) => {
   const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
   const record = asRecord(row);
-  return record.payload || record.focus_payload || record.nfe_payload || record.montar_payload_focus || row;
+  return record.dados_danfe || record.payload || record;
 };
 
-const logFocusPayloadShape = (payload: any) => {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
-  const itens = asArray(payload.itens || payload.items || payload.produtos);
-  console.info("[DANFE] montar_payload_focus response keys", {
-    root: Object.keys(payload),
-    emitente: Object.keys(asRecord(payload.emitente || payload.emit)),
-    destinatario: Object.keys(asRecord(payload.destinatario || payload.dest)),
-    item: Object.keys(asRecord(itens[0])),
-    total: Object.keys(asRecord(payload.total || payload.totais)),
-    transporte: Object.keys(asRecord(payload.transporte)),
-  });
-};
-
-const mapFocusPayloadToDanfeData = (payloadData: any, emitLogoUrl?: string | null) => {
+const mapDadosDanfeToDanfeData = (payloadData: any, emitLogoUrl?: string | null) => {
   const payload = asRecord(payloadData);
-  const emitente = asRecord(payload.emitente || payload.emit);
-  const emitEndereco = asRecord(emitente.endereco);
-  const destinatario = asRecord(payload.destinatario || payload.dest);
-  const destEndereco = asRecord(destinatario.endereco);
-  const transporte = asRecord(payload.transporte);
-  const transportadora = asRecord(transporte.transportadora);
-  const total = asRecord(payload.total || payload.totais);
-  const icmsTotal = asRecord(total.icms_total || total);
-  const freteCodigo = textFrom(transporte.modalidade_frete, payload.modalidade_frete);
+  const emitente = asRecord(payload.emitente);
+  const destinatario = asRecord(payload.destinatario);
+  const nota = asRecord(payload.nota);
+  const totais = asRecord(payload.totais);
+  const issqn = asRecord(payload.issqn);
+  const freteCodigo = textFrom(nota.modalidade_frete, payload.modalidade_frete);
   const freteLabel = MODALIDADES_FRETE.find((m) => m.value === freteCodigo)?.label?.split(" - ")[0] || freteCodigo;
+  const ambienteRaw = textFrom(nota.ambiente, payload.ambiente).toLowerCase();
 
   return {
-    emit_razao: textFrom(emitente.razao_social, emitente.nome, "—"),
+    emit_razao: textFrom(emitente.razao_social, "—"),
     emit_fantasia: textFrom(emitente.nome_fantasia),
     emit_logo_url: emitLogoUrl || undefined,
-    emit_logradouro: textFrom(emitEndereco.logradouro, emitente.logradouro),
-    emit_numero: textFrom(emitEndereco.numero, emitente.numero),
-    emit_bairro: textFrom(emitEndereco.bairro, emitente.bairro),
-    emit_cidade: textFrom(emitEndereco.nome_municipio, emitEndereco.municipio, emitEndereco.cidade, emitente.municipio),
-    emit_uf: textFrom(emitEndereco.uf, emitente.uf),
-    emit_cep: textFrom(emitEndereco.cep, emitente.cep),
-    emit_telefone: textFrom(emitEndereco.telefone, emitente.telefone),
+    emit_logradouro: textFrom(emitente.logradouro),
+    emit_numero: textFrom(emitente.numero),
+    emit_complemento: textFrom(emitente.complemento),
+    emit_bairro: textFrom(emitente.bairro),
+    emit_cidade: textFrom(emitente.municipio),
+    emit_uf: textFrom(emitente.uf),
+    emit_cep: textFrom(emitente.cep),
+    emit_telefone: textFrom(emitente.telefone),
     emit_email: textFrom(emitente.email),
-    emit_cnpj: textFrom(emitente.cpf_cnpj, emitente.cnpj, emitente.documento),
-    emit_ie: textFrom(emitente.inscricao_estadual, emitente.ie),
-    numero: textFrom(payload.numero),
-    serie: textFrom(payload.serie),
-    natureza_operacao: textFrom(payload.natureza_operacao, "Venda de mercadoria"),
-    chave_acesso: textFrom(payload.chave_acesso, payload.chave_nfe),
-    protocolo: textFrom(payload.protocolo_autorizacao, payload.protocolo),
-    data_emissao: formatDateFromPayload(payload.data_emissao),
-    data_saida_entrada: formatDateFromPayload(payload.data_saida_entrada),
-    hora_saida_entrada: formatTimeFromPayload(payload.data_saida_entrada),
-    tipo_operacao: textFrom(payload.tipo_operacao) === "0" ? "0" as const : "1" as const,
-    dest_razao: textFrom(destinatario.razao_social, destinatario.nome),
-    dest_cnpj_cpf: textFrom(destinatario.cpf_cnpj, destinatario.cnpj, destinatario.cpf, destinatario.documento),
-    dest_logradouro: textFrom(destEndereco.logradouro, destinatario.logradouro),
-    dest_numero: textFrom(destEndereco.numero, destinatario.numero),
-    dest_bairro: textFrom(destEndereco.bairro, destinatario.bairro),
-    dest_cidade: textFrom(destEndereco.nome_municipio, destEndereco.municipio, destEndereco.cidade, destinatario.municipio),
-    dest_uf: textFrom(destEndereco.uf, destinatario.uf),
-    dest_cep: textFrom(destEndereco.cep, destinatario.cep),
-    dest_telefone: textFrom(destEndereco.telefone, destinatario.telefone),
-    dest_ie: textFrom(destinatario.inscricao_estadual, destinatario.ie),
-    dest_data_emissao: formatDateFromPayload(payload.data_emissao),
-    bc_icms: numberFrom(icmsTotal.base_calculo, icmsTotal.base_calculo_icms),
-    valor_icms: numberFrom(icmsTotal.valor_icms),
-    bc_icms_st: numberFrom(icmsTotal.base_calculo_st),
-    valor_icms_st: numberFrom(icmsTotal.valor_icms_st),
-    valor_produtos: numberFrom(icmsTotal.valor_produtos, total.valor_produtos),
-    valor_frete: numberFrom(icmsTotal.valor_frete, total.valor_frete),
-    valor_seguro: numberFrom(icmsTotal.valor_seguro, total.valor_seguro),
-    valor_desconto: numberFrom(icmsTotal.valor_desconto, total.valor_desconto),
-    outras_despesas: numberFrom(icmsTotal.outras_despesas, total.outras_despesas),
-    valor_ipi: numberFrom(icmsTotal.valor_ipi, total.valor_ipi),
-    valor_aprox_tributos: numberFrom(icmsTotal.valor_aprox_tributos, total.valor_aprox_tributos),
-    valor_total: numberFrom(icmsTotal.valor_nota, total.valor_nota, payload.valor_total),
-    im: textFrom(emitente.inscricao_municipal, emitente.im),
-    emit_im: textFrom(emitente.inscricao_municipal, emitente.im),
-    valor_servicos: numberFrom(total.valor_servicos, icmsTotal.valor_servicos, 0),
-    bc_issqn: numberFrom(total.base_calculo_issqn, total.bc_issqn, 0),
-    valor_issqn: numberFrom(total.valor_issqn, total.valor_iss, 0),
-    transp_razao: textFrom(transportadora.razao_social),
+    emit_cnpj: textFrom(emitente.cnpj),
+    emit_ie: textFrom(emitente.ie),
+    emit_im: textFrom(emitente.im, issqn.inscricao_municipal),
+    im: textFrom(issqn.inscricao_municipal, emitente.im),
+    numero: nota.numero != null ? String(nota.numero) : textFrom(nota.numero),
+    serie: textFrom(nota.serie),
+    natureza_operacao: textFrom(nota.natureza_operacao, "Venda de mercadoria"),
+    chave_acesso: textFrom(nota.chave_acesso),
+    protocolo: textFrom(nota.protocolo),
+    data_emissao: formatDateFromPayload(nota.data_emissao),
+    data_saida_entrada: formatDateFromPayload(nota.data_saida_entrada || nota.data_emissao),
+    hora_saida_entrada: formatTimeFromPayload(nota.data_saida_entrada || nota.data_emissao),
+    tipo_operacao: textFrom(nota.tipo_operacao) === "0" ? "0" as const : "1" as const,
+    status: textFrom(nota.status) || null,
+    em_contingencia: !!nota.em_contingencia,
+    contingencia_modo: nota.contingencia_modo ?? null,
+    dh_contingencia: nota.dh_contingencia ?? null,
+    justificativa_contingencia: nota.justificativa_contingencia ?? null,
+    dest_razao: textFrom(destinatario.razao_social),
+    dest_cnpj_cpf: textFrom(destinatario.documento, destinatario.cnpj, destinatario.cpf),
+    dest_logradouro: textFrom(destinatario.logradouro),
+    dest_numero: textFrom(destinatario.numero),
+    dest_complemento: textFrom(destinatario.complemento),
+    dest_bairro: textFrom(destinatario.bairro),
+    dest_cidade: textFrom(destinatario.municipio),
+    dest_uf: textFrom(destinatario.uf),
+    dest_cep: textFrom(destinatario.cep),
+    dest_telefone: textFrom(destinatario.telefone),
+    dest_ie: textFrom(destinatario.ie),
+    dest_data_emissao: formatDateFromPayload(nota.data_emissao),
+    bc_icms: numberFrom(totais.base_icms, totais.base_calculo_icms),
+    valor_icms: numberFrom(totais.valor_icms),
+    bc_icms_st: numberFrom(totais.base_icms_st, totais.base_calculo_icms_st),
+    valor_icms_st: numberFrom(totais.valor_icms_st),
+    valor_produtos: numberFrom(totais.valor_produtos),
+    valor_frete: numberFrom(totais.valor_frete),
+    valor_seguro: numberFrom(totais.valor_seguro),
+    valor_desconto: numberFrom(totais.valor_desconto),
+    outras_despesas: numberFrom(totais.outras_despesas),
+    valor_ipi: numberFrom(totais.valor_ipi),
+    valor_aprox_tributos: numberFrom(totais.valor_aprox_tributos),
+    valor_total: numberFrom(totais.valor_total),
+    valor_servicos: numberFrom(issqn.valor_servicos, 0),
+    bc_issqn: numberFrom(issqn.base_calculo, 0),
+    valor_issqn: numberFrom(issqn.valor_issqn, 0),
     transp_frete_conta: freteLabel || "—",
-    transp_cnpj_cpf: textFrom(transportadora.cpf_cnpj, transportadora.cnpj, transportadora.cpf),
-    transp_logradouro: textFrom(transportadora.endereco_completo, transportadora.logradouro),
-    transp_cidade: textFrom(transportadora.municipio, transportadora.cidade),
-    transp_cidade_uf: textFrom(transportadora.uf),
-    transp_ie: textFrom(transportadora.inscricao_estadual, transportadora.ie),
-    itens: asArray(payload.itens || payload.items || payload.produtos).map((itemData: any, idx: number) => {
+    itens: asArray(payload.itens).map((itemData: any, idx: number) => {
       const item = asRecord(itemData);
-      const icms = asRecord(item.icms);
-      const ipi = asRecord(item.ipi);
-      const rastros = asArray(item.rastros || item.rastro || item.lotes).map((rastroData: any) => {
-        const rastro = asRecord(rastroData);
-        return {
-          numero_lote: textFrom(rastro.numero_lote, rastro.nLote, rastro.lote),
-          quantidade_lote: numberFrom(rastro.quantidade_lote, rastro.qLote, rastro.quantidade),
-          data_fabricacao: textFrom(rastro.data_fabricacao, rastro.dFab),
-          data_validade: textFrom(rastro.data_validade, rastro.dVal),
-        };
-      }).filter((rastro) => rastro.numero_lote || rastro.data_fabricacao || rastro.data_validade);
-
+      // o_cst já vem origem+CSOSN/CST — não recalcular
+      const oCst = textFrom(item.o_cst);
       return {
         numero_item: numberFrom(item.numero_item, idx + 1),
-        codigo_produto: textFrom(item.codigo_produto, item.item_id, idx + 1),
+        codigo_produto: textFrom(item.codigo, item.codigo_produto, idx + 1),
         descricao: textFrom(item.descricao),
-        ncm: textFrom(item.codigo_ncm, item.ncm),
-        // Nunca inventar CST/CSOSN/CFOP — nota Simples usa CSOSN 900; fallback "00"/"5102" mentia no DANFE
-        cst_icms: textFrom(item.csosn, item.cst_icms, icms.csosn, icms.cst, icms.situacao_tributaria),
+        lote: textFrom(item.lote),
+        data_fabricacao: textFrom(item.data_fabricacao),
+        data_validade: textFrom(item.data_validade),
+        ncm: textFrom(item.ncm),
+        o_cst: oCst,
+        cst_icms: oCst,
         cfop: textFrom(item.cfop),
-        unidade: textFrom(item.unidade_comercial, item.unidade, "UN"),
-        quantidade: numberFrom(item.quantidade_comercial, item.quantidade),
-        valor_unitario: numberFrom(item.valor_unitario_comercial, item.valor_unitario),
-        valor_total: numberFrom(item.valor_bruto, item.valor_total),
-        icms_base: numberFrom(item.icms_base, icms.base_calculo),
-        icms_aliquota: numberFrom(item.icms_aliquota, icms.aliquota, icms.aliquota_percentual),
-        icms_valor: numberFrom(item.icms_valor, icms.valor),
-        ipi_valor: numberFrom(item.ipi_valor, ipi.valor),
-        ipi_aliquota: numberFrom(item.ipi_aliquota, ipi.aliquota),
-        origem: textFrom(item.origem, item.codigo_origem, icms.origem),
-        rastros,
+        unidade: textFrom(item.unidade, "UN"),
+        quantidade: numberFrom(item.quantidade),
+        valor_unitario: numberFrom(item.valor_unitario),
+        valor_total: numberFrom(item.valor_total),
+        icms_base: numberFrom(item.base_icms, item.icms_base),
+        icms_aliquota: numberFrom(item.aliquota_icms, item.icms_aliquota),
+        icms_valor: numberFrom(item.valor_icms, item.icms_valor),
+        ipi_valor: numberFrom(item.valor_ipi, item.ipi_valor),
+        ipi_aliquota: numberFrom(item.aliquota_ipi, item.ipi_aliquota),
+        informacoes_adicionais: textFrom(item.informacoes_adicionais),
       };
     }),
-    info_complementares: textFrom(payload.informacoes_adicionais_contribuinte, payload.info_complementares),
-    info_fisco: textFrom(payload.informacoes_adicionais_fisco, payload.info_fisco),
-    ambiente: textFrom(payload.ambiente).toLowerCase() === "producao" ? "producao" as const : "homologacao" as const,
+    parcelas: asArray(payload.parcelas).map((p: any, idx: number) => {
+      const parc = asRecord(p);
+      return {
+        numero_parcela: numberFrom(parc.numero_parcela, parc.numero, idx + 1),
+        data_vencimento: textFrom(parc.data_vencimento, parc.vencimento),
+        valor: numberFrom(parc.valor),
+      };
+    }),
+    info_complementares: textFrom(nota.informacoes_adicionais, payload.informacoes_adicionais),
+    info_fisco: textFrom(nota.informacoes_fisco),
+    ambiente: ambienteRaw.includes("produc") ? "producao" as const : "homologacao" as const,
   };
 };
 
@@ -770,45 +757,59 @@ export default function NotasSaidaPage() {
   };
 
   const buildDanfeData = async (notaId: string) => {
-    const { data, error } = await (supabase as any).rpc("montar_payload_focus", { p_nota_saida_id: notaId });
+    // Impressão: dados_danfe. Transmissão continua com montar_payload_focus na edge.
+    const { data, error } = await supabase.rpc("dados_danfe", { p_nota_saida_id: notaId });
     if (error) throw error;
 
-    const payload = unwrapFocusPayload(data);
-    if (!payload) throw new Error("RPC montar_payload_focus não retornou payload");
-    logFocusPayloadShape(payload);
+    const payload = unwrapDadosDanfe(data);
+    if (!payload || typeof payload !== "object") {
+      throw new Error("RPC dados_danfe não retornou documento");
+    }
 
-    const branding = companyBranding || (await refetchCompanyBranding()).data;
-    const mapped = mapFocusPayloadToDanfeData(payload, branding?.logo_url);
+    const emitente = asRecord(asRecord(payload).emitente);
+    let logoUrl: string | null = null;
+    const logoKey = textFrom(emitente.logo_storage_key);
+    if (logoKey) {
+      const { data: signed } = await supabase.storage.from("erp-files").createSignedUrl(logoKey, 3600);
+      logoUrl = signed?.signedUrl || null;
+    }
+    if (!logoUrl) {
+      const branding = companyBranding || (await refetchCompanyBranding()).data;
+      logoUrl = branding?.logo_url || null;
+    }
 
-    const [{ data: statusRow }, { data: parcelas }] = await Promise.all([
-      (supabase as any)
-        .from("v_notas_saida_status")
-        .select("status, pode_imprimir, em_contingencia, contingencia_modo, dh_contingencia, justificativa_contingencia, ambiente")
-        .eq("id", notaId)
-        .maybeSingle(),
-      (supabase as any)
+    const mapped = mapDadosDanfeToDanfeData(payload, logoUrl);
+
+    const { data: statusRow } = await (supabase as any)
+      .from("v_notas_saida_status")
+      .select("status, pode_imprimir, em_contingencia, contingencia_modo, dh_contingencia, justificativa_contingencia")
+      .eq("id", notaId)
+      .maybeSingle();
+
+    // Parcelas: preferir as da RPC; se vazias, ler tabela
+    let parcelas = mapped.parcelas || [];
+    if (parcelas.length === 0) {
+      const { data: parcelasDb } = await (supabase as any)
         .from("notas_saida_parcelas")
         .select("numero_parcela, data_vencimento, valor")
         .eq("nota_saida_id", notaId)
-        .order("numero_parcela", { ascending: true }),
-    ]);
-
-    return {
-      ...mapped,
-      status: statusRow?.status || null,
-      pode_imprimir: !!statusRow?.pode_imprimir,
-      em_contingencia: !!statusRow?.em_contingencia,
-      contingencia_modo: statusRow?.contingencia_modo || null,
-      dh_contingencia: statusRow?.dh_contingencia || null,
-      justificativa_contingencia: statusRow?.justificativa_contingencia || null,
-      ambiente: textFrom(statusRow?.ambiente, mapped.ambiente).toLowerCase() === "producao"
-        ? "producao" as const
-        : "homologacao" as const,
-      parcelas: (parcelas || []).map((p: any) => ({
+        .order("numero_parcela", { ascending: true });
+      parcelas = (parcelasDb || []).map((p: any) => ({
         numero_parcela: p.numero_parcela,
         data_vencimento: p.data_vencimento,
         valor: Number(p.valor || 0),
-      })),
+      }));
+    }
+
+    return {
+      ...mapped,
+      status: statusRow?.status || mapped.status || null,
+      pode_imprimir: statusRow?.pode_imprimir != null ? !!statusRow.pode_imprimir : isAutorizado(mapped.status),
+      em_contingencia: statusRow?.em_contingencia != null ? !!statusRow.em_contingencia : !!mapped.em_contingencia,
+      contingencia_modo: statusRow?.contingencia_modo ?? mapped.contingencia_modo ?? null,
+      dh_contingencia: statusRow?.dh_contingencia ?? mapped.dh_contingencia ?? null,
+      justificativa_contingencia: statusRow?.justificativa_contingencia ?? mapped.justificativa_contingencia ?? null,
+      parcelas,
     };
   };
 
@@ -823,8 +824,8 @@ export default function NotasSaidaPage() {
       setDanfeData(await buildDanfeData(notaId));
       setDanfePreviewOpen(true);
     } catch (error: any) {
-      console.error("Erro ao montar DANFE via montar_payload_focus:", error);
-      toast.error("Erro ao montar DANFE: " + (error?.message || "verifique o payload fiscal"));
+      console.error("Erro ao montar DANFE via dados_danfe:", error);
+      toast.error("Erro ao montar DANFE: " + (error?.message || "verifique dados_danfe"));
     }
   };
 
