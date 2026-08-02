@@ -125,6 +125,56 @@ export default function AnvisaCheckerPage() {
         return;
       }
 
+      // Pareceres por ativo (imutáveis) — motor anvisa_avaliar_ativo
+      if (salvos?.length) {
+        const pareceresRows: Record<string, unknown>[] = [];
+        salvos.forEach((salvo, idx) => {
+          const produto = lista[idx] || lista[0] || {};
+          const ativos = Array.isArray(produto?.ativos) ? produto.ativos : [];
+          for (const ativo of ativos) {
+            const p = ativo?.parecer || {};
+            const status = String(ativo?.status_parecer || p.status || "PENDENTE_VERIFICACAO");
+            pareceresRows.push({
+              laudo_id: salvo.id,
+              company_id: profileRow.company_id,
+              nome_ativo: ativo?.nome || "Ativo",
+              dose: Number(ativo?.dose) || null,
+              unidade: ativo?.unit || ativo?.unidade || null,
+              status,
+              motivo: p.motivo ?? null,
+              constituinte_id: p.constituinte_id ?? null,
+              limite_min_oficial: p.limite_min_oficial ?? null,
+              limite_max_oficial: p.limite_max_oficial ?? null,
+              limite_texto: p.limite_texto ?? null,
+              unidade_comparavel: p.unidade_comparavel ?? null,
+              norma_referencia: p.norma_referencia ?? null,
+              advertencias: p.advertencias ?? null,
+              alegacoes: p.alegacoes ?? null,
+              substituicao_sugerida: p.substituicao_sugerida ?? null,
+              proposta_funcional: p.proposta_funcional ?? null,
+              especie_declarada: p.especie_declarada ?? ativo?.especie_declarada ?? null,
+              parte_vegetal: p.parte_vegetal ?? ativo?.parte_vegetal ?? null,
+              tipo_extrato: p.tipo_extrato ?? ativo?.tipo_extrato ?? null,
+              padronizacao: p.padronizacao ?? ativo?.padronizacao ?? null,
+            });
+          }
+        });
+
+        if (pareceresRows.length > 0) {
+          const { error: parecerErr } = await (supabase as any)
+            .from("anvisa_laudo_pareceres")
+            .insert(pareceresRows);
+          if (parecerErr) {
+            console.error("Falha ao gravar anvisa_laudo_pareceres:", parecerErr);
+            toast.error(
+              "Laudo gravado, mas pareceres por ativo falharam: " +
+                (parecerErr.message || parecerErr.code) +
+                ". Pareceres ficaram no JSON do laudo.",
+            );
+          }
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["anvisa_laudos"] });
       if (salvos?.[0]) {
         setSelectedLaudo({

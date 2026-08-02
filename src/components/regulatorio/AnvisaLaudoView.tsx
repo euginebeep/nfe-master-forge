@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Printer, FileDown, Copy, RefreshCw, AlertCircle, CheckCircle, Info, Brain, FileCode, FlaskConical } from 'lucide-react';
 import { toast } from "sonner";
 import { ANVISA_LIMITS, VD_REFERENCE, validarAditivo, validarProbiotico } from "@/lib/anvisa-limits";
+import { estiloStatusParecer } from "@/lib/anvisa-avaliar-ativo";
 import { exportLaudoA4 } from "@/lib/exportLaudoA4";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { useRTAtivo } from "@/hooks/use-rt-ativo";
@@ -326,46 +327,74 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-lg font-bold border-l-4 border-primary pl-3">Tabela de Ativos Verificados</h3>
+          <h3 className="text-lg font-bold border-l-4 border-primary pl-3">
+            Pareceres por ativo
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              motor anvisa_avaliar_ativo · PENDENTE_VERIFICACAO ≠ NAO_AUTORIZADO
+            </span>
+          </h3>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Ativo/Ingrediente</TableHead>
                 <TableHead>Dose</TableHead>
-                <TableHead>Limite ANVISA</TableHead>
+                <TableHead>Limite oficial</TableHead>
                 <TableHead>Referência</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.ativos.map((ativo, i) => {
-                const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
-                const limit = key ? ANVISA_LIMITS[key] : null;
-                const doseNum = parseFloat(ativo.dose);
+                const parecer = ativo.parecer;
                 const nomeAtivo = ativo.nome || ativo.name || '-';
-                
-                let status = 'VERIFICAR';
-                if (limit) {
-                  if (!limit.auth) status = 'BLOQUEADO';
-                  else if (limit.max !== null && doseNum > limit.max) status = 'ATENCAO';
-                  else if (doseNum < limit.min) status = 'ATENCAO';
-                  else status = 'APROVADO';
+                const statusMotor = String(
+                  ativo.status_parecer || parecer?.status || '',
+                ).toUpperCase();
+                // Preferir motor SQL. Fallback legado só se ainda não houver parecer.
+                const key = (ativo.key || ativo.anvisaKey || '').toLowerCase();
+                const limitLegacy = key ? ANVISA_LIMITS[key] : null;
+                let status = statusMotor;
+                if (!status) {
+                  status = 'PENDENTE_VERIFICACAO';
+                  if (limitLegacy) {
+                    const doseNum = parseFloat(ativo.dose);
+                    if (!limitLegacy.auth) status = 'NAO_AUTORIZADO';
+                    else if (limitLegacy.max != null && doseNum > limitLegacy.max) status = 'PENDENTE_VERIFICACAO';
+                    else if (doseNum < limitLegacy.min) status = 'PENDENTE_VERIFICACAO';
+                    else status = 'APROVADO';
+                  }
                 }
+                const estilo = estiloStatusParecer(status);
+                const limiteTexto =
+                  parecer?.limite_texto
+                  || (parecer?.limite_min_oficial != null || parecer?.limite_max_oficial != null
+                    ? `${parecer?.limite_min_oficial ?? '—'} – ${parecer?.limite_max_oficial ?? '—'}`
+                    : null)
+                  || (limitLegacy?.max != null ? `${limitLegacy.max} ${limitLegacy.unit}` : '—');
+                const norma = parecer?.norma_referencia || limitLegacy?.norm || '—';
 
                 return (
                   <TableRow key={i}>
-                    <TableCell className="font-medium">{nomeAtivo}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>{nomeAtivo}</div>
+                      {parecer?.motivo && (
+                        <p className="text-[11px] text-muted-foreground font-normal mt-1 whitespace-pre-wrap">
+                          {parecer.motivo}
+                        </p>
+                      )}
+                      {parecer?.substituicao_sugerida && (
+                        <p className="text-[11px] text-amber-800 dark:text-amber-200 font-normal mt-1">
+                          Substituição (proposta funcional): {parecer.substituicao_sugerida}
+                          {parecer.proposta_funcional ? ` — ${parecer.proposta_funcional}` : ''}
+                        </p>
+                      )}
+                    </TableCell>
                     <TableCell>{ativo.dose} {ativo.unit}</TableCell>
-                    <TableCell>{limit?.max ? `${limit.max} ${limit.unit}` : 'NE'}</TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground">{limit?.norm || '-'}</TableCell>
+                    <TableCell className="text-xs">{limiteTexto}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground">{norma}</TableCell>
                     <TableCell>
-                      <Badge className={
-                        status === 'APROVADO' ? 'bg-green-500/20 text-green-500' :
-                        status === 'ATENCAO' ? 'bg-yellow-500/20 text-yellow-500' :
-                        status === 'BLOQUEADO' ? 'bg-red-500/20 text-red-500' :
-                        'bg-orange-500/20 text-orange-500'
-                      }>
-                        {status}
+                      <Badge variant="outline" className={estilo.className}>
+                        {estilo.label}
                       </Badge>
                     </TableCell>
                   </TableRow>

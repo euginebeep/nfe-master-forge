@@ -146,34 +146,57 @@ function buildComparativoRows(ativos: any[]): string {
     const limit = key ? ANVISA_LIMITS[key] : null;
     const doseOriginal = Number(ativo.dose) || 0;
     const unitOriginal = ativo.unit || 'mg';
+    const parecer = ativo.parecer;
+    const statusMotor = String(ativo.status_parecer || parecer?.status || '').toUpperCase();
 
-    const statusOriginal = key ? calcStatus(key, doseOriginal, unitOriginal) : 'VERIFICAR';
+    // Motor SQL tem prioridade; legado ANVISA_LIMITS só como fallback de display.
+    let statusOriginal = statusMotor || (key ? calcStatus(key, doseOriginal, unitOriginal) : 'VERIFICAR');
     const desvio = key ? calcDesvio(key, doseOriginal, unitOriginal) : null;
-    const removido = limit && !limit.auth;
+    const removido =
+      statusMotor === 'NAO_AUTORIZADO'
+      || statusMotor === 'REPROVADO_ALEGACAO'
+      || (limit && !limit.auth && !statusMotor);
 
     let doseCorrigida = doseOriginal;
     let unitCorrigida = unitOriginal;
-    let justificativa = 'Sem alteração — em conformidade';
+    let justificativa = parecer?.motivo
+      ? esc(parecer.motivo)
+      : 'Sem alteração — em conformidade';
 
-    if (removido) {
-      justificativa = `Removido — ${esc(limit?.norm || 'não consta Anexo I IN 28/2018')}`;
-    } else if (statusOriginal === 'BLOQUEADO' && limit?.max != null) {
-      doseCorrigida = limit.max;
-      unitCorrigida = limit.unit;
-      justificativa = `Corrigido para o limite máximo — ${esc(limit.norm || 'IN 28/2018 Anexo IV')}`;
-    } else if (statusOriginal === 'ATENÇÃO') {
-      justificativa = desvio ? esc(desvio) : 'Verificar dose mínima recomendada';
+    if (parecer?.substituicao_sugerida) {
+      justificativa += ` · Substituição (proposta funcional): ${esc(parecer.substituicao_sugerida)}`;
+      if (parecer.proposta_funcional) {
+        justificativa += ` — ${esc(parecer.proposta_funcional)}`;
+      }
     }
 
-    const corOriginal = statusPillStyle(statusOriginal).fg;
+    if (!parecer?.motivo) {
+      if (removido) {
+        justificativa = `Não autorizado — ${esc(parecer?.norma_referencia || limit?.norm || 'não consta Anexo I IN 28/2018')}`;
+      } else if ((statusOriginal === 'BLOQUEADO' || statusOriginal === 'NAO_AUTORIZADO') && limit?.max != null) {
+        doseCorrigida = limit.max;
+        unitCorrigida = limit.unit;
+        justificativa = `Corrigido para o limite máximo — ${esc(limit.norm || 'IN 28/2018 Anexo IV')}`;
+      } else if (statusOriginal === 'ATENÇÃO' || statusOriginal === 'PENDENTE_VERIFICACAO') {
+        justificativa = desvio ? esc(desvio) : (parecer?.limite_texto ? esc(parecer.limite_texto) : 'Verificar dose / unidade comparável');
+      }
+    }
+
+    const corOriginal = statusPillStyle(
+      statusOriginal === 'NAO_AUTORIZADO' || statusOriginal === 'REPROVADO_ALEGACAO'
+        ? 'BLOQUEADO'
+        : statusOriginal === 'PENDENTE_VERIFICACAO' || statusOriginal === 'APROVAVEL_COM_CORRECAO'
+          ? 'ATENÇÃO'
+          : statusOriginal,
+    ).fg;
     const linhaDestaque = statusOriginal !== 'APROVADO';
 
     return `
-      <tr style="border-bottom:1px solid #EEF1F4;${linhaDestaque ? `background:${statusOriginal === 'BLOQUEADO' || removido ? C.redBg : C.amberBg};` : ''}">
-        <td style="padding:7px 10px;font-size:10px;color:${C.textDark};font-weight:600;">${esc(nomeAtivo)}</td>
+      <tr style="border-bottom:1px solid #EEF1F4;${linhaDestaque ? `background:${statusOriginal === 'BLOQUEADO' || statusOriginal === 'NAO_AUTORIZADO' || removido ? C.redBg : C.amberBg};` : ''}">
+        <td style="padding:7px 10px;font-size:10px;color:${C.textDark};font-weight:600;">${esc(nomeAtivo)}<div style="font-size:8px;color:${C.gray};font-weight:500;margin-top:2px;">${esc(statusOriginal || '—')}</div></td>
         <td style="padding:7px 10px;text-align:center;font-size:10px;color:${corOriginal};font-weight:${linhaDestaque ? 700 : 400};">${esc(doseOriginal)} ${esc(unitOriginal)}</td>
         <td style="padding:7px 10px;text-align:center;">${removido
-          ? `<span style="color:${C.redText};font-weight:700;">— REMOVIDO</span>`
+          ? `<span style="color:${C.redText};font-weight:700;">— REMOVER</span>`
           : `<span style="color:${C.greenText};font-weight:700;">${esc(doseCorrigida)} ${esc(unitCorrigida)}</span>`}</td>
         <td style="padding:7px 10px;font-size:9px;color:${C.gray};">${justificativa}</td>
       </tr>`;

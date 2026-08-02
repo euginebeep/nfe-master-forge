@@ -1048,6 +1048,89 @@ export type Database = {
         }
         Relationships: []
       }
+      /**
+       * Parecer imutável por ativo (sprint 02/08/2026).
+       * Colunas alinhadas ao retorno de anvisa_avaliar_ativo + identidade botânica.
+       * Migration verbatim ainda pendente no repo — schema espelha produção.
+       */
+      anvisa_laudo_pareceres: {
+        Row: {
+          id: string
+          laudo_id: string
+          company_id: string | null
+          nome_ativo: string
+          dose: number | null
+          unidade: string | null
+          status: string
+          motivo: string | null
+          constituinte_id: string | null
+          limite_min_oficial: number | null
+          limite_max_oficial: number | null
+          limite_texto: string | null
+          unidade_comparavel: boolean | null
+          norma_referencia: string | null
+          advertencias: Json | null
+          alegacoes: Json | null
+          substituicao_sugerida: string | null
+          proposta_funcional: string | null
+          especie_declarada: string | null
+          parte_vegetal: string | null
+          tipo_extrato: string | null
+          padronizacao: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          laudo_id: string
+          company_id?: string | null
+          nome_ativo: string
+          dose?: number | null
+          unidade?: string | null
+          status: string
+          motivo?: string | null
+          constituinte_id?: string | null
+          limite_min_oficial?: number | null
+          limite_max_oficial?: number | null
+          limite_texto?: string | null
+          unidade_comparavel?: boolean | null
+          norma_referencia?: string | null
+          advertencias?: Json | null
+          alegacoes?: Json | null
+          substituicao_sugerida?: string | null
+          proposta_funcional?: string | null
+          especie_declarada?: string | null
+          parte_vegetal?: string | null
+          tipo_extrato?: string | null
+          padronizacao?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          laudo_id?: string
+          company_id?: string | null
+          nome_ativo?: string
+          dose?: number | null
+          unidade?: string | null
+          status?: string
+          motivo?: string | null
+          constituinte_id?: string | null
+          limite_min_oficial?: number | null
+          limite_max_oficial?: number | null
+          limite_texto?: string | null
+          unidade_comparavel?: boolean | null
+          norma_referencia?: string | null
+          advertencias?: Json | null
+          alegacoes?: Json | null
+          substituicao_sugerida?: string | null
+          proposta_funcional?: string | null
+          especie_declarada?: string | null
+          parte_vegetal?: string | null
+          tipo_extrato?: string | null
+          padronizacao?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       anvisa_laudos: {
         Row: {
           cliente: string | null
@@ -12389,6 +12472,15 @@ export type Database = {
           temp_min: number
           temperature: number
         }[]
+      }
+      anvisa_avaliar_ativo: {
+        Args: {
+          p_nome: string
+          p_dose: number
+          p_unidade: string
+          p_grupo?: string
+        }
+        Returns: Json
       }
       anvisa_avaliar_formula: {
         Args: { p_data?: string; p_formula_id: string; p_grupo?: string }
