@@ -638,9 +638,9 @@ export default function EmissorNFePage() {
         editLoadedRef.current = null;
         toast.error(
           "Devoluções espelham os impostos da nota de origem e não podem ser editadas pelo emissor. "
-          + "Gere novamente a partir da nota de entrada.",
+          + "Use \"Refazer devolução\" na listagem de notas de saída.",
         );
-        navigate(`/compras/notas-entrada?nota=${data.nota_entrada_origem_id}`, { replace: true });
+        navigate(`/vendas/notas-saida?nota=${encodeURIComponent(editId)}`, { replace: true });
       }
     })();
     return () => { cancelado = true; };
@@ -691,9 +691,9 @@ export default function EmissorNFePage() {
         if (String(nota.finalidade || "") === "4" && (nota as any).nota_entrada_origem_id) {
           toast.error(
             "Devoluções espelham os impostos da nota de origem e não podem ser editadas pelo emissor. "
-            + "Gere novamente a partir da nota de entrada.",
+            + "Use \"Refazer devolução\" na listagem de notas de saída.",
           );
-          navigate(`/compras/notas-entrada?nota=${(nota as any).nota_entrada_origem_id}`, { replace: true });
+          navigate(`/vendas/notas-saida?nota=${encodeURIComponent(editId)}`, { replace: true });
           return;
         }
         const itensDb = ((nota as any).notas_saida_itens || []) as any[];

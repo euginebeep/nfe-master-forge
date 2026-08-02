@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
+import { DevolucaoDialog } from "@/components/nfe/DevolucaoDialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -398,6 +399,8 @@ export default function NotasSaidaPage() {
   }, []);
 
   const [transmitConfirmNota, setTransmitConfirmNota] = useState<any | null>(null);
+  /** Devolução a refazer — abre DevolucaoDialog na própria listagem */
+  const [refazendoDevolucao, setRefazendoDevolucao] = useState<any | null>(null);
   const [expandedTentativas, setExpandedTentativas] = useState<Set<string>>(new Set());
   const [reenviarEmailNota, setReenviarEmailNota] = useState<any | null>(null);
   const [reenviarEmails, setReenviarEmails] = useState("");
@@ -1292,7 +1295,7 @@ export default function NotasSaidaPage() {
                                 variant="outline"
                                 className="h-8"
                                 title="Devoluções espelham os impostos da nota de origem. Para alterar itens ou quantidades, gere novamente a partir da nota de entrada."
-                                onClick={() => navigate(`/compras/notas-entrada?nota=${nota.nota_entrada_origem_id}`)}
+                                onClick={() => setRefazendoDevolucao(nota)}
                               >
                                 <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refazer devolução
                               </Button>
@@ -2025,6 +2028,24 @@ export default function NotasSaidaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {refazendoDevolucao?.nota_entrada_origem_id && (
+        <DevolucaoDialog
+          notaEntradaId={String(refazendoDevolucao.nota_entrada_origem_id)}
+          substituirNotaSaidaId={String(refazendoDevolucao.id)}
+          open={!!refazendoDevolucao}
+          onOpenChange={(v) => { if (!v) setRefazendoDevolucao(null); }}
+          onConcluido={(novaId) => {
+            queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+            setRefazendoDevolucao(null);
+            toast.success("Devolução refeita");
+            // Destaca a nova nota na listagem (a página já lê ?nota=)
+            const next = new URLSearchParams(searchParams);
+            next.set("nota", novaId);
+            setSearchParams(next, { replace: true });
+          }}
+        />
+      )}
 
       {/* ─── DANFE Preview ─── */}
       <DANFEPreviewDialog
