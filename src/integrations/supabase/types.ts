@@ -12099,14 +12099,22 @@ export type Database = {
           motivo_cancelamento: string | null
           natureza_operacao: string | null
           numero: number | null
+          /** Ex.: "1/2" — número/série formatados pela view */
+          numero_formatado: string | null
           numero_carta_correcao: number | null
+          pode_baixar_xml: boolean | null
           pode_cancelar: boolean | null
           pode_carta_correcao: boolean | null
           pode_consultar: boolean | null
+          pode_editar: boolean | null
+          pode_excluir: boolean | null
           pode_imprimir: boolean | null
           pode_reenviar_email: boolean | null
           pode_transmitir: boolean | null
+          pode_validar: boolean | null
+          pode_visualizar: boolean | null
           protocolo_autorizacao: string | null
+          qtd_itens: number | null
           serie: string | null
           status: string | null
           status_label: string | null
@@ -12828,6 +12836,8 @@ export type Database = {
       montar_payload_focus: { Args: { p_nota_saida_id: string }; Returns: Json }
       /** Documento completo para impressão do DANFE — não usar para transmitir */
       dados_danfe: { Args: { p_nota_saida_id: string }; Returns: Json }
+      /** Cache da previsão de numeração Focus (campo desatualizado se >1h) */
+      proxima_numeracao_prevista: { Args: never; Returns: Json }
       norm_texto_ancora: { Args: { p_texto: string }; Returns: string }
       norm_txt: { Args: { p: string }; Returns: string }
       nota_entrada_belongs_to_tenant: {

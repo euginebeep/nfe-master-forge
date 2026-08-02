@@ -130,6 +130,9 @@ export function useFocusNfe() {
       { emails },
     );
 
+  /** Previsão de número/série (Focus v11+). Não reserva — pode pular em contingência. */
+  const proximoNumero = () => callFocusNfe("proximo-numero", undefined, {});
+
   return {
     cadastrarEmpresa,
     consultarEmpresa,
@@ -145,6 +148,7 @@ export function useFocusNfe() {
     inutilizarNFe,
     consultarStatus,
     reenviarEmail,
+    proximoNumero,
   };
 }
 
