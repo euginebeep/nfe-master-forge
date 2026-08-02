@@ -1071,6 +1071,7 @@ export type Database = {
           norma_referencia: string | null
           advertencias: Json | null
           alegacoes: Json | null
+          rotulagem_complementar: Json | null
           substituicao_sugerida: string | null
           proposta_funcional: string | null
           /** regra_da_anvisa_nao_negociavel | plataforma | rt_do_tenant_confirma_vinculo | formulador_ajusta_dose */
@@ -1098,6 +1099,7 @@ export type Database = {
           norma_referencia?: string | null
           advertencias?: Json | null
           alegacoes?: Json | null
+          rotulagem_complementar?: Json | null
           substituicao_sugerida?: string | null
           proposta_funcional?: string | null
           responsavel?: string | null
@@ -1124,6 +1126,7 @@ export type Database = {
           norma_referencia?: string | null
           advertencias?: Json | null
           alegacoes?: Json | null
+          rotulagem_complementar?: Json | null
           substituicao_sugerida?: string | null
           proposta_funcional?: string | null
           responsavel?: string | null
