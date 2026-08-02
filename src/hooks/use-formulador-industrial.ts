@@ -34,8 +34,9 @@ type FormulaItemInsert = {
   alerta_exibido?: boolean;
   funcao_no_produto?: 'ATIVO' | 'EXCIPIENTE' | 'COADJUVANTE' | 'VEICULO' | null;
   funcao_tecnologica?: string | null;
-  justificativa_funcao?: string | null;
+  funcao_justificativa?: string | null;
   funcao_declarada_por?: string | null;
+  funcao_declarada_em?: string | null;
 };
 
 // ============================================================

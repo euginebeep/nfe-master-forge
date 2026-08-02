@@ -4189,8 +4189,11 @@ export type Database = {
           /** ATIVO | EXCIPIENTE | COADJUVANTE | VEICULO — NULL tratado como ATIVO pelo gate */
           funcao_no_produto: string | null
           funcao_tecnologica: string | null
-          justificativa_funcao: string | null
+          funcao_justificativa: string | null
+          /** text — autor da declaração (obrigatório quando ≠ ATIVO) */
           funcao_declarada_por: string | null
+          /** preenchido pelo trigger trg_formula_item_guarda_funcao */
+          funcao_declarada_em: string | null
           id: string
           metodo_distribuicao: string | null
           nome_insumo: string
@@ -4211,8 +4214,9 @@ export type Database = {
           formula_id: string
           funcao_no_produto?: string | null
           funcao_tecnologica?: string | null
-          justificativa_funcao?: string | null
+          funcao_justificativa?: string | null
           funcao_declarada_por?: string | null
+          funcao_declarada_em?: string | null
           id?: string
           metodo_distribuicao?: string | null
           nome_insumo: string
@@ -4233,8 +4237,9 @@ export type Database = {
           formula_id?: string
           funcao_no_produto?: string | null
           funcao_tecnologica?: string | null
-          justificativa_funcao?: string | null
+          funcao_justificativa?: string | null
           funcao_declarada_por?: string | null
+          funcao_declarada_em?: string | null
           id?: string
           metodo_distribuicao?: string | null
           nome_insumo?: string
@@ -12504,7 +12509,13 @@ export type Database = {
           p_dose?: number
           p_unidade?: string
           p_grupo?: string
+          /** ATIVO | EXCIPIENTE | COADJUVANTE | VEICULO — ≠ ATIVO → via IN 211, sem vínculo */
+          p_funcao?: string
         }
+        Returns: Json
+      }
+      anvisa_sugerir_vinculos: {
+        Args: { p_company_id: string }
         Returns: Json
       }
       anvisa_avaliar_formula: {
