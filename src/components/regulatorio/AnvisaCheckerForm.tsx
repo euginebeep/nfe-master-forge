@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveAnvisaKey } from "@/lib/anvisa-limits";
+import { avaliarProdutosComMotor } from "@/lib/avaliar-ativos-checker";
 import { invokeEdge } from "@/lib/edge-invoke";
 import JSZip from "jszip";
 
@@ -406,17 +407,24 @@ export function AnvisaCheckerForm({ onResult }: { onResult: (laudo: any) => void
 
       produtos = uniqueProductsByName(produtos);
 
+      // Motor único: anvisa_avaliar_ativo / anvisa_avaliar_insumo (IA só extrai).
+      setCurrentStep(2);
+      produtos = await avaliarProdutosComMotor(produtos, audience, {
+        companyId: profile?.company_id ?? null,
+      });
+
       // A gravação do laudo foi centralizada em AnvisaCheckerPage.handleLaudoGenerated
       // (grava para qualquer fluxo — fórmula e arquivo/imagem — uma única vez, sem duplicar).
 
-      await new Promise(r => setTimeout(resolve => r(null), 1000));
+      await new Promise(r => setTimeout(resolve => r(null), 400));
       
       if (produtos.length > 0) {
         onResult({
           produto: produtos[0].nome,
           cliente: clientName,
           cliente_logo_url: uploadedClientLogoUrl,
-          payload_entrada: { ativos: produtos[0].ativos },
+          status_geral: produtos[0].status_geral,
+          payload_entrada: { ativos: produtos[0].ativos, publico: audience },
           resultado_ia: produtos[0],
           multiplos_produtos: produtos
         });

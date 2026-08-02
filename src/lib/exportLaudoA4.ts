@@ -10,6 +10,7 @@ import {
   validarAditivo,
   validarProbiotico,
 } from "@/lib/anvisa-limits";
+import { textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
 import { calcularCapsulasPorDose } from "@/lib/formulador-industrial-rules";
 
 const C = {
@@ -64,6 +65,14 @@ interface ProdutoItem {
 
 interface LaudoData {
   status_geral: string;
+  /** PRELIMINAR | VALIDADO_RT | INVALIDADO — validade do papel (≠ status_geral). */
+  status_validacao?: string | null;
+  /** Protocolo UNIQUE gerado no banco (PRO-AAAA-NNNNN). Nunca inventar no frontend. */
+  protocolo?: string | null;
+  invalidado_motivo?: string | null;
+  emitido_em?: string | null;
+  /** false quando anvisa_alegacoes_detalhadas está vazia — não renderizar bloco. */
+  exibir_alegacoes?: boolean;
   alertas: Array<{ tipo: 'err' | 'warn' | 'ok' | 'info'; titulo: string; corpo: string }>;
   analise_ia: string;
   alegacoes_permitidas: string[];
@@ -87,12 +96,32 @@ const esc = (s: any): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-function gerarProtocolo(index: number, loteId: string): string {
-  const now = new Date();
-  const ano = now.getFullYear();
-  const mes = String(now.getMonth() + 1).padStart(2, '0');
-  const dia = String(now.getDate()).padStart(2, '0');
-  return `${loteId}-${String(index).padStart(3, '0')}`;
+/** Protocolo vem do banco. Fallback só quando ainda não há insert (preview). */
+function protocoloDoLaudo(data: LaudoData, index: number, total: number): string {
+  const base = (data.protocolo && String(data.protocolo).trim()) || null;
+  if (!base) return '— (protocolo pendente de gravação)';
+  if (total <= 1) return base;
+  return `${base} · item ${index}/${total}`;
+}
+
+function tituloDocumento(statusValidacao: string): string {
+  return statusValidacao === 'VALIDADO_RT'
+    ? 'Laudo de Conformidade Regulatória'
+    : 'Parecer preliminar — sem valor de laudo técnico';
+}
+
+function formatarEmitidoEm(data: LaudoData): string {
+  const raw = data.emitido_em;
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function statusPillStyle(status: string) {
@@ -118,34 +147,67 @@ function buildComparativoRows(ativos: any[]): string {
     const limit = key ? ANVISA_LIMITS[key] : null;
     const doseOriginal = Number(ativo.dose) || 0;
     const unitOriginal = ativo.unit || 'mg';
+    const parecer = ativo.parecer;
+    const statusMotor = String(ativo.status_parecer || parecer?.status || '').toUpperCase();
 
-    const statusOriginal = key ? calcStatus(key, doseOriginal, unitOriginal) : 'VERIFICAR';
+    // Motor SQL tem prioridade; legado ANVISA_LIMITS só como fallback de display.
+    let statusOriginal = statusMotor || (key ? calcStatus(key, doseOriginal, unitOriginal) : 'VERIFICAR');
     const desvio = key ? calcDesvio(key, doseOriginal, unitOriginal) : null;
-    const removido = limit && !limit.auth;
+    const removido =
+      statusMotor === 'NAO_AUTORIZADO'
+      || statusMotor === 'REPROVADO_ALEGACAO'
+      || (limit && !limit.auth && !statusMotor);
 
     let doseCorrigida = doseOriginal;
     let unitCorrigida = unitOriginal;
-    let justificativa = 'Sem alteração — em conformidade';
+    let justificativa = parecer?.motivo
+      ? esc(parecer.motivo)
+      : 'Sem alteração — em conformidade';
 
-    if (removido) {
-      justificativa = `Removido — ${esc(limit?.norm || 'não consta Anexo I IN 28/2018')}`;
-    } else if (statusOriginal === 'BLOQUEADO' && limit?.max != null) {
-      doseCorrigida = limit.max;
-      unitCorrigida = limit.unit;
-      justificativa = `Corrigido para o limite máximo — ${esc(limit.norm || 'IN 28/2018 Anexo IV')}`;
-    } else if (statusOriginal === 'ATENÇÃO') {
-      justificativa = desvio ? esc(desvio) : 'Verificar dose mínima recomendada';
+    if (parecer?.substituicao_sugerida) {
+      justificativa += ` · Substituição (proposta funcional): ${esc(parecer.substituicao_sugerida)}`;
+      if (parecer.proposta_funcional) {
+        justificativa += ` — ${esc(parecer.proposta_funcional)}`;
+      }
+    }
+    if (parecer?.responsavel) {
+      const respMap: Record<string, string> = {
+        regra_da_anvisa_nao_negociavel: 'Regra da ANVISA — não negociável',
+        plataforma: 'Pendência da plataforma (não é decisão da RT)',
+        rt_do_tenant_confirma_vinculo: 'RT confirma vínculo do insumo',
+        formulador_ajusta_dose: 'Formulador ajusta dose',
+      };
+      const respLabel = respMap[String(parecer.responsavel)] || String(parecer.responsavel);
+      justificativa += ` · Quem age: ${esc(respLabel)}`;
     }
 
-    const corOriginal = statusPillStyle(statusOriginal).fg;
+    if (!parecer?.motivo) {
+      if (removido) {
+        justificativa = `Não autorizado — ${esc(parecer?.norma_referencia || limit?.norm || 'não consta Anexo I IN 28/2018')}`;
+      } else if ((statusOriginal === 'BLOQUEADO' || statusOriginal === 'NAO_AUTORIZADO') && limit?.max != null) {
+        doseCorrigida = limit.max;
+        unitCorrigida = limit.unit;
+        justificativa = `Corrigido para o limite máximo — ${esc(limit.norm || 'IN 28/2018 Anexo IV')}`;
+      } else if (statusOriginal === 'ATENÇÃO' || statusOriginal === 'PENDENTE_VERIFICACAO') {
+        justificativa = desvio ? esc(desvio) : (parecer?.limite_texto ? esc(parecer.limite_texto) : 'Verificar dose / unidade comparável');
+      }
+    }
+
+    const corOriginal = statusPillStyle(
+      statusOriginal === 'NAO_AUTORIZADO' || statusOriginal === 'REPROVADO_ALEGACAO'
+        ? 'BLOQUEADO'
+        : statusOriginal === 'PENDENTE_VERIFICACAO' || statusOriginal === 'APROVAVEL_COM_CORRECAO'
+          ? 'ATENÇÃO'
+          : statusOriginal,
+    ).fg;
     const linhaDestaque = statusOriginal !== 'APROVADO';
 
     return `
-      <tr style="border-bottom:1px solid #EEF1F4;${linhaDestaque ? `background:${statusOriginal === 'BLOQUEADO' || removido ? C.redBg : C.amberBg};` : ''}">
-        <td style="padding:7px 10px;font-size:10px;color:${C.textDark};font-weight:600;">${esc(nomeAtivo)}</td>
+      <tr style="border-bottom:1px solid #EEF1F4;${linhaDestaque ? `background:${statusOriginal === 'BLOQUEADO' || statusOriginal === 'NAO_AUTORIZADO' || removido ? C.redBg : C.amberBg};` : ''}">
+        <td style="padding:7px 10px;font-size:10px;color:${C.textDark};font-weight:600;">${esc(nomeAtivo)}<div style="font-size:8px;color:${C.gray};font-weight:500;margin-top:2px;">${esc(statusOriginal || '—')}</div></td>
         <td style="padding:7px 10px;text-align:center;font-size:10px;color:${corOriginal};font-weight:${linhaDestaque ? 700 : 400};">${esc(doseOriginal)} ${esc(unitOriginal)}</td>
         <td style="padding:7px 10px;text-align:center;">${removido
-          ? `<span style="color:${C.redText};font-weight:700;">— REMOVIDO</span>`
+          ? `<span style="color:${C.redText};font-weight:700;">— REMOVER</span>`
           : `<span style="color:${C.greenText};font-weight:700;">${esc(doseCorrigida)} ${esc(unitCorrigida)}</span>`}</td>
         <td style="padding:7px 10px;font-size:9px;color:${C.gray};">${justificativa}</td>
       </tr>`;
@@ -374,12 +436,14 @@ function buildDocHeader(data: LaudoData): string {
 }
 
 // ─── Capa executiva (laudo multiproduto) ─────────────────────────────────────
-function buildCapaExecutiva(data: LaudoData, produtos: ProdutoItem[], loteId: string, dataStr: string): string {
+function buildCapaExecutiva(data: LaudoData, produtos: ProdutoItem[], protocoloRef: string, dataStr: string): string {
   const empresaNome = data.company?.nome_fantasia || data.company?.razao_social || 'BrainX ERP';
   const total = produtos.length;
   const aprovados = produtos.filter(p => p.status_geral === 'APROVADO').length;
   const ressalvas = produtos.filter(p => p.status_geral === 'APROVADO COM RESSALVAS').length;
   const bloqueados = produtos.filter(p => p.status_geral === 'BLOQUEADO').length;
+  const statusValidacao = String(data.status_validacao || 'PRELIMINAR').toUpperCase();
+  const titulo = tituloDocumento(statusValidacao);
 
   return `
   <div style="min-height:200mm;display:flex;flex-direction:column;justify-content:center;padding:20mm 0;">
@@ -388,7 +452,7 @@ function buildCapaExecutiva(data: LaudoData, produtos: ProdutoItem[], loteId: st
         ? `<img src="${esc(data.company.logo_url)}" style="height:60px;width:auto;object-fit:contain;margin-bottom:16px;" />`
         : `<div style="width:64px;height:64px;border-radius:12px;background:${C.navy};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;margin-bottom:16px;">${esc(empresaNome.slice(0,2).toUpperCase())}</div>`
       }
-      <h1 style="font-size:22pt;font-weight:900;color:${C.navy};margin:0 0 6px;">Laudo de Conformidade Regulatória</h1>
+      <h1 style="font-size:22pt;font-weight:900;color:${C.navy};margin:0 0 6px;">${esc(titulo)}</h1>
       <p style="font-size:11pt;color:${C.gray};margin:0;">ANVISA Checker — Análise Multiproduto</p>
     </div>
 
@@ -427,7 +491,7 @@ function buildCapaExecutiva(data: LaudoData, produtos: ProdutoItem[], loteId: st
     <div style="background:${C.navyLight};border:1px solid ${C.border};border-radius:8px;padding:14px 18px;font-size:9pt;color:${C.gray};line-height:1.7;">
       <strong style="color:${C.navy};">Fabricante:</strong> ${esc(empresaNome)} &nbsp;·&nbsp;
       <strong style="color:${C.navy};">Data:</strong> ${esc(dataStr)} &nbsp;·&nbsp;
-      <strong style="color:${C.navy};">Lote de análise:</strong> <span style="font-family:'Courier New',monospace;">${esc(loteId)}</span>
+      <strong style="color:${C.navy};">Protocolo:</strong> <span style="font-family:'Courier New',monospace;">${esc(protocoloRef)}</span>
     </div>
 
     <div style="margin-top:16px;padding:12px 16px;background:${C.amberBg};border:1px solid #F0D27A;border-radius:8px;font-size:8.5pt;color:${C.amberText};">
@@ -437,7 +501,7 @@ function buildCapaExecutiva(data: LaudoData, produtos: ProdutoItem[], loteId: st
 }
 
 // ─── Resumo executivo tabular ─────────────────────────────────────────────────
-function buildResumoExecutivo(produtos: ProdutoItem[], loteId: string): string {
+function buildResumoExecutivo(produtos: ProdutoItem[], protocoloRef: string): string {
   const linhas = produtos.map((p, i) => {
     const nome = p.nome || p.produto || p.name || `Produto ${i + 1}`;
     const status = p.status_geral || 'VERIFICAR';
@@ -462,7 +526,7 @@ function buildResumoExecutivo(produtos: ProdutoItem[], loteId: string): string {
   <div class="page-break">
     <div class="top-bar"></div>
     <h2 style="font-size:14pt;font-weight:900;color:${C.navy};margin:0 0 4px;">Resumo Executivo</h2>
-    <p style="font-size:9pt;color:${C.gray};margin:0 0 16px;">Lote de análise: <span style="font-family:'Courier New',monospace;">${esc(loteId)}</span> — ${produtos.length} produto(s) avaliado(s)</p>
+    <p style="font-size:9pt;color:${C.gray};margin:0 0 16px;">Protocolo: <span style="font-family:'Courier New',monospace;">${esc(protocoloRef)}</span> — ${produtos.length} produto(s) avaliado(s)</p>
 
     <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid ${C.border};border-radius:8px;overflow:hidden;">
       <thead>
@@ -520,7 +584,7 @@ function buildSecaoAditivosProbioticos(produto: ProdutoItem): string {
 
   return `
     <section>
-      <h2 class="section">6. Aditivos e Probióticos (RDC 239/2018 e RDC 241/2018)</h2>
+      <h2 class="section">Aditivos e Probióticos (RDC 239/2018 e RDC 241/2018)</h2>
       <div style="display:flex;flex-direction:column;gap:6px;">
         ${probioticosDetectados.length > 0 ? `<div style="font-size:9pt;font-weight:700;color:${C.navy};margin-bottom:2px;">Probióticos — RDC 241/2018</div>${probioticosDetectados.join('')}` : ''}
         ${aditivosDetectados.length > 0 ? `<div style="font-size:9pt;font-weight:700;color:${C.navy};margin:6px 0 2px;">Aditivos e coadjuvantes — RDC 239/2018</div>${aditivosDetectados.join('')}` : ''}
@@ -534,7 +598,6 @@ function buildBlocoProduto(
   index: number,
   total: number,
   data: LaudoData,
-  loteId: string,
   dataStr: string,
   rtAssinaturaHTML: string,
   empresaNome: string
@@ -542,7 +605,9 @@ function buildBlocoProduto(
   const nome = produto.nome || produto.produto || produto.name || `Produto ${index}`;
   const ativos = produto.ativos || [];
   const status = produto.status_geral || 'VERIFICAR';
-  const protocolo = gerarProtocolo(index, loteId);
+  const protocolo = protocoloDoLaudo(data, index, total);
+  const statusValidacao = String(data.status_validacao || 'PRELIMINAR').toUpperCase();
+  const titulo = tituloDocumento(statusValidacao);
   const alertas = produto.alertas || [];
   const publicoAlvo = produto.publico_alvo || 'Adultos ≥19 anos';
 
@@ -593,10 +658,30 @@ function buildBlocoProduto(
     : null;
   const nutriTable = buildTabelaNutricionalOficial(ativos, totalMassa, nCaps, porcoesPorEmbalagem, pesoPorCapsula);
   const alertasHTML = buildAlertasHTML(alertas);
-  const permitidasHTML = (produto.alegacoes_permitidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
-  const proibidasHTML = (produto.alegacoes_proibidas || []).map(a => `<li style="margin-bottom:5px;">${esc(a)}</li>`).join('');
-  const avisosHTML = (produto.avisos_rotulo || []).map(a => `<li style="margin-bottom:5px;"><strong>${esc(a)}</strong></li>`).join('');
-  const avisoObrigatorio = `"Este produto não é um medicamento" · "Não substitui uma alimentação variada e equilibrada e um estilo de vida saudável" · "Manter fora do alcance de crianças" · "Conservar em local fresco, seco e ao abrigo da luz" · "Não exceder a dose diária recomendada" · Número do lote e data de validade obrigatórios no rótulo · Nome e número do Responsável Técnico (CRN) · CNPJ e endereço completo do fabricante`;
+  // Alegações/advertências literais do motor por ativo — nunca listas da IA.
+  const alegacoesPorAtivoHTML = ativos.map((ativo: any) => {
+    const nomeAtivo = ativo.nome || ativo.name || 'Ativo';
+    const p = ativo.parecer;
+    const aleg = textosDoCampoNormativo(p?.alegacoes);
+    const adv = [
+      ...textosDoCampoNormativo(p?.rotulagem_complementar),
+      ...textosDoCampoNormativo(p?.advertencias),
+    ];
+    const alegHtml = aleg.length
+      ? aleg.map((t) => `<li style="margin-bottom:4px;">${esc(t)}</li>`).join('')
+      : `<li style="color:${C.gray};font-style:italic;">Sem texto de alegação no constituinte.</li>`;
+    const advHtml = adv.length
+      ? adv.map((t) => `<li style="margin-bottom:4px;">${esc(t)}</li>`).join('')
+      : `<li style="color:${C.gray};font-style:italic;">Sem advertência específica neste constituinte.</li>`;
+    return `
+      <div style="margin-bottom:12px;padding:10px 12px;border:1px solid ${C.border};border-radius:8px;background:#fff;">
+        <div style="font-weight:800;color:${C.navy};font-size:10pt;margin-bottom:6px;">${esc(nomeAtivo)}</div>
+        <div style="font-size:8pt;font-weight:700;color:${C.greenText};margin-bottom:2px;">Alegações (oficial)</div>
+        <ul style="margin:0 0 8px;padding-left:16px;font-size:9pt;color:${C.textDark};">${alegHtml}</ul>
+        <div style="font-size:8pt;font-weight:700;color:${C.amberText};margin-bottom:2px;">Advertências / rotulagem complementar</div>
+        <ul style="margin:0;padding-left:16px;font-size:9pt;color:${C.textDark};">${advHtml}</ul>
+      </div>`;
+  }).join('');
 
   return `
   <div class="page-break">
@@ -605,9 +690,12 @@ function buildBlocoProduto(
     <div class="meta-bar">
       <div>
         <div class="produto-nome">${index}/${total} · ${esc(nome)}</div>
-        <div class="protocolo">Protocolo ${esc(protocolo)} · Emitido em ${esc(dataStr)}</div>
+        <div class="protocolo">${esc(titulo)} · Protocolo ${esc(protocolo)} · Emitido em ${esc(dataStr)}</div>
       </div>
-      ${statusBadgeHTML(status)}
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        ${statusBadgeHTML(status)}
+        <span style="font-size:7.5pt;color:${statusValidacao === 'VALIDADO_RT' ? C.greenText : statusValidacao === 'INVALIDADO' ? C.redText : C.amberText};font-weight:700;">${esc(statusValidacao)}</span>
+      </div>
     </div>
 
     <div class="info-grid">
@@ -661,17 +749,9 @@ function buildBlocoProduto(
     </section>
 
     <section>
-      <h2 class="section">4. Alegações de Rotulagem (IN 28/2018 Anexo V)</h2>
-      <div class="duas-colunas">
-        <div class="col-ok">
-          <h3>✓ Permitidas</h3>
-          <ul>${permitidasHTML || `<li style="color:${C.gray};font-style:italic;">Nenhuma alegação aplicável.</li>`}</ul>
-        </div>
-        <div class="col-no">
-          <h3>✕ Proibidas / Avisos</h3>
-          <ul>${proibidasHTML}${avisosHTML}</ul>
-        </div>
-      </div>
+      <h2 class="section">4. Alegações e Advertências por Ativo (texto oficial do constituinte)</h2>
+      <p style="font-size:8pt;color:${C.gray};margin:0 0 10px;">Fonte: retorno de anvisa_avaliar_ativo / anvisa_constituintes. Não usar texto gerado por modelo de linguagem. Advertência de um probiótico não se copia para outro.</p>
+      ${alegacoesPorAtivoHTML || `<p style="color:${C.gray};font-size:10pt;">Nenhum ativo para exibir.</p>`}
     </section>
 
     <section>
@@ -706,38 +786,55 @@ function buildBlocoProduto(
 
 // ─── Builder principal: laudo multiproduto ────────────────────────────────────
 function buildHTMLMultiproduto(data: LaudoData): string {
-  const now = new Date();
-  const dataStr = now.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const loteId = `ZN-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getTime()).slice(-3)}`;
+  const statusValidacao = String(data.status_validacao || 'PRELIMINAR').toUpperCase();
+  const dataStr = formatarEmitidoEm(data);
+  const protocoloRef = (data.protocolo && String(data.protocolo).trim()) || '— (protocolo pendente de gravação)';
+  const titulo = tituloDocumento(statusValidacao);
 
   const empresaNome = data.company?.nome_fantasia || data.company?.razao_social || 'BrainX ERP';
   const rtAssinaturaHTML = data.rt
     ? `<strong style="color:${C.navy};">${esc(data.rt.nome_completo)}</strong><br/><span style="font-size:8px;color:${C.gray};">${esc(data.rt.tipo_conselho)} ${esc(data.rt.numero_registro)}/${esc(data.rt.uf_conselho)}</span>`
     : `<span style="color:${C.redText};font-size:9px;">⚠ Nenhum RT ativo cadastrado</span>`;
 
-  // Normaliza lista de produtos: usa multiplos_produtos se existir, senão usa o produto único
+  // Normaliza lista de produtos: usa multiplos_produtos se existir, senão usa o produto único.
+  // Alegações da IA são descartadas — o PDF lê parecer.alegacoes / advertencias por ativo.
   const produtos: ProdutoItem[] = data.multiplos_produtos && data.multiplos_produtos.length > 1
-    ? data.multiplos_produtos
-    : [{ nome: data.produto, cliente: data.cliente, status_geral: data.status_geral, alertas: data.alertas, analise_ia: data.analise_ia, alegacoes_permitidas: data.alegacoes_permitidas, alegacoes_proibidas: data.alegacoes_proibidas, avisos_rotulo: data.avisos_rotulo, sugestao_capsulas: data.sugestao_capsulas, ativos: data.ativos }];
+    ? data.multiplos_produtos.map((p) => ({
+        ...p,
+        alegacoes_permitidas: [],
+        alegacoes_proibidas: [],
+      }))
+    : [{
+        nome: data.produto,
+        cliente: data.cliente,
+        status_geral: data.status_geral,
+        alertas: data.alertas,
+        analise_ia: data.analise_ia,
+        alegacoes_permitidas: [],
+        alegacoes_proibidas: [],
+        avisos_rotulo: data.avisos_rotulo,
+        sugestao_capsulas: data.sugestao_capsulas,
+        ativos: data.ativos,
+      }];
 
   const isMultiproduto = produtos.length > 1;
 
-  const capaHTML = isMultiproduto ? buildCapaExecutiva(data, produtos, loteId, dataStr) : '';
-  const resumoHTML = isMultiproduto ? buildResumoExecutivo(produtos, loteId) : '';
+  const capaHTML = isMultiproduto ? buildCapaExecutiva(data, produtos, protocoloRef, dataStr) : '';
+  const resumoHTML = isMultiproduto ? buildResumoExecutivo(produtos, protocoloRef) : '';
   const blocosHTML = produtos.map((p, i) =>
-    buildBlocoProduto(p, i + 1, produtos.length, data, loteId, dataStr, rtAssinaturaHTML, empresaNome)
+    buildBlocoProduto(p, i + 1, produtos.length, data, dataStr, rtAssinaturaHTML, empresaNome)
   ).join('');
 
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
-<title>Laudo Regulatório — ${esc(data.cliente || empresaNome)} — ${produtos.length} produto(s)</title>
+<title>${esc(titulo)} — ${esc(data.cliente || empresaNome)} — ${produtos.length} produto(s)</title>
 <style>${SHARED_CSS}</style>
 </head>
 <body>
   <div class="toolbar no-print">
-    📄 Laudo pronto — ${produtos.length} produto(s) — use o botão para salvar como PDF
+    📄 ${esc(titulo)} — ${produtos.length} produto(s) — use o botão para salvar como PDF
     <button onclick="window.print()">🖨️ Salvar como PDF</button>
   </div>
 
@@ -756,6 +853,9 @@ function buildHTMLMultiproduto(data: LaudoData): string {
 
 // ─── Exportação pública ───────────────────────────────────────────────────────
 export function exportLaudoA4(data: LaudoData): void {
+  if (String(data.status_validacao || '').toUpperCase() === 'INVALIDADO') {
+    throw new Error('Documento INVALIDADO — download bloqueado.');
+  }
   const html = buildHTMLMultiproduto(data);
   const old = document.getElementById('laudo-export-iframe');
   if (old) old.remove();

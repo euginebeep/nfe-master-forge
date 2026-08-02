@@ -1048,6 +1048,91 @@ export type Database = {
         }
         Relationships: []
       }
+      /**
+       * Parecer imutável por ativo — contrato lido de information_schema em 02/08/2026.
+       * jsonb do motor usa motivo/limite_texto; colunas são motivo_tecnico/limite_texto_oficial.
+       */
+      anvisa_laudo_pareceres: {
+        Row: {
+          id: string
+          laudo_id: string
+          company_id: string
+          numero_item: number
+          ativo_declarado: string
+          dose: number | null
+          unidade: string | null
+          especie_declarada: string | null
+          parte_vegetal: string | null
+          tipo_extrato: string | null
+          padronizacao: string | null
+          constituinte_id: string | null
+          chave_casada: string | null
+          limite_min_oficial: number | null
+          limite_max_oficial: number | null
+          unidade_oficial: string | null
+          limite_texto_oficial: string | null
+          unidade_comparavel: boolean | null
+          status: string
+          motivo_tecnico: string
+          norma_referencia: string | null
+          anexo_referencia: string | null
+          substituicao_sugerida: string | null
+          criado_em: string
+        }
+        Insert: {
+          id?: string
+          laudo_id: string
+          company_id: string
+          numero_item: number
+          ativo_declarado: string
+          dose?: number | null
+          unidade?: string | null
+          especie_declarada?: string | null
+          parte_vegetal?: string | null
+          tipo_extrato?: string | null
+          padronizacao?: string | null
+          constituinte_id?: string | null
+          chave_casada?: string | null
+          limite_min_oficial?: number | null
+          limite_max_oficial?: number | null
+          unidade_oficial?: string | null
+          limite_texto_oficial?: string | null
+          unidade_comparavel?: boolean | null
+          status: string
+          motivo_tecnico: string
+          norma_referencia?: string | null
+          anexo_referencia?: string | null
+          substituicao_sugerida?: string | null
+          criado_em?: string
+        }
+        Update: {
+          id?: string
+          laudo_id?: string
+          company_id?: string
+          numero_item?: number
+          ativo_declarado?: string
+          dose?: number | null
+          unidade?: string | null
+          especie_declarada?: string | null
+          parte_vegetal?: string | null
+          tipo_extrato?: string | null
+          padronizacao?: string | null
+          constituinte_id?: string | null
+          chave_casada?: string | null
+          limite_min_oficial?: number | null
+          limite_max_oficial?: number | null
+          unidade_oficial?: string | null
+          limite_texto_oficial?: string | null
+          unidade_comparavel?: boolean | null
+          status?: string
+          motivo_tecnico?: string
+          norma_referencia?: string | null
+          anexo_referencia?: string | null
+          substituicao_sugerida?: string | null
+          criado_em?: string
+        }
+        Relationships: []
+      }
       anvisa_laudos: {
         Row: {
           cliente: string | null
@@ -1056,17 +1141,24 @@ export type Database = {
           company_id: string
           criado_em: string | null
           criado_por: string | null
+          emitido_em: string | null
           id: string
+          invalidado_em: string | null
+          invalidado_motivo: string | null
+          invalidado_por: string | null
           logo_empresa_url: string | null
           logo_rt_url: string | null
           payload_entrada: Json | null
           produto: string
+          protocolo: string | null
           resultado_ia: Json | null
           rt_crf: string | null
           rt_estado: string | null
           rt_nome: string | null
           rt_snapshot_at: string | null
           status_geral: string | null
+          /** PRELIMINAR · VALIDADO_RT · INVALIDADO — validade do papel, não o parecer da fórmula */
+          status_validacao: string | null
         }
         Insert: {
           cliente?: string | null
@@ -1075,17 +1167,23 @@ export type Database = {
           company_id: string
           criado_em?: string | null
           criado_por?: string | null
+          emitido_em?: string | null
           id?: string
+          invalidado_em?: string | null
+          invalidado_motivo?: string | null
+          invalidado_por?: string | null
           logo_empresa_url?: string | null
           logo_rt_url?: string | null
           payload_entrada?: Json | null
           produto: string
+          protocolo?: string | null
           resultado_ia?: Json | null
           rt_crf?: string | null
           rt_estado?: string | null
           rt_nome?: string | null
           rt_snapshot_at?: string | null
           status_geral?: string | null
+          status_validacao?: string | null
         }
         Update: {
           cliente?: string | null
@@ -1094,17 +1192,23 @@ export type Database = {
           company_id?: string
           criado_em?: string | null
           criado_por?: string | null
+          emitido_em?: string | null
           id?: string
+          invalidado_em?: string | null
+          invalidado_motivo?: string | null
+          invalidado_por?: string | null
           logo_empresa_url?: string | null
           logo_rt_url?: string | null
           payload_entrada?: Json | null
           produto?: string
+          protocolo?: string | null
           resultado_ia?: Json | null
           rt_crf?: string | null
           rt_estado?: string | null
           rt_nome?: string | null
           rt_snapshot_at?: string | null
           status_geral?: string | null
+          status_validacao?: string | null
         }
         Relationships: []
       }
@@ -12370,6 +12474,25 @@ export type Database = {
           temp_min: number
           temperature: number
         }[]
+      }
+      anvisa_avaliar_ativo: {
+        Args: {
+          p_nome: string
+          p_dose?: number
+          p_unidade?: string
+          p_grupo?: string
+        }
+        Returns: Json
+      }
+      anvisa_avaliar_insumo: {
+        Args: {
+          p_item_id: string
+          p_company_id: string
+          p_dose?: number
+          p_unidade?: string
+          p_grupo?: string
+        }
+        Returns: Json
       }
       anvisa_avaliar_formula: {
         Args: { p_data?: string; p_formula_id: string; p_grupo?: string }
