@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from "react"
 import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
   Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck,
-  Save, Check, CheckCircle2, Loader2, Layers
+  Save, Check, CheckCircle2, Loader2, Layers, Copy, ChevronDown, AlertTriangle
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -235,6 +237,10 @@ interface NotaItem {
   // Cada item pode ter vários lotes (FEFO automático)
   rastros: RastroLote[];
   obs_op: string;  // Observação da OP (vai para infAdProd)
+  /** Origem em devolução manual via itens_devolviveis */
+  nota_entrada_item_id?: string;
+  lote_fornecedor?: string;
+  aviso_lote_estoque?: string;
 }
 
 // Rastro individual de lote (pode haver vários por item)
@@ -424,6 +430,14 @@ export default function EmissorNFePage() {
   const [transmitindoPosSalvar, setTransmitindoPosSalvar] = useState(false);
   const [carregandoEdicao, setCarregandoEdicao] = useState(!!editId);
   const editLoadedRef = useRef<string | null>(null);
+  const [itensExpandidos, setItensExpandidos] = useState<Set<number>>(() => new Set([0]));
+  const [notaEntradaDevolucaoId, setNotaEntradaDevolucaoId] = useState("");
+  const [itensDevolviveis, setItensDevolviveis] = useState<any[]>([]);
+  const [metaDevolucao, setMetaDevolucao] = useState<{
+    nota_entrada?: any; fornecedor?: any;
+  } | null>(null);
+  const [selecaoDevolucao, setSelecaoDevolucao] = useState<Record<string, { selecionado: boolean; quantidade: number }>>({});
+  const [carregandoDevolucao, setCarregandoDevolucao] = useState(false);
 
   const { data: company } = useCompany();
   const queryClient = useQueryClient();
@@ -815,8 +829,48 @@ export default function EmissorNFePage() {
     });
   };
 
-  const addItem = () => setItens((prev) => [...prev, { ...emptyItem }]);
-  const removeItem = (index: number) => setItens((prev) => prev.filter((_, i) => i !== index));
+  const addItem = () => {
+    setItens((prev) => {
+      const nextIdx = prev.length;
+      setItensExpandidos((exp) => {
+        const next = new Set(exp);
+        next.add(nextIdx);
+        return next;
+      });
+      return [...prev, { ...emptyItem }];
+    });
+  };
+  const removeItem = (index: number) => {
+    const item = itens[index];
+    if (item?.item_id || item?.descricao) {
+      if (!window.confirm(`Remover o item ${index + 1}${item.descricao ? ` (${item.descricao})` : ""}?`)) return;
+    }
+    setItens((prev) => prev.filter((_, i) => i !== index));
+    setItensExpandidos((prev) => {
+      const next = new Set<number>();
+      [...prev].forEach((i) => {
+        if (i < index) next.add(i);
+        else if (i > index) next.add(i - 1);
+      });
+      return next;
+    });
+  };
+  const duplicateItem = (index: number) => {
+    setItens((prev) => {
+      const src = prev[index];
+      if (!src) return prev;
+      const copy = { ...src, rastros: src.rastros.map((r) => ({ ...r })) };
+      const next = [...prev];
+      next.splice(index + 1, 0, copy);
+      return next;
+    });
+    setItensExpandidos((prev) => {
+      const next = new Set<number>();
+      [...prev].forEach((i) => next.add(i > index ? i + 1 : i));
+      next.add(index + 1);
+      return next;
+    });
+  };
 
   /**
    * Distribui a quantidade de venda entre os lotes disponíveis (FEFO).
@@ -1019,6 +1073,111 @@ export default function EmissorNFePage() {
   const numero = numeroPrevistoFmt || "—";
   const isHomolog = company?.nfe_ambiente === "HOMOLOGACAO" || !company?.nfe_ambiente;
 
+  const isDevolucaoCompra = String(operacaoSelecionada?.codigo || operacaoFiscalCodigo || "").toUpperCase().startsWith("DEVOLUCAO_COMPRA");
+
+  const { data: notasEntradaDevolucao } = useQuery({
+    queryKey: ["notas-entrada-para-devolucao", profile?.company_id],
+    enabled: !!profile?.company_id && isDevolucaoCompra,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notas_entrada")
+        .select("id, numero, serie, chave_nfe, total_nota, dh_emissao, fornecedor_id, fornecedor:entidades!notas_entrada_fornecedor_id_fkey(razao_social, nome)")
+        .order("created_at", { ascending: false })
+        .limit(80);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const carregarItensDevolviveis = async (notaEntradaId: string) => {
+    if (!notaEntradaId) return;
+    setCarregandoDevolucao(true);
+    setNotaEntradaDevolucaoId(notaEntradaId);
+    try {
+      const { data, error } = await supabase.rpc("itens_devolviveis", { p_nota_entrada_id: notaEntradaId });
+      if (error) throw error;
+      const payload = (data || {}) as any;
+      const itens = Array.isArray(payload.itens) ? payload.itens : [];
+      setMetaDevolucao({ nota_entrada: payload.nota_entrada, fornecedor: payload.fornecedor });
+      setItensDevolviveis(itens);
+      const sel: Record<string, { selecionado: boolean; quantidade: number }> = {};
+      for (const it of itens) {
+        const id = String(it.nota_entrada_item_id);
+        const max = Math.max(0, Number(it.quantidade_original || 0) - Number(it.ja_devolvido || 0));
+        sel[id] = { selecionado: false, quantidade: Number(it.quantidade ?? max) || max };
+      }
+      setSelecaoDevolucao(sel);
+      if (payload.nota_entrada?.chave) {
+        setChaveReferenciada(String(payload.nota_entrada.chave).replace(/\D/g, "").slice(0, 44));
+      }
+      if (payload.fornecedor?.id) setClienteId(String(payload.fornecedor.id));
+    } catch (e: any) {
+      toast.error(e?.message || "Falha ao carregar itens devolvíveis");
+      setItensDevolviveis([]);
+      setMetaDevolucao(null);
+    } finally {
+      setCarregandoDevolucao(false);
+    }
+  };
+
+  const aplicarItensDevolucao = () => {
+    const escolhidos = itensDevolviveis.filter((it) => selecaoDevolucao[String(it.nota_entrada_item_id)]?.selecionado);
+    if (!escolhidos.length) {
+      toast.error("Selecione ao menos um item para devolver");
+      return;
+    }
+    const mapped: NotaItem[] = escolhidos.map((it) => {
+      const id = String(it.nota_entrada_item_id);
+      const max = Math.max(0, Number(it.quantidade_original || 0) - Number(it.ja_devolvido || 0));
+      let qtd = Number(selecaoDevolucao[id]?.quantidade ?? it.quantidade ?? max);
+      if (!Number.isFinite(qtd) || qtd <= 0) qtd = max;
+      qtd = Math.min(qtd, max || qtd);
+      const semLoteEstoque = !it.lote_id && !!it.lote_fornecedor;
+      const rastros: RastroLote[] = (it.lote_id || it.lote_fornecedor) ? [{
+        lote_id: String(it.lote_id || ""),
+        nLote: String(it.lote_fornecedor || ""),
+        qLote: qtd,
+        dFab: String(it.data_fabricacao || ""),
+        dVal: String(it.data_validade || ""),
+        op_codigo: "",
+        op_id: "",
+        origem: "ESTOQUE",
+      }] : [];
+      return {
+        ...emptyItem,
+        item_id: String(it.item_id || ""),
+        cProd: String(it.sku || ""),
+        descricao: String(it.descricao || ""),
+        ncm: String(it.ncm || ""),
+        unidade: String(it.unidade || "UN"),
+        uTrib: String(it.unidade || "UN"),
+        quantidade: qtd,
+        qTrib: qtd,
+        valor_unitario: Number(it.valor_unitario || 0),
+        vUnTrib: Number(it.valor_unitario || 0),
+        valor_total: qtd * Number(it.valor_unitario || 0),
+        cfop: cfopOperacao || emptyItem.cfop,
+        rastros,
+        nota_entrada_item_id: id,
+        lote_fornecedor: it.lote_fornecedor ? String(it.lote_fornecedor) : undefined,
+        aviso_lote_estoque: semLoteEstoque
+          ? "Lote do fornecedor não encontrado no estoque — a nota sai com a rastreabilidade da origem, sem baixa."
+          : undefined,
+      };
+    });
+    setItens(mapped);
+    setItensExpandidos(new Set(mapped.map((_, i) => i)));
+    setActiveTab("itens");
+    toast.success(`${mapped.length} item(ns) carregado(s) da nota de entrada`);
+  };
+
+  const totalDevolucaoSelecionado = itensDevolviveis.reduce((s, it) => {
+    const id = String(it.nota_entrada_item_id);
+    const sel = selecaoDevolucao[id];
+    if (!sel?.selecionado) return s;
+    return s + Number(sel.quantidade || 0) * Number(it.valor_unitario || 0);
+  }, 0);
+
   const criarNota = useMutation({
     mutationFn: async () => {
       const erros: string[] = [];
@@ -1037,56 +1196,63 @@ export default function EmissorNFePage() {
       if (erros.length) throw new Error(erros.join("\n"));
       if (!operacaoSelecionada) throw new Error("Selecione a operação fiscal");
 
-      // Edição: remove o rascunho anterior e recria via RPC (cálculo fiscal no servidor).
-      // Zera a marca de validação Focus — o payload mudou.
-      if (editId) {
-        await supabase.from("notas_saida_parcelas").delete().eq("nota_saida_id", editId);
-        await supabase.from("notas_saida_itens").delete().eq("nota_saida_id", editId);
-        const { error: delErr } = await supabase.from("notas_saida").delete().eq("id", editId);
-        if (delErr) {
-          // Tentativas anteriores podem bloquear delete — limpa e tenta de novo
-          await (supabase as any).from("notas_saida_tentativas").delete().eq("nota_saida_id", editId);
-          const { error: delErr2 } = await supabase.from("notas_saida").delete().eq("id", editId);
-          if (delErr2) throw new Error("Não foi possível substituir o rascunho: " + delErr2.message);
-        }
-        try {
-          sessionStorage.setItem("nfe-clear-validated", editId);
-        } catch { /* ignore */ }
-      }
+      const pItens = itens.map((item) => ({
+        item_id: item.item_id,
+        quantidade: Number(item.quantidade),
+        valor_unitario: operacaoSelecionada.gera_financeiro ? Number(item.valor_unitario) : (Number(item.valor_unitario) || null),
+        lote_id: item.rastros.find((r) => r.lote_id)?.lote_id || null,
+        nota_entrada_item_id: item.nota_entrada_item_id || null,
+      }));
 
-      const { data: notaId, error } = await (supabase as any).rpc("criar_nota_saida", {
+      const payloadRpc = {
         p_operacao: operacaoSelecionada.codigo,
         p_cliente_id: clienteId,
-        p_itens: itens.map((item) => ({
-          item_id: item.item_id,
-          quantidade: Number(item.quantidade),
-          valor_unitario: operacaoSelecionada.gera_financeiro ? Number(item.valor_unitario) : (Number(item.valor_unitario) || null),
-          lote_id: item.rastros.find((r) => r.lote_id)?.lote_id || null,
-        })),
+        p_itens: pItens,
         p_observacao: infoAdicionais || null,
         p_chave_referenciada: chaveReferenciada.replace(/\D/g, "") || null,
         p_modalidade_frete: modalidadeFrete,
         p_valor_frete: Number(valorFrete) || 0,
-      });
+      };
+
+      // Edição: atualizar_nota_saida preserva o ID e a trilha de tentativas (transação no banco).
+      // Nunca apagar a nota e recriar — perda de dados e obrigação legal de guarda.
+      let notaId: unknown;
+      let error: { message?: string } | null = null;
+      if (editId) {
+        const res = await supabase.rpc("atualizar_nota_saida", {
+          p_nota_saida_id: editId,
+          ...payloadRpc,
+        });
+        notaId = res.data;
+        error = res.error;
+        try { sessionStorage.setItem("nfe-clear-validated", editId); } catch { /* ignore */ }
+      } else {
+        const res = await supabase.rpc("criar_nota_saida", payloadRpc);
+        notaId = res.data;
+        error = res.error;
+      }
       if (error) throw error;
-      const idCriado = typeof notaId === "string" ? notaId : notaId?.id || notaId?.nota_id || notaId?.[0]?.id || notaId?.[0]?.nota_id;
-      if (!idCriado) throw new Error("RPC criar_nota_saida não retornou o ID da nota");
+      const idCriado = typeof notaId === "string" ? notaId : (notaId as any)?.id || (notaId as any)?.nota_id || (notaId as any)?.[0]?.id || (notaId as any)?.[0]?.nota_id;
+      if (!idCriado) throw new Error(editId ? "RPC atualizar_nota_saida não retornou o ID" : "RPC criar_nota_saida não retornou o ID da nota");
 
       // Parcelas alimentam o bloco FATURA do DANFE e o financeiro pós-autorização
       const companyId = profile?.company_id;
-      if (companyId && duplicatas.length > 0) {
-        const parcelas = duplicatas
-          .filter((d) => d.dVenc && Number(d.vDup) > 0)
-          .map((d, idx) => ({
-            company_id: companyId,
-            nota_saida_id: idCriado,
-            numero_parcela: Number(d.nDup) || idx + 1,
-            data_vencimento: d.dVenc,
-            valor: Number(d.vDup),
-          }));
-        if (parcelas.length > 0) {
-          const { error: parcErr } = await (supabase as any).from("notas_saida_parcelas").insert(parcelas);
-          if (parcErr) throw parcErr;
+      if (companyId) {
+        await supabase.from("notas_saida_parcelas").delete().eq("nota_saida_id", idCriado);
+        if (duplicatas.length > 0) {
+          const parcelas = duplicatas
+            .filter((d) => d.dVenc && Number(d.vDup) > 0)
+            .map((d, idx) => ({
+              company_id: companyId,
+              nota_saida_id: idCriado,
+              numero_parcela: Number(d.nDup) || idx + 1,
+              data_vencimento: d.dVenc,
+              valor: Number(d.vDup),
+            }));
+          if (parcelas.length > 0) {
+            const { error: parcErr } = await supabase.from("notas_saida_parcelas").insert(parcelas);
+            if (parcErr) throw parcErr;
+          }
         }
       }
 
@@ -1359,6 +1525,143 @@ export default function EmissorNFePage() {
                       <p className="text-[10px] text-muted-foreground mt-1">{chaveReferenciada.replace(/\D/g, "").length}/44 dígitos</p>
                     </div>
                   )}
+
+                  {isDevolucaoCompra && (
+                    <div className="rounded-md border p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">Devolução a partir da nota de entrada</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Produto, quantidade, preço e lote vêm da origem — nada é digitado.
+                          </p>
+                        </div>
+                        {carregandoDevolucao && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                      </div>
+                      <div>
+                        <Label className="text-xs">Nota de entrada</Label>
+                        <Select
+                          value={notaEntradaDevolucaoId || undefined}
+                          onValueChange={(id) => { void carregarItensDevolviveis(id); }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a NF-e de compra..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(notasEntradaDevolucao || []).map((n: any) => {
+                              const forn = n.fornecedor;
+                              const nome = (Array.isArray(forn) ? forn[0] : forn)?.razao_social
+                                || (Array.isArray(forn) ? forn[0] : forn)?.nome
+                                || "Fornecedor";
+                              return (
+                                <SelectItem key={n.id} value={n.id}>
+                                  NF {n.numero || "—"}/{n.serie || "—"} — {nome}
+                                  {n.total_nota != null ? ` — R$ ${fmt(Number(n.total_nota))}` : ""}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {metaDevolucao?.nota_entrada && (
+                        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                          <span>NF {metaDevolucao.nota_entrada.numero}/{metaDevolucao.nota_entrada.serie}</span>
+                          {metaDevolucao.fornecedor?.razao_social && <span>{metaDevolucao.fornecedor.razao_social}</span>}
+                          {metaDevolucao.nota_entrada.tem_xml === false && (
+                            <span className="text-amber-600">Sem XML — espelhamento automático indisponível</span>
+                          )}
+                        </div>
+                      )}
+
+                      {itensDevolviveis.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="rounded-md border overflow-hidden">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-muted/50 text-left">
+                                  <th className="px-2 py-1.5 w-8"></th>
+                                  <th className="px-2 py-1.5">Item</th>
+                                  <th className="px-2 py-1.5 text-right">Qtd</th>
+                                  <th className="px-2 py-1.5 text-right">Unit.</th>
+                                  <th className="px-2 py-1.5">Lote</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {itensDevolviveis.map((it: any) => {
+                                  const id = String(it.nota_entrada_item_id);
+                                  const max = Math.max(0, Number(it.quantidade_original || 0) - Number(it.ja_devolvido || 0));
+                                  const sel = selecaoDevolucao[id] || { selecionado: false, quantidade: max };
+                                  const disabled = it.devolvivel === false || max <= 0;
+                                  return (
+                                    <tr key={id} className={`border-t ${disabled ? "opacity-50" : ""}`}>
+                                      <td className="px-2 py-1.5">
+                                        <Checkbox
+                                          checked={!!sel.selecionado}
+                                          disabled={disabled}
+                                          onCheckedChange={(v) => setSelecaoDevolucao((prev) => ({
+                                            ...prev,
+                                            [id]: { ...sel, selecionado: !!v },
+                                          }))}
+                                        />
+                                      </td>
+                                      <td className="px-2 py-1.5">
+                                        <div className="font-medium">{it.sku} — {it.descricao}</div>
+                                        {it.ja_devolvido > 0 && (
+                                          <div className="text-[10px] text-muted-foreground">já devolvido: {fmtQtd(Number(it.ja_devolvido))}</div>
+                                        )}
+                                        {it.devolvivel === false && it.motivo_bloqueio && (
+                                          <div className="text-[10px] text-destructive">{it.motivo_bloqueio}</div>
+                                        )}
+                                        {!it.lote_id && it.lote_fornecedor && (
+                                          <div className="text-[10px] text-amber-600 flex items-center gap-1">
+                                            <AlertTriangle className="h-3 w-3" />
+                                            Lote não encontrado no estoque — sem baixa
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-2 py-1.5 text-right">
+                                        <Input
+                                          type="number"
+                                          step="0.0001"
+                                          className="h-7 text-xs w-24 ml-auto"
+                                          disabled={disabled || !sel.selecionado}
+                                          value={sel.quantidade}
+                                          max={max}
+                                          onChange={(e) => {
+                                            const n = Math.min(max, Math.max(0, Number(e.target.value) || 0));
+                                            setSelecaoDevolucao((prev) => ({
+                                              ...prev,
+                                              [id]: { ...sel, quantidade: n },
+                                            }));
+                                          }}
+                                        />
+                                        <div className="text-[10px] text-muted-foreground">máx {fmtQtd(max)} {it.unidade}</div>
+                                      </td>
+                                      <td className="px-2 py-1.5 text-right font-mono">R$ {fmt(Number(it.valor_unitario || 0))}</td>
+                                      <td className="px-2 py-1.5 font-mono text-[10px]">
+                                        {it.lote_fornecedor || "—"}
+                                        {it.saldo_estoque != null && (
+                                          <div className="text-muted-foreground">saldo {fmtQtd(Number(it.saldo_estoque))}</div>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              Total selecionado: <span className="font-semibold text-foreground">R$ {fmt(totalDevolucaoSelecionado)}</span>
+                            </span>
+                            <Button size="sm" onClick={aplicarItensDevolucao}>
+                              Aplicar itens na nota
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1533,13 +1836,66 @@ export default function EmissorNFePage() {
 
             {/* ════════ Itens Tab ════════ */}
             <TabsContent value="itens" className="space-y-3 mt-3">
-              {itens.map((item, idx) => (
-                <Card key={idx}>
-                  <CardHeader className="py-2 px-3 flex flex-row items-center justify-between">
-                    <CardTitle className="text-xs">Item {idx + 1}</CardTitle>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeItem(idx)}><Trash2 className="h-3 w-3" /></Button>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3 space-y-2">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-medium">
+                  Itens da nota
+                  {itens.length > 0 && (
+                    <span className="ml-2 text-muted-foreground font-normal">
+                      {itens.length} {itens.length === 1 ? "item" : "itens"}
+                    </span>
+                  )}
+                </h3>
+                <Button size="sm" onClick={addItem}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar item
+                </Button>
+              </div>
+
+              {itens.length === 0 && (
+                <div className="border border-dashed rounded-lg p-8 text-center">
+                  <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">Nenhum item adicionado</p>
+                  <Button onClick={addItem}>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar primeiro item
+                  </Button>
+                </div>
+              )}
+
+              {itens.map((item, idx) => {
+                const usarAcordeao = itens.length >= 3;
+                const aberto = !usarAcordeao || itensExpandidos.has(idx);
+                const header = (
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {usarAcordeao && <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${aberto ? "rotate-180" : ""}`} />}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold">Item {idx + 1} de {itens.length}</p>
+                        {!aberto && (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {item.descricao || "Sem produto"} · {fmtQtd(item.quantidade)} {item.unidade} · R$ {fmt(item.valor_total)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" title="Duplicar" onClick={() => duplicateItem(idx)}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Remover" onClick={() => removeItem(idx)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+
+                const corpo = (
+                  <div className="space-y-2">
+                    {item.aviso_lote_estoque && (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>{item.aviso_lote_estoque}</span>
+                      </div>
+                    )}
                     <div>
                       <Label className="text-xs">Produto</Label>
                       <Select value={item.item_id} onValueChange={(v) => selectProduct(idx, v)}>
@@ -1548,7 +1904,6 @@ export default function EmissorNFePage() {
                       </Select>
                     </div>
 
-                    {/* Códigos e Identificação */}
                     <div className="grid grid-cols-4 gap-2">
                       <div><Label className="text-xs">Cód. Produto (cProd)</Label><Input value={item.cProd} onChange={e => updateItem(idx, "cProd", e.target.value)} className="text-xs" /></div>
                       <div><Label className="text-xs">NCM</Label><Input value={item.ncm} onChange={e => updateItem(idx, "ncm", e.target.value)} className="text-xs" /></div>
@@ -1584,7 +1939,6 @@ export default function EmissorNFePage() {
                       </div>
                     </div>
 
-                    {/* Quantidades Comerciais e Tributáveis */}
                     <p className="text-xs font-semibold text-muted-foreground mt-1">Comercial</p>
                     <div className="grid grid-cols-4 gap-2">
                       <div><Label className="text-xs">Unid. Com.</Label><Input value={item.unidade} onChange={e => updateItem(idx, "unidade", e.target.value)} className="text-xs" /></div>
@@ -1599,7 +1953,6 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">V. Unit. Trib.</Label><Input type="number" step="0.0000000001" value={item.vUnTrib} onChange={e => updateItem(idx, "vUnTrib", Number(e.target.value))} className="text-xs" /></div>
                     </div>
 
-                    {/* Valores adicionais do item */}
                     <div className="grid grid-cols-5 gap-2">
                       <div><Label className="text-xs">Desconto</Label><Input type="number" step="0.01" value={item.valor_desconto} onChange={e => updateItem(idx, "valor_desconto", Number(e.target.value))} className="text-xs" /></div>
                       <div><Label className="text-xs">Frete</Label><Input type="number" step="0.01" value={item.valor_frete} onChange={e => updateItem(idx, "valor_frete", Number(e.target.value))} className="text-xs" /></div>
@@ -1608,7 +1961,6 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">V. Total Item</Label><Input value={`R$ ${fmt(item.valor_total)}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
 
-                    {/* ICMS */}
                     <Separator />
                     <p className="text-xs font-semibold text-muted-foreground">ICMS</p>
                     <div className="grid grid-cols-5 gap-2">
@@ -1624,7 +1976,6 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">V. ICMS</Label><Input value={`R$ ${fmt(item.icms_valor)}`} readOnly className="bg-muted text-xs" /></div>
                       <div><Label className="text-xs">IPI %</Label><Input type="number" value={item.ipi_aliquota} onChange={e => updateItem(idx, "ipi_aliquota", Number(e.target.value))} className="text-xs" /></div>
                     </div>
-                    {/* PIS / COFINS */}
                     <p className="text-xs font-semibold text-muted-foreground">PIS / COFINS</p>
                     <div className="grid grid-cols-6 gap-2">
                       <div>
@@ -1647,7 +1998,6 @@ export default function EmissorNFePage() {
                       <div><Label className="text-xs">V. COFINS</Label><Input value={`R$ ${fmt(item.cofins_valor)}`} readOnly className="bg-muted text-xs" /></div>
                     </div>
 
-                    {/* ════════ RASTREABILIDADE MÚLTIPLA DE LOTES (FEFO) ════════ */}
                     <Separator />
                     <div className="flex items-center gap-2 py-1">
                       <FlaskConical className="h-3.5 w-3.5 text-primary" />
@@ -1664,19 +2014,19 @@ export default function EmissorNFePage() {
                         </Badge>
                       )}
                       {item.item_id && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-[10px] ml-auto"
-                          onClick={() => recalcularRastros(idx)}
-                        >
+                        <Button type="button" variant="outline" size="sm" className="h-6 text-[10px] ml-auto" onClick={() => recalcularRastros(idx)}>
                           Recalcular FEFO
                         </Button>
                       )}
                     </div>
 
-                    {/* Tabela de rastros múltiplos */}
+                    {item.rastros.some((r) => !r.lote_id && r.nLote) && (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>Há lote do fornecedor sem vínculo de estoque (lote_id nulo) — a nota sai com a rastreabilidade da origem, sem baixa.</span>
+                      </div>
+                    )}
+
                     {item.rastros.length > 0 && (
                       <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 overflow-hidden">
                         <table className="w-full text-[10px]">
@@ -1697,72 +2047,23 @@ export default function EmissorNFePage() {
                               <tr key={ri} className="border-t border-green-200 dark:border-green-800">
                                 <td className="px-2 py-1 text-muted-foreground">{ri + 1}</td>
                                 <td className="px-2 py-1">
-                                  <Input
-                                    value={r.nLote}
-                                    onChange={e => {
-                                      const novos = [...item.rastros];
-                                      novos[ri] = { ...novos[ri], nLote: e.target.value };
-                                      updateItem(idx, "rastros", novos);
-                                    }}
-                                    className="h-6 text-[10px] font-mono w-32 border-0 bg-transparent p-0 focus-visible:ring-0"
-                                  />
+                                  <Input value={r.nLote} onChange={e => { const novos = [...item.rastros]; novos[ri] = { ...novos[ri], nLote: e.target.value }; updateItem(idx, "rastros", novos); }} className="h-6 text-[10px] font-mono w-32 border-0 bg-transparent p-0 focus-visible:ring-0" />
                                 </td>
                                 <td className="px-2 py-1 text-right">
-                                  <Input
-                                    type="number" step="0.0001"
-                                    value={r.qLote}
-                                    onChange={e => {
-                                      const novos = [...item.rastros];
-                                      novos[ri] = { ...novos[ri], qLote: Number(e.target.value) };
-                                      updateItem(idx, "rastros", novos);
-                                    }}
-                                    className="h-6 text-[10px] w-20 border-0 bg-transparent p-0 text-right focus-visible:ring-0"
-                                  />
+                                  <Input type="number" step="0.0001" value={r.qLote} onChange={e => { const novos = [...item.rastros]; novos[ri] = { ...novos[ri], qLote: Number(e.target.value) }; updateItem(idx, "rastros", novos); }} className="h-6 text-[10px] w-20 border-0 bg-transparent p-0 text-right focus-visible:ring-0" />
                                 </td>
                                 <td className="px-2 py-1 text-center">
-                                  <Input
-                                    type="date"
-                                    value={r.dFab}
-                                    onChange={e => {
-                                      const novos = [...item.rastros];
-                                      novos[ri] = { ...novos[ri], dFab: e.target.value };
-                                      updateItem(idx, "rastros", novos);
-                                    }}
-                                    className="h-6 text-[10px] w-28 border-0 bg-transparent p-0 focus-visible:ring-0"
-                                  />
+                                  <Input type="date" value={r.dFab} onChange={e => { const novos = [...item.rastros]; novos[ri] = { ...novos[ri], dFab: e.target.value }; updateItem(idx, "rastros", novos); }} className="h-6 text-[10px] w-28 border-0 bg-transparent p-0 focus-visible:ring-0" />
                                 </td>
                                 <td className="px-2 py-1 text-center">
-                                  <Input
-                                    type="date"
-                                    value={r.dVal}
-                                    onChange={e => {
-                                      const novos = [...item.rastros];
-                                      novos[ri] = { ...novos[ri], dVal: e.target.value };
-                                      updateItem(idx, "rastros", novos);
-                                    }}
-                                    className="h-6 text-[10px] w-28 border-0 bg-transparent p-0 focus-visible:ring-0"
-                                  />
+                                  <Input type="date" value={r.dVal} onChange={e => { const novos = [...item.rastros]; novos[ri] = { ...novos[ri], dVal: e.target.value }; updateItem(idx, "rastros", novos); }} className="h-6 text-[10px] w-28 border-0 bg-transparent p-0 focus-visible:ring-0" />
                                 </td>
                                 <td className="px-2 py-1 text-center">
-                                  <Badge
-                                    variant={r.origem === "OP" ? "default" : "secondary"}
-                                    className="text-[9px] h-4"
-                                  >
-                                    {r.origem}
-                                  </Badge>
+                                  <Badge variant={r.origem === "OP" ? "default" : "secondary"} className="text-[9px] h-4">{r.origem}</Badge>
                                 </td>
-                                <td className="px-2 py-1 text-center text-muted-foreground">
-                                  {r.op_codigo || "—"}
-                                </td>
+                                <td className="px-2 py-1 text-center text-muted-foreground">{r.op_codigo || "—"}</td>
                                 <td className="px-2 py-1">
-                                  <Button
-                                    type="button" variant="ghost" size="sm"
-                                    className="h-5 w-5 p-0 text-destructive hover:text-destructive"
-                                    onClick={() => {
-                                      const novos = item.rastros.filter((_, i) => i !== ri);
-                                      updateItem(idx, "rastros", novos);
-                                    }}
-                                  >
+                                  <Button type="button" variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={() => updateItem(idx, "rastros", item.rastros.filter((_, i) => i !== ri))}>
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
                                 </td>
@@ -1785,42 +2086,20 @@ export default function EmissorNFePage() {
                             </tr>
                           </tfoot>
                         </table>
-                        {/* Botão adicionar lote manual */}
                         <div className="px-2 py-1.5 border-t border-green-200">
-                          <Button
-                            type="button" variant="ghost" size="sm"
-                            className="h-6 text-[10px] text-green-700"
-                            onClick={() => {
-                              const novos = [...item.rastros, {
-                                lote_id: "", nLote: "", qLote: 0,
-                                dFab: "", dVal: "", op_codigo: "", op_id: "", origem: "OP" as const,
-                              }];
-                              updateItem(idx, "rastros", novos);
-                            }}
-                          >
+                          <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] text-green-700" onClick={() => updateItem(idx, "rastros", [...item.rastros, { lote_id: "", nLote: "", qLote: 0, dFab: "", dVal: "", op_codigo: "", op_id: "", origem: "OP" as const }])}>
                             <Plus className="h-3 w-3 mr-1" /> Adicionar lote manualmente
                           </Button>
                         </div>
                       </div>
                     )}
 
-                    {/* Sem rastros: botão para adicionar manualmente */}
                     {item.rastros.length === 0 && item.item_id && (
-                      <Button
-                        type="button" variant="outline" size="sm"
-                        className="text-xs w-full"
-                        onClick={() => {
-                          updateItem(idx, "rastros", [{
-                            lote_id: "", nLote: "", qLote: item.quantidade,
-                            dFab: "", dVal: "", op_codigo: "", op_id: "", origem: "OP" as const,
-                          }]);
-                        }}
-                      >
+                      <Button type="button" variant="outline" size="sm" className="text-xs w-full" onClick={() => updateItem(idx, "rastros", [{ lote_id: "", nLote: "", qLote: item.quantidade, dFab: "", dVal: "", op_codigo: "", op_id: "", origem: "OP" as const }])}>
                         <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar lote manualmente
                       </Button>
                     )}
 
-                    {/* Painel de MPs da OP principal */}
                     {opSelecionadaPorItem[idx] && (
                       <div className="rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3 space-y-1.5">
                         <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
@@ -1837,41 +2116,17 @@ export default function EmissorNFePage() {
                             <span><strong>Sala:</strong> {opSelecionadaPorItem[idx].sala_producao}</span>
                           )}
                         </div>
-                        {(opSelecionadaPorItem[idx].materias_primas || (opSelecionadaPorItem[idx] as any).op_materias_primas)?.filter((mp: any) => mp.numero_lote).length > 0 && (
-                          <div className="space-y-0.5">
-                            {(opSelecionadaPorItem[idx].materias_primas || (opSelecionadaPorItem[idx] as any).op_materias_primas)
-                              .filter((mp: any) => mp.numero_lote)
-                              .map((mp: any) => (
-                                <p key={mp.id} className="text-[10px] text-muted-foreground">
-                                  • <strong>{mp.insumo_nome}</strong>: Lote {mp.numero_lote}
-                                  {mp.fornecedor_nome ? ` — ${mp.fornecedor_nome}` : ""}
-                                </p>
-                              ))}
-                          </div>
-                        )}
-                        {opSelecionadaPorItem[idx].observacoes && (
-                          <p className="text-[10px] text-muted-foreground">
-                            <strong>Obs.:</strong> {opSelecionadaPorItem[idx].observacoes}
-                          </p>
-                        )}
                       </div>
                     )}
 
-                    {/* Observação da OP */}
                     <div>
                       <Label className="text-xs flex items-center gap-1">
                         Observação da OP
                         <Badge variant="secondary" className="text-[10px]">da OP selecionada</Badge>
                       </Label>
-                      <Input
-                        value={item.obs_op}
-                        onChange={e => updateItem(idx, "obs_op", e.target.value)}
-                        className="text-xs"
-                        placeholder="Preenchido automaticamente da Ordem de Produção"
-                      />
+                      <Input value={item.obs_op} onChange={e => updateItem(idx, "obs_op", e.target.value)} className="text-xs" placeholder="Preenchido automaticamente da Ordem de Produção" />
                     </div>
 
-                    {/* Pedido / Info Adicional */}
                     <Separator />
                     <div className="grid grid-cols-2 gap-2">
                       <div><Label className="text-xs">Nº Pedido Compra (xPed)</Label><Input value={item.xPed} onChange={e => updateItem(idx, "xPed", e.target.value)} className="text-xs" placeholder="Opcional" /></div>
@@ -1882,21 +2137,47 @@ export default function EmissorNFePage() {
                         Informações Adicionais do Item (infAdProd)
                         <Badge variant="outline" className="text-[10px]">gerado automaticamente</Badge>
                       </Label>
-                      <Input
-                        value={item.info_adicional_item}
-                        onChange={e => updateItem(idx, "info_adicional_item", e.target.value)}
-                        className="text-xs font-mono"
-                        placeholder="LOTE: xxx | VAL: dd/mm/aaaa | OBS: ..."
-                      />
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Este campo é incluído no XML da NF-e e no DANFE para rastreabilidade e controle do destinatário.
-                      </p>
+                      <Input value={item.info_adicional_item} onChange={e => updateItem(idx, "info_adicional_item", e.target.value)} className="text-xs font-mono" placeholder="LOTE: xxx | VAL: dd/mm/aaaa | OBS: ..." />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-              <Button variant="outline" onClick={addItem} className="w-full"><Plus className="h-4 w-4 mr-2" /> Adicionar Item</Button>
-              {itens.length === 0 && <p className="text-center text-muted-foreground text-sm py-4">— Adicione itens na aba "Itens" —</p>}
+                  </div>
+                );
+
+                if (!usarAcordeao) {
+                  return (
+                    <Card key={idx}>
+                      <CardHeader className="py-2 px-3">{header}</CardHeader>
+                      <CardContent className="px-3 pb-3">{corpo}</CardContent>
+                    </Card>
+                  );
+                }
+
+                return (
+                  <Collapsible
+                    key={idx}
+                    open={aberto}
+                    onOpenChange={(open) => setItensExpandidos((prev) => {
+                      const next = new Set(prev);
+                      if (open) next.add(idx); else next.delete(idx);
+                      return next;
+                    })}
+                  >
+                    <Card>
+                      <CollapsibleTrigger asChild>
+                        <CardHeader className="py-2 px-3 cursor-pointer hover:bg-muted/40">{header}</CardHeader>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="px-3 pb-3">{corpo}</CardContent>
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
+                );
+              })}
+
+              {itens.length > 0 && (
+                <Button variant="outline" onClick={addItem} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" /> Adicionar item
+                </Button>
+              )}
             </TabsContent>
 
             {/* ════════ Transporte Tab ════════ */}
