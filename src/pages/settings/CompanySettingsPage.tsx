@@ -139,6 +139,24 @@ export default function CompanySettingsPage() {
     //   populado inteiro a partir de `company` (values: company), esse campo calculado
     //   vem junto e seria reenviado por engano se não for removido aqui.
     const { certificado_senha_encrypted, smtp_pass_set, ...payload } = data as any;
+
+    // Não persistir máscara de tipo de logradouro ("Rua: VENEZUELA") — vai para xLgr no XML.
+    // trim() em textos de endereço evita espaços à direita no complemento.
+    const limparLogradouro = (v: unknown) =>
+      String(v ?? "")
+        .replace(/^(rua|av|avenida|alameda|travessa|rodovia|estrada|praca|praça)\s*:\s*/i, "")
+        .trim();
+    const trimStr = (v: unknown) => (v == null ? v : String(v).trim());
+    if ("endereco_logradouro" in payload) {
+      payload.endereco_logradouro = limparLogradouro(payload.endereco_logradouro) || null;
+    }
+    for (const key of [
+      "endereco_nro", "endereco_compl", "endereco_bairro", "endereco_cidade",
+      "endereco_uf", "endereco_cep", "endereco_cmun", "telefone", "email_fiscal", "site",
+    ] as const) {
+      if (key in payload && payload[key] != null) payload[key] = trimStr(payload[key]);
+    }
+
     try {
       await upsertCompany.mutateAsync(payload);
       // Continua na própria tela — usuário pode estar ajustando várias abas
@@ -173,9 +191,14 @@ export default function CompanySettingsPage() {
     form.setValue("cnae", data.cnae);
     form.setValue("crt", data.crt);
     form.setValue("regime_tributario", data.regime_tributario);
-    form.setValue("endereco_logradouro", data.endereco_logradouro);
-    form.setValue("endereco_nro", data.endereco_nro);
-    form.setValue("endereco_compl", data.endereco_compl);
+    form.setValue(
+      "endereco_logradouro",
+      String(data.endereco_logradouro || "")
+        .replace(/^(rua|av|avenida|alameda|travessa|rodovia|estrada|praca|praça)\s*:\s*/i, "")
+        .trim(),
+    );
+    form.setValue("endereco_nro", String(data.endereco_nro || "").trim());
+    form.setValue("endereco_compl", String(data.endereco_compl || "").trim());
     form.setValue("endereco_bairro", data.endereco_bairro);
     form.setValue("endereco_cep", data.endereco_cep);
     form.setValue("endereco_uf", data.endereco_uf);
@@ -749,7 +772,19 @@ export default function CompanySettingsPage() {
                 <CardContent className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2 md:col-span-2">
                     <Label>Logradouro</Label>
-                    <Input {...form.register("endereco_logradouro")} placeholder="Rua, Avenida..." />
+                    <Input
+                      {...form.register("endereco_logradouro")}
+                      placeholder="VENEZUELA (sem prefixo Rua:/Av:)"
+                      onBlur={(e) => {
+                        const limpo = e.target.value
+                          .replace(/^(rua|av|avenida|alameda|travessa|rodovia|estrada|praca|praça)\s*:\s*/i, "")
+                          .trim();
+                        if (limpo !== e.target.value) form.setValue("endereco_logradouro", limpo);
+                      }}
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Não inclua &quot;Rua:&quot; ou &quot;Av:&quot; — o valor vai para o XML da NF-e (xLgr).
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>Numero</Label>

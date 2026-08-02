@@ -2682,16 +2682,18 @@ export default function EmissorNFePage() {
                             )}
                             <div style={{ fontSize: "6.5pt", lineHeight: 1.35 }}>
                               <div style={{ fontWeight: 700, fontSize: "8pt" }}>{company?.razao_social || "—"}</div>
-                              {company?.nome_fantasia && company.nome_fantasia !== company.razao_social && (
-                                <div style={{ fontWeight: 600 }}>{company.nome_fantasia}</div>
-                              )}
                               {(company?.endereco_logradouro || company?.endereco_nro) && (
                                 <div>
-                                  {[company?.endereco_logradouro, company?.endereco_nro].filter(Boolean).join(", ")}
-                                  {company?.endereco_compl ? ` - ${company.endereco_compl}` : ""}
+                                  {[
+                                    String(company?.endereco_logradouro || "").replace(
+                                      /^(rua|av|avenida|alameda|travessa|rodovia|estrada|praca|praça)\s*:\s*/i,
+                                      "",
+                                    ).trim(),
+                                    company?.endereco_nro,
+                                  ].filter(Boolean).join(", ")}
                                 </div>
                               )}
-                              {company?.endereco_bairro && <div>{company.endereco_bairro}</div>}
+                              {company?.endereco_bairro && <div>Bairro {String(company.endereco_bairro).trim()}</div>}
                               {(company?.endereco_cidade || company?.endereco_uf || company?.endereco_cep) && (
                                 <div>
                                   {[

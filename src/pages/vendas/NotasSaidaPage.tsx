@@ -195,6 +195,7 @@ const mapDadosDanfeToDanfeData = (payloadData: any, emitLogoUrl?: string | null)
     emit_cep: textFrom(emitente.cep),
     emit_endereco_linha1: textFrom(emitente.endereco_linha1),
     emit_endereco_linha2: textFrom(emitente.endereco_linha2),
+    emit_endereco_linha3: textFrom(emitente.endereco_linha3),
     emit_telefone: textFrom(emitente.telefone),
     emit_email: textFrom(emitente.email),
     emit_cnpj: textFrom(emitente.cnpj),
