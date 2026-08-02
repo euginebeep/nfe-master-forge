@@ -32,6 +32,10 @@ type FormulaItemInsert = {
   classificacao_risco?: string;
   metodo_distribuicao?: string | null;
   alerta_exibido?: boolean;
+  funcao_no_produto?: 'ATIVO' | 'EXCIPIENTE' | 'COADJUVANTE' | 'VEICULO' | null;
+  funcao_tecnologica?: string | null;
+  justificativa_funcao?: string | null;
+  funcao_declarada_por?: string | null;
 };
 
 // ============================================================
