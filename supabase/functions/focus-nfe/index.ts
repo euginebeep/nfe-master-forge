@@ -18,6 +18,15 @@ const baseUrl = (amb: string) => `${host(amb)}/v2`;
 const normAmbiente = (v: unknown) =>
   String(v ?? "").trim().toLowerCase() === "producao" ? "producao" : "homologacao";
 
+/** Caminhos Focus relativos (/arquivos/...) → URL absoluta. Absolutos ficam inalterados. */
+function urlArquivoFocus(caminho: string | null | undefined, ambiente: string): string {
+  const c = String(caminho ?? "").trim();
+  if (!c) return c;
+  if (/^https?:\/\//i.test(c)) return c;
+  if (c.startsWith("/")) return `${host(ambiente)}${c}`;
+  return c;
+}
+
 const SENSIVEIS = ["token_producao","token_homologacao","senha_certificado","csc_nfce_producao",
   "csc_nfce_homologacao","id_token_nfce_producao","id_token_nfce_homologacao",
   "smtp_senha","senha_responsavel","arquivo_certificado_base64","arquivo_logo_base64"];
@@ -69,7 +78,8 @@ async function focusReq(method: string, path: string, ambiente: string, token: s
 }
 
 async function baixarArquivo(caminho: string, ambiente: string, token: string) {
-  return fetch(`${host(ambiente)}${caminho}`, { headers: { Authorization: `Basic ${btoa(`${token}:`)}` } });
+  const url = urlArquivoFocus(caminho, ambiente);
+  return fetch(url, { headers: { Authorization: `Basic ${btoa(`${token}:`)}` } });
 }
 
 async function auth(req: Request) {
@@ -236,8 +246,8 @@ Deno.serve(async (req) => {
         return json({ ...data, id: ref, ref, ambiente,
           chave_acesso: chave44(data.chave_nfe),
           status_interno: mapStatus(data.status ?? ""),
-          link_pdf: data.caminho_danfe ? `${host(ambiente)}${data.caminho_danfe}` : null,
-          link_xml: data.caminho_xml_nota_fiscal ? `${host(ambiente)}${data.caminho_xml_nota_fiscal}` : null,
+          link_pdf: data.caminho_danfe ? urlArquivoFocus(data.caminho_danfe, ambiente) : null,
+          link_xml: data.caminho_xml_nota_fiscal ? urlArquivoFocus(data.caminho_xml_nota_fiscal, ambiente) : null,
           registro: reg, dry_run: !!dry_run, origem_token: origemToken });
       }
 
@@ -259,8 +269,8 @@ Deno.serve(async (req) => {
         return json({ ...data, ambiente,
           status_interno: mapStatus(data.status ?? ""),
           chave_acesso: chave44(data.chave_nfe),
-          link_pdf: data.caminho_danfe ? `${host(ambiente)}${data.caminho_danfe}` : null,
-          link_xml: data.caminho_xml_nota_fiscal ? `${host(ambiente)}${data.caminho_xml_nota_fiscal}` : null,
+          link_pdf: data.caminho_danfe ? urlArquivoFocus(data.caminho_danfe, ambiente) : null,
+          link_xml: data.caminho_xml_nota_fiscal ? urlArquivoFocus(data.caminho_xml_nota_fiscal, ambiente) : null,
           registro: reg }, r.status);
       }
 

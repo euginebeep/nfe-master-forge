@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFocusNfe } from "@/hooks/use-focus-nfe";
+import { urlArquivoFocus } from "@/lib/focus-nfe-url";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
@@ -302,7 +303,10 @@ const normalizeFocusEmissionResult = (resultData: any) => {
       result.protocolo_autorizacao,
       result.protocolo
     ),
-    danfeUrl: textFrom(data.danfe_url, data.link_pdf, data.url_danfe, result.danfe_url, result.link_pdf),
+    danfeUrl: urlArquivoFocus(
+      textFrom(data.danfe_url, data.link_pdf, data.url_danfe, result.danfe_url, result.link_pdf),
+      textFrom(data.ambiente, result.ambiente),
+    ),
   };
 };
 
@@ -1266,7 +1270,10 @@ export default function NotasSaidaPage() {
                                       {(t.caminho_xml_cancelamento || t.caminho_xml) && (
                                         <a
                                           className="text-primary underline"
-                                          href={t.caminho_xml_cancelamento || t.caminho_xml}
+                                          href={urlArquivoFocus(
+                                            t.caminho_xml_cancelamento || t.caminho_xml,
+                                            nota.ambiente,
+                                          )}
                                           target="_blank"
                                           rel="noreferrer"
                                         >
@@ -1417,7 +1424,15 @@ export default function NotasSaidaPage() {
                                 </DropdownMenuItem>
                               )}
                               {nota.caminho_xml_cancelamento && (
-                                <DropdownMenuItem onClick={() => window.open(nota.caminho_xml_cancelamento, "_blank", "noopener,noreferrer")}>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    window.open(
+                                      urlArquivoFocus(nota.caminho_xml_cancelamento, nota.ambiente),
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    )
+                                  }
+                                >
                                   <Download className="h-4 w-4 mr-2" /> XML do cancelamento
                                 </DropdownMenuItem>
                               )}

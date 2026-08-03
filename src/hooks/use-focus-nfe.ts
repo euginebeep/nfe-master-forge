@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+export { urlArquivoFocus } from "@/lib/focus-nfe-url";
 
 export type FocusAmbiente = "producao" | "homologacao";
 
