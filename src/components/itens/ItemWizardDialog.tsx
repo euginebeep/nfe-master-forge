@@ -18,10 +18,12 @@ import { formatarUnidade } from "@/lib/erp-validation";
 import { calcularFatorConversaoAutomatico } from "@/lib/erp-validation";
 import { useItemWizardState } from "./wizard/useItemWizardState";
 import { TOOLTIPS } from "@/components/ajuda/TooltipAjuda";
+import { useCompany } from "@/hooks/use-company";
+import { opcoesIcmsPorCrt, rotuloIcmsPorCrt } from "@/lib/fiscal-icms";
 import {
   TIPOS_ITEM, CRITICIDADES, ARMAZENAMENTOS, UNIDADES_FORNECEDOR, UNIDADES_INTERNAS,
   TIPOS_POTENCIA, TAMANHOS_CAPSULA, MATERIAIS_CAPSULA, MARCAS_CAPSULA_SUGERIDAS,
-  CST_ICMS_OPTIONS, CST_PIS_COFINS_OPTIONS, CST_IPI_OPTIONS, TIPOS_ALIAS,
+  CST_PIS_COFINS_OPTIONS, CST_IPI_OPTIONS, TIPOS_ALIAS,
   WIZARD_STEPS, TOTAL_STEPS,
 } from "./wizard/item-wizard-constants";
 import type { UnidadeFornecedor, UnidadeInternaLocal } from "@/hooks/use-local-itens";
@@ -34,6 +36,9 @@ interface ItemWizardDialogProps {
 
 export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDialogProps) {
   const s = useItemWizardState(onSuccess);
+  const { data: company } = useCompany();
+  const opcoesIcms = opcoesIcmsPorCrt(company?.crt);
+  const rotuloIcms = rotuloIcmsPorCrt(company?.crt);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -285,7 +290,7 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                   <div className="space-y-2">
                     <Label className="text-base font-semibold">ICMS</Label>
                     <div className="grid grid-cols-4 gap-4">
-                      <div className="space-y-2"><Label className="text-xs">CST</Label><Select value={s.cstIcms} onValueChange={s.setCstIcms}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{CST_ICMS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-2"><Label className="text-xs">{rotuloIcms}</Label><Select value={s.cstIcms} onValueChange={s.setCstIcms}><SelectTrigger><SelectValue placeholder="Definir com contador..." /></SelectTrigger><SelectContent>{opcoesIcms.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
                       <div className="space-y-2"><Label className="text-xs">Origem</Label><Select value={s.origemIcms} onValueChange={s.setOrigemIcms}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">0 - Nacional</SelectItem><SelectItem value="1">1 - Estrangeira (importação direta)</SelectItem><SelectItem value="2">2 - Estrangeira (mercado interno)</SelectItem></SelectContent></Select></div>
                       <div className="space-y-2"><Label className="text-xs">Alíquota %</Label><Input type="number" step="0.01" value={s.aliquotaIcms || ''} onChange={(e) => s.setAliquotaIcms(parseFloat(e.target.value) || undefined)} placeholder="18" /></div>
                       <div className="space-y-2"><Label className="text-xs">MVA ST %</Label><Input type="number" step="0.01" value={s.mvaSt || ''} onChange={(e) => s.setMvaSt(parseFloat(e.target.value) || undefined)} placeholder="42" /></div>

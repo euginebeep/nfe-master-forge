@@ -67,37 +67,15 @@ export const MARCAS_CAPSULA_SUGERIDAS = [
   'Farmoquímica', 'Natural Caps', 'Suheung', 'Lefan Capsule',
 ];
 
-export const CST_ICMS_OPTIONS = [
-  { value: "00", label: "00 - Tributada integralmente" },
-  { value: "10", label: "10 - Tributada com ST" },
-  { value: "20", label: "20 - Com redução de BC" },
-  { value: "40", label: "40 - Isenta" },
-  { value: "41", label: "41 - Não tributada" },
-  { value: "60", label: "60 - ICMS cobrado anteriormente por ST" },
-  { value: "90", label: "90 - Outras" },
-];
-
-export const CST_PIS_COFINS_OPTIONS = [
-  { value: "01", label: "01 - Operação tributável (alíquota básica)" },
-  { value: "04", label: "04 - Operação tributável (ST)" },
-  { value: "06", label: "06 - Operação tributável (alíquota zero)" },
-  { value: "07", label: "07 - Operação isenta" },
-  { value: "08", label: "08 - Operação sem incidência" },
-  { value: "49", label: "49 - Outras operações de saída" },
-  { value: "99", label: "99 - Outras operações" },
-];
-
-export const CST_IPI_OPTIONS = [
-  { value: "00", label: "00 - Entrada com recuperação de crédito" },
-  { value: "49", label: "49 - Outras entradas" },
-  { value: "50", label: "50 - Saída tributada" },
-  { value: "51", label: "51 - Saída tributável alíquota zero" },
-  { value: "52", label: "52 - Saída isenta" },
-  { value: "53", label: "53 - Saída não tributada" },
-  { value: "54", label: "54 - Saída imune" },
-  { value: "55", label: "55 - Saída com suspensão" },
-  { value: "99", label: "99 - Outras saídas" },
-];
+export {
+  CST_ICMS_OPTIONS,
+  CSOSN_ICMS_OPTIONS,
+  CST_PIS_COFINS_OPTIONS,
+  CST_IPI_OPTIONS,
+  empresaUsaCsosn,
+  opcoesIcmsPorCrt,
+  rotuloIcmsPorCrt,
+} from "@/lib/fiscal-icms";
 
 export const TIPOS_ALIAS = [
   { value: "ALIAS_FORNECEDOR", label: "Alias Fornecedor" },
