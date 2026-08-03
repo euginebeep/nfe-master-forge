@@ -412,6 +412,85 @@ export default function OrdemProducaoDetailPage() {
         }
       />
 
+      {/* Carimbo ANVISA — prova de ciência na abertura (não bloqueia a OP) */}
+      {currentOP.anvisa_status && (
+        <div
+          className={
+            currentOP.anvisa_status === 'NAO_CONFORME'
+              ? 'bg-red-50 border border-red-200 rounded-lg p-4 mb-6'
+              : currentOP.anvisa_status === 'COM_RESSALVA' || currentOP.anvisa_status === 'SEM_FORMULA'
+                ? 'bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6'
+                : 'bg-green-50 border border-green-200 rounded-lg p-4 mb-6'
+          }
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle
+              className={
+                currentOP.anvisa_status === 'NAO_CONFORME'
+                  ? 'h-5 w-5 text-red-600 shrink-0 mt-0.5'
+                  : currentOP.anvisa_status === 'CONFORME'
+                    ? 'h-5 w-5 text-green-600 shrink-0 mt-0.5'
+                    : 'h-5 w-5 text-amber-600 shrink-0 mt-0.5'
+              }
+            />
+            <div className="flex-1 space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold">
+                  Carimbo ANVISA na abertura
+                </span>
+                <Badge
+                  variant="outline"
+                  className={
+                    currentOP.anvisa_status === 'NAO_CONFORME'
+                      ? 'border-red-500/50 text-red-800 bg-red-500/10'
+                      : currentOP.anvisa_status === 'CONFORME'
+                        ? 'border-green-500/50 text-green-800 bg-green-500/10'
+                        : 'border-amber-500/50 text-amber-900 bg-amber-500/10'
+                  }
+                >
+                  {currentOP.anvisa_status.replace(/_/g, ' ')}
+                </Badge>
+                {currentOP.anvisa_carimbado_em && (
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(currentOP.anvisa_carimbado_em).toLocaleString('pt-BR')}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {currentOP.anvisa_resumo || 'Carimbo registrado na abertura desta OP.'}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Carimbo, não bloqueio: a OP abre mesmo NAO CONFORME. Este registro é a prova de
+                que o sistema avisou antes do lote existir.
+              </p>
+              {Array.isArray((currentOP.anvisa_carimbo as { itens?: unknown } | null)?.itens) &&
+                ((currentOP.anvisa_carimbo as { itens: Array<Record<string, unknown>> }).itens.filter(
+                  (i) => i.status === 'NAO_AUTORIZADO' || i.status === 'PENDENTE_VERIFICACAO',
+                ).length > 0) && (
+                <ul className="mt-2 space-y-1 text-xs">
+                  {(currentOP.anvisa_carimbo as { itens: Array<Record<string, unknown>> }).itens
+                    .filter(
+                      (i) =>
+                        i.status === 'NAO_AUTORIZADO' || i.status === 'PENDENTE_VERIFICACAO',
+                    )
+                    .slice(0, 12)
+                    .map((i, idx) => (
+                      <li key={idx} className="pl-2 border-l-2 border-current/30">
+                        <span className="font-medium">{String(i.insumo || '—')}</span>
+                        {' · '}
+                        <span>{String(i.status || '')}</span>
+                        {i.motivo ? (
+                          <span className="text-muted-foreground"> — {String(i.motivo)}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Banner de requisição de compra */}
       {bannerRequisicao && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-center justify-between">

@@ -56,6 +56,10 @@ interface DadosRegulatorios {
   observacoes: string | null;
   mensagem: string | null;
   nomeTecnico: string | null;
+  candidatos: string[];
+  nCandidatos: number | null;
+  sugestaoNome: string | null;
+  similaridade: number | null;
   linksUteis: { titulo: string; url: string }[];
 }
 
@@ -90,32 +94,46 @@ function mapConsultaToDados(
   const advRaw = Array.isArray(consulta.advertencias) ? consulta.advertencias : [];
 
   const limiteAdulto = parseLimiteAdultoMg(consultaComDose || consulta);
-  const statusEfetivo = consultaComDose?.status || consulta.status;
-  const estiloEfetivo = estiloStatusAnvisaConsulta(statusEfetivo);
+  const statusBase = consulta.status;
+  const naoAutorizaMatch =
+    statusBase === "ambiguo" || statusBase === "sugestao" || statusBase === "nao_encontrado";
+  // Dose só reforça status quando o motor já autorizou um constituinte único.
+  const statusEfetivo = naoAutorizaMatch
+    ? statusBase
+    : consultaComDose?.status || consulta.status;
+  const estiloEfetivoFinal = estiloStatusAnvisaConsulta(statusEfetivo);
 
   return {
     substancia: nomeAtivo,
-    statusLabel: estiloEfetivo.label,
-    statusClass: estiloEfetivo.className,
+    statusLabel: estiloEfetivoFinal.label,
+    statusClass: estiloEfetivoFinal.className,
     consultaStatus: statusEfetivo,
     instrucaoNormativa: consulta.norma_inclusao || "IN 28/2018",
     doseMaxima:
-      limiteAdulto != null
+      !naoAutorizaMatch && limiteAdulto != null
         ? {
             valor: limiteAdulto,
             unidade: "mg",
             referencia: consulta.norma_inclusao || "IN 28/2018",
           }
         : null,
-    alegacoes: alegRaw.map((a) => ({
-      texto: String(a),
-      permitido: true,
-      fonte: consulta.norma_inclusao || "IN 28/2018",
-    })),
-    advertencias: advRaw.map((a) => String(a)),
+    alegacoes: naoAutorizaMatch
+      ? []
+      : alegRaw.map((a) => ({
+          texto: String(a),
+          permitido: true,
+          fonte: consulta.norma_inclusao || "IN 28/2018",
+        })),
+    advertencias: naoAutorizaMatch ? [] : advRaw.map((a) => String(a)),
     observacoes: consulta.mensagem || estilo.label,
-    mensagem: consultaComDose?.mensagem || consulta.mensagem || null,
-    nomeTecnico: consulta.nome_tecnico || null,
+    mensagem: naoAutorizaMatch
+      ? consulta.mensagem || null
+      : consultaComDose?.mensagem || consulta.mensagem || null,
+    nomeTecnico: naoAutorizaMatch ? null : consulta.nome_tecnico || null,
+    candidatos: consulta.candidatos || [],
+    nCandidatos: consulta.n_candidatos ?? null,
+    sugestaoNome: consulta.sugestao_nome || null,
+    similaridade: consulta.similaridade ?? null,
     linksUteis: [
       {
         titulo: "Portal ANVISA - Suplementos",
@@ -148,12 +166,14 @@ export function ConsultaRegulatoriaANVISA({
       // Fonte única — primeiro acha o constituinte
       const consulta = await rpcAnvisaConsultar({ termo: nomeAtivo });
 
-      // Se achou e há dose, valida contra grupo adulto (19_mais)
+      // Dose só quando há match único autorizado (nunca em ambiguo/sugestao)
       let consultaDose: AnvisaConsultaResult | null = null;
       if (
         consulta.ok &&
         consulta.status !== "nao_encontrado" &&
         consulta.status !== "termo_vazio" &&
+        consulta.status !== "ambiguo" &&
+        consulta.status !== "sugestao" &&
         quantidadeMg > 0
       ) {
         consultaDose = await rpcAnvisaConsultar({
@@ -187,6 +207,9 @@ export function ConsultaRegulatoriaANVISA({
     ) : dados?.consultaStatus === "encontrado" ||
       dados?.consultaStatus === "conforme" ? (
       <CheckCircle className="h-4 w-4" />
+    ) : dados?.consultaStatus === "ambiguo" ||
+      dados?.consultaStatus === "sugestao" ? (
+      <AlertTriangle className="h-4 w-4" />
     ) : (
       <Search className="h-4 w-4" />
     );
@@ -251,6 +274,50 @@ export function ConsultaRegulatoriaANVISA({
 
               {dados.mensagem && (
                 <p className="text-sm text-muted-foreground">{dados.mensagem}</p>
+              )}
+
+              {dados.consultaStatus === "ambiguo" && (
+                <Alert className="border-amber-500/40 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-700" />
+                  <AlertTitle>Casamento ambíguo — escolha o constituinte</AlertTitle>
+                  <AlertDescription className="text-sm space-y-2">
+                    <p>
+                      {dados.nCandidatos ?? dados.candidatos.length} candidatos com limites
+                      próprios. Não há resposta única — não autoriza uso até a RT escolher.
+                    </p>
+                    {dados.candidatos.length > 0 && (
+                      <ul className="space-y-1 mt-2">
+                        {dados.candidatos.map((nome, i) => (
+                          <li
+                            key={`${nome}-${i}`}
+                            className="pl-2 border-l-2 border-amber-500/60 font-medium"
+                          >
+                            {nome}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {dados.consultaStatus === "sugestao" && (
+                <Alert className="border-amber-500/40 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-700" />
+                  <AlertTitle>Sugestão fraca — não autorizado</AlertTitle>
+                  <AlertDescription className="text-sm">
+                    Nome próximo sugerido:{" "}
+                    <strong>{dados.sugestaoNome || "—"}</strong>
+                    {dados.similaridade != null && (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · similaridade {(Number(dados.similaridade) * 100).toFixed(0)}%
+                      </span>
+                    )}
+                    <br />
+                    Semelhança de nome não é identidade. Confirme antes de usar.
+                  </AlertDescription>
+                </Alert>
               )}
 
               {doseExcedida && (

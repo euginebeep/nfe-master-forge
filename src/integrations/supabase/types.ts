@@ -8281,6 +8281,10 @@ export type Database = {
         Row: {
           acrescimo_percentual: number | null
           alerta_batelada: string | null
+          anvisa_carimbado_em: string | null
+          anvisa_carimbo: Json | null
+          anvisa_resumo: string | null
+          anvisa_status: string | null
           assinatura_rt_hash: string | null
           assinatura_rt_id: string | null
           capsula_item_id: string | null
@@ -8377,6 +8381,10 @@ export type Database = {
         Insert: {
           acrescimo_percentual?: number | null
           alerta_batelada?: string | null
+          anvisa_carimbado_em?: string | null
+          anvisa_carimbo?: Json | null
+          anvisa_resumo?: string | null
+          anvisa_status?: string | null
           assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
           capsula_item_id?: string | null
@@ -8473,6 +8481,10 @@ export type Database = {
         Update: {
           acrescimo_percentual?: number | null
           alerta_batelada?: string | null
+          anvisa_carimbado_em?: string | null
+          anvisa_carimbo?: Json | null
+          anvisa_resumo?: string | null
+          anvisa_status?: string | null
           assinatura_rt_hash?: string | null
           assinatura_rt_id?: string | null
           capsula_item_id?: string | null

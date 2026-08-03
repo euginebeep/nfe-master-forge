@@ -288,6 +288,70 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
           <div className="cell" style={{ gridColumn: 'span 2' }}><div className="k">Responsável de produção</div><div className="v">{op.responsavel_producao_nome || '—'}</div></div>
         </div>
 
+        {/* Carimbo ANVISA — deve aparecer na folha BPF se o operador não vê, o carimbo só serve depois do problema */}
+        {op.anvisa_status && (
+          <>
+            <div className="sec"><span className="n">1b</span><h2>Carimbo ANVISA na abertura</h2></div>
+            <div
+              className="rules"
+              style={
+                op.anvisa_status === 'NAO_CONFORME'
+                  ? { borderColor: 'var(--warn)', background: '#fbeee9' }
+                  : op.anvisa_status === 'CONFORME'
+                    ? undefined
+                    : { borderColor: '#b8860b', background: '#fffdf6' }
+              }
+            >
+              <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <span className={`tag${op.anvisa_status === 'NAO_CONFORME' ? ' r' : ''}`}>
+                  {String(op.anvisa_status).replace(/_/g, ' ')}
+                </span>
+                {op.anvisa_carimbado_em && (
+                  <span style={{ fontSize: 8 }}>
+                    Carimbado em{' '}
+                    {new Date(op.anvisa_carimbado_em).toLocaleString('pt-BR')}
+                  </span>
+                )}
+              </div>
+              <p style={{ marginTop: 6, fontSize: 9, fontWeight: 600, color: 'var(--ink)' }}>
+                {op.anvisa_resumo || 'Carimbo registrado na abertura desta OP.'}
+              </p>
+              <p style={{ marginTop: 4, fontSize: 8 }}>
+                Carimbo, não bloqueio: a OP abre mesmo NAO CONFORME. Este registro prova que o
+                sistema avisou antes do lote existir.
+              </p>
+              {Array.isArray(op.anvisa_carimbo?.itens) && op.anvisa_carimbo.itens.length > 0 && (
+                <table style={{ marginTop: 8 }}>
+                  <thead>
+                    <tr>
+                      <th>Insumo</th>
+                      <th style={{ width: 110 }}>Status</th>
+                      <th>Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {op.anvisa_carimbo.itens.map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td>{item.insumo || '—'}</td>
+                        <td>
+                          <span
+                            className={`tag${
+                              item.status === 'NAO_AUTORIZADO' ? ' r' : item.status === 'PENDENTE_VERIFICACAO' ? '' : ' e'
+                            }`}
+                          >
+                            {item.status || '—'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: 8 }}>{item.motivo || item.via || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        )}
+
         <div className="sec"><span className="n">2</span><h2>Composição por cápsula</h2><span className="cnt">enchimento {pesoAlvo} mg</span></div>
         <table className="comp">
           <thead><tr><th>Componente</th><th style={{ width: '90px' }}>Categoria</th><th className="c" style={{ width: '78px' }}>Por cápsula</th><th className="num" style={{ width: '80px' }}>No lote</th></tr></thead>

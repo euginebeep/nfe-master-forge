@@ -52,6 +52,7 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
     isLoading,
     buscar,
     limpar,
+    consulta,
     consultaStatus,
     consultaMensagem,
   } = useAnvisaSearch();
@@ -89,6 +90,9 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
 
   const hasResults = resultados && resultados.length > 0;
   const searchDone = termo.length >= 2 && !isLoading;
+  const motorAmbiguo = consultaStatus === 'ambiguo';
+  const motorSugestao = consultaStatus === 'sugestao';
+  const motorSemAutorizacao = motorAmbiguo || motorSugestao || consultaStatus === 'nao_encontrado';
 
   return (
     <>
@@ -248,7 +252,7 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
                 </div>
               )}
 
-              {searchDone && !hasResults && (
+              {searchDone && !hasResults && motorSemAutorizacao && (
                 <>
                   <div className="flex items-center gap-3">
                     <Badge variant="outline" className={`px-3 py-1 ${estilo.className}`}>
@@ -256,18 +260,44 @@ export function ConsultaANVISACard({ compact = false, className }: { compact?: b
                       {estilo.label}
                     </Badge>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     <p className="text-sm font-semibold text-muted-foreground">
-                      Consulte ANVISA / PENDENTE_RT
+                      {motorAmbiguo
+                        ? 'Casamento ambíguo — escolha o constituinte'
+                        : motorSugestao
+                          ? 'Sugestão fraca — não autorizado'
+                          : 'Consulte ANVISA / PENDENTE_RT'}
                     </p>
-                    <p className="text-xs mt-1 text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {consultaMensagem || (
                         <>
-                          <strong>"{termo}"</strong> não retornou na fonte única{" "}
-                          <code>anvisa_consultar</code>.
+                          <strong>"{termo}"</strong> não identificou um único constituinte autorizado
+                          na fonte única <code>anvisa_consultar</code>.
                         </>
                       )}
                     </p>
+                    {motorAmbiguo && (consulta?.candidatos?.length ?? 0) > 0 && (
+                      <ul className="space-y-1.5 pt-1">
+                        {(consulta?.candidatos || []).map((nome, i) => (
+                          <li
+                            key={i}
+                            className="text-sm font-medium pl-2 border-l-2 border-amber-500/60"
+                          >
+                            {nome}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {motorSugestao && (
+                      <p className="text-sm">
+                        Nome próximo: <strong>{consulta?.sugestao_nome || '—'}</strong>
+                        {consulta?.similaridade != null && (
+                          <span className="text-muted-foreground">
+                            {' '}· similaridade {(Number(consulta.similaridade) * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
