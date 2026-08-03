@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatDate, normalizarQtdExibicao } from '@/lib/formatters';
+import { RodapeBrainX } from '@/components/shared/RodapeBrainX';
+import { APP_VERSION } from '@/lib/app-version';
 
 /**
  * Etiqueta de identificação de insumo — 100 x 150 mm, impressora térmica.
@@ -254,7 +256,7 @@ export function LoteFornecedorEtiqueta({ lote, hideActions = false }: Props) {
         </footer>
 
         <div className="et-rodape">
-          <strong>BrainX ERP</strong> · brainxerp.com
+          <RodapeBrainX versao={APP_VERSION} />
           <br />
           Etiqueta de controle interno. Não substitui o rótulo original do fabricante.
         </div>

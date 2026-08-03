@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { RodapeBrainX } from "@/components/shared/RodapeBrainX";
+import { APP_VERSION } from "@/lib/app-version";
 import {
   Table,
   TableBody,
@@ -442,7 +444,7 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
               {company?.razao_social || 'Empresa'} · CNPJ: {company?.cnpj || 'N/A'}
             </div>
             <div>
-              Documento gerado por BrainX ERP · {dataGeracao}
+              <RodapeBrainX versao={APP_VERSION} extra={dataGeracao} />
             </div>
             <div>
               RT: <span className="font-medium">{aprovadoPor !== '—' ? aprovadoPor : 'a definir'}</span>

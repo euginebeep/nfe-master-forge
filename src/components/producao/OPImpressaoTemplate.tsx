@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { SIMBOLO_MICROGRAMA } from '@/lib/unidades-dose';
+import { RodapeBrainX } from '@/components/shared/RodapeBrainX';
+import { APP_VERSION } from '@/lib/app-version';
 
 /** OP + joins usados na impressão (shape do select com relações). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -544,7 +546,10 @@ export function OPImpressaoTemplate({ opId: propOpId, autoprint = true }: OPImpr
       {/* rodapé (impressão) */}
       <div className="footer">
         <span className="fl"><b>{fabNome}</b>{fabCnpj && ` · CNPJ ${fabCnpj}`} · Controle ANVISA/BPF</span>
-        <span>Documento gerado por www.brainxerp.com · Lote {opData.lote_produto_acabado} · {opData.codigo}</span>
+        <RodapeBrainX
+          versao={APP_VERSION}
+          extra={`Lote ${opData.lote_produto_acabado} · ${opData.codigo}`}
+        />
       </div>
     </div>
   );
