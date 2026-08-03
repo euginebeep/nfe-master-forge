@@ -1,19 +1,18 @@
 /**
  * Edge Function: monitor-anvisa-diario
  *
- * Cron diário (06h) — monitora fontes ANVISA e detecta mudanças.
+ * Cron diário — monitora fontes ANVISA e detecta mudanças.
  * REGRA ABSOLUTA: só detecta e alerta — NUNCA publica automaticamente.
  * Toda mudança fica com status_revisao = 'PENDENTE' até aprovação humana.
  *
- * Fontes monitoradas:
- * 1. ANVISALegis — IN 28/2018 consolidada
- * 2. Notícias ANVISA (filtro: suplemento)
- * 3. DOU Seção 1 (filtro: suplemento alimentar)
- * 4. Painel de Constituintes — via anvisa_sync_history (Power BI), NÃO via HTML
- * 5. Ingredientes/REs ANVISA
- * 6. DOU — Resoluções-RE (proibição/apreensão)
+ * Correções 02/08/2026 (CURSOR_MONITOR_LEGISLACAO):
+ * T1 — fontes ativas vêm de legislacao_monitor_config (não lista fixa)
+ * T2 — falha de fetch ≠ mudança (nunca anvisa_alertas_normativos)
+ * T3 — DataLegis decodificado como ISO-8859-1 (não resp.text())
+ * T4 — endpoints DOU via /consulta/-/buscar (config no banco; não reativar leiturajornal)
+ * T5 — ao fim, ler v_legislacao_monitor_saude → alerta de infraestrutura
  *
- * Ao final: se houver ≥1 alerta PENDENTE novo, invoca send-anvisa-alert (grito RT).
+ * status_revisao ∈ PENDENTE | APROVADO | DESCARTADO — nunca 'revisado'.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -30,19 +29,29 @@ const MIN_CHARS_VALIDOS = 2000;
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+interface FonteConfig {
+  fonte: string;
+  url: string;
+  metodo: string | null;
+  alvo: string | null;
+  ativo: boolean;
+  motivo_inativa: string | null;
+  deve_variar: boolean | null;
+  dias_max_congelado: number | null;
+}
+
 interface FonteMonitorada {
   id: string;
   url: string;
   descricao: string;
-  marcador: string;
+  metodo: string;
+  /** DataLegis serve ISO-8859-1 — não usar resp.text() */
+  decodificarIso88591: boolean;
   filtro?: string;
-  /** Datalegis serve ISO-8859-1 — não usar resp.text() */
-  decodificarIso88591?: boolean;
-  /** Tentar UA de navegador + ISO se a fonte vier curta/bloqueada */
-  retryAcesso?: boolean;
+  retryAcesso: boolean;
 }
 
-/** Payload acumulado para o grito (send-anvisa-alert) */
+/** Payload acumulado para o grito (send-anvisa-alert) — só mudança normativa */
 interface AlertaAcumulado {
   title: string;
   type: string;
@@ -53,63 +62,170 @@ interface AlertaAcumulado {
   affectedProducts?: string[];
 }
 
-/** Fontes monitoradas por hash de HTML (PAINEL_CONSTITUINTES fica de fora — Power BI embed). */
-const FONTES_HTML: FonteMonitorada[] = [
-  {
-    id: "ANVISALEGIS_IN28",
-    url: "https://anvisalegis.datalegis.net/action/ActionDatalegis.php?acao=abrirTextoAto&tipo=INM&numeroAto=00000028&seqAto=000&valorAno=2018&orgao=DC%2FANVISA%2FMS&cod_menu=1696&cod_modulo=134&pesquisa=true",
-    descricao: "ANVISALegis — IN 28/2018 consolidada (listas/limites/alegações de suplementos)",
-    marcador: "listas de constituintes",
-    decodificarIso88591: true,
-  },
-  {
-    id: "NOTICIAS_ANVISA",
-    url: "https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa",
-    descricao: "Notícias ANVISA — filtro: suplemento alimentar",
-    marcador: "notícias",
-    filtro: "suplemento",
-  },
-  {
-    id: "DOU_SECAO1",
-    url: "https://www.in.gov.br/leiturajornal?data=hoje&secao=do1",
-    descricao: "DOU Seção 1 — filtro: suplemento alimentar, RDC, IN, ANVISA",
-    marcador: "imprensa nacional",
-    filtro: "suplemento alimentar",
-  },
-  {
-    id: "INGREDIENTES_ANVISA",
-    url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/ingredientes",
-    descricao: "Página de Ingredientes/REs — novos constituintes por resolução específica",
-    marcador: "ingredientes",
-    filtro: "suplemento",
-    retryAcesso: true,
-  },
-  {
-    id: "DOU_RESOLUCOES_RE",
-    url: "https://www.in.gov.br/consulta/-/buscar/dou?q=suplemento+alimentar+resolucao+RE&s=do1",
-    descricao: "DOU — Resoluções-RE de proibição/apreensão de suplementos (fiscalização)",
-    marcador: "resolucao",
-    filtro: "suplemento",
-    retryAcesso: true,
-  },
-];
+interface ResultadoFonte {
+  fonte: string;
+  mudanca: boolean;
+  status: string;
+  mensagem: string;
+}
 
-const FONTE_PAINEL: FonteMonitorada = {
-  id: "PAINEL_CONSTITUINTES",
-  url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/paineis-de-consulta-de-alimentos",
-  descricao:
-    "Painel de Constituintes Autorizados — monitorado via anvisa-powerbi-sync (não via HTML embed)",
-  marcador: "constituintes autorizados",
-};
-
-/** Fontes cuja mudança deve gerar alerta critico=true (urgente para a RT) */
+/** Fontes cuja mudança gera alerta critico=true. Notícias = warning (rebaixado). */
 const FONTES_ALERTA_CRITICO = new Set([
   "ANVISALEGIS_IN28",
-  "DOU_SECAO1",
+  "DOU_IN211",
+  "DOU_RDC_SUPLEMENTOS",
+  "DOU_CONSULTAS_PUBLICAS",
   "DOU_RESOLUCOES_RE",
   "PAINEL_CONSTITUINTES",
   "INGREDIENTES_ANVISA",
 ]);
+
+/** Fallback mínimo se a tabela de config ainda não existir neste ambiente. */
+const FONTES_FALLBACK: FonteConfig[] = [
+  {
+    fonte: "ANVISALEGIS_IN28",
+    url: "https://anvisalegis.datalegis.net/action/ActionDatalegis.php?acao=abrirTextoAto&tipo=INM&numeroAto=00000028&seqAto=000&valorAno=2018&orgao=DC%2FANVISA%2FMS&cod_menu=1696&cod_modulo=134&pesquisa=true",
+    metodo: "hash_html",
+    alvo: "ANVISALegis — IN 28/2018 consolidada",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 30,
+  },
+  {
+    fonte: "NOTICIAS_ANVISA",
+    url: "https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa",
+    metodo: "hash_html",
+    alvo: "Notícias ANVISA — filtro: suplemento",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 7,
+  },
+  {
+    fonte: "INGREDIENTES_ANVISA",
+    url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/ingredientes",
+    metodo: "hash_html",
+    alvo: "Página de Ingredientes/REs",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 30,
+  },
+  {
+    fonte: "DOU_RESOLUCOES_RE",
+    url: "https://www.in.gov.br/consulta/-/buscar/dou?q=suplemento+alimentar+resolucao+RE&s=do1",
+    metodo: "hash_html",
+    alvo: "DOU — Resoluções-RE",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 3,
+  },
+  {
+    fonte: "DOU_IN211",
+    url: 'https://www.in.gov.br/consulta/-/buscar/dou?q=%22Instru%C3%A7%C3%A3o%20Normativa%22%20%22IN%20n%C2%BA%20211%22%20aditivos&s=do1',
+    metodo: "hash_html",
+    alvo: "DOU — IN 211 e alteradoras",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 3,
+  },
+  {
+    fonte: "DOU_RDC_SUPLEMENTOS",
+    url: 'https://www.in.gov.br/consulta/-/buscar/dou?q=%22Resolu%C3%A7%C3%A3o%20da%20Diretoria%20Colegiada%22%20suplemento%20alimentar&s=do1',
+    metodo: "hash_html",
+    alvo: "DOU — RDCs de suplementos",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 3,
+  },
+  {
+    fonte: "DOU_CONSULTAS_PUBLICAS",
+    url: 'https://www.in.gov.br/consulta/-/buscar/dou?q=%22Consulta%20P%C3%BAblica%22%20anvisa%20suplemento&s=do1',
+    metodo: "hash_html",
+    alvo: "DOU — Consultas Públicas ANVISA",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 3,
+  },
+  {
+    fonte: "PAINEL_CONSTITUINTES",
+    url: "https://www.gov.br/anvisa/pt-br/assuntos/alimentos/paineis-de-consulta-de-alimentos",
+    metodo: "powerbi_sync",
+    alvo: "Painel de Constituintes (via anvisa_sync_history)",
+    ativo: true,
+    motivo_inativa: null,
+    deve_variar: true,
+    dias_max_congelado: 30,
+  },
+];
+
+function configParaFonte(row: FonteConfig): FonteMonitorada {
+  const url = String(row.url || "");
+  const isDatalegis = /datalegis/i.test(url);
+  const isDouBusca = /in\.gov\.br\/consulta/i.test(url);
+  const isLeiturasJornal = /leiturajornal/i.test(url);
+  const metodo = String(row.metodo || "hash_html").toLowerCase();
+
+  // T4: nunca buscar /leiturajornal — hash congelado (casca JS).
+  if (isLeiturasJornal) {
+    throw new Error(
+      `${row.fonte}: URL /leiturajornal é casca JS — use /consulta/-/buscar/dou (fonte deveria estar inativa)`,
+    );
+  }
+
+  let filtro: string | undefined;
+  if (/noticias/i.test(row.fonte) || /noticias/i.test(url)) filtro = "suplemento";
+  else if (/ingredientes/i.test(row.fonte)) filtro = "suplemento";
+  else if (isDouBusca) filtro = undefined; // query já está na URL
+
+  return {
+    id: row.fonte,
+    url,
+    descricao: row.alvo || row.fonte,
+    metodo,
+    decodificarIso88591: isDatalegis,
+    filtro,
+    retryAcesso: isDouBusca || /ingredientes/i.test(row.fonte),
+  };
+}
+
+async function carregarFontesAtivas(supabase: SupabaseClient): Promise<FonteMonitorada[]> {
+  const { data, error } = await supabase
+    .from("legislacao_monitor_config")
+    .select(
+      "fonte, url, metodo, alvo, ativo, motivo_inativa, deve_variar, dias_max_congelado",
+    )
+    .eq("ativo", true);
+
+  if (error) {
+    console.warn(
+      "[monitor-anvisa-diario] legislacao_monitor_config indisponível — fallback embutido:",
+      error.message,
+    );
+    return FONTES_FALLBACK.filter((f) => f.ativo).map(configParaFonte);
+  }
+
+  const rows = (data ?? []) as FonteConfig[];
+  if (rows.length === 0) {
+    console.warn("[monitor-anvisa-diario] config vazia — fallback embutido");
+    return FONTES_FALLBACK.filter((f) => f.ativo).map(configParaFonte);
+  }
+
+  const fontes: FonteMonitorada[] = [];
+  for (const row of rows) {
+    try {
+      fontes.push(configParaFonte(row));
+    } catch (e) {
+      console.error(`[monitor-anvisa-diario] fonte ${row.fonte} ignorada:`, e);
+    }
+  }
+  return fontes;
+}
 
 async function sha256(texto: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -119,19 +235,29 @@ async function sha256(texto: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** T3: DataLegis = ISO-8859-1. Nunca confiar em resp.text() (UTF-8). */
 async function decodificarResposta(resp: Response, iso88591: boolean): Promise<string> {
   const buffer = await resp.arrayBuffer();
-  const charset = iso88591 ? "iso-8859-1" : "utf-8";
+  const headerCs = resp.headers.get("content-type")?.match(/charset=([^\s;]+)/i)?.[1];
+  let charset = iso88591 ? "iso-8859-1" : "utf-8";
+  if (headerCs) {
+    const h = headerCs.toLowerCase().replace(/['"]/g, "");
+    if (h.includes("8859-1") || h === "latin1" || h === "iso-8859-1") {
+      charset = "iso-8859-1";
+    } else if (h.includes("utf-8")) {
+      charset = iso88591 ? "iso-8859-1" : "utf-8"; // DataLegis mentirosa → forçar ISO
+    }
+  }
   return new TextDecoder(charset).decode(buffer);
 }
 
 function temEncodingQuebrado(texto: string): boolean {
-  return texto.includes("Ã§") || texto.includes("Ã£");
+  return texto.includes("Ã§") || texto.includes("Ã£") || texto.includes("Ã©");
 }
 
 function validarConteudoFonte(
   texto: string,
-  marcador: string,
+  exigeMarcador?: string,
 ): { ok: true } | { ok: false; motivo: string } {
   if (temEncodingQuebrado(texto)) {
     return {
@@ -145,8 +271,8 @@ function validarConteudoFonte(
       motivo: `Conteúdo muito curto (${texto.length} chars, mínimo ${MIN_CHARS_VALIDOS})`,
     };
   }
-  if (!texto.toLowerCase().includes(marcador.toLowerCase())) {
-    return { ok: false, motivo: `Marcador obrigatório "${marcador}" não encontrado no texto` };
+  if (exigeMarcador && !texto.toLowerCase().includes(exigeMarcador.toLowerCase())) {
+    return { ok: false, motivo: `Marcador obrigatório "${exigeMarcador}" não encontrado` };
   }
   return { ok: true };
 }
@@ -172,7 +298,6 @@ function extrairEmailDeFrom(from: string): string | null {
   return bare.includes("@") ? bare : null;
 }
 
-/** RT do tenant: responsaveis_tecnicos.email; fallback RESEND_DEFAULT_FROM. */
 async function resolverEmailRT(
   supabase: SupabaseClient,
 ): Promise<{ to: string; viaFallback: boolean }> {
@@ -196,7 +321,6 @@ async function resolverEmailRT(
     return { to: emails[0], viaFallback: false };
   }
 
-  // Equivalente a company_settings.rt_email — company.email_fiscal como último recurso de tenant
   const { data: companies } = await supabase
     .from("company")
     .select("email_fiscal, email_financeiro")
@@ -213,85 +337,46 @@ async function resolverEmailRT(
   const fallback = extrairEmailDeFrom(fallbackRaw) || fallbackRaw;
   if (fallback.includes("@")) {
     console.warn(
-      "[monitor-anvisa-diario] RT sem e-mail cadastrado — usando RESEND_DEFAULT_FROM como fallback:",
+      "[monitor-anvisa-diario] RT sem e-mail — RESEND_DEFAULT_FROM:",
       fallback,
     );
     return { to: fallback, viaFallback: true };
   }
 
   throw new Error(
-    "Sem e-mail da RT (responsaveis_tecnicos.email) e sem RESEND_DEFAULT_FROM configurado",
+    "Sem e-mail da RT (responsaveis_tecnicos.email) e sem RESEND_DEFAULT_FROM",
   );
 }
 
-async function registrarFonteInacessivel(
-  supabase: SupabaseClient,
-  fonte: FonteMonitorada,
-  motivo: string,
-  alertasNovos: AlertaAcumulado[],
-): Promise<void> {
-  const resumo = `🚨 ALERTA ALTA — Fonte inacessível: ${motivo}`;
-
-  const { data: mon } = await supabase
-    .from("legislacao_monitoramento")
-    .insert({
-      fonte_monitorada: fonte.id,
-      url: fonte.url,
-      hash_anterior: null,
-      hash_novo: null,
-      mudanca_detectada: true,
-      resumo_mudanca: resumo,
-      status_revisao: "PENDENTE",
-    })
-    .select("id")
-    .single();
-
-  const titulo = `Fonte inacessível: ${fonte.id}`;
-  const descricao = `${fonte.descricao}. ${motivo}`;
-  await supabase.from("anvisa_alertas_normativos").insert({
-    tipo: "ATUALIZACAO",
-    titulo,
-    descricao,
-    norma: fonte.id,
-    fonte_url: fonte.url,
-    critico: true,
-    status_revisao: "PENDENTE",
-    monitoramento_id: mon?.id ?? null,
-  });
-
-  alertasNovos.push({
-    title: titulo,
-    type: "ATUALIZACAO",
-    message: descricao,
-    severity: "critical",
-    status_revisao: "PENDENTE",
-    fonte: fonte.id,
-  });
-
-  console.error(`[monitor-anvisa-diario] FONTE INACESSÍVEL ${fonte.id}: ${motivo}`);
-}
-
 /**
- * DOU_RESOLUCOES_RE / INGREDIENTES: registra presença da falha sem gritar mudança falsa.
- * mudanca_detectada=false + resumo 'fonte inacessível'.
+ * T2: falha de infraestrutura — mudanca_detectada=false, hash_novo=null.
+ * NUNCA grava em anvisa_alertas_normativos.
  */
-async function registrarFonteInacessivelSilencioso(
+async function registrarFalhaInfra(
   supabase: SupabaseClient,
   fonte: FonteMonitorada,
   motivo: string,
 ): Promise<void> {
-  await supabase.from("legislacao_monitoramento").insert({
+  const resumo = `FALHA_INFRA: ${motivo}`.slice(0, 500);
+  const row: Record<string, unknown> = {
     fonte_monitorada: fonte.id,
     url: fonte.url,
     hash_anterior: null,
     hash_novo: null,
     mudanca_detectada: false,
-    resumo_mudanca: "fonte inacessível",
+    resumo_mudanca: resumo,
     status_revisao: "PENDENTE",
-  });
-  console.warn(
-    `[monitor-anvisa-diario] ${fonte.id}: fonte inacessível (${motivo}) — registrado sem alerta crítico`,
-  );
+  };
+  // Coluna erro pode existir (migration recente) — tentar; se falhar, sem ela.
+  const comErro = { ...row, erro: String(motivo).slice(0, 1000) };
+  const { error } = await supabase.from("legislacao_monitoramento").insert(comErro);
+  if (error) {
+    const { error: e2 } = await supabase.from("legislacao_monitoramento").insert(row);
+    if (e2) {
+      console.error(`[monitor-anvisa-diario] falha ao registrar infra ${fonte.id}:`, e2);
+    }
+  }
+  console.warn(`[monitor-anvisa-diario] FALHA_INFRA ${fonte.id}: ${motivo}`);
 }
 
 async function sinalizarRehomologacaoIn28(
@@ -367,14 +452,13 @@ async function registrarAlertaMudanca(
   });
 }
 
-/** Busca HTML com retries (UA navegador + ISO) para fontes sujeitas a redirect/bloqueio. */
 async function baixarFonteHtml(
   fonte: FonteMonitorada,
 ): Promise<{ html: string; bytes: number; userAgent: string; iso: boolean }> {
   const tentativas: Array<{ ua: string; iso: boolean; label: string }> = [
     {
       ua: "BrainXERP-Monitor/1.0 (regulatorio@brainxerp.com)",
-      iso: fonte.decodificarIso88591 === true,
+      iso: fonte.decodificarIso88591,
       label: "default",
     },
   ];
@@ -382,8 +466,11 @@ async function baixarFonteHtml(
   if (fonte.retryAcesso) {
     tentativas.push(
       { ua: BROWSER_UA, iso: false, label: "browser-ua" },
-      { ua: BROWSER_UA, iso: true, label: "browser-ua+iso88591" },
+      { ua: BROWSER_UA, iso: fonte.decodificarIso88591, label: "browser-ua+charset" },
     );
+  } else if (fonte.decodificarIso88591) {
+    // DataLegis: segunda tentativa explícita ISO se a primeira falhar encoding
+    tentativas.push({ ua: BROWSER_UA, iso: true, label: "browser-ua+iso88591" });
   }
 
   let ultimoErro = "sem resposta";
@@ -406,36 +493,33 @@ async function baixarFonteHtml(
 
     const html = await decodificarResposta(resp, t.iso);
     console.log(
-      `[monitor-anvisa-diario] ${fonte.id}: recebidos ${html.length} chars (tentativa ${t.label}, iso=${t.iso})`,
+      `[monitor-anvisa-diario] ${fonte.id}: ${html.length} chars (tentativa ${t.label}, iso=${t.iso})`,
     );
 
-    const validacao = validarConteudoFonte(html, fonte.marcador);
+    const marcador = fonte.id === "ANVISALEGIS_IN28" ? "constituinte" : undefined;
+    const validacao = validarConteudoFonte(html, marcador);
     if (validacao.ok) {
       return { html, bytes: html.length, userAgent: t.ua, iso: t.iso };
     }
 
     ultimoErro = validacao.motivo;
-    // Se não é fonte com retry, ou se o problema não é tamanho/redirect, não insiste
-    if (!fonte.retryAcesso) {
+    if (!fonte.retryAcesso && !fonte.decodificarIso88591) {
       throw new Error(validacao.motivo);
     }
-    const curto = html.length < MIN_CHARS_VALIDOS;
     console.warn(
-      `[monitor-anvisa-diario] ${fonte.id}: tentativa ${t.label} falhou (${validacao.motivo}); curto=${curto}`,
+      `[monitor-anvisa-diario] ${fonte.id}: tentativa ${t.label} falhou (${validacao.motivo})`,
     );
   }
 
   throw new Error(ultimoErro);
 }
 
-/** Painel: alerta a partir do último anvisa_sync_history tipo=powerbi (não hasheia HTML embed). */
 async function monitorarPainelViaSyncHistory(
   supabase: SupabaseClient,
+  fonte: FonteMonitorada,
   alertasNovos: AlertaAcumulado[],
-  resultados: Array<{ fonte: string; mudanca: boolean; status: string; mensagem: string }>,
+  resultados: ResultadoFonte[],
 ): Promise<void> {
-  const fonte = FONTE_PAINEL;
-
   try {
     const { data: syncs, error } = await supabase
       .from("anvisa_sync_history")
@@ -502,30 +586,14 @@ async function monitorarPainelViaSyncHistory(
       .single();
 
     if (mudancaDetectada) {
-      const titulo = `Mudança detectada: ${fonte.id}`;
-      const descricao =
-        `Painel ANVISA mudou: ${novos} novos, ${removidos} removidos. ` +
-        `Revisar sync Power BI (${ultimo.id}) antes de qualquer ação na base.`;
-
-      await supabase.from("anvisa_alertas_normativos").insert({
-        tipo: "ATUALIZACAO",
-        titulo,
-        descricao,
-        norma: fonte.id,
-        fonte_url: fonte.url,
-        critico: true,
-        status_revisao: "PENDENTE",
-        monitoramento_id: monRow?.id ?? null,
-      });
-
-      alertasNovos.push({
-        title: titulo,
-        type: "ATUALIZACAO",
-        message: descricao,
-        severity: "critical",
-        status_revisao: "PENDENTE",
-        fonte: fonte.id,
-      });
+      await registrarAlertaMudanca(
+        supabase,
+        fonte,
+        resumoMudanca,
+        monRow?.id ?? null,
+        [],
+        alertasNovos,
+      );
     }
 
     resultados.push({
@@ -542,13 +610,183 @@ async function monitorarPainelViaSyncHistory(
     });
   } catch (e) {
     console.error("[monitor-anvisa-diario] PAINEL via sync history:", e);
+    await registrarFalhaInfra(supabase, fonte, String(e));
     resultados.push({
       fonte: fonte.id,
       mudanca: false,
-      status: "ERRO",
+      status: "FALHA_INFRA",
       mensagem: String(e),
     });
   }
+}
+
+async function monitorarFonteHtml(
+  supabase: SupabaseClient,
+  openai: OpenAI,
+  fonte: FonteMonitorada,
+  alertasNovos: AlertaAcumulado[],
+  resultados: ResultadoFonte[],
+): Promise<void> {
+  try {
+    let html: string;
+    try {
+      const baixado = await baixarFonteHtml(fonte);
+      html = baixado.html;
+      console.log(`[monitor-anvisa-diario] ${fonte.id}: tamanho real=${baixado.bytes} chars`);
+    } catch (acessoErr) {
+      const motivo = String(acessoErr);
+      await registrarFalhaInfra(supabase, fonte, motivo);
+      resultados.push({
+        fonte: fonte.id,
+        mudanca: false,
+        status: "FALHA_INFRA",
+        mensagem: `fonte inacessível: ${motivo}`,
+      });
+      return;
+    }
+
+    const textoRelevante = extrairTextoRelevante(html, fonte.filtro);
+    const hashNovo = await sha256(textoRelevante);
+
+    const { data: ultimoRegistro } = await supabase
+      .from("legislacao_monitoramento")
+      .select("hash_novo, id")
+      .eq("fonte_monitorada", fonte.id)
+      .not("hash_novo", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const hashAnterior = ultimoRegistro?.hash_novo || null;
+    const mudancaDetectada = hashAnterior !== null && hashAnterior !== hashNovo;
+
+    let resumoMudanca: string | null = null;
+    if (mudancaDetectada && textoRelevante.length > 100) {
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          temperature: 0,
+          max_tokens: 300,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é um assistente que resume mudanças em legislação ANVISA para suplementos alimentares. Seja objetivo e cite apenas o que mudou. AVISO: este resumo será revisado por um humano antes de qualquer ação.",
+            },
+            {
+              role: "user",
+              content:
+                `Detectei uma mudança no conteúdo de: ${fonte.descricao}\n\nTrecho relevante atual:\n${
+                  textoRelevante.slice(0, 2000)
+                }\n\nResuma em 2-3 frases o que pode ter mudado, com base no contexto.`,
+            },
+          ],
+        });
+        resumoMudanca = completion.choices[0].message.content || null;
+      } catch {
+        resumoMudanca = "Resumo automático indisponível — revisar manualmente.";
+      }
+    }
+
+    const { data: monRow } = await supabase
+      .from("legislacao_monitoramento")
+      .insert({
+        fonte_monitorada: fonte.id,
+        url: fonte.url,
+        hash_anterior: hashAnterior,
+        hash_novo: hashNovo,
+        mudanca_detectada: mudancaDetectada,
+        resumo_mudanca: resumoMudanca,
+        status_revisao: "PENDENTE",
+      })
+      .select("id")
+      .single();
+
+    if (mudancaDetectada) {
+      let afetados: string[] = [];
+      if (fonte.id === "ANVISALEGIS_IN28") {
+        afetados = await sinalizarRehomologacaoIn28(supabase, resumoMudanca);
+      }
+      await registrarAlertaMudanca(
+        supabase,
+        fonte,
+        resumoMudanca,
+        monRow?.id ?? null,
+        afetados,
+        alertasNovos,
+      );
+    }
+
+    resultados.push({
+      fonte: fonte.id,
+      mudanca: mudancaDetectada,
+      status: mudancaDetectada ? "MUDANÇA_DETECTADA" : "SEM_MUDANÇA",
+      mensagem: mudancaDetectada
+        ? `⚠️ Mudança detectada em ${fonte.descricao}. Aguardando revisão humana.`
+        : `✓ Sem alterações em ${fonte.descricao}.`,
+    });
+  } catch (fonteErr) {
+    const motivo = String(fonteErr);
+    console.error(`Erro ao monitorar ${fonte.id}:`, fonteErr);
+    await registrarFalhaInfra(supabase, fonte, motivo);
+    resultados.push({
+      fonte: fonte.id,
+      mudanca: false,
+      status: "FALHA_INFRA",
+      mensagem: `fonte inacessível: ${motivo}`,
+    });
+  }
+}
+
+/**
+ * T5: consumir v_legislacao_monitor_saude.
+ * Diagnóstico ≠ OK → log/infra (não anvisa_alertas_normativos).
+ */
+async function consumirSaudeMonitor(
+  supabase: SupabaseClient,
+  resultados: ResultadoFonte[],
+): Promise<Array<{ fonte: string; diagnostico: string }>> {
+  const { data, error } = await supabase.from("v_legislacao_monitor_saude").select("*");
+  if (error) {
+    console.warn(
+      "[monitor-anvisa-diario] v_legislacao_monitor_saude indisponível:",
+      error.message,
+    );
+    return [];
+  }
+
+  const saude: Array<{ fonte: string; diagnostico: string }> = [];
+  for (const row of data ?? []) {
+    const r = row as Record<string, unknown>;
+    const fonte = String(r.fonte || r.fonte_monitorada || "");
+    const diagnostico = String(r.diagnostico || r.status || "");
+    if (!fonte) continue;
+    saude.push({ fonte, diagnostico });
+
+    if (!diagnostico || diagnostico === "OK" || diagnostico.startsWith("DESLIGADA")) {
+      continue;
+    }
+
+    // Infraestrutura — registrar no log de monitoramento, sem alerta normativo.
+    await supabase.from("legislacao_monitoramento").insert({
+      fonte_monitorada: fonte,
+      url: String(r.url || `saude://${fonte}`),
+      hash_anterior: null,
+      hash_novo: null,
+      mudanca_detectada: false,
+      resumo_mudanca: `SAUDE_MONITOR: ${diagnostico}`.slice(0, 500),
+      status_revisao: "PENDENTE",
+    });
+
+    resultados.push({
+      fonte,
+      mudanca: false,
+      status: "SAUDE_ALERTA",
+      mensagem: `infra: ${diagnostico}`,
+    });
+    console.warn(`[monitor-anvisa-diario] saúde ${fonte}: ${diagnostico}`);
+  }
+  return saude;
 }
 
 serve(async (req) => {
@@ -562,165 +800,46 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
     const openai = new OpenAI({ apiKey: openaiKey });
 
-    const resultados: Array<{
-      fonte: string;
-      mudanca: boolean;
-      status: string;
-      mensagem: string;
-    }> = [];
-
+    const resultados: ResultadoFonte[] = [];
     const alertasNovos: AlertaAcumulado[] = [];
 
-    for (const fonte of FONTES_HTML) {
-      try {
-        let html: string;
-        try {
-          const baixado = await baixarFonteHtml(fonte);
-          html = baixado.html;
-          if (fonte.retryAcesso || fonte.id === "DOU_RESOLUCOES_RE" || fonte.id === "INGREDIENTES_ANVISA") {
-            console.log(
-              `[monitor-anvisa-diario] ${fonte.id}: tamanho real=${baixado.bytes} chars`,
-            );
-          }
-        } catch (acessoErr) {
-          const motivo = String(acessoErr);
-          if (fonte.retryAcesso) {
-            await registrarFonteInacessivelSilencioso(supabase, fonte, motivo);
-            resultados.push({
-              fonte: fonte.id,
-              mudanca: false,
-              status: "FONTE_INACESSIVEL",
-              mensagem: `fonte inacessível: ${motivo}`,
-            });
-          } else {
-            await registrarFonteInacessivel(supabase, fonte, motivo, alertasNovos);
-            resultados.push({
-              fonte: fonte.id,
-              mudanca: true,
-              status: "FONTE_INACESSIVEL",
-              mensagem: `🚨 Fonte inacessível: ${motivo}`,
-            });
-          }
-          continue;
-        }
+    // T1: fontes ativas do banco
+    const fontes = await carregarFontesAtivas(supabase);
+    console.log(
+      `[monitor-anvisa-diario] ${fontes.length} fonte(s) ativas: ${
+        fontes.map((f) => f.id).join(", ")
+      }`,
+    );
 
-        const textoRelevante = extrairTextoRelevante(html, fonte.filtro);
-        const hashNovo = await sha256(textoRelevante);
-
-        const { data: ultimoRegistro } = await supabase
-          .from("legislacao_monitoramento")
-          .select("hash_novo, id")
-          .eq("fonte_monitorada", fonte.id)
-          .not("hash_novo", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        const hashAnterior = ultimoRegistro?.hash_novo || null;
-        const mudancaDetectada = hashAnterior !== null && hashAnterior !== hashNovo;
-
-        let resumoMudanca: string | null = null;
-        if (mudancaDetectada && textoRelevante.length > 100) {
-          try {
-            const completion = await openai.chat.completions.create({
-              model: "gpt-4o-mini",
-              temperature: 0,
-              max_tokens: 300,
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "Você é um assistente que resume mudanças em legislação ANVISA para suplementos alimentares. Seja objetivo e cite apenas o que mudou. AVISO: este resumo será revisado por um humano antes de qualquer ação.",
-                },
-                {
-                  role: "user",
-                  content:
-                    `Detectei uma mudança no conteúdo de: ${fonte.descricao}\n\nTrecho relevante atual:\n${
-                      textoRelevante.slice(0, 2000)
-                    }\n\nResuma em 2-3 frases o que pode ter mudado, com base no contexto.`,
-                },
-              ],
-            });
-            resumoMudanca = completion.choices[0].message.content || null;
-          } catch {
-            resumoMudanca = "Resumo automático indisponível — revisar manualmente.";
-          }
-        }
-
-        const { data: monRow } = await supabase
-          .from("legislacao_monitoramento")
-          .insert({
-            fonte_monitorada: fonte.id,
-            url: fonte.url,
-            hash_anterior: hashAnterior,
-            hash_novo: hashNovo,
-            mudanca_detectada: mudancaDetectada,
-            resumo_mudanca: resumoMudanca,
-            status_revisao: "PENDENTE",
-          })
-          .select("id")
-          .single();
-
-        if (mudancaDetectada) {
-          let afetados: string[] = [];
-          if (fonte.id === "ANVISALEGIS_IN28") {
-            afetados = await sinalizarRehomologacaoIn28(supabase, resumoMudanca);
-          }
-          await registrarAlertaMudanca(
-            supabase,
-            fonte,
-            resumoMudanca,
-            monRow?.id ?? null,
-            afetados,
-            alertasNovos,
-          );
-        }
-
-        resultados.push({
-          fonte: fonte.id,
-          mudanca: mudancaDetectada,
-          status: mudancaDetectada ? "MUDANÇA_DETECTADA" : "SEM_MUDANÇA",
-          mensagem: mudancaDetectada
-            ? `⚠️ Mudança detectada em ${fonte.descricao}. Aguardando revisão humana.`
-            : `✓ Sem alterações em ${fonte.descricao}.`,
-        });
-      } catch (fonteErr) {
-        const motivo = String(fonteErr);
-        console.error(`Erro ao monitorar ${fonte.id}:`, fonteErr);
-        if (fonte.retryAcesso) {
-          await registrarFonteInacessivelSilencioso(supabase, fonte, motivo);
-          resultados.push({
-            fonte: fonte.id,
-            mudanca: false,
-            status: "FONTE_INACESSIVEL",
-            mensagem: `fonte inacessível: ${motivo}`,
-          });
-        } else {
-          await registrarFonteInacessivel(supabase, fonte, motivo, alertasNovos);
-          resultados.push({
-            fonte: fonte.id,
-            mudanca: true,
-            status: "FONTE_INACESSIVEL",
-            mensagem: `🚨 Fonte inacessível: ${motivo}`,
-          });
-        }
+    for (const fonte of fontes) {
+      const metodo = fonte.metodo.toLowerCase();
+      if (
+        fonte.id === "PAINEL_CONSTITUINTES"
+        || metodo === "powerbi_sync"
+        || metodo === "sync_history"
+      ) {
+        await monitorarPainelViaSyncHistory(supabase, fonte, alertasNovos, resultados);
+      } else {
+        await monitorarFonteHtml(supabase, openai, fonte, alertasNovos, resultados);
       }
     }
 
-    // Painel: fora do laço de hash HTML — usa resultado do anvisa-powerbi-sync
-    await monitorarPainelViaSyncHistory(supabase, alertasNovos, resultados);
+    // T5: health check
+    const saude = await consumirSaudeMonitor(supabase, resultados);
 
     const mudancas = resultados.filter((r) => r.mudanca);
-    const fontesInacessiveis = resultados.filter((r) => r.status === "FONTE_INACESSIVEL");
-    if (mudancas.length > 0 || fontesInacessiveis.length > 0) {
+    const falhasInfra = resultados.filter(
+      (r) => r.status === "FALHA_INFRA" || r.status === "SAUDE_ALERTA",
+    );
+    if (mudancas.length > 0 || falhasInfra.length > 0) {
       console.log(
         `[monitor-anvisa-diario] ${mudancas.length} mudança(s), ` +
-          `${fontesInacessiveis.length} fonte(s) inacessível(is), ` +
-          `${alertasNovos.length} alerta(s) PENDENTE novos.`,
+          `${falhasInfra.length} falha(s)/saúde, ` +
+          `${alertasNovos.length} alerta(s) normativo(s) PENDENTE.`,
       );
     }
 
-    // ── PATCH 1: grito por e-mail se houver alerta PENDENTE novo ───────────
+    // Grito por e-mail: só mudanças normativas (nunca falha de infra)
     let emailStatus: string | null = null;
     const pendentes = alertasNovos.filter((a) => a.status_revisao === "PENDENTE");
     if (pendentes.length >= 1) {
@@ -742,9 +861,7 @@ serve(async (req) => {
           );
           emailStatus = `ERRO_INVOKE: ${invokeErr.message || String(invokeErr)}`;
         } else {
-          emailStatus = viaFallback
-            ? `ENVIADO_FALLBACK:${to}`
-            : `ENVIADO:${to}`;
+          emailStatus = viaFallback ? `ENVIADO_FALLBACK:${to}` : `ENVIADO:${to}`;
           console.log(`[monitor-anvisa-diario] grito enviado → ${emailStatus}`);
         }
       } catch (mailErr) {
@@ -760,8 +877,9 @@ serve(async (req) => {
       JSON.stringify({
         executado_em: new Date().toISOString(),
         resultados,
+        saude,
         total_mudancas: mudancas.length,
-        total_fontes_inacessiveis: fontesInacessiveis.length,
+        total_falhas_infra: falhasInfra.length,
         total_alertas_pendentes: pendentes.length,
         email_status: emailStatus,
       }),
