@@ -1,5 +1,29 @@
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 
+export type FocusAmbiente = "producao" | "homologacao";
+
+/**
+ * Ambiente Focus a partir do banco (nfe_ambiente / nota.ambiente = MAIÚSCULO).
+ * Nunca defaultar para homologação: em tenant de produção isso pede o arquivo
+ * no host errado e a Focus responde vazio — falha silenciosa.
+ */
+export function requireFocusAmbiente(
+  ambiente: string | null | undefined,
+): FocusAmbiente {
+  const raw = String(ambiente ?? "").trim();
+  if (!raw) {
+    throw new Error(
+      "Ambiente da NF-e não informado. Informe nota.ambiente (PRODUCAO ou HOMOLOGACAO).",
+    );
+  }
+  const n = raw.toLowerCase();
+  if (n === "producao") return "producao";
+  if (n === "homologacao") return "homologacao";
+  throw new Error(
+    `Ambiente da NF-e inválido: "${ambiente}". Use PRODUCAO ou HOMOLOGACAO.`,
+  );
+}
+
 async function callFocusNfe(
   action: string,
   params?: Record<string, string>,
@@ -78,11 +102,14 @@ export function useFocusNfe() {
   const emitirNota = (notaSaidaId: string, dryRun: boolean) =>
     callFocusNfe("emitir-nota", undefined, { nota_saida_id: notaSaidaId, dry_run: dryRun });
 
-  const consultarNFe = (id: string, ambiente?: string) =>
-    callFocusNfe("consultar-nfe", { id, ambiente: ambiente || "homologacao" });
+  const consultarNFe = (id: string, ambiente: string) =>
+    callFocusNfe("consultar-nfe", { id, ambiente: requireFocusAmbiente(ambiente) });
 
-  const baixarDanfe = async (id: string, ambiente?: string) => {
-    const blob = await callFocusNfe("danfe", { id, ambiente: ambiente || "homologacao" });
+  const baixarDanfe = async (id: string, ambiente: string) => {
+    const blob = await callFocusNfe("danfe", {
+      id,
+      ambiente: requireFocusAmbiente(ambiente),
+    });
     const urlObj = URL.createObjectURL(blob as Blob);
     const a = document.createElement("a");
     a.href = urlObj;
@@ -91,8 +118,11 @@ export function useFocusNfe() {
     URL.revokeObjectURL(urlObj);
   };
 
-  const baixarXml = async (id: string, ambiente?: string) => {
-    const blob = await callFocusNfe("xml", { id, ambiente: ambiente || "homologacao" });
+  const baixarXml = async (id: string, ambiente: string) => {
+    const blob = await callFocusNfe("xml", {
+      id,
+      ambiente: requireFocusAmbiente(ambiente),
+    });
     const urlObj = URL.createObjectURL(blob as Blob);
     const a = document.createElement("a");
     a.href = urlObj;
@@ -101,14 +131,25 @@ export function useFocusNfe() {
     URL.revokeObjectURL(urlObj);
   };
 
-  const cancelarNFe = (id: string, justificativa: string, ambiente?: string) =>
-    callFocusNfe("cancelar-nfe", { id, ambiente: ambiente || "homologacao" }, { justificativa });
+  const cancelarNFe = (id: string, justificativa: string, ambiente: string) =>
+    callFocusNfe(
+      "cancelar-nfe",
+      { id, ambiente: requireFocusAmbiente(ambiente) },
+      { justificativa },
+    );
 
-  const cartaCorrecao = (id: string, correcao: string, ambiente?: string) =>
-    callFocusNfe("carta-correcao", { id, ambiente: ambiente || "homologacao" }, { correcao });
+  const cartaCorrecao = (id: string, correcao: string, ambiente: string) =>
+    callFocusNfe(
+      "carta-correcao",
+      { id, ambiente: requireFocusAmbiente(ambiente) },
+      { correcao },
+    );
 
-  const statusSefaz = (cpfCnpj: string, ambiente?: string) =>
-    callFocusNfe("status-sefaz", { cpf_cnpj: cpfCnpj, ambiente: ambiente || "homologacao" });
+  const statusSefaz = (cpfCnpj: string, ambiente: string) =>
+    callFocusNfe("status-sefaz", {
+      cpf_cnpj: cpfCnpj,
+      ambiente: requireFocusAmbiente(ambiente),
+    });
 
   const inutilizarNFe = (payload: {
     cnpj?: string;
@@ -116,17 +157,24 @@ export function useFocusNfe() {
     numero_inicial: string | number;
     numero_final: string | number;
     justificativa: string;
-    ambiente?: string;
-  }) => callFocusNfe("inutilizar-nfe", undefined, payload);
+    ambiente: string;
+  }) =>
+    callFocusNfe("inutilizar-nfe", undefined, {
+      ...payload,
+      ambiente: requireFocusAmbiente(payload.ambiente),
+    });
 
-  const consultarStatus = (id: string, ambiente?: string) =>
-    callFocusNfe("consultar-status", { id, ambiente: ambiente || "homologacao" });
+  const consultarStatus = (id: string, ambiente: string) =>
+    callFocusNfe("consultar-status", {
+      id,
+      ambiente: requireFocusAmbiente(ambiente),
+    });
 
   /** Reenvia e-mail da NF-e autorizada (Focus v10+). Body: { emails: string[] } */
-  const reenviarEmail = (id: string, emails: string[], ambiente?: string) =>
+  const reenviarEmail = (id: string, emails: string[], ambiente: string) =>
     callFocusNfe(
       "reenviar-email",
-      { id, ambiente: ambiente || "homologacao" },
+      { id, ambiente: requireFocusAmbiente(ambiente) },
       { emails },
     );
 

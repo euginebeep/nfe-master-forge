@@ -677,13 +677,13 @@ export default function NotasSaidaPage() {
       }
       const { data: nota } = await supabase
         .from("notas_saida")
-        .select("focus_nfe_id, nuvem_fiscal_id")
+        .select("focus_nfe_id, nuvem_fiscal_id, ambiente")
         .eq("id", notaId)
         .single();
 
       const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
       if (!focusId) throw new Error("NF-e não encontrada na Focus NFe");
-      await cancelarNFe(focusId, justificativa.trim());
+      await cancelarNFe(focusId, justificativa.trim(), (nota as any)?.ambiente);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
@@ -701,12 +701,12 @@ export default function NotasSaidaPage() {
       }
       const { data: nota } = await supabase
         .from("notas_saida")
-        .select("focus_nfe_id, nuvem_fiscal_id")
+        .select("focus_nfe_id, nuvem_fiscal_id, ambiente")
         .eq("id", notaId)
         .single();
       const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
       if (!focusId) throw new Error("NF-e não encontrada na Focus NFe");
-      await cartaCorrecaoNFe(focusId, texto.trim());
+      await cartaCorrecaoNFe(focusId, texto.trim(), (nota as any)?.ambiente);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
@@ -722,7 +722,7 @@ export default function NotasSaidaPage() {
     try {
       const { data: nota } = await supabase
         .from("notas_saida")
-        .select("focus_nfe_id, nuvem_fiscal_id")
+        .select("focus_nfe_id, nuvem_fiscal_id, ambiente")
         .eq("id", notaId)
         .single();
       const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
@@ -731,7 +731,8 @@ export default function NotasSaidaPage() {
         return;
       }
       // Edge grava status/mensagem/contingência/tentativas — frontend só consulta e relê a view
-      await consultarNFe(focusId);
+      // Ambiente da nota (PRODUCAO/HOMOLOGACAO) — nunca default homologação
+      await consultarNFe(focusId, (nota as any)?.ambiente);
       await queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
       const { data: refreshed } = await (supabase as any)
         .from("v_notas_saida_status")
@@ -1073,7 +1074,10 @@ export default function NotasSaidaPage() {
               ids.forEach(id => {
                 const nota = filtered.find((n: any) => n.id === id);
                 if (nota?.focus_nfe_id || nota?.nuvem_fiscal_id) {
-                  baixarXml((nota.focus_nfe_id || nota.nuvem_fiscal_id)!);
+                  void baixarXml(
+                    (nota.focus_nfe_id || nota.nuvem_fiscal_id)!,
+                    nota.ambiente,
+                  ).catch((e: Error) => toast.error(e.message || "Erro ao baixar XML"));
                 }
               });
             }}>
@@ -1348,7 +1352,16 @@ export default function NotasSaidaPage() {
                             </Button>
                           )}
                           {(nota.pode_baixar_xml ?? !!nota.focus_nfe_id) && isAutorizado(status) && (
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => baixarXml(nota.focus_nfe_id)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              onClick={() => {
+                                void baixarXml(nota.focus_nfe_id, nota.ambiente).catch((e: Error) =>
+                                  toast.error(e.message || "Erro ao baixar XML"),
+                                );
+                              }}
+                            >
                               <Download className="h-3.5 w-3.5 mr-1" /> XML
                             </Button>
                           )}
@@ -1393,7 +1406,13 @@ export default function NotasSaidaPage() {
                                 </DropdownMenuItem>
                               )}
                               {nota.focus_nfe_id && !isAutorizado(status) && (
-                                <DropdownMenuItem onClick={() => baixarXml(nota.focus_nfe_id)}>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    void baixarXml(nota.focus_nfe_id, nota.ambiente).catch((e: Error) =>
+                                      toast.error(e.message || "Erro ao baixar XML"),
+                                    );
+                                  }}
+                                >
                                   <Download className="h-4 w-4 mr-2" /> Exportar XML
                                 </DropdownMenuItem>
                               )}
@@ -1927,7 +1946,11 @@ export default function NotasSaidaPage() {
                     toast.error("Informe ao menos um e-mail");
                     return;
                   }
-                  await reenviarEmail(reenviarEmailNota.focus_nfe_id, emails, reenviarEmailNota.ambiente || undefined);
+                  await reenviarEmail(
+                    reenviarEmailNota.focus_nfe_id,
+                    emails,
+                    reenviarEmailNota.ambiente,
+                  );
                   toast.success("E-mail reenviado");
                   setReenviarEmailNota(null);
                   queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
@@ -2004,11 +2027,31 @@ export default function NotasSaidaPage() {
               onClick={async () => {
                 setInutLoading(true);
                 try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) throw new Error("Não autenticado");
+                  const { data: profile } = await supabase
+                    .from("profiles")
+                    .select("company_id")
+                    .eq("id", user.id)
+                    .single();
+                  if (!profile?.company_id) throw new Error("Empresa não encontrada");
+                  const { data: company } = await supabase
+                    .from("company")
+                    .select("cnpj, nfe_ambiente")
+                    .eq("id", profile.company_id)
+                    .single();
+                  if (!company?.nfe_ambiente) {
+                    throw new Error(
+                      "Ambiente da NF-e não configurado na empresa (nfe_ambiente).",
+                    );
+                  }
                   await inutilizarNFe({
+                    cnpj: company.cnpj || undefined,
                     serie: inutSerie,
                     numero_inicial: inutNumIni,
                     numero_final: inutNumFim,
                     justificativa: inutJustificativa,
+                    ambiente: company.nfe_ambiente,
                   });
                   toast.success("Numeração inutilizada com sucesso");
                   setInutDialogOpen(false);
