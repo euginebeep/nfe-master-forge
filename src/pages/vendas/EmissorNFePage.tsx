@@ -527,7 +527,7 @@ export default function EmissorNFePage() {
   }, [setDraft]);
 
   const {
-    activeTab, operacaoFiscalCodigo = "VENDA_PRODUCAO", naturezaOperacao, chaveReferenciada = "",
+    activeTab, operacaoFiscalCodigo, naturezaOperacao, chaveReferenciada = "",
     tpNF, idDest, finalidadeEmissao, indicadorPresenca, indFinal,
     modelo, tpEmis, tpImp, dataSaida, horaSaida, clienteId, indIEDest, emailDest, itens,
     modalidadeFrete, transportadora, meioPagamento, valorPagamento, vTroco, infoAdicionais, infoFisco,
@@ -893,65 +893,53 @@ export default function EmissorNFePage() {
     },
   });
 
-  // Derivado puro — nunca escreve no estado (B1).
+  // Patch 2 — derivado puro: nunca inventa VENDA_PRODUCAO. Fallback só no Patch 1.
   const operacaoSelecionada = useMemo(() => {
     if (!operacoesFiscais?.length) return null;
-    const byCodigo = operacoesFiscais.find((op) => op.codigo === operacaoFiscalCodigo);
-    if (byCodigo) return byCodigo;
-    // Edição ou código explícito inválido: nunca inventar VENDA_PRODUCAO
-    if (editId || operacaoFiscalCodigo) return null;
-    return null;
-  }, [operacoesFiscais, operacaoFiscalCodigo, editId]);
+    return operacoesFiscais.find((op) => op.codigo === operacaoFiscalCodigo) ?? null;
+  }, [operacoesFiscais, operacaoFiscalCodigo]);
 
-  // Fallback VENDA_PRODUCAO uma vez na nota nova — não depende de operacaoFiscalCodigo
-  // (senão o efeito reescreve a seleção do usuário).
+  // Patch 1 — Nota NOVA começa em VENDA_PRODUCAO. Uma vez, na montagem.
+  // NÃO incluir operacaoFiscalCodigo nas deps: vira laço e a troca do usuário
+  // é desfeita no ciclo seguinte.
   useEffect(() => {
-    if (editId || operacaoFiscalCodigo || !operacoesFiscais?.length) return;
-    if (carregandoEdicao) return;
+    if (carregandoEdicao || editId) return;
+    if (!operacoesFiscais?.length) return;
+    if (operacaoFiscalCodigo) return; // usuário já escolheu (ou draft já tem)
     setOperacaoFiscalCodigo("VENDA_PRODUCAO");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operacoesFiscais?.length, editId, carregandoEdicao]);
+  }, [operacoesFiscais?.length, carregandoEdicao, editId]);
 
-  // CFOP pelo destino efetivo (UF emitente × UF destinatário) — não só pelo Select idDest (B4).
-  const idDestEfetivo = useMemo(() => {
-    if (company?.endereco_uf && clienteEndereco?.uf) {
-      return company.endereco_uf === clienteEndereco.uf ? "1" : "2";
-    }
-    return idDest;
-  }, [company?.endereco_uf, clienteEndereco?.uf, idDest]);
+  // Patch 4 — CFOP pela UF real do destinatário (não só pelo Select idDest).
+  const ufEmitente = company?.endereco_uf;
+  const ufDestino = clienteEndereco?.uf;
+  const interestadual = !!ufEmitente && !!ufDestino && ufEmitente !== ufDestino;
 
   const cfopOperacao = useMemo(() => {
     if (!operacaoSelecionada) return "";
-    return idDestEfetivo === "2"
+    return (interestadual || idDest === "2")
       ? operacaoSelecionada.cfop_interestadual || operacaoSelecionada.cfop_interno || ""
       : operacaoSelecionada.cfop_interno || operacaoSelecionada.cfop_interestadual || "";
-  }, [operacaoSelecionada, idDestEfetivo]);
+  }, [operacaoSelecionada, idDest, interestadual]);
 
-  // B2: ler tipos_item_permitidos do cadastro. NULL = todos os tipos.
+  // NULL = todos os tipos (AJUSTE, COMPLEMENTAR_VALOR, DEVOLUCAO_COMPRA_ATIVO).
+  // NUNCA tratar NULL como lista vazia.
   const tiposItemPermitidos = operacaoSelecionada?.tipos_item_permitidos ?? null;
 
   const { data: produtos } = useQuery({
-    queryKey: ["itens-produtos-emissor", tiposItemPermitidos?.join("|") ?? "todos"],
+    queryKey: ["itens-produtos-emissor", operacaoSelecionada?.codigo ?? "-"],
     queryFn: async () => {
       let q = supabase
         .from("itens")
         .select("id, descricao_interna, sku_interno, ncm, unidade_interna, fator_conversao, tipo_item, ean, catalogo_precos(preco_venda)")
         .eq("ativo", true);
-      if (tiposItemPermitidos?.length) {
-        q = q.in("tipo_item", tiposItemPermitidos);
-      }
+      if (tiposItemPermitidos?.length) q = q.in("tipo_item", tiposItemPermitidos);
       const { data, error } = await q.order("descricao_interna");
       if (error) throw error;
       return data;
     },
     enabled: !!operacaoSelecionada,
   });
-
-  const produtosSemNcm = useMemo(
-    () => (produtos || []).filter((p: any) => !String(p.ncm || "").trim()),
-    [produtos],
-  );
-  const produtosComNcmCount = (produtos?.length || 0) - produtosSemNcm.length;
 
   // Hook que busca OPs do produto em foco
   const { data: opsDoProduto, isLoading: loadingOPs } = useOPsPorProduto(produtoFocoId);
@@ -1001,12 +989,12 @@ export default function EmissorNFePage() {
     }
   }, [cliente, clienteContato]);
 
-  // Auto-set idDest based on company UF vs client UF
+  // Patch 4 — idDest da NF-e acompanha a UF (1 interna · 2 interestadual)
   useEffect(() => {
-    if (company?.endereco_uf && clienteEndereco?.uf) {
-      setIdDest(company.endereco_uf === clienteEndereco.uf ? "1" : "2");
-    }
-  }, [company?.endereco_uf, clienteEndereco?.uf]);
+    if (!ufEmitente || !ufDestino) return;
+    const next = ufEmitente === ufDestino ? "1" : "2";
+    if (idDest !== next) setIdDest(next);
+  }, [ufEmitente, ufDestino, idDest]);
 
   // ─── Item logic ───
   const updateItem = (index: number, field: keyof NotaItem, value: any) => {
@@ -1758,7 +1746,7 @@ export default function EmissorNFePage() {
               <span className="text-sm">
                 CFOP <span className="font-mono font-semibold">{cfopOperacao || "—"}</span>
                 <span className="text-muted-foreground ml-1">
-                  ({idDestEfetivo === "1" ? "mesma UF" : idDestEfetivo === "2" ? "interestadual" : "exterior"})
+                  ({interestadual || idDest === "2" ? "interestadual" : idDest === "3" ? "exterior" : "mesma UF"})
                 </span>
               </span>
               <span className="text-sm text-muted-foreground truncate">{operacaoSelecionada.natureza_operacao}</span>
@@ -1794,7 +1782,7 @@ export default function EmissorNFePage() {
                         if (!nova) return;
                         const itensComProduto = itens.filter((i) => i.item_id).length;
                         if (itensComProduto > 0 && codigo !== operacaoFiscalCodigo) {
-                          const cfopNovo = idDestEfetivo === "2"
+                          const cfopNovo = (interestadual || idDest === "2")
                             ? (nova.cfop_interestadual || nova.cfop_interno || "")
                             : (nova.cfop_interno || nova.cfop_interestadual || "");
                           const avisos: string[] = [];
@@ -2226,24 +2214,17 @@ export default function EmissorNFePage() {
 
             {/* ════════ Itens Tab ════════ */}
             <TabsContent value="itens" className="space-y-3 mt-3">
-              {operacaoSelecionada && (produtos?.length || 0) > 0 && produtosComNcmCount === 0 && (
-                <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100 [&>svg]:text-amber-700">
+              {/* Patch 5 — VENDA_PRODUCAO lista PA sem NCM; sem aviso o usuário não entende o bloqueio */}
+              {operacaoSelecionada && produtos && produtos.length > 0
+                && produtos.every((p: any) => !String(p.ncm || "").trim()) && (
+                <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Nenhum item faturável com NCM</AlertTitle>
                   <AlertDescription className="text-xs">
-                    A operação <b>{operacaoSelecionada.descricao}</b> lista{" "}
-                    {produtosSemNcm.length} item(ns), mas nenhum tem NCM cadastrado.
-                    O backend recusa item sem NCM. Para revenda de insumos (MP, cápsula, pote, rótulo),
-                    use a operação <b>VENDA_REVENDA</b>. NCM é do contador — não preencher por semelhança de nome.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {operacaoSelecionada && produtosComNcmCount > 0 && produtosSemNcm.length > 0 && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>{produtosSemNcm.length} item(ns) sem NCM</AlertTitle>
-                  <AlertDescription className="text-xs">
-                    {produtosComNcmCount} item(ns) faturáveis nesta operação. Itens sem NCM serão recusados ao salvar.
+                    Nenhum dos {produtos.length} itens desta operação tem NCM cadastrado.
+                    A NF-e não pode ser emitida sem NCM. Cadastre o NCM em Produtos/Insumos
+                    ou escolha outra operação fiscal — para revenda de insumos use{" "}
+                    <b>VENDA_REVENDA</b> (156 itens com NCM).
                   </AlertDescription>
                 </Alert>
               )}
