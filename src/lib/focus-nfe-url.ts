@@ -3,9 +3,8 @@
  * Sem o host, o browser/fetch resolve no domínio do ERP e volta HTML —
  * mesmo sintoma do Unexpected token '<' do bug de Content-Type, causa diferente.
  *
- * Host padrão: https://api.focusnfe.com.br (produção).
- * Passar ambiente homologacao → https://homologacao.focusnfe.com.br.
- * URL já absoluta: inalterada.
+ * - começa com http → inalterado
+ * - relativo → prefixa https://api.focusnfe.com.br (ou homolog se ambiente=homologacao)
  */
 
 const HOST_PROD = "https://api.focusnfe.com.br";
@@ -17,9 +16,8 @@ export function urlArquivoFocus(
 ): string {
   const c = String(caminho ?? "").trim();
   if (!c) return c;
-  if (/^https?:\/\//i.test(c)) return c;
-  if (!c.startsWith("/")) return c;
+  if (c.startsWith("http://") || c.startsWith("https://")) return c;
   const n = String(ambiente ?? "").trim().toLowerCase();
   const base = n === "homologacao" ? HOST_HOMOLOG : HOST_PROD;
-  return `${base}${c}`;
+  return c.startsWith("/") ? `${base}${c}` : `${base}/${c}`;
 }
