@@ -4,6 +4,8 @@
 
 import {
   aplicarPortaoBotanico,
+  ehCasamentoAmbiguo,
+  nomesCandidatosCasamento,
   rpcAnvisaAvaliarAtivo,
   rpcAnvisaAvaliarInsumo,
   rpcAnvisaIdentidadeBotanica,
@@ -62,10 +64,25 @@ function alertaDoParecer(
     };
   }
   if (status === "PENDENTE_VERIFICACAO") {
+    const candidatos = nomesCandidatosCasamento(parecer);
+    const ambigue = ehCasamentoAmbiguo(parecer);
+    const lista = candidatos.length
+      ? ` Candidatos (${parecer.n_candidatos ?? candidatos.length}): ${candidatos.join(" · ")}.`
+      : "";
+    const acao = parecer.acao_da_rt ? ` Ação da RT: ${parecer.acao_da_rt}` : "";
     return {
       tipo: "warn",
-      titulo: `${ativo.nome}: pendente de verificação`,
-      corpo: motivo || "Falta dado para comparar com o limite oficial (unidade, fonte ou teor).",
+      titulo: ambigue
+        ? `${ativo.nome}: casamento ambíguo — escolha o constituinte`
+        : `${ativo.nome}: pendente de verificação`,
+      corpo:
+        (motivo
+          || (ambigue
+            ? "O nome informado casa com mais de um constituinte autorizado. Identifique qual."
+            : "Falta dado para comparar com o limite oficial (unidade, fonte ou teor)."))
+        + lista
+        + acao
+        + sub,
     };
   }
   if (status === "APROVAVEL_COM_CORRECAO") {

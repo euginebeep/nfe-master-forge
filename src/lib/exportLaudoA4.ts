@@ -4,7 +4,7 @@ import {
   arredondarValorNutricional,
   formatarPorcoesEmbalagem,
 } from "@/lib/anvisa-limits";
-import { textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
+import { ehCasamentoAmbiguo, nomesCandidatosCasamento, textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
 import { calcularCapsulasPorDose } from "@/lib/formulador-industrial-rules";
 
 const C = {
@@ -165,6 +165,13 @@ function buildComparativoRows(ativos: any[]): string {
       justificativa += ` · Substituição (proposta funcional): ${esc(parecer.substituicao_sugerida)}`;
       if (parecer.proposta_funcional) {
         justificativa += ` — ${esc(parecer.proposta_funcional)}`;
+      }
+    }
+    const candidatos = nomesCandidatosCasamento(parecer);
+    if (ehCasamentoAmbiguo(parecer) || candidatos.length > 0) {
+      justificativa += ` · Casamento ambíguo — escolher entre: ${esc(candidatos.join(' · '))}`;
+      if (parecer?.acao_da_rt) {
+        justificativa += ` (${esc(parecer.acao_da_rt)})`;
       }
     }
     if (parecer?.responsavel) {
