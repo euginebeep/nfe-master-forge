@@ -159,6 +159,20 @@ const formatDateFromPayload = (value: any) => {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
 };
 
+/** Data fiscal YYYY-MM-DD → pt-BR sem shift UTC (new Date('YYYY-MM-DD') vira dia anterior em UTC-3). */
+const formatDataEmissaoLista = (value: unknown) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "—";
+  const datePart = raw.includes("T") ? raw.split("T")[0]! : raw.split(" ")[0]!;
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString("pt-BR");
+  }
+  return raw;
+};
+
 const formatTimeFromPayload = (value: any) => {
   const raw = textFrom(value);
   const timePart = raw.includes("T") ? raw.split("T")[1] : raw.split(" ")[1];
@@ -413,7 +427,7 @@ export default function NotasSaidaPage() {
   const efeitosAplicados = useRef<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const {
-    emitirNota, consultarNFe, baixarXml, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe, reenviarEmail,
+    emitirNota, consultarNFe, baixarXml, baixarDanfe, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe, reenviarEmail,
   } = useFocusNfe();
   const { data: companyBranding, refetch: refetchCompanyBranding } = useCompanyBranding();
   const navigate = useNavigate();
@@ -657,19 +671,64 @@ export default function NotasSaidaPage() {
 
       const emission = normalizeFocusEmissionResult(resultado);
       const status = emission.status.toUpperCase();
-      toast.success(
-        status.includes("PROCESSANDO")
-          ? "NF-e enviada à SEFAZ. Aguardando autorização…"
-          : "NF-e transmitida com sucesso",
-        { description: formatEmissionDescription(resultado) },
-      );
-      if (isAutorizado(status) || status.includes("AUTORIZAD")) {
+      if (resultado?.already_processed) {
+        toast.success("NF-e já estava autorizada na SEFAZ — status sincronizado", {
+          description: formatEmissionDescription(resultado),
+        });
+      } else {
+        toast.success(
+          status.includes("PROCESSANDO")
+            ? "NF-e enviada à SEFAZ. Aguardando autorização…"
+            : "NF-e transmitida com sucesso",
+          { description: formatEmissionDescription(resultado) },
+        );
+      }
+      if (isAutorizado(status) || status.includes("AUTORIZAD") || resultado?.already_processed) {
         await aplicarEfeitosNota(notaId);
       }
       refreshNumeracao().catch(() => {});
     },
-    onError: async (err: any) => {
-      toast.error("Erro na transmissão: " + err.message);
+    onError: async (err: any, notaId: string) => {
+      const msg = String(err?.message || "");
+      const already =
+        /already_processed/i.test(msg)
+        || /j[aá]\s*foi\s*processad/i.test(msg);
+      if (already) {
+        // SEFAZ já autorizou — consultar e gravar; não tratar como rejeição.
+        try {
+          const { data: nota } = await supabase
+            .from("notas_saida")
+            .select("focus_nfe_id, nuvem_fiscal_id, ambiente")
+            .eq("id", notaId)
+            .single();
+          const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
+          if (focusId) {
+            await consultarNFe(focusId, (nota as any)?.ambiente);
+            await queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+            const { data: refreshed } = await (supabase as any)
+              .from("v_notas_saida_status")
+              .select("status, status_label")
+              .eq("id", notaId)
+              .maybeSingle();
+            if (isAutorizado(refreshed?.status)) {
+              await aplicarEfeitosNota(notaId);
+              toast.success(
+                `NF-e já autorizada na SEFAZ — status atualizado: ${refreshed?.status_label || refreshed?.status}`,
+              );
+              return;
+            }
+            toast.message("NF-e já processada na Focus — status sincronizado.", {
+              description: refreshed?.status_label || refreshed?.status || msg,
+            });
+            return;
+          }
+        } catch (e: any) {
+          toast.error("already_processed: falha ao consultar status — " + (e?.message || msg));
+          queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+          return;
+        }
+      }
+      toast.error("Erro na transmissão: " + msg);
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
     },
   });
@@ -1292,9 +1351,7 @@ export default function NotasSaidaPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {nota.data_emissao
-                          ? new Date(nota.data_emissao).toLocaleDateString("pt-BR")
-                          : "—"}
+                        {formatDataEmissaoLista(nota.data_emissao)}
                       </TableCell>
                       <TableCell className="w-[220px] text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
@@ -1359,18 +1416,33 @@ export default function NotasSaidaPage() {
                             </Button>
                           )}
                           {(nota.pode_baixar_xml ?? !!nota.focus_nfe_id) && isAutorizado(status) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8"
-                              onClick={() => {
-                                void baixarXml(nota.focus_nfe_id, nota.ambiente).catch((e: Error) =>
-                                  toast.error(e.message || "Erro ao baixar XML"),
-                                );
-                              }}
-                            >
-                              <Download className="h-3.5 w-3.5 mr-1" /> XML
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => {
+                                  void baixarXml(nota.focus_nfe_id, nota.ambiente).catch((e: Error) =>
+                                    toast.error(e.message || "Erro ao baixar XML"),
+                                  );
+                                }}
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1" /> XML
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                title="Baixar DANFE (PDF) na Focus"
+                                onClick={() => {
+                                  void baixarDanfe(nota.focus_nfe_id, nota.ambiente).catch((e: Error) =>
+                                    toast.error(e.message || "Erro ao baixar DANFE"),
+                                  );
+                                }}
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1" /> PDF
+                              </Button>
+                            </>
                           )}
                           {nota.pode_imprimir && ["CANCELADO", "CANCELADA"].includes(status) && (
                             <Button size="sm" variant="outline" className="h-8" onClick={() => openDanfeFromSavedNota(nota.id)}>
@@ -1448,7 +1520,18 @@ export default function NotasSaidaPage() {
                                   </DropdownMenuItem>
                                 </>
                               )}
-                              {(nota.pode_excluir || status === "RASCUNHO" || ["REJEITADO", "REJEITADA"].includes(status)) && (
+                              {/* Nunca Excluir nota autorizada. already_processed ≠ rejeição — consultar. */}
+                              {!isAutorizado(status)
+                                && (
+                                  nota.pode_excluir
+                                  || status === "RASCUNHO"
+                                  || (
+                                    ["REJEITADO", "REJEITADA"].includes(status)
+                                    && !/already_processed/i.test(
+                                      String(nota.mensagem_sefaz || nota.mensagem_usuario || ""),
+                                    )
+                                  )
+                                ) && (
                                 <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
@@ -1466,6 +1549,14 @@ export default function NotasSaidaPage() {
                                     <Trash2 className="h-4 w-4 mr-2" /> Excluir
                                   </DropdownMenuItem>
                                 </>
+                              )}
+                              {["REJEITADO", "REJEITADA"].includes(status)
+                                && /already_processed/i.test(
+                                  String(nota.mensagem_sefaz || nota.mensagem_usuario || ""),
+                                ) && (
+                                <DropdownMenuItem onClick={() => consultarStatusMutation(nota.id)}>
+                                  <RefreshCw className="h-4 w-4 mr-2" /> Sincronizar (já autorizada)
+                                </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>

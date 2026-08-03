@@ -7865,6 +7865,7 @@ export type Database = {
           movimenta_estoque: boolean
           natureza_operacao: string
           observacao: string | null
+          tipos_item_permitidos: string[] | null
         }
         Insert: {
           ativo?: boolean
@@ -7878,6 +7879,7 @@ export type Database = {
           movimenta_estoque?: boolean
           natureza_operacao: string
           observacao?: string | null
+          tipos_item_permitidos?: string[] | null
         }
         Update: {
           ativo?: boolean
@@ -7891,6 +7893,7 @@ export type Database = {
           movimenta_estoque?: boolean
           natureza_operacao?: string
           observacao?: string | null
+          tipos_item_permitidos?: string[] | null
         }
         Relationships: []
       }

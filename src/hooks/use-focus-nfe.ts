@@ -53,8 +53,8 @@ async function callFocusNfe(
 
   // Decidir por ação, não por Content-Type: a edge ?action=xml devolve
   // Content-Type que não entra na lista e cai em res.json() → Unexpected token '<'
-  const BINARIAS = new Set(["xml", "danfe"]);
-  if (BINARIAS.has(action)) {
+  const ACOES_ARQUIVO = new Set(["xml", "danfe"]);
+  if (ACOES_ARQUIVO.has(action)) {
     if (!res.ok) throw new Error(await res.text());
     const txt = await res.text();
     if (txt.trimStart().startsWith("{")) {

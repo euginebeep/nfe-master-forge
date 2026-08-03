@@ -199,6 +199,8 @@ type OperacaoFiscalSaida = {
   exige_referencia: boolean;
   movimenta_estoque: boolean;
   gera_financeiro: boolean;
+  /** NULL = todos os tipos (AJUSTE, COMPLEMENTAR, etc.). Array = filtro. */
+  tipos_item_permitidos: string[] | null;
   observacao: string | null;
   ativo: boolean;
 };
@@ -314,15 +316,6 @@ const draftTemConteudo = (d?: {
   !!d && (!!d.clienteId || (d.itens?.length ?? 0) > 0 || !!d.chaveReferenciada);
 
 const readOnlyClass = "bg-muted/60 border-dashed text-muted-foreground cursor-not-allowed font-medium";
-const TIPOS_ITEM_VENDA_PRODUCAO = ["PA"];
-const TIPOS_ITEM_INSUMOS_SAIDA = ["MP", "EMBALAGEM", "ROTULO", "CAPSULA_VAZIA", "TAMPA", "POTE"];
-
-const tiposItemPorOperacao = (codigo?: string) => {
-  const op = String(codigo || "").toUpperCase();
-  if (op.startsWith("DEVOLUCAO_COMPRA") || op.startsWith("REMESSA_")) return TIPOS_ITEM_INSUMOS_SAIDA;
-  if (op.startsWith("VENDA_PRODUCAO")) return TIPOS_ITEM_VENDA_PRODUCAO;
-  return [...TIPOS_ITEM_VENDA_PRODUCAO, ...TIPOS_ITEM_INSUMOS_SAIDA];
-};
 
 const formatDatePtBr = (value?: string) => {
   if (!value) return "";
@@ -892,7 +885,7 @@ export default function EmissorNFePage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("operacoes_fiscais_saida")
-        .select("codigo, descricao, natureza_operacao, cfop_interno, cfop_interestadual, finalidade, exige_referencia, movimenta_estoque, gera_financeiro, observacao, ativo")
+        .select("codigo, descricao, natureza_operacao, cfop_interno, cfop_interestadual, finalidade, exige_referencia, movimenta_estoque, gera_financeiro, tipos_item_permitidos, observacao, ativo")
         .eq("ativo", true)
         .order("descricao");
       if (error) throw error;
@@ -900,41 +893,65 @@ export default function EmissorNFePage() {
     },
   });
 
+  // Derivado puro — nunca escreve no estado (B1).
   const operacaoSelecionada = useMemo(() => {
     if (!operacoesFiscais?.length) return null;
     const byCodigo = operacoesFiscais.find((op) => op.codigo === operacaoFiscalCodigo);
     if (byCodigo) return byCodigo;
-    // Edição ou código explícito inválido: nunca inventar VENDA_PRODUCAO (converte devolução em venda)
+    // Edição ou código explícito inválido: nunca inventar VENDA_PRODUCAO
     if (editId || operacaoFiscalCodigo) return null;
-    return operacoesFiscais.find((op) => op.codigo === "VENDA_PRODUCAO") || null;
+    return null;
   }, [operacoesFiscais, operacaoFiscalCodigo, editId]);
+
+  // Fallback VENDA_PRODUCAO uma vez na nota nova — não depende de operacaoFiscalCodigo
+  // (senão o efeito reescreve a seleção do usuário).
+  useEffect(() => {
+    if (editId || operacaoFiscalCodigo || !operacoesFiscais?.length) return;
+    if (carregandoEdicao) return;
+    setOperacaoFiscalCodigo("VENDA_PRODUCAO");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operacoesFiscais?.length, editId, carregandoEdicao]);
+
+  // CFOP pelo destino efetivo (UF emitente × UF destinatário) — não só pelo Select idDest (B4).
+  const idDestEfetivo = useMemo(() => {
+    if (company?.endereco_uf && clienteEndereco?.uf) {
+      return company.endereco_uf === clienteEndereco.uf ? "1" : "2";
+    }
+    return idDest;
+  }, [company?.endereco_uf, clienteEndereco?.uf, idDest]);
 
   const cfopOperacao = useMemo(() => {
     if (!operacaoSelecionada) return "";
-    return idDest === "2"
+    return idDestEfetivo === "2"
       ? operacaoSelecionada.cfop_interestadual || operacaoSelecionada.cfop_interno || ""
       : operacaoSelecionada.cfop_interno || operacaoSelecionada.cfop_interestadual || "";
-  }, [operacaoSelecionada, idDest]);
+  }, [operacaoSelecionada, idDestEfetivo]);
 
-  const tiposItemPermitidos = useMemo(
-    () => tiposItemPorOperacao(operacaoSelecionada?.codigo || operacaoFiscalCodigo),
-    [operacaoSelecionada?.codigo, operacaoFiscalCodigo],
-  );
+  // B2: ler tipos_item_permitidos do cadastro. NULL = todos os tipos.
+  const tiposItemPermitidos = operacaoSelecionada?.tipos_item_permitidos ?? null;
 
   const { data: produtos } = useQuery({
-    queryKey: ["itens-produtos-emissor", tiposItemPermitidos.join("|")],
+    queryKey: ["itens-produtos-emissor", tiposItemPermitidos?.join("|") ?? "todos"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("itens")
         .select("id, descricao_interna, sku_interno, ncm, unidade_interna, fator_conversao, tipo_item, ean, catalogo_precos(preco_venda)")
-        .eq("ativo", true)
-        .in("tipo_item", tiposItemPermitidos)
-        .order("descricao_interna");
+        .eq("ativo", true);
+      if (tiposItemPermitidos?.length) {
+        q = q.in("tipo_item", tiposItemPermitidos);
+      }
+      const { data, error } = await q.order("descricao_interna");
       if (error) throw error;
       return data;
     },
-    enabled: tiposItemPermitidos.length > 0,
+    enabled: !!operacaoSelecionada,
   });
+
+  const produtosSemNcm = useMemo(
+    () => (produtos || []).filter((p: any) => !String(p.ncm || "").trim()),
+    [produtos],
+  );
+  const produtosComNcmCount = (produtos?.length || 0) - produtosSemNcm.length;
 
   // Hook que busca OPs do produto em foco
   const { data: opsDoProduto, isLoading: loadingOPs } = useOPsPorProduto(produtoFocoId);
@@ -960,17 +977,7 @@ export default function EmissorNFePage() {
   })();
 
   useEffect(() => {
-    if (carregandoEdicao) return;
-    if (!operacoesFiscais?.length || !operacaoSelecionada) return;
-    // Em edição com código vazio (não identificado), não forçar fallback
-    if (editId && !operacaoFiscalCodigo) return;
-    if (operacaoFiscalCodigo !== operacaoSelecionada.codigo) {
-      setOperacaoFiscalCodigo(operacaoSelecionada.codigo);
-    }
-  }, [operacoesFiscais, operacaoSelecionada?.codigo, operacaoFiscalCodigo, editId, carregandoEdicao]);
-
-  useEffect(() => {
-    // Evita reescrever CFOP/finalidade com VENDA_PRODUCAO enquanto a nota ainda carrega
+    // Evita reescrever CFOP/finalidade enquanto a nota ainda carrega
     if (carregandoEdicao) return;
     if (!operacaoSelecionada) return;
     if (naturezaOperacao !== operacaoSelecionada.natureza_operacao) {
@@ -1751,7 +1758,7 @@ export default function EmissorNFePage() {
               <span className="text-sm">
                 CFOP <span className="font-mono font-semibold">{cfopOperacao || "—"}</span>
                 <span className="text-muted-foreground ml-1">
-                  ({idDest === "1" ? "mesma UF" : idDest === "2" ? "interestadual" : "exterior"})
+                  ({idDestEfetivo === "1" ? "mesma UF" : idDestEfetivo === "2" ? "interestadual" : "exterior"})
                 </span>
               </span>
               <span className="text-sm text-muted-foreground truncate">{operacaoSelecionada.natureza_operacao}</span>
@@ -1787,7 +1794,7 @@ export default function EmissorNFePage() {
                         if (!nova) return;
                         const itensComProduto = itens.filter((i) => i.item_id).length;
                         if (itensComProduto > 0 && codigo !== operacaoFiscalCodigo) {
-                          const cfopNovo = idDest === "2"
+                          const cfopNovo = idDestEfetivo === "2"
                             ? (nova.cfop_interestadual || nova.cfop_interno || "")
                             : (nova.cfop_interno || nova.cfop_interestadual || "");
                           const avisos: string[] = [];
@@ -2219,6 +2226,27 @@ export default function EmissorNFePage() {
 
             {/* ════════ Itens Tab ════════ */}
             <TabsContent value="itens" className="space-y-3 mt-3">
+              {operacaoSelecionada && (produtos?.length || 0) > 0 && produtosComNcmCount === 0 && (
+                <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100 [&>svg]:text-amber-700">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Nenhum item faturável com NCM</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    A operação <b>{operacaoSelecionada.descricao}</b> lista{" "}
+                    {produtosSemNcm.length} item(ns), mas nenhum tem NCM cadastrado.
+                    O backend recusa item sem NCM. Para revenda de insumos (MP, cápsula, pote, rótulo),
+                    use a operação <b>VENDA_REVENDA</b>. NCM é do contador — não preencher por semelhança de nome.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {operacaoSelecionada && produtosComNcmCount > 0 && produtosSemNcm.length > 0 && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{produtosSemNcm.length} item(ns) sem NCM</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    {produtosComNcmCount} item(ns) faturáveis nesta operação. Itens sem NCM serão recusados ao salvar.
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-2 rounded-md border bg-background/95 backdrop-blur">
                 <div className="text-sm">
                   <span className="font-medium">{itens.length}</span>

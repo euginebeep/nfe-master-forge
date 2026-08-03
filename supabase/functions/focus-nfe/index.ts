@@ -22,9 +22,9 @@ const normAmbiente = (v: unknown) =>
 function urlArquivoFocus(caminho: string | null | undefined, ambiente: string): string {
   const c = String(caminho ?? "").trim();
   if (!c) return c;
-  if (/^https?:\/\//i.test(c)) return c;
-  if (c.startsWith("/")) return `${host(ambiente)}${c}`;
-  return c;
+  if (c.startsWith("http://") || c.startsWith("https://")) return c;
+  const base = host(ambiente);
+  return c.startsWith("/") ? `${base}${c}` : `${base}/${c}`;
 }
 
 const SENSIVEIS = ["token_producao","token_homologacao","senha_certificado","csc_nfce_producao",
@@ -218,6 +218,43 @@ Deno.serve(async (req) => {
         data = limpar(data);
 
         if (!r.ok) {
+          // already_processed: a SEFAZ já autorizou — consultar e gravar, nunca marcar REJEITADO.
+          const codigoFocus = String(data?.codigo ?? data?.status ?? "").toLowerCase();
+          const msgFocus = String(data?.mensagem ?? data?.message ?? "").toLowerCase();
+          const already =
+            codigoFocus.includes("already_processed")
+            || msgFocus.includes("already_processed")
+            || msgFocus.includes("ja foi processado")
+            || msgFocus.includes("já foi processado");
+
+          if (already && !dry_run) {
+            const c = await focusReq("GET", `/nfe/${ref}?completa=1`, ambiente, token);
+            const consultado = limpar(await c.json().catch(() => ({})));
+            const reg = await registrarRetorno(supabase, nota_saida_id, consultado, ambiente, ref);
+            await audit(supabase, "CONSULTA", {
+              nota_id: nota_saida_id,
+              status: "already_processed",
+              chave_acesso: chave44(consultado.chave_nfe),
+              protocolo: consultado.protocolo,
+              payload: { ambiente, ref, origemToken, already_processed: true },
+            });
+            return json({
+              ...consultado,
+              id: ref,
+              ref,
+              ambiente,
+              chave_acesso: chave44(consultado.chave_nfe),
+              status_interno: mapStatus(consultado.status ?? "autorizado"),
+              link_pdf: consultado.caminho_danfe ? urlArquivoFocus(consultado.caminho_danfe, ambiente) : null,
+              link_xml: consultado.caminho_xml_nota_fiscal
+                ? urlArquivoFocus(consultado.caminho_xml_nota_fiscal, ambiente)
+                : null,
+              registro: reg,
+              already_processed: true,
+              origem_token: origemToken,
+            });
+          }
+
           if (!dry_run) {
             await supabase.from("notas_saida").update({
               status: "REJEITADO",
