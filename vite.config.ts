@@ -1,12 +1,19 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
+const { version: appVersion } = JSON.parse(
+  readFileSync(path.resolve(__dirname, "package.json"), "utf-8"),
+) as { version: string };
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+    // Lê package.json direto — npm_package_version some se o Vite for
+    // invocado fora de um script npm (ex.: vite binário / CI parcial).
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   server: {
     host: "::",

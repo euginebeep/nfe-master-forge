@@ -2,6 +2,8 @@ import { useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { RodapeBrainX } from "@/components/shared/RodapeBrainX";
+import { APP_VERSION } from "@/lib/app-version";
 
 interface DANFEItem {
   numero_item?: number;
@@ -150,10 +152,6 @@ const fmtNumeroNfeLocal = (n: number | string | null | undefined) => {
 };
 
 const ITEMS_PER_PAGE = 10;
-const APP_VERSION =
-  typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__
-    ? __APP_VERSION__
-    : "6.0.0";
 
 const fmt = (v: number) =>
   Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -487,6 +485,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
     </table>
   );
 
+  // Fora do quadro MOC do DANFE — assinatura do ERP, não conteúdo fiscal.
   const renderFooter = () => (
     <div style={{
       marginTop: "3mm",
@@ -497,7 +496,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
       position: "relative",
       zIndex: 1,
     }}>
-      Documento gerado com www.brainxerp.com — versão {APP_VERSION}
+      <RodapeBrainX versao={APP_VERSION} />
     </div>
   );
 
