@@ -4,7 +4,7 @@ import {
   arredondarValorNutricional,
   formatarPorcoesEmbalagem,
 } from "@/lib/anvisa-limits";
-import { motivoParaUi, textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
+import { textosDoCampoNormativo } from "@/lib/anvisa-avaliar-ativo";
 import { calcularCapsulasPorDose } from "@/lib/formulador-industrial-rules";
 
 const C = {
@@ -154,9 +154,9 @@ function buildComparativoRows(ativos: any[]): string {
 
     let doseCorrigida = doseOriginal;
     let unitCorrigida = unitOriginal;
-    const motivoUi = motivoParaUi(parecer);
-    let justificativa = motivoUi
-      ? esc(motivoUi)
+    const motivoMotor = String(parecer?.motivo || '').trim();
+    let justificativa = motivoMotor
+      ? esc(motivoMotor)
       : (statusOriginal === 'APROVADO'
         ? 'Sem alteração — em conformidade'
         : 'Sem parecer do motor — não inventar limite estático');
@@ -186,7 +186,7 @@ function buildComparativoRows(ativos: any[]): string {
     ) {
       doseCorrigida = Number(parecer.limite_max_oficial);
       unitCorrigida = parecer.unidade_oficial || unitOriginal;
-      if (!motivoUi) {
+      if (!motivoMotor) {
         justificativa = `Acima do teto oficial do motor — ${esc(parecer.limite_texto || parecer.norma_referencia || 'limite oficial')}`;
       }
     }

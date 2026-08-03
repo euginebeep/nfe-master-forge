@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { VD_REFERENCE } from "@/lib/anvisa-limits";
 import {
   estiloStatusParecer,
-  motivoParaUi,
   rotuloResponsavel,
   textosDoCampoNormativo,
 } from "@/lib/anvisa-avaliar-ativo";
@@ -367,7 +366,7 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                   || '—';
                 const norma = parecer?.norma_referencia || '—';
                 const responsavel = parecer?.responsavel || null;
-                const motivo = motivoParaUi(parecer);
+                const motivo = String(parecer?.motivo || "").trim();
 
                 return (
                   <TableRow key={i}>

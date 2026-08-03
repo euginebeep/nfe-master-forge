@@ -117,33 +117,6 @@ export function rotuloResponsavel(responsavel: string | null | undefined): strin
   }
 }
 
-/**
- * Guarda de UI: órfão do painel / limite não parseado é pendência da plataforma.
- * Se o jsonb ainda trouxer texto antigo pedindo "decisão da RT", não mostre isso
- * quando responsavel = plataforma (doutrina 01-principios / 06-erros §4).
- */
-export function motivoParaUi(
-  parecer:
-    | { motivo?: string | null; responsavel?: string | null }
-    | null
-    | undefined,
-): string {
-  const motivo = String(parecer?.motivo || "").trim();
-  if (!motivo) return "";
-  if (String(parecer?.responsavel || "") !== "plataforma") return motivo;
-  if (!/decis[aã]o da\s*RT|exige (a )?RT/i.test(motivo)) return motivo;
-  return motivo
-    .replace(
-      /Exige decis[aã]o da RT[^.]*\.?/gi,
-      "Pendência da plataforma (fato sobre a norma — não é decisão da RT).",
-    )
-    .replace(
-      /decis[aã]o da RT/gi,
-      "pendência da plataforma",
-    )
-    .trim();
-}
-
 /** Vocabulário do Checker (AUDIENCES) → grupo canônico do banco. */
 export function grupoDoPublicoChecker(publico: string | null | undefined): string {
   const p = String(publico || "")
@@ -167,9 +140,19 @@ export function grupoDoPublicoChecker(publico: string | null | undefined): strin
 }
 
 /**
- * Heurística mínima: botânico sem identidade declarada não pode nascer APROVADO.
- * Colunas especie_declarada / parte_vegetal / tipo_extrato / padronizacao
- * existem em anvisa_laudo_pareceres — quem preenche é o frontend.
+ * Retorno de public.anvisa_identidade_botanica(p_constituinte_id).
+ * Três estados: não-vegetal / resolvida pela norma / exige declaração.
+ */
+export type IdentidadeBotanicaBanco = {
+  aplicavel: boolean;
+  resolvida: boolean | null;
+  motivo?: string | null;
+  constituinte?: string | null;
+};
+
+/**
+ * Fallback só quando NÃO há constituinte_id casado.
+ * Decisão primária: anvisa_identidade_botanica no banco.
  */
 export function pareceBotanico(nome: string): boolean {
   const n = String(nome || "").toLowerCase();
@@ -185,6 +168,11 @@ export function pareceBotanico(nome: string): boolean {
   return /\b[A-Z][a-z]{2,}\s+[a-z]{3,}\b/.test(nome);
 }
 
+/**
+ * Portão: exige identidade botânica só quando o constituinte casado
+ * ainda não a fixa (ou, sem casamento, o nome parece botânico).
+ * Cúrcuma autorizada com espécie/parte no nome oficial → não rebaixa.
+ */
 export function aplicarPortaoBotanico(
   resultado: AnvisaAvaliarAtivoResult,
   nome: string,
@@ -194,8 +182,18 @@ export function aplicarPortaoBotanico(
     tipo_extrato?: string | null;
     padronizacao?: string | null;
   },
+  identidadeBanco?: IdentidadeBotanicaBanco | null,
 ): AnvisaAvaliarAtivoResult {
-  if (!pareceBotanico(nome)) return resultado;
+  // Banco decide se o portão se aplica. pareceBotanico(nome) é só fallback
+  // quando não houve casamento — nome digitado não identifica o insumo.
+  if (identidadeBanco) {
+    if (identidadeBanco.aplicavel === false) return resultado;
+    if (identidadeBanco.resolvida === true) return resultado;
+    // resolvida === false → segue e exige identidade
+  } else if (!pareceBotanico(nome)) {
+    return resultado;
+  }
+
   const temIdentidade = Boolean(
     identidade?.especie_declarada?.trim()
     || identidade?.parte_vegetal?.trim()
@@ -209,15 +207,39 @@ export function aplicarPortaoBotanico(
   return {
     ...resultado,
     status: "PENDENTE_VERIFICACAO",
-    // Identidade do pó = aplicação por tenant — única fatia da RT.
+    // Identidade do pó genérico = aplicação por tenant — fatia da RT.
     responsavel: "rt_do_tenant_confirma_vinculo",
     marcacao: "INFERIDO",
     motivo: [
       resultado.motivo,
-      "Identidade botânica incompleta: informe espécie, parte vegetal, tipo de extrato e/ou padronização. Sem isso o status máximo é PENDENTE_VERIFICACAO.",
+      identidadeBanco?.motivo
+      || "Identidade botânica incompleta: informe espécie, parte vegetal, tipo de extrato e/ou padronização. Sem isso o status máximo é PENDENTE_VERIFICACAO.",
     ]
       .filter(Boolean)
       .join(" "),
+  };
+}
+
+/** Wrapper fino: RPC anvisa_identidade_botanica. */
+export async function rpcAnvisaIdentidadeBotanica(
+  constituinteId: string | null | undefined,
+): Promise<IdentidadeBotanicaBanco | null> {
+  if (!constituinteId) return null;
+  const { data, error } = await (supabase as any).rpc("anvisa_identidade_botanica", {
+    p_constituinte_id: constituinteId,
+  });
+  if (error || data == null) {
+    if (error) {
+      console.warn("[anvisa_identidade_botanica]", error.message);
+    }
+    return null;
+  }
+  const raw = data as Record<string, unknown>;
+  return {
+    aplicavel: Boolean(raw.aplicavel),
+    resolvida: raw.resolvida == null ? null : Boolean(raw.resolvida),
+    motivo: (raw.motivo as string | null) ?? null,
+    constituinte: (raw.constituinte as string | null) ?? null,
   };
 }
 
