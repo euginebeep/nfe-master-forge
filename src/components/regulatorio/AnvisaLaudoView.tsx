@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { VD_REFERENCE } from "@/lib/anvisa-limits";
 import {
   estiloStatusParecer,
+  ehCasamentoAmbiguo,
+  nomesCandidatosCasamento,
   rotuloResponsavel,
   textosDoCampoNormativo,
 } from "@/lib/anvisa-avaliar-ativo";
@@ -367,6 +369,8 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                 const norma = parecer?.norma_referencia || '—';
                 const responsavel = parecer?.responsavel || null;
                 const motivo = String(parecer?.motivo || "").trim();
+                const candidatos = nomesCandidatosCasamento(parecer);
+                const ambigue = ehCasamentoAmbiguo(parecer);
 
                 return (
                   <TableRow key={i}>
@@ -376,11 +380,37 @@ export const AnvisaLaudoView: React.FC<AnvisaLaudoViewProps> = ({ data, onReset,
                         <Badge variant="outline" className="text-[10px] font-normal">
                           {marcacao}
                         </Badge>
+                        {ambigue && (
+                          <Badge variant="outline" className="text-[10px] font-normal border-amber-500 text-amber-800 dark:text-amber-200">
+                            casamento ambíguo
+                          </Badge>
+                        )}
                       </div>
                       {motivo && (
                         <p className="text-[11px] text-muted-foreground font-normal mt-1 whitespace-pre-wrap">
                           {motivo}
                         </p>
+                      )}
+                      {candidatos.length > 0 && (
+                        <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-2.5 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-100">
+                            Escolher constituinte ({parecer?.n_candidatos ?? candidatos.length})
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 mb-1.5">
+                            Não é reformular — é identificar qual forma autorizada este insumo representa
+                            {parecer?.acao_da_rt ? ` · ${parecer.acao_da_rt}` : ""}.
+                          </p>
+                          <ul className="space-y-1">
+                            {candidatos.map((nome, j) => (
+                              <li
+                                key={j}
+                                className="text-[11px] font-medium text-foreground pl-2 border-l-2 border-amber-500/60"
+                              >
+                                {nome}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
                       {parecer?.substituicao_sugerida && (
                         <p className="text-[11px] text-amber-800 dark:text-amber-200 font-normal mt-1">

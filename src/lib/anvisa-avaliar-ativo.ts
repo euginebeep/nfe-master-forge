@@ -75,7 +75,51 @@ export type AnvisaAvaliarAtivoResult = {
   /** v2: múltiplos vínculos quando ≠ ATIVO / via IN 211 */
   constituintes?: unknown;
   n_constituintes?: number | null;
+  /**
+   * Casamento ambíguo (fonte=casamento_ambiguo): nomes técnicos candidatos.
+   * A RT escolhe qual constituinte o insumo representa — não é reformular.
+   */
+  candidatos?: string[] | null;
+  n_candidatos?: number | null;
 };
+
+/** Extrai nomes técnicos de candidatos (array de string ou objetos). */
+export function nomesCandidatosCasamento(parecer: {
+  candidatos?: unknown;
+  n_candidatos?: number | null;
+  fonte?: string | null;
+} | null | undefined): string[] {
+  if (!parecer) return [];
+  const raw = parecer.candidatos;
+  if (raw == null) return [];
+  if (Array.isArray(raw)) {
+    return raw
+      .map((x) => {
+        if (typeof x === "string") return x.trim();
+        if (x && typeof x === "object") {
+          const o = x as Record<string, unknown>;
+          for (const k of ["nome_tecnico", "constituinte", "nome", "label"]) {
+            if (typeof o[k] === "string" && String(o[k]).trim()) {
+              return String(o[k]).trim();
+            }
+          }
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+  if (typeof raw === "string" && raw.trim()) return [raw.trim()];
+  return [];
+}
+
+export function ehCasamentoAmbiguo(parecer: {
+  fonte?: string | null;
+  candidatos?: unknown;
+} | null | undefined): boolean {
+  if (!parecer) return false;
+  if (String(parecer.fonte || "") === "casamento_ambiguo") return true;
+  return nomesCandidatosCasamento(parecer).length > 1;
+}
 
 /** Normaliza jsonb/texto do motor → linhas literais para UI/PDF. Nunca inventar. */
 export function textosDoCampoNormativo(v: unknown): string[] {
@@ -293,6 +337,23 @@ function parseMotorJsonb(data: unknown): AnvisaAvaliarAtivoResult {
     constituintes: raw.constituintes ?? null,
     n_constituintes:
       raw.n_constituintes == null ? null : Number(raw.n_constituintes),
+    candidatos: (() => {
+      const nomes = nomesCandidatosCasamento({
+        candidatos: raw.candidatos,
+        fonte: raw.fonte as string | null,
+      });
+      return nomes.length ? nomes : null;
+    })(),
+    n_candidatos: (() => {
+      if (raw.n_candidatos != null && Number.isFinite(Number(raw.n_candidatos))) {
+        return Number(raw.n_candidatos);
+      }
+      const nomes = nomesCandidatosCasamento({
+        candidatos: raw.candidatos,
+        fonte: raw.fonte as string | null,
+      });
+      return nomes.length ? nomes.length : null;
+    })(),
   };
 }
 
