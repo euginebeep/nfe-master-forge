@@ -518,12 +518,13 @@ export default function EmissorNFePage() {
     key: K,
     value: NfeDraft[K] | ((prev: NfeDraft[K]) => NfeDraft[K]),
   ) => {
-    setDraft((prev) => ({
-      ...prev,
-      [key]: typeof value === "function"
+    setDraft((prev) => {
+      const nextVal = typeof value === "function"
         ? (value as (p: NfeDraft[K]) => NfeDraft[K])(prev[key])
-        : value,
-    }));
+        : value;
+      if (Object.is(prev[key], nextVal)) return prev;
+      return { ...prev, [key]: nextVal };
+    });
   }, [setDraft]);
 
   const {
