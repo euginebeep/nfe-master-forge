@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+export { urlArquivoFocus } from "@/lib/focus-nfe-url";
 
 export type FocusAmbiente = "producao" | "homologacao";
 
@@ -50,15 +51,20 @@ async function callFocusNfe(
 
   const res = await fetch(url, options);
 
-  // Tratar respostas binárias (PDF / XML)
-  const contentType = res.headers.get("Content-Type") || "";
-  if (
-    contentType.includes("application/pdf") ||
-    contentType.includes("application/xml") ||
-    contentType.includes("text/xml")
-  ) {
-    if (!res.ok) throw new Error("Erro ao baixar arquivo");
-    return res.blob();
+  // Decidir por ação, não por Content-Type: a edge ?action=xml devolve
+  // Content-Type que não entra na lista e cai em res.json() → Unexpected token '<'
+  const BINARIAS = new Set(["xml", "danfe"]);
+  if (BINARIAS.has(action)) {
+    if (!res.ok) throw new Error(await res.text());
+    const txt = await res.text();
+    if (txt.trimStart().startsWith("{")) {
+      // erro em JSON
+      const j = JSON.parse(txt);
+      throw new Error(j?.error?.message || j?.error || "Erro ao baixar arquivo");
+    }
+    return new Blob([txt], {
+      type: action === "xml" ? "application/xml" : "application/pdf",
+    });
   }
 
   const data = await res.json();
