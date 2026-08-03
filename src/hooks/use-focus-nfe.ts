@@ -55,14 +55,19 @@ async function callFocusNfe(
   // Content-Type que não entra na lista e cai em res.json() → Unexpected token '<'
   const ACOES_ARQUIVO = new Set(["xml", "danfe"]);
   if (ACOES_ARQUIVO.has(action)) {
-    if (!res.ok) throw new Error(await res.text());
-    const txt = await res.text();
-    if (txt.trimStart().startsWith("{")) {
-      // erro em JSON
-      const j = JSON.parse(txt);
+    // arrayBuffer preserva binário. res.text() destrói PDF: decodifica os
+    // bytes como UTF-8 e cada byte inválido vira U+FFFD. O arquivo sai com
+    // tamanho plausível e conteúdo corrompido — abre em branco, sem erro.
+    const buf = await res.arrayBuffer();
+
+    // erro da API vem em JSON: '{' = 0x7B. PDF começa com '%PDF' = 0x25504446
+    const head = new Uint8Array(buf.slice(0, 1));
+    if (head[0] === 0x7B) {
+      const j = JSON.parse(new TextDecoder().decode(buf));
       throw new Error(j?.error?.message || j?.error || "Erro ao baixar arquivo");
     }
-    return new Blob([txt], {
+
+    return new Blob([buf], {
       type: action === "xml" ? "application/xml" : "application/pdf",
     });
   }
