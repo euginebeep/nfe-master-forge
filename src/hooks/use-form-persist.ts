@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type PersistEnvelope<T> = {
   __ts: number;
@@ -82,6 +82,10 @@ export function useFormPersist<T>(
 ) {
   const { ttlHoras = 12, restore = true, persist = true } = options;
   const storageKey = storageKeyFor(key);
+  // initial pode ser createX() a cada render — guardar o da montagem para clear().
+  const initialRef = useRef(initial);
+  const storageKeyRef = useRef(storageKey);
+  storageKeyRef.current = storageKey;
 
   const [state, setState] = useState<T>(() => {
     if (!restore) return initial;
@@ -111,14 +115,17 @@ export function useFormPersist<T>(
     }
   }, [storageKey, state, persist]);
 
-  const clear = (resetTo: T = initial) => {
+  // Estável entre renders. Sem isso, efeitos com clear nas deps disparam
+  // cleanup a cada render e podem resetar o formulário (ex.: operação fiscal).
+  const clear = useCallback((resetTo?: T) => {
+    const keyNow = storageKeyRef.current;
     try {
-      sessionStorage.removeItem(storageKey);
+      sessionStorage.removeItem(keyNow);
     } catch {
       /* ignore */
     }
-    setState(resetTo);
-  };
+    setState(resetTo !== undefined ? resetTo : initialRef.current);
+  }, []);
 
   return [state, setState, clear] as const;
 }

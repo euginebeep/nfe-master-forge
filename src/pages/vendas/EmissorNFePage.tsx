@@ -536,14 +536,27 @@ export default function EmissorNFePage() {
     lotesCache, opSelecionadaPorItem, produtoFocoId, itemFocoIdx, serie,
   } = draft;
 
-  // Limpar ao sair da tela se o formulário de nota nova estiver vazio
+  // Limpar ao SAIR da tela se o formulário de nota nova estiver vazio.
+  // Refs: o cleanup precisa dos valores atuais, mas NÃO pode listar
+  // clienteId/itens/clearDraft nas deps — clearDraft instável (antes do
+  // useCallback) fazia o cleanup rodar a cada render e resetar para
+  // VENDA_PRODUCAO ~8ms depois de o usuário escolher VENDA_REVENDA.
+  const clienteIdRef = useRef(clienteId);
+  const itensLenRef = useRef(itens.length);
+  const editIdRef = useRef(editId);
+  const clearDraftRef = useRef(clearDraft);
+  clienteIdRef.current = clienteId;
+  itensLenRef.current = itens.length;
+  editIdRef.current = editId;
+  clearDraftRef.current = clearDraft;
+
   useEffect(() => {
     return () => {
-      if (editId) return;
-      const vazio = !clienteId && itens.length === 0;
-      if (vazio) clearDraft(createInitialNfeDraft());
+      if (editIdRef.current) return;
+      const vazio = !clienteIdRef.current && itensLenRef.current === 0;
+      if (vazio) clearDraftRef.current(createInitialNfeDraft());
     };
-  }, [editId, clienteId, itens.length, clearDraft]);
+  }, []);
 
   const setActiveTab = (v: string | ((p: string) => string)) => setField("activeTab", v as NfeDraft["activeTab"]);
   const setOperacaoFiscalCodigo = (v: string | ((p: string) => string)) => setField("operacaoFiscalCodigo", v as NfeDraft["operacaoFiscalCodigo"]);
@@ -975,7 +988,17 @@ export default function EmissorNFePage() {
       setFinalidadeEmissao(String(operacaoSelecionada.finalidade));
     }
     if (cfopOperacao) {
-      setItens((prev) => prev.map((item) => item.cfop === cfopOperacao ? item : { ...item, cfop: cfopOperacao }));
+      // Bail-out se nada muda — map em [] cria array novo e suja o draft.
+      setItens((prev) => {
+        if (prev.length === 0) return prev;
+        let changed = false;
+        const next = prev.map((item) => {
+          if (item.cfop === cfopOperacao) return item;
+          changed = true;
+          return { ...item, cfop: cfopOperacao };
+        });
+        return changed ? next : prev;
+      });
     }
   }, [operacaoSelecionada?.codigo, cfopOperacao, carregandoEdicao]);
 
@@ -1316,8 +1339,11 @@ export default function EmissorNFePage() {
     setDuplicatas([{ nDup: "001", dVenc: iso, vDup: Number(totais.nota) || 0 }]);
   };
 
-  // Auto-sync valor pagamento
-  useEffect(() => { setValorPagamento(totais.nota); }, [totais.nota]);
+  // Auto-sync valor pagamento (só se mudou — setField sempre cria objeto novo)
+  useEffect(() => {
+    const nota = totais.nota;
+    setValorPagamento((prev) => (prev === nota ? prev : nota));
+  }, [totais.nota]);
 
   const numeroPrevistoFmt = numeracao?.proximo_numero != null
     ? fmtNumeroNfe(numeracao.proximo_numero)
