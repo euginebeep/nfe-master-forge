@@ -6,6 +6,7 @@ import {
   aplicarPortaoBotanico,
   rpcAnvisaAvaliarAtivo,
   rpcAnvisaAvaliarInsumo,
+  rpcAnvisaIdentidadeBotanica,
   statusGeralDosPareceres,
   type AnvisaAvaliarAtivoResult,
 } from "@/lib/anvisa-avaliar-ativo";
@@ -114,12 +115,22 @@ export async function avaliarProdutosComMotor(
           unidade: ativo.unit || "mg",
           grupo: publicoChecker,
         });
-      const parecer = aplicarPortaoBotanico(bruto, ativo.nome, {
-        especie_declarada: ativo.especie_declarada,
-        parte_vegetal: ativo.parte_vegetal,
-        tipo_extrato: ativo.tipo_extrato,
-        padronizacao: ativo.padronizacao,
-      });
+      // Portão botânico: banco (constituinte casado) antes da heurística de nome.
+      let identidadeBanco = null as Awaited<ReturnType<typeof rpcAnvisaIdentidadeBotanica>>;
+      if (bruto.constituinte_id) {
+        identidadeBanco = await rpcAnvisaIdentidadeBotanica(bruto.constituinte_id);
+      }
+      const parecer = aplicarPortaoBotanico(
+        bruto,
+        ativo.nome,
+        {
+          especie_declarada: ativo.especie_declarada,
+          parte_vegetal: ativo.parte_vegetal,
+          tipo_extrato: ativo.tipo_extrato,
+          padronizacao: ativo.padronizacao,
+        },
+        identidadeBanco,
+      );
 
       const enriquecido: AtivoChecker = {
         ...ativo,

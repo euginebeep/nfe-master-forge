@@ -12518,6 +12518,10 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      anvisa_identidade_botanica: {
+        Args: { p_constituinte_id: string }
+        Returns: Json
+      }
       anvisa_avaliar_formula: {
         Args: { p_data?: string; p_formula_id: string; p_grupo?: string }
         Returns: {
