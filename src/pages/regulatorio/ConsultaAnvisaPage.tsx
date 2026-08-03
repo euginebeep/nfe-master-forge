@@ -14,7 +14,7 @@ import {
   estiloStatusNaoAutorizado,
   useIngredienteNaoAutorizado,
 } from '@/hooks/useIngredienteNaoAutorizado';
-import { estiloStatusAnvisaConsulta } from '@/lib/anvisa-consultar';
+import { estiloStatusAnvisaConsulta, statusExigeEscolhaOuNaoAutoriza } from '@/lib/anvisa-consultar';
 import { ResultCard } from '@/components/regulatorio/ResultCard';
 import { SyncStatusBanner } from '@/components/regulatorio/SyncStatusBanner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -32,7 +32,7 @@ export default function ConsultaAnvisaPage() {
   const {
     termo, resultados, resultadosTotal, podeCarregarMais, carregarMais,
     isLoading, buscar, limpar, exaustivo, setExaustivo,
-    consultaStatus, consultaMensagem,
+    consulta, consultaStatus, consultaMensagem,
   } = useAnvisaSearch();
   const { ultimoSync, sincronizar, sincronizando } = useAnvisaSync();
   const { history, registrar, remover, limparHistorico } = useAnvisaSearchHistory();
@@ -64,12 +64,16 @@ export default function ConsultaAnvisaPage() {
   const [gerandoPdf, setGerandoPdf] = useState(false);
 
   const temFonteUnica = !isLoading && (resultados?.length ?? 0) > 0;
+  const motorSemAutorizacao =
+    !isLoading
+    && termo.trim().length >= 2
+    && statusExigeEscolhaOuNaoAutoriza(consultaStatus ?? undefined);
   const semResultadoAutorizado =
     !isLoading && termo.trim().length >= 2 && !temFonteUnica && consultaStatus === 'nao_encontrado';
 
   const { data: naoAutorizado, isLoading: carregandoNaoAutorizado } = useIngredienteNaoAutorizado(
     termo,
-    Boolean(semResultadoAutorizado),
+    Boolean(semResultadoAutorizado && consultaStatus === 'nao_encontrado'),
   );
 
   // Persist every effective search in the history
@@ -93,6 +97,8 @@ export default function ConsultaAnvisaPage() {
     if (isLoading) return;
     if (termo.length < 2) return;
     if (temFonteUnica) return;
+    // Motor já respondeu ambiguo/sugestao/nao_encontrado — não chamar IA para inventar AUTORIZADO.
+    if (statusExigeEscolhaOuNaoAutoriza(consultaStatus ?? undefined)) return;
 
     setAiLoading(true);
     supabase.functions
@@ -118,7 +124,7 @@ export default function ConsultaAnvisaPage() {
     return () => {
       cancelled = true;
     };
-  }, [termo, isLoading, temFonteUnica]);
+  }, [termo, isLoading, temFonteUnica, consultaStatus]);
 
   const handleSync = () => {
     sincronizar(undefined, {
@@ -598,7 +604,76 @@ export default function ConsultaAnvisaPage() {
         </Card>
       )}
 
-      {!isLoading && !carregandoNaoAutorizado && !naoAutorizado && termo.length >= 2 && !temFonteUnica && aiResults.length === 0 && !aiAviso && (
+      {/* Casamento ambíguo / sugestão fraca — nunca selo AUTORIZADO */}
+      {!isLoading && motorSemAutorizacao && (consultaStatus === 'ambiguo' || consultaStatus === 'sugestao') && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 shadow-md">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="w-7 h-7 shrink-0 text-amber-600" />
+              <div className="space-y-2 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-bold text-base text-amber-900 dark:text-amber-100">
+                    {consultaStatus === 'ambiguo'
+                      ? 'Casamento ambíguo — escolha o constituinte'
+                      : 'Sugestão fraca — não autorizado'}
+                  </h3>
+                  {estiloFonteUnica && (
+                    <Badge variant="outline" className={estiloFonteUnica.className}>
+                      {estiloFonteUnica.label}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {consultaMensagem || (
+                    <>
+                      <strong>"{termo}"</strong> não identifica um único constituinte autorizado.
+                    </>
+                  )}
+                </p>
+                {consultaStatus === 'ambiguo' && (consulta?.candidatos?.length ?? 0) > 0 && (
+                  <div className="rounded-md border border-amber-500/40 bg-background/60 px-3 py-2 mt-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-100 mb-1.5">
+                      Candidatos ({consulta?.n_candidatos ?? consulta?.candidatos?.length})
+                    </p>
+                    <ul className="space-y-1.5">
+                      {(consulta?.candidatos || []).map((nome, i) => (
+                        <li
+                          key={i}
+                          className="text-sm font-medium pl-2 border-l-2 border-amber-500/60"
+                        >
+                          {nome}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-[11px] text-muted-foreground mt-2">
+                      Não é reformular — é identificar qual forma autorizada o insumo representa
+                      (limites e condições próprios; ex.: Nota XV da IN 438/2026).
+                    </p>
+                  </div>
+                )}
+                {consultaStatus === 'sugestao' && (
+                  <div className="rounded-md border border-amber-500/40 bg-background/60 px-3 py-2 mt-2 text-sm">
+                    <p>
+                      Nome próximo sugerido:{' '}
+                      <strong>{consulta?.sugestao_nome || '—'}</strong>
+                      {consulta?.similaridade != null && (
+                        <span className="text-muted-foreground">
+                          {' '}· similaridade {(Number(consulta.similaridade) * 100).toFixed(0)}%
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Similaridade baixa não autoriza uso. Confirme o nome técnico oficial antes de declarar.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && !carregandoNaoAutorizado && !naoAutorizado && termo.length >= 2 && !temFonteUnica && aiResults.length === 0 && !aiAviso && consultaStatus === 'nao_encontrado' && (
         <Card className="border-muted-foreground/30 bg-muted/40 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">

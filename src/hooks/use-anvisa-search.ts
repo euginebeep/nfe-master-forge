@@ -116,10 +116,13 @@ export async function buscarConstituintes(
   });
 
   if (
-    !consulta.ok ||
-    consulta.status === "nao_encontrado" ||
-    consulta.status === "termo_vazio"
+    !consulta.ok
+    || consulta.status === "nao_encontrado"
+    || consulta.status === "termo_vazio"
+    || consulta.status === "ambiguo"
+    || consulta.status === "sugestao"
   ) {
+    // ambiguo/sugestao: não hidratar como AUTORIZADO — a UI lê consulta.candidatos / sugestao_nome.
     return { resultados: [], consulta };
   }
 

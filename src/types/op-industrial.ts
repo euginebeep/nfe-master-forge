@@ -63,6 +63,12 @@ export interface OrdemProducaoIndustrial {
   
   // Status
   status: StatusOP;
+
+  // Carimbo ANVISA na abertura (imutável) — prova de ciência, NÃO bloqueio
+  anvisa_status?: 'CONFORME' | 'COM_RESSALVA' | 'NAO_CONFORME' | 'SEM_FORMULA' | null;
+  anvisa_carimbo?: Record<string, unknown> | null;
+  anvisa_resumo?: string | null;
+  anvisa_carimbado_em?: string | null;
   
   // Equipe
   responsavel_producao_id?: string;
