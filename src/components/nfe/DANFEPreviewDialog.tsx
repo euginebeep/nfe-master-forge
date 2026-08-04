@@ -255,7 +255,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
   const isHomolog = data?.ambiente === "homologacao";
 
   const handlePrint = () => {
-    if (!printRef.current || !podeImprimir) return;
+    if (!printRef.current) return;
     const style = document.createElement("style");
     style.setAttribute("data-danfe-print", "true");
     style.textContent = `
@@ -455,28 +455,49 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
             </div>
           </td>
           <td colSpan={8} style={{ ...cellStyle, verticalAlign: "top", padding: "4px" }}>
-            <div style={{
-              height: "40px",
-              background: "repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 3px)",
-              marginBottom: "4px",
-              opacity: 0.4,
-            }} />
-            <div style={{ fontSize: "6pt", textAlign: "center" }}>
-              <b>CHAVE DE ACESSO</b><br />
-              <span style={{ fontFamily: "'Courier New', monospace", fontSize: "7.5pt", letterSpacing: "0.5px" }}>
-                {fmtChave(data.chave_acesso)}
-              </span>
-            </div>
-            <div style={{ fontSize: "5.5pt", textAlign: "center", marginTop: "3px", color: "#444" }}>
-              {emContingencia
-                ? "DANFE em Contingência — impresso em decorrência de problemas técnicos"
-                : <>Consulta de autenticidade no portal nacional da NF-e<br />www.nfe.fazenda.gov.br/portal</>}
-            </div>
-            {emContingencia && (
-              <div style={{ fontSize: "5.5pt", marginTop: "3px", textAlign: "left" }}>
-                {data.contingencia_modo && <div><b>Modo:</b> {data.contingencia_modo}</div>}
-                <div><b>dhContingência:</b> {fmtDataHora(data.dh_contingencia)}</div>
-                <div><b>Justificativa:</b> {data.justificativa_contingencia || "—"}</div>
+            {!isRascunhoSemValor ? (
+              <>
+                <div style={{
+                  height: "40px",
+                  background: "repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 3px)",
+                  marginBottom: "4px",
+                  opacity: 0.4,
+                }} />
+                <div style={{ fontSize: "6pt", textAlign: "center" }}>
+                  <b>CHAVE DE ACESSO</b><br />
+                  <span style={{ fontFamily: "'Courier New', monospace", fontSize: "7.5pt", letterSpacing: "0.5px" }}>
+                    {fmtChave(data.chave_acesso)}
+                  </span>
+                </div>
+                <div style={{ fontSize: "5.5pt", textAlign: "center", marginTop: "3px", color: "#444" }}>
+                  {emContingencia
+                    ? "DANFE em Contingência — impresso em decorrência de problemas técnicos"
+                    : <>Consulta de autenticidade no portal nacional da NF-e<br />www.nfe.fazenda.gov.br/portal</>}
+                </div>
+                {emContingencia && (
+                  <div style={{ fontSize: "5.5pt", marginTop: "3px", textAlign: "left" }}>
+                    {data.contingencia_modo && <div><b>Modo:</b> {data.contingencia_modo}</div>}
+                    <div><b>dhContingência:</b> {fmtDataHora(data.dh_contingencia)}</div>
+                    <div><b>Justificativa:</b> {data.justificativa_contingencia || "—"}</div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div
+                style={{
+                  minHeight: "62px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  fontSize: "6pt",
+                  color: "#666",
+                  padding: "4px",
+                }}
+              >
+                SEM VALOR FISCAL — DOCUMENTO NÃO TRANSMITIDO
+                <br />
+                (sem chave de acesso / sem código de barras)
               </div>
             )}
           </td>
@@ -505,11 +526,16 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
       <DialogContent className="max-w-[820px] max-h-[95vh] overflow-y-auto p-2">
         <DialogHeader className="flex flex-row items-center justify-between no-print px-2 pt-2">
           <DialogTitle className="text-base">
-            {podeImprimir ? "Pré-visualização DANFE" : "Pré-visualização DANFE — Sem valor fiscal"}
+            {podeImprimir ? "Pré-visualização DANFE" : "Pré-visualização de Espelho — Sem valor fiscal"}
           </DialogTitle>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={handlePrint} disabled={!podeImprimir} title={!podeImprimir ? "Impressão liberada somente após autorização" : undefined}>
-              <Printer className="h-4 w-4 mr-1" /> Imprimir
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handlePrint}
+              title={!podeImprimir ? "Espelho sem valor fiscal (não transmitir/entregar como NF-e)" : undefined}
+            >
+              <Printer className="h-4 w-4 mr-1" /> {podeImprimir ? "Imprimir DANFE" : "Imprimir espelho"}
             </Button>
           </div>
         </DialogHeader>
