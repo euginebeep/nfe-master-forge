@@ -936,8 +936,12 @@ export default function EmissorNFePage() {
   }, [operacaoSelecionada, idDest, interestadual]);
 
   // NULL = todos os tipos (AJUSTE, COMPLEMENTAR_VALOR, DEVOLUCAO_COMPRA_ATIVO).
-  // NUNCA tratar NULL como lista vazia.
-  const tiposItemPermitidos = operacaoSelecionada?.tipos_item_permitidos ?? null;
+  // NUNCA tratar NULL como lista vazia; [] também deve significar "todos".
+  const tiposItemPermitidos = useMemo(() => {
+    const raw = operacaoSelecionada?.tipos_item_permitidos;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return raw;
+  }, [operacaoSelecionada?.tipos_item_permitidos]);
 
   const { data: produtos } = useQuery({
     queryKey: ["itens-produtos-emissor", operacaoSelecionada?.codigo ?? "-"],
@@ -2272,6 +2276,17 @@ export default function EmissorNFePage() {
 
             {/* ════════ Itens Tab ════════ */}
             <TabsContent value="itens" className="space-y-3 mt-3">
+              {operacaoSelecionada && produtos && produtos.length === 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Nenhum item elegível para esta operação</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    {operacaoSelecionada.codigo === "VENDA_PRODUCAO"
+                      ? "A operação VENDA_PRODUCAO exige itens do tipo PA. Este tenant não possui PA elegível no momento."
+                      : "Não há itens ativos compatíveis com os tipos permitidos desta operação fiscal."}
+                  </AlertDescription>
+                </Alert>
+              )}
               {/* Patch 5 — VENDA_PRODUCAO lista PA sem NCM; sem aviso o usuário não entende o bloqueio */}
               {operacaoSelecionada && produtos && produtos.length > 0
                 && produtos.every((p: any) => !String(p.ncm || "").trim()) && (
