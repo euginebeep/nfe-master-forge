@@ -16,37 +16,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Check, AlertTriangle, Edit } from "lucide-react";
 import type { NFeParseResult } from "@/types/nfe-completa";
-
-// CST options
-const CST_ICMS_OPTIONS = [
-  { value: "00", label: "00 - Tributada integralmente" },
-  { value: "10", label: "10 - Tributada com ST" },
-  { value: "20", label: "20 - Com redução de BC" },
-  { value: "40", label: "40 - Isenta" },
-  { value: "41", label: "41 - Não tributada" },
-  { value: "60", label: "60 - ICMS cobrado anteriormente por ST" },
-  { value: "90", label: "90 - Outras" },
-];
-
-const CST_PIS_COFINS_OPTIONS = [
-  { value: "01", label: "01 - Operação tributável (alíquota básica)" },
-  { value: "04", label: "04 - Operação tributável (ST)" },
-  { value: "06", label: "06 - Operação tributável (alíquota zero)" },
-  { value: "07", label: "07 - Operação isenta" },
-  { value: "08", label: "08 - Operação sem incidência" },
-  { value: "49", label: "49 - Outras operações de saída" },
-  { value: "99", label: "99 - Outras operações" },
-];
-
-const CST_IPI_OPTIONS = [
-  { value: "00", label: "00 - Entrada com recuperação de crédito" },
-  { value: "49", label: "49 - Outras entradas" },
-  { value: "50", label: "50 - Saída tributada" },
-  { value: "51", label: "51 - Saída tributável alíquota zero" },
-  { value: "52", label: "52 - Saída isenta" },
-  { value: "53", label: "53 - Saída não tributada" },
-  { value: "99", label: "99 - Outras saídas" },
-];
+import {
+  CST_PIS_COFINS_OPTIONS,
+  CST_IPI_OPTIONS,
+  opcoesIcmsPorCrt,
+  rotuloIcmsPorCrt,
+} from "@/lib/fiscal-icms";
 
 export interface FiscalItemConfig {
   itemIndex: number;
@@ -78,6 +53,11 @@ export function FiscalReviewDialog({
 }: FiscalReviewDialogProps) {
   const [itemConfigs, setItemConfigs] = useState<FiscalItemConfig[]>([]);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
+
+  // CRT do emitente do XML (entrada) — define CST vs CSOSN na revisão
+  const crtEmitente = parsedResult?.emitente?.crt;
+  const opcoesIcms = opcoesIcmsPorCrt(crtEmitente);
+  const rotuloIcms = rotuloIcmsPorCrt(crtEmitente);
 
   // Initialize configs from parsed result
   useEffect(() => {
@@ -222,7 +202,7 @@ export function FiscalReviewDialog({
                         <p className="text-sm font-medium">ICMS</p>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label className="text-xs">CST ICMS</Label>
+                            <Label className="text-xs">{rotuloIcms}</Label>
                             <Select
                               value={config.cstIcms}
                               onValueChange={(v) =>
@@ -233,7 +213,7 @@ export function FiscalReviewDialog({
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {CST_ICMS_OPTIONS.map((opt) => (
+                                {opcoesIcms.map((opt) => (
                                   <SelectItem key={opt.value} value={opt.value}>
                                     {opt.label}
                                   </SelectItem>
