@@ -22,11 +22,15 @@ function parseRdfRSSItems(xml: string, source: string, maxItems = 6): NewsItem[]
 
   const skipTypes = new Set(['Folder', 'Collection', 'File', 'collective.polls.poll']);
 
-  while ((match = itemRegex.exec(xml)) !== null && items.length < maxItems) {
+  while ((match = itemRegex.exec(xml)) !== null) {
     const itemXml = match[1];
     const title = itemXml.match(/<title>(.*?)<\/title>/)?.[1] || '';
     const link = itemXml.match(/<link>(.*?)<\/link>/)?.[1] || '';
-    const pubDate = itemXml.match(/<dc:date>(.*?)<\/dc:date>/)?.[1] || '';
+    const pubDate =
+      itemXml.match(/<pubDate>(.*?)<\/pubDate>/)?.[1]
+      || itemXml.match(/<dcterms:issued>(.*?)<\/dcterms:issued>/)?.[1]
+      || itemXml.match(/<dc:date>(.*?)<\/dc:date>/)?.[1]
+      || '';
     const contentType = itemXml.match(/<dc:type>(.*?)<\/dc:type>/)?.[1] || '';
     const description = itemXml.match(/<description>(.*?)<\/description>/)?.[1] || '';
 
@@ -46,7 +50,7 @@ function parseRdfRSSItems(xml: string, source: string, maxItems = 6): NewsItem[]
     });
   }
 
-  return items;
+  return maxItems > 0 ? items.slice(0, maxItems) : items;
 }
 
 function parseRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
@@ -54,7 +58,7 @@ function parseRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
   let match;
 
-  while ((match = itemRegex.exec(xml)) !== null && items.length < maxItems) {
+  while ((match = itemRegex.exec(xml)) !== null) {
     const itemXml = match[1];
     
     const title = itemXml.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] 
@@ -91,7 +95,52 @@ function parseRSSItems(xml: string, source: string, maxItems = 6): NewsItem[] {
     }
   }
 
-  return items;
+  return maxItems > 0 ? items.slice(0, maxItems) : items;
+}
+
+function parseAnyDate(value: string): Date | null {
+  if (!value) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) return d;
+  const pt = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (pt) {
+    const parsed = new Date(`${pt[3]}-${pt[2]}-${pt[1]}T00:00:00-03:00`);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
+function parseAnvisaHtmlItems(html: string, maxItems = 20): NewsItem[] {
+  const items: NewsItem[] = [];
+  const itemRegex = /<li[^>]*class="[^"]*noticia[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
+  let match;
+  while ((match = itemRegex.exec(html)) !== null) {
+    const li = match[1];
+    const linkMatch = li.match(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    if (!linkMatch) continue;
+    const linkRaw = linkMatch[1];
+    const titleRaw = linkMatch[2];
+    const dateRaw =
+      li.match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
+      || li.match(/<time[^>]*>(.*?)<\/time>/i)?.[1]
+      || '';
+    const date = parseAnyDate(dateRaw);
+    if (!date) continue;
+    const title = titleRaw.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    if (!title || title.length < 12) continue;
+    const link = linkRaw.startsWith("http")
+      ? linkRaw
+      : `https://www.gov.br${linkRaw.startsWith("/") ? "" : "/"}${linkRaw}`;
+    items.push({
+      title,
+      link,
+      source: "ANVISA",
+      pubDate: date.toISOString(),
+    });
+  }
+  return items.slice(0, maxItems);
 }
 
 /** Remove acentos para comparar termos setoriais. */
@@ -162,8 +211,8 @@ serve(async (req) => {
             .replace(/&apos;/g, "'");
           
           return source.parser === "rdf"
-            ? parseRdfRSSItems(xml, source.name, 4)
-            : parseRSSItems(xml, source.name, 4);
+            ? parseRdfRSSItems(xml, source.name, 0)
+            : parseRSSItems(xml, source.name, 0);
         } catch (e) {
           console.error(`Error fetching ${source.name}:`, e);
           return [];
@@ -177,16 +226,43 @@ serve(async (req) => {
       }
     }
 
-    // Sort by date (newest first) and limit
-    allNews.sort((a, b) => {
-      try {
-        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
-      } catch {
-        return 0;
-      }
-    });
+    // Descartar item sem data válida para evitar NaN embaralhando ordenação.
+    const dated = allNews
+      .map((n) => {
+        const date = parseAnyDate(n.pubDate);
+        return date ? { item: { ...n, pubDate: date.toISOString() }, ts: date.getTime() } : null;
+      })
+      .filter((v): v is { item: NewsItem; ts: number } => !!v);
 
-    const news = allNews.slice(0, 12);
+    // Fallback: RSS ANVISA vazio/insuficiente nos últimos 30 dias.
+    const agora = Date.now();
+    const trintaDiasMs = 30 * 24 * 60 * 60 * 1000;
+    const anvisaRecentes = dated.filter((v) => v.item.source === "ANVISA" && (agora - v.ts) <= trintaDiasMs);
+    if (anvisaRecentes.length < 5) {
+      try {
+        const htmlRes = await fetch("https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa", {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)" },
+        });
+        if (htmlRes.ok) {
+          const html = await htmlRes.text();
+          const fallbackAnvisa = parseAnvisaHtmlItems(html, 30)
+            .map((item) => ({ item, ts: parseAnyDate(item.pubDate)?.getTime() ?? 0 }))
+            .filter((v) => v.ts > 0);
+          if (fallbackAnvisa.length) {
+            const semAnvisaAtual = dated.filter((v) => v.item.source !== "ANVISA");
+            dated.length = 0;
+            dated.push(...semAnvisaAtual, ...fallbackAnvisa);
+          }
+        }
+      } catch (e) {
+        console.error("ANVISA HTML fallback error:", e);
+      }
+    }
+
+    // Sort by date (newest first) and limit
+    dated.sort((a, b) => b.ts - a.ts);
+
+    const news = dated.slice(0, 12).map((v) => v.item);
 
     return new Response(JSON.stringify({ news, fetchedAt: new Date().toISOString() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
