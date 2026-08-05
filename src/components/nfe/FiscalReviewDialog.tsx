@@ -55,6 +55,9 @@ export function FiscalReviewDialog({
   const [opcoesPisCofins, setOpcoesPisCofins] = useState<CodigoFiscalOption[]>([]);
   const [rotuloIcms, setRotuloIcms] = useState("CST ICMS");
 
+  // CRT do emitente do XML (entrada) — define CST vs CSOSN na revisão
+  const crtEmitente = parsedResult?.emitente?.crt ?? company?.crt;
+
   // Initialize configs from parsed result
   useEffect(() => {
     if (parsedResult?.itens) {
@@ -83,20 +86,20 @@ export function FiscalReviewDialog({
     let ativo = true;
     (async () => {
       try {
-        const loaded = await carregarCodigosFiscaisDaEmpresa(companyId, company?.crt);
+        const loaded = await carregarCodigosFiscaisDaEmpresa(companyId, crtEmitente);
         if (!ativo) return;
         setOpcoesIcms(loaded.icms);
         setOpcoesIpi(loaded.ipi);
         setOpcoesPisCofins(loaded.pisCofins);
         setRotuloIcms(loaded.tipoIcms === "CSOSN" ? "CSOSN" : "CST ICMS");
       } catch {
-        // silencioso: mantém opções vazias em caso de erro de carga
+        // silencioso: carregarCodigosFiscaisDaEmpresa já devolve listas locais
       }
     })();
     return () => {
       ativo = false;
     };
-  }, [company?.id, company?.crt]);
+  }, [company?.id, crtEmitente]);
 
   const updateItemConfig = (
     index: number,

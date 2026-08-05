@@ -12772,6 +12772,14 @@ export type Database = {
       }
       certificado_divergencia: { Args: { p_company_id: string }; Returns: Json }
       coa_densidade_scan_pendentes: { Args: never; Returns: Json }
+      codigos_fiscais_da_empresa: {
+        Args: { p_company_id: string; p_tipo: string }
+        Returns: {
+          codigo: string
+          descricao: string
+          rotulo: string
+        }[]
+      }
       company_tem_focus_token: { Args: never; Returns: boolean }
       conferir_marca_lote: {
         Args: {

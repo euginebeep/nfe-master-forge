@@ -34,6 +34,13 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useFocusNfe } from "@/hooks/use-focus-nfe";
 import { useNumeracaoNfePrevista, fmtNumeroNfe } from "@/hooks/use-numeracao-nfe-prevista";
 import { useOPsPorProduto, gerarInfoAdProdOP, gerarRastreabilidadeMPs, type OPRastreabilidade } from "@/hooks/use-ops-por-produto";
+import {
+  CST_PIS_COFINS_OPTIONS,
+  empresaUsaCsosn,
+  opcoesIcmsPorCrt,
+  rotuloIcmsPorCrt,
+  codigoIcmsIncompativelComCrt,
+} from "@/lib/fiscal-icms";
 
 // ─── Constants ───
 
@@ -129,32 +136,6 @@ const ORIGENS_MERCADORIA = [
   { value: "6", label: "6 – Estrangeira (importação direta, sem similar)" },
   { value: "7", label: "7 – Estrangeira (adquirida, sem similar)" },
   { value: "8", label: "8 – Nacional c/ >70% conteúdo importado" },
-];
-
-const CST_ICMS_OPCOES = [
-  { value: "00", label: "00 – Tributada integralmente" },
-  { value: "10", label: "10 – Tributada com ST" },
-  { value: "20", label: "20 – Com redução de BC" },
-  { value: "30", label: "30 – Isenta/não tributada com ST" },
-  { value: "40", label: "40 – Isenta" },
-  { value: "41", label: "41 – Não tributada" },
-  { value: "50", label: "50 – Suspensão" },
-  { value: "51", label: "51 – Diferimento" },
-  { value: "60", label: "60 – ICMS cobrado anteriormente por ST" },
-  { value: "70", label: "70 – Com redução de BC e ST" },
-  { value: "90", label: "90 – Outros" },
-];
-
-const CST_PIS_COFINS_OPCOES = [
-  { value: "01", label: "01 – Operação tributável (alíquota normal)" },
-  { value: "02", label: "02 – Operação tributável (alíquota diferenciada)" },
-  { value: "04", label: "04 – Operação tributável (ST)" },
-  { value: "06", label: "06 – Operação tributável (alíquota zero)" },
-  { value: "07", label: "07 – Operação isenta" },
-  { value: "08", label: "08 – Operação sem incidência" },
-  { value: "09", label: "09 – Operação com suspensão" },
-  { value: "49", label: "49 – Outras operações de saída" },
-  { value: "99", label: "99 – Outras operações" },
 ];
 
 const MODALIDADES_FRETE = [
@@ -281,7 +262,7 @@ const emptyItem: NotaItem = {
   quantidade: 1, qTrib: 1, valor_unitario: 0, vUnTrib: 0, valor_total: 0,
   valor_desconto: 0, valor_frete: 0, valor_seguro: 0, valor_outros: 0,
   indTot: "1",
-  icms_base: 0, icms_aliquota: 0, icms_valor: 0, cst_icms: "00", origem: "0",
+  icms_base: 0, icms_aliquota: 0, icms_valor: 0, cst_icms: "", origem: "0",
   ipi_aliquota: 0, ipi_valor: 0,
   pis_aliquota: 0, pis_valor: 0, cst_pis: "01",
   cofins_aliquota: 0, cofins_valor: 0, cst_cofins: "01",
@@ -478,6 +459,9 @@ export default function EmissorNFePage() {
   const [persistHabilitado, setPersistHabilitado] = useState(!!editId);
 
   const { data: company } = useCompany();
+  const usaCsosn = empresaUsaCsosn(company?.crt);
+  const opcoesIcms = opcoesIcmsPorCrt(company?.crt);
+  const rotuloIcms = rotuloIcmsPorCrt(company?.crt);
   const queryClient = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -578,6 +562,21 @@ export default function EmissorNFePage() {
   const setEmailDest = (v: string | ((p: string) => string)) => setField("emailDest", v as NfeDraft["emailDest"]);
   const setItens = (v: NotaItem[] | ((p: NotaItem[]) => NotaItem[])) => setField("itens", v as NfeDraft["itens"]);
   const setModalidadeFrete = (v: string | ((p: string) => string)) => setField("modalidadeFrete", v as NfeDraft["modalidadeFrete"]);
+
+  // CRT Simples/MEI: limpar CST clássico legado (ex.: default "00") — rejeição SEFAZ.
+  useEffect(() => {
+    if (!empresaUsaCsosn(company?.crt)) return;
+    setItens((prev) => {
+      let changed = false;
+      const next = prev.map((it) => {
+        if (!codigoIcmsIncompativelComCrt(company?.crt, it.cst_icms)) return it;
+        changed = true;
+        return { ...it, cst_icms: "" };
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company?.crt]);
   const setTransportadora = (v: TransportadoraState | ((p: TransportadoraState) => TransportadoraState)) => setField("transportadora", v as NfeDraft["transportadora"]);
   const setMeioPagamento = (v: string | ((p: string) => string)) => setField("meioPagamento", v as NfeDraft["meioPagamento"]);
   const setValorPagamento = (v: number | ((p: number) => number)) => setField("valorPagamento", v as NfeDraft["valorPagamento"]);
@@ -774,7 +773,7 @@ export default function EmissorNFePage() {
             icms_base: Number(it.base_icms || 0),
             icms_aliquota: Number(it.icms_aliquota || 0),
             icms_valor: Number(it.icms_valor || 0),
-            cst_icms: String(it.cst_icms || "00"),
+            cst_icms: String(it.cst_icms || ""),
             origem: String(it.origem ?? "0"),
             ipi_aliquota: Number(it.ipi_aliquota || 0),
             ipi_valor: Number(it.ipi_valor || 0),
@@ -937,8 +936,12 @@ export default function EmissorNFePage() {
   }, [operacaoSelecionada, idDest, interestadual]);
 
   // NULL = todos os tipos (AJUSTE, COMPLEMENTAR_VALOR, DEVOLUCAO_COMPRA_ATIVO).
-  // NUNCA tratar NULL como lista vazia.
-  const tiposItemPermitidos = operacaoSelecionada?.tipos_item_permitidos ?? null;
+  // NUNCA tratar NULL como lista vazia; [] também deve significar "todos".
+  const tiposItemPermitidos = useMemo(() => {
+    const raw = operacaoSelecionada?.tipos_item_permitidos;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return raw;
+  }, [operacaoSelecionada?.tipos_item_permitidos]);
 
   const { data: produtos } = useQuery({
     queryKey: ["itens-produtos-emissor", operacaoSelecionada?.codigo ?? "-"],
@@ -1184,6 +1187,20 @@ export default function EmissorNFePage() {
     const lotes = lotesEstoque || [];
     setLotesCache(prev => ({ ...prev, [produtoId]: lotes }));
 
+    // Se não há liberado, avisar quando só existe quarentena/bloqueado
+    if (ops.length === 0 && lotes.length === 0) {
+      const { count: qtdQuarentena } = await supabase
+        .from("estoque_lotes")
+        .select("id", { count: "exact", head: true })
+        .eq("item_id", produtoId)
+        .in("status", ["QUARENTENA", "BLOQUEADO"])
+        .gt("quantidade_interna", 0);
+      if ((qtdQuarentena || 0) > 0) {
+        toast.error(
+          "Mercadoria em quarentena — sem possibilidade de venda até liberação.",
+        );
+      }
+    }
     // 3. Distribuir quantidade entre OPs (FEFO por data_validade)
     const rastros: RastroLote[] = [];
     let qtdRestante = quantidade;
@@ -1490,6 +1507,24 @@ export default function EmissorNFePage() {
       }
       if (erros.length) throw new Error(erros.join("\n"));
       if (!operacaoSelecionada) throw new Error("Selecione a operação fiscal");
+
+      const itemSemIcms = itens.find((i) => i.item_id && !String(i.cst_icms || "").trim());
+      if (itemSemIcms) {
+        throw new Error(
+          usaCsosn
+            ? `Informe o CSOSN do item "${itemSemIcms.descricao || "sem descrição"}" (Simples/MEI — definir com o contador).`
+            : `Informe o CST ICMS do item "${itemSemIcms.descricao || "sem descrição"}".`,
+        );
+      }
+      const itemCstErrado = itens.find((i) =>
+        codigoIcmsIncompativelComCrt(company?.crt, i.cst_icms),
+      );
+      if (itemCstErrado) {
+        throw new Error(
+          `Item "${itemCstErrado.descricao || "sem descrição"}" tem CST ${itemCstErrado.cst_icms}, ` +
+            `mas o emitente é CRT ${company?.crt} (Simples/MEI). Use CSOSN (101–900) — CST 00 é rejeição na SEFAZ.`,
+        );
+      }
 
       const pItens = itens.map((item) => ({
         item_id: item.item_id,
@@ -2241,6 +2276,17 @@ export default function EmissorNFePage() {
 
             {/* ════════ Itens Tab ════════ */}
             <TabsContent value="itens" className="space-y-3 mt-3">
+              {operacaoSelecionada && produtos && produtos.length === 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Nenhum item elegível para esta operação</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    {operacaoSelecionada.codigo === "VENDA_PRODUCAO"
+                      ? "A operação VENDA_PRODUCAO exige itens do tipo PA. Este tenant não possui PA elegível no momento."
+                      : "Não há itens ativos compatíveis com os tipos permitidos desta operação fiscal."}
+                  </AlertDescription>
+                </Alert>
+              )}
               {/* Patch 5 — VENDA_PRODUCAO lista PA sem NCM; sem aviso o usuário não entende o bloqueio */}
               {operacaoSelecionada && produtos && produtos.length > 0
                 && produtos.every((p: any) => !String(p.ncm || "").trim()) && (
@@ -2412,12 +2458,36 @@ export default function EmissorNFePage() {
 
                     <Separator />
                     <p className="text-xs font-semibold text-muted-foreground">ICMS</p>
+                    {usaCsosn && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Emitente CRT {company?.crt || "1"} (Simples/MEI) — use CSOSN.
+                        Qual código em cada operação: definir com o contador.
+                      </p>
+                    )}
+                    {codigoIcmsIncompativelComCrt(company?.crt, item.cst_icms) && (
+                      <Alert variant="destructive" className="py-2">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <AlertDescription className="text-[11px]">
+                          CST {item.cst_icms} é de regime normal. Simples Nacional exige CSOSN
+                          (101–900) — CST 00 é rejeição na SEFAZ.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <div className="grid grid-cols-5 gap-2">
                       <div>
-                        <Label className="text-xs">CST ICMS</Label>
-                        <Select value={item.cst_icms} onValueChange={(v) => updateItem(idx, "cst_icms", v)}>
-                          <SelectTrigger className="text-xs h-9"><SelectValue /></SelectTrigger>
-                          <SelectContent>{CST_ICMS_OPCOES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>)}</SelectContent>
+                        <Label className="text-xs">{rotuloIcms}</Label>
+                        <Select
+                          value={item.cst_icms || undefined}
+                          onValueChange={(v) => updateItem(idx, "cst_icms", v)}
+                        >
+                          <SelectTrigger className="text-xs h-9">
+                            <SelectValue placeholder={usaCsosn ? "Definir com contador…" : "Selecione…"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {opcoesIcms.map((c) => (
+                              <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
                       </div>
                       <div><Label className="text-xs">BC ICMS</Label><Input value={`R$ ${fmt(item.icms_base)}`} readOnly className="bg-muted text-xs" /></div>
@@ -2431,7 +2501,7 @@ export default function EmissorNFePage() {
                         <Label className="text-xs">CST PIS</Label>
                         <Select value={item.cst_pis} onValueChange={(v) => updateItem(idx, "cst_pis", v)}>
                           <SelectTrigger className="text-xs h-9"><SelectValue /></SelectTrigger>
-                          <SelectContent>{CST_PIS_COFINS_OPCOES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>)}</SelectContent>
+                          <SelectContent>{CST_PIS_COFINS_OPTIONS.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div><Label className="text-xs">PIS %</Label><Input type="number" value={item.pis_aliquota} onChange={e => updateItem(idx, "pis_aliquota", Number(e.target.value))} className="text-xs" /></div>
@@ -2440,7 +2510,7 @@ export default function EmissorNFePage() {
                         <Label className="text-xs">CST COFINS</Label>
                         <Select value={item.cst_cofins} onValueChange={(v) => updateItem(idx, "cst_cofins", v)}>
                           <SelectTrigger className="text-xs h-9"><SelectValue /></SelectTrigger>
-                          <SelectContent>{CST_PIS_COFINS_OPCOES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>)}</SelectContent>
+                          <SelectContent>{CST_PIS_COFINS_OPTIONS.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div><Label className="text-xs">COFINS %</Label><Input type="number" value={item.cofins_aliquota} onChange={e => updateItem(idx, "cofins_aliquota", Number(e.target.value))} className="text-xs" /></div>
@@ -2459,7 +2529,9 @@ export default function EmissorNFePage() {
                       )}
                       {item.rastros.length === 0 && item.item_id && (
                         <Badge variant="destructive" className="text-[10px] h-5">
-                          {operacaoSelecionada?.movimenta_estoque ? "Sem lotes — preencha manualmente" : "Sem lotes — opcional"}
+                          {operacaoSelecionada?.movimenta_estoque
+                            ? "Sem lotes liberados — quarentena não vende"
+                            : "Sem lotes — opcional"}
                         </Badge>
                       )}
                       {item.item_id && (
