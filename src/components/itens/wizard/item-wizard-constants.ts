@@ -67,16 +67,6 @@ export const MARCAS_CAPSULA_SUGERIDAS = [
   'Farmoquímica', 'Natural Caps', 'Suheung', 'Lefan Capsule',
 ];
 
-export {
-  CST_ICMS_OPTIONS,
-  CSOSN_ICMS_OPTIONS,
-  CST_PIS_COFINS_OPTIONS,
-  CST_IPI_OPTIONS,
-  empresaUsaCsosn,
-  opcoesIcmsPorCrt,
-  rotuloIcmsPorCrt,
-} from "@/lib/fiscal-icms";
-
 export const TIPOS_ALIAS = [
   { value: "ALIAS_FORNECEDOR", label: "Alias Fornecedor" },
   { value: "ALIAS_INTERNO", label: "Alias Interno" },

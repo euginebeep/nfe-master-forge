@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +20,11 @@ import { calcularFatorConversaoAutomatico } from "@/lib/erp-validation";
 import { useItemWizardState } from "./wizard/useItemWizardState";
 import { TOOLTIPS } from "@/components/ajuda/TooltipAjuda";
 import { useCompany } from "@/hooks/use-company";
-import { opcoesIcmsPorCrt, rotuloIcmsPorCrt } from "@/lib/fiscal-icms";
+import { carregarCodigosFiscaisDaEmpresa, type CodigoFiscalOption } from "@/lib/codigos-fiscais";
 import {
   TIPOS_ITEM, CRITICIDADES, ARMAZENAMENTOS, UNIDADES_FORNECEDOR, UNIDADES_INTERNAS,
   TIPOS_POTENCIA, TAMANHOS_CAPSULA, MATERIAIS_CAPSULA, MARCAS_CAPSULA_SUGERIDAS,
-  CST_PIS_COFINS_OPTIONS, CST_IPI_OPTIONS, TIPOS_ALIAS,
+  TIPOS_ALIAS,
   WIZARD_STEPS, TOTAL_STEPS,
 } from "./wizard/item-wizard-constants";
 import type { UnidadeFornecedor, UnidadeInternaLocal } from "@/hooks/use-local-itens";
@@ -37,8 +38,33 @@ interface ItemWizardDialogProps {
 export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDialogProps) {
   const s = useItemWizardState(onSuccess);
   const { data: company } = useCompany();
-  const opcoesIcms = opcoesIcmsPorCrt(company?.crt);
-  const rotuloIcms = rotuloIcmsPorCrt(company?.crt);
+  const [opcoesIcms, setOpcoesIcms] = useState<CodigoFiscalOption[]>([]);
+  const [opcoesOrigem, setOpcoesOrigem] = useState<CodigoFiscalOption[]>([]);
+  const [opcoesIpi, setOpcoesIpi] = useState<CodigoFiscalOption[]>([]);
+  const [opcoesPisCofins, setOpcoesPisCofins] = useState<CodigoFiscalOption[]>([]);
+  const [rotuloIcms, setRotuloIcms] = useState("CST");
+
+  useEffect(() => {
+    const companyId = company?.id;
+    if (!companyId) return;
+    let ativo = true;
+    (async () => {
+      try {
+        const loaded = await carregarCodigosFiscaisDaEmpresa(companyId, company?.crt);
+        if (!ativo) return;
+        setOpcoesIcms(loaded.icms);
+        setOpcoesOrigem(loaded.origem);
+        setOpcoesIpi(loaded.ipi);
+        setOpcoesPisCofins(loaded.pisCofins);
+        setRotuloIcms(loaded.tipoIcms === "CSOSN" ? "CSOSN" : "CST");
+      } catch {
+        // fallback silencioso: carregarCodigosFiscaisDaEmpresa já devolve listas locais
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [company?.id, company?.crt]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -291,7 +317,7 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                     <Label className="text-base font-semibold">ICMS</Label>
                     <div className="grid grid-cols-4 gap-4">
                       <div className="space-y-2"><Label className="text-xs">{rotuloIcms}</Label><Select value={s.cstIcms} onValueChange={s.setCstIcms}><SelectTrigger><SelectValue placeholder="Definir com contador..." /></SelectTrigger><SelectContent>{opcoesIcms.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="space-y-2"><Label className="text-xs">Origem</Label><Select value={s.origemIcms} onValueChange={s.setOrigemIcms}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">0 - Nacional</SelectItem><SelectItem value="1">1 - Estrangeira (importação direta)</SelectItem><SelectItem value="2">2 - Estrangeira (mercado interno)</SelectItem></SelectContent></Select></div>
+                      <div className="space-y-2"><Label className="text-xs">Origem</Label><Select value={s.origemIcms} onValueChange={s.setOrigemIcms}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{opcoesOrigem.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
                       <div className="space-y-2"><Label className="text-xs">Alíquota %</Label><Input type="number" step="0.01" value={s.aliquotaIcms || ''} onChange={(e) => s.setAliquotaIcms(parseFloat(e.target.value) || undefined)} placeholder="18" /></div>
                       <div className="space-y-2"><Label className="text-xs">MVA ST %</Label><Input type="number" step="0.01" value={s.mvaSt || ''} onChange={(e) => s.setMvaSt(parseFloat(e.target.value) || undefined)} placeholder="42" /></div>
                     </div>
@@ -299,13 +325,13 @@ export function ItemWizardDialog({ open, onOpenChange, onSuccess }: ItemWizardDi
                   <div className="space-y-2">
                     <Label className="text-base font-semibold">IPI</Label>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label className="text-xs">CST</Label><Select value={s.cstIpi} onValueChange={s.setCstIpi}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{CST_IPI_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-2"><Label className="text-xs">CST</Label><Select value={s.cstIpi} onValueChange={s.setCstIpi}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{opcoesIpi.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
                       <div className="space-y-2"><Label className="text-xs">Alíquota %</Label><Input type="number" step="0.01" value={s.aliquotaIpi || ''} onChange={(e) => s.setAliquotaIpi(parseFloat(e.target.value) || undefined)} placeholder="5" /></div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label className="text-base font-semibold">PIS</Label><div className="grid grid-cols-2 gap-2"><div className="space-y-2"><Label className="text-xs">CST</Label><Select value={s.cstPis} onValueChange={s.setCstPis}><SelectTrigger><SelectValue placeholder="CST" /></SelectTrigger><SelectContent>{CST_PIS_COFINS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label className="text-xs">Alíquota %</Label><Input type="number" step="0.01" value={s.aliquotaPis || ''} onChange={(e) => s.setAliquotaPis(parseFloat(e.target.value) || undefined)} placeholder="1.65" /></div></div></div>
-                    <div className="space-y-2"><Label className="text-base font-semibold">COFINS</Label><div className="grid grid-cols-2 gap-2"><div className="space-y-2"><Label className="text-xs">CST</Label><Select value={s.cstCofins} onValueChange={s.setCstCofins}><SelectTrigger><SelectValue placeholder="CST" /></SelectTrigger><SelectContent>{CST_PIS_COFINS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label className="text-xs">Alíquota %</Label><Input type="number" step="0.01" value={s.aliquotaCofins || ''} onChange={(e) => s.setAliquotaCofins(parseFloat(e.target.value) || undefined)} placeholder="7.60" /></div></div></div>
+                    <div className="space-y-2"><Label className="text-base font-semibold">PIS</Label><div className="grid grid-cols-2 gap-2"><div className="space-y-2"><Label className="text-xs">CST</Label><Select value={s.cstPis} onValueChange={s.setCstPis}><SelectTrigger><SelectValue placeholder="CST" /></SelectTrigger><SelectContent>{opcoesPisCofins.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label className="text-xs">Alíquota %</Label><Input type="number" step="0.01" value={s.aliquotaPis || ''} onChange={(e) => s.setAliquotaPis(parseFloat(e.target.value) || undefined)} placeholder="1.65" /></div></div></div>
+                    <div className="space-y-2"><Label className="text-base font-semibold">COFINS</Label><div className="grid grid-cols-2 gap-2"><div className="space-y-2"><Label className="text-xs">CST</Label><Select value={s.cstCofins} onValueChange={s.setCstCofins}><SelectTrigger><SelectValue placeholder="CST" /></SelectTrigger><SelectContent>{opcoesPisCofins.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label className="text-xs">Alíquota %</Label><Input type="number" step="0.01" value={s.aliquotaCofins || ''} onChange={(e) => s.setAliquotaCofins(parseFloat(e.target.value) || undefined)} placeholder="7.60" /></div></div></div>
                   </div>
                   <div className="space-y-2"><Label>Observações Fiscais</Label><Textarea value={s.observacoesFiscais} onChange={(e) => s.setObservacoesFiscais(e.target.value)} placeholder="Informações adicionais fiscais..." rows={2} /></div>
                   {s.validacaoFiscal.erros.length > 0 && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription><ul className="list-disc list-inside">{s.validacaoFiscal.erros.map((e, i) => <li key={i}>{e}</li>)}</ul></AlertDescription></Alert>}

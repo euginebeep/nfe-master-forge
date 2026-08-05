@@ -16,12 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Check, AlertTriangle, Edit } from "lucide-react";
 import type { NFeParseResult } from "@/types/nfe-completa";
-import {
-  CST_PIS_COFINS_OPTIONS,
-  CST_IPI_OPTIONS,
-  opcoesIcmsPorCrt,
-  rotuloIcmsPorCrt,
-} from "@/lib/fiscal-icms";
+import { useCompany } from "@/hooks/use-company";
+import { carregarCodigosFiscaisDaEmpresa, type CodigoFiscalOption } from "@/lib/codigos-fiscais";
 
 export interface FiscalItemConfig {
   itemIndex: number;
@@ -51,13 +47,16 @@ export function FiscalReviewDialog({
   parsedResult,
   onConfirm,
 }: FiscalReviewDialogProps) {
+  const { data: company } = useCompany();
   const [itemConfigs, setItemConfigs] = useState<FiscalItemConfig[]>([]);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
+  const [opcoesIcms, setOpcoesIcms] = useState<CodigoFiscalOption[]>([]);
+  const [opcoesIpi, setOpcoesIpi] = useState<CodigoFiscalOption[]>([]);
+  const [opcoesPisCofins, setOpcoesPisCofins] = useState<CodigoFiscalOption[]>([]);
+  const [rotuloIcms, setRotuloIcms] = useState("CST ICMS");
 
   // CRT do emitente do XML (entrada) — define CST vs CSOSN na revisão
-  const crtEmitente = parsedResult?.emitente?.crt;
-  const opcoesIcms = opcoesIcmsPorCrt(crtEmitente);
-  const rotuloIcms = rotuloIcmsPorCrt(crtEmitente);
+  const crtEmitente = parsedResult?.emitente?.crt ?? company?.crt;
 
   // Initialize configs from parsed result
   useEffect(() => {
@@ -80,6 +79,27 @@ export function FiscalReviewDialog({
       setExpandedItem(null);
     }
   }, [parsedResult]);
+
+  useEffect(() => {
+    const companyId = company?.id;
+    if (!companyId) return;
+    let ativo = true;
+    (async () => {
+      try {
+        const loaded = await carregarCodigosFiscaisDaEmpresa(companyId, crtEmitente);
+        if (!ativo) return;
+        setOpcoesIcms(loaded.icms);
+        setOpcoesIpi(loaded.ipi);
+        setOpcoesPisCofins(loaded.pisCofins);
+        setRotuloIcms(loaded.tipoIcms === "CSOSN" ? "CSOSN" : "CST ICMS");
+      } catch {
+        // silencioso: carregarCodigosFiscaisDaEmpresa já devolve listas locais
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [company?.id, crtEmitente]);
 
   const updateItemConfig = (
     index: number,
@@ -255,7 +275,7 @@ export function FiscalReviewDialog({
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {CST_IPI_OPTIONS.map((opt) => (
+                                {opcoesIpi.map((opt) => (
                                   <SelectItem key={opt.value} value={opt.value}>
                                     {opt.label}
                                   </SelectItem>
@@ -297,7 +317,7 @@ export function FiscalReviewDialog({
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {CST_PIS_COFINS_OPTIONS.map((opt) => (
+                                {opcoesPisCofins.map((opt) => (
                                   <SelectItem key={opt.value} value={opt.value}>
                                     {opt.label}
                                   </SelectItem>
@@ -334,7 +354,7 @@ export function FiscalReviewDialog({
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {CST_PIS_COFINS_OPTIONS.map((opt) => (
+                                {opcoesPisCofins.map((opt) => (
                                   <SelectItem key={opt.value} value={opt.value}>
                                     {opt.label}
                                   </SelectItem>
