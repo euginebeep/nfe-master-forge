@@ -204,8 +204,9 @@ export default function EditarFormulaPage() {
       itensLocal.reduce((s, i) => s + (i.quantidade_convertida_mg || 0), 0),
       formula?.densidade_aparente_kg_l ?? DENSIDADE_PADRAO_KG_L,
       (formula?.tipo_capsula as TamanhoCapsula) ?? CAPSULA_TAMANHO_PADRAO,
+      formula?.n_capsulas_por_dose ?? undefined,
     ),
-    [itensLocal, formula?.densidade_aparente_kg_l, formula?.tipo_capsula],
+    [itensLocal, formula?.densidade_aparente_kg_l, formula?.tipo_capsula, formula?.n_capsulas_por_dose],
   );
 
   const calculosIndustriais = useMemo(() => {

@@ -657,34 +657,55 @@ export interface CalculoCapsulasPorDose {
 /**
  * Calcula o número de cápsulas necessárias para uma dose
  * Modelo: dose → cápsulas
- * 
+ *
  * LÓGICA:
  * - Cada cápsula tem capacidade máxima (recomendado_max_mg)
  * - 8% dessa capacidade é reservada para excipientes técnicos
  * - O restante (92%) é para ativos
- * - Número de cápsulas = ceil(massa_ativos / (capacidade × 0.92))
- * 
+ * - Número mínimo = ceil(massa_ativos / (capacidade × 0.92))
+ * - Se o formulador impõe `nCapsulasDesejado`, usa esse N — desde que ≥ mínimo físico
+ *
  * NÍVEIS:
  * - Verde: 1-3 cápsulas (ok)
  * - Amarelo: 4-6 cápsulas (avisa, passa)
- * - Vermelho: 7+ cápsulas (bloqueia)
+ * - Vermelho: 7+ cápsulas, ou desejado < mínimo físico (bloqueia)
  */
 export function calcularCapsulasPorDose(
   massaAtivosMg: number,
   densidade_kg_l: number,
   tamanho: TamanhoCapsula = CAPSULA_TAMANHO_PADRAO,
+  nCapsulasDesejado?: number,
 ): CalculoCapsulasPorDose {
   const cap = calcularCapacidadeCapsula(densidade_kg_l, tamanho);
   // cada cápsula reserva 8% pra excipientes técnicos (silício+estearato+talco)
   const fracaoAtivos = 1 - (TOTAL_PERCENTUAL_TECNOLOGICOS / 100); // 0.92
   const cabeAtivosPorCapsula = cap.recomendado_max_mg * fracaoAtivos;
 
-  const n = massaAtivosMg > 0
+  const nMinimo = massaAtivosMg > 0
     ? Math.max(1, Math.ceil(massaAtivosMg / cabeAtivosPorCapsula))
     : 1;
 
-  // peso por cápsula = enchimento uniforme (cada cápsula cheia até a capacidade segura)
   const pesoPorCapsula = cap.recomendado_max_mg;
+
+  // NÃO CABE: o desejado é menor que o mínimo físico
+  if (nCapsulasDesejado != null && nCapsulasDesejado > 0 && nCapsulasDesejado < nMinimo) {
+    return {
+      massa_ativos_mg: +massaAtivosMg.toFixed(2),
+      cabe_ativos_por_capsula_mg: +cabeAtivosPorCapsula.toFixed(1),
+      n_capsulas: nMinimo,
+      peso_por_capsula_mg: +pesoPorCapsula.toFixed(1),
+      nivel: 'error',
+      mensagem:
+        `${massaAtivosMg} mg de ativos não cabem em ${nCapsulasDesejado} cápsula(s) `
+        + `tamanho ${tamanho}. Cada cápsula comporta ${cabeAtivosPorCapsula.toFixed(0)} mg de `
+        + `ativo (após os ${TOTAL_PERCENTUAL_TECNOLOGICOS}% de excipientes técnicos). `
+        + `Mínimo: ${nMinimo} cápsulas.`,
+    };
+  }
+
+  const n = nCapsulasDesejado != null && nCapsulasDesejado > 0
+    ? nCapsulasDesejado
+    : nMinimo;
 
   let nivel: 'ok' | 'warning' | 'error' = 'ok';
   let mensagem = '';

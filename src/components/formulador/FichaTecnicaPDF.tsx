@@ -96,15 +96,14 @@ export function FichaTecnicaPDF({ formula, itens, tabela, trigger }: FichaTecnic
   
   const veiculoBase = (formula.excipiente_padrao || 'AMIDO') as CodigoVeiculoBase;
   // Preferir valores oficiais gravados na aprovação (fonte única RPC)
-  const nCapsulasOficial = formula.n_capsulas_por_dose;
   const previewCapsulas = calcularCapsulasPorDose(
     totalAtivos,
     formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
     (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
+    formula.n_capsulas_por_dose ?? undefined,
   );
   const capsulasPorDose = {
     ...previewCapsulas,
-    n_capsulas: nCapsulasOficial || previewCapsulas.n_capsulas,
     massa_ativos_mg: formula.massa_ativos_dose_mg || previewCapsulas.massa_ativos_mg,
     peso_por_capsula_mg: formula.peso_por_capsula_mg || previewCapsulas.peso_por_capsula_mg,
   };
