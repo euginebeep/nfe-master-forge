@@ -6711,6 +6711,143 @@ export type Database = {
           },
         ]
       }
+
+      notas_saida_cartas_correcao: {
+        Row: {
+          caminho_pdf: string | null
+          caminho_xml: string | null
+          company_id: string
+          correcao: string | null
+          id: string
+          mensagem_sefaz: string | null
+          nota_saida_id: string
+          protocolo: string | null
+          registrada_em: string | null
+          registrada_por: string | null
+          sequencia: number
+          status_sefaz: string | null
+        }
+        Insert: {
+          caminho_pdf?: string | null
+          caminho_xml?: string | null
+          company_id: string
+          correcao?: string | null
+          id?: string
+          mensagem_sefaz?: string | null
+          nota_saida_id: string
+          protocolo?: string | null
+          registrada_em?: string | null
+          registrada_por?: string | null
+          sequencia: number
+          status_sefaz?: string | null
+        }
+        Update: {
+          caminho_pdf?: string | null
+          caminho_xml?: string | null
+          company_id?: string
+          correcao?: string | null
+          id?: string
+          mensagem_sefaz?: string | null
+          nota_saida_id?: string
+          protocolo?: string | null
+          registrada_em?: string | null
+          registrada_por?: string | null
+          sequencia?: number
+          status_sefaz?: string | null
+        }
+        Relationships: []
+      }
+      nfe_cancelamentos_extemporaneos: {
+        Row: {
+          autorizado_por: string | null
+          base_legal: string | null
+          company_id: string
+          created_at: string | null
+          data_autorizacao: string | null
+          data_cancelamento: string | null
+          data_recolhimento: string | null
+          horas_decorridas: number | null
+          id: string
+          justificativa: string | null
+          multa_estimada: number | null
+          nota_saida_id: string
+          observacoes_financeiro: string | null
+          percentual_multa: number | null
+          status_recolhimento: string | null
+          valor_operacao: number | null
+          valor_recolhido: number | null
+        }
+        Insert: {
+          autorizado_por?: string | null
+          base_legal?: string | null
+          company_id: string
+          created_at?: string | null
+          data_autorizacao?: string | null
+          data_cancelamento?: string | null
+          data_recolhimento?: string | null
+          horas_decorridas?: number | null
+          id?: string
+          justificativa?: string | null
+          multa_estimada?: number | null
+          nota_saida_id: string
+          observacoes_financeiro?: string | null
+          percentual_multa?: number | null
+          status_recolhimento?: string | null
+          valor_operacao?: number | null
+          valor_recolhido?: number | null
+        }
+        Update: {
+          autorizado_por?: string | null
+          base_legal?: string | null
+          company_id?: string
+          created_at?: string | null
+          data_autorizacao?: string | null
+          data_cancelamento?: string | null
+          data_recolhimento?: string | null
+          horas_decorridas?: number | null
+          id?: string
+          justificativa?: string | null
+          multa_estimada?: number | null
+          nota_saida_id?: string
+          observacoes_financeiro?: string | null
+          percentual_multa?: number | null
+          status_recolhimento?: string | null
+          valor_operacao?: number | null
+          valor_recolhido?: number | null
+        }
+        Relationships: []
+      }
+      prazos_cancelamento_nfe: {
+        Row: {
+          base_legal: string | null
+          horas_extemporaneo: number | null
+          horas_regulamentar: number | null
+          observacao: string | null
+          percentual_multa: number | null
+          uf: string
+          verificado_em: string | null
+        }
+        Insert: {
+          base_legal?: string | null
+          horas_extemporaneo?: number | null
+          horas_regulamentar?: number | null
+          observacao?: string | null
+          percentual_multa?: number | null
+          uf: string
+          verificado_em?: string | null
+        }
+        Update: {
+          base_legal?: string | null
+          horas_extemporaneo?: number | null
+          horas_regulamentar?: number | null
+          observacao?: string | null
+          percentual_multa?: number | null
+          uf?: string
+          verificado_em?: string | null
+        }
+        Relationships: []
+      }
+
       notas_saida_itens: {
         Row: {
           base_cofins: number | null
@@ -12221,6 +12358,52 @@ export type Database = {
           },
         ]
       }
+
+      v_cartas_correcao: {
+        Row: {
+          caminho_pdf: string | null
+          caminho_xml: string | null
+          chave_acesso: string | null
+          company_id: string | null
+          correcao: string | null
+          focus_nfe_id: string | null
+          id: string | null
+          mensagem_sefaz: string | null
+          nota: string | null
+          nota_saida_id: string | null
+          protocolo: string | null
+          registrada_em: string | null
+          registrada_por_nome: string | null
+          sequencia: number | null
+          status_sefaz: string | null
+          vigente: boolean | null
+        }
+        Relationships: []
+      }
+      v_multas_cancelamento_pendentes: {
+        Row: {
+          autorizado_por_nome: string | null
+          base_legal: string | null
+          chave_acesso: string | null
+          company_id: string | null
+          data_autorizacao: string | null
+          data_cancelamento: string | null
+          data_recolhimento: string | null
+          destinatario: string | null
+          dias_desde_cancelamento: number | null
+          horas_decorridas: number | null
+          id: string | null
+          justificativa: string | null
+          multa_estimada: number | null
+          nota: string | null
+          percentual_multa: number | null
+          status_recolhimento: string | null
+          valor_operacao: number | null
+          valor_recolhido: number | null
+        }
+        Relationships: []
+      }
+
       v_notas_saida_status: {
         Row: {
           ambiente: string | null
@@ -12245,6 +12428,17 @@ export type Database = {
           focus_nfe_id: string | null
           horas_para_autorizar_contingencia: number | null
           horas_para_cancelar: number | null
+          aviso_cancelamento_extemporaneo: string | null
+          cancelamento_extemporaneo: boolean | null
+          horas_desde_emissao: number | null
+          horas_limite_extemporaneo: number | null
+          motivo_bloqueio_cancelamento: string | null
+          motivo_bloqueio_cce: string | null
+          multa_estimada: number | null
+          percentual_multa: number | null
+          prazo_base_legal: string | null
+          pode_baixar_cce: boolean | null
+          qtd_cartas_correcao: number | null
           id: string | null
           justificativa_contingencia: string | null
           mensagem_sefaz: string | null
@@ -13129,6 +13323,33 @@ export type Database = {
             }
             Returns: string
           }
+
+      registrar_cancelamento_extemporaneo: {
+        Args: {
+          p_autorizado_por?: string
+          p_focus_nfe_id: string
+          p_justificativa: string
+        }
+        Returns: Json
+      }
+      registrar_carta_correcao: {
+        Args: {
+          p_correcao: string
+          p_focus_nfe_id: string
+          p_registrada_por?: string
+        }
+        Returns: Json
+      }
+      sincronizar_carta_correcao_do_retorno: {
+        Args: {
+          p_correcao?: string
+          p_focus_nfe_id: string
+          p_registrada_por?: string
+          p_retorno: Json
+        }
+        Returns: Json
+      }
+
       registrar_evento_nfe: {
         Args: {
           p_chave_acesso?: string

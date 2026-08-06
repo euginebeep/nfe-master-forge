@@ -40,7 +40,8 @@ import {
   Tag,
   BookOpen,
   FileCheck,
-  ShieldCheck } from
+  ShieldCheck,
+  Scale } from
 "lucide-react";
 import {
   Sidebar,
@@ -192,6 +193,7 @@ const menuGroups: MenuGroup[] = [
   items: [
   { title: "Contas a Pagar", url: "/financeiro/pagar", icon: DollarSign, tooltip: "Gestão de contas a pagar e vencimentos futuros", modulo: "financeiro" },
   { title: "Contas a Receber", url: "/financeiro/receber", icon: DollarSign, tooltip: "Controle de recebimentos e inadimplência de clientes", modulo: "financeiro" },
+  { title: "Multas fiscais", url: "/financeiro/multas-fiscais", icon: Scale, tooltip: "Cancelamentos extemporâneos de NF-e e recolhimento de multa", modulo: "financeiro" },
   { title: "Fluxo de Caixa", url: "/financeiro/fluxo", icon: BarChart3, tooltip: "Projeção e análise de fluxo de caixa da empresa", modulo: "financeiro" },
   { title: "Conciliação", url: "/financeiro/conciliacao", icon: FileSearch, tooltip: "Conciliação bancária e financeira", modulo: "financeiro" },
   { title: "DRE Gerencial", url: "/financeiro/dre", icon: PieChart, badge: "DRE", tooltip: "Demonstrativo de resultados gerencial da empresa", modulo: "financeiro" }]
