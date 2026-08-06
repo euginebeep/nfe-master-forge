@@ -12974,6 +12974,16 @@ export type Database = {
           rotulo: string
         }[]
       }
+
+      dossie_fiscalizacao: {
+        Args: { p_lote_pa: string }
+        Returns: Json
+      }
+      rastreabilidade_reversa: {
+        Args: { p_lote_insumo: string }
+        Returns: Json
+      }
+
       company_tem_focus_token: { Args: never; Returns: boolean }
       conferir_marca_lote: {
         Args: {
