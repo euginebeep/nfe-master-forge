@@ -1,3 +1,9 @@
+/**
+ * Produção: focus-nfe v15 (05/08/2026).
+ * Este arquivo foi alinhado ao contrato v15 (cancelamento extemporâneo,
+ * pdf-carta-correcao, xml-cancelamento) sem download oficial — confirmar
+ * paridade com `supabase functions download focus-nfe` antes de deploy.
+ */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isDemoUser, demoBlockedResponse } from "../_shared/demo-guard.ts";
 
@@ -131,7 +137,7 @@ Deno.serve(async (req) => {
     const action = url.searchParams.get("action");
     const id = url.searchParams.get("id");
 
-    const { supabase, authHeader, companyId } = await auth(req);
+    const { supabase, user, authHeader, companyId } = await auth(req);
 
     if (await isDemoUser(authHeader)) {
       return demoBlockedResponse(corsHeaders, "emiss\u00e3o de nota fiscal");
@@ -140,7 +146,10 @@ Deno.serve(async (req) => {
     const { token, origem: origemToken } = await tokenDoTenant(companyId);
     if (!token) return json({ error: "Nenhum token da Focus configurado para esta empresa." }, 400);
 
-    const idActions = new Set(["consultar-nfe","danfe","xml","cancelar-nfe","carta-correcao","consultar-status","reenviar-email"]);
+    const idActions = new Set([
+      "consultar-nfe", "danfe", "xml", "cancelar-nfe", "carta-correcao",
+      "consultar-status", "reenviar-email", "pdf-carta-correcao", "xml-cancelamento",
+    ]);
     if (idActions.has(action!) && id) {
       const { data: ok } = await supabase.rpc("validar_acesso_nota_saida_focus", { p_focus_nfe_id: id });
       if (!ok) return json({ error: "Acesso negado a esta nota." }, 403);
@@ -328,13 +337,91 @@ Deno.serve(async (req) => {
           : new Response(await f.text(), { headers: { ...corsHeaders, "Content-Type": "application/xml" } });
       }
 
+      case "pdf-carta-correcao": {
+        if (!id) throw new Error("ID (ref) nao informado.");
+        const ambiente = normAmbiente(url.searchParams.get("ambiente"));
+        const sequenciaParam = url.searchParams.get("sequencia");
+        let caminho: string | null = null;
+        if (sequenciaParam) {
+          const { data: carta } = await admin().from("v_cartas_correcao")
+            .select("caminho_pdf")
+            .eq("focus_nfe_id", id)
+            .eq("sequencia", Number(sequenciaParam))
+            .maybeSingle();
+          caminho = carta?.caminho_pdf ?? null;
+        }
+        if (!caminho) {
+          const { data: vigente } = await admin().from("v_cartas_correcao")
+            .select("caminho_pdf")
+            .eq("focus_nfe_id", id)
+            .eq("vigente", true)
+            .maybeSingle();
+          caminho = vigente?.caminho_pdf ?? null;
+        }
+        if (!caminho) {
+          const { data: nota } = await admin().from("notas_saida")
+            .select("caminho_pdf_carta_correcao")
+            .eq("focus_nfe_id", id)
+            .maybeSingle();
+          caminho = nota?.caminho_pdf_carta_correcao ?? null;
+        }
+        if (!caminho) return json({ error: "PDF da carta de correcao nao disponivel." }, 404);
+        const f = await baixarArquivo(caminho, ambiente, token);
+        if (!f.ok) return json({ error: "Erro ao baixar o PDF da CC-e." }, f.status);
+        return new Response(await f.arrayBuffer(), {
+          headers: { ...corsHeaders, "Content-Type": "application/pdf" },
+        });
+      }
+
+      case "xml-cancelamento": {
+        if (!id) throw new Error("ID (ref) nao informado.");
+        const ambiente = normAmbiente(url.searchParams.get("ambiente"));
+        const { data: nota } = await admin().from("notas_saida")
+          .select("caminho_xml_cancelamento")
+          .eq("focus_nfe_id", id)
+          .maybeSingle();
+        if (!nota?.caminho_xml_cancelamento) {
+          return json({ error: "XML de cancelamento nao disponivel." }, 404);
+        }
+        const f = await baixarArquivo(nota.caminho_xml_cancelamento, ambiente, token);
+        if (!f.ok) return json({ error: "Erro ao baixar o XML de cancelamento." }, f.status);
+        return new Response(await f.text(), {
+          headers: { ...corsHeaders, "Content-Type": "application/xml" },
+        });
+      }
+
       case "cancelar-nfe": {
         if (!id) throw new Error("ID (ref) nao informado.");
-        const { justificativa } = await req.json();
+        const body = await req.json().catch(() => ({}));
+        const justificativa = String(body?.justificativa ?? "");
+        const confirmaExtemporaneo = !!body?.confirma_extemporaneo;
         if (!justificativa || justificativa.length < 15 || justificativa.length > 255) {
           throw new Error("Justificativa deve ter entre 15 e 255 caracteres.");
         }
         const ambiente = normAmbiente(url.searchParams.get("ambiente"));
+
+        const { data: st } = await admin().from("v_notas_saida_status")
+          .select("pode_cancelar, cancelamento_extemporaneo, aviso_cancelamento_extemporaneo, multa_estimada, percentual_multa, motivo_bloqueio_cancelamento, horas_desde_emissao, prazo_base_legal")
+          .eq("focus_nfe_id", id)
+          .maybeSingle();
+
+        if (st && st.pode_cancelar === false) {
+          return json({
+            error: st.motivo_bloqueio_cancelamento || "Cancelamento indisponivel.",
+            motivo_bloqueio_cancelamento: st.motivo_bloqueio_cancelamento,
+          }, 422);
+        }
+        if (st?.cancelamento_extemporaneo && !confirmaExtemporaneo) {
+          return json({
+            error: "Cancelamento extemporaneo exige confirmacao.",
+            aviso_cancelamento_extemporaneo: st.aviso_cancelamento_extemporaneo,
+            multa_estimada: st.multa_estimada,
+            percentual_multa: st.percentual_multa,
+            prazo_base_legal: st.prazo_base_legal,
+            horas_desde_emissao: st.horas_desde_emissao,
+          }, 409);
+        }
+
         const r = await focusReq("DELETE", `/nfe/${id}`, ambiente, token, { justificativa });
         const data = limpar(await r.json().catch(() => ({})));
         if (r.ok) {
@@ -345,9 +432,21 @@ Deno.serve(async (req) => {
             caminho_xml_cancelamento: data.caminho_xml_cancelamento ?? null,
             data_cancelamento: new Date().toISOString(), updated_at: new Date().toISOString(),
           }).eq("focus_nfe_id", id);
+          if (st?.cancelamento_extemporaneo) {
+            try {
+              await admin().rpc("registrar_cancelamento_extemporaneo", {
+                p_focus_nfe_id: id,
+                p_justificativa: justificativa,
+                p_autorizado_por: user.id,
+              });
+            } catch (e) {
+              console.error("[focus-nfe] registrar_cancelamento_extemporaneo:", (e as Error).message);
+            }
+          }
         }
         await audit(supabase, "CANCELAMENTO", { chave_acesso: id,
-          status: r.ok ? "ok" : "erro", observacao: justificativa, payload: { ambiente } });
+          status: r.ok ? "ok" : "erro", observacao: justificativa,
+          payload: { ambiente, confirma_extemporaneo: confirmaExtemporaneo } });
         return json({ ...data, status_interno: r.ok ? "CANCELADO" : "ERRO_CANCELAMENTO" }, r.status);
       }
 
@@ -366,6 +465,16 @@ Deno.serve(async (req) => {
             caminho_pdf_carta_correcao: data.caminho_pdf_carta_correcao ?? null,
             updated_at: new Date().toISOString(),
           }).eq("focus_nfe_id", id);
+          try {
+            await admin().rpc("sincronizar_carta_correcao_do_retorno", {
+              p_focus_nfe_id: id,
+              p_retorno: data,
+              p_correcao: correcao,
+              p_registrada_por: user.id,
+            });
+          } catch (e) {
+            console.error("[focus-nfe] sincronizar_carta_correcao_do_retorno:", (e as Error).message);
+          }
         }
         await audit(supabase, "CC_E", { chave_acesso: id, status: r.ok ? "ok" : "erro",
           observacao: correcao, payload: { ambiente } });

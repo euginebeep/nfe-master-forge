@@ -69,6 +69,7 @@ const ContasReceberPage = lazy(() => import("./pages/financeiro/ContasReceberPag
 const FluxoCaixaPage = lazy(() => import("./pages/financeiro/FluxoCaixaPage"));
 const ConciliacaoPage = lazy(() => import("./pages/financeiro/ConciliacaoPage"));
 const DREPage = lazy(() => import("./pages/financeiro/DREPage"));
+const MultasFiscaisPage = lazy(() => import("./pages/financeiro/MultasFiscaisPage"));
 const CRMPage = lazy(() => import("./pages/vendas/CRMPage"));
 const NovoPedidoVendedorPage = lazy(() => import("./pages/vendas/NovoPedidoVendedorPage"));
 const ExpedicaoPage = lazy(() => import("./pages/expedicao/ExpedicaoPage"));
@@ -244,6 +245,7 @@ const App = () => (
                 <Route path="/financeiro/fluxo" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="financeiro" moduloLabel="Financeiro"><FluxoCaixaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/conciliacao" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="financeiro" moduloLabel="Financeiro"><ConciliacaoPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/financeiro/dre" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="financeiro" moduloLabel="Financeiro"><DREPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/financeiro/multas-fiscais" element={<ProtectedRoute minRole="gerente"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="financeiro" moduloLabel="Financeiro"><MultasFiscaisPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 {/* Vendas — operador+ */}
                 <Route path="/vendas/crm" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="vendas" moduloLabel="Vendas"><CRMPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/vendas/pedido-vendedor/novo" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="vendas" moduloLabel="Vendas"><NovoPedidoVendedorPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />

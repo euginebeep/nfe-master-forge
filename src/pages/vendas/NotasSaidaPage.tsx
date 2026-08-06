@@ -8,6 +8,11 @@ import {
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { DANFEPreviewDialog } from "@/components/nfe/DANFEPreviewDialog";
 import { DevolucaoDialog } from "@/components/nfe/DevolucaoDialog";
+import { CancelarNfeDialog } from "@/components/nfe/CancelarNfeDialog";
+import {
+  CartasCorrecaoCard,
+  NovaCartaCorrecaoDialog,
+} from "@/components/nfe/CartaCorrecaoPanel";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,8 +34,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFocusNfe } from "@/hooks/use-focus-nfe";
+import { useFocusNfe, FocusNfeHttpError } from "@/hooks/use-focus-nfe";
 import { urlArquivoFocus } from "@/lib/focus-nfe-url";
+import { prazoCancelamentoSemMulta } from "@/lib/fiscal-format";
 import { useCompanyBranding } from "@/hooks/use-company-branding";
 import { ShieldCheck, ScrollText } from "lucide-react";
 import { registrarEventoNfe } from "@/hooks/use-nfe-auditoria";
@@ -381,12 +387,11 @@ export default function NotasSaidaPage() {
   const [activeTab, setActiveTab] = useState("destinatario");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedNotaId, setSelectedNotaId] = useState<string | null>(null);
-  const [justificativa, setJustificativa] = useState("");
   const [danfePreviewOpen, setDanfePreviewOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<any>(null);
   // CC-e
   const [cceDialogOpen, setCceDialogOpen] = useState(false);
-  const [cceTexto, setCceTexto] = useState("");
+  const [cceHistoricoNotaId, setCceHistoricoNotaId] = useState<string | null>(null);
   // Inutilização
   const [inutDialogOpen, setInutDialogOpen] = useState(false);
   const [inutSerie, setInutSerie] = useState("1");
@@ -427,7 +432,8 @@ export default function NotasSaidaPage() {
   const efeitosAplicados = useRef<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const {
-    emitirNota, consultarNFe, baixarXml, baixarDanfe, cancelarNFe, cartaCorrecaoNFe, inutilizarNFe, reenviarEmail,
+    emitirNota, consultarNFe, baixarXml, baixarDanfe, cancelarNFe, cartaCorrecaoNFe,
+    inutilizarNFe, reenviarEmail, baixarPdfCartaCorrecao, baixarXmlCancelamento,
   } = useFocusNfe();
   const { data: companyBranding, refetch: refetchCompanyBranding } = useCompanyBranding();
   const navigate = useNavigate();
@@ -685,6 +691,19 @@ export default function NotasSaidaPage() {
       }
       if (isAutorizado(status) || status.includes("AUTORIZAD") || resultado?.already_processed) {
         await aplicarEfeitosNota(notaId);
+        const prazo = prazoCancelamentoSemMulta(
+          resultado?.data_emissao || resultado?.data_autorizacao,
+        );
+        // Se a view já tiver a nota atualizada, preferir data_emissao dela
+        const row = (queryClient.getQueryData(["notas-saida"]) as any[] | undefined)?.find(
+          (n) => n.id === notaId,
+        );
+        const prazoFinal = prazoCancelamentoSemMulta(row?.data_emissao) || prazo;
+        if (prazoFinal) {
+          toast.message("Prazo de cancelamento", {
+            description: `Cancelamento sem multa até ${prazoFinal}.`,
+          });
+        }
       }
       refreshNumeracao().catch(() => {});
     },
@@ -734,7 +753,15 @@ export default function NotasSaidaPage() {
   });
 
   const cancelarNotaMutation = useMutation({
-    mutationFn: async ({ notaId, justificativa }: { notaId: string; justificativa: string }) => {
+    mutationFn: async ({
+      notaId,
+      justificativa,
+      confirma_extemporaneo,
+    }: {
+      notaId: string;
+      justificativa: string;
+      confirma_extemporaneo?: boolean;
+    }) => {
       if (justificativa.trim().length < 15 || justificativa.trim().length > 255) {
         throw new Error("Justificativa deve ter entre 15 e 255 caracteres.");
       }
@@ -746,15 +773,32 @@ export default function NotasSaidaPage() {
 
       const focusId = (nota as any)?.focus_nfe_id || nota?.nuvem_fiscal_id;
       if (!focusId) throw new Error("NF-e não encontrada na Focus NFe");
-      await cancelarNFe(focusId, justificativa.trim(), (nota as any)?.ambiente);
+      await cancelarNFe(focusId, justificativa.trim(), (nota as any)?.ambiente, {
+        confirma_extemporaneo: !!confirma_extemporaneo,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+      queryClient.invalidateQueries({ queryKey: ["multas-cancelamento"] });
       toast.success("Cancelamento enviado à SEFAZ");
       setCancelDialogOpen(false);
-      setJustificativa("");
+      setSelectedNotaId(null);
     },
-    onError: (err: any) => toast.error("Erro: " + err.message),
+    onError: (err: any) => {
+      if (err instanceof FocusNfeHttpError && err.status === 409) {
+        toast.error(String(err.data?.aviso_cancelamento_extemporaneo || err.message), {
+          description: err.data?.multa_estimada != null
+            ? `Multa estimada: R$ ${Number(err.data.multa_estimada).toFixed(2)}`
+            : undefined,
+        });
+        return;
+      }
+      if (err instanceof FocusNfeHttpError && err.status === 422) {
+        toast.error(String(err.data?.motivo_bloqueio_cancelamento || err.message));
+        return;
+      }
+      toast.error("Erro: " + err.message);
+    },
   });
 
   const cartaCorrecaoMutation = useMutation({
@@ -773,12 +817,18 @@ export default function NotasSaidaPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
+      queryClient.invalidateQueries({ queryKey: ["cartas-correcao"] });
       toast.success("Carta de Correção emitida com sucesso");
       setCceDialogOpen(false);
-      setCceTexto("");
     },
     onError: (err: any) => toast.error("Erro na CC-e: " + err.message),
   });
+
+  const selectedNota = useMemo(
+    () => (notas || []).find((n: any) => n.id === selectedNotaId) || null,
+    // notas defined later — use query cache via notas from state below; patch after notas exists
+    [selectedNotaId, notas],
+  );
 
   const consultarStatusMutation = useCallback(async (notaId: string, silent = false) => {
     setStatusLoadingId(notaId);
@@ -1475,8 +1525,14 @@ export default function NotasSaidaPage() {
                                 </DropdownMenuItem>
                               )}
                               {nota.pode_carta_correcao && (
-                                <DropdownMenuItem onClick={() => { setSelectedNotaId(nota.id); setCceTexto(""); setCceDialogOpen(true); }}>
-                                  <PenLine className="h-4 w-4 mr-2" /> Carta de Correção
+                                <DropdownMenuItem onClick={() => { setSelectedNotaId(nota.id); setCceDialogOpen(true); }}>
+                                  <PenLine className="h-4 w-4 mr-2" /> Carta de correção
+                                </DropdownMenuItem>
+                              )}
+                              {(Number(nota.qtd_cartas_correcao) > 0 || nota.pode_baixar_cce) && (
+                                <DropdownMenuItem onClick={() => setCceHistoricoNotaId(nota.id)}>
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Cartas ({nota.qtd_cartas_correcao ?? "…"})
                                 </DropdownMenuItem>
                               )}
                               {nota.pode_reenviar_email && (
@@ -1484,7 +1540,7 @@ export default function NotasSaidaPage() {
                                   <Mail className="h-4 w-4 mr-2" /> Reenviar e-mail
                                 </DropdownMenuItem>
                               )}
-                              {nota.focus_nfe_id && !isAutorizado(status) && (
+                              {nota.focus_nfe_id && !isAutorizado(status) && status !== "CANCELADO" && status !== "CANCELADA" && (
                                 <DropdownMenuItem
                                   onClick={() => {
                                     void baixarXml(nota.focus_nfe_id, nota.ambiente).catch((e: Error) =>
@@ -1495,15 +1551,13 @@ export default function NotasSaidaPage() {
                                   <Download className="h-4 w-4 mr-2" /> Exportar XML
                                 </DropdownMenuItem>
                               )}
-                              {nota.caminho_xml_cancelamento && (
+                              {(status === "CANCELADO" || status === "CANCELADA") && nota.focus_nfe_id && (
                                 <DropdownMenuItem
-                                  onClick={() =>
-                                    window.open(
-                                      urlArquivoFocus(nota.caminho_xml_cancelamento, nota.ambiente),
-                                      "_blank",
-                                      "noopener,noreferrer",
-                                    )
-                                  }
+                                  onClick={() => {
+                                    void baixarXmlCancelamento(nota.focus_nfe_id, nota.ambiente).catch((e: Error) =>
+                                      toast.error(e.message || "Erro ao baixar XML do cancelamento"),
+                                    );
+                                  }}
                                 >
                                   <Download className="h-4 w-4 mr-2" /> XML do cancelamento
                                 </DropdownMenuItem>
@@ -1513,12 +1567,28 @@ export default function NotasSaidaPage() {
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
-                                    onClick={() => { setSelectedNotaId(nota.id); setJustificativa(""); setCancelDialogOpen(true); }}
+                                    onClick={() => { setSelectedNotaId(nota.id); setCancelDialogOpen(true); }}
                                   >
                                     <Ban className="h-4 w-4 mr-2" /> Cancelar NF-e
-                                    {horasCancel ? ` (${horasCancel})` : ""}
+                                    {nota.cancelamento_extemporaneo
+                                      ? " (com multa)"
+                                      : horasCancel
+                                        ? ` (${horasCancel})`
+                                        : ""}
                                   </DropdownMenuItem>
                                 </>
+                              )}
+                              {isAutorizado(status) && !nota.pode_cancelar && nota.motivo_bloqueio_cancelamento && (
+                                <DropdownMenuItem
+                                  disabled
+                                  className="text-muted-foreground opacity-100 cursor-default"
+                                  title={nota.motivo_bloqueio_cancelamento}
+                                >
+                                  <Ban className="h-4 w-4 mr-2 shrink-0" />
+                                  <span className="whitespace-normal text-xs leading-snug">
+                                    {nota.motivo_bloqueio_cancelamento}
+                                  </span>
+                                </DropdownMenuItem>
                               )}
                               {/* Nunca Excluir nota autorizada. already_processed ≠ rejeição — consultar. */}
                               {!isAutorizado(status)
@@ -1561,9 +1631,20 @@ export default function NotasSaidaPage() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        {nota.pode_cancelar && horasCancel && (
+                        {nota.pode_cancelar && !nota.cancelamento_extemporaneo && horasCancel && (
                           <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                            Cancelamento disponível por mais {horasCancel}.
+                            Cancelamento sem multa por mais {horasCancel}.
+                          </p>
+                        )}
+                        {nota.pode_cancelar && nota.cancelamento_extemporaneo && (
+                          <p className="text-[10px] text-amber-700 mt-1 text-right">
+                            Cancelamento extemporâneo — multa ~R${" "}
+                            {Number(nota.multa_estimada || 0).toFixed(2).replace(".", ",")}
+                          </p>
+                        )}
+                        {isAutorizado(status) && !nota.pode_cancelar && nota.motivo_bloqueio_cancelamento && (
+                          <p className="text-[10px] text-muted-foreground mt-1 text-right max-w-[220px] ml-auto">
+                            {nota.motivo_bloqueio_cancelamento}
                           </p>
                         )}
                       </TableCell>
@@ -1903,8 +1984,8 @@ export default function NotasSaidaPage() {
               Confirmar transmissão da NF-e
             </DialogTitle>
             <DialogDescription>
-              Depois da autorização pela SEFAZ, a saída da nota só poderá ser desfeita por cancelamento dentro da
-              janela legal de 24h ou corrigida por CC-e quando permitido.
+              Depois da autorização pela SEFAZ, a saída só poderá ser desfeita por cancelamento
+              (prazo conforme a UF — em SP, 24h sem multa) ou corrigida por CC-e quando permitido.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm">
@@ -1917,6 +1998,10 @@ export default function NotasSaidaPage() {
             <p>
               Valor total:{" "}
               <span className="font-mono">R$ {fmt(Number(transmitConfirmNota?.valor_total || 0))}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Após autorizar, o prazo de cancelamento sem multa aparece no toast e na listagem
+              (não é 24h fixas em todos os estados).
             </p>
           </div>
           <DialogFooter>
@@ -1935,89 +2020,68 @@ export default function NotasSaidaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Dialog Cancelamento ─── */}
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent>
+      <CancelarNfeDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        nota={selectedNota}
+        pending={cancelarNotaMutation.isPending}
+        onConfirm={({ justificativa: j, confirma_extemporaneo }) => {
+          if (!selectedNotaId) return;
+          cancelarNotaMutation.mutate({
+            notaId: selectedNotaId,
+            justificativa: j,
+            confirma_extemporaneo,
+          });
+        }}
+      />
+
+      <NovaCartaCorrecaoDialog
+        open={cceDialogOpen}
+        onOpenChange={setCceDialogOpen}
+        notaId={selectedNotaId}
+        pending={cartaCorrecaoMutation.isPending}
+        onEmitir={(texto) => {
+          if (!selectedNotaId) return;
+          cartaCorrecaoMutation.mutate({ notaId: selectedNotaId, texto });
+        }}
+      />
+
+      <Dialog
+        open={!!cceHistoricoNotaId}
+        onOpenChange={(o) => !o && setCceHistoricoNotaId(null)}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-destructive flex items-center gap-2">
-              <FileX className="h-5 w-5" />
-              Cancelar Nota Fiscal
-            </DialogTitle>
+            <DialogTitle>Cartas de correção</DialogTitle>
             <DialogDescription>
-              O cancelamento é irreversível. Justificativa entre 15 e 255 caracteres.
+              Histórico com texto e PDF. A SEFAZ considera apenas a última (vigente).
             </DialogDescription>
           </DialogHeader>
-          <div>
-            <Label>Justificativa do Cancelamento</Label>
-            <Textarea
-              value={justificativa}
-              onChange={(e) => setJustificativa(e.target.value.slice(0, 255))}
-              placeholder="Descreva o motivo do cancelamento..."
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              {justificativa.length}/255 (mínimo 15)
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
-              Voltar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={justificativa.length < 15 || justificativa.length > 255 || cancelarNotaMutation.isPending}
-              onClick={() => {
-                if (selectedNotaId) {
-                  cancelarNotaMutation.mutate({ notaId: selectedNotaId, justificativa });
-                }
+          {cceHistoricoNotaId && (
+            <CartasCorrecaoCard
+              notaId={cceHistoricoNotaId}
+              podeNova={
+                !!(notas || []).find((n: any) => n.id === cceHistoricoNotaId)?.pode_carta_correcao
+              }
+              qtdCartas={
+                (notas || []).find((n: any) => n.id === cceHistoricoNotaId)?.qtd_cartas_correcao
+              }
+              onNova={() => {
+                setSelectedNotaId(cceHistoricoNotaId);
+                setCceDialogOpen(true);
               }}
-            >
-              Confirmar Cancelamento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* ─── Dialog Carta de Correção (CC-e) ─── */}
-      <Dialog open={cceDialogOpen} onOpenChange={setCceDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <PenLine className="h-5 w-5" />
-              Carta de Correção (CC-e)
-            </DialogTitle>
-            <DialogDescription>
-              Texto entre 15 e 1000 caracteres. Até 20 CC-e; vale sempre a última.
-              Não corrige valor, imposto, destinatário nem data.
-            </DialogDescription>
-          </DialogHeader>
-          <div>
-            <Label>Descrição da Correção</Label>
-            <Textarea
-              value={cceTexto}
-              onChange={(e) => setCceTexto(e.target.value.slice(0, 1000))}
-              placeholder="Descreva a correção a ser realizada..."
-              rows={4}
-              minLength={15}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              {cceTexto.length}/1000 (mínimo 15)
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCceDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectedNotaId) {
-                  cartaCorrecaoMutation.mutate({ notaId: selectedNotaId, texto: cceTexto });
+              onBaixarPdf={(sequencia) => {
+                const n = (notas || []).find((x: any) => x.id === cceHistoricoNotaId);
+                if (!n?.focus_nfe_id) {
+                  toast.error("NF-e sem referência Focus");
+                  return;
                 }
+                void baixarPdfCartaCorrecao(n.focus_nfe_id, n.ambiente, sequencia).catch(
+                  (e: Error) => toast.error(e.message || "Erro ao baixar PDF da CC-e"),
+                );
               }}
-              disabled={cceTexto.length < 15 || cceTexto.length > 1000 || cartaCorrecaoMutation.isPending}
-            >
-              {cartaCorrecaoMutation.isPending ? "Enviando..." : "Emitir CC-e"}
-            </Button>
-          </DialogFooter>
+            />
+          )}
         </DialogContent>
       </Dialog>
 

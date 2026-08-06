@@ -3,6 +3,17 @@ export { urlArquivoFocus } from "@/lib/focus-nfe-url";
 
 export type FocusAmbiente = "producao" | "homologacao";
 
+export class FocusNfeHttpError extends Error {
+  status: number;
+  data: Record<string, unknown>;
+  constructor(message: string, status: number, data: Record<string, unknown> = {}) {
+    super(message);
+    this.name = "FocusNfeHttpError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 /**
  * Ambiente Focus a partir do banco (nfe_ambiente / nota.ambiente = MAIÚSCULO).
  * Nunca defaultar para homologação: em tenant de produção isso pede o arquivo
@@ -53,7 +64,7 @@ async function callFocusNfe(
 
   // Decidir por ação, não por Content-Type: a edge ?action=xml devolve
   // Content-Type que não entra na lista e cai em res.json() → Unexpected token '<'
-  const ACOES_ARQUIVO = new Set(["xml", "danfe"]);
+  const ACOES_ARQUIVO = new Set(["xml", "danfe", "pdf-carta-correcao", "xml-cancelamento"]);
   if (ACOES_ARQUIVO.has(action)) {
     // arrayBuffer preserva binário. res.text() destrói PDF: decodifica os
     // bytes como UTF-8 e cada byte inválido vira U+FFFD. O arquivo sai com
@@ -64,17 +75,21 @@ async function callFocusNfe(
     const head = new Uint8Array(buf.slice(0, 1));
     if (head[0] === 0x7B) {
       const j = JSON.parse(new TextDecoder().decode(buf));
-      throw new Error(j?.error?.message || j?.error || "Erro ao baixar arquivo");
+      throw new FocusNfeHttpError(
+        String(j?.error?.message || j?.error || "Erro ao baixar arquivo"),
+        res.status,
+        typeof j === "object" && j ? j : {},
+      );
     }
 
+    const isPdf = action === "danfe" || action === "pdf-carta-correcao";
     return new Blob([buf], {
-      type: action === "xml" ? "application/xml" : "application/pdf",
+      type: isPdf ? "application/pdf" : "application/xml",
     });
   }
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // Preservar detalhes da rejeição Focus (schema/campo) — sem isso só aparece "Rejeicao na emissao."
     const base = data?.error?.message || data?.error || `Erro ${res.status}`;
     const detalhes = data?.detalhes;
     const extra =
@@ -83,7 +98,11 @@ async function callFocusNfe(
         : detalhes && typeof detalhes === "object"
           ? (detalhes.mensagem || detalhes.codigo || "")
           : "";
-    throw new Error(extra ? `${base} — ${extra}` : String(base));
+    throw new FocusNfeHttpError(
+      extra ? `${base} — ${extra}` : String(base),
+      res.status,
+      typeof data === "object" && data ? data : {},
+    );
   }
   // HTTP 200 com erro lógico + detalhes (dry_run / rejeição)
   if (data && typeof data === "object" && data.error) {
@@ -98,6 +117,15 @@ async function callFocusNfe(
     throw new Error(extra ? `${base} — ${extra}` : String(base));
   }
   return data;
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const urlObj = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = urlObj;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(urlObj);
 }
 
 export function useFocusNfe() {
@@ -121,12 +149,7 @@ export function useFocusNfe() {
       id,
       ambiente: requireFocusAmbiente(ambiente),
     });
-    const urlObj = URL.createObjectURL(blob as Blob);
-    const a = document.createElement("a");
-    a.href = urlObj;
-    a.download = `danfe-${id}.pdf`;
-    a.click();
-    URL.revokeObjectURL(urlObj);
+    triggerDownload(blob as Blob, `danfe-${id}.pdf`);
   };
 
   const baixarXml = async (id: string, ambiente: string) => {
@@ -134,19 +157,47 @@ export function useFocusNfe() {
       id,
       ambiente: requireFocusAmbiente(ambiente),
     });
-    const urlObj = URL.createObjectURL(blob as Blob);
-    const a = document.createElement("a");
-    a.href = urlObj;
-    a.download = `nfe-${id}.xml`;
-    a.click();
-    URL.revokeObjectURL(urlObj);
+    triggerDownload(blob as Blob, `nfe-${id}.xml`);
   };
 
-  const cancelarNFe = (id: string, justificativa: string, ambiente: string) =>
+  const baixarPdfCartaCorrecao = async (
+    id: string,
+    ambiente: string,
+    sequencia?: number | null,
+  ) => {
+    const params: Record<string, string> = {
+      id,
+      ambiente: requireFocusAmbiente(ambiente),
+    };
+    if (sequencia != null && Number(sequencia) > 0) {
+      params.sequencia = String(sequencia);
+    }
+    const blob = await callFocusNfe("pdf-carta-correcao", params);
+    const sufixo = sequencia != null ? `-cce-${sequencia}` : "-cce";
+    triggerDownload(blob as Blob, `cce-${id}${sufixo}.pdf`);
+  };
+
+  const baixarXmlCancelamento = async (id: string, ambiente: string) => {
+    const blob = await callFocusNfe("xml-cancelamento", {
+      id,
+      ambiente: requireFocusAmbiente(ambiente),
+    });
+    triggerDownload(blob as Blob, `cancelamento-${id}.xml`);
+  };
+
+  const cancelarNFe = (
+    id: string,
+    justificativa: string,
+    ambiente: string,
+    opts?: { confirma_extemporaneo?: boolean },
+  ) =>
     callFocusNfe(
       "cancelar-nfe",
       { id, ambiente: requireFocusAmbiente(ambiente) },
-      { justificativa },
+      {
+        justificativa,
+        ...(opts?.confirma_extemporaneo ? { confirma_extemporaneo: true } : {}),
+      },
     );
 
   const cartaCorrecao = (id: string, correcao: string, ambiente: string) =>
@@ -200,6 +251,8 @@ export function useFocusNfe() {
     consultarNFe,
     baixarDanfe,
     baixarXml,
+    baixarPdfCartaCorrecao,
+    baixarXmlCancelamento,
     cancelarNFe,
     cartaCorrecao,
     cartaCorrecaoNFe: cartaCorrecao,
