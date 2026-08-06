@@ -344,7 +344,12 @@ export function validarFormula(
     const tipoCapsula = (formula.tipo_capsula as any) || CAPSULA_TAMANHO_PADRAO;
     
     // Calcular cápsulas por dose para obter a massa total da dose
-    const capsulasPorDose = calcularCapsulasPorDose(totalAtivos, densidade, tipoCapsula);
+    const capsulasPorDose = calcularCapsulasPorDose(
+      totalAtivos,
+      densidade,
+      tipoCapsula,
+      formula.n_capsulas_por_dose ?? undefined,
+    );
     const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
     
     // Considerar excipientes tecnológicos fixos (8% da dose total)

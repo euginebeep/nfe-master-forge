@@ -104,6 +104,7 @@ export default function VisualizarFormulaPage() {
     totalAtivos,
     formula.densidade_aparente_kg_l || DENSIDADE_PADRAO_KG_L,
     (formula.tipo_capsula as TamanhoCapsula) || CAPSULA_TAMANHO_PADRAO,
+    formula.n_capsulas_por_dose ?? undefined,
   );
   const massaTotalDose = capsulasPorDose.n_capsulas * capsulasPorDose.peso_por_capsula_mg;
   const calculos = calcularCapsulaIndustrial(totalAtivos, veiculoBase, massaTotalDose);
