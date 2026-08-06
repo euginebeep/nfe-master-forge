@@ -24,6 +24,8 @@ const ROUTE_LABELS: Array<[RegExp, string]> = [
   [/^\/producao/, 'Produção'],
   [/^\/qualidade\/analises/, 'Análises de Qualidade'],
   [/^\/qualidade\/desvios/, 'Desvios / CAPA'],
+  [/^\/qualidade\/rastreabilidade/, 'Rastreabilidade / Dossiê'],
+  [/^\/estoque\/rastreabilidade/, 'Rastreabilidade / Dossiê'],
   [/^\/qualidade\/calibracoes/, 'Calibrações'],
   [/^\/qualidade/, 'Qualidade'],
   [/^\/financeiro\/contas-pagar/, 'Contas a Pagar'],

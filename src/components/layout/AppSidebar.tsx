@@ -151,7 +151,7 @@ const menuGroups: MenuGroup[] = [
   { title: "POPs", url: "/qualidade/pops", icon: ClipboardCheck, badge: "RDC 275", tooltip: "Gestão de Procedimentos Operacionais Padrão", modulo: "qualidade" },
   { title: "Análises", url: "/qualidade/analises", icon: FlaskConical, tooltip: "Análises laboratoriais e resultados de controle de qualidade", modulo: "qualidade" },
   { title: "Calibrações", url: "/qualidade/calibracoes", icon: Settings, tooltip: "Controle de calibração de instrumentos e equipamentos", modulo: "qualidade" },
-  { title: "Rastreabilidade", url: "/estoque/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Rastreabilidade completa conforme exigências GMP e ANVISA", modulo: "qualidade" }]
+  { title: "Rastreabilidade", url: "/qualidade/rastreabilidade", icon: Shield, badge: "GMP", tooltip: "Dossiê de fiscalização (PA) e recall reverso (insumo) — RDC 275 / RDC 843", modulo: "qualidade" }]
 
 },
 {

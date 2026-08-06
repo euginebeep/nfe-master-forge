@@ -55,7 +55,6 @@ const LotesReservadosPage = lazy(() => import("./pages/estoque/LotesReservadosPa
 const LoteDetailPage = lazy(() => import("./pages/estoque/LoteDetailPage"));
 const DashboardSemCOAPage = lazy(() => import("./pages/estoque/DashboardSemCOAPage"));
 const MovimentacoesPage = lazy(() => import("./pages/estoque/MovimentacoesPage"));
-const RastreabilidadePage = lazy(() => import("./pages/estoque/RastreabilidadePage"));
 const NFeImportPage = lazy(() => import("./pages/compras/NFeImportPage"));
 const NotasEntradaPage = lazy(() => import("./pages/compras/NotasEntradaPage"));
 const NotasSemXmlPage = lazy(() => import("./pages/compras/NotasSemXmlPage"));
@@ -92,6 +91,7 @@ const CalibracoesPage = lazy(() => import("./pages/qualidade/CalibracoesPage"));
 const POPsPage = lazy(() => import("./pages/qualidade/POPsPage"));
 const CoaQualidadePage = lazy(() => import("./pages/qualidade/CoaQualidadePage"));
 const HomologacaoAnvisaPage = lazy(() => import("./pages/qualidade/HomologacaoAnvisaPage"));
+const RastreabilidadeFiscalPage = lazy(() => import("./pages/qualidade/RastreabilidadeFiscalPage"));
 const ConsultaAnvisaPage = lazy(() => import("./pages/regulatorio/ConsultaAnvisaPage"));
 const MonitoramentoAmbientalPage = lazy(() => import("./pages/ambiental/MonitoramentoAmbientalPage"));
 const AmbientalConfigPage = lazy(() => import("./pages/ambiental/AmbientalConfigPage"));
@@ -226,7 +226,6 @@ const App = () => (
                 <Route path="/estoque/lotes/:id" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="estoque" moduloLabel="Estoque"><LoteDetailPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/dashboard-sem-coa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="estoque" moduloLabel="Estoque"><DashboardSemCOAPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/estoque/movimentacoes" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="estoque" moduloLabel="Estoque"><MovimentacoesPage /></ModuleGuard></ErrorBoundary></Suspense>} />
-                <Route path="/estoque/rastreabilidade" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><RastreabilidadePage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 {/* Compras — operador+ */}
                 <Route path="/compras/importar-nfe" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NFeImportPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
                 <Route path="/compras/nfe-import" element={<ProtectedRoute minRole="operador"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="compras" moduloLabel="Compras"><NFeImportPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
@@ -272,6 +271,8 @@ const App = () => (
                 <Route path="/qualidade/pops" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><POPsPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/coa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><CoaQualidadePage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/qualidade/homologacao-anvisa" element={<ProtectedRoute minRole="supervisor"><Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><HomologacaoAnvisaPage /></ModuleGuard></ErrorBoundary></Suspense></ProtectedRoute>} />
+                <Route path="/qualidade/rastreabilidade" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="qualidade" moduloLabel="Qualidade"><RastreabilidadeFiscalPage /></ModuleGuard></ErrorBoundary></Suspense>} />
+                <Route path="/estoque/rastreabilidade" element={<Navigate to="/qualidade/rastreabilidade" replace />} />
                 {/* Regulatório */}
                 <Route path="/regulatorio/anvisa" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><ConsultaAnvisaPage /></ModuleGuard></ErrorBoundary></Suspense>} />
                 <Route path="/regulatorio/biblioteca-rt" element={<Suspense fallback={<PageFallback />}><ErrorBoundary><ModuleGuard modulo="producao" moduloLabel="Produção"><BibliotecaRTPage /></ModuleGuard></ErrorBoundary></Suspense>} />
