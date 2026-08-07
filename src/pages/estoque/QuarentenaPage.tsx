@@ -73,13 +73,13 @@ export default function QuarentenaPage() {
     mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
       const { error } = await supabase
         .from('estoque_lotes')
-        .update({ status: 'DESCARTADO', observacoes_qc: motivo } as any)
+        .update({ status: 'BLOQUEADO', observacoes_qc: `DESCARTE: ${motivo}` } as any)
         .eq('id', id).eq('company_id', companyId!);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quarentena-lotes'] });
-      toast.success('Lote descartado e removido da quarentena');
+      toast.success('Lote bloqueado para descarte');
       closeDialog();
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -270,7 +270,7 @@ export default function QuarentenaPage() {
               <div className="bg-muted p-4 rounded-lg space-y-2">
                 <div className="flex justify-between"><span className="text-sm text-muted-foreground">Lote:</span><span className="font-mono font-medium">{selectedLote.numero_lote}</span></div>
                 <div className="flex justify-between"><span className="text-sm text-muted-foreground">Produto:</span><span className="font-medium">{selectedLote.item?.descricao_interna}</span></div>
-                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Quantidade:</span><span>{formatNumber(selectedLote.quantidade_interna, 2)} {selectedLote.item?.unidade_interna || selectedLote.unidade_original}</span></div>
+                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Quantidade:</span><span>{formatQtdLote(selectedLote.quantidade_interna, selectedLote.item?.unidade_interna || selectedLote.unidade_original)} {selectedLote.item?.unidade_interna || selectedLote.unidade_original}</span></div>
                 {!hasValidatedCOA(selectedLote) && actionType === 'liberar' && (
                   <div className="flex items-center gap-2 text-warning mt-2 p-2 bg-warning/10 rounded">
                     <AlertTriangle className="h-4 w-4" /><span className="text-sm">Este lote não possui COA validado</span>
