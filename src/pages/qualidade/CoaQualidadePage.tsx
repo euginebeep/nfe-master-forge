@@ -300,7 +300,7 @@ export default function CoaQualidadePage() {
     [liberacoesSemCoa]
   );
 
-  /** Notas com pelo menos 1 lote MP sem documento COA — derivado da mesma lista da tabela */
+  /** Notas com pelo menos 1 lote sem documento COA — derivado da mesma lista da tabela */
   const notasComLotesSemCoa = useMemo(() => {
     const porNota = new Map<string, { id: string; numero: string; lotesSemCoa: number }>();
 
