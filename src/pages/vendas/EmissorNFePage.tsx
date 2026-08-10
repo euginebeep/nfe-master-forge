@@ -51,6 +51,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  traduzirErroFiscal,
+  type ValidacaoDestinatarioNfe,
+} from "@/lib/erros-fiscais";
+import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormDialogComplete";
 
 // ─── Constants ───
 
@@ -308,34 +313,7 @@ const draftTemConteudo = (d?: {
 
 const readOnlyClass = "bg-muted/60 border-dashed text-muted-foreground cursor-not-allowed font-medium";
 
-const formatDatePtBr = (value?: string) => {
-  if (!value) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split("-").reverse().join("/");
-  return value;
-};
-
-const traduzirErroCriarNota = (error: any, itens: NotaItem[]) => {
-  const mensagem = [error?.message, error?.details, error?.hint, error?.code].filter(Boolean).join(" ");
-  const lower = mensagem.toLowerCase();
-
-  if (lower.includes("item_sem_ncm")) {
-    const item = itens.find((i) => !String(i.ncm || "").trim()) || itens[0];
-    return `NCM obrigatório — ${item?.descricao || "item selecionado"}`;
-  }
-  if (lower.includes("lote_vencido")) {
-    const lote = mensagem.match(/lote\s+([^.,]+?)(?:\s+venceu|\s+vencido|\.|,|$)/i)?.[1]?.trim();
-    const data = mensagem.match(/(?:venceu em|validade|em)\s+(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/i)?.[1];
-    return `Lote vencido${lote ? ` — ${lote}` : ""}${data ? ` (${formatDatePtBr(data)})` : ""}`;
-  }
-  if (lower.includes("lote_bloqueado")) return "Lote em quarentena — selecione um lote liberado";
-  if (lower.includes("lote_nao_pertence_ao_item")) return "Lote não pertence ao item selecionado";
-  if (lower.includes("operacao_exige_chave_referenciada")) return "Informe a chave de acesso referenciada (44 dígitos)";
-  if (lower.includes("valor_unitario_obrigatorio")) return "Valor unitário obrigatório para esta operação";
-  if (lower.includes("emitente_sem_certificado_digital")) return "Emitente sem certificado digital cadastrado";
-  if (lower.includes("destinatario_sem_endereco_cadastrado")) return "Destinatário sem endereço cadastrado";
-
-  return error?.message || "Erro ao criar nota de saída";
-};
+const traduzirErroCriarNota = (error: any, _itens: NotaItem[]) => traduzirErroFiscal(error);
 
 type TransportadoraState = {
   razao: string; cnpj: string; ie: string; endereco: string; municipio: string; uf: string;
@@ -470,6 +448,9 @@ export default function EmissorNFePage() {
   /** Opt-in CSOSN 101 (crédito) — nunca automático; exige alíquota pCredSN. */
   const [usar101, setUsar101] = useState(false);
   const [pCredSN, setPCredSN] = useState("");
+  const [erroEmissao, setErroEmissao] = useState<string | null>(null);
+  const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
+  const [editClienteOpen, setEditClienteOpen] = useState(false);
 
   const { data: company } = useCompany();
   const usaCsosn = empresaUsaCsosn(company?.crt);
@@ -889,6 +870,42 @@ export default function EmissorNFePage() {
       return data;
     },
     enabled: !!clienteId,
+  });
+
+  const { data: validacaoDest, isFetching: validandoDest } = useQuery({
+    queryKey: ["validar-destinatario", clienteId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("validar_destinatario_nfe", {
+        p_entidade_id: clienteId,
+      });
+      if (error) throw error;
+      const raw = Array.isArray(data) ? data[0] : data;
+      return raw as ValidacaoDestinatarioNfe;
+    },
+    enabled: !!clienteId,
+    retry: false,
+  });
+
+  const { data: clienteParaEditar } = useQuery({
+    queryKey: ["entidade-edit-emissor", clienteId, editClienteOpen],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("entidades")
+        .select(`
+          *,
+          entidade_papeis ( papel ),
+          entidade_enderecos ( * ),
+          entidade_contatos ( * )
+        `)
+        .eq("id", clienteId)
+        .single();
+      if (error) throw error;
+      return {
+        ...data,
+        papeis: (data.entidade_papeis || []).map((p: { papel: string }) => p.papel),
+      };
+    },
+    enabled: !!clienteId && editClienteOpen,
   });
 
   const { data: clienteContato } = useQuery({
@@ -1665,6 +1682,7 @@ export default function EmissorNFePage() {
       return idCriado;
     },
     onSuccess: async (notaId) => {
+      setErroEmissao(null);
       queryClient.invalidateQueries({ queryKey: ["notas-saida"] });
       setResumoNotaCriada({
         operacao: operacaoSelecionada?.descricao,
@@ -1681,8 +1699,12 @@ export default function EmissorNFePage() {
     },
     onError: (err: any) => {
       const msg = traduzirErroCriarNota(err, itens);
-      const lines = String(err?.message || msg).split("\n").filter(Boolean);
-      toast.error(lines[0] || msg, lines.length > 1 ? { description: lines.slice(1).join(" · ") } : undefined);
+      setErroEmissao(msg);
+      const lines = String(msg).split("\n").filter(Boolean);
+      toast.error(lines[0] || msg, {
+        duration: 10000,
+        ...(lines.length > 1 ? { description: lines.slice(1).join(" · ") } : {}),
+      });
     },
   });
 
@@ -1710,7 +1732,7 @@ export default function EmissorNFePage() {
   };
 
   // ─── DANFE data ───
-  const chaveAcesso = "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000";
+  const ehPreviaDanfe = true; // formulário vivo: ainda sem chave/protocolo SEFAZ
   const dataEmissao = new Date().toLocaleDateString("pt-BR");
   const horaEmissao = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const procEmi = "0"; // Emissão com aplicativo do contribuinte
@@ -1786,18 +1808,20 @@ export default function EmissorNFePage() {
             >
               <ScrollText className="h-4 w-4 mr-2" /> Auditoria
             </Button>
-            <Button variant="outline" onClick={handlePrint} disabled={itens.length === 0}>
+            <Button variant="outline" onClick={() => setConfirmPrintOpen(true)} disabled={itens.length === 0}>
               <Printer className="h-4 w-4 mr-2" /> Imprimir prévia
             </Button>
             <div className="flex flex-col items-end">
               <Button
-                onClick={() => criarNota.mutate()}
+                onClick={() => { setErroEmissao(null); criarNota.mutate(); }}
                 disabled={
                   criarNota.isPending ||
                   carregandoEdicao ||
                   !operacaoSelecionada ||
                   !clienteId ||
-                  (usar101 && !(Number(String(pCredSN).replace(",", ".")) > 0))
+                  (usar101 && !(Number(String(pCredSN).replace(",", ".")) > 0)) ||
+                  validacaoDest?.valido === false ||
+                  validandoDest
                 }
               >
                 {criarNota.isPending
@@ -1813,6 +1837,26 @@ export default function EmissorNFePage() {
           </div>
         </div>
       </div>
+
+      {erroEmissao && (
+        <Alert variant="destructive" className="mb-1">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Não foi possível salvar a nota</AlertTitle>
+          <AlertDescription className="whitespace-pre-wrap">
+            <div className="flex items-start justify-between gap-3">
+              <span>{erroEmissao}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 h-7"
+                onClick={() => setErroEmissao(null)}
+              >
+                Fechar
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {rascunhoRetomado && (
         <Alert className="mb-1">
@@ -2302,7 +2346,13 @@ export default function EmissorNFePage() {
                 <CardContent className="pt-2 pb-4 px-4 space-y-3">
                   <div>
                     <Label>Cliente / Destinatário *</Label>
-                    <Select value={clienteId} onValueChange={setClienteId}>
+                    <Select
+                      value={clienteId}
+                      onValueChange={(v) => {
+                        setErroEmissao(null);
+                        setClienteId(v);
+                      }}
+                    >
                       <SelectTrigger><SelectValue placeholder="Selecione o cliente..." /></SelectTrigger>
                       <SelectContent>
                         {clientes?.map((c: any) => (
@@ -2311,6 +2361,31 @@ export default function EmissorNFePage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {validacaoDest && validacaoDest.valido === false && (
+                    <Alert variant="destructive" className="mt-3">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Cadastro do destinatário incompleto</AlertTitle>
+                      <AlertDescription>
+                        <p className="mb-2">
+                          Não é possível emitir NF-e para <b>{validacaoDest.destinatario || cliente?.razao_social}</b>.
+                          Falta preencher:
+                        </p>
+                        <ul className="list-disc pl-5 space-y-0.5">
+                          {(validacaoDest.faltas || []).map((f: string) => (
+                            <li key={f}>{f}</li>
+                          ))}
+                        </ul>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="px-0 mt-2 h-auto"
+                          onClick={() => setEditClienteOpen(true)}
+                        >
+                          Corrigir cadastro agora
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   {cliente && (
                     <div className="space-y-3">
                       <div><Label className="text-xs">Razão Social</Label><Input value={cliente.razao_social || ""} readOnly className={readOnlyClass} /></div>
@@ -3046,8 +3121,28 @@ export default function EmissorNFePage() {
           <Card className="overflow-auto max-h-[calc(100vh-180px)]">
             <CardContent className="p-2">
               <div ref={printRef}>
-                <div style={{ fontFamily: "Arial, Helvetica, sans-serif", fontSize: "7.5pt", color: "#000", background: "#fff", maxWidth: "210mm", margin: "0 auto", padding: "3mm", lineHeight: 1.3 }}>
-                  
+                <div style={{ fontFamily: "Arial, Helvetica, sans-serif", fontSize: "7.5pt", color: "#000", background: "#fff", maxWidth: "210mm", margin: "0 auto", padding: "3mm", lineHeight: 1.3, position: "relative" }}>
+                  {ehPreviaDanfe && (
+                    <div style={{
+                      position: "absolute", inset: 0, display: "flex",
+                      alignItems: "center", justifyContent: "center",
+                      transform: "rotate(-35deg)", fontSize: "40pt", fontWeight: 800,
+                      letterSpacing: "8px", color: "rgba(220, 38, 38, 0.10)",
+                      pointerEvents: "none", zIndex: 0, whiteSpace: "nowrap",
+                      WebkitPrintColorAdjust: "exact", printColorAdjust: "exact",
+                    } as React.CSSProperties}>
+                      SEM VALOR FISCAL
+                    </div>
+                  )}
+                  <div style={{ position: "relative", zIndex: 1 }}>
+                  {ehPreviaDanfe && (
+                    <div
+                      className="bg-destructive text-destructive-foreground text-center py-1.5 text-xs font-semibold"
+                      style={{ marginBottom: "2mm", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as React.CSSProperties}
+                    >
+                      PRÉ-VISUALIZAÇÃO — DOCUMENTO NÃO TRANSMITIDO À SEFAZ · SEM VALOR FISCAL
+                    </div>
+                  )}
                   {isHomolog && (
                     <div style={{ background: "#d32f2f", color: "#fff", textAlign: "center", padding: "3px", fontSize: "7pt", fontWeight: "bold", letterSpacing: "2px", marginBottom: "2mm" }}>
                       NF-E EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL
@@ -3131,10 +3226,20 @@ export default function EmissorNFePage() {
                           </div>
                         </td>
                         <td style={{ ...cellStyle, width: "40%", verticalAlign: "top", padding: "4px" }}>
-                          <div style={{ fontSize: "6pt", textAlign: "center", fontWeight: "bold" }}>CHAVE DE ACESSO</div>
-                          <div style={{ height: "30px", background: "repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 3px)", margin: "2px 0", opacity: 0.4 }} />
-                          <div style={{ fontFamily: "monospace", fontSize: "6.5pt", textAlign: "center", letterSpacing: "1px" }}>{chaveAcesso}</div>
-                          <div style={{ fontSize: "5pt", textAlign: "center", color: "#666", marginTop: "3px" }}>Consulta em www.nfe.fazenda.gov.br/portal</div>
+                          <div style={{
+                            minHeight: "62px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            textAlign: "center",
+                            fontSize: "6pt",
+                            color: "#666",
+                            padding: "4px",
+                          }}>
+                            SEM VALOR FISCAL — DOCUMENTO NÃO TRANSMITIDO
+                            <br />
+                            (sem chave de acesso / sem código de barras)
+                          </div>
                         </td>
                       </tr>
                     </tbody>
@@ -3327,6 +3432,7 @@ export default function EmissorNFePage() {
                   <div style={{ fontSize: "5pt", textAlign: "center", color: "#999", marginTop: "3mm" }}>
                     Gerado ERP Industrial | {dataEmissao} | CRT: {company?.crt || "—"} | Ambiente: {isHomolog ? "HOMOLOGAÇÃO" : "PRODUÇÃO"}
                   </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -3496,6 +3602,52 @@ export default function EmissorNFePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmPrintOpen} onOpenChange={setConfirmPrintOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Imprimir pré-visualização?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta nota <b>não foi transmitida</b>. O documento impresso não tem valor
+              fiscal e não pode acompanhar mercadoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmPrintOpen(false);
+                handlePrint();
+              }}
+            >
+              Imprimir mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {editClienteOpen && clienteParaEditar && (
+        <EntidadeFormDialogComplete
+          open={editClienteOpen}
+          onOpenChange={(open) => {
+            setEditClienteOpen(open);
+            if (!open) {
+              queryClient.invalidateQueries({ queryKey: ["validar-destinatario", clienteId] });
+              queryClient.invalidateQueries({ queryKey: ["entidade-endereco-dest", clienteId] });
+              queryClient.invalidateQueries({ queryKey: ["entidades-clientes-emissor"] });
+            }
+          }}
+          entidade={clienteParaEditar as any}
+          initialPapel="CLIENTE"
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["validar-destinatario", clienteId] });
+            queryClient.invalidateQueries({ queryKey: ["entidade-endereco-dest", clienteId] });
+            queryClient.invalidateQueries({ queryKey: ["entidades-clientes-emissor"] });
+            setEditClienteOpen(false);
+            toast.success("Cadastro atualizado — revalidando destinatário");
+          }}
+        />
+      )}
       </div>
     </div>
   );

@@ -13040,6 +13040,14 @@ export type Database = {
         }
         Returns: string
       }
+      /** LC 123/2006 art. 23 — CSOSN/CST derivado da operação + destinatário. */
+      csosn_sugerido: {
+        Args: {
+          p_cliente_id?: string | null
+          p_operacao: string
+        }
+        Returns: Json
+      }
       custo_op_belongs_to_tenant: { Args: { _cid: string }; Returns: boolean }
       dados_danfe: { Args: { p_nota_saida_id: string }; Returns: Json }
       datalegis_url: {
@@ -13521,6 +13529,11 @@ export type Database = {
           p_tipo_produto: string
         }
         Returns: boolean
+      }
+      /** Cadastro mínimo do destinatário para emitir NF-e. */
+      validar_destinatario_nfe: {
+        Args: { p_entidade_id: string }
+        Returns: Json
       }
       validar_qr_code_op: {
         Args: { p_hash: string; p_op_id: string }

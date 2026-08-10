@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { TIPO_ENDERECO_LABELS, type TipoEnderecoExtended, type EntidadeEnderecoExtended, isEstrangeiro } from "@/types/entidades";
+import { CepLookupInput } from "@/components/company/CepLookupInput";
+import { toast } from "sonner";
 
 interface EnderecosTabProps {
   enderecos: EntidadeEnderecoExtended[];
@@ -30,11 +32,17 @@ const emptyEndereco = {
   cidade: '',
   uf: '',
   pais: 'Brasil',
+  cmun: '',
+  cpais: '1058',
   referencia: '',
   contato_local_nome: '',
   contato_local_fone: '',
   principal: false,
 };
+
+function cmunValido(cmun?: string | null) {
+  return /^[0-9]{7}$/.test(String(cmun || "").trim());
+}
 
 export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete }: EnderecosTabProps) {
   const isForeign = isEstrangeiro(tipoPessoa || 'PJ');
@@ -60,6 +68,8 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
       cidade: endereco.cidade || '',
       uf: endereco.uf || '',
       pais: endereco.pais || 'Brasil',
+      cmun: endereco.cmun || '',
+      cpais: endereco.cpais || '1058',
       referencia: endereco.referencia || '',
       contato_local_nome: endereco.contato_local_nome || '',
       contato_local_fone: endereco.contato_local_fone || '',
@@ -69,6 +79,16 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
   };
 
   const handleSave = () => {
+    if (!isForeign && !cmunValido(form.cmun)) {
+      toast.error(
+        "Código IBGE do município é obrigatório (7 dígitos). Busque pelo CEP ou preencha manualmente.",
+      );
+      return;
+    }
+    if (!isForeign && !form.cep?.replace(/\D/g, "")) {
+      toast.error("CEP é obrigatório para endereço no Brasil.");
+      return;
+    }
     if (editingId) {
       onUpdate(editingId, form);
     } else {
@@ -98,6 +118,7 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
               <TableHead>Tipo</TableHead>
               <TableHead>Endereço</TableHead>
               <TableHead>Cidade/UF</TableHead>
+              <TableHead>IBGE</TableHead>
               <TableHead>Principal</TableHead>
               <TableHead className="w-20"></TableHead>
             </TableRow>
@@ -114,6 +135,13 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
                   {end.logradouro}, {end.nro} {end.compl ? `- ${end.compl}` : ''} - {end.bairro}
                 </TableCell>
                 <TableCell>{end.cidade}/{end.uf}</TableCell>
+                <TableCell>
+                  {cmunValido(end.cmun) ? (
+                    <span className="font-mono text-xs">{end.cmun}</span>
+                  ) : (
+                    <StatusBadge variant="error">Sem IBGE</StatusBadge>
+                  )}
+                </TableCell>
                 <TableCell>
                   {end.principal && <StatusBadge variant="success">Principal</StatusBadge>}
                 </TableCell>
@@ -154,11 +182,27 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>CEP {!isForeign && "*"}</Label>
+                <Label>CEP {!isForeign && <span className="text-destructive">*</span>}</Label>
                 {isForeign ? (
                   <Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="Código postal (opcional)" />
                 ) : (
-                  <Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" />
+                  <CepLookupInput
+                    value={form.cep}
+                    onChange={(cep) => setForm((prev) => ({ ...prev, cep }))}
+                    onAddressFound={(addr) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        cep: addr.cep || prev.cep,
+                        logradouro: addr.logradouro || prev.logradouro,
+                        bairro: addr.bairro || prev.bairro,
+                        cidade: addr.cidade || prev.cidade,
+                        uf: addr.uf || prev.uf,
+                        cmun: addr.cmun || prev.cmun,
+                        pais: addr.pais || prev.pais,
+                        cpais: addr.cpais || prev.cpais || "1058",
+                      }))
+                    }
+                  />
                 )}
               </div>
               <div className="flex items-center gap-2 pt-8">
@@ -189,7 +233,7 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Cidade</Label>
                 <Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} placeholder="Insira a cidade" />
@@ -210,6 +254,23 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
                     </SelectContent>
                   </Select>
                 )}
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  Cód. IBGE (cMun) {!isForeign && <span className="text-destructive">*</span>}
+                </Label>
+                <Input
+                  value={form.cmun}
+                  onChange={(e) =>
+                    setForm({ ...form, cmun: e.target.value.replace(/\D/g, "").slice(0, 7) })
+                  }
+                  placeholder="7 dígitos"
+                  className={!isForeign && !cmunValido(form.cmun) ? "border-destructive" : ""}
+                  maxLength={7}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Obrigatório no XML da NF-e. Preenchido automaticamente pelo CEP.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>País {isForeign && <span className="text-destructive">*</span>}</Label>
@@ -235,7 +296,9 @@ export function EnderecosTab({ enderecos, tipoPessoa, onAdd, onUpdate, onDelete 
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSave}>Salvar</Button>
+              <Button onClick={handleSave} disabled={!isForeign && !cmunValido(form.cmun)}>
+                Salvar
+              </Button>
             </div>
           </div>
         </DialogContent>
