@@ -1,9 +1,20 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { RodapeBrainX } from "@/components/shared/RodapeBrainX";
 import { APP_VERSION } from "@/lib/app-version";
+import { ehDanfePrevia } from "@/lib/erros-fiscais";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface DANFEItem {
   numero_item?: number;
@@ -233,6 +244,7 @@ const textFrom = (...values: any[]) => {
 
 export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
 
   const pages = useMemo(() => {
     if (!data) return [] as DANFEItem[][];
@@ -246,11 +258,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
   }, [data]);
 
   const totalPages = pages.length || 1;
-  const podeImprimir = data?.pode_imprimir === true;
-  const isRascunhoSemValor =
-    !podeImprimir ||
-    !data?.status ||
-    ["RASCUNHO", "PROCESSANDO", "REJEITADO", "REJEITADA"].includes(String(data.status).toUpperCase());
+  const ehPrevia = ehDanfePrevia(data);
+  const isRascunhoSemValor = ehPrevia;
   const emContingencia = !!data?.em_contingencia;
   const isHomolog = data?.ambiente === "homologacao";
 
@@ -296,6 +305,11 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
     document.body.removeChild(wrapper);
   };
 
+  const solicitarImpressao = () => {
+    if (ehPrevia) setConfirmPrintOpen(true);
+    else handlePrint();
+  };
+
   if (!data) return null;
 
   const renderItemDescricao = (item: DANFEItem) => (
@@ -317,8 +331,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
   const renderWatermarks = () => {
     const text = emContingencia
       ? "DANFE em Contingência"
-      : isRascunhoSemValor
-        ? "SEM VALOR FISCAL — DOCUMENTO NÃO TRANSMITIDO"
+      : ehPrevia
+        ? "SEM VALOR FISCAL"
         : isHomolog
           ? "SEM VALOR FISCAL"
           : null;
@@ -336,16 +350,32 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
       }}>
         <div style={{
           transform: "rotate(-35deg)",
-          fontSize: "36pt",
-          fontWeight: 700,
-          letterSpacing: "6px",
-          color: "rgba(220, 38, 38, 0.07)",
+          fontSize: "40pt",
+          fontWeight: 800,
+          letterSpacing: "8px",
+          color: "rgba(220, 38, 38, 0.10)",
           whiteSpace: "nowrap",
           WebkitPrintColorAdjust: "exact",
           printColorAdjust: "exact",
         } as React.CSSProperties}>
           {text}
         </div>
+      </div>
+    );
+  };
+
+  const renderFaixaPrevia = () => {
+    if (!ehPrevia) return null;
+    return (
+      <div
+        className="bg-destructive text-destructive-foreground text-center py-1.5 text-xs font-semibold"
+        style={{
+          WebkitPrintColorAdjust: "exact",
+          printColorAdjust: "exact",
+          marginBottom: "2mm",
+        } as React.CSSProperties}
+      >
+        PRÉ-VISUALIZAÇÃO — DOCUMENTO NÃO TRANSMITIDO À SEFAZ · SEM VALOR FISCAL
       </div>
     );
   };
@@ -526,16 +556,16 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
       <DialogContent className="max-w-[820px] max-h-[95vh] overflow-y-auto p-2">
         <DialogHeader className="flex flex-row items-center justify-between no-print px-2 pt-2">
           <DialogTitle className="text-base">
-            {podeImprimir ? "Pré-visualização DANFE" : "Pré-visualização de Espelho — Sem valor fiscal"}
+            {ehPrevia ? "Pré-visualização — Sem valor fiscal" : "DANFE"}
           </DialogTitle>
           <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
-              onClick={handlePrint}
-              title={!podeImprimir ? "Espelho sem valor fiscal (não transmitir/entregar como NF-e)" : undefined}
+              onClick={solicitarImpressao}
+              title={ehPrevia ? "Prévia sem valor fiscal (não transmitir/entregar como NF-e)" : undefined}
             >
-              <Printer className="h-4 w-4 mr-1" /> {podeImprimir ? "Imprimir DANFE" : "Imprimir espelho"}
+              <Printer className="h-4 w-4 mr-1" /> {ehPrevia ? "Imprimir prévia" : "Imprimir DANFE"}
             </Button>
           </div>
         </DialogHeader>
@@ -562,6 +592,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
             >
               {renderWatermarks()}
               <div style={{ position: "relative", zIndex: 1 }}>
+                {pageIdx === 0 && renderFaixaPrevia()}
                 {pageIdx === 0 && renderCanhoto()}
                 {renderHeader(pageIdx)}
 
@@ -821,6 +852,29 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
           ))}
         </div>
       </DialogContent>
+
+      <AlertDialog open={confirmPrintOpen} onOpenChange={setConfirmPrintOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Imprimir pré-visualização?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta nota <b>não foi transmitida</b>. O documento impresso não tem valor
+              fiscal e não pode acompanhar mercadoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmPrintOpen(false);
+                handlePrint();
+              }}
+            >
+              Imprimir mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -59,21 +59,29 @@ export function CepLookupInput({
     if (newValue.length > 8) newValue = newValue.slice(0, 8);
     
     // Auto-formatar
-    if (newValue.length > 5) {
-      newValue = `${newValue.slice(0, 5)}-${newValue.slice(5)}`;
-    }
+    const formatted =
+      newValue.length > 5 ? `${newValue.slice(0, 5)}-${newValue.slice(5)}` : newValue;
     
-    onChange(newValue);
+    onChange(formatted);
     setFound(false);
 
-    // Auto-buscar quando completar 8 dígitos
-    if (newValue.replace(/\D/g, '').length === 8) {
-      setTimeout(() => {
-        const cleanCep = newValue.replace(/\D/g, '');
-        if (cleanCep.length === 8) {
-          handleSearch();
+    // Auto-buscar quando completar 8 dígitos (usa o CEP digitado, não o closure antigo)
+    if (newValue.length === 8) {
+      setTimeout(async () => {
+        setIsLoading(true);
+        try {
+          const address = await buscarCep(newValue);
+          if (address) {
+            setFound(true);
+            toast.success('Endereço encontrado!');
+            onAddressFound?.(address);
+          }
+        } catch {
+          /* silencioso no auto-fill; botão Buscar mostra erro */
+        } finally {
+          setIsLoading(false);
         }
-      }, 500);
+      }, 400);
     }
   };
 
