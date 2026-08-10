@@ -2,8 +2,8 @@
  * CST (regime normal) × CSOSN (Simples Nacional / MEI).
  * Lista única — Emissor, FiscalReview e wizard de item consomem daqui.
  *
- * Qual CSOSN usar em cada operação é decisão do contador (pendência de handoff).
- * Não inventar default regulatório.
+ * No emissor de NF-e, o CSOSN é derivado por `csosn_sugerido` (LC 123/2006
+ * art. 23) — não perguntar ao usuário nem ao contador.
  */
 
 export type CodigoFiscalOpcao = { value: string; label: string };

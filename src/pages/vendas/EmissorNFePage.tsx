@@ -3,7 +3,7 @@ import {
   FileOutput, Plus, Trash2, Printer, Send, ArrowLeft, Package, Truck, CreditCard,
   Building2, ChevronRight, Receipt, ShieldCheck, ScrollText, FlaskConical, CalendarCheck,
   Save, Check, CheckCircle2, Loader2, Layers, Copy, AlertTriangle, History,
-  AlertCircle,
+  AlertCircle, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
@@ -41,6 +41,16 @@ import {
   rotuloIcmsPorCrt,
   codigoIcmsIncompativelComCrt,
 } from "@/lib/fiscal-icms";
+import {
+  codigoIcmsEfetivo,
+  normalizarRegraCsosn,
+} from "@/lib/csosn-sugerido";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   traduzirErroFiscal,
   type ValidacaoDestinatarioNfe,
@@ -435,6 +445,9 @@ export default function EmissorNFePage() {
   const [rascunhoTs, setRascunhoTs] = useState<number | null>(null);
   /** Enquanto o diálogo de retomar está aberto, não gravar (evita apagar o rascunho). */
   const [persistHabilitado, setPersistHabilitado] = useState(!!editId);
+  /** Opt-in CSOSN 101 (crédito) — nunca automático; exige alíquota pCredSN. */
+  const [usar101, setUsar101] = useState(false);
+  const [pCredSN, setPCredSN] = useState("");
   const [erroEmissao, setErroEmissao] = useState<string | null>(null);
   const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
   const [editClienteOpen, setEditClienteOpen] = useState(false);
@@ -928,6 +941,48 @@ export default function EmissorNFePage() {
     if (!operacoesFiscais?.length) return null;
     return operacoesFiscais.find((op) => op.codigo === operacaoFiscalCodigo) ?? null;
   }, [operacoesFiscais, operacaoFiscalCodigo]);
+
+  const { data: regraCsosn } = useQuery({
+    queryKey: ["csosn-sugerido", operacaoSelecionada?.codigo, clienteId || null],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("csosn_sugerido", {
+        p_operacao: operacaoSelecionada!.codigo,
+        p_cliente_id: clienteId || null,
+      });
+      if (error) throw error;
+      return normalizarRegraCsosn(data);
+    },
+    enabled: !!operacaoSelecionada?.codigo,
+    retry: false,
+  });
+
+  const csosnEfetivo = useMemo(
+    () => codigoIcmsEfetivo(regraCsosn, usar101),
+    [regraCsosn, usar101],
+  );
+
+  // Aplicar CSOSN/CST derivado a todos os itens quando operação, cliente ou opt-in 101 mudarem.
+  useEffect(() => {
+    if (!csosnEfetivo) return;
+    setItens((prev) => {
+      let changed = false;
+      const next = prev.map((it) => {
+        if (it.cst_icms === csosnEfetivo) return it;
+        changed = true;
+        return { ...it, cst_icms: csosnEfetivo };
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [csosnEfetivo]);
+
+  // Sem destinatário contribuinte elegível: desliga opt-in 101.
+  useEffect(() => {
+    if (!regraCsosn?.permite_101 && usar101) {
+      setUsar101(false);
+      setPCredSN("");
+    }
+  }, [regraCsosn?.permite_101, usar101]);
 
   // Patch 1 — Nota NOVA começa em VENDA_PRODUCAO. Uma vez, na montagem.
   // NÃO incluir operacaoFiscalCodigo nas deps: vira laço e a troca do usuário
@@ -1527,19 +1582,34 @@ export default function EmissorNFePage() {
 
       const itemSemIcms = itens.find((i) => i.item_id && !String(i.cst_icms || "").trim());
       if (itemSemIcms) {
-        throw new Error(
-          usaCsosn
-            ? `Informe o CSOSN do item "${itemSemIcms.descricao || "sem descrição"}" (Simples/MEI — definir com o contador).`
-            : `Informe o CST ICMS do item "${itemSemIcms.descricao || "sem descrição"}".`,
-        );
+        // Simples/MEI: CSOSN vem de csosn_sugerido — aguardar a regra, não pedir ao usuário.
+        if (regraCsosn?.usa_csosn || usaCsosn) {
+          if (!csosnEfetivo) {
+            throw new Error(
+              "CSOSN ainda não foi determinado para esta operação. Selecione a operação fiscal e aguarde.",
+            );
+          }
+        } else {
+          throw new Error(
+            `Informe o CST ICMS do item "${itemSemIcms.descricao || "sem descrição"}".`,
+          );
+        }
+      }
+      if (usar101 && regraCsosn?.permite_101) {
+        const aliq = Number(String(pCredSN).replace(",", "."));
+        if (!(aliq > 0)) {
+          throw new Error(
+            "CSOSN 101 exige a alíquota de crédito do Simples (pCredSN). Informe o percentual da faixa de receita bruta.",
+          );
+        }
       }
       const itemCstErrado = itens.find((i) =>
         codigoIcmsIncompativelComCrt(company?.crt, i.cst_icms),
       );
-      if (itemCstErrado) {
+      if (itemCstErrado && !csosnEfetivo) {
         throw new Error(
           `Item "${itemCstErrado.descricao || "sem descrição"}" tem CST ${itemCstErrado.cst_icms}, ` +
-            `mas o emitente é CRT ${company?.crt} (Simples/MEI). Use CSOSN (101–900) — CST 00 é rejeição na SEFAZ.`,
+            `mas o emitente é CRT ${company?.crt} (Simples/MEI). O CSOSN é aplicado automaticamente pela operação.`,
         );
       }
 
@@ -1549,6 +1619,11 @@ export default function EmissorNFePage() {
         valor_unitario: operacaoSelecionada.gera_financeiro ? Number(item.valor_unitario) : (Number(item.valor_unitario) || null),
         lote_id: item.rastros.find((r) => r.lote_id)?.lote_id || null,
         nota_entrada_item_id: item.nota_entrada_item_id || null,
+        // Exibição / trilha — criar_nota_saida aplica CSOSN no banco; campos extras são ignorados se a RPC não consumir.
+        ...(csosnEfetivo ? { csosn: csosnEfetivo, cst_icms: csosnEfetivo } : {}),
+        ...(usar101 && regraCsosn?.permite_101
+          ? { p_cred_sn: Number(String(pCredSN).replace(",", ".")) }
+          : {}),
       }));
 
       const payloadRpc = {
@@ -1744,6 +1819,7 @@ export default function EmissorNFePage() {
                   carregandoEdicao ||
                   !operacaoSelecionada ||
                   !clienteId ||
+                  (usar101 && !(Number(String(pCredSN).replace(",", ".")) > 0)) ||
                   validacaoDest?.valido === false ||
                   validandoDest
                 }
@@ -2384,6 +2460,46 @@ export default function EmissorNFePage() {
                   </AlertDescription>
                 </Alert>
               )}
+              {regraCsosn?.permite_101 && (
+                <Alert className="mt-1">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="space-y-2">
+                    <p>
+                      O destinatário é contribuinte. Se for do regime normal e destinar a
+                      mercadoria a comercialização ou industrialização, cabe o <b>CSOSN 101</b>,
+                      que transfere crédito de ICMS.
+                    </p>
+                    {regraCsosn.observacao_101 && (
+                      <p className="text-xs text-muted-foreground">{regraCsosn.observacao_101}</p>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="usar101"
+                        checked={usar101}
+                        onCheckedChange={(v) => {
+                          setUsar101(!!v);
+                          if (!v) setPCredSN("");
+                        }}
+                      />
+                      <Label htmlFor="usar101" className="text-sm font-normal">
+                        Transferir crédito (CSOSN 101)
+                      </Label>
+                    </div>
+                    {usar101 && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm whitespace-nowrap">Alíquota de crédito (%)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={pCredSN}
+                          onChange={(e) => setPCredSN(e.target.value)}
+                          className="w-24"
+                        />
+                      </div>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-2 rounded-md border bg-background/95 backdrop-blur">
                 <div className="text-sm">
                   <span className="font-medium">{itens.length}</span>
@@ -2541,43 +2657,73 @@ export default function EmissorNFePage() {
 
                     <Separator />
                     <p className="text-xs font-semibold text-muted-foreground">ICMS</p>
-                    {usaCsosn && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Emitente CRT {company?.crt || "1"} (Simples/MEI) — use CSOSN.
-                        Qual código em cada operação: definir com o contador.
-                      </p>
-                    )}
-                    {codigoIcmsIncompativelComCrt(company?.crt, item.cst_icms) && (
-                      <Alert variant="destructive" className="py-2">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        <AlertDescription className="text-[11px]">
-                          CST {item.cst_icms} é de regime normal. Simples Nacional exige CSOSN
-                          (101–900) — CST 00 é rejeição na SEFAZ.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    <div className="grid grid-cols-5 gap-2">
-                      <div>
-                        <Label className="text-xs">{rotuloIcms}</Label>
-                        <Select
-                          value={item.cst_icms || undefined}
-                          onValueChange={(v) => updateItem(idx, "cst_icms", v)}
-                        >
-                          <SelectTrigger className="text-xs h-9">
-                            <SelectValue placeholder={usaCsosn ? "Definir com contador…" : "Selecione…"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {opcoesIcms.map((c) => (
-                              <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    {(regraCsosn?.usa_csosn ?? usaCsosn) ? (
+                      <div className="grid grid-cols-5 gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Label className="text-xs">CSOSN</Label>
+                            {regraCsosn?.motivo && (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-sm">
+                                    <p>{regraCsosn.motivo}</p>
+                                    {regraCsosn.base_legal && (
+                                      <p className="mt-1 text-xs opacity-70">{regraCsosn.base_legal}</p>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                          <Input
+                            value={item.cst_icms || csosnEfetivo || "—"}
+                            readOnly
+                            className="bg-muted font-mono cursor-default text-xs"
+                          />
+                        </div>
+                        <div><Label className="text-xs">BC ICMS</Label><Input value={`R$ ${fmt(item.icms_base)}`} readOnly className="bg-muted text-xs" /></div>
+                        <div><Label className="text-xs">ICMS %</Label><Input type="number" value={item.icms_aliquota} onChange={e => updateItem(idx, "icms_aliquota", Number(e.target.value))} className="text-xs" /></div>
+                        <div><Label className="text-xs">V. ICMS</Label><Input value={`R$ ${fmt(item.icms_valor)}`} readOnly className="bg-muted text-xs" /></div>
+                        <div><Label className="text-xs">IPI %</Label><Input type="number" value={item.ipi_aliquota} onChange={e => updateItem(idx, "ipi_aliquota", Number(e.target.value))} className="text-xs" /></div>
                       </div>
-                      <div><Label className="text-xs">BC ICMS</Label><Input value={`R$ ${fmt(item.icms_base)}`} readOnly className="bg-muted text-xs" /></div>
-                      <div><Label className="text-xs">ICMS %</Label><Input type="number" value={item.icms_aliquota} onChange={e => updateItem(idx, "icms_aliquota", Number(e.target.value))} className="text-xs" /></div>
-                      <div><Label className="text-xs">V. ICMS</Label><Input value={`R$ ${fmt(item.icms_valor)}`} readOnly className="bg-muted text-xs" /></div>
-                      <div><Label className="text-xs">IPI %</Label><Input type="number" value={item.ipi_aliquota} onChange={e => updateItem(idx, "ipi_aliquota", Number(e.target.value))} className="text-xs" /></div>
-                    </div>
+                    ) : (
+                      <>
+                        {codigoIcmsIncompativelComCrt(company?.crt, item.cst_icms) && (
+                          <Alert variant="destructive" className="py-2">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            <AlertDescription className="text-[11px]">
+                              CST {item.cst_icms} é de regime normal. Simples Nacional exige CSOSN
+                              (101–900) — CST 00 é rejeição na SEFAZ.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        <div className="grid grid-cols-5 gap-2">
+                          <div>
+                            <Label className="text-xs">{rotuloIcms}</Label>
+                            <Select
+                              value={item.cst_icms || undefined}
+                              onValueChange={(v) => updateItem(idx, "cst_icms", v)}
+                            >
+                              <SelectTrigger className="text-xs h-9">
+                                <SelectValue placeholder="Selecione…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {opcoesIcms.map((c) => (
+                                  <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div><Label className="text-xs">BC ICMS</Label><Input value={`R$ ${fmt(item.icms_base)}`} readOnly className="bg-muted text-xs" /></div>
+                          <div><Label className="text-xs">ICMS %</Label><Input type="number" value={item.icms_aliquota} onChange={e => updateItem(idx, "icms_aliquota", Number(e.target.value))} className="text-xs" /></div>
+                          <div><Label className="text-xs">V. ICMS</Label><Input value={`R$ ${fmt(item.icms_valor)}`} readOnly className="bg-muted text-xs" /></div>
+                          <div><Label className="text-xs">IPI %</Label><Input type="number" value={item.ipi_aliquota} onChange={e => updateItem(idx, "ipi_aliquota", Number(e.target.value))} className="text-xs" /></div>
+                        </div>
+                      </>
+                    )}
                     <p className="text-xs font-semibold text-muted-foreground">PIS / COFINS</p>
                     <div className="grid grid-cols-6 gap-2">
                       <div>
