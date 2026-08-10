@@ -5,6 +5,7 @@ import { Printer } from "lucide-react";
 import { RodapeBrainX } from "@/components/shared/RodapeBrainX";
 import { APP_VERSION } from "@/lib/app-version";
 import { ehDanfePrevia } from "@/lib/erros-fiscais";
+import { DanfeBarcode } from "@/components/nfe/DanfeBarcode";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -487,12 +488,9 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
           <td colSpan={8} style={{ ...cellStyle, verticalAlign: "top", padding: "4px" }}>
             {!isRascunhoSemValor ? (
               <>
-                <div style={{
-                  height: "40px",
-                  background: "repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 3px)",
-                  marginBottom: "4px",
-                  opacity: 0.4,
-                }} />
+                <div style={{ height: "40px", marginBottom: "4px" }}>
+                  <DanfeBarcode chaveAcesso={data.chave_acesso} />
+                </div>
                 <div style={{ fontSize: "6pt", textAlign: "center" }}>
                   <b>CHAVE DE ACESSO</b><br />
                   <span style={{ fontFamily: "'Courier New', monospace", fontSize: "7.5pt", letterSpacing: "0.5px" }}>
