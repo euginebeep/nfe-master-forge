@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldAlert, Eye, CheckCircle, Trash2, FileText, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +15,24 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import {
+  chamarLiberarLote,
+  coaDispensadoParaTipo,
+  conferenciasPendentes,
+  getConferenciasObrigatorias,
+  MIN_JUSTIFICATIVA_SEM_COA,
+  montarConferenciasPayload,
+  PLACEHOLDER_JUSTIFICATIVA_SEM_COA,
+  precisaJustificativaSemCoa,
+} from "@/lib/liberar-lote";
+
+function erroMsg(err: unknown): string {
+  const e = err as { message?: string; code?: string };
+  return e?.message || e?.code || "Erro desconhecido";
+}
 
 export default function QuarentenaPage() {
   const navigate = useNavigate();
@@ -24,6 +41,7 @@ export default function QuarentenaPage() {
   const [selectedLote, setSelectedLote] = useState<any>(null);
   const [actionType, setActionType] = useState<'liberar' | 'descartar' | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [conferencias, setConferencias] = useState<Record<string, boolean>>({});
 
   const { data: lotes = [], isLoading } = useQuery({
     queryKey: ['quarentena-lotes', companyId],
@@ -33,7 +51,7 @@ export default function QuarentenaPage() {
         .from('estoque_lotes')
         .select(`
           *,
-          item:itens(descricao_interna, sku_interno, unidade_interna),
+          item:itens(descricao_interna, sku_interno, unidade_interna, tipo_item),
           fornecedor:entidades(razao_social),
           nota_item:notas_entrada_itens (
             nota:notas_entrada (numero, serie, dh_emissao)
@@ -54,19 +72,45 @@ export default function QuarentenaPage() {
   });
 
   const liberarLote = useMutation({
-    mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
-      const { error } = await supabase
-        .from('estoque_lotes')
-        .update({ status: 'DISPONIVEL', observacoes_qc: motivo } as any)
-        .eq('id', id).eq('company_id', companyId!);
-      if (error) throw error;
+    mutationFn: async ({
+      id,
+      motivoTexto,
+      tipoItem,
+      marcadas,
+      temCoaValidado,
+    }: {
+      id: string;
+      motivoTexto: string;
+      tipoItem: string | null | undefined;
+      marcadas: Record<string, boolean>;
+      temCoaValidado: boolean;
+    }) => {
+      const pendentes = conferenciasPendentes(tipoItem, marcadas);
+      if (pendentes.length > 0) {
+        throw new Error(`Conferências pendentes: ${pendentes.map((p) => p.label).join(", ")}`);
+      }
+
+      const justificativaTrim = motivoTexto.trim();
+      const precisaJust = precisaJustificativaSemCoa(tipoItem, temCoaValidado);
+      if (precisaJust && justificativaTrim.length < MIN_JUSTIFICATIVA_SEM_COA) {
+        throw new Error(
+          `Justificativa deve ter no mínimo ${MIN_JUSTIFICATIVA_SEM_COA} caracteres`
+        );
+      }
+
+      return chamarLiberarLote({
+        loteId: id,
+        conferencias: montarConferenciasPayload(tipoItem, marcadas),
+        justificativa: precisaJust ? justificativaTrim : (justificativaTrim || null),
+      });
     },
-    onSuccess: () => {
+    onSuccess: (resultado) => {
       queryClient.invalidateQueries({ queryKey: ['quarentena-lotes'] });
-      toast.success('Lote liberado para uso');
+      const por = resultado.liberado_por ? ` por ${resultado.liberado_por}` : "";
+      toast.success(`Lote liberado para uso${por}`);
       closeDialog();
     },
-    onError: (e: Error) => toast.error(`Erro: ${e.message}`),
+    onError: (e: Error) => toast.error(`Erro: ${erroMsg(e)}`),
   });
 
   const descartarLote = useMutation({
@@ -82,34 +126,79 @@ export default function QuarentenaPage() {
       toast.success('Lote bloqueado para descarte');
       closeDialog();
     },
-    onError: (e: Error) => toast.error(`Erro: ${e.message}`),
+    onError: (e: Error) => toast.error(`Erro: ${erroMsg(e)}`),
   });
 
   const closeDialog = () => {
     setSelectedLote(null);
     setActionType(null);
     setMotivo("");
+    setConferencias({});
   };
 
   const handleAction = (lote: any, type: 'liberar' | 'descartar') => {
     setSelectedLote(lote);
     setActionType(type);
     setMotivo("");
-  };
-
-  const confirmAction = () => {
-    if (!selectedLote || !actionType) return;
-    if (!motivo.trim()) {
-      toast.error('Motivo é obrigatório');
-      return;
+    if (type === 'liberar') {
+      const inicial: Record<string, boolean> = {};
+      for (const c of getConferenciasObrigatorias(lote.item?.tipo_item)) {
+        inicial[c.key] = false;
+      }
+      setConferencias(inicial);
+    } else {
+      setConferencias({});
     }
-    const fn = actionType === 'liberar' ? liberarLote : descartarLote;
-    fn.mutate({ id: selectedLote.id, motivo: motivo.trim() });
   };
 
   const hasValidatedCOA = (lote: any) => {
-    const docs = lote.lote_documentos || [];
+    const docs = lote?.lote_documentos || [];
     return docs.some((d: any) => d.tipo_documento === "COA" && d.status_validacao === "VALIDADO");
+  };
+
+  const tipoItemSelecionado = selectedLote?.item?.tipo_item as string | undefined;
+  const opcoesConferencia = useMemo(
+    () => (actionType === "liberar" ? getConferenciasObrigatorias(tipoItemSelecionado) : []),
+    [actionType, tipoItemSelecionado]
+  );
+  const pendentesLiberacao = useMemo(
+    () => (actionType === "liberar" ? conferenciasPendentes(tipoItemSelecionado, conferencias) : []),
+    [actionType, tipoItemSelecionado, conferencias]
+  );
+  const precisaJustificativa =
+    actionType === "liberar" &&
+    !!selectedLote &&
+    precisaJustificativaSemCoa(tipoItemSelecionado, hasValidatedCOA(selectedLote));
+
+  const liberarPodeConfirmar =
+    pendentesLiberacao.length === 0 &&
+    (!precisaJustificativa || motivo.trim().length >= MIN_JUSTIFICATIVA_SEM_COA);
+
+  const confirmAction = () => {
+    if (!selectedLote || !actionType) return;
+    if (actionType === "descartar") {
+      if (!motivo.trim()) {
+        toast.error('Motivo é obrigatório');
+        return;
+      }
+      descartarLote.mutate({ id: selectedLote.id, motivo: motivo.trim() });
+      return;
+    }
+    if (!liberarPodeConfirmar) {
+      if (pendentesLiberacao.length > 0) {
+        toast.error(`Marque: ${pendentesLiberacao.map((p) => p.label).join(", ")}`);
+      } else if (precisaJustificativa) {
+        toast.error(`Justificativa deve ter no mínimo ${MIN_JUSTIFICATIVA_SEM_COA} caracteres`);
+      }
+      return;
+    }
+    liberarLote.mutate({
+      id: selectedLote.id,
+      motivoTexto: motivo,
+      tipoItem: tipoItemSelecionado,
+      marcadas: conferencias,
+      temCoaValidado: hasValidatedCOA(selectedLote),
+    });
   };
 
   const totalLotes = lotes.length;
@@ -190,6 +279,9 @@ export default function QuarentenaPage() {
       key: "coa_status",
       header: "COA",
       render: (item: any) => {
+        if (coaDispensadoParaTipo(item.item?.tipo_item)) {
+          return <StatusBadge variant="muted">CoA dispensado</StatusBadge>;
+        }
         const docs = item.lote_documentos || [];
         const hasCOA = docs.some((d: any) => d.tipo_documento === "COA");
         const coaValidado = docs.some((d: any) => d.tipo_documento === "COA" && d.status_validacao === "VALIDADO");
@@ -258,11 +350,13 @@ export default function QuarentenaPage() {
       )}
 
       <Dialog open={!!selectedLote && !!actionType} onOpenChange={(o) => { if (!o) closeDialog(); }}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{actionType === 'liberar' ? 'Liberar Lote para Estoque' : 'Descartar Lote'}</DialogTitle>
             <DialogDescription>
-              {actionType === 'liberar' ? 'Este lote será movido para o estoque oficial e ficará disponível para uso.' : 'Este lote será marcado como descartado e removido da quarentena.'}
+              {actionType === 'liberar'
+                ? 'Confira os itens abaixo. A liberação é registrada no servidor com carimbo de tempo e responsável.'
+                : 'Este lote será marcado como descartado e removido da quarentena.'}
             </DialogDescription>
           </DialogHeader>
           {selectedLote && (
@@ -271,23 +365,85 @@ export default function QuarentenaPage() {
                 <div className="flex justify-between"><span className="text-sm text-muted-foreground">Lote:</span><span className="font-mono font-medium">{selectedLote.numero_lote}</span></div>
                 <div className="flex justify-between"><span className="text-sm text-muted-foreground">Produto:</span><span className="font-medium">{selectedLote.item?.descricao_interna}</span></div>
                 <div className="flex justify-between"><span className="text-sm text-muted-foreground">Quantidade:</span><span>{formatQtdLote(selectedLote.quantidade_interna, selectedLote.item?.unidade_interna || selectedLote.unidade_original)} {selectedLote.item?.unidade_interna || selectedLote.unidade_original}</span></div>
-                {!hasValidatedCOA(selectedLote) && actionType === 'liberar' && (
+                {actionType === 'liberar' && !hasValidatedCOA(selectedLote) && !coaDispensadoParaTipo(tipoItemSelecionado) && (
                   <div className="flex items-center gap-2 text-warning mt-2 p-2 bg-warning/10 rounded">
                     <AlertTriangle className="h-4 w-4" /><span className="text-sm">Este lote não possui COA validado</span>
                   </div>
                 )}
+                {actionType === 'liberar' && coaDispensadoParaTipo(tipoItemSelecionado) && (
+                  <div className="flex items-center gap-2 text-muted-foreground mt-2 p-2 bg-muted rounded">
+                    <span className="text-sm">CoA dispensado para este tipo de item</span>
+                  </div>
+                )}
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Motivo <span className="text-destructive">*</span></label>
-                <Textarea placeholder={actionType === 'liberar' ? 'Ex: COA validado, conforme especificação' : 'Ex: Fora de especificação, vencido, contaminação'}
-                  value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} required />
-              </div>
+
+              {actionType === 'liberar' && (
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Conferências</Label>
+                  {opcoesConferencia.map((op) => (
+                    <label key={op.key} className="flex items-start gap-2 text-sm">
+                      <Checkbox
+                        checked={!!conferencias[op.key]}
+                        onCheckedChange={(v) =>
+                          setConferencias((prev) => ({ ...prev, [op.key]: !!v }))
+                        }
+                      />
+                      <span>{op.label}</span>
+                    </label>
+                  ))}
+                  {pendentesLiberacao.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Falta marcar: {pendentesLiberacao.map((p) => p.label).join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(actionType === 'descartar' || precisaJustificativa) && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {actionType === 'liberar' ? 'Justificativa' : 'Motivo'}{" "}
+                    <span className="text-destructive">*</span>
+                  </label>
+                  <Textarea
+                    placeholder={
+                      actionType === 'liberar'
+                        ? PLACEHOLDER_JUSTIFICATIVA_SEM_COA
+                        : 'Ex: Fora de especificação, vencido, contaminação'
+                    }
+                    value={motivo}
+                    onChange={(e) => setMotivo(e.target.value)}
+                    rows={3}
+                    required
+                  />
+                  {actionType === 'liberar' && (
+                    <p
+                      className={`text-xs ${
+                        motivo.trim().length >= MIN_JUSTIFICATIVA_SEM_COA
+                          ? "text-green-600"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {motivo.trim().length >= MIN_JUSTIFICATIVA_SEM_COA
+                        ? `✓ ${motivo.trim().length} caracteres`
+                        : `Mínimo ${MIN_JUSTIFICATIVA_SEM_COA} caracteres (${motivo.trim().length}/${MIN_JUSTIFICATIVA_SEM_COA})`}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancelar</Button>
-            <Button variant={actionType === 'liberar' ? 'default' : 'destructive'} onClick={confirmAction}
-              disabled={liberarLote.isPending || descartarLote.isPending || !motivo.trim()}>
+            <Button
+              variant={actionType === 'liberar' ? 'default' : 'destructive'}
+              onClick={confirmAction}
+              disabled={
+                liberarLote.isPending ||
+                descartarLote.isPending ||
+                (actionType === 'descartar' ? !motivo.trim() : !liberarPodeConfirmar)
+              }
+            >
               {actionType === 'liberar' ? 'Confirmar Liberação' : 'Confirmar Descarte'}
             </Button>
           </DialogFooter>

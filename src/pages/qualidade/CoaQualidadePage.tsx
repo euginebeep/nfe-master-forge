@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
@@ -27,15 +28,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ImportarCoaNotaSeletor } from "@/components/nfe/ImportarCoaNotaDialog";
+import {
+  ImportarCoaNotaDialog,
+  ImportarCoaNotaSeletor,
+} from "@/components/nfe/ImportarCoaNotaDialog";
 import { VerPdfButton } from "@/components/shared/VerPdfButton";
 import { formatDate, formatNumber } from "@/lib/formatters";
 import { toast } from "sonner";
+import {
+  chamarLiberarLote,
+  coaDispensadoParaTipo,
+  conferenciasPendentes,
+  getConferenciasObrigatorias,
+  MIN_JUSTIFICATIVA_SEM_COA,
+  montarConferenciasPayload,
+  PLACEHOLDER_JUSTIFICATIVA_SEM_COA,
+  precisaJustificativaSemCoa,
+} from "@/lib/liberar-lote";
 
-type CoaStatusFiltro = "todos" | "SEM_COA" | "PENDENTE" | "VALIDADO";
-type CoaStatus = "SEM_COA" | "PENDENTE" | "VALIDADO";
+type CoaStatusFiltro =
+  | "todos"
+  | "COA_DISPENSADO"
+  | "VALIDADO"
+  | "PENDENTE"
+  | "COA_NA_NOTA"
+  | "SEM_COA";
+type CoaStatus =
+  | "COA_DISPENSADO"
+  | "VALIDADO"
+  | "PENDENTE"
+  | "COA_NA_NOTA"
+  | "SEM_COA";
 
-const MIN_JUSTIFICATIVA = 30;
+type TipoItemFiltro =
+  | "todos"
+  | "MP"
+  | "CAPSULA_VAZIA"
+  | "SILICA"
+  | "ROTULO"
+  | "POTE"
+  | "TAMPA"
+  | "EMBALAGEM"
+  | "PA"
+  | "OUTRO";
+
+const MIN_JUSTIFICATIVA = MIN_JUSTIFICATIVA_SEM_COA;
 
 type LoteCoaRow = {
   id: string;
@@ -46,9 +83,14 @@ type LoteCoaRow = {
   observacoes_qc: string | null;
   quantidade_original: number;
   unidade_original: string;
+  /** Preenchido na query: a NF-e do lote tem registro em `laudos_notas`. */
+  tem_laudo_na_nota?: boolean;
   item: { descricao_interna: string | null; sku_interno: string | null; tipo_item: string } | null;
   nota_entrada_item: {
-    nota_entrada: { id: string; numero: string | null } | null;
+    nota_entrada: {
+      id: string;
+      numero: string | null;
+    } | null;
   } | null;
   lote_documentos: {
     id: string;
@@ -68,28 +110,48 @@ function getCoaDoc(lote: LoteCoaRow) {
 }
 
 function getCoaStatus(lote: LoteCoaRow): CoaStatus {
+  if (coaDispensadoParaTipo(lote.item?.tipo_item)) return "COA_DISPENSADO";
   const doc = getCoaDoc(lote);
-  if (!doc) return "SEM_COA";
-  if (doc.status_validacao === "VALIDADO") return "VALIDADO";
-  return "PENDENTE";
+  if (doc?.status_validacao === "VALIDADO") return "VALIDADO";
+  if (doc) return "PENDENTE";
+  if (lote.tem_laudo_na_nota) return "COA_NA_NOTA";
+  return "SEM_COA";
 }
 
 const COA_STATUS_LABEL: Record<CoaStatus, string> = {
-  SEM_COA: "Sem COA",
-  PENDENTE: "Pendente",
+  COA_DISPENSADO: "CoA dispensado",
   VALIDADO: "Validado",
+  PENDENTE: "Pendente",
+  COA_NA_NOTA: "CoA na nota",
+  SEM_COA: "Sem CoA",
 };
 
 const COA_STATUS_VARIANT: Record<CoaStatus, "muted" | "warning" | "success"> = {
-  SEM_COA: "muted",
-  PENDENTE: "warning",
+  COA_DISPENSADO: "muted",
   VALIDADO: "success",
+  PENDENTE: "warning",
+  COA_NA_NOTA: "warning",
+  SEM_COA: "muted",
 };
 
-function podeLiberarComRessalva(lote: LoteCoaRow): boolean {
-  if (lote.status !== "QUARENTENA") return false;
-  const coaStatus = getCoaStatus(lote);
-  return coaStatus === "SEM_COA" || coaStatus === "PENDENTE";
+const TIPO_ITEM_LABEL: Record<Exclude<TipoItemFiltro, "todos">, string> = {
+  MP: "Matéria-prima",
+  CAPSULA_VAZIA: "Cápsula vazia",
+  SILICA: "Sílica",
+  ROTULO: "Rótulo",
+  POTE: "Pote",
+  TAMPA: "Tampa",
+  EMBALAGEM: "Embalagem",
+  PA: "Produto acabado",
+  OUTRO: "Outro",
+};
+
+function podeLiberarLote(lote: LoteCoaRow): boolean {
+  return lote.status === "QUARENTENA";
+}
+
+function temCoaValidado(lote: LoteCoaRow): boolean {
+  return getCoaStatus(lote) === "VALIDADO";
 }
 
 type FormEditarLote = {
@@ -143,16 +205,19 @@ export default function CoaQualidadePage() {
   const { data: companyId } = useUserCompanyId();
   const queryClient = useQueryClient();
   const [statusFiltro, setStatusFiltro] = useState<CoaStatusFiltro>("todos");
+  const [tipoFiltro, setTipoFiltro] = useState<TipoItemFiltro>("todos");
   const [search, setSearch] = useState("");
   const [validandoId, setValidandoId] = useState<string | null>(null);
   const [loteParaLiberar, setLoteParaLiberar] = useState<LoteCoaRow | null>(null);
   const [justificativa, setJustificativa] = useState("");
+  const [conferencias, setConferencias] = useState<Record<string, boolean>>({});
   const [dialogLiberarOpen, setDialogLiberarOpen] = useState(false);
   const [loteParaEditar, setLoteParaEditar] = useState<LoteCoaRow | null>(null);
   const [dialogEditarOpen, setDialogEditarOpen] = useState(false);
   const [formEditar, setFormEditar] = useState<FormEditarLote>({ numero_lote: "", data_fab: "", data_val: "" });
   const [confirmarEdicao, setConfirmarEdicao] = useState(false);
   const [nomeAuditor, setNomeAuditor] = useState("RT");
+  const [importNota, setImportNota] = useState<{ id: string; numero: string } | null>(null);
 
   const { data: lotes = [], isLoading } = useQuery({
     queryKey: ["coa-qualidade-lotes", companyId],
@@ -185,9 +250,34 @@ export default function CoaQualidadePage() {
 
       if (error) throw error;
 
-      return ((data || []) as unknown as LoteCoaRow[]).filter(
-        (l) => l.item?.tipo_item === "MP"
+      const rows = (data || []) as unknown as LoteCoaRow[];
+      const notaIds = Array.from(
+        new Set(
+          rows
+            .map((r) => r.nota_entrada_item?.nota_entrada?.id)
+            .filter((id): id is string => !!id)
+        )
       );
+
+      let notasComLaudo = new Set<string>();
+      if (notaIds.length > 0) {
+        const { data: laudos, error: laudosError } = await supabase
+          .from("laudos_notas")
+          .select("nota_entrada_id")
+          .in("nota_entrada_id", notaIds);
+        if (laudosError) throw laudosError;
+        notasComLaudo = new Set(
+          (laudos || []).map((l) => l.nota_entrada_id).filter(Boolean)
+        );
+      }
+
+      return rows.map((r) => {
+        const notaId = r.nota_entrada_item?.nota_entrada?.id;
+        return {
+          ...r,
+          tem_laudo_na_nota: !!(notaId && notasComLaudo.has(notaId)),
+        };
+      });
     },
   });
 
@@ -210,7 +300,7 @@ export default function CoaQualidadePage() {
     [liberacoesSemCoa]
   );
 
-  /** Notas com pelo menos 1 lote MP sem documento COA — derivado da mesma lista da tabela */
+  /** Notas com pelo menos 1 lote sem documento COA — derivado da mesma lista da tabela */
   const notasComLotesSemCoa = useMemo(() => {
     const porNota = new Map<string, { id: string; numero: string; lotesSemCoa: number }>();
 
@@ -256,60 +346,42 @@ export default function CoaQualidadePage() {
     onSettled: () => setValidandoId(null),
   });
 
-  const liberarComRessalva = useMutation({
-    mutationFn: async ({ lote, justificativaTexto }: { lote: LoteCoaRow; justificativaTexto: string }) => {
+  const liberarLote = useMutation({
+    mutationFn: async ({
+      lote,
+      justificativaTexto,
+      marcadas,
+    }: {
+      lote: LoteCoaRow;
+      justificativaTexto: string;
+      marcadas: Record<string, boolean>;
+    }) => {
+      const tipoItem = lote.item?.tipo_item;
+      const pendentes = conferenciasPendentes(tipoItem, marcadas);
+      if (pendentes.length > 0) {
+        throw new Error(`Conferências pendentes: ${pendentes.map((p) => p.label).join(", ")}`);
+      }
+
       const trimmed = justificativaTexto.trim();
-      if (!trimmed) throw new Error("Justificativa é obrigatória");
-      if (trimmed.length < MIN_JUSTIFICATIVA) {
+      const precisaJust = precisaJustificativaSemCoa(tipoItem, temCoaValidado(lote));
+      if (precisaJust && trimmed.length < MIN_JUSTIFICATIVA) {
         throw new Error(`Justificativa deve ter no mínimo ${MIN_JUSTIFICATIVA} caracteres`);
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("full_name, email, company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) throw profileError;
-
-      const coaStatus = getCoaStatus(lote);
-      const coaPresente = coaStatus === "PENDENTE";
-
-      const { error: insertError } = await supabase
-        .from("lote_liberacoes_sem_coa" as any)
-        .insert({
-          company_id: companyId || (profile as { company_id?: string })?.company_id,
-          lote_id: lote.id,
-          usuario_id: user.id,
-          usuario_nome: (profile as { full_name?: string })?.full_name || user.email || "Operador",
-          usuario_email: user.email,
-          justificativa: trimmed,
-          status_anterior: lote.status,
-          coa_presente: coaPresente,
-          numero_lote: lote.numero_lote,
-          insumo_nome: lote.item?.descricao_interna,
-        });
-
-      if (insertError) throw insertError;
-
-      const { error: updateError } = await supabase
-        .from("estoque_lotes")
-        .update({ status: "DISPONIVEL" } as any)
-        .eq("id", lote.id)
-        .eq("company_id", companyId!);
-
-      if (updateError) throw updateError;
+      return chamarLiberarLote({
+        loteId: lote.id,
+        conferencias: montarConferenciasPayload(tipoItem, marcadas),
+        justificativa: precisaJust ? trimmed : trimmed || null,
+      });
     },
-    onSuccess: () => {
+    onSuccess: (resultado) => {
       queryClient.invalidateQueries({ queryKey: ["coa-qualidade-lotes"] });
       queryClient.invalidateQueries({ queryKey: ["estoque-lotes"] });
       queryClient.invalidateQueries({ queryKey: ["lote-liberacoes-sem-coa"] });
       queryClient.invalidateQueries({ queryKey: ["lote-liberacoes-sem-coa-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["quarentena-lotes"] });
-      toast.success("Lote liberado com ressalva. Justificativa registrada na rastreabilidade.");
+      const por = resultado.liberado_por ? ` por ${resultado.liberado_por}` : "";
+      toast.success(`Lote liberado${por}. Registro na rastreabilidade.`);
       fecharDialogLiberar();
     },
     onError: (err) => toast.error(erroMsg(err)),
@@ -325,14 +397,14 @@ export default function CoaQualidadePage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("nome_completo")
         .eq("id", user.id)
         .single();
 
       if (profileError) throw profileError;
 
       const usuarioNome =
-        (profile as { full_name?: string })?.full_name || user.email || "RT";
+        (profile as { nome_completo?: string })?.nome_completo || user.email || "RT";
 
       const linhaAuditoria = montarLinhaAuditoriaCorrecao(
         usuarioNome,
@@ -383,6 +455,11 @@ export default function CoaQualidadePage() {
   };
 
   const abrirDialogLiberar = (lote: LoteCoaRow) => {
+    const inicial: Record<string, boolean> = {};
+    for (const c of getConferenciasObrigatorias(lote.item?.tipo_item)) {
+      inicial[c.key] = false;
+    }
+    setConferencias(inicial);
     setLoteParaLiberar(lote);
     setJustificativa("");
     setDialogLiberarOpen(true);
@@ -392,19 +469,31 @@ export default function CoaQualidadePage() {
     setDialogLiberarOpen(false);
     setLoteParaLiberar(null);
     setJustificativa("");
+    setConferencias({});
   };
 
-  const confirmarLiberarComRessalva = () => {
+  const confirmarLiberar = () => {
     if (!loteParaLiberar) return;
-    if (!justificativa.trim()) {
+    const tipoItem = loteParaLiberar.item?.tipo_item;
+    const pendentes = conferenciasPendentes(tipoItem, conferencias);
+    if (pendentes.length > 0) {
+      toast.error(`Marque: ${pendentes.map((p) => p.label).join(", ")}`);
+      return;
+    }
+    const precisaJust = precisaJustificativaSemCoa(tipoItem, temCoaValidado(loteParaLiberar));
+    if (precisaJust && !justificativa.trim()) {
       toast.error("Justificativa é obrigatória");
       return;
     }
-    if (justificativa.trim().length < MIN_JUSTIFICATIVA) {
+    if (precisaJust && justificativa.trim().length < MIN_JUSTIFICATIVA) {
       toast.error(`Justificativa deve ter no mínimo ${MIN_JUSTIFICATIVA} caracteres`);
       return;
     }
-    liberarComRessalva.mutate({ lote: loteParaLiberar, justificativaTexto: justificativa });
+    liberarLote.mutate({
+      lote: loteParaLiberar,
+      justificativaTexto: justificativa,
+      marcadas: conferencias,
+    });
   };
 
   const abrirDialogEditar = (lote: LoteCoaRow) => {
@@ -470,11 +559,11 @@ export default function CoaQualidadePage() {
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, email")
+          .select("nome_completo")
           .eq("id", user.id)
           .single();
         setNomeAuditor(
-          (profile as { full_name?: string })?.full_name || user.email || "RT"
+          (profile as { nome_completo?: string })?.nome_completo || user.email || "RT"
         );
       }
     } catch {
@@ -500,6 +589,9 @@ export default function CoaQualidadePage() {
     if (statusFiltro !== "todos") {
       lista = lista.filter((l) => getCoaStatus(l) === statusFiltro);
     }
+    if (tipoFiltro !== "todos") {
+      lista = lista.filter((l) => l.item?.tipo_item === tipoFiltro);
+    }
     if (!search.trim()) return lista;
     const q = search.trim().toLowerCase();
     return lista.filter((l) => {
@@ -507,6 +599,7 @@ export default function CoaQualidadePage() {
         l.numero_lote,
         l.item?.descricao_interna,
         l.item?.sku_interno,
+        l.item?.tipo_item,
         l.nota_entrada_item?.nota_entrada?.numero,
       ]
         .filter(Boolean)
@@ -514,7 +607,7 @@ export default function CoaQualidadePage() {
         .toLowerCase();
       return texto.includes(q);
     });
-  }, [lotes, statusFiltro, search]);
+  }, [lotes, statusFiltro, tipoFiltro, search]);
 
   const columns = useMemo(
     () => [
@@ -525,9 +618,17 @@ export default function CoaQualidadePage() {
         render: (item: LoteCoaRow) => (
           <div>
             <p className="font-medium text-sm">{item.item?.descricao_interna || "—"}</p>
-            {item.item?.sku_interno && (
-              <p className="text-xs text-muted-foreground font-mono">{item.item.sku_interno}</p>
-            )}
+            <div className="flex flex-wrap gap-1 items-center">
+              {item.item?.sku_interno && (
+                <p className="text-xs text-muted-foreground font-mono">{item.item.sku_interno}</p>
+              )}
+              {item.item?.tipo_item && (
+                <Badge variant="outline" className="text-[10px]">
+                  {TIPO_ITEM_LABEL[item.item.tipo_item as Exclude<TipoItemFiltro, "todos">] ||
+                    item.item.tipo_item}
+                </Badge>
+              )}
+            </div>
           </div>
         ),
       },
@@ -591,7 +692,12 @@ export default function CoaQualidadePage() {
         render: (item: LoteCoaRow) => {
           const status = getCoaStatus(item);
           const doc = getCoaDoc(item);
-          const mostrarLiberar = podeLiberarComRessalva(item);
+          const mostrarLiberar = podeLiberarLote(item);
+          const precisaJust = precisaJustificativaSemCoa(
+            item.item?.tipo_item,
+            temCoaValidado(item)
+          );
+          const nota = item.nota_entrada_item?.nota_entrada;
 
           return (
             <div className="flex gap-1 flex-wrap">
@@ -614,6 +720,19 @@ export default function CoaQualidadePage() {
                   title={doc.arquivo.nome_original || `COA — ${item.numero_lote}`}
                 />
               )}
+              {status === "COA_NA_NOTA" && nota?.id && nota.numero && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setImportNota({ id: nota.id, numero: nota.numero! });
+                  }}
+                >
+                  Importar CoA desta nota
+                </Button>
+              )}
               {status === "PENDENTE" && doc && (
                 <Button
                   type="button"
@@ -634,13 +753,13 @@ export default function CoaQualidadePage() {
                   size="sm"
                   variant="outline"
                   className="text-amber-700 border-amber-300 hover:bg-amber-50"
-                  disabled={liberarComRessalva.isPending}
+                  disabled={liberarLote.isPending}
                   onClick={(e) => {
                     e.stopPropagation();
                     abrirDialogLiberar(item);
                   }}
                 >
-                  Liberar com ressalva
+                  {precisaJust ? "Liberar com ressalva" : "Liberar"}
                 </Button>
               )}
             </div>
@@ -648,16 +767,29 @@ export default function CoaQualidadePage() {
         },
       },
     ],
-    [validandoId, lotesComRessalva, liberarComRessalva.isPending, salvarEdicaoLote.isPending]
+    [validandoId, lotesComRessalva, liberarLote.isPending, salvarEdicaoLote.isPending]
   );
 
   const coaStatusLoteLiberar = loteParaLiberar ? getCoaStatus(loteParaLiberar) : null;
+  const tipoItemLiberar = loteParaLiberar?.item?.tipo_item;
+  const precisaJustificativaLiberar = loteParaLiberar
+    ? precisaJustificativaSemCoa(tipoItemLiberar, temCoaValidado(loteParaLiberar))
+    : false;
+  const opcoesConferenciaLiberar = loteParaLiberar
+    ? getConferenciasObrigatorias(tipoItemLiberar)
+    : [];
+  const pendentesLiberacao = loteParaLiberar
+    ? conferenciasPendentes(tipoItemLiberar, conferencias)
+    : [];
+  const liberarPodeConfirmar =
+    pendentesLiberacao.length === 0 &&
+    (!precisaJustificativaLiberar || justificativa.trim().length >= MIN_JUSTIFICATIVA);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Controle de COA"
-        description="Importar, visualizar e validar certificados de análise dos lotes de matéria-prima recebidos"
+        description="Importar, visualizar e validar certificados de análise dos lotes em estoque"
         icon={FileCheck}
         actions={
           <ImportarCoaNotaSeletor
@@ -678,7 +810,7 @@ export default function CoaQualidadePage() {
             className="pl-10"
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
           <Select
             value={statusFiltro}
@@ -689,9 +821,29 @@ export default function CoaQualidadePage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os status</SelectItem>
-              <SelectItem value="SEM_COA">Sem COA</SelectItem>
-              <SelectItem value="PENDENTE">Pendente</SelectItem>
+              <SelectItem value="COA_DISPENSADO">CoA dispensado</SelectItem>
               <SelectItem value="VALIDADO">Validado</SelectItem>
+              <SelectItem value="PENDENTE">Pendente</SelectItem>
+              <SelectItem value="COA_NA_NOTA">CoA na nota</SelectItem>
+              <SelectItem value="SEM_COA">Sem CoA</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={tipoFiltro}
+            onValueChange={(v) => setTipoFiltro(v as TipoItemFiltro)}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Tipo de item" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os tipos</SelectItem>
+              {(Object.keys(TIPO_ITEM_LABEL) as Exclude<TipoItemFiltro, "todos">[]).map(
+                (tipo) => (
+                  <SelectItem key={tipo} value={tipo}>
+                    {TIPO_ITEM_LABEL[tipo]}
+                  </SelectItem>
+                )
+              )}
             </SelectContent>
           </Select>
           <span className="text-sm text-muted-foreground whitespace-nowrap">
@@ -705,9 +857,24 @@ export default function CoaQualidadePage() {
         columns={columns}
         loading={isLoading}
         searchable={false}
-        emptyMessage="Nenhum lote de matéria-prima encontrado"
+        emptyMessage="Nenhum lote encontrado"
         pageSize={50}
       />
+
+      {importNota && (
+        <ImportarCoaNotaDialog
+          notaId={importNota.id}
+          notaNumero={importNota.numero}
+          open={!!importNota}
+          onOpenChange={(open) => {
+            if (!open) setImportNota(null);
+          }}
+          onDone={() => {
+            setImportNota(null);
+            handleRefresh();
+          }}
+        />
+      )}
 
       <Dialog
         open={dialogLiberarOpen}
@@ -720,12 +887,15 @@ export default function CoaQualidadePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-700">
               <AlertTriangle className="h-5 w-5" />
-              Liberar com ressalva (sem COA validado)
+              {precisaJustificativaLiberar
+                ? "Liberar com ressalva (sem COA validado)"
+                : "Liberar lote para estoque"}
             </DialogTitle>
             <DialogDescription>
-              Liberação <strong>excepcional</strong> de lote em quarentena sem COA validado,
-              sob responsabilidade da RT. A justificativa será registrada permanentemente na
-              rastreabilidade (hash SHA-256) e o lote passará para disponível.
+              A liberação usa a função do servidor (conferências na mesma transação).
+              {precisaJustificativaLiberar
+                ? " Justificativa obrigatória (mín. 30 caracteres) fica na rastreabilidade."
+                : ""}
             </DialogDescription>
           </DialogHeader>
 
@@ -739,50 +909,71 @@ export default function CoaQualidadePage() {
                   Insumo: {loteParaLiberar.item?.descricao_interna || "—"}
                 </p>
                 <p className="text-xs text-amber-700">
-                  COA: {coaStatusLoteLiberar === "PENDENTE" ? "Presente mas não validado" : "Ausente"}
+                  COA: {COA_STATUS_LABEL[coaStatusLoteLiberar || "SEM_COA"]}
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="justificativa-ressalva" className="text-sm font-medium">
-                  Justificativa da RT
-                  <span className="text-destructive ml-1">*</span>
-                </Label>
-                <Textarea
-                  id="justificativa-ressalva"
-                  placeholder="Descreva o motivo excepcional da liberação sem COA validado. Ex.: fornecedor não fornece laudo (psyllium LEPUGE), urgência aprovada pelo RT..."
-                  value={justificativa}
-                  onChange={(e) => setJustificativa(e.target.value)}
-                  rows={4}
-                  className={
-                    justificativa.length > 0 && justificativa.trim().length < MIN_JUSTIFICATIVA
-                      ? "border-destructive"
-                      : ""
-                  }
-                />
-                <div className="flex justify-between">
-                  <p
-                    className={`text-xs ${
-                      justificativa.trim().length >= MIN_JUSTIFICATIVA
-                        ? "text-green-600"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {justificativa.trim().length >= MIN_JUSTIFICATIVA
-                      ? `✓ ${justificativa.trim().length} caracteres`
-                      : `Mínimo ${MIN_JUSTIFICATIVA} caracteres (${justificativa.trim().length}/${MIN_JUSTIFICATIVA})`}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Conferências</Label>
+                {opcoesConferenciaLiberar.map((op) => (
+                  <label key={op.key} className="flex items-start gap-2 text-sm">
+                    <Checkbox
+                      checked={!!conferencias[op.key]}
+                      onCheckedChange={(v) =>
+                        setConferencias((prev) => ({ ...prev, [op.key]: !!v }))
+                      }
+                    />
+                    <span>{op.label}</span>
+                  </label>
+                ))}
+                {pendentesLiberacao.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Falta marcar: {pendentesLiberacao.map((p) => p.label).join(", ")}
                   </p>
-                  <p className="text-xs text-muted-foreground italic">
-                    Registro imutável com hash SHA-256
-                  </p>
-                </div>
+                )}
               </div>
+
+              {precisaJustificativaLiberar && (
+                <div className="space-y-2">
+                  <Label htmlFor="justificativa-ressalva" className="text-sm font-medium">
+                    Justificativa da RT
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <Textarea
+                    id="justificativa-ressalva"
+                    placeholder={PLACEHOLDER_JUSTIFICATIVA_SEM_COA}
+                    value={justificativa}
+                    onChange={(e) => setJustificativa(e.target.value)}
+                    rows={4}
+                    className={
+                      justificativa.length > 0 && justificativa.trim().length < MIN_JUSTIFICATIVA
+                        ? "border-destructive"
+                        : ""
+                    }
+                  />
+                  <div className="flex justify-between">
+                    <p
+                      className={`text-xs ${
+                        justificativa.trim().length >= MIN_JUSTIFICATIVA
+                          ? "text-green-600"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {justificativa.trim().length >= MIN_JUSTIFICATIVA
+                        ? `✓ ${justificativa.trim().length} caracteres`
+                        : `Mínimo ${MIN_JUSTIFICATIVA} caracteres (${justificativa.trim().length}/${MIN_JUSTIFICATIVA})`}
+                    </p>
+                    <p className="text-xs text-muted-foreground italic">
+                      Registro imutável com hash SHA-256
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <Alert className="border-amber-200 bg-amber-50">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-xs text-amber-800">
-                  Esta ação será registrada com seu nome, e-mail e data/hora.
-                  O registro é permanente e não pode ser excluído.
+                  O servidor registra o responsável e o carimbo de tempo. O registro é permanente.
                 </AlertDescription>
               </Alert>
             </div>
@@ -792,21 +983,17 @@ export default function CoaQualidadePage() {
             <Button
               variant="outline"
               onClick={fecharDialogLiberar}
-              disabled={liberarComRessalva.isPending}
+              disabled={liberarLote.isPending}
             >
               Cancelar
             </Button>
             <Button
               variant="default"
               className="bg-amber-600 hover:bg-amber-700"
-              disabled={
-                liberarComRessalva.isPending ||
-                !justificativa.trim() ||
-                justificativa.trim().length < MIN_JUSTIFICATIVA
-              }
-              onClick={confirmarLiberarComRessalva}
+              disabled={liberarLote.isPending || !liberarPodeConfirmar}
+              onClick={confirmarLiberar}
             >
-              {liberarComRessalva.isPending ? "Liberando..." : "Confirmar liberação"}
+              {liberarLote.isPending ? "Liberando..." : "Confirmar liberação"}
             </Button>
           </DialogFooter>
         </DialogContent>

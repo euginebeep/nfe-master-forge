@@ -13231,6 +13231,15 @@ export type Database = {
       is_super_dev: { Args: { _uid?: string }; Returns: boolean }
       item_belongs_to_tenant: { Args: { _iid: string }; Returns: boolean }
       itens_devolviveis: { Args: { p_nota_entrada_id: string }; Returns: Json }
+      /** Liberação de lote em quarentena com conferências por tipo_item. */
+      liberar_lote: {
+        Args: {
+          p_conferencias: Json
+          p_justificativa?: string | null
+          p_lote_id: string
+        }
+        Returns: Json
+      }
       liberar_numero_nfe: {
         Args: {
           p_modelo: string

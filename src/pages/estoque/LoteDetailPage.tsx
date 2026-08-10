@@ -24,6 +24,17 @@ import { carregarDadosEtiquetas, useImprimirEtiquetas } from "@/hooks/useImprimi
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatDate, formatQtdExibicao } from "@/lib/formatters";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  chamarLiberarLote,
+  coaDispensadoParaTipo,
+  conferenciasPendentes,
+  getConferenciasObrigatorias,
+  MIN_JUSTIFICATIVA_SEM_COA,
+  montarConferenciasPayload,
+  PLACEHOLDER_JUSTIFICATIVA_SEM_COA,
+  precisaJustificativaSemCoa,
+} from "@/lib/liberar-lote";
 import { uploadDocumentoLote } from "@/hooks/use-supabase-item-details";
 
 type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
@@ -66,10 +77,11 @@ export default function LoteDetailPage() {
   const [potenciaValor, setPotenciaValor] = useState<number>(0);
   const [initialized, setInitialized] = useState(false);
 
-  // Dialog de liberação sem COA
-  const [dialogLiberarSemCOA, setDialogLiberarSemCOA] = useState(false);
-  const [justificativaSemCOA, setJustificativaSemCOA] = useState("");
-  const [liberandoSemCOA, setLiberandoSemCOA] = useState(false);
+  // Dialog de liberação (RPC liberar_lote)
+  const [dialogLiberar, setDialogLiberar] = useState(false);
+  const [justificativaLiberacao, setJustificativaLiberacao] = useState("");
+  const [conferencias, setConferencias] = useState<Record<string, boolean>>({});
+  const [liberando, setLiberando] = useState(false);
   const [liberacoesSemCOA, setLiberacoesSemCOA] = useState<any[]>([]);
   const [carregandoLiberacoes, setCarregandoLiberacoes] = useState(false);
 
@@ -82,6 +94,10 @@ export default function LoteDetailPage() {
 
   const hasCOA = documentos.some((d: any) => d.tipo_documento === "COA");
   const hasCOAValidado = documentos.some((d: any) => d.tipo_documento === "COA" && d.status_validacao === "VALIDADO");
+  const tipoItem = (item as any)?.tipo_item as string | undefined;
+  const precisaJustificativa = precisaJustificativaSemCoa(tipoItem, hasCOAValidado);
+  const opcoesConferencia = getConferenciasObrigatorias(tipoItem);
+  const pendentesLiberacao = conferenciasPendentes(tipoItem, conferencias);
 
   // Carregar histórico de liberações sem COA quando o lote carrega
   React.useEffect(() => {
@@ -98,44 +114,41 @@ export default function LoteDetailPage() {
       });
   }, [id]);
 
-  const handleLiberarSemCOA = async () => {
+  const abrirDialogLiberar = () => {
+    const inicial: Record<string, boolean> = {};
+    for (const c of getConferenciasObrigatorias(tipoItem)) {
+      inicial[c.key] = false;
+    }
+    setConferencias(inicial);
+    setJustificativaLiberacao("");
+    setDialogLiberar(true);
+  };
+
+  const handleLiberarLote = async () => {
     if (!id || !lote) return;
-    if (justificativaSemCOA.trim().length < 30) {
-      toast.error("A justificativa deve ter no mínimo 30 caracteres.");
+
+    const pendentes = conferenciasPendentes(tipoItem, conferencias);
+    if (pendentes.length > 0) {
+      toast.error(`Marque: ${pendentes.map((p) => p.label).join(", ")}`);
       return;
     }
-    setLiberandoSemCOA(true);
+
+    const justificativaTrim = justificativaLiberacao.trim();
+    if (precisaJustificativa && justificativaTrim.length < MIN_JUSTIFICATIVA_SEM_COA) {
+      toast.error(`A justificativa deve ter no mínimo ${MIN_JUSTIFICATIVA_SEM_COA} caracteres.`);
+      return;
+    }
+
+    setLiberando(true);
     try {
-      // Buscar dados do usuário atual
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email, company_id")
-        .eq("id", user?.id)
-        .single();
+      const resultado = await chamarLiberarLote({
+        loteId: id,
+        conferencias: montarConferenciasPayload(tipoItem, conferencias),
+        justificativa: precisaJustificativa
+          ? justificativaTrim
+          : justificativaTrim || null,
+      });
 
-      // Registrar a liberação sem COA
-      const { error: insertError } = await supabase
-        .from("lote_liberacoes_sem_coa" as any)
-        .insert({
-          lote_id: id,
-          company_id: (profile as any)?.company_id,
-          usuario_id: user?.id,
-          usuario_nome: (profile as any)?.full_name || user?.email || "Operador",
-          usuario_email: user?.email,
-          justificativa: justificativaSemCOA.trim(),
-          status_anterior: lote.status,
-          coa_presente: hasCOA,
-          numero_lote: lote.numero_lote,
-          insumo_nome: (item as any)?.descricao_interna,
-        });
-
-      if (insertError) throw insertError;
-
-      // Liberar o lote
-      await updateLoteStatus.mutateAsync({ id: id!, status: "DISPONIVEL" });
-
-      // Recarregar histórico
       const { data: novasLiberacoes } = await supabase
         .from("lote_liberacoes_sem_coa" as any)
         .select("*")
@@ -143,13 +156,15 @@ export default function LoteDetailPage() {
         .order("created_at", { ascending: false });
       if (novasLiberacoes) setLiberacoesSemCOA(novasLiberacoes as any[]);
 
-      toast.success("Lote liberado. Justificativa registrada na rastreabilidade.");
-      setDialogLiberarSemCOA(false);
-      setJustificativaSemCOA("");
+      queryClient.invalidateQueries({ queryKey: ["lote", id] });
+      const por = resultado.liberado_por ? ` por ${resultado.liberado_por}` : "";
+      toast.success(`Lote liberado${por}. Registro na rastreabilidade.`);
+      setDialogLiberar(false);
+      setJustificativaLiberacao("");
     } catch (err: any) {
-      toast.error("Erro ao liberar lote: " + (err.message || String(err)));
+      toast.error("Erro ao liberar lote: " + (err?.message || err?.code || String(err)));
     } finally {
-      setLiberandoSemCOA(false);
+      setLiberando(false);
     }
   };
 
@@ -260,18 +275,10 @@ export default function LoteDetailPage() {
         <Button 
           variant={lote.status === 'DISPONIVEL' || lote.status === 'APROVADO' ? 'default' : 'outline'}
           className={lote.status === 'APROVADO' ? 'bg-green-600 hover:bg-green-700' : ''}
-          onClick={() => {
-            if (hasCOAValidado) {
-              // COA validado: libera direto
-              updateLoteStatus.mutate({ id: id!, status: 'DISPONIVEL' });
-            } else {
-              // Sem COA validado: abre dialog de justificativa obrigatória
-              setDialogLiberarSemCOA(true);
-            }
-          }}
+          onClick={abrirDialogLiberar}
         >
           <ShieldCheck className="h-4 w-4 mr-2" /> Liberar Produção
-          {!hasCOAValidado && (
+          {precisaJustificativa && (
             <TriangleAlert className="h-3 w-3 ml-1 text-amber-400" />
           )}
         </Button>
@@ -536,18 +543,17 @@ export default function LoteDetailPage() {
         </Card>
       )}
 
-      {/* Dialog: Liberar sem COA */}
-      <Dialog open={dialogLiberarSemCOA} onOpenChange={setDialogLiberarSemCOA}>
+      {/* Dialog: Liberar via RPC liberar_lote */}
+      <Dialog open={dialogLiberar} onOpenChange={setDialogLiberar}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-700">
               <TriangleAlert className="h-5 w-5" />
-              Liberar Lote sem COA Validado
+              Liberar lote para estoque
             </DialogTitle>
             <DialogDescription>
-              Este lote não possui COA validado. A liberação é permitida, mas exige
-              justificativa obrigatória do operador, que será registrada permanentemente
-              na rastreabilidade do lote com hash SHA-256.
+              A liberação passa pela função do servidor (conferências + justificativa quando
+              necessário) e fica registrada na rastreabilidade.
             </DialogDescription>
           </DialogHeader>
 
@@ -556,43 +562,79 @@ export default function LoteDetailPage() {
               <p className="text-xs font-semibold text-amber-800">Lote: {lote.numero_lote}</p>
               <p className="text-xs text-amber-700">Insumo: {(item as any)?.descricao_interna}</p>
               <p className="text-xs text-amber-700">
-                COA: {hasCOA ? 'Presente mas não validado' : 'Ausente'}
+                COA:{" "}
+                {coaDispensadoParaTipo(tipoItem)
+                  ? "Dispensado para este tipo"
+                  : hasCOAValidado
+                    ? "Validado"
+                    : hasCOA
+                      ? "Presente mas não validado"
+                      : "Ausente"}
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="justificativa-sem-coa" className="text-sm font-medium">
-                Justificativa para liberação sem COA
-                <span className="text-destructive ml-1">*</span>
-              </Label>
-              <Textarea
-                id="justificativa-sem-coa"
-                placeholder="Descreva o motivo da liberação sem COA validado. Ex: COA aguardando retorno do fornecedor, urgência de produção aprovada pelo RT..."
-                value={justificativaSemCOA}
-                onChange={(e) => setJustificativaSemCOA(e.target.value)}
-                rows={4}
-                className={justificativaSemCOA.length > 0 && justificativaSemCOA.length < 30 ? 'border-destructive' : ''}
-              />
-              <div className="flex justify-between">
-                <p className={`text-xs ${
-                  justificativaSemCOA.length >= 30 ? 'text-green-600' : 'text-muted-foreground'
-                }`}>
-                  {justificativaSemCOA.length >= 30
-                    ? `✓ ${justificativaSemCOA.length} caracteres`
-                    : `Mínimo 30 caracteres (${justificativaSemCOA.length}/30)`
-                  }
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Conferências</Label>
+              {opcoesConferencia.map((op) => (
+                <label key={op.key} className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={!!conferencias[op.key]}
+                    onCheckedChange={(v) =>
+                      setConferencias((prev) => ({ ...prev, [op.key]: !!v }))
+                    }
+                  />
+                  <span>{op.label}</span>
+                </label>
+              ))}
+              {pendentesLiberacao.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Falta marcar: {pendentesLiberacao.map((p) => p.label).join(", ")}
                 </p>
-                <p className="text-xs text-muted-foreground italic">
-                  Registro imutável com hash SHA-256
-                </p>
-              </div>
+              )}
             </div>
+
+            {precisaJustificativa && (
+              <div className="space-y-2">
+                <Label htmlFor="justificativa-liberacao" className="text-sm font-medium">
+                  Justificativa para liberação sem COA
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+                <Textarea
+                  id="justificativa-liberacao"
+                  placeholder={PLACEHOLDER_JUSTIFICATIVA_SEM_COA}
+                  value={justificativaLiberacao}
+                  onChange={(e) => setJustificativaLiberacao(e.target.value)}
+                  rows={4}
+                  className={
+                    justificativaLiberacao.length > 0 &&
+                    justificativaLiberacao.trim().length < MIN_JUSTIFICATIVA_SEM_COA
+                      ? "border-destructive"
+                      : ""
+                  }
+                />
+                <div className="flex justify-between">
+                  <p
+                    className={`text-xs ${
+                      justificativaLiberacao.trim().length >= MIN_JUSTIFICATIVA_SEM_COA
+                        ? "text-green-600"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {justificativaLiberacao.trim().length >= MIN_JUSTIFICATIVA_SEM_COA
+                      ? `✓ ${justificativaLiberacao.trim().length} caracteres`
+                      : `Mínimo ${MIN_JUSTIFICATIVA_SEM_COA} caracteres (${justificativaLiberacao.trim().length}/${MIN_JUSTIFICATIVA_SEM_COA})`}
+                  </p>
+                  <p className="text-xs text-muted-foreground italic">
+                    Registro imutável com hash SHA-256
+                  </p>
+                </div>
+              </div>
+            )}
 
             <Alert className="border-amber-200 bg-amber-50">
               <TriangleAlert className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-xs text-amber-800">
-                Esta ação será registrada com seu nome, e-mail, data/hora e IP.
-                O registro é permanente e não pode ser excluído.
+                O servidor registra o responsável e o carimbo de tempo. O registro é permanente.
               </AlertDescription>
             </Alert>
           </div>
@@ -600,20 +642,28 @@ export default function LoteDetailPage() {
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
-              onClick={() => { setDialogLiberarSemCOA(false); setJustificativaSemCOA(""); }}
-              disabled={liberandoSemCOA}
+              onClick={() => {
+                setDialogLiberar(false);
+                setJustificativaLiberacao("");
+              }}
+              disabled={liberando}
             >
               Cancelar
             </Button>
             <Button
-              onClick={handleLiberarSemCOA}
-              disabled={justificativaSemCOA.trim().length < 30 || liberandoSemCOA}
+              onClick={handleLiberarLote}
+              disabled={
+                liberando ||
+                pendentesLiberacao.length > 0 ||
+                (precisaJustificativa &&
+                  justificativaLiberacao.trim().length < MIN_JUSTIFICATIVA_SEM_COA)
+              }
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
-              {liberandoSemCOA ? (
+              {liberando ? (
                 <><span className="animate-spin mr-2">&#9696;</span> Registrando...</>
               ) : (
-                <><ShieldCheck className="h-4 w-4 mr-2" /> Liberar e Registrar Justificativa</>
+                <><ShieldCheck className="h-4 w-4 mr-2" /> Confirmar liberação</>
               )}
             </Button>
           </DialogFooter>
