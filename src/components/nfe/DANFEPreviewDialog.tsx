@@ -5,7 +5,7 @@ import { Printer } from "lucide-react";
 import { RodapeBrainX } from "@/components/shared/RodapeBrainX";
 import { APP_VERSION } from "@/lib/app-version";
 import { ehDanfePrevia } from "@/lib/erros-fiscais";
-import { DanfeBarcode } from "@/components/nfe/DanfeBarcode";
+import { CodigoBarrasChave } from "@/components/nfe/CodigoBarrasChave";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -288,6 +288,8 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
         }
         .danfe { width: 200mm; font-size: 8pt; }
         .danfe td, .danfe th { border: 0.5pt solid #000; padding: 1pt 2pt; }
+        .danfe svg { shape-rendering: crispEdges; }
+        .danfe svg rect { fill: #000 !important; }
         .no-print { display: none !important; }
         .danfe-page { page-break-after: always; }
         .danfe-page:last-child { page-break-after: auto; }
@@ -488,9 +490,7 @@ export function DANFEPreviewDialog({ open, onOpenChange, data }: DANFEPreviewDia
           <td colSpan={8} style={{ ...cellStyle, verticalAlign: "top", padding: "4px" }}>
             {!isRascunhoSemValor ? (
               <>
-                <div style={{ height: "40px", marginBottom: "4px" }}>
-                  <DanfeBarcode chaveAcesso={data.chave_acesso} />
-                </div>
+                <CodigoBarrasChave chave={data.chave_acesso} />
                 <div style={{ fontSize: "6pt", textAlign: "center" }}>
                   <b>CHAVE DE ACESSO</b><br />
                   <span style={{ fontFamily: "'Courier New', monospace", fontSize: "7.5pt", letterSpacing: "0.5px" }}>
