@@ -26,6 +26,8 @@ import { EntidadeFormDialogComplete } from "@/components/entidades/EntidadeFormD
 import { downloadCSV } from "@/lib/export-utils";
 import { toast } from "sonner";
 import { TenantAccessDiagnostic } from "@/components/diagnostics/TenantAccessDiagnostic";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "error"> = {
   ATIVO: "success",
@@ -42,6 +44,10 @@ const CLASSIFICACAO_VARIANTS: Record<string, "success" | "info" | "error" | "war
   PROBLEMA: "error",
 };
 
+function cmunValido(cmun?: string | null) {
+  return /^[0-9]{7}$/.test(String(cmun || "").trim());
+}
+
 export default function ClientesListPage() {
   const navigate = useNavigate();
   const { canCreate, canDelete, role } = useAuth();
@@ -54,6 +60,31 @@ export default function ClientesListPage() {
   const { data: entidades = [], isLoading, refetch } = useHybridEntidades({
     papel: "CLIENTE",
     status: statusFilter !== "all" ? statusFilter : undefined,
+  });
+
+  const clienteIds = entidades.map((e) => e.id);
+
+  const { data: clientesSemIbge = 0 } = useQuery({
+    queryKey: ["clientes-sem-cmun", clienteIds.join(",")],
+    enabled: clienteIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("entidade_enderecos")
+        .select("entidade_id, cmun")
+        .in("entidade_id", clienteIds);
+      if (error) throw error;
+      const sem = new Set(
+        (data || [])
+          .filter((e) => !cmunValido(e.cmun))
+          .map((e) => e.entidade_id),
+      );
+      // Também clientes sem nenhum endereço
+      for (const id of clienteIds) {
+        const temEndereco = (data || []).some((e) => e.entidade_id === id);
+        if (!temEndereco) sem.add(id);
+      }
+      return sem.size;
+    },
   });
 
   const deleteEntidade = useDeleteEntidade();
@@ -233,6 +264,18 @@ export default function ClientesListPage() {
                   Entendido, cancelar
                 </Button>
               </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {clientesSemIbge > 0 && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Cadastro incompleto para NF-e</AlertTitle>
+            <AlertDescription>
+              {clientesSemIbge} cliente{clientesSemIbge === 1 ? "" : "s"} sem código IBGE do
+              município — não é possível emitir NF-e para {clientesSemIbge === 1 ? "ele" : "eles"}.
+              Abra o cadastro e busque o CEP para preencher o cMun automaticamente.
             </AlertDescription>
           </Alert>
         )}

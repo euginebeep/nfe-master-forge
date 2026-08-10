@@ -35,6 +35,7 @@ import {
   PLACEHOLDER_JUSTIFICATIVA_SEM_COA,
   precisaJustificativaSemCoa,
 } from "@/lib/liberar-lote";
+import { uploadDocumentoLote } from "@/hooks/use-supabase-item-details";
 
 type TipoPotencia = "NENHUMA" | "UI_POR_GRAMA" | "MG_POR_GRAMA" | "PERCENTUAL";
 
@@ -195,35 +196,24 @@ export default function LoteDetailPage() {
     const file = e.target.files?.[0];
     if (!file || !id) return;
 
-    // Upload to storage
-    const storageKey = `lote-docs/${id}/${Date.now()}-${file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from("erp-files")
-      .upload(storageKey, file);
+    try {
+      if (
+        hasCOA &&
+        !window.confirm("Este lote já possui um CoA anexado. Anexar mesmo assim?")
+      ) {
+        return;
+      }
 
-    if (uploadError) {
-      toast.error("Erro ao fazer upload: " + uploadError.message);
-      return;
-    }
-
-    // Create document record
-    const { error } = await supabase
-      .from("lote_documentos")
-      .insert({
-        lote_id: id,
-        tipo_documento: "COA",
-        arquivo_nome: file.name,
-        arquivo_tipo: file.type,
-        arquivo_size: file.size,
-        storage_key: storageKey,
-        status_validacao: "PENDENTE",
-      } as any);
-
-    if (error) {
-      toast.error("Erro ao registrar documento: " + error.message);
-    } else {
+      await uploadDocumentoLote(id, file, "COA");
       toast.success("COA anexado com sucesso");
       queryClient.invalidateQueries({ queryKey: ["lote", id] });
+      queryClient.invalidateQueries({ queryKey: ["lote-documentos", id] });
+    } catch (error: any) {
+      const msg = error?.message || error?.code || "falha desconhecida";
+      toast.error("Erro ao anexar COA: " + msg);
+    } finally {
+      // Sem isso, selecionar o mesmo arquivo de novo não dispara onChange
+      e.target.value = "";
     }
   };
 
